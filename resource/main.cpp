@@ -1,0 +1,23 @@
+
+#include <QApplication>
+
+#include "common/console.h"
+#include "listener.h"
+
+int main(int argc, char *argv[])
+{
+    QApplication app(argc, argv);
+
+    new Console(QString("Toy Resource: %1").arg(argv[1]));
+    if (argc < 2) {
+        Console::main()->log("Not enough args");
+        return app.exec();
+    }
+
+    Listener *listener = new Listener(argv[1]);
+
+    QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                     listener, &Listener::closeAllConnections);
+
+    return app.exec();
+}
