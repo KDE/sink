@@ -17,6 +17,7 @@ public:
 
     QString name;
     QLocalSocket *socket;
+    QByteArray commandBuffer;
     bool hasSentCommand;
 };
 
@@ -38,6 +39,7 @@ private Q_SLOTS:
     void acceptConnection();
     void clientDropped();
     void checkConnections();
+    void readFromSocket();
 
 private:
     QLocalServer *m_server;

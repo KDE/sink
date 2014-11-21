@@ -35,29 +35,38 @@ Listener::~Listener()
 void Listener::closeAllConnections()
 {
     //TODO: close all client connectionsin m_connections
+    for (Client &client: m_connections) {
+        if (client.socket) {
+            client.socket->close();
+            delete client.socket;
+            client.socket = 0;
+        }
+    }
 }
 
 void Listener::acceptConnection()
 {
     Console::main()->log(QString("Accepting connection"));
-    QLocalSocket *connection = m_server->nextPendingConnection();
+    QLocalSocket *socket = m_server->nextPendingConnection();
 
-    if (!connection) {
+    if (!socket) {
         return;
     }
 
     Console::main()->log("Got a connection");
-    Client client("Unknown Client" /*fixme: actual names!*/, connection);
+    Client client("Unknown Client" /*fixme: actual names!*/, socket);
+    connect(socket, &QIODevice::readyRead,
+            this, &Listener::readFromSocket);
     m_connections << client;
-    connect(connection, &QLocalSocket::disconnected,
+    connect(socket, &QLocalSocket::disconnected,
             this, &Listener::clientDropped);
 
 }
 
 void Listener::clientDropped()
 {
-    QLocalSocket *connection = qobject_cast<QLocalSocket *>(sender());
-    if (!connection) {
+    QLocalSocket *socket = qobject_cast<QLocalSocket *>(sender());
+    if (!socket) {
         return;
     }
 
@@ -65,7 +74,7 @@ void Listener::clientDropped()
     QMutableListIterator<Client> it(m_connections);
     while (it.hasNext()) {
         const Client &client = it.next();
-        if (client.socket == connection) {
+        if (client.socket == socket) {
             Console::main()->log(QString("    dropped... %1").arg(client.name));
             it.remove();
             break;
@@ -81,4 +90,25 @@ void Listener::checkConnections()
         m_server->close();
         emit noClients();
     }
+}
+
+void Listener::readFromSocket()
+{
+    QLocalSocket *socket = qobject_cast<QLocalSocket *>(sender());
+    if (!socket) {
+        return;
+    }
+
+    Console::main()->log("Reading from socket...");
+    QMutableListIterator<Client> it(m_connections);
+    while (it.hasNext()) {
+        Client &client = it.next();
+        if (client.socket == socket) {
+            Console::main()->log(QString("    Client: %1").arg(client.name));
+            client.commandBuffer += socket->readAll();
+            Console::main()->log(QString("    Command: %1").arg(QString(client.commandBuffer)));
+            break;
+        }
+    }
+
 }
