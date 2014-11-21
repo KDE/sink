@@ -64,6 +64,7 @@ void ResourceAccess::connected()
 {
     m_startingProcess = false;
     Console::main()->log(QString("Connected: %1").arg(m_socket->fullServerName()));
+    m_socket->write("100 command " + QString::number((long long)this).toLatin1());
     emit ready(true);
 }
 
