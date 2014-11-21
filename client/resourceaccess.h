@@ -2,6 +2,7 @@
 
 #include <QLocalSocket>
 #include <QObject>
+#include <QTimer>
 
 class ResourceAccess : public QObject
 {
@@ -29,5 +30,6 @@ private Q_SLOTS:
 private:
     QString m_resourceName;
     QLocalSocket *m_socket;
+    QTimer *m_tryOpenTimer;
     bool m_startingProcess;
 };

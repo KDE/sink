@@ -9,8 +9,14 @@ ResourceAccess::ResourceAccess(const QString &resourceName, QObject *parent)
     : QObject(parent),
       m_resourceName(resourceName),
       m_socket(new QLocalSocket(this)),
+      m_tryOpenTimer(new QTimer(this)),
       m_startingProcess(false)
 {
+    m_tryOpenTimer->setInterval(50);
+    m_tryOpenTimer->setSingleShot(true);
+    connect(m_tryOpenTimer, &QTimer::timeout,
+           this, &ResourceAccess::open);
+
     Console::main()->log(QString("Starting access to %1").arg(m_socket->serverName()));
     connect(m_socket, &QLocalSocket::connected,
             this, &ResourceAccess::connected);
@@ -37,17 +43,8 @@ bool ResourceAccess::isReady() const
 
 void ResourceAccess::open()
 {
-    static int count = 0;
-    if (m_startingProcess) {
-        QMetaObject::invokeMethod(this, "open", Qt::QueuedConnection);
-    }
-
     if (m_socket->isValid()) {
-        return;
-    }
-
-    ++count;
-    if (count > 10000) {
+        Console::main()->log("Socket valid, so aborting the open");
         return;
     }
 
@@ -72,15 +69,19 @@ void ResourceAccess::connected()
 
 void ResourceAccess::disconnected()
 {
+    m_socket->close();
     Console::main()->log(QString("Disconnected: %1").arg(m_socket->fullServerName()));
     emit ready(false);
+    open();
 }
 
 void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
 {
     Console::main()->log(QString("Could not connect to %1 due to error %2").arg(m_socket->serverName()).arg(error));
     if (m_startingProcess) {
-        QMetaObject::invokeMethod(this, "open", Qt::QueuedConnection);
+        if (!m_tryOpenTimer->isActive()) {
+            m_tryOpenTimer->start();
+        }
         return;
     }
 
