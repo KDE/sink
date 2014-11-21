@@ -3,6 +3,7 @@
 #include "common/console.h"
 
 #include <QLocalSocket>
+#include <QTimer>
 
 Listener::Listener(const QString &resource, QObject *parent)
     : QObject(parent),
@@ -23,6 +24,8 @@ Listener::Listener(const QString &resource, QObject *parent)
     if (m_server->isListening()) {
         Console::main()->log(QString("Listening on %1").arg(m_server->serverName()));
     }
+
+    QTimer::singleShot(2000, this, SLOT(checkConnections()));
 }
 
 Listener::~Listener()
@@ -67,5 +70,15 @@ void Listener::clientDropped()
             it.remove();
             break;
         }
+    }
+
+    checkConnections();
+}
+
+void Listener::checkConnections()
+{
+    if (m_connections.isEmpty()) {
+        m_server->close();
+        emit noClients();
     }
 }

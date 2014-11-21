@@ -20,9 +20,14 @@ public:
 
 class Listener : public QObject
 {
+    Q_OBJECT
+
 public:
     Listener(const QString &resourceName, QObject *parent = 0);
     ~Listener();
+
+Q_SIGNALS:
+    void noClients();
 
 public Q_SLOTS:
     void closeAllConnections();
@@ -30,6 +35,7 @@ public Q_SLOTS:
 private Q_SLOTS:
     void acceptConnection();
     void clientDropped();
+    void checkConnections();
 
 private:
     QLocalServer *m_server;
