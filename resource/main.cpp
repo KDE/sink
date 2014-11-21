@@ -18,6 +18,8 @@ int main(int argc, char *argv[])
 
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      listener, &Listener::closeAllConnections);
+    QObject::connect(listener, &Listener::noClients,
+                     &app, &QCoreApplication::quit);
 
     return app.exec();
 }
