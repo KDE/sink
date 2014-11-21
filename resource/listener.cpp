@@ -47,7 +47,7 @@ void Listener::acceptConnection()
     }
 
     Console::main()->log("Got a connection");
-    Client client(connection);
+    Client client("Unknown Client" /*fixme: actual names!*/, connection);
     m_connections << client;
     connect(connection, &QLocalSocket::disconnected,
             this, &Listener::clientDropped);
@@ -65,8 +65,8 @@ void Listener::clientDropped()
     QMutableListIterator<Client> it(m_connections);
     while (it.hasNext()) {
         const Client &client = it.next();
-        if (client.m_socket == connection) {
-            Console::main()->log("    dropped...");
+        if (client.socket == connection) {
+            Console::main()->log(QString("    dropped... %1").arg(client.name));
             it.remove();
             break;
         }

@@ -8,14 +8,16 @@
 class Client
 {
 public:
-    Client(QLocalSocket *s)
-        : m_socket(s),
-          m_commanded(false)
+    Client(const QString &n, QLocalSocket *s)
+        : name(n),
+          socket(s),
+          hasSentCommand(false)
     {
     }
 
-    QLocalSocket *m_socket;
-    bool m_commanded;
+    QString name;
+    QLocalSocket *socket;
+    bool hasSentCommand;
 };
 
 class Listener : public QObject
