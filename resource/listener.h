@@ -42,6 +42,7 @@ private Q_SLOTS:
     void readFromSocket();
 
 private:
+    void processClientBuffer(Client &client);
     QLocalServer *m_server;
     QList<Client> m_connections;
 };

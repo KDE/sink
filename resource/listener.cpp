@@ -1,6 +1,7 @@
 #include "listener.h"
 
 #include "common/console.h"
+#include "common/commands.h"
 
 #include <QLocalSocket>
 #include <QTimer>
@@ -106,9 +107,37 @@ void Listener::readFromSocket()
         if (client.socket == socket) {
             Console::main()->log(QString("    Client: %1").arg(client.name));
             client.commandBuffer += socket->readAll();
-            Console::main()->log(QString("    Command: %1").arg(QString(client.commandBuffer)));
+            processClientBuffer(client);
             break;
         }
     }
+}
 
+void Listener::processClientBuffer(Client &client)
+{
+    static const int headerSize = (sizeof(int) * 2);
+    Console::main()->log(QString("processing %1").arg(client.commandBuffer.size()));
+    if (client.commandBuffer.size() < headerSize) {
+        return;
+    }
+
+    int commandId, size;
+    commandId = *(int*)client.commandBuffer.constData();
+    size = *(int*)(client.commandBuffer.constData() + sizeof(int));
+
+    if (size <= client.commandBuffer.size() - headerSize) {
+        QByteArray data = client.commandBuffer.mid(headerSize, size);
+        client.commandBuffer.remove(0, headerSize + size);
+
+        switch (commandId) {
+            case Commands::HandshakeCommand:
+                client.name = data;
+                Console::main()->log(QString("    Handshake from %1").arg(client.name));
+                //TODO: reply?
+                break;
+            default:
+                // client.hasSentCommand = true;
+                break;
+        }
+    }
 }

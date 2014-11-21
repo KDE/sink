@@ -1,6 +1,7 @@
 #include "resourceaccess.h"
 
 #include "common/console.h"
+#include "common/commands.h"
 
 #include <QDebug>
 #include <QProcess>
@@ -64,7 +65,16 @@ void ResourceAccess::connected()
 {
     m_startingProcess = false;
     Console::main()->log(QString("Connected: %1").arg(m_socket->fullServerName()));
-    m_socket->write("100 command " + QString::number((long long)this).toLatin1());
+
+    {
+        const QByteArray name = QString::number((long long)this).toLatin1();
+        const int commandId = Commands::HandshakeCommand;
+        const int dataSize = name.size();
+        m_socket->write((const char*)&commandId, sizeof(int));
+        m_socket->write((const char*)&dataSize, sizeof(int));
+        m_socket->write(name.data(), name.size());
+    }
+
     emit ready(true);
 }
 
