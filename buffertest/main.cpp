@@ -1,16 +1,24 @@
 #include "calendar_generated.h"
 #include <iostream>
 #include <fstream>
+#include <QDir>
+#include <QString>
+#include <QTime>
+#include <qdebug.h>
+
+#include "store/database.h"
 
 using namespace Calendar;
 using namespace flatbuffers;
 
-std::string createEvent()
+std::string createEvent(bool createAttachment = false)
 {
     FlatBufferBuilder fbb;
     {
         auto summary = fbb.CreateString("summary");
-        const int attachmentSize = 1024 * 1024; // 1MB
+
+        // const int attachmentSize = 1024 * 1024; // 1MB
+        const int attachmentSize = 1024*2; // 1KB
         int8_t rawData[attachmentSize];
         auto data = fbb.CreateVector(rawData, attachmentSize);
 
@@ -31,8 +39,29 @@ void readEvent(const std::string &data)
 
 int main(int argc, char **argv)
 {
-    std::ofstream myfile;
-    myfile.open ("buffer.fb");
-    myfile << createEvent();
-    myfile.close();
+    Database db;
+    const int count = 50000;
+    QTime time;
+    time.start();
+    // std::ofstream myfile;
+    // myfile.open ("buffer.fb");
+    //
+    auto transaction = db.startTransaction();
+    for (int i = 0; i < count; i++) {
+        const auto key = QString("key%1").arg(i);
+        auto event = createEvent(true);
+        db.write(key.toStdString(), event, transaction);
+
+        // myfile << createEvent();
+    }
+    db.endTransaction(transaction);
+    // myfile.close();
+    qDebug() << "Writing took: " << time.elapsed();
+
+    time.start();
+    for (int i = 0; i < count; i++) {
+        const auto key = QString("key%1").arg(i);
+        db.read(key.toStdString());
+    }
+    qDebug() << "Reading took: " << time.elapsed();
 }

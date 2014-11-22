@@ -2,7 +2,10 @@ project(toynadi_buffertest)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
+set(store_path "../store/")
+
 set(toynadinbuffertest_SRCS
+    ${store_path}/database.cpp
     main.cpp
 )
 
@@ -22,5 +25,6 @@ ADD_CUSTOM_TARGET(generate_buffers ALL DEPENDS ${SCHEMA_SOURCEFILES})
 
 add_executable(${PROJECT_NAME} ${toynadinbuffertest_SRCS})
 qt5_use_modules(${PROJECT_NAME} Core)
+target_link_libraries(${PROJECT_NAME} lmdb)
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 
