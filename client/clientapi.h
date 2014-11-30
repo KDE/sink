@@ -6,6 +6,20 @@
 #include <functional>
 #include "store/database.h"
 
+namespace async {
+    //This should abstract if we execute from eventloop or in thread.
+    //It supposed to allow the caller to finish the current method before executing the runner.
+    void run(const std::function<void()> &runner) {
+        //FIXME we should be using a Job instead of a timer
+        auto timer = new QTimer;
+        timer->setSingleShot(true);
+        QObject::connect(timer, &QTimer::timeout, runner);
+        QObject::connect(timer, &QTimer::timeout, timer, &QObject::deleteLater);
+        timer->start(0);
+    };
+
+}
+
 namespace ClientAPI {
 
 /**
@@ -133,6 +147,11 @@ private:
  * It probably also makes sense to have a domain specific part of the query,
  * such as what properties we're interested in (necessary information for on-demand
  * loading of data).
+ *
+ * The query defines:
+ * * what resources to search
+ * * filters on various properties (parent collection, startDate range, ....)
+ * * properties we need (for on-demand querying)
  */
 class Query
 {
@@ -210,7 +229,7 @@ public:
     void load(const Query &query, const std::function<void(const Event &)> &resultCallback) {
         //retrieve buffers from storage
         QList<EventBuffer> queryresult;
-        foreach(const EventBuffer &buffer, queryresult) {
+        for(const EventBuffer &buffer : queryresult) {
             resultCallback(transformToDomainType(buffer));
         }
     }
@@ -244,6 +263,8 @@ public:
 
 /**
  * Store interface used in the client API
+ *
+ * TODO: For testing we need to be able to inject dummy StoreFacades.
  */
 class Store {
 public:
@@ -255,17 +276,17 @@ public:
     {
         QSharedPointer<ResultProvider<DomainType> > resultSet(new ResultProvider<DomainType>);
 
-        //Create a job that executes the search function.
+        //Execute the search in a thread.
         //We must guarantee that the emitter is returned before the first result is emitted.
-        //The thread boundary handling is implemented in the result provider.
-        // QtConcurrent::run([provider, resultSet](){
-        //     // Query all resources and aggregate results
-        //     // query tells us in which resources we're interested
-        //     for(const auto &resource, query.resources()) {
-        //         auto facade = FacadeFactory::getFacade(resource);
-        //         facade.load<DomainType>(query, resultSet.add);
-        //     }
-        // });
+        //The result provider must be threadsafe.
+        async::run([resultSet, query](){
+            // Query all resources and aggregate results
+            // query tells us in which resources we're interested
+            for(const QString &resource : query.resources()) {
+                auto facade = FacadeFactory::getFacade<DomainType>(resource);
+                facade.load(query, resultSet.add);
+            }
+        });
         return resultSet->emitter();
     }
 
