@@ -20,10 +20,14 @@ include(ECMPackageConfigHelpers)
 
 find_package(Qt5Core REQUIRED)
 find_package(FlatBuffers REQUIRED)
-function(generate_flatbuffers dest)
-    # TODO: move the file from ${fbs}_generated.h to just ${fbs}?
+function(generate_flatbuffers)
     foreach(fbs ${ARGN})
-       execute_process(COMMAND ${FLATBUFFERS_FLATC_EXECUTABLE} -c -b --gen-includes -o ${dest} ${CMAKE_CURRENT_SOURCE_DIR}/${fbs})
+       message("making ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h from ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs")
+       add_custom_command(
+              OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h
+              COMMAND ${FLATBUFFERS_FLATC_EXECUTABLE} -c -b --gen-includes -o ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs
+              DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs
+            )
     endforeach(fbs)
 endfunction(generate_flatbuffers)
 
