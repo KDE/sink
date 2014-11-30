@@ -5,6 +5,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 set(toynadiclient_SRCS
     main.cpp
     resourceaccess.cpp
+    ../common/handshake_generated.h
 )
 
 add_executable(${PROJECT_NAME} ${toynadiclient_SRCS})
