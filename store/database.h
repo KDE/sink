@@ -1,9 +1,10 @@
 #include <lmdb.h>
 #include <string>
+#include <QString>
 
 class Database {
 public:
-    Database();
+    Database(const QString &path);
     ~Database();
     MDB_txn *startTransaction();
     void endTransaction(MDB_txn *transaction);

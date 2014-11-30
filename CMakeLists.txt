@@ -47,7 +47,7 @@ add_subdirectory(client)
 # the resource
 add_subdirectory(resource)
 
-# the buffertest
-add_subdirectory(buffertest)
+# the store
+add_subdirectory(store)
 
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)

@@ -6,16 +6,16 @@
 #include <QTime>
 #include <qdebug.h>
 
-Database::Database()
+Database::Database(const QString &path)
 {
     int rc;
 
     QDir dir;
-    dir.mkdir("./testdb");
+    dir.mkdir(path);
 
     //create file
     rc = mdb_env_create(&env);
-    rc = mdb_env_open(env, "./testdb", 0, 0664);
+    rc = mdb_env_open(env, path.toStdString().data(), 0, 0664);
     const int dbSize = 10485760*100; //10MB * 100
     mdb_env_set_mapsize(env, dbSize);
 
