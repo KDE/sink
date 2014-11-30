@@ -2,7 +2,7 @@
 
 #include "common/console.h"
 #include "common/commands.h"
-#include "common/commands/handshake_generated.h"
+#include "common/handshake_generated.h"
 
 #include <QLocalSocket>
 #include <QTimer>
