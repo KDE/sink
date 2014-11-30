@@ -28,6 +28,9 @@ function(generate_flatbuffers)
               COMMAND ${FLATBUFFERS_FLATC_EXECUTABLE} -c -b --gen-includes -o ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs
               DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs
             )
+       set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h PROPERTIES GENERATED 1)
+       string(REGEX REPLACE "/" "_" target_name ${fbs})
+       add_custom_target(generate_bindings${target_name} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h)
     endforeach(fbs)
 endfunction(generate_flatbuffers)
 
