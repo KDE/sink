@@ -2,6 +2,7 @@
 
 #include "common/console.h"
 #include "common/commands.h"
+#include "common/commands/handshake_generated.h"
 
 #include <QDebug>
 #include <QProcess>
@@ -67,12 +68,15 @@ void ResourceAccess::connected()
     Console::main()->log(QString("Connected: %1").arg(m_socket->fullServerName()));
 
     {
-        const QByteArray name = QString::number((long long)this).toLatin1();
+        flatbuffers::FlatBufferBuilder fbb;
+        auto name = fbb.CreateString("Client PID: " + QString::number((long long)this).toLatin1() + "!");
+        auto command = Toynadi::CreateHandshake(fbb, name);
+        Toynadi::FinishHandshakeBuffer(fbb, command);
         const int commandId = Commands::HandshakeCommand;
-        const int dataSize = name.size();
+        const int dataSize = fbb.GetSize();
         m_socket->write((const char*)&commandId, sizeof(int));
         m_socket->write((const char*)&dataSize, sizeof(int));
-        m_socket->write(name.data(), name.size());
+        m_socket->write((const char*)fbb.GetBufferPointer(), dataSize);
     }
 
     emit ready(true);

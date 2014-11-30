@@ -1,0 +1,9 @@
+
+namespace Toynadi;
+
+table Handshake {
+    name: string;
+}
+
+root_type Handshake;
+

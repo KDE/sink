@@ -2,6 +2,7 @@
 
 #include "common/console.h"
 #include "common/commands.h"
+#include "common/commands/handshake_generated.h"
 
 #include <QLocalSocket>
 #include <QTimer>
@@ -130,11 +131,12 @@ void Listener::processClientBuffer(Client &client)
         client.commandBuffer.remove(0, headerSize + size);
 
         switch (commandId) {
-            case Commands::HandshakeCommand:
-                client.name = data;
-                Console::main()->log(QString("    Handshake from %1").arg(client.name));
+            case Commands::HandshakeCommand: {
+                auto buffer = Toynadi::GetHandshake(data.constData());
+                Console::main()->log(QString("    Handshake from %1").arg(buffer->name()->c_str()));
                 //TODO: reply?
                 break;
+            }
             default:
                 // client.hasSentCommand = true;
                 break;
