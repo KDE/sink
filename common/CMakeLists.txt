@@ -1,5 +1,6 @@
 project(toynadicommon)
-generate_flatbuffers(commands/handshake)
+generate_flatbuffers(commands/handshake
+                     commands/revisionupdate)
 
 set(command_SRCS
    console.cpp

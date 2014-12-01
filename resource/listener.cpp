@@ -3,13 +3,15 @@
 #include "common/console.h"
 #include "common/commands.h"
 #include "common/handshake_generated.h"
+#include "common/revisionupdate_generated.h"
 
 #include <QLocalSocket>
 #include <QTimer>
 
 Listener::Listener(const QString &resource, QObject *parent)
     : QObject(parent),
-      m_server(new QLocalServer(this))
+      m_server(new QLocalServer(this)),
+      m_revision(0)
 {
     connect(m_server, &QLocalServer::newConnection,
              this, &Listener::acceptConnection);
@@ -32,6 +34,19 @@ Listener::Listener(const QString &resource, QObject *parent)
 
 Listener::~Listener()
 {
+}
+
+void Listener::setRevision(unsigned long long revision)
+{
+    if (m_revision != revision) {
+        m_revision = revision;
+        updateClientsWithRevision();
+    }
+}
+
+unsigned long long Listener::revision() const
+{
+    return m_revision;
 }
 
 void Listener::closeAllConnections()
@@ -73,7 +88,7 @@ void Listener::clientDropped()
     }
 
     Console::main()->log("Dropping connection...");
-    QMutableListIterator<Client> it(m_connections);
+    QMutableVectorIterator<Client> it(m_connections);
     while (it.hasNext()) {
         const Client &client = it.next();
         if (client.socket == socket) {
@@ -102,24 +117,25 @@ void Listener::readFromSocket()
     }
 
     Console::main()->log("Reading from socket...");
-    QMutableListIterator<Client> it(m_connections);
-    while (it.hasNext()) {
-        Client &client = it.next();
+    for (Client &client: m_connections) {
         if (client.socket == socket) {
             Console::main()->log(QString("    Client: %1").arg(client.name));
             client.commandBuffer += socket->readAll();
-            processClientBuffer(client);
+            // FIXME: schedule these rather than process them all at once
+            //        right now this can lead to starvation of clients due to
+            //        one overly active client
+            while (processClientBuffer(client)) {}
             break;
         }
     }
 }
 
-void Listener::processClientBuffer(Client &client)
+bool Listener::processClientBuffer(Client &client)
 {
     static const int headerSize = (sizeof(int) * 2);
     Console::main()->log(QString("processing %1").arg(client.commandBuffer.size()));
     if (client.commandBuffer.size() < headerSize) {
-        return;
+        return false;
     }
 
     int commandId, size;
@@ -134,12 +150,50 @@ void Listener::processClientBuffer(Client &client)
             case Commands::HandshakeCommand: {
                 auto buffer = Toynadi::GetHandshake(data.constData());
                 Console::main()->log(QString("    Handshake from %1").arg(buffer->name()->c_str()));
-                //TODO: reply?
+                sendCurrentRevision(client);
                 break;
             }
             default:
                 // client.hasSentCommand = true;
                 break;
         }
+
+        return client.commandBuffer.size() >= headerSize;
+    } else {
+        return false;
+    }
+}
+
+void Listener::sendCurrentRevision(Client &client)
+{
+    if (!client.socket || !client.socket->isValid()) {
+        return;
+    }
+
+    flatbuffers::FlatBufferBuilder fbb;
+    auto command = Toynadi::CreateRevisionUpdate(fbb, m_revision);
+    Toynadi::FinishRevisionUpdateBuffer(fbb, command);
+    const int commandId = Commands::RevisionUpdateCommand;
+    const int dataSize = fbb.GetSize();
+    client.socket->write((const char*)&commandId, sizeof(int));
+    client.socket->write((const char*)&dataSize, sizeof(int));
+    client.socket->write((const char*)fbb.GetBufferPointer(), dataSize);
+}
+
+void Listener::updateClientsWithRevision()
+{
+    flatbuffers::FlatBufferBuilder fbb;
+    auto command = Toynadi::CreateRevisionUpdate(fbb, m_revision);
+    Toynadi::FinishRevisionUpdateBuffer(fbb, command);
+    const int commandId = Commands::RevisionUpdateCommand;
+    const int dataSize = fbb.GetSize();
+
+    for (const Client &client: m_connections) {
+        if (!client.socket || !client.socket->isValid()) {
+            continue;
+        }
+        client.socket->write((const char*)&commandId, sizeof(int));
+        client.socket->write((const char*)&dataSize, sizeof(int));
+        client.socket->write((const char*)fbb.GetBufferPointer(), dataSize);
     }
 }

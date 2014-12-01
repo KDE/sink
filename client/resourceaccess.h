@@ -21,15 +21,19 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void ready(bool isReady);
+    void revisionChanged(unsigned long long revision);
 
 private Q_SLOTS:
     void connected();
     void disconnected();
     void connectionError(QLocalSocket::LocalSocketError error);
+    void readResourceMessage();
+    bool processMessageBuffer();
 
 private:
     QString m_resourceName;
     QLocalSocket *m_socket;
     QTimer *m_tryOpenTimer;
     bool m_startingProcess;
+    QByteArray m_partialMessageBuffer;
 };

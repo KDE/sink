@@ -8,6 +8,12 @@
 class Client
 {
 public:
+    Client()
+        : socket(nullptr),
+          hasSentCommand(false)
+    {
+    }
+
     Client(const QString &n, QLocalSocket *s)
         : name(n),
           socket(s),
@@ -29,6 +35,9 @@ public:
     Listener(const QString &resourceName, QObject *parent = 0);
     ~Listener();
 
+    void setRevision(unsigned long long revision);
+    unsigned long long revision() const;
+
 Q_SIGNALS:
     void noClients();
 
@@ -42,7 +51,10 @@ private Q_SLOTS:
     void readFromSocket();
 
 private:
-    void processClientBuffer(Client &client);
+    bool processClientBuffer(Client &client);
+    void sendCurrentRevision(Client &client);
+    void updateClientsWithRevision();
     QLocalServer *m_server;
-    QList<Client> m_connections;
+    QVector<Client> m_connections;
+    unsigned long long m_revision;
 };

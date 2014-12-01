@@ -3,6 +3,7 @@
 #include "common/console.h"
 #include "common/commands.h"
 #include "common/handshake_generated.h"
+#include "common/revisionupdate_generated.h"
 
 #include <QDebug>
 #include <QProcess>
@@ -26,6 +27,9 @@ ResourceAccess::ResourceAccess(const QString &resourceName, QObject *parent)
             this, &ResourceAccess::disconnected);
     connect(m_socket, SIGNAL(error(QLocalSocket::LocalSocketError)),
             this, SLOT(connectionError(QLocalSocket::LocalSocketError)));
+    connect(m_socket, &QIODevice::readyRead,
+            this, &ResourceAccess::readResourceMessage);
+
 }
 
 ResourceAccess::~ResourceAccess()
@@ -109,3 +113,44 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
     }
 }
 
+void ResourceAccess::readResourceMessage()
+{
+    if (!m_socket->isValid()) {
+        return;
+    }
+
+    m_partialMessageBuffer += m_socket->readAll();
+
+    // should be scheduled rather than processed all at once
+    while (processMessageBuffer()) {}
+}
+
+bool ResourceAccess::processMessageBuffer()
+{
+    static const int headerSize = (sizeof(int) * 2);
+    Console::main()->log(QString("processing %1").arg(m_partialMessageBuffer.size()));
+    if (m_partialMessageBuffer.size() < headerSize) {
+        return false;
+    }
+
+    const int commandId = *(int*)m_partialMessageBuffer.constData();
+    const int size = *(int*)(m_partialMessageBuffer.constData() + sizeof(int));
+
+    if (size > m_partialMessageBuffer.size() - headerSize) {
+        return false;
+    }
+
+    switch (commandId) {
+        case Commands::RevisionUpdateCommand: {
+            auto buffer = Toynadi::GetRevisionUpdate(m_partialMessageBuffer.constData() + headerSize);
+            Console::main()->log(QString("    Revision updated to: %1").arg(buffer->revision()));
+            emit revisionChanged(buffer->revision());
+            break;
+        }
+        default:
+            break;
+    }
+
+    m_partialMessageBuffer.remove(0, headerSize + size);
+    return m_partialMessageBuffer.size() >= headerSize;
+}

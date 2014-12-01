@@ -1,0 +1,7 @@
+namespace Toynadi;
+
+table RevisionUpdate {
+    revision: ulong;
+}
+
+root_type RevisionUpdate;
