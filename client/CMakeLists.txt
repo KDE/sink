@@ -11,3 +11,5 @@ add_executable(${PROJECT_NAME} ${toynadiclient_SRCS})
 target_link_libraries(${PROJECT_NAME} toynadicommon)
 qt5_use_modules(${PROJECT_NAME} Widgets Network)
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+
+add_subdirectory(test)
