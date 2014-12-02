@@ -96,9 +96,7 @@ void ResourceAccess::disconnected()
 
 void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
 {
-    log(QString("Could not connect to %1 due to error %2")
-                .arg(m_resourceName)
-                .arg(m_socket->serverName()).arg(error));
+    log(QString("Connection error: %2").arg(error));
     if (m_startingProcess) {
         if (!m_tryOpenTimer->isActive()) {
             m_tryOpenTimer->start();
