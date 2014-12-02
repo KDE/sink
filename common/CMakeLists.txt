@@ -3,6 +3,7 @@ generate_flatbuffers(commands/handshake
                      commands/revisionupdate)
 
 set(command_SRCS
+   commands.cpp
    console.cpp
    ${CMAKE_CURRENT_BINARY_DIR}/commands/handshake_generated.h)
 

@@ -73,14 +73,10 @@ void ResourceAccess::connected()
 
     {
         flatbuffers::FlatBufferBuilder fbb;
-        auto name = fbb.CreateString("Client PID: " + QString::number((long long)this).toLatin1() + "!");
+        auto name = fbb.CreateString(QString::number((long long)this).toLatin1());
         auto command = Akonadi::CreateHandshake(fbb, name);
         Akonadi::FinishHandshakeBuffer(fbb, command);
-        const int commandId = Commands::HandshakeCommand;
-        const int dataSize = fbb.GetSize();
-        m_socket->write((const char*)&commandId, sizeof(int));
-        m_socket->write((const char*)&dataSize, sizeof(int));
-        m_socket->write((const char*)fbb.GetBufferPointer(), dataSize);
+        Commands::write(m_socket, Commands::HandshakeCommand, fbb);
     }
 
     emit ready(true);

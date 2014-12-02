@@ -173,11 +173,7 @@ void Listener::sendCurrentRevision(Client &client)
     flatbuffers::FlatBufferBuilder fbb;
     auto command = Akonadi::CreateRevisionUpdate(fbb, m_revision);
     Akonadi::FinishRevisionUpdateBuffer(fbb, command);
-    const int commandId = Commands::RevisionUpdateCommand;
-    const int dataSize = fbb.GetSize();
-    client.socket->write((const char*)&commandId, sizeof(int));
-    client.socket->write((const char*)&dataSize, sizeof(int));
-    client.socket->write((const char*)fbb.GetBufferPointer(), dataSize);
+    Commands::write(client.socket, Commands::RevisionUpdateCommand, fbb);
 }
 
 void Listener::updateClientsWithRevision()
@@ -185,15 +181,12 @@ void Listener::updateClientsWithRevision()
     flatbuffers::FlatBufferBuilder fbb;
     auto command = Akonadi::CreateRevisionUpdate(fbb, m_revision);
     Akonadi::FinishRevisionUpdateBuffer(fbb, command);
-    const int commandId = Commands::RevisionUpdateCommand;
-    const int dataSize = fbb.GetSize();
 
     for (const Client &client: m_connections) {
         if (!client.socket || !client.socket->isValid()) {
             continue;
         }
-        client.socket->write((const char*)&commandId, sizeof(int));
-        client.socket->write((const char*)&dataSize, sizeof(int));
-        client.socket->write((const char*)fbb.GetBufferPointer(), dataSize);
+
+        Commands::write(client.socket, Commands::RevisionUpdateCommand, fbb);
     }
 }
