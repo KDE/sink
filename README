@@ -1,0 +1,12 @@
+This repository contains a draft of a possible successor to Akonadi 1.
+
+It is currently entirely experimental and should not be considered a definite
+replacement for Akonadi 1 at this point in time.
+
+Discussion of the code should be done on the kde-pim at kde.org mailing list
+or in #kontact on IRC.
+
+You can find information about the overall design here:
+
+    https://community.kde.org/KDE_PIM/Akonadi_Next
+
