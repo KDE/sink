@@ -20,7 +20,7 @@ ResourceAccess::ResourceAccess(const QString &resourceName, QObject *parent)
     connect(m_tryOpenTimer, &QTimer::timeout,
            this, &ResourceAccess::open);
 
-    Console::main()->log(QString("Starting access to %1").arg(resourceName));
+    log("Starting access");
     connect(m_socket, &QLocalSocket::connected,
             this, &ResourceAccess::connected);
     connect(m_socket, &QLocalSocket::disconnected,
@@ -50,26 +50,26 @@ bool ResourceAccess::isReady() const
 void ResourceAccess::open()
 {
     if (m_socket->isValid()) {
-        Console::main()->log("Socket valid, so aborting the open");
+        log("Socket valid, so aborting the open");
         return;
     }
 
     m_socket->setServerName(m_resourceName);
-    Console::main()->log(QString("Opening: %1").arg(m_socket->serverName()));
+    log(QString("Opening %1").arg(m_socket->serverName()));
     //FIXME: race between starting the exec and opening the socket?
     m_socket->open();
 }
 
 void ResourceAccess::close()
 {
-    Console::main()->log(QString("Closing: %1").arg(m_socket->fullServerName()));
+    log(QString("Closing %1").arg(m_socket->fullServerName()));
     m_socket->close();
 }
 
 void ResourceAccess::connected()
 {
     m_startingProcess = false;
-    Console::main()->log(QString("Connected: %1").arg(m_socket->fullServerName()));
+    log(QString("Connected: ").arg(m_socket->fullServerName()));
 
     {
         flatbuffers::FlatBufferBuilder fbb;
@@ -89,14 +89,16 @@ void ResourceAccess::connected()
 void ResourceAccess::disconnected()
 {
     m_socket->close();
-    Console::main()->log(QString("Disconnected: %1").arg(m_socket->fullServerName()));
+    log(QString("Disconnected from %1").arg(m_socket->fullServerName()));
     emit ready(false);
     open();
 }
 
 void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
 {
-    Console::main()->log(QString("Could not connect to %1 due to error %2").arg(m_socket->serverName()).arg(error));
+    log(QString("Could not connect to %1 due to error %2")
+                .arg(m_resourceName)
+                .arg(m_socket->serverName()).arg(error));
     if (m_startingProcess) {
         if (!m_tryOpenTimer->isActive()) {
             m_tryOpenTimer->start();
@@ -105,7 +107,7 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
     }
 
     m_startingProcess = true;
-    Console::main()->log(QString("Attempting to start resource..."));
+    log(QString("Attempting to start resource ") + m_resourceName);
     QStringList args;
     args << m_resourceName;
     if (QProcess::startDetached("akonadinext_resource", args)) {
@@ -142,7 +144,7 @@ bool ResourceAccess::processMessageBuffer()
     switch (commandId) {
         case Commands::RevisionUpdateCommand: {
             auto buffer = Akonadi::GetRevisionUpdate(m_partialMessageBuffer.constData() + headerSize);
-            Console::main()->log(QString("    Revision updated to: %1").arg(buffer->revision()));
+            log(QString("Revision updated to: %1").arg(buffer->revision()));
             emit revisionChanged(buffer->revision());
             break;
         }
@@ -152,4 +154,9 @@ bool ResourceAccess::processMessageBuffer()
 
     m_partialMessageBuffer.remove(0, headerSize + size);
     return m_partialMessageBuffer.size() >= headerSize;
+}
+
+void ResourceAccess::log(const QString &message)
+{
+    Console::main()->log(m_resourceName + ": " + message);
 }

@@ -31,6 +31,7 @@ private Q_SLOTS:
     bool processMessageBuffer();
 
 private:
+    void log(const QString &message);
     QString m_resourceName;
     QLocalSocket *m_socket;
     QTimer *m_tryOpenTimer;
