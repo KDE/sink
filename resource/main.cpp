@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    new Console(QString("Toy Resource: %1").arg(argv[1]));
+    new Console(QString("Resource: %1").arg(argv[1]));
     if (argc < 2) {
         Console::main()->log("Not enough args");
         return app.exec();
