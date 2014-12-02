@@ -32,11 +32,11 @@ static std::string createEvent()
     return std::string(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
 
-static void readEvent(const std::string &data)
-{
-    auto readEvent = GetEvent(data.c_str());
-    std::cout << readEvent->summary()->c_str() << std::endl;
-}
+// static void readEvent(const std::string &data)
+// {
+//     auto readEvent = GetEvent(data.c_str());
+//     std::cout << readEvent->summary()->c_str() << std::endl;
+// }
 
 class StorageBenchmark : public QObject
 {
@@ -46,6 +46,7 @@ private:
     QString testDataPath;
     QString dbPath;
     QString filePath;
+    const int count = 50000;
 
 private Q_SLOTS:
     void initTestCase()
@@ -65,7 +66,6 @@ private Q_SLOTS:
         QTest::addColumn<bool>("useDb");
         QTest::addColumn<int>("count");
 
-        const int count = 50000;
         QTest::newRow("db, 50k") << true << count;
         QTest::newRow("file, 50k") << false << count;
     }
@@ -79,16 +79,21 @@ private Q_SLOTS:
 
         std::ofstream myfile;
         myfile.open(filePath.toStdString());
+        const char *keyPrefix = "key";
 
         QTime time;
+
         time.start();
         {
             auto transaction = db.startTransaction();
+            auto event = createEvent();
             for (int i = 0; i < count; i++) {
-                const auto key = QString("key%1").arg(i);
-                auto event = createEvent();
+                if (useDb && i > 0 && (i % 10000 == 0)) {
+                    db.endTransaction(transaction);
+                    transaction = db.startTransaction();
+                }
                 if (useDb) {
-                    db.write(key.toStdString(), event, transaction);
+                    db.write(keyPrefix + std::to_string(i), event, transaction);
                 } else {
                     myfile << event;
                 }
@@ -105,18 +110,32 @@ private Q_SLOTS:
         time.start();
         {
             for (int i = 0; i < count; i++) {
-                const auto key = QString("key%1").arg(i);
                 if (useDb) {
-                    db.read(key.toStdString());
+                    db.read(keyPrefix + std::to_string(i));
                 }
             }
         }
         const int readDuration = time.elapsed();
+
         if (useDb) {
             qDebug() << "Reading took[ms]: " << readDuration;
         } else {
             qDebug() << "File reading is not implemented.";
         }
+    }
+
+    void testBufferCreation()
+    {
+        QTime time;
+
+        time.start();
+        {
+            for (int i = 0; i < count; i++) {
+                auto event = createEvent();
+            }
+        }
+        const int bufferDuration = time.elapsed();
+        qDebug() << "Creating buffers took[ms]: " << bufferDuration;
     }
 
     void testSizes()
