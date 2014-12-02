@@ -128,7 +128,6 @@ void ResourceAccess::readResourceMessage()
 bool ResourceAccess::processMessageBuffer()
 {
     static const int headerSize = (sizeof(int) * 2);
-    Console::main()->log(QString("processing %1").arg(m_partialMessageBuffer.size()));
     if (m_partialMessageBuffer.size() < headerSize) {
         return false;
     }
