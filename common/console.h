@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QTime>
 #include <QWidget>
 
 class QTextBrowser;
@@ -16,5 +17,6 @@ public:
 
 private:
     QTextBrowser *m_textDisplay;
+    QTime m_timestamper;
     static Console *s_output;
 };

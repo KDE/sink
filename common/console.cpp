@@ -1,5 +1,6 @@
 #include "console.h"
 
+#include <QFontDatabase>
 #include <QLabel>
 #include <QTextBrowser>
 #include <QVBoxLayout>
@@ -29,12 +30,15 @@ Console::Console(const QString &title)
     titleLabel->setFont(font);
     titleLabel->setAlignment(Qt::AlignCenter);
 
+    QFont consoleFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+    consoleFont.setPointSize(7);
     m_textDisplay = new QTextBrowser(this);
-
+    m_textDisplay->document()->setDefaultFont(consoleFont);
     topLayout->addWidget(titleLabel);
     topLayout->addWidget(m_textDisplay, 10);
 
     show();
+    m_timestamper.start();
 }
 
 Console::~Console()
@@ -44,5 +48,5 @@ Console::~Console()
 
 void Console::log(const QString &message)
 {
-    m_textDisplay->append(message);
+    m_textDisplay->append(QString::number(m_timestamper.elapsed()).rightJustified(6) + ": " + message);
 }
