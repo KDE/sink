@@ -10,7 +10,7 @@ static Console *s_console = 0;
 Console *Console::main()
 {
     if (!s_console) {
-        s_console = new Console("Stupido!");
+        s_console = new Console(QString());
     }
     return s_console;
 }
@@ -18,7 +18,10 @@ Console *Console::main()
 Console::Console(const QString &title)
     : QWidget(0)
 {
-    s_console = this;
+    if (!s_console) {
+        s_console = this;
+    }
+
     resize(1000, 1500);
 
     QVBoxLayout *topLayout = new QVBoxLayout(this);
