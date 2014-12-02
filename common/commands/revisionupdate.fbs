@@ -1,4 +1,4 @@
-namespace Toynadi;
+namespace Akonadi;
 
 table RevisionUpdate {
     revision: ulong;

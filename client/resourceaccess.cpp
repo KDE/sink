@@ -74,8 +74,8 @@ void ResourceAccess::connected()
     {
         flatbuffers::FlatBufferBuilder fbb;
         auto name = fbb.CreateString("Client PID: " + QString::number((long long)this).toLatin1() + "!");
-        auto command = Toynadi::CreateHandshake(fbb, name);
-        Toynadi::FinishHandshakeBuffer(fbb, command);
+        auto command = Akonadi::CreateHandshake(fbb, name);
+        Akonadi::FinishHandshakeBuffer(fbb, command);
         const int commandId = Commands::HandshakeCommand;
         const int dataSize = fbb.GetSize();
         m_socket->write((const char*)&commandId, sizeof(int));
@@ -108,7 +108,7 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
     Console::main()->log(QString("Attempting to start resource..."));
     QStringList args;
     args << m_resourceName;
-    if (QProcess::startDetached("toynadi_resource", args)) {
+    if (QProcess::startDetached("akonadinext_resource", args)) {
         m_socket->open();
     }
 }
@@ -142,7 +142,7 @@ bool ResourceAccess::processMessageBuffer()
 
     switch (commandId) {
         case Commands::RevisionUpdateCommand: {
-            auto buffer = Toynadi::GetRevisionUpdate(m_partialMessageBuffer.constData() + headerSize);
+            auto buffer = Akonadi::GetRevisionUpdate(m_partialMessageBuffer.constData() + headerSize);
             Console::main()->log(QString("    Revision updated to: %1").arg(buffer->revision()));
             emit revisionChanged(buffer->revision());
             break;

@@ -1,5 +1,5 @@
 
-namespace Toynadi;
+namespace Akonadi;
 
 table Handshake {
     name: string;

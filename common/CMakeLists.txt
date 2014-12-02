@@ -1,4 +1,4 @@
-project(toynadicommon)
+project(akonadinextcommon)
 generate_flatbuffers(commands/handshake
                      commands/revisionupdate)
 

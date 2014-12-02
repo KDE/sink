@@ -148,7 +148,7 @@ bool Listener::processClientBuffer(Client &client)
 
         switch (commandId) {
             case Commands::HandshakeCommand: {
-                auto buffer = Toynadi::GetHandshake(data.constData());
+                auto buffer = Akonadi::GetHandshake(data.constData());
                 Console::main()->log(QString("    Handshake from %1").arg(buffer->name()->c_str()));
                 sendCurrentRevision(client);
                 break;
@@ -171,8 +171,8 @@ void Listener::sendCurrentRevision(Client &client)
     }
 
     flatbuffers::FlatBufferBuilder fbb;
-    auto command = Toynadi::CreateRevisionUpdate(fbb, m_revision);
-    Toynadi::FinishRevisionUpdateBuffer(fbb, command);
+    auto command = Akonadi::CreateRevisionUpdate(fbb, m_revision);
+    Akonadi::FinishRevisionUpdateBuffer(fbb, command);
     const int commandId = Commands::RevisionUpdateCommand;
     const int dataSize = fbb.GetSize();
     client.socket->write((const char*)&commandId, sizeof(int));
@@ -183,8 +183,8 @@ void Listener::sendCurrentRevision(Client &client)
 void Listener::updateClientsWithRevision()
 {
     flatbuffers::FlatBufferBuilder fbb;
-    auto command = Toynadi::CreateRevisionUpdate(fbb, m_revision);
-    Toynadi::FinishRevisionUpdateBuffer(fbb, command);
+    auto command = Akonadi::CreateRevisionUpdate(fbb, m_revision);
+    Akonadi::FinishRevisionUpdateBuffer(fbb, command);
     const int commandId = Commands::RevisionUpdateCommand;
     const int dataSize = fbb.GetSize();
 
