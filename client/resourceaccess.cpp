@@ -20,7 +20,7 @@ ResourceAccess::ResourceAccess(const QString &resourceName, QObject *parent)
     connect(m_tryOpenTimer, &QTimer::timeout,
            this, &ResourceAccess::open);
 
-    Console::main()->log(QString("Starting access to %1").arg(m_socket->serverName()));
+    Console::main()->log(QString("Starting access to %1").arg(resourceName));
     connect(m_socket, &QLocalSocket::connected,
             this, &ResourceAccess::connected);
     connect(m_socket, &QLocalSocket::disconnected,
