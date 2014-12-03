@@ -1,0 +1,12 @@
+// example IDL file
+
+namespace DummyCalendar;
+
+table DummyEvent {
+  summary:string;
+  description:string;
+  attachment:[byte];
+}
+
+root_type DummyEvent;
+file_identifier "AKFB";

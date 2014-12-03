@@ -50,4 +50,7 @@ add_subdirectory(resource)
 # the store
 add_subdirectory(store)
 
+# a simple dummy resource implementation
+add_subdirectory(dummyresource)
+
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)

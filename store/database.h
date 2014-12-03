@@ -1,3 +1,5 @@
+#pragma once
+
 #include <lmdb.h>
 #include <string>
 #include <QString>
@@ -9,7 +11,8 @@ public:
     MDB_txn *startTransaction();
     void endTransaction(MDB_txn *transaction);
     void write(const std::string &sKey, const std::string &sValue, MDB_txn *transaction);
-    void read(const std::string &sKey);
+    //Perhaps prefer iterators (assuming we need to be able to match multiple values
+    void read(const std::string &sKey, const std::function<void(const std::string)> &);
 
 private:
     MDB_env *env;

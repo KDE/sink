@@ -63,7 +63,7 @@ void Database::write(const std::string &sKey, const std::string &sValue, MDB_txn
     }
 }
 
-void Database::read(const std::string &sKey)
+void Database::read(const std::string &sKey, const std::function<void(const std::string)> &resultHandler)
 {
     int rc;
     MDB_txn *txn;
@@ -76,13 +76,26 @@ void Database::read(const std::string &sKey)
 
     rc = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn);
     rc = mdb_cursor_open(txn, dbi, &cursor);
-    // while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-    if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_SET)) == 0) {
-        const std::string resultKey(static_cast<char*>(key.mv_data), key.mv_size);
-        const std::string resultValue(static_cast<char*>(data.mv_data), data.mv_size);
-        // std::cout << "key: " << resultKey << " data: " << resultValue << std::endl;
+    if (sKey.empty()) {
+        std::cout << "Iterating over all values of store!" << std::endl;
+        while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+            const std::string resultKey(static_cast<char*>(key.mv_data), key.mv_size);
+            const std::string resultValue(static_cast<char*>(data.mv_data), data.mv_size);
+            // std::cout << "key: " << resultKey << " data: " << resultValue << std::endl;
+            resultHandler(resultValue);
+        }
     } else {
-        std::cout << "couldn't find value " << sKey << std::endl;
+        if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_SET)) == 0) {
+            const std::string resultKey(static_cast<char*>(key.mv_data), key.mv_size);
+            const std::string resultValue(static_cast<char*>(data.mv_data), data.mv_size);
+            // std::cout << "key: " << resultKey << " data: " << resultValue << std::endl;
+            resultHandler(resultValue);
+        } else {
+            std::cout << "couldn't find value " << sKey << std::endl;
+        }
+    }
+    if (rc) {
+        std::cerr << "mdb_cursor_get: " << rc << mdb_strerror(rc) << std::endl;
     }
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
