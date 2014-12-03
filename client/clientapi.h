@@ -3,6 +3,8 @@
 #include <QString>
 #include <QSet>
 #include <QSharedPointer>
+#include <QTimer>
+#include <QDebug>
 #include <functional>
 
 namespace async {
@@ -100,28 +102,45 @@ namespace Domain {
 
 class AkonadiDomainType {
 public:
+    AkonadiDomainType(const QString &resource, const QString &identifier, qint64 revision)
+        : mResource(resource),
+        mIdentifier(identifier),
+        mRevision(revision)
+    {
+    }
+
+    virtual QVariant getProperty(const QString &key){ return QVariant(); }
+
+private:
     /*
      * Each domain object needs to store the resource, identifier, revision triple so we can link back to the storage location.
      */
-    QString identifier;
-    QString resource;
-    qint64 revision;
+    QString mResource;
+    QString mIdentifier;
+    qint64 mRevision;
 };
 
 class Event : public AkonadiDomainType {
+public:
+    typedef QSharedPointer<Event> Ptr;
+    Event(const QString &resource, const QString &identifier, qint64 revision):AkonadiDomainType(resource, identifier, revision){};
 
 };
+
 class Todo : public AkonadiDomainType {
-
+public:
+    typedef QSharedPointer<Todo> Ptr;
 };
+
 class Calendar : public AkonadiDomainType {
-
+public:
+    typedef QSharedPointer<Calendar> Ptr;
 };
+
 class Mail : public AkonadiDomainType {
-
 };
-class Folder : public AkonadiDomainType {
 
+class Folder : public AkonadiDomainType {
 };
 
 /**
@@ -185,7 +204,7 @@ public:
     virtual void create(const DomainType &domainObject) = 0;
     virtual void modify(const DomainType &domainObject) = 0;
     virtual void remove(const DomainType &domainObject) = 0;
-    virtual void load(const Query &query, const std::function<void(const DomainType &)> &resultCallback) = 0;
+    virtual void load(const Query &query, const std::function<void(const typename DomainType::Ptr &)> &resultCallback) = 0;
 };
 
 
@@ -262,9 +281,9 @@ public:
      * Asynchronusly load a dataset
      */
     template <class DomainType>
-    static QSharedPointer<ResultEmitter<DomainType> > load(Query query)
+    static QSharedPointer<ResultEmitter<typename DomainType::Ptr> > load(Query query)
     {
-        QSharedPointer<ResultProvider<DomainType> > resultSet(new ResultProvider<DomainType>);
+        QSharedPointer<ResultProvider<typename DomainType::Ptr> > resultSet(new ResultProvider<typename DomainType::Ptr>);
 
         //Execute the search in a thread.
         //We must guarantee that the emitter is returned before the first result is emitted.
@@ -275,7 +294,7 @@ public:
             for(const QString &resource : query.resources) {
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
                 //We have to bind an instance to the function callback. Since we use a shared pointer this keeps the result provider instance (and thus also the emitter) alive.
-                std::function<void(const DomainType &)> addCallback = std::bind(&ResultProvider<DomainType>::add, resultSet, std::placeholders::_1);
+                std::function<void(const typename DomainType::Ptr &)> addCallback = std::bind(&ResultProvider<typename DomainType::Ptr>::add, resultSet, std::placeholders::_1);
                 facade->load(query, addCallback);
             }
             resultSet->complete();
@@ -363,58 +382,58 @@ class EventDomainAdapter : public Akonadi2::Domain::Event {
  *
  * TODO: perhaps we should also allow async access and leave the thread/non-thread decision up to the implementation?
  */
-template<typename DomainType>
-class StoreFacadeImpl : public Akonadi2::StoreFacade<Akonadi2::Domain::Event> {
-};
-
-template<>
-class StoreFacadeImpl<Akonadi2::Domain::Event> : public Akonadi2::StoreFacade<Akonadi2::Domain::Event> {
-public:
-    StoreFacadeImpl():StoreFacade() {};
-
-    void create(const Akonadi2::Domain::Event &domainObject) {
-        //FIXME here we would need to cast to DomainAdapter
-        //Do actual work
-        //transformFromDomainType(domainObject);
-        //Ideally we have an adapter
-        //getAdater(domainObject).buffer();
-        //domainObject.key(); => The domain object needs to provide the id
-        //writeToDb();
-    }
-
-    void modify(const Akonadi2::Domain::Event &domainObject) {
-        //Do actual work
-    }
-
-    void remove(const Akonadi2::Domain::Event &domainObject) {
-        //Do actual work
-    }
-
-    class EventBuffer {
-        QString value;
-    };
-
-    static Akonadi2::Domain::Event transformToDomainType(const EventBuffer &buffer) {
-        //We may want to avoid copies here
-        Akonadi2::Domain::Event event;
-        // //Ideally we don't have to copy and can use an adaptor instead
-        // return DomainAdaptor
-        return event;
-    };
-
-    void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event &)> &resultCallback) {
-        //retrieve buffers from storage
-        QList<EventBuffer> queryresult;
-        for(const EventBuffer &buffer : queryresult) {
-            resultCallback(transformToDomainType(buffer));
-        }
-    }
-
-private:
-    //Dummy implementation
-    class ResourceImpl {};
-    ResourceImpl resource;
-    class DatabaseImpl {};
-    DatabaseImpl mDb;
-};
+// template<typename DomainType>
+// class StoreFacadeImpl : public Akonadi2::StoreFacade<Akonadi2::Domain::Event> {
+// };
+// 
+// template<>
+// class StoreFacadeImpl<Akonadi2::Domain::Event> : public Akonadi2::StoreFacade<Akonadi2::Domain::Event> {
+// public:
+//     StoreFacadeImpl():StoreFacade() {};
+// 
+//     void create(const Akonadi2::Domain::Event &domainObject) {
+//         //FIXME here we would need to cast to DomainAdapter
+//         //Do actual work
+//         //transformFromDomainType(domainObject);
+//         //Ideally we have an adapter
+//         //getAdater(domainObject).buffer();
+//         //domainObject.key(); => The domain object needs to provide the id
+//         //writeToDb();
+//     }
+// 
+//     void modify(const Akonadi2::Domain::Event &domainObject) {
+//         //Do actual work
+//     }
+// 
+//     void remove(const Akonadi2::Domain::Event &domainObject) {
+//         //Do actual work
+//     }
+// 
+//     class EventBuffer {
+//         QString value;
+//     };
+// 
+//     static Akonadi2::Domain::Event transformToDomainType(const EventBuffer &buffer) {
+//         //We may want to avoid copies here
+//         Akonadi2::Domain::Event event;
+//         // //Ideally we don't have to copy and can use an adaptor instead
+//         // return DomainAdaptor
+//         return event;
+//     };
+// 
+//     void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event &)> &resultCallback) {
+//         //retrieve buffers from storage
+//         QList<EventBuffer> queryresult;
+//         for(const EventBuffer &buffer : queryresult) {
+//             resultCallback(transformToDomainType(buffer));
+//         }
+//     }
+// 
+// private:
+//     //Dummy implementation
+//     class ResourceImpl {};
+//     ResourceImpl resource;
+//     class DatabaseImpl {};
+//     DatabaseImpl mDb;
+// };
 

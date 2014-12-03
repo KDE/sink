@@ -11,7 +11,7 @@ public:
     virtual void create(const Akonadi2::Domain::Event &domainObject){};
     virtual void modify(const Akonadi2::Domain::Event &domainObject){};
     virtual void remove(const Akonadi2::Domain::Event &domainObject){};
-    virtual void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event &)> &resultCallback)
+    virtual void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
     {
         qDebug() << "load called";
         for(const auto &result : results) {
@@ -19,7 +19,7 @@ public:
         }
     }
 
-    QList<Akonadi2::Domain::Event> results;
+    QList<Akonadi2::Domain::Event::Ptr> results;
 };
 
 class ClientAPITest : public QObject
@@ -30,7 +30,7 @@ private Q_SLOTS:
     void testLoad()
     {
         DummyResourceFacade facade;
-        facade.results << Akonadi2::Domain::Event();
+        facade.results << QSharedPointer<Akonadi2::Domain::Event>::create("resource", "id", 0);
 
         Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::Domain::Event, DummyResourceFacade>("dummyresource", [facade](){ return new DummyResourceFacade(facade); });
 
@@ -39,8 +39,8 @@ private Q_SLOTS:
 
         auto result = Akonadi2::Store::load<Akonadi2::Domain::Event>(query);
 
-        QList<Akonadi2::Domain::Event> resultSet;
-        result->onAdded([&resultSet](const Akonadi2::Domain::Event &event){ resultSet << event; qDebug() << "result added";});
+        QList<Akonadi2::Domain::Event::Ptr> resultSet;
+        result->onAdded([&resultSet](const Akonadi2::Domain::Event::Ptr &event){ resultSet << event; qDebug() << "result added";});
 
         bool complete;
         result->onComplete([&complete]{ complete = true; qDebug() << "complete";});
