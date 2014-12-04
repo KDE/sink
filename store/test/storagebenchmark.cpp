@@ -94,7 +94,9 @@ private Q_SLOTS:
             for (int i = 0; i < count; i++) {
                 if (db) {
                     if (i % 10000 == 0) {
-                        db->commitTransaction();
+                        if (i > 0) {
+                            db->commitTransaction();
+                        }
                         db->startTransaction();
                     }
 
@@ -110,10 +112,9 @@ private Q_SLOTS:
                 myfile.close();
             }
         }
-        const int writeDuration = time.elapsed();
+        const int writeDuration = time.restart();
         qDebug() << "Writing took[ms]: " << writeDuration;
 
-        time.start();
         {
             for (int i = 0; i < count; i++) {
                 if (db) {
@@ -121,13 +122,15 @@ private Q_SLOTS:
                 }
             }
         }
-        const int readDuration = time.elapsed();
+        const int readDuration = time.restart();
 
-        if (useDb) {
+        if (db) {
             qDebug() << "Reading took[ms]: " << readDuration;
         } else {
             qDebug() << "File reading is not implemented.";
         }
+
+        delete db;
     }
 
     void testBufferCreation()
