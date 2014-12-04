@@ -14,9 +14,11 @@
 class Database::Private
 {
 public:
-    Private(const QString &path);
+    Private(const QString &s, const QString &name);
     ~Private();
 
+    QString storageRoot;
+    QString name;
     MDB_dbi dbi;
     MDB_env *env;
     MDB_txn *transaction;
@@ -24,19 +26,21 @@ public:
     bool firstOpen;
 };
 
-Database::Private::Private(const QString &path)
+Database::Private::Private(const QString &s, const QString &n)
     : transaction(0),
       readTransaction(false),
-      firstOpen(true)
+      firstOpen(true),
+      storageRoot(s),
+      name(n)
 {
     QDir dir;
-    dir.mkdir(path);
+    dir.mkdir(storageRoot);
 
     //create file
     if (mdb_env_create(&env)) {
         // TODO: handle error
     } else {
-        int rc = mdb_env_open(env, path.toStdString().data(), 0, 0664);
+        int rc = mdb_env_open(env, (storageRoot+name).toStdString().data(), 0, 0664);
 
         if (rc) {
             std::cerr << "mdb_env_open: " << rc << " " << mdb_strerror(rc) << std::endl;
@@ -60,8 +64,8 @@ Database::Private::~Private()
     mdb_env_close(env);
 }
 
-Database::Database(const QString &path)
-    : d(new Private(path))
+Database::Database(const QString &storageRoot, const QString &name)
+    : d(new Private(storageRoot, name))
 {
 }
 
@@ -139,6 +143,11 @@ void Database::abortTransaction()
 
     mdb_txn_abort(d->transaction);
     d->transaction = 0;
+}
+
+bool Database::write(const char *key, size_t keySize, const char *value, size_t valueSize)
+{
+    write(std::string(key, keySize), std::string(value, valueSize));
 }
 
 bool Database::write(const std::string &sKey, const std::string &sValue)
@@ -249,3 +258,16 @@ void Database::read(const std::string &sKey, const std::function<void(void *ptr,
     */
 }
 
+qint64 Database::diskUsage() const
+{
+    QFileInfo info(d->storageRoot+d->name);
+    return info.size();
+}
+
+void Database::removeFromDisk() const
+{
+    QFileInfo info(d->storageRoot+d->name);
+    QDir dir = info.dir();
+    dir.remove("data.mdb");
+    dir.remove("lock.mdb");
+}
