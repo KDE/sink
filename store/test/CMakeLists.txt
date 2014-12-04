@@ -11,11 +11,12 @@ generate_flatbuffers(calendar)
 macro(manual_tests)
     foreach(_testname ${ARGN})
         add_executable(${_testname} ${_testname}.cpp ${store_SRCS})
-        qt5_use_modules(${_testname} Core Test)
+        qt5_use_modules(${_testname} Core Test Concurrent)
         target_link_libraries(${_testname} lmdb)
     endforeach(_testname)
 endmacro(auto_tests)
 
 manual_tests (
     storagebenchmark
+    storagetest
 )
