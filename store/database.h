@@ -18,3 +18,21 @@ private:
     MDB_env *env;
     MDB_dbi dbi;
 };
+
+/*
+ * This opens the db for a single read transaction.
+ *
+ * The lifetime of all read values is tied to this transaction.
+ */
+class ReadTransaction {
+public:
+    ReadTransaction(const QString &path);
+    ~ReadTransaction();
+
+    void read(const std::string &sKey, const std::function<void(void *ptr, int size)> &);
+
+private:
+    MDB_env *env;
+    MDB_dbi dbi;
+    MDB_txn *txn;
+};
