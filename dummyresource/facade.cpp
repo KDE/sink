@@ -69,14 +69,14 @@ public:
     DummyEvent const *buffer;
 
     //Keep query alive so values remain valid
-    QSharedPointer<ReadTransaction> db;
+    QSharedPointer<Database> db;
 };
 
 void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
 {
     qDebug() << "load called";
     //TODO only read values matching the query
-    auto db = QSharedPointer<ReadTransaction>::create("dummyresource");
+    auto db = QSharedPointer<Database>::create("dummyresource");
     db->read("", [resultCallback, db](void *data, int size) {
         //TODO read second buffer as well
         auto eventBuffer = GetDummyEvent(data);
