@@ -6,7 +6,6 @@
 #include <fstream>
 
 #include <QDebug>
-#include <QDir>
 #include <QString>
 #include <QTime>
 
@@ -56,6 +55,12 @@ private Q_SLOTS:
         testDataPath = "./testdb";
         dbName = "test";
         filePath = testDataPath + "buffer.fb";
+    }
+
+    void cleanupTestCase()
+    {
+        Database db(testDataPath, dbName);
+        db.removeFromDisk();
     }
 
     void testWriteRead_data()
@@ -146,7 +151,6 @@ private Q_SLOTS:
     {
         Database db(testDataPath, dbName);
         qDebug() << "Database size [kb]: " << db.diskUsage()/1024;
-        db.removeFromDisk();
 
         QFileInfo fileInfo(filePath);
         qDebug() << "File size [kb]: " << fileInfo.size()/1024;
