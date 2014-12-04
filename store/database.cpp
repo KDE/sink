@@ -5,61 +5,46 @@
 #include <QAtomicInt>
 #include <QDebug>
 #include <QDir>
+#include <QFileInfo>
 #include <QReadWriteLock>
 #include <QString>
 #include <QTime>
 
-#include <lmdb.h>
+#include <kchashdb.h>
 
 class Database::Private
 {
 public:
-    Private(const QString &path);
+    Private(const QString &storageRoot, const QString &name);
     ~Private();
 
-    MDB_dbi dbi;
-    MDB_env *env;
-    MDB_txn *transaction;
-    bool readTransaction;
+    kyotocabinet::TreeDB db;
+    bool dbOpen;
+    bool inTransaction;
 };
 
-Database::Private::Private(const QString &path)
-    : transaction(0),
-      readTransaction(false)
+Database::Private::Private(const QString &storageRoot, const QString &name)
+    : inTransaction(false)
 {
     QDir dir;
-    dir.mkdir(path);
+    dir.mkdir(storageRoot);
 
     //create file
-    if (mdb_env_create(&env)) {
+    dbOpen = db.open((storageRoot + "/" + name + ".kch").toStdString(), kyotocabinet::BasicDB::OWRITER | kyotocabinet::BasicDB::OCREATE);
+    if (!dbOpen) {
         // TODO: handle error
-    } else {
-        int rc = mdb_env_open(env, path.toStdString().data(), 0, 0664);
-
-        if (rc) {
-            std::cerr << "mdb_env_open: " << rc << " " << mdb_strerror(rc) << std::endl;
-            mdb_env_close(env);
-            env = 0;
-        } else {
-            const size_t dbSize = 10485760 * 100; //10MB * 100
-            mdb_env_set_mapsize(env, dbSize);
-        }
     }
 }
 
 Database::Private::~Private()
 {
-    if (transaction) {
-        mdb_txn_abort(transaction);
+    if (dbOpen && inTransaction) {
+        db.end_transaction(false);
     }
-
-    // it is still there and still unused, so we can shut it down
-    mdb_dbi_close(env, dbi);
-    mdb_env_close(env);
 }
 
-Database::Database(const QString &path)
-    : d(new Private(path))
+Database::Database(const QString &storageRoot, const QString &name)
+    : d(new Private(storageRoot, name))
 {
 }
 
@@ -70,181 +55,110 @@ Database::~Database()
 
 bool Database::isInTransaction() const
 {
-    return d->transaction;
+    return d->inTransaction;
 }
 
 bool Database::startTransaction(TransactionType type)
 {
-    if (!d->env) {
+    if (!d->dbOpen) {
         return false;
     }
 
-    bool requestedRead = type == ReadOnly;
-    if (d->transaction && (!d->readTransaction || requestedRead)) {
+    if (d->inTransaction) {
         return true;
     }
 
-    if (d->transaction) {
-        // we are about to turn a read transaction into a writable one
-        abortTransaction();
-    }
-
     //TODO handle errors
-    int rc;
-    rc = mdb_txn_begin(d->env, NULL, requestedRead ? MDB_RDONLY : 0, &d->transaction);
-    if (!rc) {
-        rc = mdb_dbi_open(d->transaction, NULL, 0, &d->dbi);
-    }
-
-    return !rc;
+    d->inTransaction = d->db.begin_transaction();
+    return d->inTransaction;
 }
 
 bool Database::commitTransaction()
 {
-    if (!d->env) {
+    if (!d->dbOpen) {
         return false;
     }
 
-    if (!d->transaction) {
+    if (!d->inTransaction) {
         return false;
     }
 
-    int rc;
-    rc = mdb_txn_commit(d->transaction);
-    d->transaction = 0;
-
-    if (rc) {
-        std::cerr << "mdb_txn_commit: " << rc << " " << mdb_strerror(rc) << std::endl;
-    }
-
-    return !rc;
+    bool success = d->db.end_transaction(true);
+    d->inTransaction = false;
+    return success;
 }
 
 void Database::abortTransaction()
 {
-    if (!d->env || !d->transaction) {
+    if (!d->dbOpen || !d->inTransaction) {
         return;
     }
 
-    mdb_txn_abort(d->transaction);
-    d->transaction = 0;
+    d->db.end_transaction(false);
+    d->inTransaction = false;
+}
+
+bool Database::write(const char *key, size_t keySize, const char *value, size_t valueSize)
+{
+    if (!d->dbOpen) {
+        return false;
+    }
+
+    bool success = d->db.set(key, keySize, value, valueSize);
+    return success; 
 }
 
 bool Database::write(const std::string &sKey, const std::string &sValue)
 {
-    if (!d->env) {
+    if (!d->dbOpen) {
         return false;
     }
 
-    const bool implicitTransaction = !d->transaction || d->readTransaction;
-    if (implicitTransaction) {
-        // TODO: if this fails, still try the write below?
-        if (!startTransaction()) {
-            return false;
-        }
-    }
-
-    int rc;
-    MDB_val key, data;
-    key.mv_size = sKey.size();
-    key.mv_data = (void*)sKey.data();
-    data.mv_size = sValue.size();
-    data.mv_data = (void*)sValue.data();
-    rc = mdb_put(d->transaction, d->dbi, &key, &data, 0);
-
-    if (rc) {
-        std::cerr << "mdb_put: " << rc << " " << mdb_strerror(rc) << std::endl;
-    }
-
-    if (implicitTransaction) {
-        if (rc) {
-            abortTransaction();
-        } else {
-            rc = commitTransaction();
-        }
-    }
-
-    return !rc;
+    bool success = d->db.set(sKey, sValue);
+    return success; 
 }
 
 void Database::read(const std::string &sKey, const std::function<void(const std::string &value)> &resultHandler)
 {
-    read(sKey,
-         [&](void *ptr, int size) {
-            const std::string resultValue(static_cast<char*>(ptr), size);
-            resultHandler(resultValue);
-         });
-// std::cout << "key: " << resultKey << " data: " << resultValue << std::endl;
+    if (!d->dbOpen) {
+        return;
+    }
+
+    std::string value;
+    if (d->db.get(sKey, &value)) {
+        resultHandler(value);
+    }
 }
 
 void Database::read(const std::string &sKey, const std::function<void(void *ptr, int size)> &resultHandler)
 {
-    if (!d->env) {
+    if (!d->dbOpen) {
         return;
     }
 
-    int rc;
-    MDB_val key;
-    MDB_val data;
-    MDB_cursor *cursor;
-
-    key.mv_size = sKey.size();
-    key.mv_data = (void*)sKey.data();
-
-    /*
-TODO: do we need a write transaction before a read transaction? only relevant for implicitTransactions in any case
-    {
-        //A write transaction is at least required the first time
-        rc = mdb_txn_begin(env, nullptr, 0, &txn);
-        //Open the database
-        //With this we could open multiple named databases if we wanted to
-        rc = mdb_dbi_open(txn, nullptr, 0, &dbi);
-        mdb_txn_abort(txn);
-    }
-    */
-    const bool implicitTransaction = !d->transaction;
-    if (implicitTransaction) {
-        // TODO: if this fails, still try the write below?
-        if (!startTransaction(ReadOnly)) {
-            return;
-        }
-    }
-
-    rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
-    if (rc) {
-        std::cerr << "mdb_cursor_get: " << rc << " " << mdb_strerror(rc) << std::endl;
-        return;
-    }
-
-    if (sKey.empty()) {
-        std::cout << "Iterating over all values of store!" << std::endl;
-        while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-            resultHandler(key.mv_data, data.mv_size);
-        }
-
-        //We never find the last value
-        if (rc == MDB_NOTFOUND) {
-            rc = 0;
-        }
-    } else {
-        if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_SET)) == 0) {
-            resultHandler(data.mv_data, data.mv_size);
-        } else {
-            std::cout << "couldn't find value " << sKey << " " << std::endl;
-        }
-    }
-
-    if (rc) {
-        std::cerr << "mdb_cursor_get: " << rc << " " << mdb_strerror(rc) << std::endl;
-    }
-
-    mdb_cursor_close(cursor);
-
-    /**
-      we don't abort the transaction since we need it for reading the values
-    if (implicitTransaction) {
-        abortTransaction();
-    }
-    */
+    size_t valueSize;
+    char *valueBuffer = d->db.get(sKey.data(), sKey.size(), &valueSize);
+    resultHandler(valueBuffer, valueSize);
+    delete[] valueBuffer;
 }
 
+qint64 Database::diskUsage() const
+{
+    if (!d->dbOpen) {
+        return 0;
+    }
+
+    QFileInfo info(QString::fromStdString(d->db.path()));
+    return info.size();
+}
+
+void Database::removeFromDisk() const
+{
+    if (!d->dbOpen) {
+        return;
+    }
+
+   QFileInfo info(QString::fromStdString(d->db.path()));
+   QDir dir = info.dir();
+   dir.remove(info.fileName());
+}

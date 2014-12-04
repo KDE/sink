@@ -12,7 +12,7 @@ macro(manual_tests)
     foreach(_testname ${ARGN})
         add_executable(${_testname} ${_testname}.cpp ${store_SRCS})
         qt5_use_modules(${_testname} Core Test)
-        target_link_libraries(${_testname} lmdb)
+        target_link_libraries(${_testname} kyotocabinet)
     endforeach(_testname)
 endmacro(auto_tests)
 

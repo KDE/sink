@@ -46,21 +46,16 @@ class StorageBenchmark : public QObject
 private:
     //This should point to a directory on disk and not a ramdisk (since we're measuring performance)
     QString testDataPath;
-    QString dbPath;
+    QString dbName;
     QString filePath;
     const int count = 50000;
 
 private Q_SLOTS:
     void initTestCase()
     {
-        testDataPath = "./";
-        dbPath = testDataPath + "testdb";
+        testDataPath = "./testdb";
+        dbName = "test";
         filePath = testDataPath + "buffer.fb";
-
-        QDir dir(testDataPath);
-        dir.remove("testdb/data.mdb");
-        dir.remove("testdb/lock.mdb");
-        dir.remove(filePath);
     }
 
     void testWriteRead_data()
@@ -79,7 +74,7 @@ private Q_SLOTS:
 
         Database *db = 0;
         if (useDb) {
-            db = new Database(dbPath);
+            db = new Database(testDataPath, dbName);
         }
 
         std::ofstream myfile;
@@ -118,7 +113,7 @@ private Q_SLOTS:
         {
             for (int i = 0; i < count; i++) {
                 if (db) {
-                    db->read(keyPrefix + std::to_string(i), [](void *ptr, int size){});
+                    db->read(keyPrefix + std::to_string(i), [](std::string value){});
                 }
             }
         }
@@ -149,9 +144,11 @@ private Q_SLOTS:
 
     void testSizes()
     {
-        QFileInfo dbInfo(dbPath, "data.mdb");
+        Database db(testDataPath, dbName);
+        qDebug() << "Database size [kb]: " << db.diskUsage()/1024;
+        db.removeFromDisk();
+
         QFileInfo fileInfo(filePath);
-        qDebug() << "Database size [kb]: " << dbInfo.size()/1024;
         qDebug() << "File size [kb]: " << fileInfo.size()/1024;
     }
 };
