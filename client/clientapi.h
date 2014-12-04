@@ -3,6 +3,7 @@
 #include <QString>
 #include <QSet>
 #include <QSharedPointer>
+#include <QStandardPaths>
 #include <QTimer>
 #include <QDebug>
 #include <functional>
@@ -277,6 +278,11 @@ private:
  */
 class Store {
 public:
+    static QString storageLocation()
+    {
+        return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2";
+    }
+
     /**
      * Asynchronusly load a dataset
      */
