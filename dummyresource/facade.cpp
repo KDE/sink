@@ -11,7 +11,7 @@ using namespace flatbuffers;
 DummyResourceFacade::DummyResourceFacade()
     : Akonadi2::StoreFacade<Akonadi2::Domain::Event>(),
     mResourceAccess(new ResourceAccess("dummyresource")),
-    mDatabase(new Database("dummyresource"))
+    mDatabase(new Database(Akonadi2::Store::storageLocation(), "dummyresource"))
 {
     // connect(mResourceAccess.data(), &ResourceAccess::ready, this, onReadyChanged);
 }
@@ -76,7 +76,7 @@ void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function
 {
     qDebug() << "load called";
     //TODO only read values matching the query
-    auto db = QSharedPointer<Database>::create("dummyresource");
+    auto db = QSharedPointer<Database>::create(Akonadi2::Store::storageLocation(), "dummyresource");
     db->read("", [resultCallback, db](void *data, int size) {
         //TODO read second buffer as well
         auto eventBuffer = GetDummyEvent(data);
