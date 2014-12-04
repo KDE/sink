@@ -1,12 +1,14 @@
 #include <QtTest>
 
 #include "calendar_generated.h"
+
 #include <iostream>
 #include <fstream>
+
+#include <QDebug>
 #include <QDir>
 #include <QString>
 #include <QTime>
-#include <qdebug.h>
 
 #include "store/database.h"
 
@@ -75,7 +77,10 @@ private Q_SLOTS:
         QFETCH(bool, useDb);
         QFETCH(int, count);
 
-        Database db(dbPath);
+        Database *db = 0;
+        if (useDb) {
+            db = new Database(dbPath);
+        }
 
         std::ofstream myfile;
         myfile.open(filePath.toStdString());
@@ -85,21 +90,22 @@ private Q_SLOTS:
 
         time.start();
         {
-            auto transaction = db.startTransaction();
             auto event = createEvent();
             for (int i = 0; i < count; i++) {
-                if (useDb && i > 0 && (i % 10000 == 0)) {
-                    db.endTransaction(transaction);
-                    transaction = db.startTransaction();
-                }
-                if (useDb) {
-                    db.write(keyPrefix + std::to_string(i), event, transaction);
+                if (db) {
+                    if (i % 10000 == 0) {
+                        db->commitTransaction();
+                        db->startTransaction();
+                    }
+
+                    db->write(keyPrefix + std::to_string(i), event);
                 } else {
                     myfile << event;
                 }
             }
-            if (useDb) {
-                db.endTransaction(transaction);
+
+            if (db) {
+                db->commitTransaction();
             } else {
                 myfile.close();
             }
@@ -110,8 +116,8 @@ private Q_SLOTS:
         time.start();
         {
             for (int i = 0; i < count; i++) {
-                if (useDb) {
-                    db.read(keyPrefix + std::to_string(i));
+                if (db) {
+                    db->read(keyPrefix + std::to_string(i), [](void *ptr, int size){});
                 }
             }
         }
