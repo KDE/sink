@@ -37,11 +37,11 @@ Database::Private::Private(const QString &path)
         int rc = mdb_env_open(env, path.toStdString().data(), 0, 0664);
 
         if (rc) {
-            std::cerr << "mdb_env_open: " << rc << mdb_strerror(rc) << std::endl;
+            std::cerr << "mdb_env_open: " << rc << " " << mdb_strerror(rc) << std::endl;
             mdb_env_close(env);
             env = 0;
         } else {
-            const int dbSize = 10485760*100; //10MB * 100
+            const size_t dbSize = 10485760 * 100; //10MB * 100
             mdb_env_set_mapsize(env, dbSize);
         }
     }
@@ -114,7 +114,7 @@ bool Database::commitTransaction()
     d->transaction = 0;
 
     if (rc) {
-        std::cerr << "mdb_txn_commit: " << rc << mdb_strerror(rc) << std::endl;
+        std::cerr << "mdb_txn_commit: " << rc << " " << mdb_strerror(rc) << std::endl;
     }
 
     return !rc;
@@ -153,7 +153,7 @@ bool Database::write(const std::string &sKey, const std::string &sValue)
     rc = mdb_put(d->transaction, d->dbi, &key, &data, 0);
 
     if (rc) {
-        std::cerr << "mdb_put: " << rc << mdb_strerror(rc) << std::endl;
+        std::cerr << "mdb_put: " << rc << " " << mdb_strerror(rc) << std::endl;
     }
 
     if (implicitTransaction) {
@@ -212,7 +212,7 @@ TODO: do we need a write transaction before a read transaction? only relevant fo
 
     rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
     if (rc) {
-        std::cerr << "mdb_cursor_get: " << rc << mdb_strerror(rc) << std::endl;
+        std::cerr << "mdb_cursor_get: " << rc << " " << mdb_strerror(rc) << std::endl;
         return;
     }
 
@@ -230,12 +230,12 @@ TODO: do we need a write transaction before a read transaction? only relevant fo
         if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_SET)) == 0) {
             resultHandler(data.mv_data, data.mv_size);
         } else {
-            std::cout << "couldn't find value " << sKey << std::endl;
+            std::cout << "couldn't find value " << sKey << " " << std::endl;
         }
     }
 
     if (rc) {
-        std::cerr << "mdb_cursor_get: " << rc << mdb_strerror(rc) << std::endl;
+        std::cerr << "mdb_cursor_get: " << rc << " " << mdb_strerror(rc) << std::endl;
     }
 
     mdb_cursor_close(cursor);
