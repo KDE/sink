@@ -49,6 +49,7 @@ class DummyEventAdaptor : public Akonadi2::Domain::Event {
 public:
     DummyEventAdaptor(const QString &resource, const QString &identifier, qint64 revision):Akonadi2::Domain::Event(resource, identifier, revision){};
 
+    //TODO
     // void setProperty(const QString &key, const QVariant &value)
     // {
     //     //Record changes to send to resource?
@@ -66,25 +67,23 @@ public:
 
     //Data is read-only
     DummyEvent const *buffer;
-};
 
-static Akonadi2::Domain::Event::Ptr createEvent(const std::string &data)
-{
-    //We will have to buffers stored after each other
-    auto eventBuffer = GetDummyEvent(data.c_str());
-    auto event = QSharedPointer<DummyEventAdaptor>::create("dummyresource", "key", 0);
-    event->buffer = eventBuffer;
-    // qDebug() << readEvent->summary()->c_str();
-    return event;
-}
+    //Keep query alive so values remain valid
+    QSharedPointer<ReadTransaction> db;
+};
 
 void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
 {
     qDebug() << "load called";
     //TODO only read values matching the query
-    //FIXME the interface should probably simply return a void pointer + size
-    mDatabase->read("", [resultCallback](const std::string &result) {
-        resultCallback(createEvent(result));
+    auto db = QSharedPointer<ReadTransaction>::create("dummyresource");
+    db->read("", [resultCallback, db](void *data, int size) {
+        //TODO read second buffer as well
+        auto eventBuffer = GetDummyEvent(data);
+        auto event = QSharedPointer<DummyEventAdaptor>::create("dummyresource", "key", 0);
+        event->buffer = eventBuffer;
+        event->db = db;
+        resultCallback(event);
     });
 }
 
