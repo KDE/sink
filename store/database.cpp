@@ -40,7 +40,7 @@ Database::Private::Private(const QString &s, const QString &n)
     if (mdb_env_create(&env)) {
         // TODO: handle error
     } else {
-        int rc = mdb_env_open(env, (storageRoot+name).toStdString().data(), 0, 0664);
+        int rc = mdb_env_open(env, storageRoot.toStdString().data(), 0, 0664);
 
         if (rc) {
             std::cerr << "mdb_env_open: " << rc << " " << mdb_strerror(rc) << std::endl;
@@ -260,14 +260,13 @@ void Database::read(const std::string &sKey, const std::function<void(void *ptr,
 
 qint64 Database::diskUsage() const
 {
-    QFileInfo info(d->storageRoot+d->name);
+    QFileInfo info(d->storageRoot + "/data.mdb");
     return info.size();
 }
 
 void Database::removeFromDisk() const
 {
-    QFileInfo info(d->storageRoot+d->name);
-    QDir dir = info.dir();
+    QDir dir(d->storageRoot);
     dir.remove("data.mdb");
     dir.remove("lock.mdb");
 }
