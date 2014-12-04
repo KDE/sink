@@ -21,11 +21,13 @@ public:
     MDB_env *env;
     MDB_txn *transaction;
     bool readTransaction;
+    bool firstOpen;
 };
 
 Database::Private::Private(const QString &path)
     : transaction(0),
-      readTransaction(false)
+      readTransaction(false),
+      firstOpen(true)
 {
     QDir dir;
     dir.mkdir(path);
@@ -89,13 +91,22 @@ bool Database::startTransaction(TransactionType type)
         abortTransaction();
     }
 
-    //TODO handle errors
+    if (d->firstOpen && requestedRead) {
+        //A write transaction is at least required the first time
+        mdb_txn_begin(d->env, nullptr, 0, &d->transaction);
+        //Open the database
+        //With this we could open multiple named databases if we wanted to
+        mdb_dbi_open(d->transaction, nullptr, 0, &d->dbi);
+        mdb_txn_abort(d->transaction);
+    }
+
     int rc;
     rc = mdb_txn_begin(d->env, NULL, requestedRead ? MDB_RDONLY : 0, &d->transaction);
     if (!rc) {
         rc = mdb_dbi_open(d->transaction, NULL, 0, &d->dbi);
     }
 
+    d->firstOpen = false;
     return !rc;
 }
 
@@ -191,17 +202,6 @@ void Database::read(const std::string &sKey, const std::function<void(void *ptr,
     key.mv_size = sKey.size();
     key.mv_data = (void*)sKey.data();
 
-    /*
-TODO: do we need a write transaction before a read transaction? only relevant for implicitTransactions in any case
-    {
-        //A write transaction is at least required the first time
-        rc = mdb_txn_begin(env, nullptr, 0, &txn);
-        //Open the database
-        //With this we could open multiple named databases if we wanted to
-        rc = mdb_dbi_open(txn, nullptr, 0, &dbi);
-        mdb_txn_abort(txn);
-    }
-    */
     const bool implicitTransaction = !d->transaction;
     if (implicitTransaction) {
         // TODO: if this fails, still try the write below?
@@ -218,6 +218,7 @@ TODO: do we need a write transaction before a read transaction? only relevant fo
 
     if (sKey.empty()) {
         std::cout << "Iterating over all values of store!" << std::endl;
+        rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST);
         while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
             resultHandler(key.mv_data, data.mv_size);
         }
