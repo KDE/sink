@@ -118,28 +118,34 @@ bool Storage::write(const std::string &sKey, const std::string &sValue)
     return success; 
 }
 
-void Storage::read(const std::string &sKey, const std::function<void(const std::string &value)> &resultHandler)
+bool Storage::read(const std::string &sKey, const std::function<void(const std::string &value)> &resultHandler)
 {
     if (!d->dbOpen) {
-        return;
+        return false;
     }
 
     std::string value;
     if (d->db.get(sKey, &value)) {
         resultHandler(value);
+        return true;
     }
+
+    return false;
 }
 
-void Storage::read(const std::string &sKey, const std::function<void(void *ptr, int size)> &resultHandler)
+bool Storage::read(const std::string &sKey, const std::function<void(void *ptr, int size)> &resultHandler)
 {
     if (!d->dbOpen) {
-        return;
+        return false;
     }
 
     size_t valueSize;
     char *valueBuffer = d->db.get(sKey.data(), sKey.size(), &valueSize);
-    resultHandler(valueBuffer, valueSize);
+    if (valueBuffer) {
+        resultHandler(valueBuffer, valueSize);
+    }
     delete[] valueBuffer;
+    return valueBuffer != nullptr;
 }
 
 qint64 Storage::diskUsage() const

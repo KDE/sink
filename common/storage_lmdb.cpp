@@ -180,9 +180,9 @@ bool Storage::write(const std::string &sKey, const std::string &sValue)
     return !rc;
 }
 
-void Storage::read(const std::string &sKey, const std::function<void(const std::string &value)> &resultHandler)
+bool Storage::read(const std::string &sKey, const std::function<void(const std::string &value)> &resultHandler)
 {
-    read(sKey,
+    return read(sKey,
          [&](void *ptr, int size) {
             const std::string resultValue(static_cast<char*>(ptr), size);
             resultHandler(resultValue);
@@ -190,10 +190,10 @@ void Storage::read(const std::string &sKey, const std::function<void(const std::
 // std::cout << "key: " << resultKey << " data: " << resultValue << std::endl;
 }
 
-void Storage::read(const std::string &sKey, const std::function<void(void *ptr, int size)> &resultHandler)
+bool Storage::read(const std::string &sKey, const std::function<void(void *ptr, int size)> &resultHandler)
 {
     if (!d->env) {
-        return;
+        return false;
     }
 
     int rc;
@@ -208,14 +208,14 @@ void Storage::read(const std::string &sKey, const std::function<void(void *ptr, 
     if (implicitTransaction) {
         // TODO: if this fails, still try the write below?
         if (!startTransaction(ReadOnly)) {
-            return;
+            return false;
         }
     }
 
     rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
     if (rc) {
         std::cerr << "mdb_cursor_get: " << rc << " " << mdb_strerror(rc) << std::endl;
-        return;
+        return false;
     }
 
     if (sKey.empty()) {
@@ -237,11 +237,12 @@ void Storage::read(const std::string &sKey, const std::function<void(void *ptr, 
         }
     }
 
+    mdb_cursor_close(cursor);
+
     if (rc) {
         std::cerr << "mdb_cursor_get: " << rc << " " << mdb_strerror(rc) << std::endl;
+        return false
     }
-
-    mdb_cursor_close(cursor);
 
     /**
       we don't abort the transaction since we need it for reading the values
@@ -249,6 +250,7 @@ void Storage::read(const std::string &sKey, const std::function<void(void *ptr, 
         abortTransaction();
     }
     */
+    return true;
 }
 
 qint64 Storage::diskUsage() const

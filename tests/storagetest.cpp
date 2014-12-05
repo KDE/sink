@@ -6,7 +6,7 @@
 #include <QString>
 #include <QtConcurrent/QtConcurrentRun>
 
-#include "store/database.h"
+#include "common/storage.h"
 
 class StorageTest : public QObject
 {
@@ -19,31 +19,32 @@ private:
 
     void populate(int count)
     {
-        Database db(testDataPath, dbName);
+        Storage storage(testDataPath, dbName);
         for (int i = 0; i < count; i++) {
             //This should perhaps become an implementation detail of the db?
             if (i % 10000 == 0) {
                 if (i > 0) {
-                    db.commitTransaction();
+                    storage.commitTransaction();
                 }
-                db.startTransaction();
+                storage.startTransaction();
             }
-            db.write(keyPrefix + std::to_string(i), keyPrefix + std::to_string(i));
+            storage.write(keyPrefix + std::to_string(i), keyPrefix + std::to_string(i));
         }
-        db.commitTransaction();
+        storage.commitTransaction();
     }
 
-    bool verify(Database &db, int i)
+    bool verify(Storage &storage, int i)
     {
-        bool error = false;
+        bool success = true;
+        bool keyMatch = true;
         const auto reference = keyPrefix + std::to_string(i);
-        db.read(keyPrefix + std::to_string(i), [&error, &reference](const std::string &value) {
+        success = storage.read(keyPrefix + std::to_string(i), [&error, &reference](const std::string &value) {
             if (value != reference) {
                 qDebug() << "Mismatch while reading";
-                error = true;
+                keyMatch = false;
             }
         });
-        return !error;
+        return succes && keyMatch;
     }
 
 private Q_SLOTS:
