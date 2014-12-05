@@ -19,7 +19,7 @@ private:
 
     void populate(int count)
     {
-        Storage storage(testDataPath, dbName);
+        Storage storage(testDataPath, dbName, Storage::ReadWrite);
         for (int i = 0; i < count; i++) {
             //This should perhaps become an implementation detail of the db?
             if (i % 10000 == 0) {

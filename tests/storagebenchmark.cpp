@@ -79,7 +79,7 @@ private Q_SLOTS:
 
         Storage *store = 0;
         if (useDb) {
-            store = new Storage(testDataPath, dbName);
+            store = new Storage(testDataPath, dbName, Storage::ReadWrite);
         }
 
         std::ofstream myfile;
