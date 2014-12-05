@@ -195,20 +195,26 @@ bool Storage::write(const std::string &sKey, const std::string &sValue)
     return !rc;
 }
 
-bool Storage::read(const std::string &sKey, const std::function<void(const std::string &value)> &resultHandler)
+void Storage::read(const std::string &sKey,
+                   const std::function<bool(const std::string &value)> &resultHandler,
+                   const std::function<void(const Storage::Error &error)> &errorHandler)
 {
-    return read(sKey,
-         [&](void *ptr, int size) {
+    read(sKey,
+         [&](void *ptr, int size) -> bool {
             const std::string resultValue(static_cast<char*>(ptr), size);
-            resultHandler(resultValue);
-         });
+            return resultHandler(resultValue);
+         }, errorHandler);
 // std::cout << "key: " << resultKey << " data: " << resultValue << std::endl;
 }
 
-bool Storage::read(const std::string &sKey, const std::function<void(void *ptr, int size)> &resultHandler)
+void Storage::read(const std::string &sKey,
+                   const std::function<bool(void *ptr, int size)> &resultHandler,
+                   const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d->env) {
-        return false;
+        Error error(d->name.toStdString(), -1, "Not open");
+        errorHandler(error);
+        return;
     }
 
     int rc;
@@ -223,21 +229,26 @@ bool Storage::read(const std::string &sKey, const std::function<void(void *ptr, 
     if (implicitTransaction) {
         // TODO: if this fails, still try the write below?
         if (!startTransaction(ReadOnly)) {
-            return false;
+            Error error(d->name.toStdString(), -2, "Could not start transaction");
+            errorHandler(error);
+            return;
         }
     }
 
     rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
     if (rc) {
-        std::cerr << "mdb_cursor_get: " << rc << " " << mdb_strerror(rc) << std::endl;
-        return false;
+        Error error(d->name.toStdString(), rc, mdb_strerror(rc));
+        errorHandler(error);
+        return;
     }
 
     if (sKey.empty()) {
         std::cout << "Iterating over all values of store!" << std::endl;
         rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST);
         while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-            resultHandler(key.mv_data, data.mv_size);
+            if (!resultHandler(key.mv_data, data.mv_size)) {
+                break;
+            }
         }
 
         //We never find the last value
@@ -255,8 +266,8 @@ bool Storage::read(const std::string &sKey, const std::function<void(void *ptr, 
     mdb_cursor_close(cursor);
 
     if (rc) {
-        std::cerr << "mdb_cursor_get: " << rc << " " << mdb_strerror(rc) << std::endl;
-        return false;
+        Error error(d->name.toStdString(), rc, mdb_strerror(rc));
+        errorHandler(error);
     }
 
     /**
@@ -265,7 +276,6 @@ bool Storage::read(const std::string &sKey, const std::function<void(void *ptr, 
         abortTransaction();
     }
     */
-    return true;
 }
 
 qint64 Storage::diskUsage() const

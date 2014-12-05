@@ -118,7 +118,7 @@ private Q_SLOTS:
         {
             for (int i = 0; i < count; i++) {
                 if (store) {
-                    store->read(keyPrefix + std::to_string(i), [](std::string value){});
+                    store->read(keyPrefix + std::to_string(i), [](std::string value) -> bool { return true; });
                 }
             }
         }

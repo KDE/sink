@@ -77,13 +77,14 @@ void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function
     qDebug() << "load called";
     //TODO only read values matching the query
     auto storage = QSharedPointer<Storage>::create(Akonadi2::Store::storageLocation(), "dummyresource");
-    storage->read("", [resultCallback, storage](void *data, int size) {
+    storage->read("", [resultCallback, storage](void *data, int size) -> bool {
         //TODO read second buffer as well
         auto eventBuffer = GetDummyEvent(data);
         auto event = QSharedPointer<DummyEventAdaptor>::create("dummyresource", "key", 0);
         event->buffer = eventBuffer;
         event->storage = storage;
         resultCallback(event);
+        return true;
     });
 }
 

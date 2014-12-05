@@ -13,6 +13,7 @@ endif (STORAGE_KYOTO)
 set(command_SRCS
    commands.cpp
    console.cpp
+   storage_common.cpp
    ${storage_SRCS})
 
 add_library(${PROJECT_NAME} ${command_SRCS})

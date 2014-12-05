@@ -38,12 +38,16 @@ private:
         bool success = true;
         bool keyMatch = true;
         const auto reference = keyPrefix + std::to_string(i);
-        success = storage.read(keyPrefix + std::to_string(i), [&keyMatch, &reference](const std::string &value) {
-            if (value != reference) {
-                qDebug() << "Mismatch while reading";
-                keyMatch = false;
-            }
-        });
+        storage.read(keyPrefix + std::to_string(i),
+            [&keyMatch, &reference](const std::string &value) -> bool {
+                if (value != reference) {
+                    qDebug() << "Mismatch while reading";
+                    keyMatch = false;
+                }
+                return keyMatch;
+            },
+            [&success](const Storage::Error &) { success = false; }
+            );
         return success && keyMatch;
     }
 

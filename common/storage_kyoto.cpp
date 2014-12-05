@@ -18,14 +18,16 @@ public:
     Private(const QString &storageRoot, const QString &name, AccessMode m);
     ~Private();
 
+    QString name;
     kyotocabinet::TreeDB db;
     AccessMode mode;
     bool dbOpen;
     bool inTransaction;
 };
 
-Storage::Private::Private(const QString &storageRoot, const QString &name, AccessMode m)
-    : mode(m),
+Storage::Private::Private(const QString &storageRoot, const QString &n, AccessMode m)
+    : name(n),
+      mode(m),
       dbOpen(false),
       inTransaction(false)
 {
@@ -129,34 +131,45 @@ bool Storage::write(const std::string &sKey, const std::string &sValue)
     return success; 
 }
 
-bool Storage::read(const std::string &sKey, const std::function<void(const std::string &value)> &resultHandler)
+void Storage::read(const std::string &sKey,
+                   const std::function<bool(const std::string &value)> &resultHandler,
+                   const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d->dbOpen) {
-        return false;
+        Error error(d->name.toStdString(), -1, "Not open");
+        errorHandler(error);
+        return;
     }
 
     std::string value;
     if (d->db.get(sKey, &value)) {
         resultHandler(value);
-        return true;
+        return;
     }
 
-    return false;
+    Error error(d->name.toStdString(), d->db.error().code(), d->db.error().message());
+    errorHandler(error);
 }
 
-bool Storage::read(const std::string &sKey, const std::function<void(void *ptr, int size)> &resultHandler)
+void Storage::read(const std::string &sKey,
+                   const std::function<bool(void *ptr, int size)> &resultHandler,
+                   const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d->dbOpen) {
-        return false;
+        Error error(d->name.toStdString(), -1, "Not open");
+        errorHandler(error);
+        return;
     }
 
     size_t valueSize;
     char *valueBuffer = d->db.get(sKey.data(), sKey.size(), &valueSize);
     if (valueBuffer) {
         resultHandler(valueBuffer, valueSize);
+    } else {
+        Error error(d->name.toStdString(), d->db.error().code(), d->db.error().message());
+        errorHandler(error);
     }
     delete[] valueBuffer;
-    return valueBuffer != nullptr;
 }
 
 qint64 Storage::diskUsage() const
