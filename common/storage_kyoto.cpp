@@ -1,4 +1,4 @@
-#include "database.h"
+#include "storage.h"
 
 #include <iostream>
 
@@ -12,7 +12,7 @@
 
 #include <kchashdb.h>
 
-class Database::Private
+class Storage::Private
 {
 public:
     Private(const QString &storageRoot, const QString &name);
@@ -23,7 +23,7 @@ public:
     bool inTransaction;
 };
 
-Database::Private::Private(const QString &storageRoot, const QString &name)
+Storage::Private::Private(const QString &storageRoot, const QString &name)
     : inTransaction(false)
 {
     QDir dir;
@@ -36,29 +36,29 @@ Database::Private::Private(const QString &storageRoot, const QString &name)
     }
 }
 
-Database::Private::~Private()
+Storage::Private::~Private()
 {
     if (dbOpen && inTransaction) {
         db.end_transaction(false);
     }
 }
 
-Database::Database(const QString &storageRoot, const QString &name)
+Storage::Storage(const QString &storageRoot, const QString &name)
     : d(new Private(storageRoot, name))
 {
 }
 
-Database::~Database()
+Storage::~Storage()
 {
     delete d;
 }
 
-bool Database::isInTransaction() const
+bool Storage::isInTransaction() const
 {
     return d->inTransaction;
 }
 
-bool Database::startTransaction(TransactionType type)
+bool Storage::startTransaction(TransactionType type)
 {
     if (!d->dbOpen) {
         return false;
@@ -73,7 +73,7 @@ bool Database::startTransaction(TransactionType type)
     return d->inTransaction;
 }
 
-bool Database::commitTransaction()
+bool Storage::commitTransaction()
 {
     if (!d->dbOpen) {
         return false;
@@ -88,7 +88,7 @@ bool Database::commitTransaction()
     return success;
 }
 
-void Database::abortTransaction()
+void Storage::abortTransaction()
 {
     if (!d->dbOpen || !d->inTransaction) {
         return;
@@ -98,7 +98,7 @@ void Database::abortTransaction()
     d->inTransaction = false;
 }
 
-bool Database::write(const char *key, size_t keySize, const char *value, size_t valueSize)
+bool Storage::write(const char *key, size_t keySize, const char *value, size_t valueSize)
 {
     if (!d->dbOpen) {
         return false;
@@ -108,7 +108,7 @@ bool Database::write(const char *key, size_t keySize, const char *value, size_t 
     return success; 
 }
 
-bool Database::write(const std::string &sKey, const std::string &sValue)
+bool Storage::write(const std::string &sKey, const std::string &sValue)
 {
     if (!d->dbOpen) {
         return false;
@@ -118,7 +118,7 @@ bool Database::write(const std::string &sKey, const std::string &sValue)
     return success; 
 }
 
-void Database::read(const std::string &sKey, const std::function<void(const std::string &value)> &resultHandler)
+void Storage::read(const std::string &sKey, const std::function<void(const std::string &value)> &resultHandler)
 {
     if (!d->dbOpen) {
         return;
@@ -130,7 +130,7 @@ void Database::read(const std::string &sKey, const std::function<void(const std:
     }
 }
 
-void Database::read(const std::string &sKey, const std::function<void(void *ptr, int size)> &resultHandler)
+void Storage::read(const std::string &sKey, const std::function<void(void *ptr, int size)> &resultHandler)
 {
     if (!d->dbOpen) {
         return;
@@ -142,7 +142,7 @@ void Database::read(const std::string &sKey, const std::function<void(void *ptr,
     delete[] valueBuffer;
 }
 
-qint64 Database::diskUsage() const
+qint64 Storage::diskUsage() const
 {
     if (!d->dbOpen) {
         return 0;
@@ -152,7 +152,7 @@ qint64 Database::diskUsage() const
     return info.size();
 }
 
-void Database::removeFromDisk() const
+void Storage::removeFromDisk() const
 {
     if (!d->dbOpen) {
         return;

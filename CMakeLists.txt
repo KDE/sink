@@ -47,10 +47,10 @@ add_subdirectory(client)
 # the resource
 add_subdirectory(resource)
 
-# the store
-add_subdirectory(store)
-
 # a simple dummy resource implementation
 add_subdirectory(dummyresource)
+
+# some tests
+add_subdirectory(tests)
 
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
