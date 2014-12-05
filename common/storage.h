@@ -5,12 +5,12 @@
 
 class Storage {
 public:
-    enum TransactionType { ReadOnly, ReadWrite };
+    enum AccessMode { ReadOnly, ReadWrite };
 
-    Storage(const QString &storageRoot, const QString &name);
+    Storage(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly);
     ~Storage();
     bool isInTransaction() const;
-    bool startTransaction(TransactionType type = ReadWrite);
+    bool startTransaction(AccessMode mode = ReadWrite);
     bool commitTransaction();
     void abortTransaction();
     bool write(const char *key, size_t keySize, const char *value, size_t valueSize);

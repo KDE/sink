@@ -14,7 +14,7 @@
 class Storage::Private
 {
 public:
-    Private(const QString &s, const QString &name);
+    Private(const QString &s, const QString &name, AccessMode m);
     ~Private();
 
     QString storageRoot;
@@ -23,14 +23,16 @@ public:
     MDB_dbi dbi;
     MDB_env *env;
     MDB_txn *transaction;
+    AccessMode mode;
     bool readTransaction;
     bool firstOpen;
 };
 
-Storage::Private::Private(const QString &s, const QString &n)
+Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
     : storageRoot(s),
       name(n),
       transaction(0),
+      mode(m),
       readTransaction(false),
       firstOpen(true)
 {
@@ -65,8 +67,8 @@ Storage::Private::~Private()
     mdb_env_close(env);
 }
 
-Storage::Storage(const QString &storageRoot, const QString &name)
-    : d(new Private(storageRoot, name))
+Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode)
+    : d(new Private(storageRoot, name, mode))
 {
 }
 
@@ -80,13 +82,18 @@ bool Storage::isInTransaction() const
     return d->transaction;
 }
 
-bool Storage::startTransaction(TransactionType type)
+bool Storage::startTransaction(AccessMode type)
 {
     if (!d->env) {
         return false;
     }
 
     bool requestedRead = type == ReadOnly;
+
+    if (d->mode == ReadOnly && !requestedRead) {
+        return false;
+    }
+
     if (d->transaction && (!d->readTransaction || requestedRead)) {
         return true;
     }

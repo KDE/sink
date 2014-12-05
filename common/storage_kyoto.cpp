@@ -15,23 +15,30 @@
 class Storage::Private
 {
 public:
-    Private(const QString &storageRoot, const QString &name);
+    Private(const QString &storageRoot, const QString &name, AccessMode m);
     ~Private();
 
     kyotocabinet::TreeDB db;
+    AccessMode mode;
     bool dbOpen;
     bool inTransaction;
 };
 
-Storage::Private::Private(const QString &storageRoot, const QString &name)
-    : inTransaction(false)
+Storage::Private::Private(const QString &storageRoot, const QString &name, AccessMode m)
+    : mode(m),
+      dbOpen(false),
+      inTransaction(false)
 {
     QDir dir;
     dir.mkdir(storageRoot);
 
     //create file
-    dbOpen = db.open((storageRoot + "/" + name + ".kch").toStdString(), kyotocabinet::BasicDB::OWRITER | kyotocabinet::BasicDB::OCREATE);
+    uint32_t openMode = kyotocabinet::BasicDB::OCREATE |
+                       (mode == ReadOnly ? kyotocabinet::BasicDB::OREADER
+                                         : kyotocabinet::BasicDB::OWRITER);
+    dbOpen = db.open((storageRoot + "/" + name + ".kch").toStdString(), openMode);
     if (!dbOpen) {
+        std::cerr << "Could not open database: " << db.error().codename(db.error().code())  << " " << db.error().message() << std::endl;
         // TODO: handle error
     }
 }
@@ -43,8 +50,8 @@ Storage::Private::~Private()
     }
 }
 
-Storage::Storage(const QString &storageRoot, const QString &name)
-    : d(new Private(storageRoot, name))
+Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode)
+    : d(new Private(storageRoot, name, mode))
 {
 }
 
@@ -58,9 +65,13 @@ bool Storage::isInTransaction() const
     return d->inTransaction;
 }
 
-bool Storage::startTransaction(TransactionType type)
+bool Storage::startTransaction(AccessMode type)
 {
     if (!d->dbOpen) {
+        return false;
+    }
+
+    if (type == ReadWrite && d->mode != ReadWrite) {
         return false;
     }
 
