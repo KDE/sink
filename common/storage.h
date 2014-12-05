@@ -3,12 +3,12 @@
 #include <string>
 #include <QString>
 
-class Database {
+class Storage {
 public:
     enum TransactionType { ReadOnly, ReadWrite };
 
-    Database(const QString &storageRoot, const QString &name);
-    ~Database();
+    Storage(const QString &storageRoot, const QString &name);
+    ~Storage();
     bool isInTransaction() const;
     bool startTransaction(TransactionType type = ReadWrite);
     bool commitTransaction();

@@ -11,7 +11,7 @@ using namespace flatbuffers;
 DummyResourceFacade::DummyResourceFacade()
     : Akonadi2::StoreFacade<Akonadi2::Domain::Event>(),
     mResourceAccess(new ResourceAccess("dummyresource")),
-    mDatabase(new Database(Akonadi2::Store::storageLocation(), "dummyresource"))
+    mStorage(new Storage(Akonadi2::Store::storageLocation(), "dummyresource"))
 {
     // connect(mResourceAccess.data(), &ResourceAccess::ready, this, onReadyChanged);
 }
@@ -69,20 +69,20 @@ public:
     DummyEvent const *buffer;
 
     //Keep query alive so values remain valid
-    QSharedPointer<Database> db;
+    QSharedPointer<Storage> storage;
 };
 
 void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
 {
     qDebug() << "load called";
     //TODO only read values matching the query
-    auto db = QSharedPointer<Database>::create(Akonadi2::Store::storageLocation(), "dummyresource");
-    db->read("", [resultCallback, db](void *data, int size) {
+    auto storage = QSharedPointer<Storage>::create(Akonadi2::Store::storageLocation(), "dummyresource");
+    storage->read("", [resultCallback, storage](void *data, int size) {
         //TODO read second buffer as well
         auto eventBuffer = GetDummyEvent(data);
         auto event = QSharedPointer<DummyEventAdaptor>::create("dummyresource", "key", 0);
         event->buffer = eventBuffer;
-        event->db = db;
+        event->storage = storage;
         resultCallback(event);
     });
 }

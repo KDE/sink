@@ -1,4 +1,4 @@
-#include "database.h"
+#include "storage.h"
 
 #include <iostream>
 
@@ -11,7 +11,7 @@
 
 #include <lmdb.h>
 
-class Database::Private
+class Storage::Private
 {
 public:
     Private(const QString &s, const QString &name);
@@ -19,6 +19,7 @@ public:
 
     QString storageRoot;
     QString name;
+
     MDB_dbi dbi;
     MDB_env *env;
     MDB_txn *transaction;
@@ -26,7 +27,7 @@ public:
     bool firstOpen;
 };
 
-Database::Private::Private(const QString &s, const QString &n)
+Storage::Private::Private(const QString &s, const QString &n)
     : transaction(0),
       readTransaction(false),
       firstOpen(true),
@@ -53,7 +54,7 @@ Database::Private::Private(const QString &s, const QString &n)
     }
 }
 
-Database::Private::~Private()
+Storage::Private::~Private()
 {
     if (transaction) {
         mdb_txn_abort(transaction);
@@ -64,22 +65,22 @@ Database::Private::~Private()
     mdb_env_close(env);
 }
 
-Database::Database(const QString &storageRoot, const QString &name)
+Storage::Storage(const QString &storageRoot, const QString &name)
     : d(new Private(storageRoot, name))
 {
 }
 
-Database::~Database()
+Storage::~Storage()
 {
     delete d;
 }
 
-bool Database::isInTransaction() const
+bool Storage::isInTransaction() const
 {
     return d->transaction;
 }
 
-bool Database::startTransaction(TransactionType type)
+bool Storage::startTransaction(TransactionType type)
 {
     if (!d->env) {
         return false;
@@ -114,7 +115,7 @@ bool Database::startTransaction(TransactionType type)
     return !rc;
 }
 
-bool Database::commitTransaction()
+bool Storage::commitTransaction()
 {
     if (!d->env) {
         return false;
@@ -135,7 +136,7 @@ bool Database::commitTransaction()
     return !rc;
 }
 
-void Database::abortTransaction()
+void Storage::abortTransaction()
 {
     if (!d->env || !d->transaction) {
         return;
@@ -145,12 +146,12 @@ void Database::abortTransaction()
     d->transaction = 0;
 }
 
-bool Database::write(const char *key, size_t keySize, const char *value, size_t valueSize)
+bool Storage::write(const char *key, size_t keySize, const char *value, size_t valueSize)
 {
     write(std::string(key, keySize), std::string(value, valueSize));
 }
 
-bool Database::write(const std::string &sKey, const std::string &sValue)
+bool Storage::write(const std::string &sKey, const std::string &sValue)
 {
     if (!d->env) {
         return false;
@@ -187,7 +188,7 @@ bool Database::write(const std::string &sKey, const std::string &sValue)
     return !rc;
 }
 
-bool Database::read(const std::string &sKey, const std::function<void(const std::string &value)> &resultHandler)
+bool Storage::read(const std::string &sKey, const std::function<void(const std::string &value)> &resultHandler)
 {
     return read(sKey,
          [&](void *ptr, int size) {
@@ -197,7 +198,7 @@ bool Database::read(const std::string &sKey, const std::function<void(const std:
 // std::cout << "key: " << resultKey << " data: " << resultValue << std::endl;
 }
 
-bool Database::read(const std::string &sKey, const std::function<void(void *ptr, int size)> &resultHandler)
+bool Storage::read(const std::string &sKey, const std::function<void(void *ptr, int size)> &resultHandler)
 {
     if (!d->env) {
         return false;
@@ -244,12 +245,12 @@ bool Database::read(const std::string &sKey, const std::function<void(void *ptr,
         }
     }
 
+    mdb_cursor_close(cursor);
+
     if (rc) {
         std::cerr << "mdb_cursor_get: " << rc << " " << mdb_strerror(rc) << std::endl;
         return false;
     }
-
-    mdb_cursor_close(cursor);
 
     /**
       we don't abort the transaction since we need it for reading the values
@@ -260,13 +261,20 @@ bool Database::read(const std::string &sKey, const std::function<void(void *ptr,
     return true;
 }
 
-qint64 Database::diskUsage() const
+qint64 Storage::diskUsage() const
 {
     QFileInfo info(d->storageRoot + "/data.mdb");
     return info.size();
 }
 
-void Database::removeFromDisk() const
+void Storage::removeFromDisk() const
+{
+    QDir dir(d->path);
+    dir.remove("data.mdb");
+    dir.remove("lock.mdb");
+}
+
+void Storage::removeFromDisk() const
 {
     QDir dir(d->storageRoot);
     dir.remove("data.mdb");

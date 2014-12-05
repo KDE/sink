@@ -9,7 +9,7 @@
 #include <QString>
 #include <QTime>
 
-#include "store/database.h"
+#include "common/storage.h"
 
 using namespace Calendar;
 using namespace flatbuffers;
@@ -59,8 +59,8 @@ private Q_SLOTS:
 
     void cleanupTestCase()
     {
-        Database db(testDataPath, dbName);
-        db.removeFromDisk();
+        Storage store(testDataPath, dbName);
+        store.removeFromDisk();
     }
 
     void testWriteRead_data()
@@ -77,9 +77,9 @@ private Q_SLOTS:
         QFETCH(bool, useDb);
         QFETCH(int, count);
 
-        Database *db = 0;
+        Storage *store = 0;
         if (useDb) {
-            db = new Database(testDataPath, dbName);
+            store = new Storage(testDataPath, dbName);
         }
 
         std::ofstream myfile;
@@ -92,22 +92,22 @@ private Q_SLOTS:
         {
             auto event = createEvent();
             for (int i = 0; i < count; i++) {
-                if (db) {
+                if (store) {
                     if (i % 10000 == 0) {
                         if (i > 0) {
-                            db->commitTransaction();
+                            store->commitTransaction();
                         }
-                        db->startTransaction();
+                        store->startTransaction();
                     }
 
-                    db->write(keyPrefix + std::to_string(i), event);
+                    store->write(keyPrefix + std::to_string(i), event);
                 } else {
                     myfile << event;
                 }
             }
 
-            if (db) {
-                db->commitTransaction();
+            if (store) {
+                store->commitTransaction();
             } else {
                 myfile.close();
             }
@@ -117,20 +117,20 @@ private Q_SLOTS:
 
         {
             for (int i = 0; i < count; i++) {
-                if (db) {
-                    db->read(keyPrefix + std::to_string(i), [](std::string value){});
+                if (store) {
+                    store->read(keyPrefix + std::to_string(i), [](std::string value){});
                 }
             }
         }
         const int readDuration = time.restart();
 
-        if (db) {
+        if (store) {
             qDebug() << "Reading took[ms]: " << readDuration;
         } else {
             qDebug() << "File reading is not implemented.";
         }
 
-        delete db;
+        delete store;
     }
 
     void testBufferCreation()
@@ -149,8 +149,8 @@ private Q_SLOTS:
 
     void testSizes()
     {
-        Database db(testDataPath, dbName);
-        qDebug() << "Database size [kb]: " << db.diskUsage()/1024;
+        Storage store(testDataPath, dbName);
+        qDebug() << "Database size [kb]: " << store.diskUsage()/1024;
 
         QFileInfo fileInfo(filePath);
         qDebug() << "File size [kb]: " << fileInfo.size()/1024;

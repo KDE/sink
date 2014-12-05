@@ -1,7 +1,7 @@
 #pragma once
 
 #include "client/clientapi.h"
-#include "store/database.h"
+#include "common/storage.h"
 
 class ResourceAccess;
 
@@ -18,5 +18,5 @@ public:
 
 private:
     QSharedPointer<ResourceAccess> mResourceAccess;
-    QSharedPointer<Database> mDatabase;
+    QSharedPointer<Storage> mStorage;
 };
