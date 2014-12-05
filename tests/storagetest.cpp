@@ -38,13 +38,13 @@ private:
         bool success = true;
         bool keyMatch = true;
         const auto reference = keyPrefix + std::to_string(i);
-        success = storage.read(keyPrefix + std::to_string(i), [&error, &reference](const std::string &value) {
+        success = storage.read(keyPrefix + std::to_string(i), [&keyMatch, &reference](const std::string &value) {
             if (value != reference) {
                 qDebug() << "Mismatch while reading";
                 keyMatch = false;
             }
         });
-        return succes && keyMatch;
+        return success && keyMatch;
     }
 
 private Q_SLOTS:
@@ -56,10 +56,9 @@ private Q_SLOTS:
 
     void cleanupTestCase()
     {
-        Database db(testDataPath, dbName);
-        db.removeFromDisk();
+        Storage storage(testDataPath, dbName);
+        storage.removeFromDisk();
     }
-
 
     void testRead()
     {
@@ -69,14 +68,14 @@ private Q_SLOTS:
 
         //ensure we can read everything back correctly
         {
-            Database db(testDataPath, dbName);
+            Storage storage(testDataPath, dbName);
             for (int i = 0; i < count; i++) {
-                QVERIFY(verify(db, i));
+                QVERIFY(verify(storage, i));
             }
         }
 
-        Database db(testDataPath, dbName);
-        db.removeFromDisk();
+        Storage storage(testDataPath, dbName);
+        storage.removeFromDisk();
     }
 
     void testConcurrentRead()
@@ -90,9 +89,9 @@ private Q_SLOTS:
         const int concurrencyLevel = 4;
         for (int num = 0; num < concurrencyLevel; num++) {
             futures << QtConcurrent::run([this, count](){
-                Database db(testDataPath, dbName);
+                Storage storage(testDataPath, dbName);
                 for (int i = 0; i < count; i++) {
-                    if (!verify(db, i)) {
+                    if (!verify(storage, i)) {
                         qWarning() << "invalid value";
                         break;
                     }
@@ -103,8 +102,8 @@ private Q_SLOTS:
             future.waitForFinished();
         }
 
-        Database db(testDataPath, dbName);
-        db.removeFromDisk();
+        Storage storage(testDataPath, dbName);
+        storage.removeFromDisk();
     }
 };
 

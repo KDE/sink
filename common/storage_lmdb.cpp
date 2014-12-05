@@ -28,11 +28,11 @@ public:
 };
 
 Storage::Private::Private(const QString &s, const QString &n)
-    : transaction(0),
+    : storageRoot(s),
+      name(n),
+      transaction(0),
       readTransaction(false),
-      firstOpen(true),
-      storageRoot(s),
-      name(n)
+      firstOpen(true)
 {
     QDir dir;
     dir.mkdir(storageRoot);
@@ -148,7 +148,7 @@ void Storage::abortTransaction()
 
 bool Storage::write(const char *key, size_t keySize, const char *value, size_t valueSize)
 {
-    write(std::string(key, keySize), std::string(value, valueSize));
+    return write(std::string(key, keySize), std::string(value, valueSize));
 }
 
 bool Storage::write(const std::string &sKey, const std::string &sValue)
@@ -265,13 +265,6 @@ qint64 Storage::diskUsage() const
 {
     QFileInfo info(d->storageRoot + "/data.mdb");
     return info.size();
-}
-
-void Storage::removeFromDisk() const
-{
-    QDir dir(d->path);
-    dir.remove("data.mdb");
-    dir.remove("lock.mdb");
 }
 
 void Storage::removeFromDisk() const
