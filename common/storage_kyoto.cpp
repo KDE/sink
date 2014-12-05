@@ -142,9 +142,20 @@ void Storage::read(const std::string &sKey,
     }
 
     std::string value;
-    if (d->db.get(sKey, &value)) {
-        resultHandler(value);
+    if (sKey.empty()) {
+        kyotocabinet::DB::Cursor *cursor = d->db.cursor();
+        cursor->jump();
+
+        std::string key, value;
+        while (cursor->get_value(&value, true) && resultHandler(value)) {}
+
+        delete cursor;
         return;
+    } else {
+        if (d->db.get(sKey, &value)) {
+            resultHandler(value);
+            return;
+        }
     }
 
     Error error(d->name.toStdString(), d->db.error().code(), d->db.error().message());
@@ -162,14 +173,30 @@ void Storage::read(const std::string &sKey,
     }
 
     size_t valueSize;
-    char *valueBuffer = d->db.get(sKey.data(), sKey.size(), &valueSize);
-    if (valueBuffer) {
-        resultHandler(valueBuffer, valueSize);
+    char *valueBuffer;
+    if (sKey.empty()) {
+        kyotocabinet::DB::Cursor *cursor = d->db.cursor();
+        cursor->jump();
+
+        while ((valueBuffer = cursor->get_value(&valueSize, true))) {
+            bool ok = resultHandler(valueBuffer, valueSize);
+            delete[] valueBuffer;
+            if (!ok) {
+                break;
+            }
+        }
+
+        delete cursor;
     } else {
-        Error error(d->name.toStdString(), d->db.error().code(), d->db.error().message());
-        errorHandler(error);
+        valueBuffer = d->db.get(sKey.data(), sKey.size(), &valueSize);
+        if (valueBuffer) {
+            resultHandler(valueBuffer, valueSize);
+        } else {
+            Error error(d->name.toStdString(), d->db.error().code(), d->db.error().message());
+            errorHandler(error);
+        }
+        delete[] valueBuffer;
     }
-    delete[] valueBuffer;
 }
 
 qint64 Storage::diskUsage() const
