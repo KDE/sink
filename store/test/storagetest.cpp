@@ -37,12 +37,14 @@ private:
     {
         bool error = false;
         const auto reference = keyPrefix + std::to_string(i);
-        db.read(keyPrefix + std::to_string(i), [&error, &reference](const std::string &value) {
+        if(!db.read(keyPrefix + std::to_string(i), [&error, &reference](const std::string &value) {
             if (value != reference) {
                 qDebug() << "Mismatch while reading";
                 error = true;
             }
-        });
+        })) {
+            return false;
+        }
         return !error;
     }
 
