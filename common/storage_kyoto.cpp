@@ -12,6 +12,19 @@
 
 #include <kchashdb.h>
 
+//FIXME: Private::db needs to be shared process-wide for a given db; from the kc docs:
+// "It is forbidden for multible database objects in a process to open the same database at the same time."
+
+//TODO: research what can be done about this (from kc docs):
+// "To avoid data missing or corruption, it is important to close every database file by the
+//  BasicDB::close method when the database is no longer in use."
+
+//TODO: research answers for max open files limit ->
+// "After that got sources of kyotocabinet and researched that for every kyoto File() 
+//  object special TSDKey object created, and this object create pthread_key. By default
+// one process can create limited number of this keys, and this number defined in PTHREAD_KEYS_MAX."
+// - http://stackoverflow.com/questions/22023419/kyotocabinet-and-scalajava-limit-of-db-files-open
+
 class Storage::Private
 {
 public:
