@@ -104,7 +104,7 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
     log(QString("Attempting to start resource ") + m_resourceName);
     QStringList args;
     args << m_resourceName;
-    if (QProcess::startDetached("akonadinext_resource", args)) {
+    if (QProcess::startDetached("akonadinext_synchronizer", args)) {
         m_socket->open();
     }
 }

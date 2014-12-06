@@ -44,8 +44,8 @@ add_subdirectory(common)
 # the client
 add_subdirectory(client)
 
-# the resource
-add_subdirectory(resource)
+# the synchronizer
+add_subdirectory(synchronizer)
 
 # a simple dummy resource implementation
 add_subdirectory(dummyresource)
