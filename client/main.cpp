@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    new Console("Akonadi Next Client");
+    new Console("Akonadi2 Client");
 
     ResourceAccess *resAccess = 0;
     QCommandLineParser cliOptions;

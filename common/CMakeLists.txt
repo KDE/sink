@@ -1,4 +1,4 @@
-project(akonadinextcommon)
+project(akonadi2common)
 generate_flatbuffers(commands/handshake
                      commands/revisionupdate)
 

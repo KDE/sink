@@ -148,7 +148,7 @@ bool Listener::processClientBuffer(Client &client)
 
         switch (commandId) {
             case Commands::HandshakeCommand: {
-                auto buffer = Akonadi::GetHandshake(data.constData());
+                auto buffer = Akonadi2::GetHandshake(data.constData());
                 Console::main()->log(QString("    Handshake from %1").arg(buffer->name()->c_str()));
                 sendCurrentRevision(client);
                 break;
@@ -170,16 +170,16 @@ void Listener::sendCurrentRevision(Client &client)
         return;
     }
 
-    auto command = Akonadi::CreateRevisionUpdate(m_fbb, m_revision);
-    Akonadi::FinishRevisionUpdateBuffer(m_fbb, command);
+    auto command = Akonadi2::CreateRevisionUpdate(m_fbb, m_revision);
+    Akonadi2::FinishRevisionUpdateBuffer(m_fbb, command);
     Commands::write(client.socket, Commands::RevisionUpdateCommand, m_fbb);
     m_fbb.Clear();
 }
 
 void Listener::updateClientsWithRevision()
 {
-    auto command = Akonadi::CreateRevisionUpdate(m_fbb, m_revision);
-    Akonadi::FinishRevisionUpdateBuffer(m_fbb, command);
+    auto command = Akonadi2::CreateRevisionUpdate(m_fbb, m_revision);
+    Akonadi2::FinishRevisionUpdateBuffer(m_fbb, command);
 
     for (const Client &client: m_connections) {
         if (!client.socket || !client.socket->isValid()) {

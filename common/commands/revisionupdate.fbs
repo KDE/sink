@@ -1,4 +1,4 @@
-namespace Akonadi;
+namespace Akonadi2;
 
 table RevisionUpdate {
     revision: ulong;

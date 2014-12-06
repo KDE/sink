@@ -1,9 +1,7 @@
-
-namespace Akonadi;
+namespace Akonadi2;
 
 table Handshake {
     name: string;
 }
 
 root_type Handshake;
-
