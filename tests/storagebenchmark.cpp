@@ -114,8 +114,9 @@ private Q_SLOTS:
                 myfile.close();
             }
         }
-        const int writeDuration = time.restart();
-        qDebug() << "Writing took[ms]: " << writeDuration;
+        qreal writeDuration = time.restart();
+        qreal opsPerMs = count / writeDuration;
+        qDebug() << "Writing took[ms]: " << writeDuration << "->" << opsPerMs << "ops/ms";
 
         {
             for (int i = 0; i < count; i++) {
@@ -124,10 +125,11 @@ private Q_SLOTS:
                 }
             }
         }
-        const int readDuration = time.restart();
+        qreal readDuration = time.restart();
+        opsPerMs = count / readDuration;
 
         if (store) {
-            qDebug() << "Reading took[ms]: " << readDuration;
+            qDebug() << "Reading took[ms]: " << readDuration << "->" << opsPerMs << "ops/ms";
         } else {
             qDebug() << "File reading is not implemented.";
         }
@@ -138,15 +140,15 @@ private Q_SLOTS:
     void testBufferCreation()
     {
         QTime time;
-
         time.start();
-        {
-            for (int i = 0; i < count; i++) {
-                auto event = createEvent();
-            }
+
+        for (int i = 0; i < count; i++) {
+            auto event = createEvent();
         }
-        const int bufferDuration = time.elapsed();
-        qDebug() << "Creating buffers took[ms]: " << bufferDuration;
+
+        qreal bufferDuration = time.restart();
+        qreal opsPerMs = count / bufferDuration;
+        qDebug() << "Creating buffers took[ms]: " << bufferDuration << "->" << opsPerMs << "ops/ms";;
     }
 
     void testSizes()
