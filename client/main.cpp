@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
         resources << "toy";
     }
 
-    for (const QString &resource: cliOptions.positionalArguments()) {
+    for (const QString &resource: resources) {
         resAccess = new ResourceAccess(resource);
         QObject::connect(&app, &QCoreApplication::aboutToQuit,
                         resAccess, &ResourceAccess::close);
