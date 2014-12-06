@@ -16,20 +16,22 @@ using namespace flatbuffers;
 
 static std::string createEvent()
 {
-    FlatBufferBuilder fbb;
+    static const size_t attachmentSize = 1024*2; // 2KB
+    static uint8_t rawData[attachmentSize];
+    static FlatBufferBuilder fbb;
+    fbb.Clear();
     {
         auto summary = fbb.CreateString("summary");
-
-        const int attachmentSize = 1024*2; // 2KB
-        int8_t rawData[attachmentSize];
-        auto data = fbb.CreateVector(rawData, attachmentSize);
-
+        auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize);
+        //auto data = fbb.CreateVector(rawData, attachmentSize);
         Calendar::EventBuilder eventBuilder(fbb);
         eventBuilder.add_summary(summary);
         eventBuilder.add_attachment(data);
         auto eventLocation = eventBuilder.Finish();
-        FinishEventBuffer(fbb, eventLocation);
+        Calendar::FinishEventBuffer(fbb, eventLocation);
+        memcpy((void*)Calendar::GetEvent(fbb.GetBufferPointer())->attachment()->Data(), rawData, attachmentSize);
     }
+
     return std::string(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
 

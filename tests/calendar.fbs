@@ -5,7 +5,7 @@ namespace Calendar;
 table Event {
   summary:string;
   description:string;
-  attachment:[byte];
+  attachment:[ubyte];
 }
 
 root_type Event;
