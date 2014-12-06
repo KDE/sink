@@ -72,11 +72,11 @@ void ResourceAccess::connected()
     log(QString("Connected: ").arg(m_socket->fullServerName()));
 
     {
-        flatbuffers::FlatBufferBuilder fbb;
-        auto name = fbb.CreateString(QString::number((long long)this).toLatin1());
-        auto command = Akonadi::CreateHandshake(fbb, name);
-        Akonadi::FinishHandshakeBuffer(fbb, command);
-        Commands::write(m_socket, Commands::HandshakeCommand, fbb);
+        auto name = m_fbb.CreateString(QString::number((long long)this).toLatin1());
+        auto command = Akonadi::CreateHandshake(m_fbb, name);
+        Akonadi::FinishHandshakeBuffer(m_fbb, command);
+        Commands::write(m_socket, Commands::HandshakeCommand, m_fbb);
+        m_fbb.Clear();
     }
 
     emit ready(true);

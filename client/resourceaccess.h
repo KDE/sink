@@ -4,6 +4,8 @@
 #include <QObject>
 #include <QTimer>
 
+#include <flatbuffers/flatbuffers.h>
+
 class ResourceAccess : public QObject
 {
     Q_OBJECT
@@ -37,4 +39,5 @@ private:
     QTimer *m_tryOpenTimer;
     bool m_startingProcess;
     QByteArray m_partialMessageBuffer;
+    flatbuffers::FlatBufferBuilder m_fbb;
 };

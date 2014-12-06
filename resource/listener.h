@@ -5,6 +5,8 @@
 #include <QList>
 #include <QObject>
 
+#include <flatbuffers/flatbuffers.h>
+
 class Client
 {
 public:
@@ -57,4 +59,5 @@ private:
     QLocalServer *m_server;
     QVector<Client> m_connections;
     unsigned long long m_revision;
+    flatbuffers::FlatBufferBuilder m_fbb;
 };
