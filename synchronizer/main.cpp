@@ -8,12 +8,13 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    new Console(QString("Resource: %1").arg(argv[1]));
     if (argc < 2) {
-        Console::main()->log("Not enough args");
+        new Console(QString("Resource: ???"));
+        Console::main()->log("Not enough args passed, no resource loaded.");
         return app.exec();
     }
 
+    new Console(QString("Resource: %1").arg(argv[1]));
     Listener *listener = new Listener(argv[1]);
 
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
