@@ -5,7 +5,7 @@ namespace DummyCalendar;
 table DummyEvent {
   summary:string;
   description:string;
-  attachment:[byte];
+  attachment:[ubyte];
 }
 
 root_type DummyEvent;
