@@ -2,9 +2,8 @@ project(akonadi2common)
 generate_flatbuffers(commands/handshake
                      commands/revisionupdate)
 
-if (STORAGE_KYOTO)
-    set(storage_SRCS storage_kyoto.cpp)
-    set(storage_LIBS kyotocabinet)
+if (STORAGE_unqlite)
+    set(storage_SRCS storage_unqlite.cpp unqlite/*c)
 else (STORAGE_KYOTO)
     set(storage_SRCS storage_lmdb.cpp)
     set(storage_LIBS lmdb)
