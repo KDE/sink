@@ -38,6 +38,8 @@ set(CMAKE_AUTOMOC ON)
 add_definitions("-Wall -std=c++0x")
 include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
 
+configure_file(hawd.conf hawd.conf)
+
 # common, eventually a lib but right now just the command buffers
 add_subdirectory(common)
 

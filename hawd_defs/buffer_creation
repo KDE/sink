@@ -1,0 +1,7 @@
+{
+    "name": "Buffer Creation",
+    "columns": {
+        "numBuffers": { "type": "int" },
+        "time": { "type": "int", "unit": "ms", "min": 0, "max": 100 }
+    }
+}
