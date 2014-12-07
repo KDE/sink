@@ -19,6 +19,7 @@
 
 #include "datasetdefinition.h"
 
+#include <QDateTime>
 #include <QDebug>
 #include <QFile>
 #include <QJsonDocument>
@@ -120,15 +121,15 @@ void DatasetRow::annotate(const QString &note)
 
 QString DatasetRow::toString() const
 {
-    QString string;
+    if (m_data.isEmpty()) {
+        return QString();
+    }
+
+    QString string = QString::number(QDateTime::currentMSecsSinceEpoch());
     QHashIterator<QString, QVariant> it(m_data);
     while (it.hasNext()) {
         it.next();
-        if (!string.isEmpty()) {
-            string.append('\t');
-        }
-
-        string.append(it.value().toString());
+        string.append('\t').append(it.value().toString());
     }
 
     if (!m_annotation.isEmpty()) {
