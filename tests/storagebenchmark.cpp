@@ -116,8 +116,8 @@ private Q_SLOTS:
             }
         }
         qreal writeDuration = time.restart();
-        qreal opsPerMs = count / writeDuration;
-        qDebug() << "Writing took[ms]: " << writeDuration << "->" << opsPerMs << "ops/ms";
+        qreal writeOpsPerMs = count / writeDuration;
+        qDebug() << "Writing took[ms]: " << writeDuration << "->" << writeOpsPerMs << "ops/ms";
 
         {
             for (int i = 0; i < count; i++) {
@@ -127,10 +127,18 @@ private Q_SLOTS:
             }
         }
         qreal readDuration = time.restart();
-        opsPerMs = count / readDuration;
+        qreal readOpsPerMs = count / readDuration;
 
         if (store) {
-            qDebug() << "Reading took[ms]: " << readDuration << "->" << opsPerMs << "ops/ms";
+            HAWD::Dataset dataset("storage_readwrite", m_hawdState);
+            HAWD::Dataset::Row row = dataset.row();
+            row.setValue("rows", count);
+            row.setValue("write", writeDuration);
+            row.setValue("writeOps", writeOpsPerMs);
+            row.setValue("read", readOpsPerMs);
+            row.setValue("readOps", readOpsPerMs);
+            dataset.insertRow(row);
+            qDebug() << "Reading took[ms]: " << readDuration << "->" << readOpsPerMs << "ops/ms";
         } else {
             qDebug() << "File reading is not implemented.";
         }
@@ -172,8 +180,7 @@ private Q_SLOTS:
 
     void testBufferCreation()
     {
-        HAWD::State state;
-        HAWD::Dataset dataset("buffer_creation", state);
+        HAWD::Dataset dataset("buffer_creation", m_hawdState);
         HAWD::Dataset::Row row = dataset.row();
 
         QTime time;
@@ -200,6 +207,10 @@ private Q_SLOTS:
         QFileInfo fileInfo(filePath);
         qDebug() << "File size [kb]: " << fileInfo.size()/1024;
     }
+
+
+private:
+    HAWD::State m_hawdState;
 };
 
 QTEST_MAIN(StorageBenchmark)
