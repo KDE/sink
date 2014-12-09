@@ -21,6 +21,7 @@
 
 #include "../datasetdefinition.h"
 
+#include <QDir>
 #include <QObject>
 
 #include <iostream>
@@ -32,6 +33,7 @@ Check::Check()
     : Module()
 {
     Syntax top("check", &Check::check);
+    setDescription(QObject::tr("Checks a dataset description for validity and prints out any errors it finds"));
     setSyntax(top);
 }
 
@@ -41,16 +43,29 @@ bool Check::check(const QStringList &commands, State &state)
         std::cout << QObject::tr("Please provide the name of a dataset definition file. (Use the 'list' command to see available datasets.)").toStdString() << std::endl;
     } else {
         for (const QString &name: commands) {
-            DatasetDefinition def = state.datasetDefinition(name);
-            if (def.isValid()) {
-                std::cout << QObject::tr("%1 is OK").arg(name).toStdString() << std::endl;
+            if (name == "*") {
+                QDir project(state.projectPath());
+                project.setFilter(QDir::Files | QDir::Readable | QDir::NoDotAndDotDot | QDir::NoSymLinks);
+                for (const QString &entry: project.entryList()) {
+                    checkFile(entry, state);
+                }
             } else {
-                std::cout << QObject::tr("%1 has errors: %2").arg(name).arg(def.lastError()).toStdString() << std::endl;
+                checkFile(name, state);
             }
         }
     }
 
     return true;
+}
+
+void Check::checkFile(const QString &name, State &state)
+{
+    DatasetDefinition def = state.datasetDefinition(name);
+    if (def.isValid()) {
+        std::cout << QObject::tr("%1 is OK").arg(name).toStdString() << std::endl;
+    } else {
+        std::cout << QObject::tr("%1 has errors: %2").arg(name).arg(def.lastError()).toStdString() << std::endl;
+    }
 }
 
 } // namespace HAWD

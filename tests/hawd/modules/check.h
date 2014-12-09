@@ -31,6 +31,7 @@ public:
 
 private:
     static bool check(const QStringList &commands, State &state);
+    static void checkFile(const QString &name, State &state);
 };
 
 } // namespace HAWD
