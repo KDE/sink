@@ -33,6 +33,7 @@ CheckAll::CheckAll()
     : Module()
 {
     setSyntax(Syntax("checkall", &CheckAll::check));
+    setDescription(QObject::tr("Checks all dataset descriptions for validity and prints out any errors it finds"));
 }
 
 bool CheckAll::check(const QStringList &commands, State &state)
@@ -52,7 +53,7 @@ Check::Check()
     Syntax top("check", &Check::check);
     setSyntax(top);
 
-    setDescription(QObject::tr("Checks a dataset description for validity and prints out any errors it finds"));
+    setDescription(QObject::tr("Checks one or more dataset descriptions for validity and prints out any errors it finds"));
 }
 
 bool Check::check(const QStringList &commands, State &state)
