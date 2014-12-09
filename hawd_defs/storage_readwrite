@@ -1,0 +1,11 @@
+{
+    "name": "Storage Read/Write Performance",
+    "description": "Measures performance of the storage class by writing and reading non-trivial datasets",
+    "columns": {
+        "rows": { "type": "int" },
+        "write": { "type": "int", "unit": "ms", "min": 0, "max": 100 },
+        "writeOps": { "type": "float", "unit": "ops/ms" }
+        "read": { "type": "int", "unit": "ms", "min": 0, "max": 100 },
+        "readOps": { "type": "float", "unit": "ops/ms" }
+    }
+}
