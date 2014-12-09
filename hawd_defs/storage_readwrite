@@ -4,7 +4,7 @@
     "columns": {
         "rows": { "type": "int" },
         "write": { "type": "int", "unit": "ms", "min": 0, "max": 100 },
-        "writeOps": { "type": "float", "unit": "ops/ms" }
+        "writeOps": { "type": "float", "unit": "ops/ms" },
         "read": { "type": "int", "unit": "ms", "min": 0, "max": 100 },
         "readOps": { "type": "float", "unit": "ops/ms" }
     }
