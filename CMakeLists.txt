@@ -36,7 +36,7 @@ endfunction(generate_flatbuffers)
 
 set(CMAKE_AUTOMOC ON)
 add_definitions("-Wall -std=c++0x")
-include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
+include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${FLATBUFFERS_INCLUDE_DIR})
 
 configure_file(hawd.conf hawd.conf)
 
