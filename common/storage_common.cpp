@@ -9,6 +9,11 @@ void errorHandler(const Storage::Error &error)
     std::cerr << "Read error in " << error.store << ", code " << error.code << ", message: " << error.message << std::endl;
 }
 
+std::function<void(const Storage::Error &error)> Storage::basicErrorHandler()
+{
+    return errorHandler;
+}
+
 void Storage::read(const std::string &sKey, const std::function<bool(const std::string &value)> &resultHandler)
 {
     read(sKey, resultHandler, &errorHandler);
@@ -21,6 +26,6 @@ void Storage::read(const std::string &sKey, const std::function<bool(void *ptr, 
 
 void Storage::scan(const std::string &sKey, const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> &resultHandler)
 {
-    scan(sKey, resultHandler, &errorHandler);
+    scan(sKey.data(), sKey.size(), resultHandler, &errorHandler);
 }
 

@@ -204,19 +204,18 @@ void Storage::read(const std::string &sKey,
             const std::string resultValue(static_cast<char*>(ptr), size);
             return resultHandler(resultValue);
          }, errorHandler);
-// std::cout << "key: " << resultKey << " data: " << resultValue << std::endl;
 }
 
 void Storage::read(const std::string &sKey,
                    const std::function<bool(void *ptr, int size)> &resultHandler,
                    const std::function<void(const Storage::Error &error)> &errorHandler)
 {
-    scan(sKey, [resultHandler](void *keyPtr, int keySize, void *valuePtr, int valueSize) {
+    scan(sKey.data(), sKey.size(), [resultHandler](void *keyPtr, int keySize, void *valuePtr, int valueSize) {
         return resultHandler(valuePtr, valueSize);
     }, errorHandler);
 }
 
-void Storage::scan(const std::string &sKey,
+void Storage::scan(const char *keyData, uint keySize,
                    const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> &resultHandler,
                    const std::function<void(const Storage::Error &error)> &errorHandler)
 {
@@ -231,8 +230,8 @@ void Storage::scan(const std::string &sKey,
     MDB_val data;
     MDB_cursor *cursor;
 
-    key.mv_size = sKey.size();
-    key.mv_data = (void*)sKey.data();
+    key.mv_data = (void*)keyData;
+    key.mv_size = keySize;
 
     const bool implicitTransaction = !d->transaction;
     if (implicitTransaction) {
@@ -251,11 +250,13 @@ void Storage::scan(const std::string &sKey,
         return;
     }
 
-    if (sKey.empty()) {
-        rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST);
-        while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-            if (!resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
-                break;
+    if (!keyData || keySize == 0) {
+        if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST)) == 0 &&
+            resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
+            while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+                if (!resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
+                    break;
+                }
             }
         }
 
@@ -267,7 +268,7 @@ void Storage::scan(const std::string &sKey,
         if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_SET)) == 0) {
             resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size);
         } else {
-            std::cout << "couldn't find value " << sKey << " " << std::endl;
+            std::cout << "couldn't find value " << std::string(keyData, keySize) << std::endl;
         }
     }
 

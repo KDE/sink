@@ -32,16 +32,17 @@ public:
               const std::function<bool(const std::string &value)> &resultHandler);
     void read(const std::string &sKey,
               const std::function<bool(const std::string &value)> &resultHandler,
-              const std::function<void(const Storage::Error &error)> &errors);
+              const std::function<void(const Storage::Error &error)> &errorHandler);
     void read(const std::string &sKey, const std::function<bool(void *ptr, int size)> &resultHandler);
     void read(const std::string &sKey,
               const std::function<bool(void *ptr, int size)> & resultHandler,
               const std::function<void(const Storage::Error &error)> &errorHandler);
     void scan(const std::string &sKey, const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> &resultHandler);
-    void scan(const std::string &sKey,
-              const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> & resultHandler,
+    void scan(const char *keyData, uint keySize,
+              const std::function<bool(void *keyPtr, int keySize, void *ptr, int size)> &resultHandler,
               const std::function<void(const Storage::Error &error)> &errorHandler);
 
+    static std::function<void(const Storage::Error &error)> basicErrorHandler();
     qint64 diskUsage() const;
     void removeFromDisk() const;
 private:
