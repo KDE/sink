@@ -34,8 +34,8 @@ List::List()
     : Module()
 {
     Syntax top("list", &List::list);
-    //top.children << Syntax("create", &List::create);
     setSyntax(top);
+    setDescription(QObject::tr("Lists all dataset files or, when given one or more names"));
 }
 
 bool List::list(const QStringList &commands, State &state)
@@ -65,9 +65,8 @@ bool List::list(const QStringList &commands, State &state)
                     it.next();
                     std::cout << "\t\t" << it.value().typeString().toStdString() << ' ' << it.key().toStdString() << std::endl;
                 }
-
             } else {
-                std::cout << QObject::tr("Invalid or non-existent dataset definition at %1").arg(project.absoluteFilePath(file)).toStdString() << std::endl;
+                std::cout << QObject::tr("Problem with dataset %1. Check with 'check' command.").arg(file).toStdString() << std::endl;
             }
         }
     }
