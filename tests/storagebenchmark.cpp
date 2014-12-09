@@ -2,14 +2,15 @@
 
 #include "calendar_generated.h"
 
+#include "hawd/dataset.h"
+#include "common/storage.h"
+
 #include <iostream>
 #include <fstream>
 
 #include <QDebug>
 #include <QString>
 #include <QTime>
-
-#include "common/storage.h"
 
 using namespace Calendar;
 using namespace flatbuffers;
@@ -171,6 +172,10 @@ private Q_SLOTS:
 
     void testBufferCreation()
     {
+        HAWD::State state;
+        HAWD::Dataset dataset("buffer_creation", state);
+        HAWD::Dataset::Row row = dataset.row();
+
         QTime time;
         time.start();
 
@@ -180,7 +185,11 @@ private Q_SLOTS:
 
         qreal bufferDuration = time.restart();
         qreal opsPerMs = count / bufferDuration;
-        qDebug() << "Creating buffers took[ms]: " << bufferDuration << "->" << opsPerMs << "ops/ms";;
+        row.setValue("numBuffers", count);
+        row.setValue("time", bufferDuration);
+        row.setValue("ops", opsPerMs);
+        dataset.insertRow(row);
+        qDebug() << "Creating buffers took[ms]: " << bufferDuration << "->" << opsPerMs << "ops/ms";
     }
 
     void testSizes()
