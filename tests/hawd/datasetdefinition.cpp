@@ -109,7 +109,6 @@ DatasetDefinition::DatasetDefinition(const QString &path)
 
         if (jsonDoc.isNull()) {
             m_lastError = QObject::tr("Dataset definition file malformed at character %1: %2").arg(error.offset).arg(error.errorString());
-            std::cerr << m_lastError.toStdString() << std::endl;
         } else {
             m_valid = true;
             QJsonObject json = jsonDoc.object();
@@ -129,10 +128,6 @@ DatasetDefinition::DatasetDefinition(const QString &path)
         }
     } else {
         m_lastError = QObject::tr("Could not open file for parsing: ").arg(path);
-    }
-
-    if (!m_lastError.isEmpty()) {
-        std::cerr << m_lastError.toStdString() << std::endl;
     }
 }
 
