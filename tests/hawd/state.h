@@ -30,7 +30,7 @@ namespace HAWD
 class State
 {
 public:
-    State();
+    State(const QString &configPath = QString());
 
     bool isValid() const;
     QVariant configValue(const QString &key) const;

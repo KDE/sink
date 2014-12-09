@@ -54,6 +54,8 @@ DataDefinition::DataDefinition(const QJsonObject &json)
         s_types.insert("int", QMetaType::Int);
         s_types.insert("uint", QMetaType::UInt);
         s_types.insert("bool", QMetaType::Bool);
+        s_types.insert("float", QMetaType::Float);
+        s_types.insert("double", QMetaType::Double);
         s_types.insert("char", QMetaType::QChar);
         s_types.insert("string", QMetaType::QString);
         s_types.insert("datetime", QMetaType::QDateTime);
@@ -93,50 +95,6 @@ int DataDefinition::min() const
 int DataDefinition::max() const
 {
     return m_max;
-}
-
-DatasetRow::DatasetRow(const QHash<QString, DataDefinition> &columns)
-    : m_columns(columns)
-{
-    QHashIterator<QString, DataDefinition> it(columns);
-    while (it.hasNext()) {
-        it.next();
-        m_data.insert(it.key(), QVariant());
-    }
-}
-
-void DatasetRow::setValue(const QString &column, const QVariant &value)
-{
-    if (!m_columns.contains(column) || !value.canConvert(m_columns[column].type())) {
-        return;
-    }
-
-    m_data[column] = value;
-}
-
-void DatasetRow::annotate(const QString &note)
-{
-    m_annotation = note;
-}
-
-QString DatasetRow::toString() const
-{
-    if (m_data.isEmpty()) {
-        return QString();
-    }
-
-    QString string = QString::number(QDateTime::currentMSecsSinceEpoch());
-    QHashIterator<QString, QVariant> it(m_data);
-    while (it.hasNext()) {
-        it.next();
-        string.append('\t').append(it.value().toString());
-    }
-
-    if (!m_annotation.isEmpty()) {
-        string.append('\t').append(m_annotation);
-    }
-
-    return string;
 }
 
 DatasetDefinition::DatasetDefinition(const QString &path)

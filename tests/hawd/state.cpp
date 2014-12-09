@@ -31,22 +31,24 @@ static const QString configFileName("hawd.conf");
 namespace HAWD
 {
 
-State::State()
+State::State(const QString &_configPath)
     : m_valid(true)
 {
-    QDir dir;
-    QString configPath;
-
-    while (!dir.exists(configFileName) && dir.cdUp()) { }
-
-    if (dir.exists(configFileName)) {
-        configPath = dir.absoluteFilePath(configFileName);
-    }
-
+    QString configPath = _configPath;
     if (configPath.isEmpty()) {
-        std::cerr << QObject::tr("Could not find hawd configuration. A hawd.conf file must be in the current directory or in a directory above it.").toStdString() << std::endl;
-        m_valid = false;
-        return;
+        QDir dir;
+
+        while (!dir.exists(configFileName) && dir.cdUp()) { }
+
+        if (dir.exists(configFileName)) {
+            configPath = dir.absoluteFilePath(configFileName);
+        }
+
+        if (configPath.isEmpty()) {
+            std::cerr << QObject::tr("Could not find hawd configuration. A hawd.conf file must be in the current directory or in a directory above it.").toStdString() << std::endl;
+            m_valid = false;
+            return;
+        }
     }
 
     QFile configFile(configPath);

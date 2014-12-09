@@ -47,20 +47,6 @@ private:
     int m_max;
 };
 
-class DatasetRow
-{
-public:
-    DatasetRow(const QHash<QString, DataDefinition> &columns);
-    void setValue(const QString &column, const QVariant &value);
-    void annotate(const QString &note);
-    QString toString() const;
-
-private:
-    QHash<QString, DataDefinition> m_columns;
-    QHash<QString, QVariant> m_data;
-    QString m_annotation;
-};
-
 class DatasetDefinition
 {
 public:
