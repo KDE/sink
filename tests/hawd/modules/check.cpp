@@ -29,12 +29,30 @@
 namespace HAWD
 {
 
+CheckAll::CheckAll()
+    : Module()
+{
+    setSyntax(Syntax("checkall", &CheckAll::check));
+}
+
+bool CheckAll::check(const QStringList &commands, State &state)
+{
+    QDir project(state.projectPath());
+    project.setFilter(QDir::Files | QDir::Readable | QDir::NoDotAndDotDot | QDir::NoSymLinks);
+    for (const QString &entry: project.entryList()) {
+        Check::checkFile(entry, state);
+    }
+
+    return true;
+}
+
 Check::Check()
     : Module()
 {
     Syntax top("check", &Check::check);
-    setDescription(QObject::tr("Checks a dataset description for validity and prints out any errors it finds"));
     setSyntax(top);
+
+    setDescription(QObject::tr("Checks a dataset description for validity and prints out any errors it finds"));
 }
 
 bool Check::check(const QStringList &commands, State &state)
@@ -43,15 +61,7 @@ bool Check::check(const QStringList &commands, State &state)
         std::cout << QObject::tr("Please provide the name of a dataset definition file. (Use the 'list' command to see available datasets.)").toStdString() << std::endl;
     } else {
         for (const QString &name: commands) {
-            if (name == "*") {
-                QDir project(state.projectPath());
-                project.setFilter(QDir::Files | QDir::Readable | QDir::NoDotAndDotDot | QDir::NoSymLinks);
-                for (const QString &entry: project.entryList()) {
-                    checkFile(entry, state);
-                }
-            } else {
-                checkFile(name, state);
-            }
+            checkFile(name, state);
         }
     }
 

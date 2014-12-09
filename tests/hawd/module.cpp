@@ -50,6 +50,10 @@ void Module::loadModules()
 {
     addModule(List());
     addModule(Check());
+    addModule(CheckAll());
+//    addModule(Print());
+//    addModule(Annotate());
+//    addModule(Remove());
 }
 
 void Module::printCommands()
@@ -134,7 +138,7 @@ bool Module::matches(const QStringList &commands, State &state) const
         return false;
     }
 
-    QListIterator<Syntax> syntaxIt(m_syntax.children);
+    QVectorIterator<Syntax> syntaxIt(m_syntax.children);
     const Syntax *syntax = &m_syntax;
     QStringList tailCommands;
     while (commandIt.hasNext() && syntaxIt.hasNext()) {

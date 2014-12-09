@@ -28,10 +28,19 @@ class Check : public Module
 {
 public:
     Check();
+    static void checkFile(const QString &name, State &state);
 
 private:
     static bool check(const QStringList &commands, State &state);
-    static void checkFile(const QString &name, State &state);
+};
+
+class CheckAll : public Module
+{
+public:
+    CheckAll();
+
+private:
+    static bool check(const QStringList &commands, State &state);
 };
 
 } // namespace HAWD

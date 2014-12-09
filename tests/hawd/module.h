@@ -36,7 +36,7 @@ public:
         Syntax(const QString &keyword, std::function<bool(const QStringList &, State &)> lambda = std::function<bool(const QStringList &, State &)>(), bool eventDriven = false);
         QString keyword;
         std::function<bool(const QStringList &, State &)> lambda;
-        QList<Syntax> children;
+        QVector<Syntax> children;
         bool eventDriven;
     };
 
