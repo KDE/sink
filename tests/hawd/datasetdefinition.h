@@ -54,6 +54,7 @@ public:
 
     bool isValid() const;
 
+    QString lastError() const;
     QString name() const;
     QString description() const;
     QHash<QString, DataDefinition> columns() const;
@@ -62,6 +63,7 @@ private:
     bool m_valid;
     QString m_name;
     QString m_description;
+    QString m_lastError;
     QHash<QString, DataDefinition> m_columns;
 };
 
