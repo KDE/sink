@@ -20,6 +20,7 @@
 #include "module.h"
 
 #include "modules/list.h"
+#include "modules/check.h"
 
 #include <QCoreApplication>
 
@@ -48,6 +49,7 @@ Module::Module()
 void Module::loadModules()
 {
     addModule(List());
+    addModule(Check());
 }
 
 void Module::printCommands()

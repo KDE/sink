@@ -12,6 +12,7 @@ set(SRCS
     main.cpp
     module.cpp
     modules/list.cpp
+    modules/check.cpp
 )
 
 add_library(libhawd ${lib_SRCS})
