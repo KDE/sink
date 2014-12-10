@@ -14,4 +14,8 @@ endmacro(manual_tests)
 manual_tests (
     storagebenchmark
     storagetest
+    dummyresourcefacadetest
 )
+
+target_link_libraries(dummyresourcefacadetest akonadi2_dummyresource_facade)
+

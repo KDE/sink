@@ -185,8 +185,14 @@ using namespace async;
 class Query
 {
 public:
-    //Resources to search
-    QSet<QString> resources;
+    //Could also be a propertyFilter
+    QStringList resources;
+    //Could also be a propertyFilter
+    QStringList ids;
+    //Filters to apply
+    QHash<QString, QVariant> propertyFilter;
+    //Properties to retrieve
+    QSet<QString> requestedProperties;
 };
 
 

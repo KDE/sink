@@ -13,10 +13,8 @@ public:
     virtual void create(const Akonadi2::Domain::Event &domainObject);
     virtual void modify(const Akonadi2::Domain::Event &domainObject);
     virtual void remove(const Akonadi2::Domain::Event &domainObject);
-    // virtual void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event &)> &resultCallback);
     virtual void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback);
 
 private:
     QSharedPointer<ResourceAccess> mResourceAccess;
-    QSharedPointer<Storage> mStorage;
 };
