@@ -1,0 +1,66 @@
+How Are We Doing? This is a tool to track numbers over time for later
+comparison and charting so as to track the progress of things.
+Think: performance regressions using benchmark numbers over time.
+
+There are two parts to HAWD: the library and the command line tool. Both
+use a hawd.conf file and HAWD dataset definition files.
+
+The path to a hawd.conf file can either be supplied explicitly to the
+HAWD::State class, or HAWD::State will search the directory tree (from
+the current directory up) to find it. hawd.conf is a json file which 
+currently knows the following two entries:
+
+    results: path to where results should be stored
+    project: where the project's dataset definition files are
+
+Tilde expansion is supported. It is recommended to include a copy of
+hawd.conf in the source dir's root and have the build system "install"
+a copy of it in the build dir with the proper paths filled in. This makes
+it easiest to run from the build dir and prevents hardcoding too many
+paths into hawd.conf.
+
+A dataset definition file is also a json file and must appear in the path
+pointed to by the project entry in the hawd.conf. The name of the file is
+also the name used to store the dataset on disk. Recognized values in the
+json file include:
+
+    name: the user-visible name of the dataset
+    description: a description of the dataset
+    columns: a json object containing value definitions
+
+A value definition is a json object which allows one to define the type,
+unit and min/max values. An example of a dataset definition file follows:
+
+{
+    "name": "Buffer Creation",
+    "description": "Tests how fast buffer creation is",
+    "columns": {
+        "numBuffers": { "type": "int" },
+        "time": { "type": "int", "unit": "ms", "min": 0, "max": 100 },
+        "ops": { "type": "float", "unit": "ops/ms" }
+    }
+}
+
+The hawd library is used wherever data needs to be stored or fetched from
+a dataset. Most often this involves using the Dataset and Dataset::Row classes
+something like this, where the dataset definition file is in the file at path
+$project/buffer_creation:
+
+    HAWD::State state;
+    HAWD::Dataset dataset("buffer_creation", state);
+    HAWD::Dataset::Row row = dataset.row();
+    row.setValue("numBuffers", count);
+    row.setValue("time", bufferDuration);
+    row.setValue("ops", opsPerMs);
+    dataset.insertRow(row);
+
+That's it! insertRow will return the qin64 key the row was stored under
+so that it can be fetched again with ease if needed with Dataset::row(qint64 key).
+Note that Row objects must always be created by a Dataset object to be used
+with that Dataset, due to internal sanity checking.
+
+The hawd command line allows one to list datasets, check the definitions for errors,
+print tables of data, annotate rows and more. Run hawd on its own to see a list of
+available commands.
+
+//TODO: better documentation of the hawd command line
