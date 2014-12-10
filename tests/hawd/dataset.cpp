@@ -28,6 +28,7 @@ namespace HAWD
 {
 
 static const QString s_annotationKey("__annotation__");
+static const QString s_hashKey("__commithash__");
 
 Dataset::Row::Row(const Row &other)
     : m_key(other.m_key),
@@ -92,6 +93,8 @@ void Dataset::Row::fromBinary(QByteArray &data)
         stream >> key >> value;
         if (key == s_annotationKey) {
             m_annotation = value.toString();
+        } else if (key == s_hashKey) {
+            m_hash = value.toString();
         } else {
             setValue(key, value);
         }
@@ -108,35 +111,85 @@ QByteArray Dataset::Row::toBinary() const
         stream << it.key() << it.value();
     }
 
+    if (!m_hash.isEmpty()) {
+        stream << s_hashKey << m_hash;
+    }
+
     if (!m_annotation.isEmpty()) {
         stream << s_annotationKey << m_annotation;
     }
     return data;
 }
 
-QString Dataset::Row::toString() const
+QString Dataset::tableHeaders(const QStringList &cols, int standardCols, const QString &seperator) const
+{
+    if (!isValid()) {
+        return QString();
+    }
+
+    QStringList strings;
+
+    if (standardCols & Row::Timestamp) {
+        strings << QObject::tr("Timestamp");
+    }
+
+    if (standardCols & Row::CommitHash) {
+        strings << QObject::tr("Commit");
+    }
+
+    QHashIterator<QString, DataDefinition> it(m_definition.columns());
+    while (it.hasNext()) {
+        it.next();
+        QString header = it.key();
+        if (cols.isEmpty() || cols.contains(header)) {
+            if (!it.value().unit().isEmpty()) {
+                header.append(" (").append(it.value().unit()).append(")");
+            }
+            strings << header;
+        }
+    }
+
+    if (standardCols & Row::Annotation) {
+        strings << QObject::tr("Annotation");
+    }
+
+    return strings.join(seperator);
+}
+
+QString Dataset::Row::toString(const QStringList &cols, int standardCols, const QString &seperator) const
 {
     if (m_data.isEmpty()) {
         return QString();
     }
 
-    QString string;
+    QStringList strings;
+
+    if (standardCols & Timestamp) {
+        strings << QString::number(m_key);
+    }
+
+    if (standardCols & CommitHash) {
+        strings << m_hash;
+    }
+
     QHashIterator<QString, QVariant> it(m_data);
     while (it.hasNext()) {
         it.next();
-        string.append('\t').append(it.value().toString());
+        if (cols.isEmpty() || cols.contains(it.key())) {
+            strings << it.value().toString();
+        }
     }
 
-    if (!m_annotation.isEmpty()) {
-        string.append('\t').append(m_annotation);
+    if (standardCols & Annotation) {
+        strings << m_annotation;
     }
 
-    return string;
+    return strings.join(seperator);
 }
 
 Dataset::Dataset(const QString &name, const State &state)
     : m_definition(state.datasetDefinition(name)),
-      m_storage(state.resultsPath(), m_definition.name(), Storage::ReadWrite)
+      m_storage(state.resultsPath(), name, Storage::ReadWrite)
 {
     //TODO: it should use a different file name if the data columns have changed
     m_storage.startTransaction();
@@ -147,7 +200,7 @@ Dataset::~Dataset()
     m_storage.commitTransaction();
 }
 
-bool Dataset::isValid()
+bool Dataset::isValid() const
 {
     return m_definition.isValid();
 }
@@ -172,6 +225,28 @@ qint64 Dataset::insertRow(const Row &row)
 void Dataset::removeRow(const Row &row)
 {
     //TODO
+}
+
+void Dataset::eachRow(const std::function<void(const Row &row)> &resultHandler)
+{
+    if (!isValid()) {
+        return;
+    }
+
+    Row row(*this);
+    m_storage.readAll(
+                   [&](void *key, int keySize, void *data, int dataSize) -> bool {
+                       if (keySize != sizeof(qint64)) {
+                           return true;
+                       }
+
+                       QByteArray array((const char*)data, dataSize);
+                       row.fromBinary(array);
+                       row.m_key = *(qint64 *)key;
+                       resultHandler(row);
+                       return true;
+                   },
+                   Storage::basicErrorHandler());
 }
 
 Dataset::Row Dataset::row(qint64 key)

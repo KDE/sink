@@ -36,6 +36,12 @@ public:
     class Row
     {
         public:
+            enum StandardCols {
+                Annotation,
+                CommitHash,
+                Timestamp,
+                All = Annotation | CommitHash | Timestamp
+            };
             Row(const Row &other);
             Row &operator=(const Row &rhs);
             void setValue(const QString &column, const QVariant &value);
@@ -43,7 +49,7 @@ public:
             void annotate(const QString &note);
             qint64 key() const;
             QByteArray toBinary() const;
-            QString toString() const;
+            QString toString(const QStringList &cols = QStringList(), int standardCols = All, const QString &seperator = "\t") const;
 
         private:
             Row();
@@ -54,6 +60,7 @@ public:
             QHash<QString, DataDefinition> m_columns;
             QHash<QString, QVariant> m_data;
             QString m_annotation;
+            QString m_hash;
             const Dataset *m_dataset;
             friend class Dataset;
     };
@@ -62,11 +69,13 @@ public:
     Dataset(const QString &name, const State &state);
     ~Dataset();
 
-    bool isValid();
+    bool isValid() const;
     const DatasetDefinition &definition() const;
+    QString tableHeaders(const QStringList &cols = QStringList(), int standardCols = Row::All, const QString &seperator = "\t") const;
 
     qint64 insertRow(const Row &row);
     void removeRow(const Row &row);
+    void eachRow(const std::function<void(const Row &row)> &resultHandler);
     Row row(qint64 key = 0);
     Row lastRow();
     //TODO: row cursor
