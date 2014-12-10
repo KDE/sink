@@ -27,6 +27,8 @@
 namespace HAWD
 {
 
+static const QString s_annotationKey("__annotation__");
+
 Dataset::Row::Row(const Row &other)
     : m_key(other.m_key),
       m_columns(other.m_columns),
@@ -88,7 +90,11 @@ void Dataset::Row::fromBinary(QByteArray &data)
 
     while (!stream.atEnd()) {
         stream >> key >> value;
-        setValue(key, value);
+        if (key == s_annotationKey) {
+            m_annotation = value.toString();
+        } else {
+            setValue(key, value);
+        }
     }
 }
 
@@ -102,6 +108,9 @@ QByteArray Dataset::Row::toBinary() const
         stream << it.key() << it.value();
     }
 
+    if (!m_annotation.isEmpty()) {
+        stream << s_annotationKey << m_annotation;
+    }
     return data;
 }
 
