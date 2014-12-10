@@ -41,6 +41,8 @@ public:
     void scan(const char *keyData, uint keySize,
               const std::function<bool(void *keyPtr, int keySize, void *ptr, int size)> &resultHandler,
               const std::function<void(const Storage::Error &error)> &errorHandler);
+    void readAll(const std::function<bool(void *key, int keySize, void *data, int dataSize)> &resultHandler,
+                 const std::function<void(const Storage::Error &error)> &errorHandler);
 
     static std::function<void(const Storage::Error &error)> basicErrorHandler();
     qint64 diskUsage() const;
