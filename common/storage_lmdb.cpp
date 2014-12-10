@@ -36,14 +36,15 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
       readTransaction(false),
       firstOpen(true)
 {
+    const QString fullPath(storageRoot + '/' + name);
     QDir dir;
-    dir.mkdir(storageRoot);
+    dir.mkdir(fullPath);
 
     //create file
     if (mdb_env_create(&env)) {
         // TODO: handle error
     } else {
-        int rc = mdb_env_open(env, storageRoot.toStdString().data(), 0, 0664);
+        int rc = mdb_env_open(env, fullPath.toStdString().data(), 0, 0664);
 
         if (rc) {
             std::cerr << "mdb_env_open: " << rc << " " << mdb_strerror(rc) << std::endl;
@@ -335,13 +336,13 @@ void Storage::readAll(const std::function<bool(void *key, int keySize, void *dat
 
 qint64 Storage::diskUsage() const
 {
-    QFileInfo info(d->storageRoot + "/data.mdb");
+    QFileInfo info(d->storageRoot + '/' + d->name + "/data.mdb");
     return info.size();
 }
 
 void Storage::removeFromDisk() const
 {
-    QDir dir(d->storageRoot);
+    QDir dir(d->storageRoot + '/' + d->name);
     dir.remove("data.mdb");
     dir.remove("lock.mdb");
 }
