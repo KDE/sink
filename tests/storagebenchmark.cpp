@@ -66,7 +66,6 @@ private Q_SLOTS:
         store.removeFromDisk();
     }
 
-public:
     void testWriteRead_data()
     {
         QTest::addColumn<bool>("useDb");
@@ -179,7 +178,6 @@ public:
         }
     }
 
-private Q_SLOTS:
     void testBufferCreation()
     {
         HAWD::Dataset dataset("buffer_creation", m_hawdState);
