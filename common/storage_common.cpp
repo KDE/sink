@@ -19,3 +19,8 @@ void Storage::read(const std::string &sKey, const std::function<bool(void *ptr, 
     read(sKey, resultHandler, &errorHandler);
 }
 
+void Storage::scan(const std::string &sKey, const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> &resultHandler)
+{
+    scan(sKey, resultHandler, &errorHandler);
+}
+

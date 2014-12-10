@@ -82,6 +82,44 @@ private Q_SLOTS:
         storage.removeFromDisk();
     }
 
+    void testScan()
+    {
+        const int count = 100;
+        populate(count);
+
+        //ensure we can scan for values
+        {
+            int hit = 0;
+            Storage store(testDataPath, dbName);
+            store.scan("", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+                if (std::string(static_cast<char*>(keyValue), keySize) == "key50") {
+                    hit++;
+                }
+                return true;
+            });
+            QCOMPARE(hit, 1);
+        }
+
+        //ensure we can read a single value
+        {
+            int hit = 0;
+            bool foundInvalidValue = false;
+            Storage store(testDataPath, dbName);
+            store.scan("key50", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+                if (std::string(static_cast<char*>(keyValue), keySize) != "key50") {
+                    foundInvalidValue = true;
+                }
+                hit++;
+                return true;
+            });
+            QVERIFY(!foundInvalidValue);
+            QCOMPARE(hit, 1);
+        }
+
+        Storage storage(testDataPath, dbName);
+        storage.removeFromDisk();
+    }
+
     void testConcurrentRead()
     {
         const int count = 10000;

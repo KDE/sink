@@ -211,6 +211,15 @@ void Storage::read(const std::string &sKey,
                    const std::function<bool(void *ptr, int size)> &resultHandler,
                    const std::function<void(const Storage::Error &error)> &errorHandler)
 {
+    scan(sKey, [resultHandler](void *keyPtr, int keySize, void *valuePtr, int valueSize) {
+        return resultHandler(valuePtr, valueSize);
+    }, errorHandler);
+}
+
+void Storage::scan(const std::string &sKey,
+                   const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> &resultHandler,
+                   const std::function<void(const Storage::Error &error)> &errorHandler)
+{
     if (!d->env) {
         Error error(d->name.toStdString(), -1, "Not open");
         errorHandler(error);
@@ -243,10 +252,9 @@ void Storage::read(const std::string &sKey,
     }
 
     if (sKey.empty()) {
-        std::cout << "Iterating over all values of store!" << std::endl;
         rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST);
         while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-            if (!resultHandler(key.mv_data, data.mv_size)) {
+            if (!resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
                 break;
             }
         }
@@ -257,7 +265,7 @@ void Storage::read(const std::string &sKey,
         }
     } else {
         if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_SET)) == 0) {
-            resultHandler(data.mv_data, data.mv_size);
+            resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size);
         } else {
             std::cout << "couldn't find value " << sKey << " " << std::endl;
         }

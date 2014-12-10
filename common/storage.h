@@ -34,6 +34,10 @@ public:
     void read(const std::string &sKey,
               const std::function<bool(void *ptr, int size)> & resultHandler,
               const std::function<void(const Storage::Error &error)> &errorHandler);
+    void scan(const std::string &sKey, const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> &resultHandler);
+    void scan(const std::string &sKey,
+              const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> & resultHandler,
+              const std::function<void(const Storage::Error &error)> &errorHandler);
 
     qint64 diskUsage() const;
     void removeFromDisk() const;
