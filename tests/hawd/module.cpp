@@ -21,6 +21,7 @@
 
 #include "modules/list.h"
 #include "modules/check.h"
+#include "modules/print.h"
 
 #include <QCoreApplication>
 
@@ -51,7 +52,7 @@ void Module::loadModules()
     addModule(List());
     addModule(Check());
     addModule(CheckAll());
-//    addModule(Print());
+    addModule(Print());
 //    addModule(Annotate());
 //    addModule(Remove());
 }

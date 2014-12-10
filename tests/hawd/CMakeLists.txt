@@ -13,6 +13,7 @@ set(SRCS
     module.cpp
     modules/list.cpp
     modules/check.cpp
+    modules/print.cpp
 )
 
 add_library(libhawd ${lib_SRCS})
