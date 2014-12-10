@@ -26,6 +26,10 @@
 
 #include <iostream>
 
+#ifdef HAVE_LIBGIT2
+#include <git2.h>
+#endif
+
 static const QString configFileName("hawd.conf");
 
 namespace HAWD
@@ -34,6 +38,7 @@ namespace HAWD
 State::State(const QString &_configPath)
     : m_valid(true)
 {
+    m_commitHash[0] = '\0';
     QString configPath = _configPath;
     if (configPath.isEmpty()) {
         QDir dir;
@@ -96,6 +101,38 @@ DatasetDefinition State::datasetDefinition(const QString &name) const
 QVariant State::configValue(const QString &key) const
 {
     return m_configData.value(key).toVariant();
+}
+
+const char *State::commitHash() const
+{
+    if (isValid() && m_commitHash[0] == '\0') {
+        const_cast<State *>(this)->findGitHash();
+    }
+
+    return m_commitHash;
+}
+
+void State::findGitHash()
+{
+#ifdef HAVE_LIBGIT2
+    git_buf root = {0};
+    int error = git_repository_discover(&root, projectPath().toStdString().data(), 0, NULL);
+    if (!error) {
+        git_repository *repo = NULL;
+        int error = git_repository_open(&repo, root.ptr);
+
+        if (!error) {
+            git_oid oid;
+            error = git_reference_name_to_id(&oid, repo, "HEAD" );
+            if (!error) {
+                git_oid_tostr(m_commitHash, sizeof(m_commitHash), &oid);
+            }
+        }
+
+        git_repository_free(repo);
+    }
+    git_buf_free(&root);
+#endif
 }
 
 } // namespace HAWD

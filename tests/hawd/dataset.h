@@ -47,6 +47,7 @@ public:
             void setValue(const QString &column, const QVariant &value);
             QVariant value(const QString &column);
             void annotate(const QString &note);
+            void setCommitHash(const QString &hash);
             qint64 key() const;
             QByteArray toBinary() const;
             QString toString(const QStringList &cols = QStringList(), int standardCols = All, const QString &seperator = "\t") const;
@@ -60,12 +61,11 @@ public:
             QHash<QString, DataDefinition> m_columns;
             QHash<QString, QVariant> m_data;
             QString m_annotation;
-            QString m_hash;
+            QString m_commitHash;
             const Dataset *m_dataset;
             friend class Dataset;
     };
 
-    Dataset(const DatasetDefinition &definition);
     Dataset(const QString &name, const State &state);
     ~Dataset();
 
@@ -83,6 +83,7 @@ public:
 private:
     DatasetDefinition m_definition;
     Storage m_storage;
+    QString m_commitHash;
 };
 
 } // namespace HAWD

@@ -34,6 +34,8 @@ Dataset::Row::Row(const Row &other)
     : m_key(other.m_key),
       m_columns(other.m_columns),
       m_data(other.m_data),
+      m_annotation(other.m_annotation),
+      m_commitHash(other.m_commitHash),
       m_dataset(other.m_dataset)
 {
 }
@@ -57,6 +59,8 @@ Dataset::Row &Dataset::Row::operator=(const Row &rhs)
     m_columns = rhs.m_columns;
     m_data = rhs.m_data;
     m_dataset = rhs.m_dataset;
+    m_annotation = rhs.m_annotation;
+    m_commitHash = rhs.m_commitHash;
     return *this;
 }
 
@@ -72,6 +76,11 @@ void Dataset::Row::setValue(const QString &column, const QVariant &value)
 void Dataset::Row::annotate(const QString &note)
 {
     m_annotation = note;
+}
+
+void Dataset::Row::setCommitHash(const QString &hash)
+{
+    m_commitHash = hash;
 }
 
 qint64 Dataset::Row::key() const
@@ -90,11 +99,16 @@ void Dataset::Row::fromBinary(QByteArray &data)
     QDataStream stream(&data, QIODevice::ReadOnly);
 
     while (!stream.atEnd()) {
-        stream >> key >> value;
+        stream >> key;
+        if (stream.atEnd()) {
+            break;
+        }
+
+        stream >> value;
         if (key == s_annotationKey) {
             m_annotation = value.toString();
         } else if (key == s_hashKey) {
-            m_hash = value.toString();
+            m_commitHash = value.toString();
         } else {
             setValue(key, value);
         }
@@ -105,19 +119,23 @@ QByteArray Dataset::Row::toBinary() const
 {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
+
     QHashIterator<QString, QVariant> it(m_data);
     while (it.hasNext()) {
         it.next();
-        stream << it.key() << it.value();
+        if (it.value().isValid()) {
+            stream << it.key() << it.value();
+        }
     }
 
-    if (!m_hash.isEmpty()) {
-        stream << s_hashKey << m_hash;
+    if (!m_commitHash.isEmpty()) {
+        stream << s_hashKey << QVariant(m_commitHash);
     }
 
     if (!m_annotation.isEmpty()) {
-        stream << s_annotationKey << m_annotation;
+        stream << s_annotationKey << QVariant(m_annotation);
     }
+
     return data;
 }
 
@@ -169,7 +187,7 @@ QString Dataset::Row::toString(const QStringList &cols, int standardCols, const 
     }
 
     if (standardCols & CommitHash) {
-        strings << m_hash;
+        strings << m_commitHash;
     }
 
     QHashIterator<QString, QVariant> it(m_data);
@@ -189,9 +207,9 @@ QString Dataset::Row::toString(const QStringList &cols, int standardCols, const 
 
 Dataset::Dataset(const QString &name, const State &state)
     : m_definition(state.datasetDefinition(name)),
-      m_storage(state.resultsPath(), name, Storage::ReadWrite)
+      m_storage(state.resultsPath(), name, Storage::ReadWrite),
+      m_commitHash(state.commitHash())
 {
-    //TODO: it should use a different file name if the data columns have changed
     m_storage.startTransaction();
 }
 
@@ -252,7 +270,9 @@ void Dataset::eachRow(const std::function<void(const Row &row)> &resultHandler)
 Dataset::Row Dataset::row(qint64 key)
 {
     if (key < 1) {
-        return Row(*this);
+        Row row(*this);
+        row.setCommitHash(m_commitHash);
+        return row;
     }
 
     Row row(*this, key);

@@ -37,10 +37,14 @@ public:
     QString resultsPath() const;
     QString projectPath() const;
     DatasetDefinition datasetDefinition(const QString &name) const;
+    const char *commitHash() const;
 
 private:
+    void findGitHash();
+
     bool m_valid;
     QJsonObject m_configData;
+    char m_commitHash[10];
 };
 
 } // namespace HAWD
