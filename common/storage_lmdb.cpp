@@ -311,10 +311,12 @@ void Storage::readAll(const std::function<bool(void *key, int keySize, void *dat
         return;
     }
 
-    rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST);
-    while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-        if (!resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
-            break;
+    if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST) == 0) &&
+        resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
+        while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+            if (!resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
+                break;
+            }
         }
     }
 
