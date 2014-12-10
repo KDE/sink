@@ -79,9 +79,9 @@ private Q_SLOTS:
         QFETCH(bool, useDb);
         QFETCH(int, count);
 
-        Storage *store = 0;
+        QScopedPointer<Storage> store;
         if (useDb) {
-            store = new Storage(testDataPath, dbName, Storage::ReadWrite);
+            store.reset(new Storage(testDataPath, dbName, Storage::ReadWrite));
         }
 
         std::ofstream myfile;
@@ -133,8 +133,40 @@ private Q_SLOTS:
         } else {
             qDebug() << "File reading is not implemented.";
         }
+    }
+    
+    void testScan()
+    {
+        QScopedPointer<Storage> store(new Storage(testDataPath, dbName, Storage::ReadOnly));
 
-        delete store;
+        QBENCHMARK {
+            int hit = 0;
+            store->scan("", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+                if (std::string(static_cast<char*>(keyValue), keySize) == "key10000") {
+                    qDebug() << "hit";
+                    hit++;
+                }
+                return true;
+            });
+            QCOMPARE(hit, 1);
+        }
+    }
+
+    void testKeyLookup()
+    {
+        QScopedPointer<Storage> store(new Storage(testDataPath, dbName, Storage::ReadOnly));
+
+        QBENCHMARK {
+            int hit = 0;
+            store->scan("key40000", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+                if (std::string(static_cast<char*>(keyValue), keySize) == "foo") {
+                    qDebug() << "hit";
+                }
+                hit++;
+                return true;
+            });
+            QCOMPARE(hit, 1);
+        }
     }
 
     void testBufferCreation()
