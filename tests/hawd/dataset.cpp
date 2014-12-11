@@ -276,9 +276,9 @@ Dataset::Row Dataset::row(qint64 key)
     }
 
     Row row(*this, key);
-    m_storage.read((const char *)&key, sizeof(qint64),
-            [&row](void *ptr, int size) -> bool {
-                QByteArray array((const char*)ptr, size);
+    m_storage.scan((const char *)&key, sizeof(qint64),
+            [&row](void *keyPtr, int keyLength, void *valuePtr, int valueSize) -> bool {
+                QByteArray array((const char*)valuePtr, valueSize);
                 row.fromBinary(array);
                 return true;
             },
