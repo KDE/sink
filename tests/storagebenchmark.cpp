@@ -152,7 +152,7 @@ private Q_SLOTS:
             int hit = 0;
             store->scan("", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
                 if (std::string(static_cast<char*>(keyValue), keySize) == "key10000") {
-                    qDebug() << "hit";
+                    //qDebug() << "hit";
                     hit++;
                 }
                 return true;
@@ -168,9 +168,11 @@ private Q_SLOTS:
         QBENCHMARK {
             int hit = 0;
             store->scan("key40000", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+                /*
                 if (std::string(static_cast<char*>(keyValue), keySize) == "foo") {
                     qDebug() << "hit";
                 }
+                */
                 hit++;
                 return true;
             });
