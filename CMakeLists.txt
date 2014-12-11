@@ -55,4 +55,7 @@ add_subdirectory(dummyresource)
 # some tests
 add_subdirectory(tests)
 
+# async library prototype
+add_subdirectory(async)
+
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
