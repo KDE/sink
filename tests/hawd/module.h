@@ -21,6 +21,8 @@
 
 #include "state.h"
 
+#include <functional>
+
 #include <QStringList>
 #include <QVector>
 
