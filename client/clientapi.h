@@ -6,6 +6,7 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <QDebug>
+#include <QEventLoop>
 #include <functional>
 
 namespace async {
@@ -64,6 +65,14 @@ namespace async {
     * The future side for the client.
     *
     * It does not directly hold the state.
+    *
+    * The advantage of this is that we can specialize it to:
+    * * do inline transformations to the data
+    * * directly store the state in a suitable datastructure: QList, QSet, std::list, QVector, ...
+    * * build async interfaces with signals
+    * * build sync interfaces that block when accessing the value
+    *
+    * TODO: This should probably be merged with daniels futurebase used in Async
     */
     template<class DomainType>
     class ResultEmitter {
@@ -85,6 +94,42 @@ namespace async {
         std::function<void(void)> completeHandler;
     };
 
+
+    /*
+     * A result set specialization that provides a syncronous list
+     */
+    template<class T>
+    class SyncListResult : public QList<T> {
+    public:
+        SyncListResult(const QSharedPointer<ResultEmitter<T> > &emitter)
+            :QList<T>(),
+            mComplete(false),
+            mEmitter(emitter)
+        {
+            emitter->onAdded([this](const T &value) {
+                this->append(value);
+            });
+            emitter->onComplete([this]() {
+                mComplete = true;
+                auto loop = mWaitLoop.toStrongRef();
+                if (loop) {
+                    loop->quit();
+                }
+            });
+        }
+
+        void exec()
+        {
+            auto loop = QSharedPointer<QEventLoop>::create();
+            mWaitLoop = loop;
+            loop->exec(QEventLoop::ExcludeUserInputEvents);
+        }
+
+    private:
+        bool mComplete;
+        QWeakPointer<QEventLoop> mWaitLoop;
+        QSharedPointer<ResultEmitter<T> > mEmitter;
+    };
 }
 
 namespace Akonadi2 {

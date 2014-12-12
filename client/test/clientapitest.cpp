@@ -37,15 +37,9 @@ private Q_SLOTS:
         Akonadi2::Query query;
         query.resources << "dummyresource";
 
-        auto result = Akonadi2::Store::load<Akonadi2::Domain::Event>(query);
-
-        QList<Akonadi2::Domain::Event::Ptr> resultSet;
-        result->onAdded([&resultSet](const Akonadi2::Domain::Event::Ptr &event){ resultSet << event; qDebug() << "result added";});
-
-        bool complete;
-        result->onComplete([&complete]{ complete = true; qDebug() << "complete";});
-
-        QTRY_VERIFY(complete);
+        async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
+        result.exec();
+        QCOMPARE(result.size(), 1);
     }
 
 };
