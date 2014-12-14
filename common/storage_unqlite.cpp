@@ -11,6 +11,8 @@
 
 #include "unqlite/unqlite.h"
 
+static const char *s_unqliteDir = "/unqlite/";
+
 class Storage::Private
 {
 public:
@@ -36,9 +38,9 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
       db(0),
       inTransaction(false)
 {
-    const QString fullPath(storageRoot + '/' + name);
+    const QString fullPath(storageRoot + s_unqliteDir + name);
     QDir dir;
-    dir.mkdir(storageRoot);
+    dir.mkdir(storageRoot + s_unqliteDir);
 
     //create file
     int openFlags = UNQLITE_OPEN_CREATE;
@@ -276,12 +278,12 @@ void Storage::scan(const char *keyData, uint keySize,
 
 qint64 Storage::diskUsage() const
 {
-    QFileInfo info(d->storageRoot + '/' + d->name);
+    QFileInfo info(d->storageRoot + s_unqliteDir + d->name);
     return info.size();
 }
 
 void Storage::removeFromDisk() const
 {
-    QFile::remove(d->storageRoot + '/' + d->name);
+    QFile::remove(d->storageRoot + s_unqliteDir + d->name);
 }
 
