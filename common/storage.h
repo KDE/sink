@@ -1,10 +1,11 @@
 #pragma once
 
+#include <akonadi2common_export.h>
 #include <string>
 #include <functional>
 #include <QString>
 
-class Storage {
+class AKONADI2COMMON_EXPORT Storage {
 public:
     enum AccessMode { ReadOnly, ReadWrite };
 

@@ -1,11 +1,13 @@
 #pragma once
 
+#include <akonadi2common_export.h>
+
 #include <QTime>
 #include <QWidget>
 
 class QTextBrowser;
 
-class Console : public QWidget
+class AKONADI2COMMON_EXPORT Console : public QWidget
 {
     Q_OBJECT
 public:

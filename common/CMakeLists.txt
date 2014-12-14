@@ -16,8 +16,8 @@ set(command_SRCS
     storage_common.cpp
     ${storage_SRCS})
 
-message("We have: ${storage_SRCS}")
-add_library(${PROJECT_NAME} ${command_SRCS})
+add_library(${PROJECT_NAME} SHARED ${command_SRCS})
+generate_export_header(${PROJECT_NAME} BASE_NAME Akonadi2Common EXPORT_FILE_NAME akonadi2common_export.h)
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 qt5_use_modules(${PROJECT_NAME} Widgets)
 target_link_libraries(${PROJECT_NAME} ${storage_LIBS})

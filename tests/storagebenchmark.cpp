@@ -93,16 +93,11 @@ private Q_SLOTS:
 
         time.start();
         {
-            auto event = createEvent();
+            auto event = std::string(500, '1');//createEvent();
+
+            if (store) store->startTransaction();
             for (int i = 0; i < count; i++) {
                 if (store) {
-                    if (i % 10000 == 0) {
-                        if (i > 0) {
-                            store->commitTransaction();
-                        }
-                        store->startTransaction();
-                    }
-
                     store->write(keyPrefix + std::to_string(i), event);
                 } else {
                     myfile << event;

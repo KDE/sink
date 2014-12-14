@@ -9,7 +9,9 @@
 #include <QString>
 #include <QTime>
 
-#include "unqlite/unqlite.h"
+extern "C" {
+    #include "unqlite/unqlite.h"
+}
 
 static const char *s_unqliteDir = "/unqlite/";
 
