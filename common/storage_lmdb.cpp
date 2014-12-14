@@ -38,6 +38,7 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
 {
     const QString fullPath(storageRoot + '/' + name);
     QDir dir;
+    dir.mkdir(storageRoot);
     dir.mkdir(fullPath);
 
     //create file
