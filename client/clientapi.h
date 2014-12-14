@@ -7,48 +7,60 @@
 #include <QTimer>
 #include <QDebug>
 #include <QEventLoop>
+#include <QtConcurrent/QtConcurrentRun>
 #include <functional>
+#include "threadboundary.h"
 
 namespace async {
     //This should abstract if we execute from eventloop or in thread.
     //It supposed to allow the caller to finish the current method before executing the runner.
     void run(const std::function<void()> &runner) {
-        //FIXME we should be using a Job instead of a timer
-        auto timer = new QTimer;
-        timer->setSingleShot(true);
-        QObject::connect(timer, &QTimer::timeout, runner);
-        QObject::connect(timer, &QTimer::timeout, timer, &QObject::deleteLater);
-        timer->start(0);
+        QtConcurrent::run(runner);
+
+        // //FIXME we should be using a Job instead of a timer
+        // auto timer = new QTimer;
+        // timer->setSingleShot(true);
+        // QObject::connect(timer, &QTimer::timeout, runner);
+        // QObject::connect(timer, &QTimer::timeout, timer, &QObject::deleteLater);
+        // timer->start(0);
     };
 
     /**
     * Query result set
-    *
-    * This should probably become part of a generic kasync library.
-    *
-    * Functional is nice because we don't have to store data in the emitter
-    * Non functional and storing may be the right thing because we want an in-memory representation of the set
-    * non-functional also allows us to batch move data across thread boundaries.
     */
 
     template<class T>
     class ResultEmitter;
 
     /*
-    * The promise side for the result provider
+    * The promise side for the result emitter
     */
     template<class T>
     class ResultProvider {
     public:
+        //Called from worker thread
         void add(const T &value)
         {
-            //the handler will be called in the other thread, protect
-            mResultEmitter->addHandler(value);
+            //We use the eventloop to call the addHandler directly from the main eventloop.
+            //That way the result emitter implementation doesn't have to care about threadsafety at all.
+            //The alternative would be to make all handlers of the emitter threadsafe.
+            auto emitter = mResultEmitter;
+            mResultEmitter->mThreadBoundary.callInMainThread([emitter, value]() {
+                if (emitter) {
+                    emitter->addHandler(value);
+                }
+            });
         }
 
+        //Called from worker thread
         void complete()
         {
-            mResultEmitter->completeHandler();
+            auto emitter = mResultEmitter;
+            mResultEmitter->mThreadBoundary.callInMainThread([emitter]() {
+                if (emitter) {
+                    emitter->completeHandler();
+                }
+            });
         }
 
         QSharedPointer<ResultEmitter<T> > emitter()
@@ -92,6 +104,7 @@ namespace async {
         std::function<void(const DomainType&)> addHandler;
         // std::function<void(const T&)> removeHandler;
         std::function<void(void)> completeHandler;
+        ThreadBoundary mThreadBoundary;
     };
 
 
@@ -348,6 +361,7 @@ public:
         async::run([resultSet, query](){
             // Query all resources and aggregate results
             // query tells us in which resources we're interested
+            // TODO: queries to individual resources could be parallelized
             for(const QString &resource : query.resources) {
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
                 //We have to bind an instance to the function callback. Since we use a shared pointer this keeps the result provider instance (and thus also the emitter) alive.

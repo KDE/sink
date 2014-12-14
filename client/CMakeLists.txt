@@ -4,9 +4,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 set(akonadi2client_SRCS
     resourceaccess.cpp
+    threadboundary.cpp
 )
 
-add_library(${PROJECT_NAME}_lib ${akonadi2client_SRCS})
+add_library(${PROJECT_NAME}_lib SHARED ${akonadi2client_SRCS})
 target_link_libraries(${PROJECT_NAME}_lib akonadi2common)
 qt5_use_modules(${PROJECT_NAME}_lib Widgets Network)
 
