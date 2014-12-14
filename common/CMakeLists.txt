@@ -4,8 +4,7 @@ generate_flatbuffers(commands/handshake
 
 if (STORAGE_unqlite)
     add_definitions(-DUNQLITE_ENABLE_THREADS)
-    file(GLOB storage_SRCS unqlite/*c)
-    set(storage_SRCS ${storage_SRCS} storage_unqlite.cpp)
+    set(storage_SRCS unqlite/unqlite.c storage_unqlite.cpp)
 else (STORAGE_unqlite)
     set(storage_SRCS storage_lmdb.cpp)
     set(storage_LIBS lmdb)
