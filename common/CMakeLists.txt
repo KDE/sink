@@ -3,7 +3,7 @@ generate_flatbuffers(commands/handshake
                      commands/revisionupdate)
 
 if (STORAGE_unqlite)
-    add_definitions(-DUNQLITE_ENABLE_THREADS)
+    add_definitions(-DUNQLITE_ENABLE_THREADS -fpermissive)
     set(storage_SRCS unqlite/unqlite.c storage_unqlite.cpp)
 else (STORAGE_unqlite)
     set(storage_SRCS storage_lmdb.cpp)
