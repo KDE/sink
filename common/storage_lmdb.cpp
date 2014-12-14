@@ -287,52 +287,6 @@ void Storage::scan(const char *keyData, uint keySize,
     }
     */
 }
-void Storage::readAll(const std::function<bool(void *key, int keySize, void *data, int dataSize)> &resultHandler,
-                      const std::function<void(const Storage::Error &error)> &errorHandler)
-{
-    int rc;
-    MDB_val key;
-    MDB_val data;
-    MDB_cursor *cursor = 0;
-
-    const bool implicitTransaction = !d->transaction;
-    if (implicitTransaction) {
-        // TODO: if this fails, still try the write below?
-        if (!startTransaction(ReadOnly)) {
-            Error error(d->name.toStdString(), -2, "Could not start transaction");
-            errorHandler(error);
-            return;
-        }
-    }
-
-    rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
-    if (rc) {
-        Error error(d->name.toStdString(), rc, mdb_strerror(rc));
-        errorHandler(error);
-        return;
-    }
-
-    if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST) == 0) &&
-        resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
-        while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-            if (!resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
-                break;
-            }
-        }
-    }
-
-    //We never find the last value
-    if (rc == MDB_NOTFOUND) {
-        rc = 0;
-    }
-
-    mdb_cursor_close(cursor);
-
-    if (rc) {
-        Error error(d->name.toStdString(), rc, mdb_strerror(rc));
-        errorHandler(error);
-    }
-}
 
 qint64 Storage::diskUsage() const
 {
