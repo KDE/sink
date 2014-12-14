@@ -42,7 +42,7 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
 {
     const QString fullPath(storageRoot + s_unqliteDir + name);
     QDir dir;
-    dir.mkdir(storageRoot + s_unqliteDir);
+    dir.mkpath(storageRoot + s_unqliteDir);
 
     //create file
     int openFlags = UNQLITE_OPEN_CREATE;
