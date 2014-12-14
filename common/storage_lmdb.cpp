@@ -8,6 +8,7 @@
 #include <QReadWriteLock>
 #include <QString>
 #include <QTime>
+#include <QMutex>
 
 #include <lmdb.h>
 
@@ -26,7 +27,10 @@ public:
     AccessMode mode;
     bool readTransaction;
     bool firstOpen;
+    static QMutex sMutex;
 };
+
+QMutex Storage::Private::sMutex;
 
 Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
     : storageRoot(s),
@@ -40,6 +44,9 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
     QDir dir;
     dir.mkdir(storageRoot);
     dir.mkdir(fullPath);
+
+    //This seems to resolve threading related issues, not sure why though
+    QMutexLocker locker(&sMutex);
 
     //create file
     if (mdb_env_create(&env)) {

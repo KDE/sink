@@ -126,15 +126,16 @@ private Q_SLOTS:
 
         populate(count);
 
+        bool error = false;
         //Try to concurrently read
         QList<QFuture<void> > futures;
-        const int concurrencyLevel = 4;
+        const int concurrencyLevel = 10;
         for (int num = 0; num < concurrencyLevel; num++) {
-            futures << QtConcurrent::run([this, count](){
+            futures << QtConcurrent::run([this, count, &error](){
                 Storage storage(testDataPath, dbName);
                 for (int i = 0; i < count; i++) {
                     if (!verify(storage, i)) {
-                        qWarning() << "invalid value";
+                        error = true;
                         break;
                     }
                 }
@@ -143,6 +144,7 @@ private Q_SLOTS:
         for(auto future : futures) {
             future.waitForFinished();
         }
+        QVERIFY(!error);
 
         Storage storage(testDataPath, dbName);
         storage.removeFromDisk();
