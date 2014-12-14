@@ -2,20 +2,22 @@ project(akonadi2common)
 generate_flatbuffers(commands/handshake
                      commands/revisionupdate)
 
-if (STORAGE_KYOTO)
-    set(storage_SRCS storage_kyoto.cpp)
-    set(storage_LIBS kyotocabinet)
-else (STORAGE_KYOTO)
+if (STORAGE_unqlite)
+    add_definitions(-DUNQLITE_ENABLE_THREADS)
+    file(GLOB storage_SRCS unqlite/*c)
+    set(storage_SRCS ${storage_SRCS} storage_unqlite.cpp)
+else (STORAGE_unqlite)
     set(storage_SRCS storage_lmdb.cpp)
     set(storage_LIBS lmdb)
-endif (STORAGE_KYOTO)
+endif (STORAGE_unqlite)
 
 set(command_SRCS
-   commands.cpp
-   console.cpp
-   storage_common.cpp
-   ${storage_SRCS})
+    commands.cpp
+    console.cpp
+    storage_common.cpp
+    ${storage_SRCS})
 
+message("We have: ${storage_SRCS}")
 add_library(${PROJECT_NAME} ${command_SRCS})
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 qt5_use_modules(${PROJECT_NAME} Widgets)
