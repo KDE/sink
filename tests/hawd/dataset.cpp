@@ -252,7 +252,7 @@ void Dataset::eachRow(const std::function<void(const Row &row)> &resultHandler)
     }
 
     Row row(*this);
-    m_storage.readAll(
+    m_storage.scan(nullptr, 0,
                    [&](void *key, int keySize, void *data, int dataSize) -> bool {
                        if (keySize != sizeof(qint64)) {
                            return true;
