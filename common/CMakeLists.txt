@@ -3,6 +3,7 @@ generate_flatbuffers(commands/handshake
                      commands/revisionupdate)
 
 if (STORAGE_unqlite)
+    add_definitions(-DUNQLITE_ENABLE_THREADS)
     set(storage_SRCS storage_unqlite.cpp unqlite/*c)
 else (STORAGE_KYOTO)
     set(storage_SRCS storage_lmdb.cpp)
@@ -10,10 +11,10 @@ else (STORAGE_KYOTO)
 endif (STORAGE_KYOTO)
 
 set(command_SRCS
-   commands.cpp
-   console.cpp
-   storage_common.cpp
-   ${storage_SRCS})
+    commands.cpp
+    console.cpp
+    storage_common.cpp
+    ${storage_SRCS})
 
 add_library(${PROJECT_NAME} ${command_SRCS})
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
