@@ -19,5 +19,5 @@ manual_tests (
     dummyresourcefacadetest
 )
 
-target_link_libraries(dummyresourcefacadetest akonadi2_dummyresource_facade)
+target_link_libraries(dummyresourcefacadetest akonadi2_resource_dummy)
 
