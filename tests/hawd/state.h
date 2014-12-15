@@ -23,11 +23,12 @@
 #include <QJsonObject>
 
 #include "datasetdefinition.h"
+#include "hawd_export.h"
 
 namespace HAWD
 {
 
-class State
+class HAWD_EXPORT State
 {
 public:
     State(const QString &configPath = QString());

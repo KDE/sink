@@ -22,7 +22,8 @@ set(SRCS
     modules/print.cpp
 )
 
-add_library(libhawd ${lib_SRCS})
+add_library(libhawd SHARED ${lib_SRCS})
+generate_export_header(libhawd BASE_NAME HAWD EXPORT_FILE_NAME hawd_export.h)
 qt5_use_modules(libhawd Core)
 target_link_libraries(libhawd akonadi2common ${LIBGIT2_LIBRARIES})
 install(TARGETS libhawd DESTINATION lib)

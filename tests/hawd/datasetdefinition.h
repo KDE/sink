@@ -23,10 +23,12 @@
 #include <QJsonObject>
 #include <QVariant>
 
+#include "hawd_export.h"
+
 namespace HAWD
 {
 
-class DataDefinition
+class HAWD_EXPORT DataDefinition
 {
 public:
     DataDefinition(const QString &name = QString(), QMetaType::Type type = QMetaType::Void, const QString &unit = QString(), int min = 0, int max = 0);
@@ -47,7 +49,7 @@ private:
     int m_max;
 };
 
-class DatasetDefinition
+class HAWD_EXPORT DatasetDefinition
 {
 public:
     DatasetDefinition(const QString &path);

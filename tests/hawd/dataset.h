@@ -21,6 +21,7 @@
 
 #include "datasetdefinition.h"
 
+#include "hawd_export.h"
 #include "state.h"
 #include "common/storage.h"
 
@@ -30,7 +31,7 @@
 namespace HAWD
 {
 
-class Dataset
+class HAWD_EXPORT Dataset
 {
 public:
     class Row
