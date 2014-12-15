@@ -161,8 +161,8 @@ namespace Domain {
 
 class AkonadiDomainType {
 public:
-    AkonadiDomainType(const QString &resource, const QString &identifier, qint64 revision)
-        : mResource(resource),
+    AkonadiDomainType(const QString &resourceName, const QString &identifier, qint64 revision)
+        : mResourceName(resourceName),
         mIdentifier(identifier),
         mRevision(revision)
     {
@@ -174,7 +174,7 @@ private:
     /*
      * Each domain object needs to store the resource, identifier, revision triple so we can link back to the storage location.
      */
-    QString mResource;
+    QString mResourceName;
     QString mIdentifier;
     qint64 mRevision;
 };
