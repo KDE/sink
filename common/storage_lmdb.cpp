@@ -52,7 +52,8 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
             mdb_env_close(env);
             env = 0;
         } else {
-            const size_t dbSize = 10485760 * 100; //10MB * 100
+            //FIXME: dynamic resize
+            const size_t dbSize = (size_t)10485760 * (size_t)100 * (size_t)80; //10MB * 800
             mdb_env_set_mapsize(env, dbSize);
         }
     }
