@@ -13,6 +13,9 @@ extern "C" {
     #include "unqlite/unqlite.h"
 }
 
+namespace Akonadi2
+{
+
 static const char *s_unqliteDir = "/unqlite/";
 
 class Storage::Private
@@ -289,3 +292,4 @@ void Storage::removeFromDisk() const
     QFile::remove(d->storageRoot + s_unqliteDir + d->name);
 }
 
+} // namespace Akonadi2

@@ -83,7 +83,7 @@ public:
 
 private:
     DatasetDefinition m_definition;
-    Storage m_storage;
+    Akonadi2::Storage m_storage;
     QString m_commitHash;
 };
 

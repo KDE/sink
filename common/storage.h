@@ -5,6 +5,9 @@
 #include <functional>
 #include <QString>
 
+namespace Akonadi2
+{
+
 class AKONADI2COMMON_EXPORT Storage {
 public:
     enum AccessMode { ReadOnly, ReadWrite };
@@ -51,4 +54,6 @@ private:
     class Private;
     Private * const d;
 };
+
+} // namespace Akonadi2
 

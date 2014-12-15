@@ -44,7 +44,8 @@ void DummyResourceFacade::remove(const Akonadi2::Domain::Event &domainObject)
 //-how do we free/munmap the data if we don't know when no one references it any longer? => no munmap needed, but read transaction to keep pointer alive
 //-we could bind the lifetime to the query
 //=> perhaps do heap allocate and use smart pointer?
-class DummyEventAdaptor : public Akonadi2::Domain::Event {
+class DummyEventAdaptor : public Akonadi2::Domain::Event
+{
 public:
     DummyEventAdaptor(const QString &resource, const QString &identifier, qint64 revision)
         :Akonadi2::Domain::Event(resource, identifier, revision)
@@ -71,13 +72,13 @@ public:
     DummyEvent const *buffer;
 
     //Keep query alive so values remain valid
-    QSharedPointer<Storage> storage;
+    QSharedPointer<Akonadi2::Storage> storage;
 };
 
 void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
 {
     qDebug() << "load called";
-    auto storage = QSharedPointer<Storage>::create(Akonadi2::Store::storageLocation(), "dummyresource");
+    auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "dummyresource");
 
     //Compose some functions to make query matching fast.
     //This way we can process the query once, and convert all values into something that can be compared quickly

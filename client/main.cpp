@@ -9,9 +9,8 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    new Console("Akonadi2 Client");
+    new Akonadi2::Console("Akonadi2 Client");
 
-    ResourceAccess *resAccess = 0;
     QCommandLineParser cliOptions;
     cliOptions.addPositionalArgument(QObject::tr("[resource]"),
                                      QObject::tr("A resource to connect to"));
@@ -22,9 +21,9 @@ int main(int argc, char *argv[])
     }
 
     for (const QString &resource: resources) {
-        resAccess = new ResourceAccess(resource);
+        Akonadi2::ResourceAccess *resAccess = new Akonadi2::ResourceAccess(resource);
         QObject::connect(&app, &QCoreApplication::aboutToQuit,
-                        resAccess, &ResourceAccess::close);
+                        resAccess, &Akonadi2::ResourceAccess::close);
         resAccess->open();
     }
 

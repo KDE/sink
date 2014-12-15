@@ -5,6 +5,9 @@
 
 class QIODevice;
 
+namespace Akonadi2
+{
+
 namespace Commands
 {
 
@@ -18,3 +21,5 @@ enum CommandIds {
 void AKONADI2COMMON_EXPORT write(QIODevice *device, int commandId, flatbuffers::FlatBufferBuilder &fbb);
 
 }
+
+} // namespace Akonadi2

@@ -8,6 +8,9 @@
 #include <QDebug>
 #include <QProcess>
 
+namespace Akonadi2
+{
+
 ResourceAccess::ResourceAccess(const QString &resourceName, QObject *parent)
     : QObject(parent),
       m_resourceName(resourceName),
@@ -153,4 +156,6 @@ bool ResourceAccess::processMessageBuffer()
 void ResourceAccess::log(const QString &message)
 {
     Console::main()->log(m_resourceName + ": " + message);
+}
+
 }

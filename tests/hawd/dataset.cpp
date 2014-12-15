@@ -207,7 +207,7 @@ QString Dataset::Row::toString(const QStringList &cols, int standardCols, const 
 
 Dataset::Dataset(const QString &name, const State &state)
     : m_definition(state.datasetDefinition(name)),
-      m_storage(state.resultsPath(), name, Storage::ReadWrite),
+      m_storage(state.resultsPath(), name, Akonadi2::Storage::ReadWrite),
       m_commitHash(state.commitHash())
 {
     m_storage.startTransaction();
@@ -264,7 +264,7 @@ void Dataset::eachRow(const std::function<void(const Row &row)> &resultHandler)
                        resultHandler(row);
                        return true;
                    },
-                   Storage::basicErrorHandler());
+                   Akonadi2::Storage::basicErrorHandler());
 }
 
 Dataset::Row Dataset::row(qint64 key)
@@ -282,7 +282,7 @@ Dataset::Row Dataset::row(qint64 key)
                 row.fromBinary(array);
                 return true;
             },
-            Storage::basicErrorHandler()
+            Akonadi2::Storage::basicErrorHandler()
             );
     return row;
 }

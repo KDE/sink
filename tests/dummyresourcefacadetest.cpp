@@ -19,7 +19,7 @@ private:
 
     void populate(int count)
     {
-        Storage storage(testDataPath, dbName, Storage::ReadWrite);
+        Akonadi2::Storage storage(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
         for (int i = 0; i < count; i++) {
             storage.write(keyPrefix + std::to_string(i), keyPrefix + std::to_string(i));
         }
@@ -38,7 +38,7 @@ private Q_SLOTS:
 
     void cleanupTestCase()
     {
-        Storage storage(testDataPath, dbName);
+        Akonadi2::Storage storage(testDataPath, dbName);
         storage.removeFromDisk();
     }
 
@@ -63,7 +63,7 @@ private Q_SLOTS:
         QTRY_VERIFY(complete);
         QCOMPARE(results.size(), 1);
 
-        Storage storage(testDataPath, dbName);
+        Akonadi2::Storage storage(testDataPath, dbName);
         storage.removeFromDisk();
     }
 

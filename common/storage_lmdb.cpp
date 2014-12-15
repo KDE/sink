@@ -12,6 +12,9 @@
 
 #include <lmdb.h>
 
+namespace Akonadi2
+{
+
 class Storage::Private
 {
 public:
@@ -309,3 +312,5 @@ void Storage::removeFromDisk() const
     dir.remove("data.mdb");
     dir.remove("lock.mdb");
 }
+
+} // namespace Akonadi2

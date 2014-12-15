@@ -2,6 +2,9 @@
 
 #include <QIODevice>
 
+namespace Akonadi2
+{
+
 namespace Commands
 {
 
@@ -13,4 +16,6 @@ void write(QIODevice *device, int commandId, flatbuffers::FlatBufferBuilder &fbb
     device->write((const char*)fbb.GetBufferPointer(), dataSize);
 }
 
-}
+} // namespace Commands
+
+} // namespace Akonadi2

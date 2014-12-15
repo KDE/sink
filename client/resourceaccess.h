@@ -6,6 +6,9 @@
 
 #include <flatbuffers/flatbuffers.h>
 
+namespace Akonadi2
+{
+
 class ResourceAccess : public QObject
 {
     Q_OBJECT
@@ -41,3 +44,5 @@ private:
     QByteArray m_partialMessageBuffer;
     flatbuffers::FlatBufferBuilder m_fbb;
 };
+
+}

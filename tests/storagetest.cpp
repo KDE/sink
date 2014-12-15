@@ -19,7 +19,7 @@ private:
 
     void populate(int count)
     {
-        Storage storage(testDataPath, dbName, Storage::ReadWrite);
+        Akonadi2::Storage storage(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
         for (int i = 0; i < count; i++) {
             //This should perhaps become an implementation detail of the db?
             if (i % 10000 == 0) {
@@ -33,7 +33,7 @@ private:
         storage.commitTransaction();
     }
 
-    bool verify(Storage &storage, int i)
+    bool verify(Akonadi2::Storage &storage, int i)
     {
         bool success = true;
         bool keyMatch = true;
@@ -46,7 +46,7 @@ private:
                 }
                 return keyMatch;
             },
-            [&success](const Storage::Error &) { success = false; }
+            [&success](const Akonadi2::Storage::Error &) { success = false; }
             );
         return success && keyMatch;
     }
@@ -60,7 +60,7 @@ private Q_SLOTS:
 
     void cleanupTestCase()
     {
-        Storage storage(testDataPath, dbName);
+        Akonadi2::Storage storage(testDataPath, dbName);
         storage.removeFromDisk();
     }
 
@@ -72,13 +72,13 @@ private Q_SLOTS:
 
         //ensure we can read everything back correctly
         {
-            Storage storage(testDataPath, dbName);
+            Akonadi2::Storage storage(testDataPath, dbName);
             for (int i = 0; i < count; i++) {
                 QVERIFY(verify(storage, i));
             }
         }
 
-        Storage storage(testDataPath, dbName);
+        Akonadi2::Storage storage(testDataPath, dbName);
         storage.removeFromDisk();
     }
 
@@ -90,7 +90,7 @@ private Q_SLOTS:
         //ensure we can scan for values
         {
             int hit = 0;
-            Storage store(testDataPath, dbName);
+            Akonadi2::Storage store(testDataPath, dbName);
             store.scan("", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
                 if (std::string(static_cast<char*>(keyValue), keySize) == "key50") {
                     hit++;
@@ -104,7 +104,7 @@ private Q_SLOTS:
         {
             int hit = 0;
             bool foundInvalidValue = false;
-            Storage store(testDataPath, dbName);
+            Akonadi2::Storage store(testDataPath, dbName);
             store.scan("key50", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
                 if (std::string(static_cast<char*>(keyValue), keySize) != "key50") {
                     foundInvalidValue = true;
@@ -116,7 +116,7 @@ private Q_SLOTS:
             QCOMPARE(hit, 1);
         }
 
-        Storage storage(testDataPath, dbName);
+        Akonadi2::Storage storage(testDataPath, dbName);
         storage.removeFromDisk();
     }
 
@@ -132,7 +132,7 @@ private Q_SLOTS:
         const int concurrencyLevel = 10;
         for (int num = 0; num < concurrencyLevel; num++) {
             futures << QtConcurrent::run([this, count, &error](){
-                Storage storage(testDataPath, dbName);
+                Akonadi2::Storage storage(testDataPath, dbName);
                 for (int i = 0; i < count; i++) {
                     if (!verify(storage, i)) {
                         error = true;
@@ -146,7 +146,7 @@ private Q_SLOTS:
         }
         QVERIFY(!error);
 
-        Storage storage(testDataPath, dbName);
+        Akonadi2::Storage storage(testDataPath, dbName);
         storage.removeFromDisk();
     }
 };

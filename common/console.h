@@ -7,6 +7,9 @@
 
 class QTextBrowser;
 
+namespace Akonadi2
+{
+
 class AKONADI2COMMON_EXPORT Console : public QWidget
 {
     Q_OBJECT
@@ -22,3 +25,5 @@ private:
     QTime m_timestamper;
     static Console *s_output;
 };
+
+} // namespace Akonadi2

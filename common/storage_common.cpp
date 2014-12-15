@@ -2,6 +2,9 @@
 
 #include <iostream>
 
+namespace Akonadi2
+{
+
 void errorHandler(const Storage::Error &error)
 {
     //TODO: allow this to be turned on / off globally
@@ -29,3 +32,4 @@ void Storage::scan(const std::string &sKey, const std::function<bool(void *keyPt
     scan(sKey.data(), sKey.size(), resultHandler, &errorHandler);
 }
 
+} // namespace Akonadi2

@@ -62,7 +62,7 @@ private Q_SLOTS:
 
     void cleanupTestCase()
     {
-        Storage store(testDataPath, dbName);
+        Akonadi2::Storage store(testDataPath, dbName);
         store.removeFromDisk();
     }
 
@@ -80,9 +80,9 @@ private Q_SLOTS:
         QFETCH(bool, useDb);
         QFETCH(int, count);
 
-        QScopedPointer<Storage> store;
+        QScopedPointer<Akonadi2::Storage> store;
         if (useDb) {
-            store.reset(new Storage(testDataPath, dbName, Storage::ReadWrite));
+            store.reset(new Akonadi2::Storage(testDataPath, dbName, Akonadi2::Storage::ReadWrite));
         }
 
         std::ofstream myfile;
@@ -143,10 +143,10 @@ private Q_SLOTS:
             qDebug() << "File reading is not implemented.";
         }
     }
-    
+
     void testScan()
     {
-        QScopedPointer<Storage> store(new Storage(testDataPath, dbName, Storage::ReadOnly));
+        QScopedPointer<Akonadi2::Storage> store(new Akonadi2::Storage(testDataPath, dbName, Akonadi2::Storage::ReadOnly));
 
         QBENCHMARK {
             int hit = 0;
@@ -163,7 +163,7 @@ private Q_SLOTS:
 
     void testKeyLookup()
     {
-        QScopedPointer<Storage> store(new Storage(testDataPath, dbName, Storage::ReadOnly));
+        QScopedPointer<Akonadi2::Storage> store(new Akonadi2::Storage(testDataPath, dbName, Akonadi2::Storage::ReadOnly));
 
         QBENCHMARK {
             int hit = 0;
@@ -203,7 +203,7 @@ private Q_SLOTS:
 
     void testSizes()
     {
-        Storage store(testDataPath, dbName);
+        Akonadi2::Storage store(testDataPath, dbName);
         qDebug() << "Database size [kb]: " << store.diskUsage()/1024;
 
         QFileInfo fileInfo(filePath);

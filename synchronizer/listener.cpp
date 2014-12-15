@@ -15,18 +15,18 @@ Listener::Listener(const QString &resource, QObject *parent)
 {
     connect(m_server, &QLocalServer::newConnection,
              this, &Listener::acceptConnection);
-    Console::main()->log(QString("Trying to open %1").arg(resource));
+    Akonadi2::Console::main()->log(QString("Trying to open %1").arg(resource));
     if (!m_server->listen(resource)) {
         // FIXME: multiple starts need to be handled here
         m_server->removeServer(resource);
         if (!m_server->listen(resource)) {
-            Console::main()->log("Utter failure to start server");
+            Akonadi2::Console::main()->log("Utter failure to start server");
             exit(-1);
         }
     }
 
     if (m_server->isListening()) {
-        Console::main()->log(QString("Listening on %1").arg(m_server->serverName()));
+        Akonadi2::Console::main()->log(QString("Listening on %1").arg(m_server->serverName()));
     }
 
     QTimer::singleShot(2000, this, SLOT(checkConnections()));
@@ -63,14 +63,14 @@ void Listener::closeAllConnections()
 
 void Listener::acceptConnection()
 {
-    Console::main()->log(QString("Accepting connection"));
+    Akonadi2::Console::main()->log(QString("Accepting connection"));
     QLocalSocket *socket = m_server->nextPendingConnection();
 
     if (!socket) {
         return;
     }
 
-    Console::main()->log("Got a connection");
+    Akonadi2::Console::main()->log("Got a connection");
     Client client("Unknown Client" /*fixme: actual names!*/, socket);
     connect(socket, &QIODevice::readyRead,
             this, &Listener::readFromSocket);
@@ -87,12 +87,12 @@ void Listener::clientDropped()
         return;
     }
 
-    Console::main()->log("Dropping connection...");
+    Akonadi2::Console::main()->log("Dropping connection...");
     QMutableVectorIterator<Client> it(m_connections);
     while (it.hasNext()) {
         const Client &client = it.next();
         if (client.socket == socket) {
-            Console::main()->log(QString("    dropped... %1").arg(client.name));
+            Akonadi2::Console::main()->log(QString("    dropped... %1").arg(client.name));
             it.remove();
             break;
         }
@@ -116,10 +116,10 @@ void Listener::readFromSocket()
         return;
     }
 
-    Console::main()->log("Reading from socket...");
+    Akonadi2::Console::main()->log("Reading from socket...");
     for (Client &client: m_connections) {
         if (client.socket == socket) {
-            Console::main()->log(QString("    Client: %1").arg(client.name));
+            Akonadi2::Console::main()->log(QString("    Client: %1").arg(client.name));
             client.commandBuffer += socket->readAll();
             // FIXME: schedule these rather than process them all at once
             //        right now this can lead to starvation of clients due to
@@ -133,7 +133,7 @@ void Listener::readFromSocket()
 bool Listener::processClientBuffer(Client &client)
 {
     static const int headerSize = (sizeof(int) * 2);
-    Console::main()->log(QString("processing %1").arg(client.commandBuffer.size()));
+    Akonadi2::Console::main()->log(QString("processing %1").arg(client.commandBuffer.size()));
     if (client.commandBuffer.size() < headerSize) {
         return false;
     }
@@ -147,9 +147,9 @@ bool Listener::processClientBuffer(Client &client)
         client.commandBuffer.remove(0, headerSize + size);
 
         switch (commandId) {
-            case Commands::HandshakeCommand: {
+            case Akonadi2::Commands::HandshakeCommand: {
                 auto buffer = Akonadi2::GetHandshake(data.constData());
-                Console::main()->log(QString("    Handshake from %1").arg(buffer->name()->c_str()));
+                Akonadi2::Console::main()->log(QString("    Handshake from %1").arg(buffer->name()->c_str()));
                 sendCurrentRevision(client);
                 break;
             }
@@ -172,7 +172,7 @@ void Listener::sendCurrentRevision(Client &client)
 
     auto command = Akonadi2::CreateRevisionUpdate(m_fbb, m_revision);
     Akonadi2::FinishRevisionUpdateBuffer(m_fbb, command);
-    Commands::write(client.socket, Commands::RevisionUpdateCommand, m_fbb);
+    Akonadi2::Commands::write(client.socket, Akonadi2::Commands::RevisionUpdateCommand, m_fbb);
     m_fbb.Clear();
 }
 
@@ -186,7 +186,7 @@ void Listener::updateClientsWithRevision()
             continue;
         }
 
-        Commands::write(client.socket, Commands::RevisionUpdateCommand, m_fbb);
+        Akonadi2::Commands::write(client.socket, Akonadi2::Commands::RevisionUpdateCommand, m_fbb);
     }
     m_fbb.Clear();
 }
