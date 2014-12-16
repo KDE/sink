@@ -76,7 +76,10 @@ namespace async {
 
         QSharedPointer<ResultEmitter<T> > emitter()
         {
-            mResultEmitter = QSharedPointer<ResultEmitter<T> >(new ResultEmitter<T>());
+            if (!mResultEmitter) {
+                mResultEmitter = QSharedPointer<ResultEmitter<T> >(new ResultEmitter<T>());
+            }
+
             return mResultEmitter;
         }
 
