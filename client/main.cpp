@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     cliOptions.process(app);
     QStringList resources = cliOptions.positionalArguments();
     if (resources.isEmpty()) {
-        resources << "toy";
+        resources << "org.kde.dummy";
     }
 
     for (const QString &resource: resources) {
