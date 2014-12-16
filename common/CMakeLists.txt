@@ -11,6 +11,7 @@ else (STORAGE_unqlite)
 endif (STORAGE_unqlite)
 
 set(command_SRCS
+    clientapi.cpp
     commands.cpp
     console.cpp
     resource.cpp

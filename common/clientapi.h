@@ -34,16 +34,7 @@
 namespace async {
     //This should abstract if we execute from eventloop or in thread.
     //It supposed to allow the caller to finish the current method before executing the runner.
-    void run(const std::function<void()> &runner) {
-        QtConcurrent::run(runner);
-
-        // //FIXME we should be using a Job instead of a timer
-        // auto timer = new QTimer;
-        // timer->setSingleShot(true);
-        // QObject::connect(timer, &QTimer::timeout, runner);
-        // QObject::connect(timer, &QTimer::timeout, timer, &QObject::deleteLater);
-        // timer->start(0);
-    };
+    void run(const std::function<void()> &runner);
 
     /**
     * Query result set
@@ -232,16 +223,10 @@ template<class DomainType>
 QString getTypeName();
 
 template<>
-QString getTypeName<Event>()
-{
-    return "event";
-}
+QString getTypeName<Event>();
 
 template<>
-QString getTypeName<Todo>()
-{
-    return "todo";
-}
+QString getTypeName<Todo>();
 
 }
 
