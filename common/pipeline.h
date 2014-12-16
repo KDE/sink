@@ -18,39 +18,25 @@
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <clientapi.h>
+#pragma once
+
 #include <akonadi2common_export.h>
-#include <pipeline.h>
+#include <storage.h>
 
 namespace Akonadi2
 {
 
-class AKONADI2COMMON_EXPORT Resource
+class AKONADI2COMMON_EXPORT Pipeline
 {
 public:
-    //TODO: configuration
-    Resource();
-    virtual ~Resource();
+    Pipeline(const QString &storagePath);
+    ~Pipeline();
 
-    //TODO: this will need to be async
-    virtual void processCommand(uint messageId, int commandId, const QByteArray &data, uint size, Pipeline *pipeline);
-    virtual void synchronizeWithSource();
-
-private:
-    class Private;
-    Private * const d;
-};
-
-class ResourceFactory : public QObject
-{
-public:
-    static ResourceFactory *load(const QString &resourceName);
-
-    ResourceFactory(QObject *parent);
-    virtual ~ResourceFactory();
-
-    virtual Resource *createResource() = 0;
-    virtual void registerFacades(FacadeFactory &factory) = 0;
+    Storage &storage();
+    void null(uint messageId, const char *key, size_t keySize, const char *buffer, size_t bufferSize);
+    void newEntity(uint messageId, const char *key, size_t keySize, const char *buffer, size_t bufferSize);
+    void modifiedEntity(uint messageId, const char *key, size_t keySize, const char *buffer, size_t bufferSize);
+    void deletedEntity(uint messageId, const char *key, size_t keySize, const char *buffer, size_t bufferSize);
 
 private:
     class Private;
@@ -58,7 +44,4 @@ private:
 };
 
 } // namespace Akonadi2
-
-Q_DECLARE_INTERFACE(Akonadi2::ResourceFactory, "org.kde.akonadi2.resourcefactory")
-
 

@@ -25,6 +25,8 @@
 
 #include <flatbuffers/flatbuffers.h>
 
+#include "common/pipeline.h"
+
 namespace Akonadi2
 {
     class Resource;
@@ -78,6 +80,7 @@ private Q_SLOTS:
 private:
     bool processClientBuffer(Client &client);
     void sendCurrentRevision(Client &client);
+    void sendCommandCompleted(Client &client, uint messageId);
     void updateClientsWithRevision();
     void loadResource();
 
@@ -87,5 +90,7 @@ private:
     flatbuffers::FlatBufferBuilder m_fbb;
     const QString m_resourceName;
     Akonadi2::Resource *m_resource;
+    Akonadi2::Pipeline *m_pipeline;
     QTimer *m_clientBufferProcessesTimer;
+    int m_messageId;
 };

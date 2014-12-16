@@ -33,8 +33,8 @@ namespace Commands
 
 enum CommandIds {
     UnknownCommand = 0,
-    HandshakeCommand,
     CommandCompletion,
+    HandshakeCommand,
     RevisionUpdateCommand,
     SynchronizeCommand,
     FetchEntityCommand,
@@ -45,9 +45,10 @@ enum CommandIds {
     CustomCommand = 0xffff
 };
 
-void AKONADI2COMMON_EXPORT write(QIODevice *device, int commandId);
-void AKONADI2COMMON_EXPORT write(QIODevice *device, int commandId, const char *buffer, uint size);
-void AKONADI2COMMON_EXPORT write(QIODevice *device, int commandId, flatbuffers::FlatBufferBuilder &fbb);
+int AKONADI2COMMON_EXPORT headerSize();
+void AKONADI2COMMON_EXPORT write(QIODevice *device, int messageId, int commandId);
+void AKONADI2COMMON_EXPORT write(QIODevice *device, int messageId, int commandId, const char *buffer, uint size);
+void AKONADI2COMMON_EXPORT write(QIODevice *device, int messageId, int commandId, flatbuffers::FlatBufferBuilder &fbb);
 
 }
 

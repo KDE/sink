@@ -1,9 +1,9 @@
 namespace Akonadi2;
 
 table CommandCompletion {
-    id: ulong
-    success: bool
-    log: ulong = 0
+    id: ulong;
+    success: bool = true;
+    log: ulong = 0;
 }
 
 root_type CommandCompletion;

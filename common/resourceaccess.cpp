@@ -22,6 +22,7 @@
 
 #include "common/console.h"
 #include "common/commands.h"
+#include "common/commandcompletion_generated.h"
 #include "common/handshake_generated.h"
 #include "common/revisionupdate_generated.h"
 
@@ -54,10 +55,10 @@ public:
         delete[] m_buffer;
     }
 
-    void write(QIODevice *device)
+    void write(QIODevice *device, uint messageId)
     {
         Console::main()->log(QString("\tSending queued command %1").arg(m_commandId));
-        Commands::write(device, m_commandId, m_buffer, m_bufferSize);
+        Commands::write(device, messageId, m_commandId, m_buffer, m_bufferSize);
     }
 
 private:
@@ -80,13 +81,15 @@ public:
     QByteArray partialMessageBuffer;
     flatbuffers::FlatBufferBuilder fbb;
     QVector<QueuedCommand *> commandQueue;
+    uint messageId;
 };
 
 ResourceAccess::Private::Private(const QString &name, ResourceAccess *q)
     : resourceName(name),
       socket(new QLocalSocket(q)),
       tryOpenTimer(new QTimer(q)),
-      startingProcess(false)
+      startingProcess(false),
+      messageId(0)
 {
 }
 
@@ -129,7 +132,7 @@ void ResourceAccess::sendCommand(int commandId)
 {
     if (isReady()) {
         log(QString("Sending command %1").arg(commandId));
-        Commands::write(d->socket, commandId);
+        Commands::write(d->socket, ++d->messageId, commandId);
     } else {
         d->commandQueue << new QueuedCommand(commandId);
     }
@@ -139,7 +142,7 @@ void ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &
 {
     if (isReady()) {
         log(QString("Sending command %1").arg(commandId));
-        Commands::write(d->socket, commandId, fbb);
+        Commands::write(d->socket, ++d->messageId, commandId, fbb);
     } else {
         d->commandQueue << new QueuedCommand(commandId, fbb);
     }
@@ -180,7 +183,7 @@ void ResourceAccess::connected()
         auto name = d->fbb.CreateString(QString::number((long long)this).toLatin1());
         auto command = Akonadi2::CreateHandshake(d->fbb, name);
         Akonadi2::FinishHandshakeBuffer(d->fbb, command);
-        Commands::write(d->socket, Commands::HandshakeCommand, d->fbb);
+        Commands::write(d->socket, ++d->messageId, Commands::HandshakeCommand, d->fbb);
         d->fbb.Clear();
     }
 
@@ -188,7 +191,7 @@ void ResourceAccess::connected()
     //TODO: serialize instead of blast them all through the socket?
     log(QString("We have %1 queued commands").arg(d->commandQueue.size()));
     for (QueuedCommand *command: d->commandQueue) {
-        command->write(d->socket);
+        command->write(d->socket, ++d->messageId);
         delete command;
     }
     d->commandQueue.clear();
@@ -239,23 +242,31 @@ void ResourceAccess::readResourceMessage()
 
 bool ResourceAccess::processMessageBuffer()
 {
-    static const int headerSize = (sizeof(int) * 2);
+    static const int headerSize = Commands::headerSize();
     if (d->partialMessageBuffer.size() < headerSize) {
         return false;
     }
 
-    const int commandId = *(int*)d->partialMessageBuffer.constData();
-    const int size = *(int*)(d->partialMessageBuffer.constData() + sizeof(int));
+    //messageId is unused, so commented out
+    //const uint messageId = *(int*)(d->partialMessageBuffer.constData());
+    const int commandId = *(int*)(d->partialMessageBuffer.constData() + sizeof(uint));
+    const uint size = *(int*)(d->partialMessageBuffer.constData() + sizeof(int) + sizeof(uint));
 
-    if (size > d->partialMessageBuffer.size() - headerSize) {
+    if (size > (uint)(d->partialMessageBuffer.size() - headerSize)) {
         return false;
     }
 
     switch (commandId) {
         case Commands::RevisionUpdateCommand: {
-            auto buffer = Akonadi2::GetRevisionUpdate(d->partialMessageBuffer.constData() + headerSize);
+            auto buffer = GetRevisionUpdate(d->partialMessageBuffer.constData() + headerSize);
             log(QString("Revision updated to: %1").arg(buffer->revision()));
             emit revisionChanged(buffer->revision());
+            break;
+        }
+        case Commands::CommandCompletion: {
+            auto buffer = GetCommandCompletion(d->partialMessageBuffer.constData() + headerSize);
+            log(QString("Command %1 completed %2").arg(buffer->id()).arg(buffer->success() ? "sucessfully" : "unsuccessfully"));
+            //TODO: if a queued command, get it out of the queue ... pass on completion ot the relevant objects .. etc
             break;
         }
         default:

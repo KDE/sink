@@ -39,6 +39,10 @@ Resource::~Resource()
     //delete d;
 }
 
+void Resource::processCommand(uint messageId, int commandId, const QByteArray &data, uint size, Pipeline *pipeline)
+{
+}
+
 void Resource::synchronizeWithSource()
 {
 }

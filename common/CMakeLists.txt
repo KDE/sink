@@ -1,5 +1,6 @@
 project(akonadi2common)
 generate_flatbuffers(
+                      commands/commandcompletion
                       commands/createentity
                       commands/deleteentity
                       commands/fetchentity
@@ -20,6 +21,7 @@ set(command_SRCS
     clientapi.cpp
     commands.cpp
     console.cpp
+    pipeline.cpp
     resource.cpp
     resourceaccess.cpp
     storage_common.cpp
