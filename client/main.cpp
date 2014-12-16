@@ -20,6 +20,7 @@
 #include <QApplication>
 #include <QCommandLineParser>
 
+#include "common/commands.h"
 #include "common/console.h"
 #include "common/resourceaccess.h"
 
@@ -42,6 +43,7 @@ int main(int argc, char *argv[])
         Akonadi2::ResourceAccess *resAccess = new Akonadi2::ResourceAccess(resource);
         QObject::connect(&app, &QCoreApplication::aboutToQuit,
                         resAccess, &Akonadi2::ResourceAccess::close);
+        resAccess->sendCommand(Akonadi2::Commands::SynchronizeCommand);
         resAccess->open();
     }
 
