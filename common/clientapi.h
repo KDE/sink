@@ -435,31 +435,5 @@ public:
     }
 };
 
-class Resource
-{
-public:
-    Resource();
-    virtual ~Resource();
-
-private:
-    class Private;
-    Private * const d;
-};
-
-class ResourceFactory : public QObject
-{
-public:
-    ResourceFactory(QObject *parent);
-    virtual ~ResourceFactory();
-
-    virtual Resource *createResource() = 0;
-    virtual void registerFacade(FacadeFactory &factory) = 0;
-
-private:
-    class Private;
-    Private * const d;
-};
 }
-
-Q_DECLARE_INTERFACE(Akonadi2::ResourceFactory, "org.kde.akonadi2.resourcefactory")
 

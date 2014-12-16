@@ -18,7 +18,10 @@
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "clientapi.h"
+#include "resource.h"
+
+namespace Akonadi2
+{
 
 Resource::Resource()
     : d(0)
@@ -43,3 +46,4 @@ ResourceFactory::~ResourceFactory()
     //delete d;
 }
 
+} // namespace Akonadi2

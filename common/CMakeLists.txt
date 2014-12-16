@@ -13,6 +13,7 @@ endif (STORAGE_unqlite)
 set(command_SRCS
     commands.cpp
     console.cpp
+    resource.cpp
     resourceaccess.cpp
     storage_common.cpp
     threadboundary.cpp
