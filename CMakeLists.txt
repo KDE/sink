@@ -40,6 +40,7 @@ include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${CMAKE_BINARY_DIR}/
 
 configure_file(hawd.conf hawd.conf)
 
+set(AKONADI2_RESOURCE_PLUGINS_PATH plugins/akonadi2/resources)
 # common, eventually a lib but right now just the command buffers
 add_subdirectory(common)
 
