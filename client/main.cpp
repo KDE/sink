@@ -21,7 +21,7 @@
 #include <QCommandLineParser>
 
 #include "common/console.h"
-#include "resourceaccess.h"
+#include "common/resourceaccess.h"
 
 int main(int argc, char *argv[])
 {

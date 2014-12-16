@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "client/clientapi.h"
+#include "common/clientapi.h"
 #include "common/storage.h"
 
 class ResourceAccess;

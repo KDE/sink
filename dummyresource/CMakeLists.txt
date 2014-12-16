@@ -6,7 +6,7 @@ generate_flatbuffers(dummycalendar)
 
 #Client plugin
 add_library(${PROJECT_NAME} SHARED facade.cpp)
-target_link_libraries(${PROJECT_NAME} akonadi2common akonadi2_client)
+target_link_libraries(${PROJECT_NAME} akonadi2common)
 qt5_use_modules(${PROJECT_NAME} Core)
 #install(TARGETS ${PROJECT_NAME} DESTINATION lib)
 

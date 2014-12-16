@@ -13,12 +13,16 @@ endif (STORAGE_unqlite)
 set(command_SRCS
     commands.cpp
     console.cpp
+    resourceaccess.cpp
     storage_common.cpp
+    threadboundary.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})
 generate_export_header(${PROJECT_NAME} BASE_NAME Akonadi2Common EXPORT_FILE_NAME akonadi2common_export.h)
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
-qt5_use_modules(${PROJECT_NAME} Widgets)
+qt5_use_modules(${PROJECT_NAME} Widgets Network)
 target_link_libraries(${PROJECT_NAME} ${storage_LIBS})
 install(TARGETS ${PROJECT_NAME} DESTINATION lib)
+
+add_subdirectory(test)

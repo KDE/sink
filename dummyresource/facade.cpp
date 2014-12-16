@@ -21,7 +21,8 @@
 
 #include <QDebug>
 #include <functional>
-#include "client/resourceaccess.h"
+
+#include "common/resourceaccess.h"
 #include "dummycalendar_generated.h"
 
 using namespace DummyCalendar;
