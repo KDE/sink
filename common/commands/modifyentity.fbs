@@ -1,0 +1,11 @@
+namespace Akonadi2;
+
+table ModifyEntity {
+    revision: ulong;
+    entityId: string;
+    deletions: [string];
+    domainType: string;
+    delta: [ubyte];
+}
+
+root_type ModifyEntity;

@@ -1,0 +1,8 @@
+namespace Akonadi2;
+
+table DeleteEntity {
+    revision: ulong;
+    entityId: string;
+}
+
+root_type DeleteEntity;

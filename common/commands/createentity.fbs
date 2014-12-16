@@ -1,0 +1,8 @@
+namespace Akonadi2;
+
+table CreateEntity {
+    domainType: string;
+    delta: [ubyte];
+}
+
+root_type CreateEntity;

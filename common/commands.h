@@ -34,8 +34,14 @@ namespace Commands
 enum CommandIds {
     UnknownCommand = 0,
     HandshakeCommand,
+    CommandCompletion,
     RevisionUpdateCommand,
     SynchronizeCommand,
+    FetchEntityCommand,
+    DeleteEntityCommand,
+    ModifyEntityCommand,
+    CreateEntityCommand,
+    SearchSourceCommand, // need a buffer definition for this, but relies on Query API
     CustomCommand = 0xffff
 };
 

@@ -1,6 +1,12 @@
 project(akonadi2common)
-generate_flatbuffers(commands/handshake
-                     commands/revisionupdate)
+generate_flatbuffers(
+                      commands/createentity
+                      commands/deleteentity
+                      commands/fetchentity
+                      commands/handshake
+                      commands/modifyentity
+                      commands/revisionupdate
+                     )
 
 if (STORAGE_unqlite)
     add_definitions(-DUNQLITE_ENABLE_THREADS -fpermissive)
