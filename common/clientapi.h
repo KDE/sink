@@ -327,7 +327,7 @@ public:
      * Allows the registrar to register a specific instance.
      *
      * Primarily for testing.
-     * The facade factory takes ovnership of the poniter and typically deletes the instance via shared pointer.
+     * The facade factory takes ovnership of the pointer and typically deletes the instance via shared pointer.
      * Supplied factory functions should therefore always return a new pointer (i.e. via clone())
      *
      * FIXME the factory function should really be returning QSharedPointer<void>, which doesn't work (std::shared_pointer<void> would though). That way i.e. a test could keep the object alive until it's done.
