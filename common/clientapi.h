@@ -271,6 +271,7 @@ template<class DomainType>
 class StoreFacade {
 public:
     virtual ~StoreFacade(){};
+    QString type() const { return Domain::getTypeName<DomainType>(); }
     virtual void create(const DomainType &domainObject) = 0;
     virtual void modify(const DomainType &domainObject) = 0;
     virtual void remove(const DomainType &domainObject) = 0;
