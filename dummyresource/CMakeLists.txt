@@ -1,15 +1,12 @@
 project(akonadi2_resource_dummy)
 
+add_definitions(-DQT_PLUGIN)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 generate_flatbuffers(dummycalendar)
 
-#Client plugin
-add_library(${PROJECT_NAME} SHARED facade.cpp)
-target_link_libraries(${PROJECT_NAME} akonadi2common)
+add_library(${PROJECT_NAME} SHARED facade.cpp resourcefactory.cpp)
 qt5_use_modules(${PROJECT_NAME} Core)
-#install(TARGETS ${PROJECT_NAME} DESTINATION lib)
+target_link_libraries(${PROJECT_NAME} akonadi2common)
 
-#Syncronizer
-
-#add_subdirectory(test)
+install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${AKONADI2_RESOURCE_PLUGINS_PATH})
