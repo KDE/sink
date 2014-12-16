@@ -28,6 +28,24 @@ namespace Akonadi2
 namespace Commands
 {
 
+void write(QIODevice *device, int commandId)
+{
+    write(device, commandId, 0, 0);
+}
+
+void write(QIODevice *device, int commandId, const char *buffer, uint size)
+{
+    if (size > 0 && !buffer) {
+        size = 0;
+    }
+
+    device->write((const char*)&commandId, sizeof(int));
+    device->write((const char*)&size, sizeof(uint));
+    if (buffer) {
+        device->write(buffer, size);
+    }
+}
+
 void write(QIODevice *device, int commandId, flatbuffers::FlatBufferBuilder &fbb)
 {
     const int dataSize = fbb.GetSize();

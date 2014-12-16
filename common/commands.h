@@ -35,9 +35,12 @@ enum CommandIds {
     UnknownCommand = 0,
     HandshakeCommand,
     RevisionUpdateCommand,
+    SynchronizeCommand,
     CustomCommand = 0xffff
 };
 
+void AKONADI2COMMON_EXPORT write(QIODevice *device, int commandId);
+void AKONADI2COMMON_EXPORT write(QIODevice *device, int commandId, const char *buffer, uint size);
 void AKONADI2COMMON_EXPORT write(QIODevice *device, int commandId, flatbuffers::FlatBufferBuilder &fbb);
 
 }
