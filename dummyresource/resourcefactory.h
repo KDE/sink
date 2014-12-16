@@ -28,6 +28,7 @@ class DummyResource : public Akonadi2::Resource
 {
 public:
     DummyResource();
+    void synchronizeWithSource();
 };
 
 class DummyResourceFactory : public Akonadi2::ResourceFactory

@@ -26,6 +26,11 @@ DummyResource::DummyResource()
 
 }
 
+void DummyResource::synchronizeWithSource()
+{
+    // TODO populate the storage
+}
+
 DummyResourceFactory::DummyResourceFactory(QObject *parent)
     : Akonadi2::ResourceFactory(parent)
 {
