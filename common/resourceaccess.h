@@ -40,6 +40,9 @@ public:
     QString resourceName() const;
     bool isReady() const;
 
+    void sendCommand(int commandId);
+    void sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb);
+
 public Q_SLOTS:
     void open();
     void close();
@@ -49,6 +52,7 @@ Q_SIGNALS:
     void revisionChanged(unsigned long long revision);
 
 private Q_SLOTS:
+    //TODO: move these to the Private class
     void connected();
     void disconnected();
     void connectionError(QLocalSocket::LocalSocketError error);
@@ -57,12 +61,9 @@ private Q_SLOTS:
 
 private:
     void log(const QString &message);
-    QString m_resourceName;
-    QLocalSocket *m_socket;
-    QTimer *m_tryOpenTimer;
-    bool m_startingProcess;
-    QByteArray m_partialMessageBuffer;
-    flatbuffers::FlatBufferBuilder m_fbb;
+
+    class Private;
+    Private * const d;
 };
 
 }
