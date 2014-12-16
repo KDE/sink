@@ -69,7 +69,10 @@ ResourceFactory *ResourceFactory::load(const QString &resourceName)
     for (auto const &path: QCoreApplication::instance()->libraryPaths()) {
         if (path.endsWith(QLatin1String("plugins"))) {
             QDir pluginDir(path);
+            //TODO: centralize this so that it is easy to change centrally
+            //      also ref'd in cmake as ${AKONADI_RESOURCE_PLUGINS_PATH}
             pluginDir.cd(QStringLiteral("akonadi2"));
+            pluginDir.cd(QStringLiteral("resources"));
 
             for (const QString &fileName: pluginDir.entryList(QDir::Files)) {
                 const QString path = pluginDir.absoluteFilePath(fileName);
