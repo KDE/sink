@@ -26,26 +26,28 @@
 
 #include <flatbuffers/flatbuffers.h>
 
+namespace Akonadi2
+{
+    class Resource;
+}
+
 class Client
 {
 public:
     Client()
-        : socket(nullptr),
-          hasSentCommand(false)
+        : socket(nullptr)
     {
     }
 
     Client(const QString &n, QLocalSocket *s)
         : name(n),
-          socket(s),
-          hasSentCommand(false)
+          socket(s)
     {
     }
 
     QString name;
     QLocalSocket *socket;
     QByteArray commandBuffer;
-    bool hasSentCommand;
 };
 
 class Listener : public QObject
@@ -75,8 +77,12 @@ private:
     bool processClientBuffer(Client &client);
     void sendCurrentRevision(Client &client);
     void updateClientsWithRevision();
+    void loadResource();
+
     QLocalServer *m_server;
     QVector<Client> m_connections;
     unsigned long long m_revision;
     flatbuffers::FlatBufferBuilder m_fbb;
+    const QString m_resourceName;
+    Akonadi2::Resource *m_resource;
 };
