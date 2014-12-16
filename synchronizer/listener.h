@@ -21,7 +21,6 @@
 
 #include <QLocalServer>
 #include <QLocalSocket>
-#include <QList>
 #include <QObject>
 
 #include <flatbuffers/flatbuffers.h>
@@ -30,6 +29,8 @@ namespace Akonadi2
 {
     class Resource;
 }
+
+class QTimer;
 
 class Client
 {
@@ -72,6 +73,7 @@ private Q_SLOTS:
     void clientDropped();
     void checkConnections();
     void readFromSocket();
+    void processClientBuffers();
 
 private:
     bool processClientBuffer(Client &client);
@@ -85,4 +87,5 @@ private:
     flatbuffers::FlatBufferBuilder m_fbb;
     const QString m_resourceName;
     Akonadi2::Resource *m_resource;
+    QTimer *m_clientBufferProcessesTimer;
 };

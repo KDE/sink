@@ -34,7 +34,8 @@ Listener::Listener(const QString &resourceName, QObject *parent)
       m_server(new QLocalServer(this)),
       m_revision(0),
       m_resourceName(resourceName),
-      m_resource(0)
+      m_resource(0),
+      m_clientBufferProcessesTimer(new QTimer(this))
 {
     connect(m_server, &QLocalServer::newConnection,
              this, &Listener::acceptConnection);
@@ -52,6 +53,12 @@ Listener::Listener(const QString &resourceName, QObject *parent)
         Akonadi2::Console::main()->log(QString("Listening on %1").arg(m_server->serverName()));
     }
 
+    //TODO: experiment with different timeouts
+    //      or even just drop down to invoking the method queued?
+    m_clientBufferProcessesTimer->setInterval(10);
+    m_clientBufferProcessesTimer->setSingleShot(true);
+    connect(m_clientBufferProcessesTimer, &QTimer::timeout,
+            this, &Listener::processClientBuffers);
     QTimer::singleShot(2000, this, SLOT(checkConnections()));
 }
 
@@ -81,6 +88,8 @@ void Listener::closeAllConnections()
             client.socket = 0;
         }
     }
+
+    m_connections.clear();
 }
 
 void Listener::acceptConnection()
@@ -140,16 +149,35 @@ void Listener::readFromSocket()
 
     Akonadi2::Console::main()->log("Reading from socket...");
     for (Client &client: m_connections) {
-        Akonadi2::Console::main()->log(QString("Checking %1 %2").arg((qlonglong)client.socket).arg((qlonglong)socket));
         if (client.socket == socket) {
-            Akonadi2::Console::main()->log(QString("    Client: %1").arg(client.name));
             client.commandBuffer += socket->readAll();
-            // FIXME: schedule these rather than process them all at once
-            //        right now this can lead to starvation of clients due to
-            //        one overly active client
-            while (processClientBuffer(client)) {}
+            if (processClientBuffer(client) && !m_clientBufferProcessesTimer->isActive()) {
+                // we have more client buffers to handle
+                m_clientBufferProcessesTimer->start();
+            }
             break;
         }
+    }
+}
+
+void Listener::processClientBuffers()
+{
+    //TODO: we should not process all clients, but iterate async over them and process
+    //      one command from each in turn to ensure all clients get fair handling of
+    //      commands?
+    bool again = false;
+    for (Client &client: m_connections) {
+        if (!client.socket || !client.socket->isValid() || client.commandBuffer.isEmpty()) {
+            continue;
+        }
+
+        if (processClientBuffer(client)) {
+            again = true;
+        }
+    }
+
+    if (again) {
+        m_clientBufferProcessesTimer->start();
     }
 }
 
