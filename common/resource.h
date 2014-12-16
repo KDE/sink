@@ -37,11 +37,13 @@ private:
 class ResourceFactory : public QObject
 {
 public:
+    static ResourceFactory *load(const QString &resourceName);
+
     ResourceFactory(QObject *parent);
     virtual ~ResourceFactory();
 
     virtual Resource *createResource() = 0;
-    virtual void registerFacade(FacadeFactory &factory) = 0;
+    virtual void registerFacades(FacadeFactory &factory) = 0;
 
 private:
     class Private;

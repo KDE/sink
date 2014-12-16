@@ -20,6 +20,11 @@
 
 #include "resource.h"
 
+#include <QCoreApplication>
+#include <QDir>
+#include <QPluginLoader>
+#include <QPointer>
+
 namespace Akonadi2
 {
 
@@ -34,6 +39,14 @@ Resource::~Resource()
     //delete d;
 }
 
+class ResourceFactory::Private
+{
+public:
+    static QHash<QString, QPointer<ResourceFactory> > s_loadedFactories;
+};
+
+QHash<QString, QPointer<ResourceFactory> > ResourceFactory::Private::s_loadedFactories;
+
 ResourceFactory::ResourceFactory(QObject *parent)
     : QObject(parent),
       d(0)
@@ -44,6 +57,48 @@ ResourceFactory::ResourceFactory(QObject *parent)
 ResourceFactory::~ResourceFactory()
 {
     //delete d;
+}
+
+ResourceFactory *ResourceFactory::load(const QString &resourceName)
+{
+    ResourceFactory *factory = Private::s_loadedFactories.value(resourceName);
+    if (factory) {
+        return factory;
+    }
+
+    for (auto const &path: QCoreApplication::instance()->libraryPaths()) {
+        if (path.endsWith(QLatin1String("plugins"))) {
+            QDir pluginDir(path);
+            pluginDir.cd(QStringLiteral("akonadi2"));
+
+            for (const QString &fileName: pluginDir.entryList(QDir::Files)) {
+                const QString path = pluginDir.absoluteFilePath(fileName);
+                QPluginLoader loader(path);
+
+                const QString id = loader.metaData()[QStringLiteral("IID")].toString();
+                if (id == resourceName) {
+                    QObject *object = loader.instance();
+                    if (object) {
+                        factory = qobject_cast<ResourceFactory *>(object);
+                        if (factory) {
+                            Private::s_loadedFactories.insert(resourceName, factory);
+                            factory->registerFacades(FacadeFactory::instance());
+                            //TODO: if we need more data on it const QJsonObject json = loader.metaData()[QStringLiteral("MetaData")].toObject();
+                            return factory;
+                        } else {
+                            qWarning() << "Plugin for" << resourceName << "from plugin" << loader.fileName() << "produced the wrong object type:" << object;
+                            delete object;
+                        }
+                    } else {
+                        qWarning() << "Could not load factory for" << resourceName << "from plugin" << loader.fileName() << "due to the following error:" << loader.errorString();
+                    }
+                }
+            }
+        }
+    }
+
+    qWarning() << "Failed to find factory for resource:" << resourceName;
+    return nullptr;
 }
 
 } // namespace Akonadi2
