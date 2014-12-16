@@ -26,8 +26,11 @@ namespace Akonadi2
 class Resource
 {
 public:
+    //TODO: configuration
     Resource();
     virtual ~Resource();
+
+    virtual void synchronizeWithSource();
 
 private:
     class Private;

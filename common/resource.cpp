@@ -39,6 +39,10 @@ Resource::~Resource()
     //delete d;
 }
 
+void Resource::synchronizeWithSource()
+{
+}
+
 class ResourceFactory::Private
 {
 public:
