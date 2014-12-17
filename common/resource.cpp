@@ -39,12 +39,18 @@ Resource::~Resource()
     //delete d;
 }
 
-void Resource::processCommand(uint messageId, int commandId, const QByteArray &data, uint size, Pipeline *pipeline)
+void Resource::processCommand(int commandId, const QByteArray &data, uint size, Pipeline *pipeline)
 {
+    Q_UNUSED(commandId)
+    Q_UNUSED(data)
+    Q_UNUSED(size)
+    Q_UNUSED(pipeline)
+    pipeline->null();
 }
 
-void Resource::synchronizeWithSource()
+void Resource::synchronizeWithSource(Pipeline *pipeline)
 {
+    pipeline->null();
 }
 
 class ResourceFactory::Private

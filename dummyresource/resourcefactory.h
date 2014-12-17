@@ -21,6 +21,8 @@
 
 #include "common/resource.h"
 
+#include <flatbuffers/flatbuffers.h>
+
 //TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
 #define PLUGIN_NAME "org.kde.dummy"
 
@@ -28,7 +30,11 @@ class DummyResource : public Akonadi2::Resource
 {
 public:
     DummyResource();
-    void synchronizeWithSource();
+    void synchronizeWithSource(Akonadi2::Pipeline *pipeline);
+    void processCommand(int commandId, const QByteArray &data, uint size, Akonadi2::Pipeline *pipeline);
+
+private:
+    flatbuffers::FlatBufferBuilder m_fbb;
 };
 
 class DummyResourceFactory : public Akonadi2::ResourceFactory

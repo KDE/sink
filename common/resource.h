@@ -18,8 +18,8 @@
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <clientapi.h>
 #include <akonadi2common_export.h>
+#include <clientapi.h>
 #include <pipeline.h>
 
 namespace Akonadi2
@@ -32,9 +32,8 @@ public:
     Resource();
     virtual ~Resource();
 
-    //TODO: this will need to be async
-    virtual void processCommand(uint messageId, int commandId, const QByteArray &data, uint size, Pipeline *pipeline);
-    virtual void synchronizeWithSource();
+    virtual void processCommand(int commandId, const QByteArray &data, uint size, Pipeline *pipeline);
+    virtual void synchronizeWithSource(Pipeline *pipeline);
 
 private:
     class Private;

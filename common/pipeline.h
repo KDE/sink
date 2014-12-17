@@ -20,23 +20,89 @@
 
 #pragma once
 
+#include <flatbuffers/flatbuffers.h>
+
+#include <QSharedDataPointer>
+#include <QObject>
+
 #include <akonadi2common_export.h>
 #include <storage.h>
 
 namespace Akonadi2
 {
 
-class AKONADI2COMMON_EXPORT Pipeline
+class PipelineState;
+class PipelineFilter;
+
+class AKONADI2COMMON_EXPORT Pipeline : public QObject
 {
+    Q_OBJECT
+
 public:
-    Pipeline(const QString &storagePath);
+    enum Type { NullPipeline, NewPipeline, ModifiedPipeline, DeletedPipeline };
+
+    Pipeline(const QString &storagePath, QObject *parent = 0);
     ~Pipeline();
 
-    Storage &storage();
-    void null(uint messageId, const char *key, size_t keySize, const char *buffer, size_t bufferSize);
-    void newEntity(uint messageId, const char *key, size_t keySize, const char *buffer, size_t bufferSize);
-    void modifiedEntity(uint messageId, const char *key, size_t keySize, const char *buffer, size_t bufferSize);
-    void deletedEntity(uint messageId, const char *key, size_t keySize, const char *buffer, size_t bufferSize);
+    Storage &storage() const;
+
+    // domain objects needed here
+    void null();
+    void newEntity(const QByteArray &key, flatbuffers::FlatBufferBuilder &entity);
+    void modifiedEntity(const QByteArray &key, flatbuffers::FlatBufferBuilder &entityDelta);
+    void deletedEntity(const QByteArray &key);
+
+Q_SIGNALS:
+    void revisionUpdated();
+
+private Q_SLOTS:
+    void stepPipelines();
+
+private:
+    void pipelineStepped(const PipelineState &state);
+    void pipelineCompleted(const PipelineState &state);
+    void scheduleStep();
+
+    friend class PipelineState;
+
+    class Private;
+    Private * const d;
+};
+
+class AKONADI2COMMON_EXPORT PipelineState
+{
+public:
+    // domain objects?
+    PipelineState();
+    PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<PipelineFilter *> &filters);
+    PipelineState(const PipelineState &other);
+    ~PipelineState();
+
+    PipelineState &operator=(const PipelineState &rhs);
+    bool operator==(const PipelineState &rhs);
+
+    bool isIdle() const;
+    QByteArray key() const;
+    Pipeline::Type type() const;
+
+    void step();
+    void processingCompleted(PipelineFilter *filter);
+
+private:
+    class Private;
+    QExplicitlySharedDataPointer<Private> d;
+};
+
+class AKONADI2COMMON_EXPORT PipelineFilter
+{
+public:
+    PipelineFilter();
+    virtual ~PipelineFilter();
+
+    virtual void process(PipelineState state);
+
+protected:
+    void processingCompleted(PipelineState state);
 
 private:
     class Private;

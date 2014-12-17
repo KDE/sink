@@ -76,6 +76,7 @@ private Q_SLOTS:
     void checkConnections();
     void readFromSocket();
     void processClientBuffers();
+    void refreshRevision();
 
 private:
     bool processClientBuffer(Client &client);

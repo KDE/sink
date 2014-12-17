@@ -19,6 +19,7 @@
 
 #include "resourcefactory.h"
 #include "facade.h"
+#include "dummycalendar_generated.h"
 
 DummyResource::DummyResource()
     : Akonadi2::Resource()
@@ -26,9 +27,29 @@ DummyResource::DummyResource()
 
 }
 
-void DummyResource::synchronizeWithSource()
+void DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
 {
-    // TODO populate the storage
+    // TODO actually populate the storage with new items
+    auto builder = DummyCalendar::DummyEventBuilder(m_fbb);
+    builder .add_summary(m_fbb.CreateString("summary summary!"));
+    auto buffer = builder.Finish();
+    DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
+    pipeline->newEntity("fakekey", m_fbb);
+    m_fbb.Clear();
+}
+
+void DummyResource::processCommand(int commandId, const QByteArray &data, uint size, Akonadi2::Pipeline *pipeline)
+{
+    Q_UNUSED(commandId)
+    Q_UNUSED(data)
+    Q_UNUSED(size)
+    //TODO reallly process the commands :)
+    auto builder = DummyCalendar::DummyEventBuilder(m_fbb);
+    builder .add_summary(m_fbb.CreateString("summary summary!"));
+    auto buffer = builder.Finish();
+    DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
+    pipeline->newEntity("fakekey", m_fbb);
+    m_fbb.Clear();
 }
 
 DummyResourceFactory::DummyResourceFactory(QObject *parent)
