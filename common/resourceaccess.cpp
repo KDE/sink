@@ -26,6 +26,7 @@
 #include "common/handshake_generated.h"
 #include "common/revisionupdate_generated.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
 #include <QProcess>
@@ -180,7 +181,7 @@ void ResourceAccess::connected()
     log(QString("Connected: %1").arg(d->socket->fullServerName()));
 
     {
-        auto name = d->fbb.CreateString(QString::number((long long)this).toLatin1());
+        auto name = d->fbb.CreateString(QString::number(QCoreApplication::applicationPid()).toLatin1());
         auto command = Akonadi2::CreateHandshake(d->fbb, name);
         Akonadi2::FinishHandshakeBuffer(d->fbb, command);
         Commands::write(d->socket, ++d->messageId, Commands::HandshakeCommand, d->fbb);
