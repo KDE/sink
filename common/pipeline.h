@@ -32,7 +32,7 @@ namespace Akonadi2
 {
 
 class PipelineState;
-class PipelineFilter;
+class Preprocessor;
 
 class AKONADI2COMMON_EXPORT Pipeline : public QObject
 {
@@ -74,7 +74,7 @@ class AKONADI2COMMON_EXPORT PipelineState
 public:
     // domain objects?
     PipelineState();
-    PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<PipelineFilter *> &filters);
+    PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters);
     PipelineState(const PipelineState &other);
     ~PipelineState();
 
@@ -86,18 +86,18 @@ public:
     Pipeline::Type type() const;
 
     void step();
-    void processingCompleted(PipelineFilter *filter);
+    void processingCompleted(Preprocessor *filter);
 
 private:
     class Private;
     QExplicitlySharedDataPointer<Private> d;
 };
 
-class AKONADI2COMMON_EXPORT PipelineFilter
+class AKONADI2COMMON_EXPORT Preprocessor
 {
 public:
-    PipelineFilter();
-    virtual ~PipelineFilter();
+    Preprocessor();
+    virtual ~Preprocessor();
 
     virtual void process(PipelineState state);
 

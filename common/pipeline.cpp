@@ -37,10 +37,10 @@ public:
     }
 
     Storage storage;
-    QVector<PipelineFilter *> nullPipeline;
-    QVector<PipelineFilter *> newPipeline;
-    QVector<PipelineFilter *> modifiedPipeline;
-    QVector<PipelineFilter *> deletedPipeline;
+    QVector<Preprocessor *> nullPipeline;
+    QVector<Preprocessor *> newPipeline;
+    QVector<Preprocessor *> modifiedPipeline;
+    QVector<Preprocessor *> deletedPipeline;
     QVector<PipelineState> activePipelines;
     bool stepScheduled;
 };
@@ -132,7 +132,7 @@ void Pipeline::pipelineCompleted(const PipelineState &state)
 class PipelineState::Private : public QSharedData
 {
 public:
-    Private(Pipeline *p, Pipeline::Type t, const QByteArray &k, QVector<PipelineFilter *> filters)
+    Private(Pipeline *p, Pipeline::Type t, const QByteArray &k, QVector<Preprocessor *> filters)
         : pipeline(p),
           type(t),
           key(k),
@@ -142,14 +142,14 @@ public:
 
     Private()
         : pipeline(0),
-          filterIt(QVector<PipelineFilter *>()),
+          filterIt(QVector<Preprocessor *>()),
           idle(true)
     {}
 
     Pipeline *pipeline;
     Pipeline::Type type;
     QByteArray key;
-    QVectorIterator<PipelineFilter *> filterIt;
+    QVectorIterator<Preprocessor *> filterIt;
     bool idle;
 };
 
@@ -159,7 +159,7 @@ PipelineState::PipelineState()
 
 }
 
-PipelineState::PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<PipelineFilter *> &filters)
+PipelineState::PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters)
     : d(new Private(pipeline, type, key, filters))
 {
 }
@@ -213,7 +213,7 @@ void PipelineState::step()
     }
 }
 
-void PipelineState::processingCompleted(PipelineFilter *filter)
+void PipelineState::processingCompleted(Preprocessor *filter)
 {
     if (d->pipeline && filter == d->filterIt.peekPrevious()) {
         d->idle = true;
@@ -221,21 +221,21 @@ void PipelineState::processingCompleted(PipelineFilter *filter)
     }
 }
 
-PipelineFilter::PipelineFilter()
+Preprocessor::Preprocessor()
     : d(0)
 {
 }
 
-PipelineFilter::~PipelineFilter()
+Preprocessor::~Preprocessor()
 {
 }
 
-void PipelineFilter::process(PipelineState state)
+void Preprocessor::process(PipelineState state)
 {
     processingCompleted(state);
 }
 
-void PipelineFilter::processingCompleted(PipelineState state)
+void Preprocessor::processingCompleted(PipelineState state)
 {
     state.processingCompleted(this);
 }
