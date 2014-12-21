@@ -11,12 +11,13 @@ public:
     virtual void create(const Akonadi2::Domain::Event &domainObject){};
     virtual void modify(const Akonadi2::Domain::Event &domainObject){};
     virtual void remove(const Akonadi2::Domain::Event &domainObject){};
-    virtual void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
+    virtual void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, const std::function<void()> &completeCallback)
     {
         qDebug() << "load called";
         for(const auto &result : results) {
             resultCallback(result);
         }
+        completeCallback();
     }
 
     QList<Akonadi2::Domain::Event::Ptr> results;

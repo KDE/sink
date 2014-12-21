@@ -23,6 +23,7 @@
 #include <functional>
 
 #include "common/resourceaccess.h"
+#include "common/commands.h"
 #include "dummycalendar_generated.h"
 
 using namespace DummyCalendar;
@@ -30,7 +31,7 @@ using namespace flatbuffers;
 
 DummyResourceFacade::DummyResourceFacade()
     : Akonadi2::StoreFacade<Akonadi2::Domain::Event>(),
-    mResourceAccess(/* new ResourceAccess("dummyresource") */)
+    mResourceAccess(new Akonadi2::ResourceAccess("org.kde.dummy"))
 {
     // connect(mResourceAccess.data(), &ResourceAccess::ready, this, onReadyChanged);
 }
@@ -95,11 +96,8 @@ public:
     QSharedPointer<Akonadi2::Storage> storage;
 };
 
-void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
+static std::function<bool(const std::string &key, DummyEvent const *buffer)> prepareQuery(const Akonadi2::Query &query)
 {
-    qDebug() << "load called";
-    auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "dummyresource");
-
     //Compose some functions to make query matching fast.
     //This way we can process the query once, and convert all values into something that can be compared quickly
     std::function<bool(const std::string &key, DummyEvent const *buffer)> preparedQuery;
@@ -125,21 +123,48 @@ void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function
             return true;
         };
     }
+    return preparedQuery;
+}
 
-    //Because we have no indexes yet, we always do a full scan
-    storage->scan("", [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-        //TODO read second buffer as well
-        auto eventBuffer = GetDummyEvent(dataValue);
-        if (preparedQuery && preparedQuery(std::string(static_cast<char*>(keyValue), keySize), eventBuffer)) {
-            //TODO read the revision from the generic portion of the buffer
-            auto event = QSharedPointer<DummyEventAdaptor>::create("dummyresource", QString::fromUtf8(static_cast<char*>(keyValue), keySize), 0);
-            event->buffer = eventBuffer;
-            event->storage = storage;
-            resultCallback(event);
-        }
-        return true;
+void DummyResourceFacade::synchronizeResource(const std::function<void()> &continuation)
+{
+    //TODO check if a sync is necessary
+    //TODO Only sync what was requested
+    //TODO timeout
+    mResourceAccess->open();
+    mResourceAccess->synchronizeResource(continuation);
+}
+
+void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, const std::function<void()> &completeCallback)
+{
+    qDebug() << "load called";
+
+    synchronizeResource([=]() {
+        //Now that the sync is complete we can execute the query
+        const auto preparedQuery = prepareQuery(query);
+
+        auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
+
+        qDebug() << "executing query";
+        //We start a transaction explicitly that we'll leave open so the values can be read.
+        //The transaction will be closed automatically once the storage object is destroyed.
+        storage->startTransaction(Akonadi2::Storage::ReadOnly);
+        //Because we have no indexes yet, we always do a full scan
+        storage->scan("", [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+            //TODO read the three buffers
+            qDebug() << QString::fromStdString(std::string(static_cast<char*>(keyValue), keySize));
+            auto eventBuffer = GetDummyEvent(dataValue);
+            if (preparedQuery && preparedQuery(std::string(static_cast<char*>(keyValue), keySize), eventBuffer)) {
+                //TODO set proper revision
+                qint64 revision = 0;
+                auto event = QSharedPointer<DummyEventAdaptor>::create("org.kde.dummy", QString::fromUtf8(static_cast<char*>(keyValue), keySize), revision);
+                event->buffer = eventBuffer;
+                event->storage = storage;
+                resultCallback(event);
+            }
+            return true;
+        });
+        completeCallback();
     });
 }
 
-//TODO call in plugin loader
-// Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::Domain::Event, DummyResourceFacade>("dummyresource", [facade](){ return new DummyResourceFacade(facade); });

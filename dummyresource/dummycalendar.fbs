@@ -6,6 +6,7 @@ table DummyEvent {
   summary:string;
   description:string;
   attachment:[ubyte];
+  remoteId:string;
 }
 
 root_type DummyEvent;

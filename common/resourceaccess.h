@@ -42,6 +42,7 @@ public:
 
     void sendCommand(int commandId);
     void sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb);
+    void synchronizeResource(const std::function<void()> &resultHandler);
 
 public Q_SLOTS:
     void open();

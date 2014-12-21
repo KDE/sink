@@ -22,7 +22,9 @@
 #include "common/clientapi.h"
 #include "common/storage.h"
 
-class ResourceAccess;
+namespace Akonadi2 {
+    class ResourceAccess;
+}
 
 class DummyResourceFacade : public Akonadi2::StoreFacade<Akonadi2::Domain::Event>
 {
@@ -32,8 +34,9 @@ public:
     virtual void create(const Akonadi2::Domain::Event &domainObject);
     virtual void modify(const Akonadi2::Domain::Event &domainObject);
     virtual void remove(const Akonadi2::Domain::Event &domainObject);
-    virtual void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback);
+    virtual void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, const std::function<void()> &completeCallback);
 
 private:
-    QSharedPointer<ResourceAccess> mResourceAccess;
+    void synchronizeResource(const std::function<void()> &continuation);
+    QSharedPointer<Akonadi2::ResourceAccess> mResourceAccess;
 };

@@ -52,4 +52,23 @@ void Storage::scan(const std::string &sKey, const std::function<bool(void *keyPt
     scan(sKey.data(), sKey.size(), resultHandler, &errorHandler);
 }
 
+void Storage::setMaxRevision(qint64 revision)
+{
+    write("__internal_maxRevision", QString::number(revision).toStdString());
+}
+
+qint64 Storage::maxRevision()
+{
+    qint64 r = 0;
+    read(std::string("__internal_maxRevision"), [&](const std::string &revision) -> bool {
+        r = QString::fromStdString(revision).toLongLong();
+        return false;
+    },
+    [](const Storage::Error &error) {
+        //Ignore the error in case we don't find the value
+        //TODO only ignore value not found errors
+    });
+    return r;
+}
+
 } // namespace Akonadi2

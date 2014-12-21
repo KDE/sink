@@ -71,6 +71,11 @@ public:
     static std::function<void(const Storage::Error &error)> basicErrorHandler();
     qint64 diskUsage() const;
     void removeFromDisk() const;
+
+    qint64 maxRevision();
+    void setMaxRevision(qint64 revision);
+
+    bool exists() const;
 private:
     class Private;
     Private * const d;

@@ -59,6 +59,7 @@ QMutex Storage::Private::sMutex;
 Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
     : storageRoot(s),
       name(n),
+      env(0),
       transaction(0),
       mode(m),
       readTransaction(false),
@@ -66,7 +67,7 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
 {
     const QString fullPath(storageRoot + '/' + name);
     QDir dir;
-    dir.mkdir(storageRoot);
+    dir.mkpath(storageRoot);
     dir.mkdir(fullPath);
 
     //This seems to resolve threading related issues, not sure why though
@@ -97,8 +98,10 @@ Storage::Private::~Private()
     }
 
     // it is still there and still unused, so we can shut it down
-    mdb_dbi_close(env, dbi);
-    mdb_env_close(env);
+    if (env) {
+        mdb_dbi_close(env, dbi);
+        mdb_env_close(env);
+    }
 }
 
 Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode)
@@ -111,6 +114,10 @@ Storage::~Storage()
     delete d;
 }
 
+bool Storage::exists() const
+{
+    return (d->env != 0);
+}
 bool Storage::isInTransaction() const
 {
     return d->transaction;
@@ -313,12 +320,9 @@ void Storage::scan(const char *keyData, uint keySize,
         errorHandler(error);
     }
 
-    /**
-      we don't abort the transaction since we need it for reading the values
     if (implicitTransaction) {
         abortTransaction();
     }
-    */
 }
 
 qint64 Storage::diskUsage() const

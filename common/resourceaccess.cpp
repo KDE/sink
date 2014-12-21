@@ -58,7 +58,7 @@ public:
 
     void write(QIODevice *device, uint messageId)
     {
-        Console::main()->log(QString("\tSending queued command %1").arg(m_commandId));
+        // Console::main()->log(QString("\tSending queued command %1").arg(m_commandId));
         Commands::write(device, messageId, m_commandId, m_buffer, m_bufferSize);
     }
 
@@ -82,6 +82,7 @@ public:
     QByteArray partialMessageBuffer;
     flatbuffers::FlatBufferBuilder fbb;
     QVector<QueuedCommand *> commandQueue;
+    QVector<std::function<void()> > synchronizeResultHandler;
     uint messageId;
 };
 
@@ -147,6 +148,13 @@ void ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &
     } else {
         d->commandQueue << new QueuedCommand(commandId, fbb);
     }
+}
+
+void ResourceAccess::synchronizeResource(const std::function<void()> &resultHandler)
+{
+    sendCommand(Commands::SynchronizeCommand);
+    //TODO: this should be implemented as a job, so we don't need to store the result handler as member
+    d->synchronizeResultHandler << resultHandler;
 }
 
 void ResourceAccess::open()
@@ -262,6 +270,13 @@ bool ResourceAccess::processMessageBuffer()
             auto buffer = GetRevisionUpdate(d->partialMessageBuffer.constData() + headerSize);
             log(QString("Revision updated to: %1").arg(buffer->revision()));
             emit revisionChanged(buffer->revision());
+
+            //FIXME: The result handler should be called on completion of the synchronize command, and not upon arbitrary revision updates.
+            for(auto handler : d->synchronizeResultHandler) {
+                //FIXME: we should associate the handler with a buffer->id() to avoid prematurely triggering the result handler from a delayed synchronized response (this is relevant for on-demand syncing).
+                handler();
+            }
+            d->synchronizeResultHandler.clear();
             break;
         }
         case Commands::CommandCompletion: {
@@ -280,7 +295,8 @@ bool ResourceAccess::processMessageBuffer()
 
 void ResourceAccess::log(const QString &message)
 {
-    Console::main()->log(d->resourceName + ": " + message);
+    qDebug() << d->resourceName + ": " + message;
+    // Console::main()->log(d->resourceName + ": " + message);
 }
 
 }

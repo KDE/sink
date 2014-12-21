@@ -31,7 +31,7 @@ class Pipeline::Private
 {
 public:
     Private(const QString &resourceName)
-        : storage(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", resourceName),
+        : storage(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", resourceName, Storage::ReadWrite),
           stepScheduled(false)
     {
     }
@@ -71,6 +71,11 @@ void Pipeline::null()
 
 void Pipeline::newEntity(const QByteArray &key, flatbuffers::FlatBufferBuilder &entity)
 {
+    const qint64 newRevision = storage().maxRevision() + 1;
+    //FIXME this should go into a preprocessor
+    storage().write(key, key.size(), reinterpret_cast<char*>(entity.GetBufferPointer()), entity.GetSize());
+    storage().setMaxRevision(newRevision);
+
     PipelineState state(this, NewPipeline, key, d->newPipeline);
     d->activePipelines << state;
     state.step();
