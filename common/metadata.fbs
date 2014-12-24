@@ -1,0 +1,7 @@
+namespace Akonadi2;
+
+table Metadata {
+    revision: ulong;
+}
+
+root_type Metadata;

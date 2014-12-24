@@ -46,10 +46,11 @@ public:
 
     Storage &storage() const;
 
-    // domain objects needed here
     void null();
-    void newEntity(const QByteArray &key, flatbuffers::FlatBufferBuilder &entity);
-    void modifiedEntity(const QByteArray &key, flatbuffers::FlatBufferBuilder &entityDelta);
+    //FIXME We should probably directly provide a DomainTypeAdapter here. The data has already been written and we only need to read it for processing. And we need to read all buffers.
+    void newEntity(const QByteArray &key, void *resourceBufferData, size_t size);
+    //TODO Send local buffer data as well?
+    void modifiedEntity(const QByteArray &key, void *data, size_t size);
     void deletedEntity(const QByteArray &key);
 
 Q_SIGNALS:
@@ -72,7 +73,6 @@ private:
 class AKONADI2COMMON_EXPORT PipelineState
 {
 public:
-    // domain objects?
     PipelineState();
     PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters);
     PipelineState(const PipelineState &other);

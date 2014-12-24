@@ -25,15 +25,51 @@
 #include "common/resourceaccess.h"
 #include "common/commands.h"
 #include "dummycalendar_generated.h"
+#include "event_generated.h"
+#include "entitybuffer_generated.h"
+#include "metadata_generated.h"
 
 using namespace DummyCalendar;
 using namespace flatbuffers;
+
+/**
+ * The property mapper holds accessor functions for all properties.
+ * 
+ * It is by default initialized with accessors that access the local-only buffer,
+ * and resource simply have to overwrite those accessors.
+ */
+template<typename BufferType>
+class PropertyMapper
+{
+public:
+    void setProperty(const QString &key, const QVariant &value, BufferType *buffer)
+    {
+        if (mWriteAccessors.contains(key)) {
+            auto accessor = mWriteAccessors.value(key);
+            return accessor(value, buffer);
+        }
+    }
+
+    virtual QVariant getProperty(const QString &key, BufferType const *buffer) const
+    {
+        if (mReadAccessors.contains(key)) {
+            auto accessor = mReadAccessors.value(key);
+            return accessor(buffer);
+        }
+        return QVariant();
+    }
+    QHash<QString, std::function<QVariant(BufferType const *)> > mReadAccessors;
+    QHash<QString, std::function<void(const QVariant &, BufferType*)> > mWriteAccessors;
+};
 
 DummyResourceFacade::DummyResourceFacade()
     : Akonadi2::StoreFacade<Akonadi2::Domain::Event>(),
     mResourceAccess(new Akonadi2::ResourceAccess("org.kde.dummy"))
 {
-    // connect(mResourceAccess.data(), &ResourceAccess::ready, this, onReadyChanged);
+    PropertyMapper<DummyEvent> mapper;
+    mapper.mReadAccessors.insert("summary", [](DummyEvent const *buffer) -> QVariant {
+        return QString::fromStdString(buffer->summary()->c_str());
+    });
 }
 
 DummyResourceFacade::~DummyResourceFacade()
@@ -65,32 +101,43 @@ void DummyResourceFacade::remove(const Akonadi2::Domain::Event &domainObject)
 //-how do we free/munmap the data if we don't know when no one references it any longer? => no munmap needed, but read transaction to keep pointer alive
 //-we could bind the lifetime to the query
 //=> perhaps do heap allocate and use smart pointer?
-class DummyEventAdaptor : public Akonadi2::Domain::Event
+//
+
+
+//This will become a generic implementation that simply takes the resource buffer and local buffer pointer
+class DummyEventAdaptor : public Akonadi2::Domain::BufferAdaptor
 {
 public:
-    DummyEventAdaptor(const QString &resource, const QString &identifier, qint64 revision)
-        :Akonadi2::Domain::Event(resource, identifier, revision)
+    DummyEventAdaptor()
+        : BufferAdaptor()
     {
+
     }
 
-    //TODO
-    // void setProperty(const QString &key, const QVariant &value)
-    // {
-    //     //Record changes to send to resource?
-    //     //The buffer is readonly
-    // }
+    void setProperty(const QString &key, const QVariant &value)
+    {
+        if (mResourceMapper.mWriteAccessors.contains(key)) {
+            // mResourceMapper.setProperty(key, value, mResourceBuffer);
+        } else {
+            // mLocalMapper.;
+        }
+    }
 
     virtual QVariant getProperty(const QString &key) const
     {
-        if (key == "summary") {
-            //FIXME how do we check availability for on-demand request?
-            return QString::fromStdString(buffer->summary()->c_str());
+        if (mResourceBuffer && mResourceMapper.mReadAccessors.contains(key)) {
+            return mResourceMapper.getProperty(key, mResourceBuffer);
+        } else if (mLocalBuffer) {
+            return mLocalMapper.getProperty(key, mLocalBuffer);
         }
         return QVariant();
     }
 
-    //Data is read-only
-    DummyEvent const *buffer;
+    Akonadi2::Domain::Buffer::Event const *mLocalBuffer;
+    DummyEvent const *mResourceBuffer;
+
+    PropertyMapper<Akonadi2::Domain::Buffer::Event> mLocalMapper;
+    PropertyMapper<DummyEvent> mResourceMapper;
 
     //Keep query alive so values remain valid
     QSharedPointer<Akonadi2::Storage> storage;
@@ -140,6 +187,7 @@ void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function
     qDebug() << "load called";
 
     synchronizeResource([=]() {
+        qDebug() << "sync complete";
         //Now that the sync is complete we can execute the query
         const auto preparedQuery = prepareQuery(query);
 
@@ -151,15 +199,19 @@ void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function
         storage->startTransaction(Akonadi2::Storage::ReadOnly);
         //Because we have no indexes yet, we always do a full scan
         storage->scan("", [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-            //TODO read the three buffers
             qDebug() << QString::fromStdString(std::string(static_cast<char*>(keyValue), keySize));
-            auto eventBuffer = GetDummyEvent(dataValue);
-            if (preparedQuery && preparedQuery(std::string(static_cast<char*>(keyValue), keySize), eventBuffer)) {
-                //TODO set proper revision
-                qint64 revision = 0;
-                auto event = QSharedPointer<DummyEventAdaptor>::create("org.kde.dummy", QString::fromUtf8(static_cast<char*>(keyValue), keySize), revision);
-                event->buffer = eventBuffer;
-                event->storage = storage;
+            auto buffer = Akonadi2::GetEntityBuffer(dataValue);
+            auto resourceBuffer = GetDummyEvent(buffer->resource());
+            auto metadataBuffer = Akonadi2::GetMetadata(buffer->resource());
+            auto localBuffer = Akonadi2::Domain::Buffer::GetEvent(buffer->local());
+            //We probably only want to create all buffers after the scan
+            if (preparedQuery && preparedQuery(std::string(static_cast<char*>(keyValue), keySize), resourceBuffer)) {
+                qint64 revision = metadataBuffer->revision();
+                auto adaptor = QSharedPointer<DummyEventAdaptor>::create();
+                adaptor->mLocalBuffer = localBuffer;
+                adaptor->mResourceBuffer = resourceBuffer;
+                adaptor->storage = storage;
+                auto event = QSharedPointer<Akonadi2::Domain::Event>::create("org.kde.dummy", QString::fromUtf8(static_cast<char*>(keyValue), keySize), revision, adaptor);
                 resultCallback(event);
             }
             return true;

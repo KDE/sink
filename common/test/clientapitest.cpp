@@ -31,7 +31,7 @@ private Q_SLOTS:
     void testLoad()
     {
         DummyResourceFacade facade;
-        facade.results << QSharedPointer<Akonadi2::Domain::Event>::create("resource", "id", 0);
+        facade.results << QSharedPointer<Akonadi2::Domain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::Domain::BufferAdaptor>());
 
         Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::Domain::Event, DummyResourceFacade>("dummyresource", [facade](){ return new DummyResourceFacade(facade); });
 

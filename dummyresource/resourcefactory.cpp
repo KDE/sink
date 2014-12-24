@@ -103,7 +103,7 @@ void DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
             const auto key = QUuid::createUuid().toString().toUtf8();
             //TODO can we really just start populating the buffer and pass the buffer builder?
             qDebug() << "new event";
-            pipeline->newEntity(key, m_fbb);
+            pipeline->newEntity(key, m_fbb.GetBufferPointer(), m_fbb.GetSize());
         } else { //modification
             //TODO diff and create modification if necessary
         }
@@ -121,7 +121,7 @@ void DummyResource::processCommand(int commandId, const QByteArray &data, uint s
     builder .add_summary(m_fbb.CreateString("summary summary!"));
     auto buffer = builder.Finish();
     DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
-    pipeline->newEntity("fakekey", m_fbb);
+    pipeline->newEntity("fakekey", m_fbb.GetBufferPointer(), m_fbb.GetSize());
     m_fbb.Clear();
 }
 

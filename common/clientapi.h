@@ -173,18 +173,36 @@ namespace Akonadi2 {
  */
 namespace Domain {
 
+/**
+ * This class has to be implemented by resources and can be used as generic interface to access the buffer properties
+ */
+class BufferAdaptor {
+public:
+    virtual QVariant getProperty(const QString &key) { return QVariant(); }
+    virtual void setProperty(const QString &key, const QVariant &value) {}
+};
+
+/**
+ * The domain type interface has two purposes:
+ * * provide a unified interface to read buffers (for zero-copy reading)
+ * * record changes to generate changesets for modifications
+ */
 class AkonadiDomainType {
 public:
-    AkonadiDomainType(const QString &resourceName, const QString &identifier, qint64 revision)
-        : mResourceName(resourceName),
+    AkonadiDomainType(const QString &resourceName, const QString &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
+        : mAdaptor(adaptor),
+        mResourceName(resourceName),
         mIdentifier(identifier),
         mRevision(revision)
     {
     }
 
-    virtual QVariant getProperty(const QString &key){ return QVariant(); }
+    virtual QVariant getProperty(const QString &key){ return mAdaptor->getProperty(key); }
+    virtual void setProperty(const QString &key, const QVariant &value){ mChangeSet.insert(key, value); }
 
 private:
+    QSharedPointer<BufferAdaptor> mAdaptor;
+    QHash<QString, QVariant> mChangeSet;
     /*
      * Each domain object needs to store the resource, identifier, revision triple so we can link back to the storage location.
      */
@@ -193,21 +211,19 @@ private:
     qint64 mRevision;
 };
 
-class Event : public AkonadiDomainType {
-public:
+struct Event : public AkonadiDomainType {
     typedef QSharedPointer<Event> Ptr;
-    Event(const QString &resource, const QString &identifier, qint64 revision):AkonadiDomainType(resource, identifier, revision){};
-
+    using AkonadiDomainType::AkonadiDomainType;
 };
 
-class Todo : public AkonadiDomainType {
-public:
+struct Todo : public AkonadiDomainType {
     typedef QSharedPointer<Todo> Ptr;
+    using AkonadiDomainType::AkonadiDomainType;
 };
 
-class Calendar : public AkonadiDomainType {
-public:
+struct Calendar : public AkonadiDomainType {
     typedef QSharedPointer<Calendar> Ptr;
+    using AkonadiDomainType::AkonadiDomainType;
 };
 
 class Mail : public AkonadiDomainType {

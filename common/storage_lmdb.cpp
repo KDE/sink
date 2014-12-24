@@ -194,14 +194,14 @@ void Storage::abortTransaction()
     d->transaction = 0;
 }
 
-bool Storage::write(const char *key, size_t keySize, const char *value, size_t valueSize)
-{
-    return write(std::string(key, keySize), std::string(value, valueSize));
-}
-
-bool Storage::write(const std::string &sKey, const std::string &sValue)
+bool Storage::write(void const *keyPtr, size_t keySize, void const *valuePtr, size_t valueSize)
 {
     if (!d->env) {
+        return false;
+    }
+
+    if (d->mode == ReadOnly) {
+        std::cerr << "tried to write in read-only mode." << std::endl;
         return false;
     }
 
@@ -215,10 +215,10 @@ bool Storage::write(const std::string &sKey, const std::string &sValue)
 
     int rc;
     MDB_val key, data;
-    key.mv_size = sKey.size();
-    key.mv_data = (void*)sKey.data();
-    data.mv_size = sValue.size();
-    data.mv_data = (void*)sValue.data();
+    key.mv_size = keySize;
+    key.mv_data = const_cast<void*>(keyPtr);
+    data.mv_size = valueSize;
+    data.mv_data = const_cast<void*>(valuePtr);
     rc = mdb_put(d->transaction, d->dbi, &key, &data, 0);
 
     if (rc) {
@@ -234,6 +234,11 @@ bool Storage::write(const std::string &sKey, const std::string &sValue)
     }
 
     return !rc;
+}
+
+bool Storage::write(const std::string &sKey, const std::string &sValue)
+{
+    return write(const_cast<char*>(sKey.data()), sKey.size(), const_cast<char*>(sValue.data()), sValue.size());
 }
 
 void Storage::read(const std::string &sKey,

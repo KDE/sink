@@ -23,6 +23,9 @@
 #include <QByteArray>
 #include <QStandardPaths>
 #include <QVector>
+#include <QDebug>
+#include "entitybuffer_generated.h"
+#include "metadata_generated.h"
 
 namespace Akonadi2
 {
@@ -69,11 +72,40 @@ void Pipeline::null()
     state.step();
 }
 
-void Pipeline::newEntity(const QByteArray &key, flatbuffers::FlatBufferBuilder &entity)
+void Pipeline::newEntity(const QByteArray &key, void *resourceBufferData, size_t size)
 {
     const qint64 newRevision = storage().maxRevision() + 1;
-    //FIXME this should go into a preprocessor
-    storage().write(key, key.size(), reinterpret_cast<char*>(entity.GetBufferPointer()), entity.GetSize());
+
+    flatbuffers::FlatBufferBuilder fbb;
+    auto builder = Akonadi2::EntityBufferBuilder(fbb);
+
+    //Add metadata buffer
+    { 
+        flatbuffers::FlatBufferBuilder metadataFbb;
+        auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
+        metadataBuilder.add_revision(newRevision);
+        auto metadataBuffer = metadataBuilder.Finish();
+        Akonadi2::FinishMetadataBuffer(fbb, metadataBuffer);
+        //TODO use memcpy
+        auto metadata = fbb.CreateVector<uint8_t>(metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
+        builder.add_metadata(metadata);
+    }
+
+    //Add resource buffer
+    {
+        //TODO use memcpy
+        auto resource = fbb.CreateVector<uint8_t>(static_cast<uint8_t*>(resourceBufferData), size);
+        builder.add_resource(resource);
+    }
+
+    //We don't have a local buffer yet
+    // builder.add_local();
+
+    auto buffer = builder.Finish();
+    Akonadi2::FinishEntityBufferBuffer(fbb, buffer);
+
+    qDebug() << "writing new entity" << key;
+    storage().write(key.data(), key.size(), fbb.GetBufferPointer(), fbb.GetSize());
     storage().setMaxRevision(newRevision);
 
     PipelineState state(this, NewPipeline, key, d->newPipeline);
@@ -81,7 +113,7 @@ void Pipeline::newEntity(const QByteArray &key, flatbuffers::FlatBufferBuilder &
     state.step();
 }
 
-void Pipeline::modifiedEntity(const QByteArray &key, flatbuffers::FlatBufferBuilder &entityDelta)
+void Pipeline::modifiedEntity(const QByteArray &key, void *data, size_t size)
 {
     PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline);
     d->activePipelines << state;
