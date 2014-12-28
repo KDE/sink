@@ -61,9 +61,6 @@ public:
     Listener(const QString &resourceName, QObject *parent = 0);
     ~Listener();
 
-    void setRevision(unsigned long long revision);
-    unsigned long long revision() const;
-
 Q_SIGNALS:
     void noClients();
 
@@ -79,15 +76,16 @@ private Q_SLOTS:
     void refreshRevision();
 
 private:
+    void processCommand(int commandId, uint messageId, Client &client, uint size, const std::function<void()> &callback);
     bool processClientBuffer(Client &client);
     void sendCurrentRevision(Client &client);
     void sendCommandCompleted(Client &client, uint messageId);
     void updateClientsWithRevision();
     void loadResource();
+    void log(const QString &);
 
     QLocalServer *m_server;
     QVector<Client> m_connections;
-    unsigned long long m_revision;
     flatbuffers::FlatBufferBuilder m_fbb;
     const QString m_resourceName;
     Akonadi2::Resource *m_resource;

@@ -37,38 +37,36 @@ namespace Akonadi2
 class QueuedCommand
 {
 public:
-    QueuedCommand(int commandId)
-        : m_commandId(commandId),
-          m_bufferSize(0),
-          m_buffer(0)
+    QueuedCommand(int commandId, const std::function<void()> &callback)
+        : commandId(commandId),
+          bufferSize(0),
+          buffer(0),
+          callback(callback)
     {}
 
-    QueuedCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb)
-        : m_commandId(commandId),
-          m_bufferSize(fbb.GetSize()),
-          m_buffer(new char[m_bufferSize])
+    QueuedCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb, const std::function<void()> &callback)
+        : commandId(commandId),
+          bufferSize(fbb.GetSize()),
+          buffer(new char[bufferSize]),
+          callback(callback)
     {
-        memcpy(m_buffer, fbb.GetBufferPointer(), m_bufferSize);
+        memcpy(buffer, fbb.GetBufferPointer(), bufferSize);
     }
 
     ~QueuedCommand()
     {
-        delete[] m_buffer;
-    }
-
-    void write(QIODevice *device, uint messageId)
-    {
-        // Console::main()->log(QString("\tSending queued command %1").arg(m_commandId));
-        Commands::write(device, messageId, m_commandId, m_buffer, m_bufferSize);
+        delete[] buffer;
     }
 
 private:
     QueuedCommand(const QueuedCommand &other);
     QueuedCommand &operator=(const QueuedCommand &rhs);
 
-    const int m_commandId;
-    const uint m_bufferSize;
-    char *m_buffer;
+public:
+    const int commandId;
+    const uint bufferSize;
+    char *buffer;
+    std::function<void()> callback;
 };
 
 class ResourceAccess::Private
@@ -82,7 +80,7 @@ public:
     QByteArray partialMessageBuffer;
     flatbuffers::FlatBufferBuilder fbb;
     QVector<QueuedCommand *> commandQueue;
-    QVector<std::function<void()> > synchronizeResultHandler;
+    QMultiMap<uint, std::function<void()> > resultHandler;
     uint messageId;
 };
 
@@ -130,31 +128,42 @@ bool ResourceAccess::isReady() const
     return d->socket->isValid();
 }
 
-void ResourceAccess::sendCommand(int commandId)
+void ResourceAccess::registerCallback(uint messageId, const std::function<void()> &callback)
+{
+    d->resultHandler.insert(messageId, callback);
+}
+
+void ResourceAccess::sendCommand(int commandId, const std::function<void()> &callback)
 {
     if (isReady()) {
         log(QString("Sending command %1").arg(commandId));
-        Commands::write(d->socket, ++d->messageId, commandId);
+        d->messageId++;
+        if (callback) {
+            registerCallback(d->messageId, callback);
+        }
+        Commands::write(d->socket, d->messageId, commandId);
     } else {
-        d->commandQueue << new QueuedCommand(commandId);
+        d->commandQueue << new QueuedCommand(commandId, callback);
     }
 }
 
-void ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb)
+void ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb, const std::function<void()> &callback)
 {
     if (isReady()) {
         log(QString("Sending command %1").arg(commandId));
-        Commands::write(d->socket, ++d->messageId, commandId, fbb);
+        d->messageId++;
+        if (callback) {
+            registerCallback(d->messageId, callback);
+        }
+        Commands::write(d->socket, d->messageId, commandId, fbb);
     } else {
-        d->commandQueue << new QueuedCommand(commandId, fbb);
+        d->commandQueue << new QueuedCommand(commandId, fbb, callback);
     }
 }
 
 void ResourceAccess::synchronizeResource(const std::function<void()> &resultHandler)
 {
-    sendCommand(Commands::SynchronizeCommand);
-    //TODO: this should be implemented as a job, so we don't need to store the result handler as member
-    d->synchronizeResultHandler << resultHandler;
+    sendCommand(Commands::SynchronizeCommand, resultHandler);
 }
 
 void ResourceAccess::open()
@@ -200,7 +209,12 @@ void ResourceAccess::connected()
     //TODO: serialize instead of blast them all through the socket?
     log(QString("We have %1 queued commands").arg(d->commandQueue.size()));
     for (QueuedCommand *command: d->commandQueue) {
-        command->write(d->socket, ++d->messageId);
+        d->messageId++;
+        log(QString("Sending command %1").arg(command->commandId));
+        if (command->callback) {
+            registerCallback(d->messageId, command->callback);
+        }
+        Commands::write(d->socket, d->messageId, command->commandId, command->buffer, command->bufferSize);
         delete command;
     }
     d->commandQueue.clear();
@@ -234,6 +248,8 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
         if (!d->tryOpenTimer->isActive()) {
             d->tryOpenTimer->start();
         }
+    } else {
+        qWarning() << "Failed to start resource";
     }
 }
 
@@ -256,8 +272,7 @@ bool ResourceAccess::processMessageBuffer()
         return false;
     }
 
-    //messageId is unused, so commented out
-    //const uint messageId = *(int*)(d->partialMessageBuffer.constData());
+    const uint messageId = *(int*)(d->partialMessageBuffer.constData());
     const int commandId = *(int*)(d->partialMessageBuffer.constData() + sizeof(uint));
     const uint size = *(int*)(d->partialMessageBuffer.constData() + sizeof(int) + sizeof(uint));
 
@@ -271,18 +286,15 @@ bool ResourceAccess::processMessageBuffer()
             log(QString("Revision updated to: %1").arg(buffer->revision()));
             emit revisionChanged(buffer->revision());
 
-            //FIXME: The result handler should be called on completion of the synchronize command, and not upon arbitrary revision updates.
-            for(auto handler : d->synchronizeResultHandler) {
-                //FIXME: we should associate the handler with a buffer->id() to avoid prematurely triggering the result handler from a delayed synchronized response (this is relevant for on-demand syncing).
-                handler();
-            }
-            d->synchronizeResultHandler.clear();
             break;
         }
         case Commands::CommandCompletion: {
             auto buffer = GetCommandCompletion(d->partialMessageBuffer.constData() + headerSize);
             log(QString("Command %1 completed %2").arg(buffer->id()).arg(buffer->success() ? "sucessfully" : "unsuccessfully"));
             //TODO: if a queued command, get it out of the queue ... pass on completion ot the relevant objects .. etc
+
+            //The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
+            QMetaObject::invokeMethod(this, "callCallbacks", Qt::QueuedConnection, QGenericReturnArgument(), Q_ARG(int, buffer->id()));
             break;
         }
         default:
@@ -291,6 +303,14 @@ bool ResourceAccess::processMessageBuffer()
 
     d->partialMessageBuffer.remove(0, headerSize + size);
     return d->partialMessageBuffer.size() >= headerSize;
+}
+
+void ResourceAccess::callCallbacks(int id)
+{
+    for(auto handler : d->resultHandler.values(id)) {
+        handler();
+    }
+    d->resultHandler.remove(id);
 }
 
 void ResourceAccess::log(const QString &message)

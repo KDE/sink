@@ -1,9 +1,9 @@
 namespace Akonadi2;
 
-table EntityBuffer {
+table Entity {
     metadata: [ubyte];
     resource: [ubyte];
     local: [ubyte];
 }
 
-root_type EntityBuffer;
+root_type Entity;

@@ -26,8 +26,9 @@
 #include "common/commands.h"
 #include "dummycalendar_generated.h"
 #include "event_generated.h"
-#include "entitybuffer_generated.h"
+#include "entity_generated.h"
 #include "metadata_generated.h"
+#include <common/entitybuffer.h>
 
 using namespace DummyCalendar;
 using namespace flatbuffers;
@@ -199,14 +200,47 @@ void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function
         storage->startTransaction(Akonadi2::Storage::ReadOnly);
         //Because we have no indexes yet, we always do a full scan
         storage->scan("", [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-            qDebug() << QString::fromStdString(std::string(static_cast<char*>(keyValue), keySize));
-            auto buffer = Akonadi2::GetEntityBuffer(dataValue);
-            auto resourceBuffer = GetDummyEvent(buffer->resource());
-            auto metadataBuffer = Akonadi2::GetMetadata(buffer->resource());
-            auto localBuffer = Akonadi2::Domain::Buffer::GetEvent(buffer->local());
+
+            //Skip internals
+            if (QByteArray::fromRawData(static_cast<char*>(keyValue), keySize).startsWith("__internal")) {
+                return true;
+            }
+
+            //Extract buffers
+            Akonadi2::EntityBuffer buffer(dataValue, dataSize);
+
+            DummyEvent const *resourceBuffer = 0;
+            if (auto resourceData = buffer.resourceBuffer()) {
+                flatbuffers::Verifier verifyer(resourceData->Data(), resourceData->size());
+                if (VerifyDummyEventBuffer(verifyer)) {
+                    resourceBuffer = GetDummyEvent(resourceData);
+                }
+            }
+
+            Akonadi2::Metadata const *metadataBuffer = 0;
+            if (auto metadataData = buffer.metadataBuffer()) {
+                flatbuffers::Verifier verifyer(metadataData->Data(), metadataData->size());
+                if (Akonadi2::VerifyMetadataBuffer(verifyer)) {
+                    metadataBuffer = Akonadi2::GetMetadata(metadataData);
+                }
+            }
+
+            Akonadi2::Domain::Buffer::Event const *localBuffer = 0;
+            if (auto localData = buffer.localBuffer()) {
+                flatbuffers::Verifier verifyer(localData->Data(), localData->size());
+                if (Akonadi2::Domain::Buffer::VerifyEventBuffer(verifyer)) {
+                    localBuffer = Akonadi2::Domain::Buffer::GetEvent(localData);
+                }
+            }
+
+            if (!resourceBuffer || !metadataBuffer) {
+                qWarning() << "invalid buffer " << QString::fromStdString(std::string(static_cast<char*>(keyValue), keySize));
+                return true;
+            }
+
             //We probably only want to create all buffers after the scan
             if (preparedQuery && preparedQuery(std::string(static_cast<char*>(keyValue), keySize), resourceBuffer)) {
-                qint64 revision = metadataBuffer->revision();
+                qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
                 auto adaptor = QSharedPointer<DummyEventAdaptor>::create();
                 adaptor->mLocalBuffer = localBuffer;
                 adaptor->mResourceBuffer = resourceBuffer;

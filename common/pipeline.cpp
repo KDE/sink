@@ -24,7 +24,7 @@
 #include <QStandardPaths>
 #include <QVector>
 #include <QDebug>
-#include "entitybuffer_generated.h"
+#include "entity_generated.h"
 #include "metadata_generated.h"
 
 namespace Akonadi2
@@ -76,33 +76,31 @@ void Pipeline::newEntity(const QByteArray &key, void *resourceBufferData, size_t
 {
     const qint64 newRevision = storage().maxRevision() + 1;
 
-    flatbuffers::FlatBufferBuilder fbb;
-    auto builder = Akonadi2::EntityBufferBuilder(fbb);
 
+    std::vector<uint8_t> metadataData;
     //Add metadata buffer
     { 
         flatbuffers::FlatBufferBuilder metadataFbb;
         auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
         metadataBuilder.add_revision(newRevision);
         auto metadataBuffer = metadataBuilder.Finish();
-        Akonadi2::FinishMetadataBuffer(fbb, metadataBuffer);
-        //TODO use memcpy
-        auto metadata = fbb.CreateVector<uint8_t>(metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
-        builder.add_metadata(metadata);
+        Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
+        metadataData.resize(metadataFbb.GetSize());
+        std::copy_n(metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), back_inserter(metadataData));
     }
 
-    //Add resource buffer
-    {
-        //TODO use memcpy
-        auto resource = fbb.CreateVector<uint8_t>(static_cast<uint8_t*>(resourceBufferData), size);
-        builder.add_resource(resource);
-    }
 
+    flatbuffers::FlatBufferBuilder fbb;
+    auto metadata = fbb.CreateVector<uint8_t>(metadataData.data(), metadataData.size());
+    auto resource = fbb.CreateVector<uint8_t>(static_cast<uint8_t*>(resourceBufferData), size);
+    auto builder = Akonadi2::EntityBuilder(fbb);
+    builder.add_metadata(metadata);
+    builder.add_resource(resource);
     //We don't have a local buffer yet
     // builder.add_local();
 
     auto buffer = builder.Finish();
-    Akonadi2::FinishEntityBufferBuffer(fbb, buffer);
+    Akonadi2::FinishEntityBuffer(fbb, buffer);
 
     qDebug() << "writing new entity" << key;
     storage().write(key.data(), key.size(), fbb.GetBufferPointer(), fbb.GetSize());
@@ -163,6 +161,9 @@ void Pipeline::pipelineCompleted(const PipelineState &state)
         emit revisionUpdated();
     }
     scheduleStep();
+    if (d->activePipelines.isEmpty()) {
+        emit pipelinesDrained();
+    }
 }
 
 

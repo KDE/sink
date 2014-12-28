@@ -55,6 +55,7 @@ public:
 
 Q_SIGNALS:
     void revisionUpdated();
+    void pipelinesDrained();
 
 private Q_SLOTS:
     void stepPipelines();

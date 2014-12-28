@@ -21,6 +21,7 @@
 #include <akonadi2common_export.h>
 #include <clientapi.h>
 #include <pipeline.h>
+#include <async/src/async.h>
 
 namespace Akonadi2
 {
@@ -33,7 +34,7 @@ public:
     virtual ~Resource();
 
     virtual void processCommand(int commandId, const QByteArray &data, uint size, Pipeline *pipeline);
-    virtual void synchronizeWithSource(Pipeline *pipeline);
+    virtual Async::Job<void> synchronizeWithSource(Pipeline *pipeline);
 
 private:
     class Private;

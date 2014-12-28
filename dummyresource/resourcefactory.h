@@ -20,6 +20,7 @@
 #pragma once
 
 #include "common/resource.h"
+#include "async/src/async.h"
 
 #include <flatbuffers/flatbuffers.h>
 
@@ -30,7 +31,7 @@ class DummyResource : public Akonadi2::Resource
 {
 public:
     DummyResource();
-    void synchronizeWithSource(Akonadi2::Pipeline *pipeline);
+    Async::Job<void> synchronizeWithSource(Akonadi2::Pipeline *pipeline);
     void processCommand(int commandId, const QByteArray &data, uint size, Akonadi2::Pipeline *pipeline);
 
 private:

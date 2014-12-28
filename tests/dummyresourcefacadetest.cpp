@@ -51,17 +51,10 @@ private Q_SLOTS:
         query.ids << "key50";
         query.resources << "dummyresource";
 
-        auto result = Akonadi2::Store::load<Akonadi2::Domain::Event>(query);
-        bool complete = false;
-        QVector<Akonadi2::Domain::Event::Ptr> results;
-        result->onAdded([&results](const Akonadi2::Domain::Event::Ptr &e) {
-            results << e;
-        });
-        result->onComplete([&complete]() {
-            complete = true;
-        });
-        QTRY_VERIFY(complete);
-        QCOMPARE(results.size(), 1);
+        //FIXME avoid sync somehow. No synchronizer access here (perhaps configure the instance above accordingly?)
+        async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
+        result.exec();
+        QCOMPARE(result.size(), 1);
 
         Akonadi2::Storage storage(testDataPath, dbName);
         storage.removeFromDisk();

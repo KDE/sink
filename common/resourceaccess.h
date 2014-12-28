@@ -40,8 +40,9 @@ public:
     QString resourceName() const;
     bool isReady() const;
 
-    void sendCommand(int commandId);
-    void sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb);
+    //TODO use jobs
+    void sendCommand(int commandId, const std::function<void()> &callback = std::function<void()>());
+    void sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb, const std::function<void()> &callback);
     void synchronizeResource(const std::function<void()> &resultHandler);
 
 public Q_SLOTS:
@@ -51,6 +52,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     void ready(bool isReady);
     void revisionChanged(unsigned long long revision);
+    void commandCompleted();
 
 private Q_SLOTS:
     //TODO: move these to the Private class
@@ -59,9 +61,11 @@ private Q_SLOTS:
     void connectionError(QLocalSocket::LocalSocketError error);
     void readResourceMessage();
     bool processMessageBuffer();
+    void callCallbacks(int id);
 
 private:
     void log(const QString &message);
+    void registerCallback(uint messageId, const std::function<void()> &callback);
 
     class Private;
     Private * const d;

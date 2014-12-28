@@ -48,9 +48,11 @@ void Resource::processCommand(int commandId, const QByteArray &data, uint size, 
     pipeline->null();
 }
 
-void Resource::synchronizeWithSource(Pipeline *pipeline)
+Async::Job<void> Resource::synchronizeWithSource(Pipeline *pipeline)
 {
-    pipeline->null();
+    return Async::start<void>([pipeline](Async::Future<void> &f) {
+        pipeline->null();
+    });
 }
 
 class ResourceFactory::Private

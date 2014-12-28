@@ -19,7 +19,9 @@
 
 #include "resourcefactory.h"
 #include "facade.h"
+#include "entitybuffer.h"
 #include "dummycalendar_generated.h"
+#include "metadata_generated.h"
 #include <QUuid>
 
 static std::string createEvent()
@@ -64,51 +66,67 @@ void findByRemoteId(QSharedPointer<Akonadi2::Storage> storage, const QString &ri
     //TODO lookup in rid index instead of doing a full scan
     const std::string ridString = rid.toStdString();
     storage->scan("", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-        auto eventBuffer = DummyCalendar::GetDummyEvent(dataValue);
-        if (std::string(eventBuffer->remoteId()->c_str(), eventBuffer->remoteId()->size()) == ridString) {
-            callback(keyValue, keySize, dataValue, dataSize);
+        if (QByteArray::fromRawData(static_cast<char*>(keyValue), keySize).startsWith("__internal")) {
+            return true;
         }
+
+        Akonadi2::EntityBuffer::extractResourceBuffer(dataValue, dataSize, [&](const flatbuffers::Vector<uint8_t> *buffer) {
+            flatbuffers::Verifier verifier(buffer->Data(), buffer->size());
+            if (DummyCalendar::VerifyDummyEventBuffer(verifier)) {
+                DummyCalendar::DummyEvent const *resourceBuffer = DummyCalendar::GetDummyEvent(buffer->Data());
+                if (resourceBuffer && resourceBuffer->remoteId()) {
+                    if (std::string(resourceBuffer->remoteId()->c_str(), resourceBuffer->remoteId()->size()) == ridString) {
+                        callback(keyValue, keySize, dataValue, dataSize);
+                    }
+                }
+            }
+        });
         return true;
     });
 }
 
-void DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
+Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
 {
-    //TODO use a read-only transaction during the complete sync to sync against a defined revision
-    
-    qDebug() << "synchronize with source";
+    return Async::start<void>([this, pipeline](Async::Future<void> &f) {
+        //TODO use a read-only transaction during the complete sync to sync against a defined revision
+        auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
+        for (auto it = s_dataSource.constBegin(); it != s_dataSource.constEnd(); it++) {
+            bool isNew = true;
+            if (storage->exists()) {
+                findByRemoteId(storage, it.key(), [&](void *keyValue, int keySize, void *dataValue, int dataSize) {
+                    isNew = false;
+                });
+            }
+            if (isNew) {
+                m_fbb.Clear();
 
-    auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
-    for (auto it = s_dataSource.constBegin(); it != s_dataSource.constEnd(); it++) {
-        bool isNew = true;
-        if (storage->exists()) {
-            findByRemoteId(storage, it.key(), [&](void *keyValue, int keySize, void *dataValue, int dataSize) {
-                isNew = false;
-            });
+                const QByteArray data = it.value().toUtf8();
+                auto eventBuffer = DummyCalendar::GetDummyEvent(data.data());
+
+                //Map the source format to the buffer format (which happens to be an exact copy here)
+                auto summary = m_fbb.CreateString(eventBuffer->summary()->c_str());
+                auto rid = m_fbb.CreateString(it.key().toStdString().c_str());
+                auto description = m_fbb.CreateString(it.key().toStdString().c_str());
+                static uint8_t rawData[100];
+                auto attachment = m_fbb.CreateVector(rawData, 100);
+
+                auto builder = DummyCalendar::DummyEventBuilder(m_fbb);
+                builder.add_summary(summary);
+                builder.add_remoteId(rid);
+                builder.add_description(description);
+                builder.add_attachment(attachment);
+                auto buffer = builder.Finish();
+                DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
+                //TODO toRFC4122 would probably be more efficient, but results in non-printable keys.
+                const auto key = QUuid::createUuid().toString().toUtf8();
+                pipeline->newEntity(key, m_fbb.GetBufferPointer(), m_fbb.GetSize());
+            } else { //modification
+                //TODO diff and create modification if necessary
+            }
         }
-
-        if (isNew) {
-            //TODO: perhaps it would be more convenient to populate the domain types?
-            //Resource specific parts are not accessible that way, but then we would only have to implement the property mapping in one place
-            const QByteArray data = it.value().toUtf8();
-            auto eventBuffer = DummyCalendar::GetDummyEvent(data.data());
-
-            //Map the source format to the buffer format (which happens to be an exact copy here)
-            auto builder = DummyCalendar::DummyEventBuilder(m_fbb);
-            builder.add_summary(m_fbb.CreateString(eventBuffer->summary()->c_str()));
-            auto buffer = builder.Finish();
-            DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
-
-            //TODO toRFC4122 would probably be more efficient, but results in non-printable keys.
-            const auto key = QUuid::createUuid().toString().toUtf8();
-            //TODO can we really just start populating the buffer and pass the buffer builder?
-            qDebug() << "new event";
-            pipeline->newEntity(key, m_fbb.GetBufferPointer(), m_fbb.GetSize());
-        } else { //modification
-            //TODO diff and create modification if necessary
-        }
-    }
-    //TODO find items to remove
+        //TODO find items to remove
+        f.setFinished();
+    });
 }
 
 void DummyResource::processCommand(int commandId, const QByteArray &data, uint size, Akonadi2::Pipeline *pipeline)
