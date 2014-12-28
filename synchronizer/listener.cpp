@@ -320,6 +320,7 @@ void Listener::loadResource()
 
 void Listener::log(const QString &message)
 {
-    Akonadi2::Console::main()->log("Listener: " + message);
+    qDebug() << "Listener: " << message;
+    // Akonadi2::Console::main()->log("Listener: " + message);
 }
 
