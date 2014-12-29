@@ -16,10 +16,8 @@ endmacro(manual_tests)
 manual_tests (
     storagebenchmark
     storagetest
-    dummyresourcefacadetest
     dummyresourcetest
 )
 
-target_link_libraries(dummyresourcefacadetest akonadi2_resource_dummy)
 target_link_libraries(dummyresourcetest akonadi2_resource_dummy)
 
