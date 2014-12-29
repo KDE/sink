@@ -25,6 +25,7 @@
 #include <QTimer>
 
 #include <flatbuffers/flatbuffers.h>
+#include <async/src/async.h>
 
 namespace Akonadi2
 {
@@ -43,7 +44,7 @@ public:
     //TODO use jobs
     void sendCommand(int commandId, const std::function<void()> &callback = std::function<void()>());
     void sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb, const std::function<void()> &callback);
-    void synchronizeResource(const std::function<void()> &resultHandler);
+    Async::Job<void> synchronizeResource();
 
 public Q_SLOTS:
     void open();

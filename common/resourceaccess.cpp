@@ -161,9 +161,13 @@ void ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &
     }
 }
 
-void ResourceAccess::synchronizeResource(const std::function<void()> &resultHandler)
+Async::Job<void> ResourceAccess::synchronizeResource()
 {
-    sendCommand(Commands::SynchronizeCommand, resultHandler);
+    return Async::start<void>([this](Async::Future<void> &f) {
+        sendCommand(Commands::SynchronizeCommand, [&f]() {
+            f.setFinished();
+        });
+    });
 }
 
 void ResourceAccess::open()

@@ -95,8 +95,10 @@ void DummyResourceFacade::synchronizeResource(const std::function<void()> &conti
     //TODO check if a sync is necessary
     //TODO Only sync what was requested
     //TODO timeout
-    mResourceAccess->open();
-    mResourceAccess->synchronizeResource(continuation);
+    mResourceAccess->synchronizeResource().then<void>([continuation](Async::Future<void> &f){
+        continuation();
+        f.setFinished();
+    }).exec();
 }
 
 void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, const std::function<void()> &completeCallback)
