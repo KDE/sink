@@ -30,7 +30,7 @@ private Q_SLOTS:
         QTRY_VERIFY(future.isFinished());
     }
 
-    void testSync()
+    void testSyncAndFacade()
     {
         Akonadi2::Query query;
         query.resources << "org.kde.dummy";
