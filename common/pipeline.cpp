@@ -26,6 +26,7 @@
 #include <QDebug>
 #include "entity_generated.h"
 #include "metadata_generated.h"
+#include "entitybuffer.h"
 
 namespace Akonadi2
 {
@@ -76,33 +77,16 @@ void Pipeline::newEntity(const QByteArray &key, void *resourceBufferData, size_t
 {
     const qint64 newRevision = storage().maxRevision() + 1;
 
-
-    std::vector<uint8_t> metadataData;
     //Add metadata buffer
-    { 
-        flatbuffers::FlatBufferBuilder metadataFbb;
-        auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
-        metadataBuilder.add_revision(newRevision);
-        auto metadataBuffer = metadataBuilder.Finish();
-        Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
-        metadataData.resize(metadataFbb.GetSize());
-        std::copy_n(metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), back_inserter(metadataData));
-    }
-
+    flatbuffers::FlatBufferBuilder metadataFbb;
+    auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
+    metadataBuilder.add_revision(newRevision);
+    auto metadataBuffer = metadataBuilder.Finish();
+    Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
     flatbuffers::FlatBufferBuilder fbb;
-    auto metadata = fbb.CreateVector<uint8_t>(metadataData.data(), metadataData.size());
-    auto resource = fbb.CreateVector<uint8_t>(static_cast<uint8_t*>(resourceBufferData), size);
-    auto builder = Akonadi2::EntityBuilder(fbb);
-    builder.add_metadata(metadata);
-    builder.add_resource(resource);
-    //We don't have a local buffer yet
-    // builder.add_local();
+    EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), resourceBufferData, size, 0, 0);
 
-    auto buffer = builder.Finish();
-    Akonadi2::FinishEntityBuffer(fbb, buffer);
-
-    qDebug() << "writing new entity" << key;
     storage().write(key.data(), key.size(), fbb.GetBufferPointer(), fbb.GetSize());
     storage().setMaxRevision(newRevision);
 

@@ -51,3 +51,17 @@ void EntityBuffer::extractResourceBuffer(void *dataValue, int dataSize, const st
     }
 }
 
+void EntityBuffer::assembleEntityBuffer(flatbuffers::FlatBufferBuilder &fbb, void *metadataData, size_t metadataSize, void *resourceData, size_t resourceSize, void *localData, size_t localSize)
+{
+    auto metadata = fbb.CreateVector<uint8_t>(static_cast<uint8_t*>(metadataData), metadataSize);
+    auto resource = fbb.CreateVector<uint8_t>(static_cast<uint8_t*>(resourceData), resourceSize);
+    auto local = fbb.CreateVector<uint8_t>(static_cast<uint8_t*>(localData), localSize);
+    auto builder = Akonadi2::EntityBuilder(fbb);
+    builder.add_metadata(metadata);
+    builder.add_resource(resource);
+    builder.add_local(local);
+
+    auto buffer = builder.Finish();
+    Akonadi2::FinishEntityBuffer(fbb, buffer);
+}
+
