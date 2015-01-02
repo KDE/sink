@@ -39,6 +39,11 @@ Resource::~Resource()
     //delete d;
 }
 
+void Resource::configurePipeline(Pipeline *pipeline)
+{
+
+}
+
 void Resource::processCommand(int commandId, const QByteArray &data, uint size, Pipeline *pipeline)
 {
     Q_UNUSED(commandId)

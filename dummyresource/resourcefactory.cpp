@@ -20,9 +20,47 @@
 #include "resourcefactory.h"
 #include "facade.h"
 #include "entitybuffer.h"
+#include "pipeline.h"
 #include "dummycalendar_generated.h"
 #include "metadata_generated.h"
 #include <QUuid>
+
+/*
+ * Figure out how to implement various classes of processors:
+ * * read-only (index and such) => domain adapter
+ * * filter => provide means to move entity elsewhere, and also reflect change in source (I guess?)
+ * * flag extractors? => like read-only? Or write to local portion of buffer?
+ * ** $ISSPAM should become part of domain object and is written to the local part of the mail. 
+ * ** => value could be calculated by the server directly
+ */
+// template <typename DomainType>
+class SimpleProcessor : public Akonadi2::Preprocessor
+{
+public:
+    SimpleProcessor(const std::function<void(const Akonadi2::PipelineState &state)> &f)
+        : Akonadi2::Preprocessor(),
+        mFunction(f)
+    {
+    }
+
+    void process(const Akonadi2::PipelineState &state) {
+        mFunction(state);
+    }
+
+protected:
+    std::function<void(const Akonadi2::PipelineState &state)> mFunction;
+};
+
+// template <typename DomainType>
+// class SimpleReadOnlyProcessor : public SimpleProcessor<DomainType>
+// {
+// public:
+//     using SimpleProcessor::SimpleProcessor;
+//     void process(Akonadi2::PipelineState state) {
+//         mFunction();
+//     }
+// };
+
 
 static std::string createEvent()
 {
@@ -59,6 +97,20 @@ static QMap<QString, QString> s_dataSource = populate();
 DummyResource::DummyResource()
     : Akonadi2::Resource()
 {
+}
+
+void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
+{
+    //TODO setup preprocessors for each domain type and pipeline type allowing full customization
+    //Eventually the order should be self configuring, for now it's hardcoded.
+    auto eventIndexer = new SimpleProcessor([](const Akonadi2::PipelineState &state) {
+        //FIXME
+        // auto adaptor = QSharedPointer<DummyEventAdaptor>::create();
+        // adaptor->mLocalBuffer = localBuffer;
+        // adaptor->mResourceBuffer = resourceBuffer;
+        // adaptor->storage = storage;
+    });
+    pipeline->setPreprocessors<Akonadi2::Domain::Event>(Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
 }
 
 void findByRemoteId(QSharedPointer<Akonadi2::Storage> storage, const QString &rid, std::function<void(void *keyValue, int keySize, void *dataValue, int dataSize)> callback)
@@ -119,7 +171,7 @@ Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeli
                 DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
                 //TODO toRFC4122 would probably be more efficient, but results in non-printable keys.
                 const auto key = QUuid::createUuid().toString().toUtf8();
-                pipeline->newEntity(key, m_fbb.GetBufferPointer(), m_fbb.GetSize());
+                pipeline->newEntity<Akonadi2::Domain::Event>(key, m_fbb.GetBufferPointer(), m_fbb.GetSize());
             } else { //modification
                 //TODO diff and create modification if necessary
             }
@@ -139,7 +191,7 @@ void DummyResource::processCommand(int commandId, const QByteArray &data, uint s
     builder .add_summary(m_fbb.CreateString("summary summary!"));
     auto buffer = builder.Finish();
     DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
-    pipeline->newEntity("fakekey", m_fbb.GetBufferPointer(), m_fbb.GetSize());
+    pipeline->newEntity<Akonadi2::Domain::Event>("fakekey", m_fbb.GetBufferPointer(), m_fbb.GetSize());
     m_fbb.Clear();
 }
 

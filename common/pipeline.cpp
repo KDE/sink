@@ -41,10 +41,10 @@ public:
     }
 
     Storage storage;
-    QVector<Preprocessor *> nullPipeline;
-    QVector<Preprocessor *> newPipeline;
-    QVector<Preprocessor *> modifiedPipeline;
-    QVector<Preprocessor *> deletedPipeline;
+    QHash<QString, QVector<Preprocessor *> > nullPipeline;
+    QHash<QString, QVector<Preprocessor *> > newPipeline;
+    QHash<QString, QVector<Preprocessor *> > modifiedPipeline;
+    QHash<QString, QVector<Preprocessor *> > deletedPipeline;
     QVector<PipelineState> activePipelines;
     bool stepScheduled;
 };
@@ -60,6 +60,23 @@ Pipeline::~Pipeline()
     delete d;
 }
 
+void Pipeline::setPreprocessors(const QString &entityType, Type pipelineType, const QVector<Preprocessor *> &preprocessors)
+{
+    switch (pipelineType) {
+        case NewPipeline:
+            d->newPipeline[entityType] = preprocessors;
+            break;
+        case ModifiedPipeline:
+            d->modifiedPipeline[entityType] = preprocessors;
+            break;
+        case DeletedPipeline:
+            d->deletedPipeline[entityType] = preprocessors;
+            break;
+        default:
+            break;
+    };
+}
+
 Storage &Pipeline::storage() const
 {
     return d->storage;
@@ -68,12 +85,12 @@ Storage &Pipeline::storage() const
 void Pipeline::null()
 {
     //TODO: is there really any need for the null pipeline? if so, it should be doing something ;)
-    PipelineState state(this, NullPipeline, QByteArray(), d->nullPipeline);
-    d->activePipelines << state;
-    state.step();
+    // PipelineState state(this, NullPipeline, QByteArray(), d->nullPipeline);
+    // d->activePipelines << state;
+    // state.step();
 }
 
-void Pipeline::newEntity(const QByteArray &key, void *resourceBufferData, size_t size)
+void Pipeline::newEntity(const QString &entityType, const QByteArray &key, void *resourceBufferData, size_t size)
 {
     const qint64 newRevision = storage().maxRevision() + 1;
 
@@ -81,6 +98,7 @@ void Pipeline::newEntity(const QByteArray &key, void *resourceBufferData, size_t
     flatbuffers::FlatBufferBuilder metadataFbb;
     auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
     metadataBuilder.add_revision(newRevision);
+    metadataBuilder.add_processed(false);
     auto metadataBuffer = metadataBuilder.Finish();
     Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
@@ -90,21 +108,21 @@ void Pipeline::newEntity(const QByteArray &key, void *resourceBufferData, size_t
     storage().write(key.data(), key.size(), fbb.GetBufferPointer(), fbb.GetSize());
     storage().setMaxRevision(newRevision);
 
-    PipelineState state(this, NewPipeline, key, d->newPipeline);
+    PipelineState state(this, NewPipeline, key, d->newPipeline[entityType]);
     d->activePipelines << state;
     state.step();
 }
 
-void Pipeline::modifiedEntity(const QByteArray &key, void *data, size_t size)
+void Pipeline::modifiedEntity(const QString &entityType, const QByteArray &key, void *data, size_t size)
 {
-    PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline);
+    PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline[entityType]);
     d->activePipelines << state;
     state.step();
 }
 
-void Pipeline::deletedEntity(const QByteArray &key)
+void Pipeline::deletedEntity(const QString &entityType, const QByteArray &key)
 {
-    PipelineState state(this, DeletedPipeline, key, d->deletedPipeline);
+    PipelineState state(this, DeletedPipeline, key, d->deletedPipeline[entityType]);
     d->activePipelines << state;
     state.step();
 }

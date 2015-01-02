@@ -37,10 +37,12 @@ Listener::Listener(const QString &resourceName, QObject *parent)
       m_server(new QLocalServer(this)),
       m_resourceName(resourceName),
       m_resource(0),
+      //TODO move pipeline(s) to resource
       m_pipeline(new Akonadi2::Pipeline(resourceName, parent)),
       m_clientBufferProcessesTimer(new QTimer(this)),
       m_messageId(0)
 {
+    m_resource->configurePipeline(m_pipeline);
     connect(m_pipeline, &Akonadi2::Pipeline::revisionUpdated,
             this, &Listener::refreshRevision);
     connect(m_server, &QLocalServer::newConnection,

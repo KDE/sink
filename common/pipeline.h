@@ -27,6 +27,7 @@
 
 #include <akonadi2common_export.h>
 #include <storage.h>
+#include <clientapi.h> //For domain types
 
 namespace Akonadi2
 {
@@ -46,12 +47,34 @@ public:
 
     Storage &storage() const;
 
+    // template <typename T>
+    // Storage &storage() const;
+
+    template <typename T>
+    void setPreprocessors(Type type, const QVector<Preprocessor *> &preprocessors)
+    {
+        setPreprocessors(Akonadi2::Domain::getTypeName<T>(), type, preprocessors);
+    }
+
     void null();
-    //FIXME We should probably directly provide a DomainTypeAdapter here. The data has already been written and we only need to read it for processing. And we need to read all buffers.
-    void newEntity(const QByteArray &key, void *resourceBufferData, size_t size);
-    //TODO Send local buffer data as well?
-    void modifiedEntity(const QByteArray &key, void *data, size_t size);
-    void deletedEntity(const QByteArray &key);
+
+    template <typename T>
+    void newEntity(const QByteArray &key, void *resourceBufferData, size_t size)
+    {
+        newEntity(Akonadi2::Domain::getTypeName<T>(), key, resourceBufferData, size);
+    }
+
+    template <typename T>
+    void modifiedEntity(const QByteArray &key, void *data, size_t size)
+    {
+        modifiedEntity(Akonadi2::Domain::getTypeName<T>(), key, data, size);
+    }
+
+    template <typename T>
+    void deletedEntity(const QByteArray &key)
+    {
+        deletedEntity(Akonadi2::Domain::getTypeName<T>(), key);
+    }
 
 Q_SIGNALS:
     void revisionUpdated();
@@ -61,6 +84,10 @@ private Q_SLOTS:
     void stepPipelines();
 
 private:
+    void setPreprocessors(const QString &entityType, Type pipelineType, const QVector<Preprocessor *> &preprocessors);
+    void newEntity(const QString &entityType, const QByteArray &key, void *resourceBufferData, size_t size);
+    void modifiedEntity(const QString &entityType, const QByteArray &key, void *data, size_t size);
+    void deletedEntity(const QString &entityType, const QByteArray &key);
     void pipelineStepped(const PipelineState &state);
     void pipelineCompleted(const PipelineState &state);
     void scheduleStep();

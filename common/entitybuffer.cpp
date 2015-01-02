@@ -18,6 +18,11 @@ EntityBuffer::EntityBuffer(void *dataValue, int dataSize)
     }
 }
 
+const Akonadi2::Entity &EntityBuffer::entity()
+{
+    return *mEntity;
+}
+
 const flatbuffers::Vector<uint8_t>* EntityBuffer::resourceBuffer()
 {
     if (!mEntity) {

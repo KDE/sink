@@ -33,6 +33,7 @@ public:
     DummyResource();
     Async::Job<void> synchronizeWithSource(Akonadi2::Pipeline *pipeline);
     void processCommand(int commandId, const QByteArray &data, uint size, Akonadi2::Pipeline *pipeline);
+    void configurePipeline(Akonadi2::Pipeline *pipeline);
 
 private:
     flatbuffers::FlatBufferBuilder m_fbb;
