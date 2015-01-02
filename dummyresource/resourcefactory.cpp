@@ -23,6 +23,7 @@
 #include "pipeline.h"
 #include "dummycalendar_generated.h"
 #include "metadata_generated.h"
+#include "domainadaptor.h"
 #include <QUuid>
 
 /*
@@ -101,14 +102,13 @@ DummyResource::DummyResource()
 
 void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
 {
+    auto factory = QSharedPointer<DummyEventAdaptorFactory>::create();
     //TODO setup preprocessors for each domain type and pipeline type allowing full customization
     //Eventually the order should be self configuring, for now it's hardcoded.
-    auto eventIndexer = new SimpleProcessor([](const Akonadi2::PipelineState &state) {
-        //FIXME
-        // auto adaptor = QSharedPointer<DummyEventAdaptor>::create();
-        // adaptor->mLocalBuffer = localBuffer;
-        // adaptor->mResourceBuffer = resourceBuffer;
-        // adaptor->storage = storage;
+    auto eventIndexer = new SimpleProcessor([factory](const Akonadi2::PipelineState &state) {
+        auto adaptor = factory->createAdaptor(state.entity());
+        //Here we can plug in generic preprocessors
+        qDebug() << adaptor->getProperty("summary").toString();
     });
     pipeline->setPreprocessors<Akonadi2::Domain::Event>(Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
 }

@@ -29,6 +29,8 @@
 #include <storage.h>
 #include <clientapi.h> //For domain types
 
+#include "entity_generated.h"
+
 namespace Akonadi2
 {
 
@@ -112,6 +114,7 @@ public:
     bool isIdle() const;
     QByteArray key() const;
     Pipeline::Type type() const;
+    const Akonadi2::Entity &entity() const;
 
     void step();
     void processingCompleted(Preprocessor *filter);

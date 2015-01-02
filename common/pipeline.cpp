@@ -189,6 +189,7 @@ public:
     Pipeline *pipeline;
     Pipeline::Type type;
     QByteArray key;
+    Akonadi2::Entity *entity;
     QVectorIterator<Preprocessor *> filterIt;
     bool idle;
 };
@@ -237,6 +238,11 @@ QByteArray PipelineState::key() const
 Pipeline::Type PipelineState::type() const
 {
     return d->type;
+}
+
+const Akonadi2::Entity &PipelineState::entity() const
+{
+    return *d->entity;
 }
 
 void PipelineState::step()

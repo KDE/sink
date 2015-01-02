@@ -21,62 +21,16 @@
 
 #include "common/clientapi.h"
 #include "common/storage.h"
+#include "resourcefactory.h"
 #include "entity_generated.h"
 #include "event_generated.h"
 #include "dummycalendar_generated.h"
+#include "common/domainadaptor.h"
 
 namespace Akonadi2 {
     class ResourceAccess;
 }
 
-/**
- * The property mapper holds accessor functions for all properties.
- *
- * It is by default initialized with accessors that access the local-only buffer,
- * and resource simply have to overwrite those accessors.
- */
-template<typename BufferType>
-class PropertyMapper
-{
-public:
-    void setProperty(const QString &key, const QVariant &value, BufferType *buffer)
-    {
-        if (mWriteAccessors.contains(key)) {
-            auto accessor = mWriteAccessors.value(key);
-            return accessor(value, buffer);
-        }
-    }
-
-    virtual QVariant getProperty(const QString &key, BufferType const *buffer) const
-    {
-        if (mReadAccessors.contains(key)) {
-            auto accessor = mReadAccessors.value(key);
-            return accessor(buffer);
-        }
-        return QVariant();
-    }
-    QHash<QString, std::function<QVariant(BufferType const *)> > mReadAccessors;
-    QHash<QString, std::function<void(const QVariant &, BufferType*)> > mWriteAccessors;
-};
-
-//The factory should define how to go from an entitybuffer (local + resource buffer), to a domain type adapter.
-//It defines how values are split accross local and resource buffer.
-//This is required by the facade the read the value, and by the pipeline preprocessors to access the domain values in a generic way.
-template<typename DomainType, typename LocalBuffer, typename ResourceBuffer>
-class DomainTypeAdaptorFactory
-{
-};
-
-template<typename LocalBuffer, typename ResourceBuffer>
-class DomainTypeAdaptorFactory<typename Akonadi2::Domain::Event, LocalBuffer, ResourceBuffer>
-{
-public:
-    QSharedPointer<Akonadi2::Domain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity);
-
-// private:
-    QSharedPointer<PropertyMapper<LocalBuffer> > mLocalMapper;
-    QSharedPointer<PropertyMapper<ResourceBuffer> > mResourceMapper;
-};
 
 class DummyResourceFacade : public Akonadi2::StoreFacade<Akonadi2::Domain::Event>
 {

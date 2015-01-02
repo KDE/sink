@@ -5,7 +5,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 generate_flatbuffers(dummycalendar)
 
-add_library(${PROJECT_NAME} SHARED facade.cpp resourcefactory.cpp)
+add_library(${PROJECT_NAME} SHARED facade.cpp resourcefactory.cpp domainadaptor.cpp)
 qt5_use_modules(${PROJECT_NAME} Core Network)
 target_link_libraries(${PROJECT_NAME} akonadi2common)
 

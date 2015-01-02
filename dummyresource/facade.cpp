@@ -28,92 +28,17 @@
 #include "event_generated.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
+#include "domainadaptor.h"
 #include <common/entitybuffer.h>
 
 using namespace DummyCalendar;
 using namespace flatbuffers;
 
-//This will become a generic implementation that simply takes the resource buffer and local buffer pointer
-class DummyEventAdaptor : public Akonadi2::Domain::BufferAdaptor
-{
-public:
-    DummyEventAdaptor()
-        : BufferAdaptor()
-    {
-
-    }
-
-    void setProperty(const QString &key, const QVariant &value)
-    {
-        if (mResourceMapper->mWriteAccessors.contains(key)) {
-            // mResourceMapper.setProperty(key, value, mResourceBuffer);
-        } else {
-            // mLocalMapper.;
-        }
-    }
-
-    virtual QVariant getProperty(const QString &key) const
-    {
-        if (mResourceBuffer && mResourceMapper->mReadAccessors.contains(key)) {
-            return mResourceMapper->getProperty(key, mResourceBuffer);
-        } else if (mLocalBuffer) {
-            return mLocalMapper->getProperty(key, mLocalBuffer);
-        }
-        return QVariant();
-    }
-
-    Akonadi2::Domain::Buffer::Event const *mLocalBuffer;
-    DummyEvent const *mResourceBuffer;
-
-    QSharedPointer<PropertyMapper<Akonadi2::Domain::Buffer::Event> > mLocalMapper;
-    QSharedPointer<PropertyMapper<DummyEvent> > mResourceMapper;
-};
-
-template<>
-QSharedPointer<Akonadi2::Domain::BufferAdaptor> DomainTypeAdaptorFactory<typename Akonadi2::Domain::Event, typename Akonadi2::Domain::Buffer::Event, DummyEvent>::createAdaptor(const Akonadi2::Entity &entity)
-{
-    DummyEvent const *resourceBuffer = 0;
-    if (auto resourceData = entity.resource()) {
-        flatbuffers::Verifier verifyer(resourceData->Data(), resourceData->size());
-        if (VerifyDummyEventBuffer(verifyer)) {
-            resourceBuffer = GetDummyEvent(resourceData);
-        }
-    }
-
-    Akonadi2::Metadata const *metadataBuffer = 0;
-    if (auto metadataData = entity.metadata()) {
-        flatbuffers::Verifier verifyer(metadataData->Data(), metadataData->size());
-        if (Akonadi2::VerifyMetadataBuffer(verifyer)) {
-            metadataBuffer = Akonadi2::GetMetadata(metadataData);
-        }
-    }
-
-    Akonadi2::Domain::Buffer::Event const *localBuffer = 0;
-    if (auto localData = entity.local()) {
-        flatbuffers::Verifier verifyer(localData->Data(), localData->size());
-        if (Akonadi2::Domain::Buffer::VerifyEventBuffer(verifyer)) {
-            localBuffer = Akonadi2::Domain::Buffer::GetEvent(localData);
-        }
-    }
-
-    auto adaptor = QSharedPointer<DummyEventAdaptor>::create();
-    adaptor->mLocalBuffer = localBuffer;
-    adaptor->mResourceBuffer = resourceBuffer;
-    adaptor->mResourceMapper = mResourceMapper;
-    adaptor->mLocalMapper = mLocalMapper;
-    return adaptor;
-}
-
 DummyResourceFacade::DummyResourceFacade()
     : Akonadi2::StoreFacade<Akonadi2::Domain::Event>(),
     mResourceAccess(new Akonadi2::ResourceAccess("org.kde.dummy")),
-    mFactory(new DomainTypeAdaptorFactory<Akonadi2::Domain::Event, Akonadi2::Domain::Buffer::Event, DummyCalendar::DummyEvent>())
+    mFactory(new DummyEventAdaptorFactory)
 {
-    auto mapper = QSharedPointer<PropertyMapper<DummyEvent> >::create();
-    mapper->mReadAccessors.insert("summary", [](DummyEvent const *buffer) -> QVariant {
-        return QString::fromStdString(buffer->summary()->c_str());
-    });
-    mFactory->mResourceMapper = mapper;
 }
 
 DummyResourceFacade::~DummyResourceFacade()
@@ -134,19 +59,6 @@ void DummyResourceFacade::remove(const Akonadi2::Domain::Event &domainObject)
 {
     //Create message buffer and send to resource
 }
-
-//Key.value property map using enum or strings with qvariant, or rather typesafe API?
-//typesafe is a shitload more work that we can avoid
-//
-//The Event base implementaiton could take a pointer to a single property mapper,
-//and a void pointer to the mmapped region. => event is copyable and stack allocatable and we avoid large amounts of heap allocated objects
-//-The mapper should in this case live in the other thread
-//-default property mapper implementation can answer "is property X supported?"
-//-how do we free/munmap the data if we don't know when no one references it any longer? => no munmap needed, but read transaction to keep pointer alive
-//-we could bind the lifetime to the query
-//=> perhaps do heap allocate and use smart pointer?
-//
-
 
 static std::function<bool(const std::string &key, DummyEvent const *buffer)> prepareQuery(const Akonadi2::Query &query)
 {
