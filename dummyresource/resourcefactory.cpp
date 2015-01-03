@@ -38,18 +38,19 @@
 class SimpleProcessor : public Akonadi2::Preprocessor
 {
 public:
-    SimpleProcessor(const std::function<void(const Akonadi2::PipelineState &state)> &f)
+    SimpleProcessor(const std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> &f)
         : Akonadi2::Preprocessor(),
         mFunction(f)
     {
     }
 
-    void process(const Akonadi2::PipelineState &state) {
-        mFunction(state);
+    void process(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e) {
+        mFunction(state, e);
+        processingCompleted(state);
     }
 
 protected:
-    std::function<void(const Akonadi2::PipelineState &state)> mFunction;
+    std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> mFunction;
 };
 
 // template <typename DomainType>
@@ -102,13 +103,12 @@ DummyResource::DummyResource()
 
 void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
 {
-    auto factory = QSharedPointer<DummyEventAdaptorFactory>::create();
+    auto eventFactory = QSharedPointer<DummyEventAdaptorFactory>::create();
     //TODO setup preprocessors for each domain type and pipeline type allowing full customization
     //Eventually the order should be self configuring, for now it's hardcoded.
-    auto eventIndexer = new SimpleProcessor([factory](const Akonadi2::PipelineState &state) {
-        auto adaptor = factory->createAdaptor(state.entity());
-        //Here we can plug in generic preprocessors
-        qDebug() << adaptor->getProperty("summary").toString();
+    auto eventIndexer = new SimpleProcessor([eventFactory](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
+        auto adaptor = eventFactory->createAdaptor(entity);
+        qDebug() << "Summary preprocessor: " << adaptor->getProperty("summary").toString();
     });
     pipeline->setPreprocessors<Akonadi2::Domain::Event>(Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
 }

@@ -114,7 +114,6 @@ public:
     bool isIdle() const;
     QByteArray key() const;
     Pipeline::Type type() const;
-    const Akonadi2::Entity &entity() const;
 
     void step();
     void processingCompleted(Preprocessor *filter);
@@ -130,7 +129,7 @@ public:
     Preprocessor();
     virtual ~Preprocessor();
 
-    virtual void process(PipelineState state);
+    virtual void process(PipelineState state, const Akonadi2::Entity &);
 
 protected:
     void processingCompleted(PipelineState state);

@@ -189,7 +189,6 @@ public:
     Pipeline *pipeline;
     Pipeline::Type type;
     QByteArray key;
-    Akonadi2::Entity *entity;
     QVectorIterator<Preprocessor *> filterIt;
     bool idle;
 };
@@ -240,11 +239,6 @@ Pipeline::Type PipelineState::type() const
     return d->type;
 }
 
-const Akonadi2::Entity &PipelineState::entity() const
-{
-    return *d->entity;
-}
-
 void PipelineState::step()
 {
     if (!d->pipeline) {
@@ -253,7 +247,11 @@ void PipelineState::step()
 
     d->idle = false;
     if (d->filterIt.hasNext()) {
-        d->filterIt.next()->process(*this);
+        d->pipeline->storage().scan(d->key.toStdString(), [this](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+            auto entity = Akonadi2::GetEntity(dataValue);
+            d->filterIt.next()->process(*this, *entity);
+            return false;
+        });
     } else {
         d->pipeline->pipelineCompleted(*this);
     }
@@ -276,7 +274,7 @@ Preprocessor::~Preprocessor()
 {
 }
 
-void Preprocessor::process(PipelineState state)
+void Preprocessor::process(PipelineState state, const Akonadi2::Entity &)
 {
     processingCompleted(state);
 }
