@@ -122,10 +122,10 @@ void findByRemoteId(QSharedPointer<Akonadi2::Storage> storage, const QString &ri
             return true;
         }
 
-        Akonadi2::EntityBuffer::extractResourceBuffer(dataValue, dataSize, [&](const flatbuffers::Vector<uint8_t> *buffer) {
-            flatbuffers::Verifier verifier(buffer->Data(), buffer->size());
+        Akonadi2::EntityBuffer::extractResourceBuffer(dataValue, dataSize, [&](const uint8_t *buffer, size_t size) {
+            flatbuffers::Verifier verifier(buffer, size);
             if (DummyCalendar::VerifyDummyEventBuffer(verifier)) {
-                DummyCalendar::DummyEvent const *resourceBuffer = DummyCalendar::GetDummyEvent(buffer->Data());
+                DummyCalendar::DummyEvent const *resourceBuffer = DummyCalendar::GetDummyEvent(buffer);
                 if (resourceBuffer && resourceBuffer->remoteId()) {
                     if (std::string(resourceBuffer->remoteId()->c_str(), resourceBuffer->remoteId()->size()) == ridString) {
                         callback(keyValue, keySize, dataValue, dataSize);

@@ -178,8 +178,27 @@ namespace Domain {
  */
 class BufferAdaptor {
 public:
-    virtual QVariant getProperty(const QString &key) { return QVariant(); }
+    virtual QVariant getProperty(const QString &key) const { return QVariant(); }
     virtual void setProperty(const QString &key, const QVariant &value) {}
+    virtual QStringList availableProperties() const { return QStringList(); }
+};
+
+class MemoryBufferAdaptor : public BufferAdaptor {
+public:
+    MemoryBufferAdaptor(const BufferAdaptor &buffer)
+        : BufferAdaptor()
+    {
+        for(const auto &property : buffer.availableProperties()) {
+            mValues.insert(property, buffer.getProperty(property));
+        }
+    }
+
+    virtual QVariant getProperty(const QString &key) const { return mValues.value(key); }
+    virtual void setProperty(const QString &key, const QVariant &value) { mValues.insert(key, value); }
+    virtual QStringList availableProperties() const { return mValues.keys(); }
+
+private:
+    QHash<QString, QVariant> mValues;
 };
 
 /**

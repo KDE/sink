@@ -39,7 +39,7 @@ private Q_SLOTS:
         result.exec();
         QVERIFY(!result.isEmpty());
         auto value = result.first();
-        qDebug() << value->getProperty("summary");
+        QVERIFY(!value->getProperty("summary").toString().isEmpty());
     }
 
 };

@@ -9,12 +9,12 @@ class Entity;
 class EntityBuffer {
 public:
     EntityBuffer(void *dataValue, int size);
-    const flatbuffers::Vector<uint8_t> *resourceBuffer();
-    const flatbuffers::Vector<uint8_t> *metadataBuffer();
-    const flatbuffers::Vector<uint8_t> *localBuffer();
+    const uint8_t *resourceBuffer();
+    const uint8_t *metadataBuffer();
+    const uint8_t *localBuffer();
     const Entity &entity();
 
-    static void extractResourceBuffer(void *dataValue, int dataSize, const std::function<void(const flatbuffers::Vector<uint8_t> *)> &handler);
+    static void extractResourceBuffer(void *dataValue, int dataSize, const std::function<void(const uint8_t *, size_t size)> &handler);
     static void assembleEntityBuffer(flatbuffers::FlatBufferBuilder &fbb, void *metadataData, size_t metadataSize, void *resourceData, size_t resourceSize, void *localData, size_t localSize);
 
 private:

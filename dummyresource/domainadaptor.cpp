@@ -46,6 +46,14 @@ public:
         return QVariant();
     }
 
+    virtual QStringList availableProperties() const
+    {
+        QStringList props;
+        props << mResourceMapper->mReadAccessors.keys();
+        props << mLocalMapper->mReadAccessors.keys();
+        return props;
+    }
+
     Akonadi2::Domain::Buffer::Event const *mLocalBuffer;
     DummyEvent const *mResourceBuffer;
 
@@ -65,13 +73,14 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
 
 }
 
+//TODO pass EntityBuffer instead?
 QSharedPointer<Akonadi2::Domain::BufferAdaptor> DummyEventAdaptorFactory::createAdaptor(const Akonadi2::Entity &entity)
 {
     DummyEvent const *resourceBuffer = 0;
     if (auto resourceData = entity.resource()) {
         flatbuffers::Verifier verifyer(resourceData->Data(), resourceData->size());
         if (VerifyDummyEventBuffer(verifyer)) {
-            resourceBuffer = GetDummyEvent(resourceData);
+            resourceBuffer = GetDummyEvent(resourceData->Data());
         }
     }
 

@@ -17,6 +17,7 @@ manual_tests (
     storagebenchmark
     storagetest
     dummyresourcetest
+    domainadaptortest
 )
 
 target_link_libraries(dummyresourcetest akonadi2_resource_dummy)

@@ -128,7 +128,7 @@ void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function
             Akonadi2::EntityBuffer buffer(dataValue, dataSize);
 
             DummyEvent const *resourceBuffer = 0;
-            if (auto resourceData = buffer.resourceBuffer()) {
+            if (auto resourceData = buffer.entity().resource()) {
                 flatbuffers::Verifier verifyer(resourceData->Data(), resourceData->size());
                 if (VerifyDummyEventBuffer(verifyer)) {
                     resourceBuffer = GetDummyEvent(resourceData);
@@ -136,7 +136,7 @@ void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function
             }
 
             Akonadi2::Metadata const *metadataBuffer = 0;
-            if (auto metadataData = buffer.metadataBuffer()) {
+            if (auto metadataData = buffer.entity().metadata()) {
                 flatbuffers::Verifier verifyer(metadataData->Data(), metadataData->size());
                 if (Akonadi2::VerifyMetadataBuffer(verifyer)) {
                     metadataBuffer = Akonadi2::GetMetadata(metadataData);
@@ -153,7 +153,9 @@ void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function
             if (preparedQuery && preparedQuery(std::string(static_cast<char*>(keyValue), keySize), resourceBuffer)) {
                 qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
                 auto adaptor = mFactory->createAdaptor(buffer.entity());
-                auto event = QSharedPointer<Akonadi2::Domain::Event>::create("org.kde.dummy", QString::fromUtf8(static_cast<char*>(keyValue), keySize), revision, adaptor);
+                //TODO only copy requested properties
+                auto memoryAdaptor = QSharedPointer<Akonadi2::Domain::MemoryBufferAdaptor>::create(*adaptor);
+                auto event = QSharedPointer<Akonadi2::Domain::Event>::create("org.kde.dummy", QString::fromUtf8(static_cast<char*>(keyValue), keySize), revision, memoryAdaptor);
                 resultCallback(event);
             }
             return true;

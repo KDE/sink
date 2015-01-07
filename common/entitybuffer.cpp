@@ -23,36 +23,36 @@ const Akonadi2::Entity &EntityBuffer::entity()
     return *mEntity;
 }
 
-const flatbuffers::Vector<uint8_t>* EntityBuffer::resourceBuffer()
+const uint8_t* EntityBuffer::resourceBuffer()
 {
     if (!mEntity) {
         qDebug() << "no buffer";
         return nullptr;
     }
-    return mEntity->resource();
+    return mEntity->resource()->Data();
 }
 
-const flatbuffers::Vector<uint8_t>* EntityBuffer::metadataBuffer()
+const uint8_t* EntityBuffer::metadataBuffer()
 {
     if (!mEntity) {
         return nullptr;
     }
-    return mEntity->metadata();
+    return mEntity->metadata()->Data();
 }
 
-const flatbuffers::Vector<uint8_t>* EntityBuffer::localBuffer()
+const uint8_t* EntityBuffer::localBuffer()
 {
     if (!mEntity) {
         return nullptr;
     }
-    return mEntity->local();
+    return mEntity->local()->Data();
 }
 
-void EntityBuffer::extractResourceBuffer(void *dataValue, int dataSize, const std::function<void(const flatbuffers::Vector<uint8_t> *)> &handler)
+void EntityBuffer::extractResourceBuffer(void *dataValue, int dataSize, const std::function<void(const uint8_t *, size_t size)> &handler)
 {
     Akonadi2::EntityBuffer buffer(dataValue, dataSize);
-    if (auto resourceData = buffer.resourceBuffer()) {
-        handler(resourceData);
+    if (auto resourceData = buffer.entity().resource()) {
+        handler(resourceData->Data(), resourceData->size());
     }
 }
 
