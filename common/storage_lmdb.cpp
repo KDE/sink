@@ -333,19 +333,28 @@ void Storage::scan(const char *keyData, uint keySize,
 
 void Storage::remove(void const *keyData, uint keySize)
 {
+    remove(keyData, keySize, basicErrorHandler());
+}
+
+void Storage::remove(void const *keyData, uint keySize, const std::function<void(const Storage::Error &error)> &errorHandler)
+{
     if (!d->env) {
+        Error error(d->name.toStdString(), -1, "Not open");
+        errorHandler(error);
         return;
     }
 
     if (d->mode == ReadOnly) {
-        std::cerr << "tried to write in read-only mode." << std::endl;
+        Error error(d->name.toStdString(), -3, "Tried to write in read-only mode");
+        errorHandler(error);
         return;
     }
 
     const bool implicitTransaction = !d->transaction || d->readTransaction;
     if (implicitTransaction) {
-        // TODO: if this fails, still try the write below?
         if (!startTransaction()) {
+            Error error(d->name.toStdString(), -2, "Could not start transaction");
+            errorHandler(error);
             return;
         }
     }
@@ -357,7 +366,8 @@ void Storage::remove(void const *keyData, uint keySize)
     rc = mdb_del(d->transaction, d->dbi, &key, 0);
 
     if (rc) {
-        std::cerr << "mdb_del: " << rc << " " << mdb_strerror(rc) << std::endl;
+        Error error(d->name.toStdString(), -1, QString("Error on mdb_del: %1 %2").arg(rc).arg(mdb_strerror(rc)).toStdString());
+        errorHandler(error);
     }
 
     if (implicitTransaction) {

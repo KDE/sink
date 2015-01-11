@@ -68,6 +68,8 @@ public:
               const std::function<bool(void *keyPtr, int keySize, void *ptr, int size)> &resultHandler,
               const std::function<void(const Storage::Error &error)> &errorHandler);
     void remove(void const *keyData, uint keySize);
+    void remove(void const *keyData, uint keySize,
+                const std::function<void(const Storage::Error &error)> &errorHandler);
 
     static std::function<void(const Storage::Error &error)> basicErrorHandler();
     qint64 diskUsage() const;

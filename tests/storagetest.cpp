@@ -120,6 +120,19 @@ private Q_SLOTS:
         storage.removeFromDisk();
     }
 
+    void testTurnReadToWrite()
+    {
+        populate(3);
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        store.scan("key1", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+            store.remove(keyValue, keySize, [](const Akonadi2::Storage::Error &) {
+                QVERIFY(false);
+            });
+            return false;
+        });
+        store.removeFromDisk();
+    }
+
     void testConcurrentRead()
     {
         const int count = 10000;
