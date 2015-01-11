@@ -30,6 +30,7 @@ set(command_SRCS
     resourceaccess.cpp
     storage_common.cpp
     threadboundary.cpp
+    messagequeue.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})
