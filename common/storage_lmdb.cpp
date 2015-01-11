@@ -52,9 +52,11 @@ public:
     bool readTransaction;
     bool firstOpen;
     static QMutex sMutex;
+    static QHash<QString, MDB_env*> sEnvironments;
 };
 
 QMutex Storage::Private::sMutex;
+QHash<QString, MDB_env*> Storage::Private::sEnvironments;
 
 Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
     : storageRoot(s),
@@ -70,23 +72,30 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
     dir.mkpath(storageRoot);
     dir.mkdir(fullPath);
 
-    //This seems to resolve threading related issues, not sure why though
+    //Ensure the environment is only created once
     QMutexLocker locker(&sMutex);
 
-    //create file
-    if (mdb_env_create(&env)) {
-        // TODO: handle error
-    } else {
-        int rc = mdb_env_open(env, fullPath.toStdString().data(), 0, 0664);
-
-        if (rc) {
-            std::cerr << "mdb_env_open: " << rc << " " << mdb_strerror(rc) << std::endl;
-            mdb_env_close(env);
-            env = 0;
+    int rc = 0;
+    /*
+     * It seems we can only ever have one environment open in the process. 
+     * Otherwise multi-threading breaks.
+     */
+    env = sEnvironments.value(fullPath);
+    if (!env) {
+        if ((rc = mdb_env_create(&env))) {
+            // TODO: handle error
+            std::cerr << "mdb_env_create: " << rc << " " << mdb_strerror(rc) << std::endl;
         } else {
-            //FIXME: dynamic resize
-            const size_t dbSize = (size_t)10485760 * (size_t)100 * (size_t)80; //10MB * 800
-            mdb_env_set_mapsize(env, dbSize);
+            if ((rc = mdb_env_open(env, fullPath.toStdString().data(), 0, 0664))) {
+                std::cerr << "mdb_env_open: " << rc << " " << mdb_strerror(rc) << std::endl;
+                mdb_env_close(env);
+                env = 0;
+            } else {
+                //FIXME: dynamic resize
+                const size_t dbSize = (size_t)10485760 * (size_t)100 * (size_t)80; //10MB * 800
+                mdb_env_set_mapsize(env, dbSize);
+                sEnvironments.insert(fullPath, env);
+            }
         }
     }
 }
@@ -97,11 +106,12 @@ Storage::Private::~Private()
         mdb_txn_abort(transaction);
     }
 
-    // it is still there and still unused, so we can shut it down
-    if (env) {
-        mdb_dbi_close(env, dbi);
-        mdb_env_close(env);
-    }
+    //Since we can have only one environment open per process, we currently leak the environments.
+    // if (env) {
+    //     //mdb_dbi_close should not be necessary and is potentially dangerous (see docs)
+    //     mdb_dbi_close(env, dbi);
+    //     mdb_env_close(env);
+    // }
 }
 
 Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode)
@@ -292,7 +302,7 @@ void Storage::scan(const char *keyData, uint keySize,
 
     rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
     if (rc) {
-        Error error(d->name.toStdString(), rc, mdb_strerror(rc));
+        Error error(d->name.toStdString(), rc, std::string("Error during mdb_cursor open: ") + mdb_strerror(rc));
         errorHandler(error);
         return;
     }
@@ -314,15 +324,13 @@ void Storage::scan(const char *keyData, uint keySize,
     } else {
         if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_SET)) == 0) {
             resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size);
-        } else {
-            std::cout << "couldn't find value " << std::string(keyData, keySize) << std::endl;
         }
     }
 
     mdb_cursor_close(cursor);
 
     if (rc) {
-        Error error(d->name.toStdString(), rc, mdb_strerror(rc));
+        Error error(d->name.toStdString(), rc, std::string("Key: ") + std::string(keyData, keySize) + " : " + mdb_strerror(rc));
         errorHandler(error);
     }
 

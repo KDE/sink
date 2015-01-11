@@ -46,8 +46,11 @@ private:
                 }
                 return keyMatch;
             },
-            [&success](const Akonadi2::Storage::Error &) { success = false; }
-            );
+            [&success](const Akonadi2::Storage::Error &error) {
+                qDebug() << QString::fromStdString(error.message);
+                success = false;
+            }
+        );
         return success && keyMatch;
     }
 
@@ -138,29 +141,36 @@ private Q_SLOTS:
         const int count = 10000;
 
         populate(count);
+        // QTest::qWait(500);
 
-        bool error = false;
-        //Try to concurrently read
-        QList<QFuture<void> > futures;
-        const int concurrencyLevel = 10;
-        for (int num = 0; num < concurrencyLevel; num++) {
-            futures << QtConcurrent::run([this, count, &error](){
-                Akonadi2::Storage storage(testDataPath, dbName);
-                for (int i = 0; i < count; i++) {
-                    if (!verify(storage, i)) {
-                        error = true;
-                        break;
+        //We repeat the test a bunch of times since failing is relatively random
+        for (int tries = 0; tries < 10; tries++) {
+            bool error = false;
+            //Try to concurrently read
+            QList<QFuture<void> > futures;
+            const int concurrencyLevel = 20;
+            for (int num = 0; num < concurrencyLevel; num++) {
+                futures << QtConcurrent::run([this, count, &error](){
+                    Akonadi2::Storage storage(testDataPath, dbName, Akonadi2::Storage::ReadOnly);
+                    Akonadi2::Storage storage2(testDataPath, dbName + "2", Akonadi2::Storage::ReadOnly);
+                    for (int i = 0; i < count; i++) {
+                        if (!verify(storage, i)) {
+                            error = true;
+                            break;
+                        }
                     }
-                }
-            });
+                });
+            }
+            for(auto future : futures) {
+                future.waitForFinished();
+            }
+            QVERIFY(!error);
         }
-        for(auto future : futures) {
-            future.waitForFinished();
-        }
-        QVERIFY(!error);
 
-        Akonadi2::Storage storage(testDataPath, dbName);
-        storage.removeFromDisk();
+        {
+            Akonadi2::Storage storage(testDataPath, dbName);
+            storage.removeFromDisk();
+        }
     }
 };
 
