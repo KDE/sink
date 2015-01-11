@@ -160,6 +160,7 @@ bool Storage::startTransaction(AccessMode type)
     }
 
     d->firstOpen = false;
+    d->readTransaction = requestedRead;
     return !rc;
 }
 
