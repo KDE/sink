@@ -331,6 +331,46 @@ void Storage::scan(const char *keyData, uint keySize,
     }
 }
 
+void Storage::remove(void const *keyData, uint keySize)
+{
+    if (!d->env) {
+        return;
+    }
+
+    if (d->mode == ReadOnly) {
+        std::cerr << "tried to write in read-only mode." << std::endl;
+        return;
+    }
+
+    const bool implicitTransaction = !d->transaction || d->readTransaction;
+    if (implicitTransaction) {
+        // TODO: if this fails, still try the write below?
+        if (!startTransaction()) {
+            return;
+        }
+    }
+
+    int rc;
+    MDB_val key;
+    key.mv_size = keySize;
+    key.mv_data = const_cast<void*>(keyData);
+    rc = mdb_del(d->transaction, d->dbi, &key, 0);
+
+    if (rc) {
+        std::cerr << "mdb_del: " << rc << " " << mdb_strerror(rc) << std::endl;
+    }
+
+    if (implicitTransaction) {
+        if (rc) {
+            abortTransaction();
+        } else {
+            rc = commitTransaction();
+        }
+    }
+
+    return;
+}
+
 qint64 Storage::diskUsage() const
 {
     QFileInfo info(d->storageRoot + '/' + d->name + "/data.mdb");
