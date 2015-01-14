@@ -15,12 +15,13 @@ void MessageQueue::enqueue(void const *msg, size_t size)
     mStorage.write(key.data(), key.size(), msg, size);
     mStorage.setMaxRevision(revision);
     mStorage.commitTransaction();
+    emit messageReady();
 }
 
 void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::function<void(bool success)>)> &resultHandler,
                            const std::function<void(const Error &error)> &errorHandler)
 {
-    mStorage.scan("", [this, resultHandler](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
+    mStorage.scan("", 0, [this, resultHandler](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
         const std::string key(static_cast<char*>(keyPtr), keySize);
         resultHandler(valuePtr, valueSize, [this, key](bool success) {
             if (success) {
@@ -30,7 +31,12 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
             }
         });
         return false;
-    });
+    },
+    [errorHandler](const Akonadi2::Storage::Error &error) {
+        qDebug() << "Error while retrieving value" << QString::fromStdString(error.message);
+        errorHandler(Error(error.store, error.code, error.message));
+    }
+    );
 }
 
 bool MessageQueue::isEmpty()

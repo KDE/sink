@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QObject>
 #include <string>
 #include <functional>
 #include <QString>
@@ -8,7 +9,9 @@
 /**
  * A persistent FIFO message queue.
  */
-class MessageQueue {
+class MessageQueue : public QObject
+{
+    Q_OBJECT
 public:
     class Error
     {
@@ -29,6 +32,9 @@ public:
     void dequeue(const std::function<void(void *ptr, int size, std::function<void(bool success)>)> & resultHandler,
               const std::function<void(const Error &error)> &errorHandler);
     bool isEmpty();
+signals:
+    void messageReady();
+
 private:
     Akonadi2::Storage mStorage;
 };

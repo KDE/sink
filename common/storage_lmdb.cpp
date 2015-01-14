@@ -308,17 +308,19 @@ void Storage::scan(const char *keyData, uint keySize,
     }
 
     if (!keyData || keySize == 0) {
+        bool gotResult = false;
         if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST)) == 0 &&
             resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
             while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+                gotResult = true;
                 if (!resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
                     break;
                 }
             }
         }
 
-        //We never find the last value
-        if (rc == MDB_NOTFOUND) {
+        //We never find the last value, but ensure we got at least one.
+        if (gotResult && rc == MDB_NOTFOUND) {
             rc = 0;
         }
     } else {
