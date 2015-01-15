@@ -218,7 +218,6 @@ bool Storage::write(void const *keyPtr, size_t keySize, void const *valuePtr, si
 
     const bool implicitTransaction = !d->transaction || d->readTransaction;
     if (implicitTransaction) {
-        // TODO: if this fails, still try the write below?
         if (!startTransaction()) {
             return false;
         }
@@ -292,7 +291,6 @@ void Storage::scan(const char *keyData, uint keySize,
 
     const bool implicitTransaction = !d->transaction;
     if (implicitTransaction) {
-        // TODO: if this fails, still try the write below?
         if (!startTransaction(ReadOnly)) {
             Error error(d->name.toStdString(), -2, "Could not start transaction");
             errorHandler(error);
@@ -308,19 +306,18 @@ void Storage::scan(const char *keyData, uint keySize,
     }
 
     if (!keyData || keySize == 0) {
-        bool gotResult = false;
-        if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST)) == 0 &&
-            resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
-            while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-                gotResult = true;
-                if (!resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
-                    break;
+        if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST)) == 0) {
+            if (resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
+                while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+                    if (!resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
+                        break;
+                    }
                 }
             }
         }
 
         //We never find the last value, but ensure we got at least one.
-        if (gotResult && rc == MDB_NOTFOUND) {
+        if (rc == MDB_NOTFOUND) {
             rc = 0;
         }
     } else {
@@ -400,8 +397,11 @@ qint64 Storage::diskUsage() const
 void Storage::removeFromDisk() const
 {
     QDir dir(d->storageRoot + '/' + d->name);
-    dir.remove("data.mdb");
-    dir.remove("lock.mdb");
+    // dir.remove("data.mdb");
+    // dir.remove("lock.mdb");
+    if (!dir.removeRecursively()) {
+        qWarning() << "Failed to remove directory" << d->storageRoot << d->name;
+    }
 }
 
 } // namespace Akonadi2

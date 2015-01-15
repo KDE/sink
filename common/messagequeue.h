@@ -36,5 +36,6 @@ signals:
     void messageReady();
 
 private:
+    Q_DISABLE_COPY(MessageQueue);
     Akonadi2::Storage mStorage;
 };
