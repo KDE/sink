@@ -21,11 +21,14 @@
 
 #include "common/resource.h"
 #include "async/src/async.h"
+#include "common/messagequeue.h"
 
 #include <flatbuffers/flatbuffers.h>
 
 //TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
 #define PLUGIN_NAME "org.kde.dummy"
+
+class Processor;
 
 class DummyResource : public Akonadi2::Resource
 {
@@ -37,6 +40,9 @@ public:
 
 private:
     flatbuffers::FlatBufferBuilder m_fbb;
+    MessageQueue mUserQueue;
+    MessageQueue mSynchronizerQueue;
+    Processor *mProcessor;
 };
 
 class DummyResourceFactory : public Akonadi2::ResourceFactory

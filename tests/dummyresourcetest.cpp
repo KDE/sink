@@ -2,8 +2,21 @@
 
 #include <QString>
 
+// #include "dummycalendar_generated.h"
+#include "event_generated.h"
+#include "entity_generated.h"
+#include "metadata_generated.h"
+#include "createentity_generated.h"
 #include "dummyresource/resourcefactory.h"
 #include "clientapi.h"
+#include "commands.h"
+#include "entitybuffer.h"
+
+static void removeFromDisk(const QString &name)
+{
+    Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy", Akonadi2::Storage::ReadWrite);
+    store.removeFromDisk();
+}
 
 class DummyResourceTest : public QObject
 {
@@ -13,34 +26,70 @@ private Q_SLOTS:
     {
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
-        Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy", Akonadi2::Storage::ReadWrite);
-        store.removeFromDisk();
+        removeFromDisk("org.kde.dummy");
+        removeFromDisk("org.kde.dummy.userqueue");
+        removeFromDisk("org.kde.dummy.synchronizerqueue");
     }
 
     void cleanupTestCase()
     {
     }
 
-    void testResource()
+    void testProcessCommand()
     {
+        flatbuffers::FlatBufferBuilder eventFbb;
+        eventFbb.Clear();
+        {
+            auto summary = eventFbb.CreateString("summary");
+            Akonadi2::Domain::Buffer::EventBuilder eventBuilder(eventFbb);
+            eventBuilder.add_summary(summary);
+            auto eventLocation = eventBuilder.Finish();
+            Akonadi2::Domain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
+        }
+
+        flatbuffers::FlatBufferBuilder entityFbb;
+        Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), 0, 0);
+
+        flatbuffers::FlatBufferBuilder fbb;
+        auto type = fbb.CreateString(Akonadi2::Domain::getTypeName<Akonadi2::Domain::Event>().toStdString().data());
+        auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
+        Akonadi2::Commands::CreateEntityBuilder builder(fbb);
+        builder.add_domainType(type);
+        builder.add_delta(delta);
+        auto location = builder.Finish();
+        Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+
+        const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
+
         Akonadi2::Pipeline pipeline("org.kde.dummy");
         DummyResource resource;
-        auto job = resource.synchronizeWithSource(&pipeline);
-        auto future = job.exec();
-        QTRY_VERIFY(future.isFinished());
+        resource.configurePipeline(&pipeline);
+        resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, command.size(), &pipeline);
+        //TODO wait until the pipeline has processed the command
+        QTest::qWait(1000);
     }
 
-    void testSyncAndFacade()
-    {
-        Akonadi2::Query query;
-        query.resources << "org.kde.dummy";
+    // void testResourceSync()
+    // {
+    //     Akonadi2::Pipeline pipeline("org.kde.dummy");
+    //     DummyResource resource;
+    //     auto job = resource.synchronizeWithSource(&pipeline);
+    //     auto future = job.exec();
+    //     QTRY_VERIFY(future.isFinished());
+    // }
 
-        async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
-        result.exec();
-        QVERIFY(!result.isEmpty());
-        auto value = result.first();
-        QVERIFY(!value->getProperty("summary").toString().isEmpty());
-    }
+    // void testSyncAndFacade()
+    // {
+    //     Akonadi2::Query query;
+    //     query.resources << "org.kde.dummy";
+
+    //     async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
+    //     result.exec();
+    //     QVERIFY(!result.isEmpty());
+    //     auto value = result.first();
+    //     QVERIFY(!value->getProperty("summary").toString().isEmpty());
+    //     qDebug() << value->getProperty("summary").toString();
+    // }
 
 };
 

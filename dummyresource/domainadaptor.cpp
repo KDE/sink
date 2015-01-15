@@ -29,8 +29,8 @@ public:
 
     void setProperty(const QString &key, const QVariant &value)
     {
-        if (mResourceMapper->mWriteAccessors.contains(key)) {
-            // mResourceMapper.setProperty(key, value, mResourceBuffer);
+        if (mResourceMapper && mResourceMapper->mWriteAccessors.contains(key)) {
+            // mResourceMapper->setProperty(key, value, mResourceBuffer);
         } else {
             // mLocalMapper.;
         }
@@ -69,6 +69,7 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
     mResourceMapper->mReadAccessors.insert("summary", [](DummyEvent const *buffer) -> QVariant {
         return QString::fromStdString(buffer->summary()->c_str());
     });
+    mLocalMapper = QSharedPointer<PropertyMapper<Akonadi2::Domain::Buffer::Event> >::create();
     //TODO set accessors for all properties
 
 }

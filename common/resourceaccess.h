@@ -43,7 +43,7 @@ public:
 
     //TODO use jobs
     void sendCommand(int commandId, const std::function<void()> &callback = std::function<void()>());
-    void sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb, const std::function<void()> &callback);
+    void sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb, const std::function<void()> &callback = std::function<void()>());
     Async::Job<void> synchronizeResource();
 
 public Q_SLOTS:

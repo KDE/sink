@@ -23,10 +23,13 @@
 #include <QByteArray>
 #include <QStandardPaths>
 #include <QVector>
+#include <QUuid>
 #include <QDebug>
 #include "entity_generated.h"
 #include "metadata_generated.h"
+#include "createentity_generated.h"
 #include "entitybuffer.h"
+#include "async/src/async.h"
 
 namespace Akonadi2
 {
@@ -90,39 +93,59 @@ void Pipeline::null()
     // state.step();
 }
 
-void Pipeline::newEntity(const QString &entityType, const QByteArray &key, void *resourceBufferData, size_t size)
+Async::Job<void> Pipeline::newEntity(void const *command, size_t size)
 {
-    const qint64 newRevision = storage().maxRevision() + 1;
+    qDebug() << "new entity";
+    Async::start<void>([&](Async::Future<void> future) {
 
-    //Add metadata buffer
-    flatbuffers::FlatBufferBuilder metadataFbb;
-    auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
-    metadataBuilder.add_revision(newRevision);
-    metadataBuilder.add_processed(false);
-    auto metadataBuffer = metadataBuilder.Finish();
-    Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
+        //TODO toRFC4122 would probably be more efficient, but results in non-printable keys.
+        const auto key = QUuid::createUuid().toString().toUtf8();
 
-    flatbuffers::FlatBufferBuilder fbb;
-    EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), resourceBufferData, size, 0, 0);
+        //TODO figure out if we already have created a revision for the message?
+        const qint64 newRevision = storage().maxRevision() + 1;
 
-    storage().write(key.data(), key.size(), fbb.GetBufferPointer(), fbb.GetSize());
-    storage().setMaxRevision(newRevision);
+        auto createEntity = Akonadi2::Commands::GetCreateEntity(command);
+        //TODO rename createEntitiy->domainType to bufferType
+        const QString entityType = QString::fromUtf8(reinterpret_cast<char const*>(createEntity->domainType()->Data()), createEntity->domainType()->size());
+        auto entity = Akonadi2::GetEntity(createEntity->delta()->Data());
+        //
+        // const QString entityType;
+        // auto entity = Akonadi2::GetEntity(0);
 
-    PipelineState state(this, NewPipeline, key, d->newPipeline[entityType]);
-    d->activePipelines << state;
-    state.step();
+        //Add metadata buffer
+        flatbuffers::FlatBufferBuilder metadataFbb;
+        auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
+        metadataBuilder.add_revision(newRevision);
+        metadataBuilder.add_processed(false);
+        auto metadataBuffer = metadataBuilder.Finish();
+        Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
+        //TODO we should reserve some space in metadata for in-place updates
+
+        flatbuffers::FlatBufferBuilder fbb;
+        EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), entity->resource()->Data(), entity->resource()->size(), entity->local()->Data(), entity->local()->size());
+
+        storage().write(key.data(), key.size(), fbb.GetBufferPointer(), fbb.GetSize());
+        storage().setMaxRevision(newRevision);
+
+        PipelineState state(this, NewPipeline, key, d->newPipeline[entityType], [&future]() {
+            future.setFinished();
+        });
+        d->activePipelines << state;
+        state.step();
+
+    });
 }
 
 void Pipeline::modifiedEntity(const QString &entityType, const QByteArray &key, void *data, size_t size)
 {
-    PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline[entityType]);
+    PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline[entityType], [](){});
     d->activePipelines << state;
     state.step();
 }
 
 void Pipeline::deletedEntity(const QString &entityType, const QByteArray &key)
 {
-    PipelineState state(this, DeletedPipeline, key, d->deletedPipeline[entityType]);
+    PipelineState state(this, DeletedPipeline, key, d->deletedPipeline[entityType], [](){});
     d->activePipelines << state;
     state.step();
 }
@@ -160,6 +183,7 @@ void Pipeline::pipelineCompleted(const PipelineState &state)
     }
 
     if (state.type() != NullPipeline) {
+        //TODO what revision is finalized?
         emit revisionUpdated();
     }
     scheduleStep();
@@ -172,12 +196,13 @@ void Pipeline::pipelineCompleted(const PipelineState &state)
 class PipelineState::Private : public QSharedData
 {
 public:
-    Private(Pipeline *p, Pipeline::Type t, const QByteArray &k, QVector<Preprocessor *> filters)
+    Private(Pipeline *p, Pipeline::Type t, const QByteArray &k, QVector<Preprocessor *> filters, const std::function<void()> &c)
         : pipeline(p),
           type(t),
           key(k),
           filterIt(filters),
-          idle(true)
+          idle(true),
+          callback(c)
     {}
 
     Private()
@@ -191,6 +216,7 @@ public:
     QByteArray key;
     QVectorIterator<Preprocessor *> filterIt;
     bool idle;
+    std::function<void()> callback;
 };
 
 PipelineState::PipelineState()
@@ -199,8 +225,8 @@ PipelineState::PipelineState()
 
 }
 
-PipelineState::PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters)
-    : d(new Private(pipeline, type, key, filters))
+PipelineState::PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters, const std::function<void()> &callback)
+    : d(new Private(pipeline, type, key, filters, callback))
 {
 }
 
@@ -247,6 +273,7 @@ void PipelineState::step()
 
     d->idle = false;
     if (d->filterIt.hasNext()) {
+        //TODO skip step if already processed
         d->pipeline->storage().scan(d->key.toStdString(), [this](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
             auto entity = Akonadi2::GetEntity(dataValue);
             d->filterIt.next()->process(*this, *entity);
@@ -254,11 +281,13 @@ void PipelineState::step()
         });
     } else {
         d->pipeline->pipelineCompleted(*this);
+        d->callback();
     }
 }
 
 void PipelineState::processingCompleted(Preprocessor *filter)
 {
+    //TODO record processing progress
     if (d->pipeline && filter == d->filterIt.peekPrevious()) {
         d->idle = true;
         d->pipeline->pipelineStepped(*this);

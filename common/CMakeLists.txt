@@ -10,6 +10,7 @@ generate_flatbuffers(
     domain/event
     entity
     metadata
+    queuedcommand
 )
 
 if (STORAGE_unqlite)

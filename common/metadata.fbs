@@ -3,6 +3,7 @@ namespace Akonadi2;
 table Metadata {
     revision: ulong;
     processed: bool = true;
+    processingProgress: [string];
 }
 
 root_type Metadata;

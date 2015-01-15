@@ -28,6 +28,7 @@
 #include "event_generated.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
+#include "createentity_generated.h"
 #include "domainadaptor.h"
 #include <common/entitybuffer.h>
 
@@ -48,6 +49,29 @@ DummyResourceFacade::~DummyResourceFacade()
 void DummyResourceFacade::create(const Akonadi2::Domain::Event &domainObject)
 {
     //Create message buffer and send to resource
+    flatbuffers::FlatBufferBuilder eventFbb;
+    eventFbb.Clear();
+    {
+        auto summary = eventFbb.CreateString("summary");
+        // auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize);
+        DummyCalendar::DummyEventBuilder eventBuilder(eventFbb);
+        eventBuilder.add_summary(summary);
+        auto eventLocation = eventBuilder.Finish();
+        DummyCalendar::FinishDummyEventBuffer(eventFbb, eventLocation);
+        // memcpy((void*)DummyCalendar::GetDummyEvent(fbb.GetBufferPointer())->attachment()->Data(), rawData, attachmentSize);
+    }
+    flatbuffers::FlatBufferBuilder entityFbb;
+    Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), 0, 0);
+
+    flatbuffers::FlatBufferBuilder fbb;
+    auto type = fbb.CreateString(Akonadi2::Domain::getTypeName<Akonadi2::Domain::Event>().toStdString().data());
+    auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
+    Akonadi2::Commands::CreateEntityBuilder builder(fbb);
+    builder.add_domainType(type);
+    builder.add_delta(delta);
+    auto location = builder.Finish();
+    Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+    mResourceAccess->sendCommand(Akonadi2::Commands::CreateEntityCommand, fbb);
 }
 
 void DummyResourceFacade::modify(const Akonadi2::Domain::Event &domainObject)
