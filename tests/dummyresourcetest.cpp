@@ -14,7 +14,7 @@
 
 static void removeFromDisk(const QString &name)
 {
-    Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy", Akonadi2::Storage::ReadWrite);
+    Akonadi2::Storage store(Akonadi2::Store::storageLocation(), name, Akonadi2::Storage::ReadWrite);
     store.removeFromDisk();
 }
 
@@ -33,6 +33,9 @@ private Q_SLOTS:
 
     void cleanupTestCase()
     {
+        removeFromDisk("org.kde.dummy");
+        removeFromDisk("org.kde.dummy.userqueue");
+        removeFromDisk("org.kde.dummy.synchronizerqueue");
     }
 
     void testProcessCommand()
@@ -60,13 +63,23 @@ private Q_SLOTS:
         Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
 
         const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
+        {
+            flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command.data()), command.size());
+            QVERIFY(Akonadi2::Commands::VerifyCreateEntityBuffer(verifyer));
+        }
 
+        //Actual test
         Akonadi2::Pipeline pipeline("org.kde.dummy");
+        QSignalSpy revisionSpy(&pipeline, SIGNAL(revisionUpdated()));
         DummyResource resource;
         resource.configurePipeline(&pipeline);
         resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, command.size(), &pipeline);
-        //TODO wait until the pipeline has processed the command
-        QTest::qWait(1000);
+        resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, command.size(), &pipeline);
+
+        QVERIFY(revisionSpy.isValid());
+        QTRY_COMPARE(revisionSpy.count(), 2);
+        QTest::qWait(100);
+        QCOMPARE(revisionSpy.count(), 2);
     }
 
     // void testResourceSync()

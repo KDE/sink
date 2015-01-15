@@ -39,6 +39,7 @@ public:
     void configurePipeline(Akonadi2::Pipeline *pipeline);
 
 private:
+    void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);
     flatbuffers::FlatBufferBuilder m_fbb;
     MessageQueue mUserQueue;
     MessageQueue mSynchronizerQueue;

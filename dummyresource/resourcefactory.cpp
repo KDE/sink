@@ -116,26 +116,40 @@ public:
     }
 
 private slots:
+    static void asyncWhile(const std::function<void(std::function<void(bool)>)> &body, const std::function<void()> &completionHandler) {
+        body([body, completionHandler](bool complete) {
+            if (complete) {
+                completionHandler();
+            } else {
+                asyncWhile(body, completionHandler);
+            }
+        });
+    }
+
     void process()
     {
         if (mProcessingLock) {
             return;
         }
         mProcessingLock = true;
-        //Empty queue after queue
-        //FIXME the for and while loops should be async, otherwise we process all messages in parallel
-        for (auto queue : mCommandQueues) {
-            qDebug() << "processing queue";
-            bool processedMessage = false;
-            while (processedMessage) {
-                qDebug() << "process";
-                processedMessage = false;
-                queue->dequeue([this, &processedMessage](void *ptr, int size, std::function<void(bool success)> messageQueueCallback) {
+        auto job = processPipeline().then<void>([this](Async::Future<void> &future) {
+            mProcessingLock = false;
+            future.setFinished();
+        }).exec();
+    }
+
+    Async::Job<void> processPipeline()
+    {
+        auto job = Async::start<void>([this](Async::Future<void> &future) {
+            //TODO process all queues in async for
+            auto queue = mCommandQueues.first();
+            asyncWhile([&](std::function<void(bool)> whileCallback) {
+                queue->dequeue([this, whileCallback](void *ptr, int size, std::function<void(bool success)> messageQueueCallback) {
                     flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(ptr), size);
                     if (!Akonadi2::VerifyQueuedCommandBuffer(verifyer)) {
                         qWarning() << "invalid buffer";
-                        processedMessage = false;
                         messageQueueCallback(false);
+                        whileCallback(true);
                         return;
                     }
                     auto queuedCommand = Akonadi2::GetQueuedCommand(ptr);
@@ -150,26 +164,32 @@ private slots:
                             break;
                         case Akonadi2::Commands::CreateEntityCommand: {
                             //TODO job lifetime management
-                            auto job = mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size()).then<void>([&messageQueueCallback](Async::Future<void> future) {
+                            mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size()).then<void>([&messageQueueCallback, whileCallback](Async::Future<void> &future) {
                                 messageQueueCallback(true);
-                                    });
-                            job.exec();
+                                whileCallback(false);
+                                future.setFinished();
+                            }).exec();
                         }
                             break;
                         default:
                             //Unhandled command
                             qWarning() << "Unhandled command";
                             messageQueueCallback(true);
+                            whileCallback(false);
                             break;
                     }
-                    processedMessage = true;
                 },
-                [&processedMessage](const MessageQueue::Error &error) {
-                    processedMessage = false;
+                [whileCallback](const MessageQueue::Error &error) {
+                    qDebug() << "no more messages in queue";
+                    whileCallback(true);
                 });
-            }
-        }
-        mProcessingLock = false;
+            },
+            [&future]() { //while complete
+                future.setFinished();
+                //Call async-for completion handler
+            });
+        });
+        return job;
     }
 
 private:
@@ -226,6 +246,18 @@ void findByRemoteId(QSharedPointer<Akonadi2::Storage> storage, const QString &ri
     });
 }
 
+void DummyResource::enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data)
+{
+    m_fbb.Clear();
+    auto commandData = m_fbb.CreateVector(reinterpret_cast<uint8_t const *>(data.data()), data.size());
+    auto builder = Akonadi2::QueuedCommandBuilder(m_fbb);
+    builder.add_commandId(commandId);
+    builder.add_command(commandData);
+    auto buffer = builder.Finish();
+    Akonadi2::FinishQueuedCommandBuffer(m_fbb, buffer);
+    mq.enqueue(m_fbb.GetBufferPointer(), m_fbb.GetSize());
+}
+
 Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
 {
     qDebug() << "synchronizeWithSource";
@@ -259,11 +291,7 @@ Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeli
                 builder.add_attachment(attachment);
                 auto buffer = builder.Finish();
                 DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
-                //TODO toRFC4122 would probably be more efficient, but results in non-printable keys.
-                const auto key = QUuid::createUuid().toString().toUtf8();
-                //TODO Create queuedcommand and push into synchronizerQueue
-                //* create message in store directly, add command to messagequeue waiting for processing.
-                // pipeline->newEntity<Akonadi2::Domain::Event>(key, m_fbb.GetBufferPointer(), m_fbb.GetSize());
+                enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, QByteArray::fromRawData(reinterpret_cast<char const *>(m_fbb.GetBufferPointer()), m_fbb.GetSize()));
             } else { //modification
                 //TODO diff and create modification if necessary
             }
@@ -279,14 +307,7 @@ void DummyResource::processCommand(int commandId, const QByteArray &data, uint s
     //TODO instead of copying the command including the full entity first into the command queue, we could directly
     //create a new revision, only pushing a handle into the commandqueue with the relevant changeset (for changereplay).
     //The problem is that we then require write access from multiple threads (or even processes to avoid sending the full entity over the wire).
-    m_fbb.Clear();
-    auto commandData = m_fbb.CreateVector(reinterpret_cast<uint8_t const *>(data.data()), data.size());
-    auto builder = Akonadi2::QueuedCommandBuilder(m_fbb);
-    builder.add_commandId(commandId);
-    builder.add_command(commandData);
-    auto buffer = builder.Finish();
-    Akonadi2::FinishQueuedCommandBuffer(m_fbb, buffer);
-    mUserQueue.enqueue(m_fbb.GetBufferPointer(), m_fbb.GetSize());
+    enqueueCommand(mUserQueue, commandId, data);
 }
 
 DummyResourceFactory::DummyResourceFactory(QObject *parent)
