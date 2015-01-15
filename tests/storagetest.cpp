@@ -59,6 +59,8 @@ private Q_SLOTS:
     {
         testDataPath = "./testdb";
         dbName = "test";
+        Akonadi2::Storage storage(testDataPath, dbName);
+        storage.removeFromDisk();
     }
 
     void cleanupTestCase()
@@ -136,6 +138,23 @@ private Q_SLOTS:
         store.removeFromDisk();
     }
 
+    void testReadEmptyDb()
+    {
+        bool gotResult = false;
+        bool gotError = false;
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        store.scan(0, 0, [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+            gotResult = true;
+            return false;
+        },
+        [&](Akonadi2::Storage::Error) {
+            gotError = true;
+        });
+        QVERIFY(!gotResult);
+        QVERIFY(!gotError);
+        store.removeFromDisk();
+    }
+
     void testConcurrentRead()
     {
         const int count = 10000;
@@ -170,6 +189,8 @@ private Q_SLOTS:
         {
             Akonadi2::Storage storage(testDataPath, dbName);
             storage.removeFromDisk();
+            Akonadi2::Storage storage2(testDataPath, dbName + "2");
+            storage2.removeFromDisk();
         }
     }
 };
