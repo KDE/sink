@@ -24,10 +24,13 @@
 #include "dummycalendar_generated.h"
 #include "metadata_generated.h"
 #include "queuedcommand_generated.h"
+#include "createentity_generated.h"
 #include "domainadaptor.h"
 #include "commands.h"
 #include "clientapi.h"
 #include <QUuid>
+#include <assert.h>
+
 
 /*
  * Figure out how to implement various classes of processors:
