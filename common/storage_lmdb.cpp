@@ -396,12 +396,14 @@ qint64 Storage::diskUsage() const
 
 void Storage::removeFromDisk() const
 {
-    QDir dir(d->storageRoot + '/' + d->name);
-    // dir.remove("data.mdb");
-    // dir.remove("lock.mdb");
+    const QString fullPath(d->storageRoot + '/' + d->name);
+    QMutexLocker locker(&d->sMutex);
+    QDir dir(fullPath);
     if (!dir.removeRecursively()) {
         qWarning() << "Failed to remove directory" << d->storageRoot << d->name;
     }
+    auto env = d->sEnvironments.take(fullPath);
+    delete env;
 }
 
 } // namespace Akonadi2

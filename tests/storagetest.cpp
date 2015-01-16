@@ -63,10 +63,19 @@ private Q_SLOTS:
         storage.removeFromDisk();
     }
 
-    void cleanupTestCase()
+    void cleanup()
     {
         Akonadi2::Storage storage(testDataPath, dbName);
         storage.removeFromDisk();
+    }
+
+    void testCleanup()
+    {
+        populate(1);
+        Akonadi2::Storage storage(testDataPath, dbName);
+        storage.removeFromDisk();
+        QFileInfo info(testDataPath + "/" + dbName);
+        QVERIFY(!info.exists());
     }
 
     void testRead()
@@ -82,9 +91,6 @@ private Q_SLOTS:
                 QVERIFY(verify(storage, i));
             }
         }
-
-        Akonadi2::Storage storage(testDataPath, dbName);
-        storage.removeFromDisk();
     }
 
     void testScan()
@@ -120,9 +126,6 @@ private Q_SLOTS:
             QVERIFY(!foundInvalidValue);
             QCOMPARE(hit, 1);
         }
-
-        Akonadi2::Storage storage(testDataPath, dbName);
-        storage.removeFromDisk();
     }
 
     void testTurnReadToWrite()
@@ -135,14 +138,13 @@ private Q_SLOTS:
             });
             return false;
         });
-        store.removeFromDisk();
     }
 
     void testReadEmptyDb()
     {
         bool gotResult = false;
         bool gotError = false;
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadOnly);
         store.scan(0, 0, [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
             gotResult = true;
             return false;
@@ -152,7 +154,6 @@ private Q_SLOTS:
         });
         QVERIFY(!gotResult);
         QVERIFY(!gotError);
-        store.removeFromDisk();
     }
 
     void testConcurrentRead()
