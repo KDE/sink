@@ -138,12 +138,11 @@ private slots:
         }).exec();
     }
 
-    Async::Job<void> processPipeline()
+    //Process all messages of this queue
+    Async::Job<void> processQueue(MessageQueue *queue)
     {
-        auto job = Async::start<void>([this](Async::Future<void> &future) {
-            //TODO process all queues in async for
-            auto queue = mCommandQueues.first();
-            asyncWhile([&](std::function<void(bool)> whileCallback) {
+        auto job = Async::start<void>([this, queue](Async::Future<void> &future) {
+            asyncWhile([&, queue](std::function<void(bool)> whileCallback) {
                 queue->dequeue([this, whileCallback](void *ptr, int size, std::function<void(bool success)> messageQueueCallback) {
                     flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(ptr), size);
                     if (!Akonadi2::VerifyQueuedCommandBuffer(verifyer)) {
@@ -186,8 +185,32 @@ private slots:
             },
             [&future]() { //while complete
                 future.setFinished();
-                //Call async-for completion handler
             });
+        });
+        return job;
+
+    }
+
+    Async::Job<void> processPipeline()
+    {
+        auto job = Async::start<void>([this](Async::Future<void> &future) {
+            //An async for loop. Go through all message queues
+            auto it = QSharedPointer<QListIterator<MessageQueue*> >::create(mCommandQueues);
+            asyncWhile([&, it](std::function<void(bool)> forCallback) {
+                if (it->hasNext()) {
+                    auto queue = it->next();
+                    processQueue(queue).then<void>([forCallback](Async::Future<void> &future) {
+                      forCallback(false);
+                      future.setFinished();
+                    }).exec();
+                } else {
+                    forCallback(true);
+                }
+            },
+            [&future]() { //while complete
+                future.setFinished();
+            });
+
         });
         return job;
     }
