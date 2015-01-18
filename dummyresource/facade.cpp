@@ -118,22 +118,29 @@ static std::function<bool(const std::string &key, DummyEvent const *buffer)> pre
     return preparedQuery;
 }
 
-void DummyResourceFacade::synchronizeResource(const std::function<void()> &continuation)
+Async::Job<void> DummyResourceFacade::synchronizeResource(bool sync)
 {
     //TODO check if a sync is necessary
     //TODO Only sync what was requested
     //TODO timeout
-    mResourceAccess->synchronizeResource().then<void>([continuation](Async::Future<void> &f){
-        continuation();
-        f.setFinished();
-    }).exec();
+
+    if (sync) {
+        return Async::start<void>([=](Async::Future<void> &future) {
+            mResourceAccess->open();
+            mResourceAccess->synchronizeResource().then<void>([&future](Async::Future<void> &f) {
+                future.setFinished();
+                f.setFinished();
+            }).exec();
+        });
+    }
+    return Async::null<void>();
 }
 
-void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, const std::function<void()> &completeCallback)
+Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
 {
     qDebug() << "load called";
 
-    synchronizeResource([=]() {
+    return synchronizeResource(query.syncOnDemand).then<void>([=](Async::Future<void> &future) {
         qDebug() << "sync complete";
         //Now that the sync is complete we can execute the query
         const auto preparedQuery = prepareQuery(query);
@@ -188,7 +195,7 @@ void DummyResourceFacade::load(const Akonadi2::Query &query, const std::function
             }
             return true;
         });
-        completeCallback();
+        future.setFinished();
     });
 }
 

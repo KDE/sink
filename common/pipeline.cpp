@@ -106,15 +106,21 @@ Async::Job<void> Pipeline::newEntity(void const *command, size_t size)
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
         if (!Akonadi2::Commands::VerifyCreateEntityBuffer(verifyer)) {
-            qWarning() << "invalid buffer";
+            qWarning() << "invalid buffer, not a create entity buffer";
             return Async::null<void>();
         }
     }
-
     auto createEntity = Akonadi2::Commands::GetCreateEntity(command);
 
     //TODO rename createEntitiy->domainType to bufferType
     const QString entityType = QString::fromUtf8(reinterpret_cast<char const*>(createEntity->domainType()->Data()), createEntity->domainType()->size());
+    {
+        flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(createEntity->delta()->Data()), createEntity->delta()->size());
+        if (!Akonadi2::VerifyEntityBuffer(verifyer)) {
+            qWarning() << "invalid buffer, not an entity buffer";
+            return Async::null<void>();
+        }
+    }
     auto entity = Akonadi2::GetEntity(createEntity->delta()->Data());
 
     //Add metadata buffer

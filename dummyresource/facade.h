@@ -40,10 +40,10 @@ public:
     virtual Async::Job<void> create(const Akonadi2::Domain::Event &domainObject);
     virtual Async::Job<void> modify(const Akonadi2::Domain::Event &domainObject);
     virtual Async::Job<void> remove(const Akonadi2::Domain::Event &domainObject);
-    virtual void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, const std::function<void()> &completeCallback);
+    virtual Async::Job<void> load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback);
 
 private:
-    void synchronizeResource(const std::function<void()> &continuation);
+    Async::Job<void> synchronizeResource(bool sync);
     QSharedPointer<Akonadi2::ResourceAccess> mResourceAccess;
     QSharedPointer<DomainTypeAdaptorFactory<Akonadi2::Domain::Event, Akonadi2::Domain::Buffer::Event, DummyCalendar::DummyEvent> > mFactory;
 };

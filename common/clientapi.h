@@ -165,7 +165,7 @@ namespace Akonadi2 {
 /**
  * Standardized Domain Types
  *
- * The don't adhere to any standard and can be freely extended
+ * They don't adhere to any standard and can be freely extended
  * Their sole purpose is providing a standardized interface to access data.
  * 
  * This is necessary to decouple resource-backends from application domain containers (otherwise each resource would have to provide a faceade for each application domain container).
@@ -297,6 +297,7 @@ using namespace async;
 class Query
 {
 public:
+    Query() : syncOnDemand(true) {}
     //Could also be a propertyFilter
     QStringList resources;
     //Could also be a propertyFilter
@@ -305,6 +306,7 @@ public:
     QHash<QString, QVariant> propertyFilter;
     //Properties to retrieve
     QSet<QString> requestedProperties;
+    bool syncOnDemand;
 };
 
 
@@ -324,7 +326,7 @@ public:
     virtual Async::Job<void> create(const DomainType &domainObject) = 0;
     virtual Async::Job<void> modify(const DomainType &domainObject) = 0;
     virtual Async::Job<void> remove(const DomainType &domainObject) = 0;
-    virtual void load(const Query &query, const std::function<void(const typename DomainType::Ptr &)> &resultCallback, const std::function<void()> &completeCallback) = 0;
+    virtual Async::Job<void> load(const Query &query, const std::function<void(const typename DomainType::Ptr &)> &resultCallback) = 0;
 };
 
 
@@ -418,21 +420,25 @@ public:
             // query tells us in which resources we're interested
             // TODO: queries to individual resources could be parallelized
             auto eventloop = QSharedPointer<QEventLoop>::create();
-            int completeCounter = 0;
+            Async::Job<void> job = Async::null<void>();
             for(const QString &resource : query.resources) {
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
                 //We have to bind an instance to the function callback. Since we use a shared pointer this keeps the result provider instance (and thus also the emitter) alive.
                 std::function<void(const typename DomainType::Ptr &)> addCallback = std::bind(&ResultProvider<typename DomainType::Ptr>::add, resultSet, std::placeholders::_1);
                 //We copy the facade pointer to keep it alive
-                facade->load(query, addCallback, [&completeCounter, &query, resultSet, facade, eventloop]() {
-                    //TODO use jobs instead of this counter
-                    completeCounter++;
-                    if (completeCounter == query.resources.size()) {
-                        resultSet->complete();
-                        eventloop->quit();
-                    }
+                job = job.then<void>([facade, query, addCallback](Async::Future<void> &future) {
+                    Async::Job<void> j = facade->load(query, addCallback);
+                    j.then<void>([&future, facade](Async::Future<void> &f) {
+                        future.setFinished();
+                        f.setFinished();
+                    }).exec();
                 });
             }
+            job.then<void>([eventloop, resultSet](Async::Future<void> &future) {
+                resultSet->complete();
+                eventloop->quit();
+                future.setFinished();
+            }).exec();
             //The thread contains no eventloop, so execute one here
             eventloop->exec(QEventLoop::ExcludeUserInputEvents);
         });

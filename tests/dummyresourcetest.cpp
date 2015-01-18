@@ -82,27 +82,38 @@ private Q_SLOTS:
         QCOMPARE(revisionSpy.count(), 2);
     }
 
-    // void testResourceSync()
-    // {
-    //     Akonadi2::Pipeline pipeline("org.kde.dummy");
-    //     DummyResource resource;
-    //     auto job = resource.synchronizeWithSource(&pipeline);
-    //     auto future = job.exec();
-    //     QTRY_VERIFY(future.isFinished());
-    // }
+    void testWriteToFacade()
+    {
+        Akonadi2::Query query;
+        Akonadi2::Domain::Event event;
+        event.setProperty("summary", "summaryValue");
+        Akonadi2::Store::create<Akonadi2::Domain::Event>(event, "org.kde.dummy");
 
-    // void testSyncAndFacade()
-    // {
-    //     Akonadi2::Query query;
-    //     query.resources << "org.kde.dummy";
+        QTest::qWait(1000);
+        //TODO wait for success response
+    }
 
-    //     async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
-    //     result.exec();
-    //     QVERIFY(!result.isEmpty());
-    //     auto value = result.first();
-    //     QVERIFY(!value->getProperty("summary").toString().isEmpty());
-    //     qDebug() << value->getProperty("summary").toString();
-    // }
+    void testResourceSync()
+    {
+        Akonadi2::Pipeline pipeline("org.kde.dummy");
+        DummyResource resource;
+        auto job = resource.synchronizeWithSource(&pipeline);
+        auto future = job.exec();
+        QTRY_VERIFY(future.isFinished());
+    }
+
+    void testSyncAndFacade()
+    {
+        Akonadi2::Query query;
+        query.resources << "org.kde.dummy";
+
+        async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
+        result.exec();
+        QVERIFY(!result.isEmpty());
+        auto value = result.first();
+        QVERIFY(!value->getProperty("summary").toString().isEmpty());
+        qDebug() << value->getProperty("summary").toString();
+    }
 
 };
 

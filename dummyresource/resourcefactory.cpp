@@ -317,7 +317,9 @@ Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeli
                 builder.add_attachment(attachment);
                 auto buffer = builder.Finish();
                 DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
-                enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, QByteArray::fromRawData(reinterpret_cast<char const *>(m_fbb.GetBufferPointer()), m_fbb.GetSize()));
+                flatbuffers::FlatBufferBuilder entityFbb;
+                Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize(), 0, 0);
+                enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, QByteArray::fromRawData(reinterpret_cast<char const *>(entityFbb.GetBufferPointer()), entityFbb.GetSize()));
             } else { //modification
                 //TODO diff and create modification if necessary
             }

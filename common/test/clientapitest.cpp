@@ -11,13 +11,15 @@ public:
     virtual Async::Job<void> create(const Akonadi2::Domain::Event &domainObject){ return Async::null<void>(); };
     virtual Async::Job<void> modify(const Akonadi2::Domain::Event &domainObject){ return Async::null<void>(); };
     virtual Async::Job<void> remove(const Akonadi2::Domain::Event &domainObject){ return Async::null<void>(); };
-    virtual void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, const std::function<void()> &completeCallback)
+    virtual Async::Job<void> load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
     {
-        qDebug() << "load called";
-        for(const auto &result : results) {
-            resultCallback(result);
-        }
-        completeCallback();
+        return Async::start<void>([this, resultCallback](Async::Future<void> &future) {
+            qDebug() << "load called";
+            for(const auto &result : results) {
+                resultCallback(result);
+            }
+            future.setFinished();
+        });
     }
 
     QList<Akonadi2::Domain::Event::Ptr> results;
