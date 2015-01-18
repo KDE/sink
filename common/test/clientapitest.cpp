@@ -8,9 +8,9 @@ class DummyResourceFacade : public Akonadi2::StoreFacade<Akonadi2::Domain::Event
 {
 public:
     ~DummyResourceFacade(){};
-    virtual void create(const Akonadi2::Domain::Event &domainObject){};
-    virtual void modify(const Akonadi2::Domain::Event &domainObject){};
-    virtual void remove(const Akonadi2::Domain::Event &domainObject){};
+    virtual Async::Job<void> create(const Akonadi2::Domain::Event &domainObject){ return Async::null<void>(); };
+    virtual Async::Job<void> modify(const Akonadi2::Domain::Event &domainObject){ return Async::null<void>(); };
+    virtual Async::Job<void> remove(const Akonadi2::Domain::Event &domainObject){ return Async::null<void>(); };
     virtual void load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, const std::function<void()> &completeCallback)
     {
         qDebug() << "load called";

@@ -41,9 +41,8 @@ public:
     QString resourceName() const;
     bool isReady() const;
 
-    //TODO use jobs
-    void sendCommand(int commandId, const std::function<void()> &callback = std::function<void()>());
-    void sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb, const std::function<void()> &callback = std::function<void()>());
+    Async::Job<void> sendCommand(int commandId);
+    Async::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb);
     Async::Job<void> synchronizeResource();
 
 public Q_SLOTS:

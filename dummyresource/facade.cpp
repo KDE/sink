@@ -46,7 +46,7 @@ DummyResourceFacade::~DummyResourceFacade()
 {
 }
 
-void DummyResourceFacade::create(const Akonadi2::Domain::Event &domainObject)
+Async::Job<void> DummyResourceFacade::create(const Akonadi2::Domain::Event &domainObject)
 {
     //Create message buffer and send to resource
     flatbuffers::FlatBufferBuilder eventFbb;
@@ -64,24 +64,28 @@ void DummyResourceFacade::create(const Akonadi2::Domain::Event &domainObject)
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), 0, 0);
 
     flatbuffers::FlatBufferBuilder fbb;
-    auto type = fbb.CreateString(Akonadi2::Domain::getTypeName<Akonadi2::Domain::Event>().toStdString().data());
+    //This is the resource type and not the domain type
+    auto type = fbb.CreateString("event");
     auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
     Akonadi2::Commands::CreateEntityBuilder builder(fbb);
     builder.add_domainType(type);
     builder.add_delta(delta);
     auto location = builder.Finish();
     Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
-    mResourceAccess->sendCommand(Akonadi2::Commands::CreateEntityCommand, fbb);
+    mResourceAccess->open();
+    return mResourceAccess->sendCommand(Akonadi2::Commands::CreateEntityCommand, fbb);
 }
 
-void DummyResourceFacade::modify(const Akonadi2::Domain::Event &domainObject)
+Async::Job<void> DummyResourceFacade::modify(const Akonadi2::Domain::Event &domainObject)
 {
     //Create message buffer and send to resource
+    return Async::null<void>();
 }
 
-void DummyResourceFacade::remove(const Akonadi2::Domain::Event &domainObject)
+Async::Job<void> DummyResourceFacade::remove(const Akonadi2::Domain::Event &domainObject)
 {
     //Create message buffer and send to resource
+    return Async::null<void>();
 }
 
 static std::function<bool(const std::string &key, DummyEvent const *buffer)> prepareQuery(const Akonadi2::Query &query)

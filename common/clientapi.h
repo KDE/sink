@@ -30,6 +30,7 @@
 #include <QtConcurrent/QtConcurrentRun>
 #include <functional>
 #include "threadboundary.h"
+#include "async/src/async.h"
 
 namespace async {
     //This should abstract if we execute from eventloop or in thread.
@@ -185,6 +186,11 @@ public:
 
 class MemoryBufferAdaptor : public BufferAdaptor {
 public:
+    MemoryBufferAdaptor()
+        : BufferAdaptor()
+    {
+    }
+
     MemoryBufferAdaptor(const BufferAdaptor &buffer)
         : BufferAdaptor()
     {
@@ -208,6 +214,11 @@ private:
  */
 class AkonadiDomainType {
 public:
+    AkonadiDomainType()
+        :mAdaptor(new MemoryBufferAdaptor())
+    {
+
+    }
     AkonadiDomainType(const QString &resourceName, const QString &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
         : mAdaptor(adaptor),
         mResourceName(resourceName),
@@ -310,9 +321,9 @@ class StoreFacade {
 public:
     virtual ~StoreFacade(){};
     QString type() const { return Domain::getTypeName<DomainType>(); }
-    virtual void create(const DomainType &domainObject) = 0;
-    virtual void modify(const DomainType &domainObject) = 0;
-    virtual void remove(const DomainType &domainObject) = 0;
+    virtual Async::Job<void> create(const DomainType &domainObject) = 0;
+    virtual Async::Job<void> modify(const DomainType &domainObject) = 0;
+    virtual Async::Job<void> remove(const DomainType &domainObject) = 0;
     virtual void load(const Query &query, const std::function<void(const typename DomainType::Ptr &)> &resultCallback, const std::function<void()> &completeCallback) = 0;
 };
 
@@ -440,11 +451,15 @@ public:
     /**
      * Create a new entity.
      */
+    //TODO return job that tracks progress until resource has stored the message in it's queue?
     template <class DomainType>
     static void create(const DomainType &domainObject, const QString &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceIdentifier);
-        facade.create(domainObject);
+        auto job = facade->create(domainObject);
+        auto future = job.exec();
+        future.waitForFinished();
+        //TODO return job?
     }
 
     /**

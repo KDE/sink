@@ -209,7 +209,10 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
         case Akonadi2::Commands::ModifyEntityCommand:
         case Akonadi2::Commands::CreateEntityCommand:
             log(QString("\tCommand id %1 of type %2 from %3").arg(messageId).arg(commandId).arg(client.name));
-            m_resource->processCommand(commandId, client.commandBuffer, size, m_pipeline);
+            loadResource();
+            if (m_resource) {
+                m_resource->processCommand(commandId, client.commandBuffer, size, m_pipeline);
+            }
             break;
         default:
             if (commandId > Akonadi2::Commands::CustomCommand) {

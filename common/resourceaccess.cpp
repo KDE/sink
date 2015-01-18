@@ -133,41 +133,62 @@ void ResourceAccess::registerCallback(uint messageId, const std::function<void()
     d->resultHandler.insert(messageId, callback);
 }
 
-void ResourceAccess::sendCommand(int commandId, const std::function<void()> &callback)
+Async::Job<void> ResourceAccess::sendCommand(int commandId)
 {
-    if (isReady()) {
-        log(QString("Sending command %1").arg(commandId));
-        d->messageId++;
-        if (callback) {
-            registerCallback(d->messageId, callback);
+    return Async::start<void>([this, commandId](Async::Future<void> &f) {
+        if (isReady()) {
+            log(QString("Sending command %1").arg(commandId));
+            d->messageId++;
+            registerCallback(d->messageId, [&f]() { f.setFinished(); });
+            Commands::write(d->socket, d->messageId, commandId);
+        } else {
+            d->commandQueue << new QueuedCommand(commandId, [&f]() { f.setFinished(); });
         }
-        Commands::write(d->socket, d->messageId, commandId);
-    } else {
-        d->commandQueue << new QueuedCommand(commandId, callback);
-    }
+    });
 }
 
-void ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb, const std::function<void()> &callback)
-{
-    if (isReady()) {
-        log(QString("Sending command %1").arg(commandId));
-        d->messageId++;
+struct JobFinisher {
+    bool finished;
+    std::function<void()> callback;
+
+    JobFinisher() : finished(false) {}
+
+    void setFinished() {
+        finished = true;
         if (callback) {
-            registerCallback(d->messageId, callback);
+            callback();
         }
+    }
+};
+
+Async::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb)
+{
+    auto finisher = QSharedPointer<JobFinisher>::create();
+    auto callback = [finisher] () {
+        finisher->setFinished();
+    };
+    if (isReady()) {
+        d->messageId++;
+        log(QString("Sending command %1 with messageId %2").arg(commandId).arg(d->messageId));
+        registerCallback(d->messageId, callback);
         Commands::write(d->socket, d->messageId, commandId, fbb);
     } else {
         d->commandQueue << new QueuedCommand(commandId, fbb, callback);
     }
+    return Async::start<void>([this, finisher](Async::Future<void> &f) {
+        if (finisher->finished) {
+            f.setFinished();
+        } else {
+            finisher->callback = [&f]() {
+                f.setFinished();
+            };
+        }
+    });
 }
 
 Async::Job<void> ResourceAccess::synchronizeResource()
 {
-    return Async::start<void>([this](Async::Future<void> &f) {
-        sendCommand(Commands::SynchronizeCommand, [&f]() {
-            f.setFinished();
-        });
-    });
+    return sendCommand(Commands::SynchronizeCommand);
 }
 
 void ResourceAccess::open()
@@ -214,7 +235,7 @@ void ResourceAccess::connected()
     log(QString("We have %1 queued commands").arg(d->commandQueue.size()));
     for (QueuedCommand *command: d->commandQueue) {
         d->messageId++;
-        log(QString("Sending command %1").arg(command->commandId));
+        log(QString("Sending command %1 with messageId %2").arg(command->commandId).arg(d->messageId));
         if (command->callback) {
             registerCallback(d->messageId, command->callback);
         }
@@ -294,7 +315,7 @@ bool ResourceAccess::processMessageBuffer()
         }
         case Commands::CommandCompletion: {
             auto buffer = GetCommandCompletion(d->partialMessageBuffer.constData() + headerSize);
-            log(QString("Command %1 completed %2").arg(buffer->id()).arg(buffer->success() ? "sucessfully" : "unsuccessfully"));
+            log(QString("Command with messageId %1 completed %2").arg(buffer->id()).arg(buffer->success() ? "sucessfully" : "unsuccessfully"));
             //TODO: if a queued command, get it out of the queue ... pass on completion ot the relevant objects .. etc
 
             //The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
