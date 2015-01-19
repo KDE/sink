@@ -31,7 +31,7 @@ private Q_SLOTS:
         removeFromDisk("org.kde.dummy.synchronizerqueue");
     }
 
-    void cleanupTestCase()
+    void cleanup()
     {
         removeFromDisk("org.kde.dummy");
         removeFromDisk("org.kde.dummy.userqueue");
@@ -97,9 +97,14 @@ private Q_SLOTS:
     {
         Akonadi2::Pipeline pipeline("org.kde.dummy");
         DummyResource resource;
+        resource.configurePipeline(&pipeline);
         auto job = resource.synchronizeWithSource(&pipeline);
+        //TODO pass in optional timeout?
         auto future = job.exec();
+        future.waitForFinished();
+        QVERIFY(!future.errorCode());
         QTRY_VERIFY(future.isFinished());
+        QVERIFY(!resource.error());
     }
 
     void testSyncAndFacade()

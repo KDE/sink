@@ -34,6 +34,7 @@ public:
     bool isEmpty();
 signals:
     void messageReady();
+    void drained();
 
 private:
     Q_DISABLE_COPY(MessageQueue);

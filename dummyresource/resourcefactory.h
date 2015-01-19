@@ -37,13 +37,16 @@ public:
     Async::Job<void> synchronizeWithSource(Akonadi2::Pipeline *pipeline);
     void processCommand(int commandId, const QByteArray &data, uint size, Akonadi2::Pipeline *pipeline);
     void configurePipeline(Akonadi2::Pipeline *pipeline);
+    int error() const;
 
 private:
+    void onProcessorError(int errorCode, const QString &errorMessage);
     void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);
     flatbuffers::FlatBufferBuilder m_fbb;
     MessageQueue mUserQueue;
     MessageQueue mSynchronizerQueue;
     Processor *mProcessor;
+    int mError;
 };
 
 class DummyResourceFactory : public Akonadi2::ResourceFactory

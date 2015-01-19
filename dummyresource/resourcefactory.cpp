@@ -126,6 +126,9 @@ public:
         }
     }
 
+signals:
+    void error(int errorCode, const QString &errorMessage);
+
 private slots:
     static void asyncWhile(const std::function<void(std::function<void(bool)>)> &body, const std::function<void()> &completionHandler) {
         body([body, completionHandler](bool complete) {
@@ -178,6 +181,12 @@ private slots:
                                 messageQueueCallback(true);
                                 whileCallback(false);
                                 future.setFinished();
+                            },
+                            [this, messageQueueCallback, whileCallback](int errorCode, const QString &errorMessage) {
+                                qDebug() << "Error while creating entity: " << errorCode << errorMessage;
+                                emit error(errorCode, errorMessage);
+                                messageQueueCallback(true);
+                                whileCallback(false);
                             }).exec();
                         }
                             break;
@@ -236,7 +245,8 @@ private:
 DummyResource::DummyResource()
     : Akonadi2::Resource(),
     mUserQueue(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", "org.kde.dummy.userqueue"),
-    mSynchronizerQueue(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", "org.kde.dummy.synchronizerqueue")
+    mSynchronizerQueue(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", "org.kde.dummy.synchronizerqueue"),
+    mError(0)
 {
 }
 
@@ -254,6 +264,18 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
     //event is the entitytype and not the domain type
     pipeline->setPreprocessors("event", Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
     mProcessor = new Processor(pipeline, QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
+    QObject::connect(mProcessor, &Processor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
+}
+
+void DummyResource::onProcessorError(int errorCode, const QString &errorMessage)
+{
+    qDebug() << "Received error from Processor: " << errorCode << errorMessage;
+    mError = errorCode;
+}
+
+int DummyResource::error() const
+{
+    return mError;
 }
 
 void findByRemoteId(QSharedPointer<Akonadi2::Storage> storage, const QString &rid, std::function<void(void *keyValue, int keySize, void *dataValue, int dataSize)> callback)
@@ -327,13 +349,30 @@ Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeli
                 DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
                 flatbuffers::FlatBufferBuilder entityFbb;
                 Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize(), 0, 0);
-                enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, QByteArray::fromRawData(reinterpret_cast<char const *>(entityFbb.GetBufferPointer()), entityFbb.GetSize()));
+
+                flatbuffers::FlatBufferBuilder fbb;
+                //This is the resource type and not the domain type
+                auto type = fbb.CreateString("event");
+                auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
+                auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
+                Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+
+                enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
             } else { //modification
                 //TODO diff and create modification if necessary
             }
         }
         //TODO find items to remove
-        f.setFinished();
+
+        //We have to wait for all items to be processed to ensure the synced items are available when a query gets executed.
+        //TODO: report errors while processing sync?
+        if (mSynchronizerQueue.isEmpty()) {
+            f.setFinished();
+        } else {
+            QObject::connect(&mSynchronizerQueue, &MessageQueue::drained, [&f]() {
+                f.setFinished();
+            });
+        }
     });
 }
 

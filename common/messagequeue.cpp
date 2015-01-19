@@ -31,6 +31,9 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
         resultHandler(valuePtr, valueSize, [this, key](bool success) {
             if (success) {
                 mStorage.remove(key.data(), key.size());
+                if (isEmpty()) {
+                    emit this->drained();
+                }
             } else {
                 //TODO re-enqueue?
             }
