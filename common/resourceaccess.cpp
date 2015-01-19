@@ -257,12 +257,16 @@ void ResourceAccess::disconnected()
 
 void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
 {
-    log(QString("Connection error: %2").arg(error));
     if (d->startingProcess) {
         if (!d->tryOpenTimer->isActive()) {
             d->tryOpenTimer->start();
         }
         return;
+    }
+    //TODO set an error on all open callbacks
+    log(QString("Connection error: %1 : %2").arg(error).arg(d->socket->errorString()));
+    if (error == QLocalSocket::PeerClosedError) {
+        log("The resource closed the connection. It probably crashed.");
     }
 
     d->startingProcess = true;
