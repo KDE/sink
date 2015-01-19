@@ -43,19 +43,27 @@
 class SimpleProcessor : public Akonadi2::Preprocessor
 {
 public:
-    SimpleProcessor(const std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> &f)
+    SimpleProcessor(const QString &id, const std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> &f)
         : Akonadi2::Preprocessor(),
-        mFunction(f)
+        mFunction(f),
+        mId(id)
     {
     }
 
-    void process(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e) {
+    void process(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e) Q_DECL_OVERRIDE
+    {
         mFunction(state, e);
         processingCompleted(state);
     }
 
+    QString id() const
+    {
+        return mId;
+    }
+
 protected:
     std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> mFunction;
+    QString mId;
 };
 
 // template <typename DomainType>
@@ -166,7 +174,7 @@ private slots:
                             break;
                         case Akonadi2::Commands::CreateEntityCommand: {
                             //TODO job lifetime management
-                            mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size()).then<void>([&messageQueueCallback, whileCallback](Async::Future<void> &future) {
+                            mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size()).then<void>([messageQueueCallback, whileCallback](Async::Future<void> &future) {
                                 messageQueueCallback(true);
                                 whileCallback(false);
                                 future.setFinished();
@@ -239,7 +247,7 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
     //i.e. If a resource stores tags as part of each message it needs to update the tag index
     //TODO setup preprocessors for each domain type and pipeline type allowing full customization
     //Eventually the order should be self configuring, for now it's hardcoded.
-    auto eventIndexer = new SimpleProcessor([eventFactory](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
+    auto eventIndexer = new SimpleProcessor("summaryprocessor", [eventFactory](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
         auto adaptor = eventFactory->createAdaptor(entity);
         qDebug() << "Summary preprocessor: " << adaptor->getProperty("summary").toString();
     });

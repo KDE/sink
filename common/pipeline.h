@@ -66,7 +66,8 @@ private Q_SLOTS:
 
 private:
     void pipelineStepped(const PipelineState &state);
-    void pipelineCompleted(const PipelineState &state);
+    //Don't use a reference here (it would invalidate itself)
+    void pipelineCompleted(PipelineState state);
     void scheduleStep();
 
     friend class PipelineState;
@@ -94,6 +95,8 @@ public:
     void step();
     void processingCompleted(Preprocessor *filter);
 
+    void callback();
+
 private:
     class Private;
     QExplicitlySharedDataPointer<Private> d;
@@ -106,9 +109,9 @@ public:
     virtual ~Preprocessor();
 
     //TODO pass actual command as well, for changerecording
-    virtual void process(PipelineState state, const Akonadi2::Entity &);
+    virtual void process(const PipelineState &state, const Akonadi2::Entity &);
     //TODO to record progress
-    // virtual QString id();
+    virtual QString id() const;
 
 protected:
     void processingCompleted(PipelineState state);
