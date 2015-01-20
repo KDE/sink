@@ -39,7 +39,7 @@ namespace Akonadi2
 class Storage::Private
 {
 public:
-    Private(const QString &s, const QString &name, AccessMode m);
+    Private(const QString &s, const QString &n, AccessMode m, bool duplicates);
     ~Private();
 
     QString storageRoot;
@@ -51,6 +51,7 @@ public:
     AccessMode mode;
     bool readTransaction;
     bool firstOpen;
+    bool allowDuplicates;
     static QMutex sMutex;
     static QHash<QString, MDB_env*> sEnvironments;
 };
@@ -58,14 +59,15 @@ public:
 QMutex Storage::Private::sMutex;
 QHash<QString, MDB_env*> Storage::Private::sEnvironments;
 
-Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
+Storage::Private::Private(const QString &s, const QString &n, AccessMode m, bool duplicates)
     : storageRoot(s),
       name(n),
       env(0),
       transaction(0),
       mode(m),
       readTransaction(false),
-      firstOpen(true)
+      firstOpen(true),
+      allowDuplicates(duplicates)
 {
     const QString fullPath(storageRoot + '/' + name);
     QDir dir;
@@ -114,8 +116,8 @@ Storage::Private::~Private()
     // }
 }
 
-Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode)
-    : d(new Private(storageRoot, name, mode))
+Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode, bool allowDuplicates)
+    : d(new Private(storageRoot, name, mode, allowDuplicates))
 {
 }
 
@@ -166,7 +168,7 @@ bool Storage::startTransaction(AccessMode type)
     int rc;
     rc = mdb_txn_begin(d->env, NULL, requestedRead ? MDB_RDONLY : 0, &d->transaction);
     if (!rc) {
-        rc = mdb_dbi_open(d->transaction, NULL, 0, &d->dbi);
+        rc = mdb_dbi_open(d->transaction, NULL, d->allowDuplicates ? MDB_DUPSORT : 0, &d->dbi);
     }
 
     d->firstOpen = false;
@@ -305,10 +307,10 @@ void Storage::scan(const char *keyData, uint keySize,
         return;
     }
 
-    if (!keyData || keySize == 0) {
-        if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST)) == 0) {
+    if (!keyData || keySize == 0 || d->allowDuplicates) {
+        if ((rc = mdb_cursor_get(cursor, &key, &data, d->allowDuplicates ? MDB_SET_RANGE : MDB_FIRST)) == 0) {
             if (resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
-                while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+                while ((rc = mdb_cursor_get(cursor, &key, &data, d->allowDuplicates ? MDB_NEXT_DUP : MDB_NEXT)) == 0) {
                     if (!resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
                         break;
                     }
@@ -316,7 +318,7 @@ void Storage::scan(const char *keyData, uint keySize,
             }
         }
 
-        //We never find the last value, but ensure we got at least one.
+        //We never find the last value
         if (rc == MDB_NOTFOUND) {
             rc = 0;
         }

@@ -43,7 +43,7 @@ public:
         int code;
     };
 
-    Storage(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly);
+    Storage(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly, bool allowDuplicates = false);
     ~Storage();
     bool isInTransaction() const;
     bool startTransaction(AccessMode mode = ReadWrite);
