@@ -48,29 +48,14 @@ DummyResourceFacade::~DummyResourceFacade()
 
 Async::Job<void> DummyResourceFacade::create(const Akonadi2::Domain::Event &domainObject)
 {
-    //Create message buffer and send to resource
-    flatbuffers::FlatBufferBuilder eventFbb;
-    eventFbb.Clear();
-    {
-        auto summary = eventFbb.CreateString("summary");
-        // auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize);
-        DummyCalendar::DummyEventBuilder eventBuilder(eventFbb);
-        eventBuilder.add_summary(summary);
-        auto eventLocation = eventBuilder.Finish();
-        DummyCalendar::FinishDummyEventBuffer(eventFbb, eventLocation);
-        // memcpy((void*)DummyCalendar::GetDummyEvent(fbb.GetBufferPointer())->attachment()->Data(), rawData, attachmentSize);
-    }
     flatbuffers::FlatBufferBuilder entityFbb;
-    Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), 0, 0);
+    mFactory->createBuffer(domainObject, entityFbb);
 
     flatbuffers::FlatBufferBuilder fbb;
-    //This is the resource type and not the domain type
+    //This is the resource buffer type and not the domain type
     auto type = fbb.CreateString("event");
     auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
-    Akonadi2::Commands::CreateEntityBuilder builder(fbb);
-    builder.add_domainType(type);
-    builder.add_delta(delta);
-    auto location = builder.Finish();
+    auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
     Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
     mResourceAccess->open();
     return mResourceAccess->sendCommand(Akonadi2::Commands::CreateEntityCommand, fbb);

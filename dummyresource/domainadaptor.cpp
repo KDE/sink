@@ -70,7 +70,12 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
         return QString::fromStdString(buffer->summary()->c_str());
     });
     mLocalMapper = QSharedPointer<PropertyMapper<Akonadi2::Domain::Buffer::Event> >::create();
-    //TODO set accessors for all properties
+    mLocalMapper->mReadAccessors.insert("summary", [](Akonadi2::Domain::Buffer::Event const *buffer) -> QVariant {
+        return QString::fromStdString(buffer->summary()->c_str());
+    });
+    mLocalMapper->mReadAccessors.insert("uid", [](Akonadi2::Domain::Buffer::Event const *buffer) -> QVariant {
+        return QString::fromStdString(buffer->uid()->c_str());
+    });
 
 }
 
@@ -107,5 +112,29 @@ QSharedPointer<Akonadi2::Domain::BufferAdaptor> DummyEventAdaptorFactory::create
     adaptor->mResourceMapper = mResourceMapper;
     adaptor->mLocalMapper = mLocalMapper;
     return adaptor;
+}
+
+void DummyEventAdaptorFactory::createBuffer(const Akonadi2::Domain::Event &event, flatbuffers::FlatBufferBuilder &fbb)
+{
+    flatbuffers::FlatBufferBuilder eventFbb;
+    eventFbb.Clear();
+    {
+        auto summary = eventFbb.CreateString(event.getProperty("summary").toString().toStdString());
+        DummyCalendar::DummyEventBuilder eventBuilder(eventFbb);
+        eventBuilder.add_summary(summary);
+        auto eventLocation = eventBuilder.Finish();
+        DummyCalendar::FinishDummyEventBuffer(eventFbb, eventLocation);
+    }
+
+    flatbuffers::FlatBufferBuilder localFbb;
+    {
+        auto uid = localFbb.CreateString(event.getProperty("uid").toString().toStdString());
+        auto localBuilder = Akonadi2::Domain::Buffer::EventBuilder(localFbb);
+        localBuilder.add_uid(uid);
+        auto location = localBuilder.Finish();
+        Akonadi2::Domain::Buffer::FinishEventBuffer(localFbb, location);
+    }
+
+    Akonadi2::EntityBuffer::assembleEntityBuffer(fbb, localFbb.GetBufferPointer(), localFbb.GetSize(), eventFbb.GetBufferPointer(), eventFbb.GetSize(), 0, 0);
 }
 

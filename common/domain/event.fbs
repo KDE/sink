@@ -1,6 +1,7 @@
 namespace Akonadi2.Domain.Buffer;
 
 table Event {
+  uid:string;
   summary:string;
   description:string;
   attachment:[ubyte];

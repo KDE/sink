@@ -11,4 +11,5 @@ class DummyEventAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::Domai
 public:
     DummyEventAdaptorFactory();
     virtual QSharedPointer<Akonadi2::Domain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity);
+    virtual void createBuffer(const Akonadi2::Domain::Event &event, flatbuffers::FlatBufferBuilder &fbb);
 };

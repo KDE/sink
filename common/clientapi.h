@@ -227,7 +227,7 @@ public:
     {
     }
 
-    virtual QVariant getProperty(const QString &key){ return mAdaptor->getProperty(key); }
+    virtual QVariant getProperty(const QString &key) const { return mAdaptor->getProperty(key); }
     virtual void setProperty(const QString &key, const QVariant &value){ mChangeSet.insert(key, value); }
 
 private:
