@@ -19,6 +19,7 @@ manual_tests (
     dummyresourcetest
     domainadaptortest
     messagequeuetest
+    indextest
 )
 
 target_link_libraries(dummyresourcetest akonadi2_resource_dummy)
