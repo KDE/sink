@@ -40,9 +40,10 @@ public:
     {
         if (mResourceBuffer && mResourceMapper->mReadAccessors.contains(key)) {
             return mResourceMapper->getProperty(key, mResourceBuffer);
-        } else if (mLocalBuffer) {
+        } else if (mLocalBuffer && mLocalMapper->mReadAccessors.contains(key)) {
             return mLocalMapper->getProperty(key, mLocalBuffer);
         }
+        qWarning() << "no mapping available for key " << key;
         return QVariant();
     }
 
@@ -67,14 +68,23 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
 {
     mResourceMapper = QSharedPointer<PropertyMapper<DummyEvent> >::create();
     mResourceMapper->mReadAccessors.insert("summary", [](DummyEvent const *buffer) -> QVariant {
-        return QString::fromStdString(buffer->summary()->c_str());
+        if (buffer->summary()) {
+            return QString::fromStdString(buffer->summary()->c_str());
+        }
+        return QVariant();
     });
     mLocalMapper = QSharedPointer<PropertyMapper<Akonadi2::Domain::Buffer::Event> >::create();
     mLocalMapper->mReadAccessors.insert("summary", [](Akonadi2::Domain::Buffer::Event const *buffer) -> QVariant {
-        return QString::fromStdString(buffer->summary()->c_str());
+        if (buffer->summary()) {
+            return QString::fromStdString(buffer->summary()->c_str());
+        }
+        return QVariant();
     });
     mLocalMapper->mReadAccessors.insert("uid", [](Akonadi2::Domain::Buffer::Event const *buffer) -> QVariant {
-        return QString::fromStdString(buffer->uid()->c_str());
+        if (buffer->uid()) {
+            return QString::fromStdString(buffer->uid()->c_str());
+        }
+        return QVariant();
     });
 
 }
@@ -94,7 +104,7 @@ QSharedPointer<Akonadi2::Domain::BufferAdaptor> DummyEventAdaptorFactory::create
     if (auto metadataData = entity.metadata()) {
         flatbuffers::Verifier verifyer(metadataData->Data(), metadataData->size());
         if (Akonadi2::VerifyMetadataBuffer(verifyer)) {
-            metadataBuffer = Akonadi2::GetMetadata(metadataData);
+            metadataBuffer = Akonadi2::GetMetadata(metadataData->Data());
         }
     }
 
@@ -102,15 +112,15 @@ QSharedPointer<Akonadi2::Domain::BufferAdaptor> DummyEventAdaptorFactory::create
     if (auto localData = entity.local()) {
         flatbuffers::Verifier verifyer(localData->Data(), localData->size());
         if (Akonadi2::Domain::Buffer::VerifyEventBuffer(verifyer)) {
-            localBuffer = Akonadi2::Domain::Buffer::GetEvent(localData);
+            localBuffer = Akonadi2::Domain::Buffer::GetEvent(localData->Data());
         }
     }
 
     auto adaptor = QSharedPointer<DummyEventAdaptor>::create();
     adaptor->mLocalBuffer = localBuffer;
+    adaptor->mLocalMapper = mLocalMapper;
     adaptor->mResourceBuffer = resourceBuffer;
     adaptor->mResourceMapper = mResourceMapper;
-    adaptor->mLocalMapper = mLocalMapper;
     return adaptor;
 }
 
@@ -135,6 +145,6 @@ void DummyEventAdaptorFactory::createBuffer(const Akonadi2::Domain::Event &event
         Akonadi2::Domain::Buffer::FinishEventBuffer(localFbb, location);
     }
 
-    Akonadi2::EntityBuffer::assembleEntityBuffer(fbb, localFbb.GetBufferPointer(), localFbb.GetSize(), eventFbb.GetBufferPointer(), eventFbb.GetSize(), 0, 0);
+    Akonadi2::EntityBuffer::assembleEntityBuffer(fbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
 }
 

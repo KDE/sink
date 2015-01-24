@@ -3,9 +3,9 @@ namespace Akonadi2;
 table ModifyEntity {
     revision: ulong;
     entityId: string;
-    deletions: [string];
+    deletions: [string]; //A list of deleted properties
     domainType: string;
-    delta: [ubyte];
+    delta: [ubyte]; //Contains an entity buffer with all changed properties set
 }
 
 root_type ModifyEntity;

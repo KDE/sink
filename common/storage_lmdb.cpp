@@ -218,6 +218,11 @@ bool Storage::write(void const *keyPtr, size_t keySize, void const *valuePtr, si
         return false;
     }
 
+    if (!keyPtr || keySize == 0) {
+        std::cerr << "tried to write empty key." << std::endl;
+        return false;
+    }
+
     const bool implicitTransaction = !d->transaction || d->readTransaction;
     if (implicitTransaction) {
         if (!startTransaction()) {

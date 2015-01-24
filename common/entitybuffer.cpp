@@ -58,7 +58,6 @@ void EntityBuffer::extractResourceBuffer(void *dataValue, int dataSize, const st
 
 void EntityBuffer::assembleEntityBuffer(flatbuffers::FlatBufferBuilder &fbb, void const *metadataData, size_t metadataSize, void const *resourceData, size_t resourceSize, void const *localData, size_t localSize)
 {
-    qDebug() << "res size: " << resourceSize;
     auto metadata = fbb.CreateVector<uint8_t>(static_cast<uint8_t const*>(metadataData), metadataSize);
     auto resource = fbb.CreateVector<uint8_t>(static_cast<uint8_t const*>(resourceData), resourceSize);
     auto local = fbb.CreateVector<uint8_t>(static_cast<uint8_t const*>(localData), localSize);

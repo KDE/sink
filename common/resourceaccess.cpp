@@ -298,6 +298,7 @@ bool ResourceAccess::processMessageBuffer()
 {
     static const int headerSize = Commands::headerSize();
     if (d->partialMessageBuffer.size() < headerSize) {
+        qWarning() << "command too small";
         return false;
     }
 
@@ -306,6 +307,7 @@ bool ResourceAccess::processMessageBuffer()
     const uint size = *(int*)(d->partialMessageBuffer.constData() + sizeof(int) + sizeof(uint));
 
     if (size > (uint)(d->partialMessageBuffer.size() - headerSize)) {
+        qWarning() << "command too small";
         return false;
     }
 

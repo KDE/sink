@@ -29,6 +29,7 @@ private Q_SLOTS:
         removeFromDisk("org.kde.dummy");
         removeFromDisk("org.kde.dummy.userqueue");
         removeFromDisk("org.kde.dummy.synchronizerqueue");
+        removeFromDisk("org.kde.dummy.index.uid");
     }
 
     void cleanup()
@@ -36,6 +37,7 @@ private Q_SLOTS:
         removeFromDisk("org.kde.dummy");
         removeFromDisk("org.kde.dummy.userqueue");
         removeFromDisk("org.kde.dummy.synchronizerqueue");
+        removeFromDisk("org.kde.dummy.index.uid");
     }
 
     void testProcessCommand()
@@ -50,8 +52,17 @@ private Q_SLOTS:
             Akonadi2::Domain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
         }
 
+        flatbuffers::FlatBufferBuilder localFbb;
+        {
+            auto uid = localFbb.CreateString("testuid");
+            auto localBuilder = Akonadi2::Domain::Buffer::EventBuilder(localFbb);
+            localBuilder.add_uid(uid);
+            auto location = localBuilder.Finish();
+            Akonadi2::Domain::Buffer::FinishEventBuffer(localFbb, location);
+        }
+
         flatbuffers::FlatBufferBuilder entityFbb;
-        Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), 0, 0);
+        Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
 
         flatbuffers::FlatBufferBuilder fbb;
         auto type = fbb.CreateString(Akonadi2::Domain::getTypeName<Akonadi2::Domain::Event>().toStdString().data());
@@ -82,15 +93,34 @@ private Q_SLOTS:
         QCOMPARE(revisionSpy.count(), 2);
     }
 
-    void testWriteToFacade()
+    void testProperty()
     {
-        Akonadi2::Query query;
         Akonadi2::Domain::Event event;
+        event.setProperty("uid", "testuid");
+        QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
+    }
+
+    void testWriteToFacadeAndQueryByUid()
+    {
+        Akonadi2::Domain::Event event;
+        event.setProperty("uid", "testuid");
+        QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
         Akonadi2::Store::create<Akonadi2::Domain::Event>(event, "org.kde.dummy");
 
-        QTest::qWait(1000);
-        //TODO wait for success response
+        //TODO required to ensure all messages have been processed. The query should ensure this.
+        QTest::qWait(300);
+
+        Akonadi2::Query query;
+        query.resources << "org.kde.dummy";
+        query.syncOnDemand = false;
+
+        query.propertyFilter.insert("uid", "testuid");
+        async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
+        result.exec();
+        QCOMPARE(result.size(), 1);
+        auto value = result.first();
+        QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
     }
 
     void testResourceSync()

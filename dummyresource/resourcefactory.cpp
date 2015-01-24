@@ -28,6 +28,7 @@
 #include "domainadaptor.h"
 #include "commands.h"
 #include "clientapi.h"
+#include "index.h"
 #include <QUuid>
 #include <assert.h>
 
@@ -261,8 +262,31 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
         auto adaptor = eventFactory->createAdaptor(entity);
         qDebug() << "Summary preprocessor: " << adaptor->getProperty("summary").toString();
     });
+
+    auto uidIndexer = new SimpleProcessor("uidIndexer", [eventFactory](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
+        static Index uidIndex(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", "org.kde.dummy.index.uid", Akonadi2::Storage::ReadWrite);
+
+        auto adaptor = eventFactory->createAdaptor(entity);
+        const auto uid = adaptor->getProperty("uid");
+        if (uid.isValid()) {
+            uidIndex.add(uid.toByteArray(), state.key());
+        }
+
+        //TODO would this be worthwhile for performance reasons?
+        // flatbuffers::Verifier verifyer(entity.local()->Data(), entity.local()->size());
+        // if (!Akonadi2::Domain::Buffer::VerifyEventBuffer(verifyer)) {
+        //     qWarning() << "invalid local buffer";
+        //     return;
+        // }
+        // auto localEvent = Akonadi2::Domain::Buffer::GetEvent(entity.local()->Data());
+        // if (localEvent && localEvent->uid()) {
+        //     qDebug() << "got uid: " << QByteArray::fromRawData(reinterpret_cast<const char *>(localEvent->uid()->Data()), localEvent->uid()->size());
+        //     uidIndex.add(QByteArray::fromRawData(reinterpret_cast<const char *>(localEvent->uid()->Data()), localEvent->uid()->size()), state.key());
+        // }
+    });
+
     //event is the entitytype and not the domain type
-    pipeline->setPreprocessors("event", Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
+    pipeline->setPreprocessors("event", Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer << uidIndexer);
     mProcessor = new Processor(pipeline, QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
     QObject::connect(mProcessor, &Processor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
 }

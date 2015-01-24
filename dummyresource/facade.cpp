@@ -31,6 +31,7 @@
 #include "createentity_generated.h"
 #include "domainadaptor.h"
 #include <common/entitybuffer.h>
+#include <common/index.h>
 
 using namespace DummyCalendar;
 using namespace flatbuffers;
@@ -73,11 +74,11 @@ Async::Job<void> DummyResourceFacade::remove(const Akonadi2::Domain::Event &doma
     return Async::null<void>();
 }
 
-static std::function<bool(const std::string &key, DummyEvent const *buffer)> prepareQuery(const Akonadi2::Query &query)
+static std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local)> prepareQuery(const Akonadi2::Query &query)
 {
     //Compose some functions to make query matching fast.
     //This way we can process the query once, and convert all values into something that can be compared quickly
-    std::function<bool(const std::string &key, DummyEvent const *buffer)> preparedQuery;
+    std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local)> preparedQuery;
     if (!query.ids.isEmpty()) {
         //Match by id
         //TODO: for id's a direct lookup would be way faster
@@ -88,15 +89,26 @@ static std::function<bool(const std::string &key, DummyEvent const *buffer)> pre
         for (const auto &id : query.ids) {
             ids << id.toStdString();
         }
-        preparedQuery = [ids](const std::string &key, DummyEvent const *buffer) {
+        preparedQuery = [ids](const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local) {
             if (ids.contains(key)) {
                 return true;
             }
             return false;
         };
+    } else if (!query.propertyFilter.isEmpty()) {
+        if (query.propertyFilter.contains("uid")) {
+            const QByteArray uid = query.propertyFilter.value("uid").toByteArray();
+            preparedQuery = [uid](const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local) {
+                if (local && local->uid() && (QByteArray::fromRawData(local->uid()->c_str(), local->uid()->size()) == uid)) {
+                    qDebug() << "uid match";
+                    return true;
+                }
+                return false;
+            };
+        }
     } else {
         //Match everything
-        preparedQuery = [](const std::string &key, DummyEvent const *buffer) {
+        preparedQuery = [](const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local) {
             return true;
         };
     }
@@ -121,65 +133,96 @@ Async::Job<void> DummyResourceFacade::synchronizeResource(bool sync)
     return Async::null<void>();
 }
 
+void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, const QByteArray &key, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local)> preparedQuery)
+{
+    storage->scan(key.data(), key.size(), [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+
+        //Skip internals
+        if (QByteArray::fromRawData(static_cast<char*>(keyValue), keySize).startsWith("__internal")) {
+            return true;
+        }
+
+        //Extract buffers
+        Akonadi2::EntityBuffer buffer(dataValue, dataSize);
+
+        DummyEvent const *resourceBuffer = 0;
+        if (auto resourceData = buffer.entity().resource()) {
+            flatbuffers::Verifier verifyer(resourceData->Data(), resourceData->size());
+            if (VerifyDummyEventBuffer(verifyer)) {
+                resourceBuffer = GetDummyEvent(resourceData->Data());
+            }
+        }
+
+        Akonadi2::Domain::Buffer::Event const *localBuffer = 0;
+        if (auto localData = buffer.entity().local()) {
+            flatbuffers::Verifier verifyer(localData->Data(), localData->size());
+            if (Akonadi2::Domain::Buffer::VerifyEventBuffer(verifyer)) {
+                localBuffer = Akonadi2::Domain::Buffer::GetEvent(localData->Data());
+            }
+        }
+
+        Akonadi2::Metadata const *metadataBuffer = 0;
+        if (auto metadataData = buffer.entity().metadata()) {
+            flatbuffers::Verifier verifyer(metadataData->Data(), metadataData->size());
+            if (Akonadi2::VerifyMetadataBuffer(verifyer)) {
+                metadataBuffer = Akonadi2::GetMetadata(metadataData->Data());
+            }
+        }
+
+        if (!resourceBuffer || !metadataBuffer) {
+            qWarning() << "invalid buffer " << QString::fromStdString(std::string(static_cast<char*>(keyValue), keySize));
+            return true;
+        }
+
+        //We probably only want to create all buffers after the scan
+        //TODO use adapter for query and scan?
+        if (preparedQuery && preparedQuery(std::string(static_cast<char*>(keyValue), keySize), resourceBuffer, localBuffer)) {
+            qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
+            //This only works for a 1:1 mapping of resource to domain types.
+            //Not i.e. for tags that are stored as flags in each entity of an imap store.
+            auto adaptor = mFactory->createAdaptor(buffer.entity());
+            //TODO only copy requested properties
+            auto memoryAdaptor = QSharedPointer<Akonadi2::Domain::MemoryBufferAdaptor>::create(*adaptor);
+            auto event = QSharedPointer<Akonadi2::Domain::Event>::create("org.kde.dummy", QString::fromUtf8(static_cast<char*>(keyValue), keySize), revision, memoryAdaptor);
+            resultCallback(event);
+        }
+        return true;
+    },
+    [](const Akonadi2::Storage::Error &error) {
+        qDebug() << QString::fromStdString(error.message);
+    });
+}
+
 Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
 {
-    qDebug() << "load called";
-
     return synchronizeResource(query.syncOnDemand).then<void>([=](Async::Future<void> &future) {
-        qDebug() << "sync complete";
         //Now that the sync is complete we can execute the query
         const auto preparedQuery = prepareQuery(query);
 
         auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
 
-        qDebug() << "executing query";
+        QVector<QByteArray> keys;
+        if (query.propertyFilter.contains("uid")) {
+            static Index uidIndex(Akonadi2::Store::storageLocation(), "org.kde.dummy.index.uid", Akonadi2::Storage::ReadOnly);
+            uidIndex.lookup(query.propertyFilter.value("uid").toByteArray(), [&](const QByteArray &value) {
+                keys << value;
+            },
+            [](const Index::Error &error) {
+                qWarning() << "Error in index: " <<  QString::fromStdString(error.message);
+            });
+        }
+
         //We start a transaction explicitly that we'll leave open so the values can be read.
         //The transaction will be closed automatically once the storage object is destroyed.
         storage->startTransaction(Akonadi2::Storage::ReadOnly);
-        //Because we have no indexes yet, we always do a full scan
-        storage->scan("", [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-
-            //Skip internals
-            if (QByteArray::fromRawData(static_cast<char*>(keyValue), keySize).startsWith("__internal")) {
-                return true;
+        if (keys.isEmpty()) {
+            qDebug() << "full scan";
+            readValue(storage, QByteArray(), resultCallback, preparedQuery);
+        } else {
+            for (const auto &key : keys) {
+                readValue(storage, key, resultCallback, preparedQuery);
             }
-
-            //Extract buffers
-            Akonadi2::EntityBuffer buffer(dataValue, dataSize);
-
-            DummyEvent const *resourceBuffer = 0;
-            if (auto resourceData = buffer.entity().resource()) {
-                flatbuffers::Verifier verifyer(resourceData->Data(), resourceData->size());
-                if (VerifyDummyEventBuffer(verifyer)) {
-                    resourceBuffer = GetDummyEvent(resourceData);
-                }
-            }
-
-            Akonadi2::Metadata const *metadataBuffer = 0;
-            if (auto metadataData = buffer.entity().metadata()) {
-                flatbuffers::Verifier verifyer(metadataData->Data(), metadataData->size());
-                if (Akonadi2::VerifyMetadataBuffer(verifyer)) {
-                    metadataBuffer = Akonadi2::GetMetadata(metadataData);
-                }
-            }
-
-            if (!resourceBuffer || !metadataBuffer) {
-                qWarning() << "invalid buffer " << QString::fromStdString(std::string(static_cast<char*>(keyValue), keySize));
-                return true;
-            }
-
-            //We probably only want to create all buffers after the scan
-            //TODO use adapter for query and scan?
-            if (preparedQuery && preparedQuery(std::string(static_cast<char*>(keyValue), keySize), resourceBuffer)) {
-                qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-                auto adaptor = mFactory->createAdaptor(buffer.entity());
-                //TODO only copy requested properties
-                auto memoryAdaptor = QSharedPointer<Akonadi2::Domain::MemoryBufferAdaptor>::create(*adaptor);
-                auto event = QSharedPointer<Akonadi2::Domain::Event>::create("org.kde.dummy", QString::fromUtf8(static_cast<char*>(keyValue), keySize), revision, memoryAdaptor);
-                resultCallback(event);
-            }
-            return true;
-        });
+        }
         future.setFinished();
     });
 }
