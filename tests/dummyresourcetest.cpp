@@ -34,6 +34,7 @@ private Q_SLOTS:
 
     void cleanup()
     {
+        //TODO kill the synchronizer first?
         removeFromDisk("org.kde.dummy");
         removeFromDisk("org.kde.dummy.userqueue");
         removeFromDisk("org.kde.dummy.synchronizerqueue");
@@ -111,7 +112,7 @@ private Q_SLOTS:
         Akonadi2::Query query;
         query.resources << "org.kde.dummy";
         query.syncOnDemand = false;
-        query.processAll = false;
+        query.processAll = true;
 
         query.propertyFilter.insert("uid", "testuid");
         async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
@@ -131,8 +132,10 @@ private Q_SLOTS:
         auto future = job.exec();
         future.waitForFinished();
         QVERIFY(!future.errorCode());
-        QTRY_VERIFY(future.isFinished());
+        QVERIFY(future.isFinished());
         QVERIFY(!resource.error());
+        auto processAllMessagesFuture = resource.processAllMessages().exec();
+        processAllMessagesFuture.waitForFinished();
     }
 
     void testSyncAndFacade()

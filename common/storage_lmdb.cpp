@@ -169,6 +169,13 @@ bool Storage::startTransaction(AccessMode type)
     rc = mdb_txn_begin(d->env, NULL, requestedRead ? MDB_RDONLY : 0, &d->transaction);
     if (!rc) {
         rc = mdb_dbi_open(d->transaction, NULL, d->allowDuplicates ? MDB_DUPSORT : 0, &d->dbi);
+        if (rc) {
+            qWarning() << "Error while opening transaction: " << mdb_strerror(rc);
+        }
+    } else {
+        if (rc) {
+            qWarning() << "Error while beginning transaction: " << mdb_strerror(rc);
+        }
     }
 
     d->firstOpen = false;

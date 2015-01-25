@@ -397,6 +397,7 @@ Async::Job<void> DummyResource::processAllMessages()
     return Async::start<void>([this](Async::Future<void> &f) {
         //We have to wait for all items to be processed to ensure the synced items are available when a query gets executed.
         //TODO: report errors while processing sync?
+        //TODO: also check user-queue?
         if (mSynchronizerQueue.isEmpty()) {
             f.setFinished();
         } else {

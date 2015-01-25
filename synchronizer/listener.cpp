@@ -309,6 +309,7 @@ void Listener::refreshRevision()
 
 void Listener::updateClientsWithRevision()
 {
+    //FIXME don't send revision updates for revisions that are still being processed.
     auto command = Akonadi2::CreateRevisionUpdate(m_fbb, m_pipeline->storage().maxRevision());
     Akonadi2::FinishRevisionUpdateBuffer(m_fbb, command);
 
