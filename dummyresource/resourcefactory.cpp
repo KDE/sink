@@ -67,15 +67,6 @@ protected:
     QString mId;
 };
 
-// template <typename DomainType>
-// class SimpleReadOnlyProcessor : public SimpleProcessor<DomainType>
-// {
-// public:
-//     using SimpleProcessor::SimpleProcessor;
-//     void process(Akonadi2::PipelineState state) {
-//         mFunction();
-//     }
-// };
 
 
 static std::string createEvent()
@@ -123,6 +114,7 @@ public:
     {
         for (auto queue : mCommandQueues) {
             bool ret = connect(queue, &MessageQueue::messageReady, this, &Processor::process);
+            Q_UNUSED(ret);
             Q_ASSERT(ret);
         }
     }
@@ -184,7 +176,7 @@ private slots:
                                 future.setFinished();
                             },
                             [this, messageQueueCallback, whileCallback](int errorCode, const QString &errorMessage) {
-                                qDebug() << "Error while creating entity: " << errorCode << errorMessage;
+                                qWarning() << "Error while creating entity: " << errorCode << errorMessage;
                                 emit error(errorCode, errorMessage);
                                 messageQueueCallback(true);
                                 whileCallback(false);
@@ -200,7 +192,6 @@ private slots:
                     }
                 },
                 [whileCallback](const MessageQueue::Error &error) {
-                    qDebug() << "no more messages in queue";
                     whileCallback(true);
                 });
             },
@@ -260,7 +251,7 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
     //Eventually the order should be self configuring, for now it's hardcoded.
     auto eventIndexer = new SimpleProcessor("summaryprocessor", [eventFactory](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
         auto adaptor = eventFactory->createAdaptor(entity);
-        qDebug() << "Summary preprocessor: " << adaptor->getProperty("summary").toString();
+        // qDebug() << "Summary preprocessor: " << adaptor->getProperty("summary").toString();
     });
 
     auto uidIndexer = new SimpleProcessor("uidIndexer", [eventFactory](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
@@ -293,7 +284,7 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
 
 void DummyResource::onProcessorError(int errorCode, const QString &errorMessage)
 {
-    qDebug() << "Received error from Processor: " << errorCode << errorMessage;
+    qWarning() << "Received error from Processor: " << errorCode << errorMessage;
     mError = errorCode;
 }
 
@@ -340,7 +331,6 @@ void DummyResource::enqueueCommand(MessageQueue &mq, int commandId, const QByteA
 
 Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
 {
-    qDebug() << "synchronizeWithSource";
     return Async::start<void>([this, pipeline](Async::Future<void> &f) {
         //TODO use a read-only transaction during the complete sync to sync against a defined revision
         auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
@@ -387,7 +377,6 @@ Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeli
             }
         }
         //TODO find items to remove
-        qDebug() << "sync complete";
         f.setFinished();
     });
 }
@@ -399,9 +388,11 @@ Async::Job<void> DummyResource::processAllMessages()
         //TODO: report errors while processing sync?
         //TODO: also check user-queue?
         if (mSynchronizerQueue.isEmpty()) {
+            qDebug() << "synchronizer queue is empty";
             f.setFinished();
         } else {
             QObject::connect(&mSynchronizerQueue, &MessageQueue::drained, [&f]() {
+                qDebug() << "synchronizer queue drained";
                 f.setFinished();
             });
         }
@@ -410,7 +401,6 @@ Async::Job<void> DummyResource::processAllMessages()
 
 void DummyResource::processCommand(int commandId, const QByteArray &data, uint size, Akonadi2::Pipeline *pipeline)
 {
-    qDebug() << "processCommand";
     //TODO instead of copying the command including the full entity first into the command queue, we could directly
     //create a new revision, only pushing a handle into the commandqueue with the relevant changeset (for changereplay).
     //The problem is that we then require write access from multiple threads (or even processes to avoid sending the full entity over the wire).

@@ -189,7 +189,7 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
         return true;
     },
     [](const Akonadi2::Storage::Error &error) {
-        qDebug() << QString::fromStdString(error.message);
+        qWarning() << "Error during query: " << QString::fromStdString(error.message);
     });
 }
 

@@ -129,6 +129,7 @@ void Listener::clientDropped()
 void Listener::checkConnections()
 {
     if (m_connections.isEmpty()) {
+        log(QString("No connections, shutting down."));
         m_server->close();
         emit noClients();
     }

@@ -95,7 +95,7 @@ void Pipeline::null()
 
 Async::Job<void> Pipeline::newEntity(void const *command, size_t size)
 {
-    qDebug() << "new entity" << size;
+    qDebug() << "Pipeline: New Entity";
 
     //TODO toRFC4122 would probably be more efficient, but results in non-printable keys.
     const auto key = QUuid::createUuid().toString().toUtf8();
@@ -137,6 +137,7 @@ Async::Job<void> Pipeline::newEntity(void const *command, size_t size)
 
     storage().write(key.data(), key.size(), fbb.GetBufferPointer(), fbb.GetSize());
     storage().setMaxRevision(newRevision);
+    qDebug() << "Pipeline: wrote entity: "<< newRevision;
 
     return Async::start<void>([this, key, entityType](Async::Future<void> &future) {
         PipelineState state(this, NewPipeline, key, d->newPipeline[entityType], [&future]() {
