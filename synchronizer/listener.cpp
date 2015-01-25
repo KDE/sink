@@ -60,13 +60,23 @@ Listener::Listener(const QString &resourceName, QObject *parent)
         log(QString("Listening on %1").arg(m_server->serverName()));
     }
 
+    m_checkConnectionsTimer = new QTimer;
+    m_checkConnectionsTimer->setSingleShot(true);
+    m_checkConnectionsTimer->setInterval(1000);
+    connect(m_checkConnectionsTimer, &QTimer::timeout, [this]() {
+        if (m_connections.isEmpty()) {
+            log(QString("No connections, shutting down."));
+            m_server->close();
+            emit noClients();
+        }
+    });
+
     //TODO: experiment with different timeouts
-    //      or even just drop down to invoking the method queued?
-    m_clientBufferProcessesTimer->setInterval(10);
+    //      or even just drop down to invoking the method queued? => invoke queued unless we need throttling
+    m_clientBufferProcessesTimer->setInterval(0);
     m_clientBufferProcessesTimer->setSingleShot(true);
     connect(m_clientBufferProcessesTimer, &QTimer::timeout,
             this, &Listener::processClientBuffers);
-    QTimer::singleShot(2000, this, SLOT(checkConnections()));
 }
 
 Listener::~Listener()
@@ -102,6 +112,7 @@ void Listener::acceptConnection()
     m_connections << client;
     connect(socket, &QLocalSocket::disconnected,
             this, &Listener::clientDropped);
+    m_checkConnectionsTimer->stop();
 
 }
 
@@ -128,11 +139,7 @@ void Listener::clientDropped()
 
 void Listener::checkConnections()
 {
-    if (m_connections.isEmpty()) {
-        log(QString("No connections, shutting down."));
-        m_server->close();
-        emit noClients();
-    }
+    m_checkConnectionsTimer->start();
 }
 
 void Listener::readFromSocket()
