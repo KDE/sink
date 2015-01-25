@@ -267,11 +267,16 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
         }
         return;
     }
-    //TODO set an error on all open callbacks
     log(QString("Connection error: %1 : %2").arg(error).arg(d->socket->errorString()));
     if (error == QLocalSocket::PeerClosedError) {
         log("The resource closed the connection. It probably crashed.");
     }
+
+    for(auto handler : d->resultHandler.values()) {
+        //TODO set error
+        handler();
+    }
+    d->resultHandler.clear();
 
     d->startingProcess = true;
     log(QString("Attempting to start resource ") + d->resourceName);
