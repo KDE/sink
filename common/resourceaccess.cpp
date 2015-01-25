@@ -38,14 +38,14 @@ namespace Akonadi2
 class QueuedCommand
 {
 public:
-    QueuedCommand(int commandId, const std::function<void()> &callback)
+    QueuedCommand(int commandId, const std::function<void(int, const QString &)> &callback)
         : commandId(commandId),
           bufferSize(0),
           buffer(0),
           callback(callback)
     {}
 
-    QueuedCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb, const std::function<void()> &callback)
+    QueuedCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb, const std::function<void(int, const QString &)> &callback)
         : commandId(commandId),
           bufferSize(fbb.GetSize()),
           buffer(new char[bufferSize]),
@@ -67,7 +67,7 @@ public:
     const int commandId;
     const uint bufferSize;
     char *buffer;
-    std::function<void()> callback;
+    std::function<void(int, const QString &)> callback;
 };
 
 class ResourceAccess::Private
@@ -81,7 +81,7 @@ public:
     QByteArray partialMessageBuffer;
     flatbuffers::FlatBufferBuilder fbb;
     QVector<QueuedCommand *> commandQueue;
-    QMultiMap<uint, std::function<void()> > resultHandler;
+    QMultiMap<uint, std::function<void(int error, const QString &errorMessage)> > resultHandler;
     uint messageId;
 };
 
@@ -129,7 +129,7 @@ bool ResourceAccess::isReady() const
     return d->socket->isValid();
 }
 
-void ResourceAccess::registerCallback(uint messageId, const std::function<void()> &callback)
+void ResourceAccess::registerCallback(uint messageId, const std::function<void(int error, const QString &errorMessage)> &callback)
 {
     d->resultHandler.insert(messageId, callback);
 }
@@ -137,27 +137,33 @@ void ResourceAccess::registerCallback(uint messageId, const std::function<void()
 Async::Job<void> ResourceAccess::sendCommand(int commandId)
 {
     return Async::start<void>([this, commandId](Async::Future<void> &f) {
+        auto continuation = [&f](int error, const QString &errorMessage) {
+            if (error) {
+                f.setError(error, errorMessage);
+            }
+            f.setFinished();
+        };
         if (isReady()) {
             log(QString("Sending command %1").arg(commandId));
             d->messageId++;
-            registerCallback(d->messageId, [&f]() { f.setFinished(); });
+            registerCallback(d->messageId, continuation);
             Commands::write(d->socket, d->messageId, commandId);
         } else {
-            d->commandQueue << new QueuedCommand(commandId, [&f]() { f.setFinished(); });
+            d->commandQueue << new QueuedCommand(commandId, continuation);
         }
     });
 }
 
 struct JobFinisher {
     bool finished;
-    std::function<void()> callback;
+    std::function<void(int error, const QString &errorMessage)> callback;
 
     JobFinisher() : finished(false) {}
 
-    void setFinished() {
+    void setFinished(int error, const QString &errorMessage) {
         finished = true;
         if (callback) {
-            callback();
+            callback(error, errorMessage);
         }
     }
 };
@@ -165,8 +171,8 @@ struct JobFinisher {
 Async::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb)
 {
     auto finisher = QSharedPointer<JobFinisher>::create();
-    auto callback = [finisher] () {
-        finisher->setFinished();
+    auto callback = [finisher] (int error, const QString &errorMessage) {
+        finisher->setFinished(error, errorMessage);
     };
     if (isReady()) {
         d->messageId++;
@@ -180,7 +186,10 @@ Async::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBu
         if (finisher->finished) {
             f.setFinished();
         } else {
-            finisher->callback = [&f]() {
+            finisher->callback = [&f](int error, const QString &errorMessage) {
+                if (error) {
+                    f.setError(error, errorMessage);
+                }
                 f.setFinished();
             };
         }
@@ -273,8 +282,7 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
     }
 
     for(auto handler : d->resultHandler.values()) {
-        //TODO set error
-        handler();
+        handler(1, "The resource closed unexpectedly");
     }
     d->resultHandler.clear();
 
@@ -348,7 +356,7 @@ bool ResourceAccess::processMessageBuffer()
 void ResourceAccess::callCallbacks(int id)
 {
     for(auto handler : d->resultHandler.values(id)) {
-        handler();
+        handler(0, QString());
     }
     d->resultHandler.remove(id);
 }

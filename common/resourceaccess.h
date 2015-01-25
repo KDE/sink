@@ -65,7 +65,7 @@ private Q_SLOTS:
 
 private:
     void log(const QString &message);
-    void registerCallback(uint messageId, const std::function<void()> &callback);
+    void registerCallback(uint messageId, const std::function<void(int error, const QString &)> &callback);
 
     class Private;
     Private * const d;
