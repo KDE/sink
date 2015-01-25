@@ -43,7 +43,7 @@ public:
 
     Async::Job<void> sendCommand(int commandId);
     Async::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb);
-    Async::Job<void> synchronizeResource();
+    Async::Job<void> synchronizeResource(bool remoteSync, bool localSync);
 
 public Q_SLOTS:
     void open();

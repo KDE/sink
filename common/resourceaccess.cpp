@@ -25,6 +25,7 @@
 #include "common/commandcompletion_generated.h"
 #include "common/handshake_generated.h"
 #include "common/revisionupdate_generated.h"
+#include "common/synchronize_generated.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -186,9 +187,12 @@ Async::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBu
     });
 }
 
-Async::Job<void> ResourceAccess::synchronizeResource()
+Async::Job<void> ResourceAccess::synchronizeResource(bool sourceSync, bool localSync)
 {
-    return sendCommand(Commands::SynchronizeCommand);
+    auto command = Akonadi2::CreateSynchronize(d->fbb, sourceSync, localSync);
+    Akonadi2::FinishSynchronizeBuffer(d->fbb, command);
+    return sendCommand(Commands::SynchronizeCommand, d->fbb);
+    d->fbb.Clear();
 }
 
 void ResourceAccess::open()

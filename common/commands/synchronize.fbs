@@ -1,0 +1,8 @@
+namespace Akonadi2;
+
+table Synchronize {
+    sourceSync: bool; //Synchronize with source
+    localSync: bool; //Ensure all queues are processed so the local state is up-to date.
+}
+
+root_type Synchronize;

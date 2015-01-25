@@ -28,6 +28,7 @@
 #include "common/commandcompletion_generated.h"
 #include "common/handshake_generated.h"
 #include "common/revisionupdate_generated.h"
+#include "common/synchronize_generated.h"
 
 #include <QLocalSocket>
 #include <QTimer>
@@ -189,18 +190,38 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
             break;
         }
         case Akonadi2::Commands::SynchronizeCommand: {
-            log(QString("\tSynchronize request (id %1) from %2").arg(messageId).arg(client.name));
-            loadResource();
-            if (m_resource) {
-                qDebug() << "synchronizing";
-                m_resource->synchronizeWithSource(m_pipeline).then<void>([callback](Async::Future<void> &f){
-                    //FIXME: the command is complete once all pipelines have been drained, track progress and async emit result
-                    callback();
-                    f.setFinished();
-                }).exec();
+            flatbuffers::Verifier verifier((const uint8_t *)client.commandBuffer.constData(), size);
+            if (Akonadi2::VerifySynchronizeBuffer(verifier)) {
+                auto buffer = Akonadi2::GetSynchronize(client.commandBuffer.constData());
+                log(QString("\tSynchronize request (id %1) from %2").arg(messageId).arg(client.name));
+                loadResource();
+                if (!m_resource) {
+                    qWarning() << "No resource loaded";
+                    break;
+                }
+                //TODO a more elegant composition of jobs should be possible
+                if (buffer->sourceSync()) {
+                    bool localSync = buffer->localSync();
+                    m_resource->synchronizeWithSource(m_pipeline).then<void>([callback, localSync, this](Async::Future<void> &f){
+                        if (localSync) {
+                            m_resource->processAllMessages().then<void>([callback](Async::Future<void> &f){
+                                callback();
+                                f.setFinished();
+                            }).exec();
+                        } else {
+                            callback();
+                            f.setFinished();
+                        }
+                    }).exec();
+                } else if (buffer->localSync()) {
+                    m_resource->processAllMessages().then<void>([callback](Async::Future<void> &f){
+                        callback();
+                        f.setFinished();
+                    }).exec();
+                }
                 return;
             } else {
-                qWarning() << "No resource loaded";
+                qWarning() << "received invalid command";
             }
             break;
         }

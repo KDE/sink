@@ -297,7 +297,7 @@ using namespace async;
 class Query
 {
 public:
-    Query() : syncOnDemand(true) {}
+    Query() : syncOnDemand(true), processAll(false) {}
     //Could also be a propertyFilter
     QStringList resources;
     //Could also be a propertyFilter
@@ -307,6 +307,7 @@ public:
     //Properties to retrieve
     QSet<QString> requestedProperties;
     bool syncOnDemand;
+    bool processAll;
 };
 
 

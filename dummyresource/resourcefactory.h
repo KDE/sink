@@ -35,6 +35,7 @@ class DummyResource : public Akonadi2::Resource
 public:
     DummyResource();
     Async::Job<void> synchronizeWithSource(Akonadi2::Pipeline *pipeline);
+    Async::Job<void> processAllMessages();
     void processCommand(int commandId, const QByteArray &data, uint size, Akonadi2::Pipeline *pipeline);
     void configurePipeline(Akonadi2::Pipeline *pipeline);
     int error() const;

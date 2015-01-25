@@ -115,16 +115,16 @@ static std::function<bool(const std::string &key, DummyEvent const *buffer, Akon
     return preparedQuery;
 }
 
-Async::Job<void> DummyResourceFacade::synchronizeResource(bool sync)
+Async::Job<void> DummyResourceFacade::synchronizeResource(bool sync, bool processAll)
 {
     //TODO check if a sync is necessary
     //TODO Only sync what was requested
     //TODO timeout
 
-    if (sync) {
+    if (sync || processAll) {
         return Async::start<void>([=](Async::Future<void> &future) {
             mResourceAccess->open();
-            mResourceAccess->synchronizeResource().then<void>([&future](Async::Future<void> &f) {
+            mResourceAccess->synchronizeResource(sync, processAll).then<void>([&future](Async::Future<void> &f) {
                 future.setFinished();
                 f.setFinished();
             }).exec();
@@ -195,7 +195,7 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
 
 Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
 {
-    return synchronizeResource(query.syncOnDemand).then<void>([=](Async::Future<void> &future) {
+    return synchronizeResource(query.syncOnDemand, query.processAll).then<void>([=](Async::Future<void> &future) {
         //Now that the sync is complete we can execute the query
         const auto preparedQuery = prepareQuery(query);
 

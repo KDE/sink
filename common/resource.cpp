@@ -60,6 +60,11 @@ Async::Job<void> Resource::synchronizeWithSource(Pipeline *pipeline)
     });
 }
 
+Async::Job<void> Resource::processAllMessages()
+{
+    return Async::null<void>();
+}
+
 class ResourceFactory::Private
 {
 public:

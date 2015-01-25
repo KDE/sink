@@ -35,6 +35,7 @@ public:
 
     virtual void processCommand(int commandId, const QByteArray &data, uint size, Pipeline *pipeline);
     virtual Async::Job<void> synchronizeWithSource(Pipeline *pipeline);
+    virtual Async::Job<void> processAllMessages();
 
     virtual void configurePipeline(Pipeline *pipeline);
 

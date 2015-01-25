@@ -108,12 +108,10 @@ private Q_SLOTS:
         event.setProperty("summary", "summaryValue");
         Akonadi2::Store::create<Akonadi2::Domain::Event>(event, "org.kde.dummy");
 
-        //TODO required to ensure all messages have been processed. The query should ensure this.
-        QTest::qWait(300);
-
         Akonadi2::Query query;
         query.resources << "org.kde.dummy";
         query.syncOnDemand = false;
+        query.processAll = false;
 
         query.propertyFilter.insert("uid", "testuid");
         async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
@@ -141,6 +139,8 @@ private Q_SLOTS:
     {
         Akonadi2::Query query;
         query.resources << "org.kde.dummy";
+        query.syncOnDemand = true;
+        query.processAll = true;
 
         async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
         result.exec();

@@ -387,7 +387,14 @@ Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeli
             }
         }
         //TODO find items to remove
+        qDebug() << "sync complete";
+        f.setFinished();
+    });
+}
 
+Async::Job<void> DummyResource::processAllMessages()
+{
+    return Async::start<void>([this](Async::Future<void> &f) {
         //We have to wait for all items to be processed to ensure the synced items are available when a query gets executed.
         //TODO: report errors while processing sync?
         if (mSynchronizerQueue.isEmpty()) {
