@@ -319,7 +319,7 @@ bool ResourceAccess::processMessageBuffer()
         return false;
     }
 
-    const uint messageId = *(int*)(d->partialMessageBuffer.constData());
+    //const uint messageId = *(int*)(d->partialMessageBuffer.constData());
     const int commandId = *(int*)(d->partialMessageBuffer.constData() + sizeof(uint));
     const uint size = *(int*)(d->partialMessageBuffer.constData() + sizeof(int) + sizeof(uint));
 

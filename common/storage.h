@@ -79,6 +79,11 @@ public:
     void setMaxRevision(qint64 revision);
 
     bool exists() const;
+
+    static bool isInternalKey(const char *key);
+    static bool isInternalKey(void *key, int keySize);
+    static bool isInternalKey(const QByteArray &key);
+
 private:
     class Private;
     Private * const d;

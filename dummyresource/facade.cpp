@@ -138,7 +138,7 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
     storage->scan(key.data(), key.size(), [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
 
         //Skip internals
-        if (QByteArray::fromRawData(static_cast<char*>(keyValue), keySize).startsWith("__internal")) {
+        if (Akonadi2::Storage::isInternalKey(keyValue, keySize)) {
             return true;
         }
 

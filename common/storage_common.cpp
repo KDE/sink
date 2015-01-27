@@ -25,6 +25,9 @@
 namespace Akonadi2
 {
 
+static const char *s_internalPrefix = "__internal";
+static const int s_internalPrefixSize = strlen(s_internalPrefix);
+
 void errorHandler(const Storage::Error &error)
 {
     //TODO: allow this to be turned on / off globally
@@ -69,6 +72,25 @@ qint64 Storage::maxRevision()
         //TODO only ignore value not found errors
     });
     return r;
+}
+
+bool Storage::isInternalKey(const char *key)
+{
+    return key && strncmp(key, s_internalPrefix, s_internalPrefixSize) == 0;
+}
+
+bool Storage::isInternalKey(void *key, int size)
+{
+    if (size < 1) {
+        return false;
+    }
+
+    return key && strncmp(static_cast<char *>(key), s_internalPrefix, (size > s_internalPrefixSize ? s_internalPrefixSize : size)) == 0;
+}
+
+bool Storage::isInternalKey(const QByteArray &key)
+{
+    return key.startsWith(s_internalPrefix);
 }
 
 } // namespace Akonadi2

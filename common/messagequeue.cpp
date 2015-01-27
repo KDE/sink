@@ -1,4 +1,5 @@
 #include "messagequeue.h"
+#include "storage.h"
 #include <QDebug>
 
 MessageQueue::MessageQueue(const QString &storageRoot, const QString &name)
@@ -24,7 +25,7 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
     bool readValue = false;
     mStorage.scan("", 0, [this, resultHandler, &readValue](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
         const auto key  = QByteArray::fromRawData(static_cast<char*>(keyPtr), keySize);
-        if (key.startsWith("__internal")) {
+        if (Akonadi2::Storage::isInternalKey(key)) {
             return true;
         }
         readValue = true;
@@ -55,7 +56,7 @@ bool MessageQueue::isEmpty()
     int count = 0;
     mStorage.scan("", [&count](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
         const auto key = QByteArray::fromRawData(static_cast<char*>(keyPtr), keySize);
-        if (!key.startsWith("__internal")) {
+        if (!Akonadi2::Storage::isInternalKey(key)) {
             count++;
             return false;
         }

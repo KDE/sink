@@ -113,9 +113,8 @@ public:
         mProcessingLock(false)
     {
         for (auto queue : mCommandQueues) {
-            bool ret = connect(queue, &MessageQueue::messageReady, this, &Processor::process);
+            const bool ret = connect(queue, &MessageQueue::messageReady, this, &Processor::process);
             Q_UNUSED(ret);
-            Q_ASSERT(ret);
         }
     }
 
@@ -298,7 +297,7 @@ void findByRemoteId(QSharedPointer<Akonadi2::Storage> storage, const QString &ri
     //TODO lookup in rid index instead of doing a full scan
     const std::string ridString = rid.toStdString();
     storage->scan("", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-        if (QByteArray::fromRawData(static_cast<char*>(keyValue), keySize).startsWith("__internal")) {
+        if (Akonadi2::Storage::isInternalKey(keyValue, keySize)) {
             return true;
         }
 
