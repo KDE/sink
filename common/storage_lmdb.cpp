@@ -417,7 +417,7 @@ void Storage::removeFromDisk() const
         qWarning() << "Failed to remove directory" << d->storageRoot << d->name;
     }
     auto env = d->sEnvironments.take(fullPath);
-    delete env;
+    mdb_env_close(env);
 }
 
 } // namespace Akonadi2
