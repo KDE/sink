@@ -19,7 +19,7 @@ if (STORAGE_unqlite)
     set(storage_SRCS unqlite/unqlite.c storage_unqlite.cpp)
 else (STORAGE_unqlite)
     set(storage_SRCS storage_lmdb.cpp)
-    set(storage_LIBS ${lmdb})
+    set(storage_LIBS lmdb)
 endif (STORAGE_unqlite)
 
 set(command_SRCS
