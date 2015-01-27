@@ -420,13 +420,13 @@ public:
             // Query all resources and aggregate results
             // query tells us in which resources we're interested
             // TODO: queries to individual resources could be parallelized
-            auto eventloop = QSharedPointer<QEventLoop>::create();
             Async::Job<void> job = Async::null<void>();
             for(const QString &resource : query.resources) {
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
                 //We have to bind an instance to the function callback. Since we use a shared pointer this keeps the result provider instance (and thus also the emitter) alive.
                 std::function<void(const typename DomainType::Ptr &)> addCallback = std::bind(&ResultProvider<typename DomainType::Ptr>::add, resultSet, std::placeholders::_1);
                 //We copy the facade pointer to keep it alive
+                //TODO: we should be able to just do, job = job.then(facade->load(..))
                 job = job.then<void>([facade, query, addCallback](Async::Future<void> &future) {
                     Async::Job<void> j = facade->load(query, addCallback);
                     j.then<void>([&future, facade](Async::Future<void> &f) {
@@ -435,13 +435,11 @@ public:
                     }).exec();
                 });
             }
-            job.then<void>([eventloop, resultSet](Async::Future<void> &future) {
+            job.then<void>([/* eventloop,  */resultSet](Async::Future<void> &future) {
+                qDebug() << "Query complete";
                 resultSet->complete();
-                eventloop->quit();
                 future.setFinished();
-            }).exec();
-            //The thread contains no eventloop, so execute one here
-            eventloop->exec(QEventLoop::ExcludeUserInputEvents);
+            }).exec().waitForFinished(); //We use the eventloop provided by waitForFinished to keep the thread alive until all is done
         });
         return resultSet->emitter();
     }
