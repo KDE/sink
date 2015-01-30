@@ -34,11 +34,13 @@ private Q_SLOTS:
 
     void cleanup()
     {
-        //TODO kill the synchronizer first?
+        Akonadi2::Store::shutdown("org.kde.dummy");
         removeFromDisk("org.kde.dummy");
         removeFromDisk("org.kde.dummy.userqueue");
         removeFromDisk("org.kde.dummy.synchronizerqueue");
         removeFromDisk("org.kde.dummy.index.uid");
+        auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
+        QVERIFY(factory);
     }
 
     void testProcessCommand()

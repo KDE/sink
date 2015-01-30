@@ -243,6 +243,12 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
                 m_resource->processCommand(commandId, client.commandBuffer, size, m_pipeline);
             }
             break;
+        case Akonadi2::Commands::ShutdownCommand:
+            log(QString("\tReceived shutdown command from %1").arg(client.name));
+            callback();
+            m_server->close();
+            emit noClients();
+            return;
         default:
             if (commandId > Akonadi2::Commands::CustomCommand) {
                 loadResource();

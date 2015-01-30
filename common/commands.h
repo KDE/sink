@@ -42,6 +42,7 @@ enum CommandIds {
     ModifyEntityCommand,
     CreateEntityCommand,
     SearchSourceCommand, // need a buffer definition for this, but relies on Query API
+    ShutdownCommand,
     CustomCommand = 0xffff
 };
 

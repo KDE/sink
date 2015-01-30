@@ -488,6 +488,8 @@ public:
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceIdentifier);
         facade.remove(domainObject);
     }
+
+    static void shutdown(const QString &resourceIdentifier);
 };
 
 }
