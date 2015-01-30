@@ -333,11 +333,8 @@ public:
 
 /**
  * Facade factory that returns a store facade implementation, by loading a plugin and providing the relevant implementation.
- * 
+ *
  * If we were to provide default implementations for certain capabilities. Here would be the place to do so.
- * 
- * TODO: pluginmechansims for resources to provide their implementations.
- * * We may want a way to recycle facades to avoid recreating socket connections all the time?
  */
 
 class FacadeFactory {
@@ -395,8 +392,6 @@ private:
 
 /**
  * Store interface used in the client API.
- *
- * TODO: For testing we need to be able to inject dummy StoreFacades. Should we work with a store instance, or a singleton factory?
  */
 class Store {
 public:

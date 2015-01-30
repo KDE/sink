@@ -6,14 +6,8 @@
 namespace async
 {
     void run(const std::function<void()> &runner) {
+        //TODO use a job that runs in a thread?
         QtConcurrent::run(runner);
-
-        // //FIXME we should be using a Job instead of a timer
-        // auto timer = new QTimer;
-        // timer->setSingleShot(true);
-        // QObject::connect(timer, &QTimer::timeout, runner);
-        // QObject::connect(timer, &QTimer::timeout, timer, &QObject::deleteLater);
-        // timer->start(0);
     };
 } // namespace async
 

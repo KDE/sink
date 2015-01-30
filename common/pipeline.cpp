@@ -100,7 +100,6 @@ Async::Job<void> Pipeline::newEntity(void const *command, size_t size)
     //TODO toRFC4122 would probably be more efficient, but results in non-printable keys.
     const auto key = QUuid::createUuid().toString().toUtf8();
 
-    //TODO figure out if we already have created a revision for the message?
     const qint64 newRevision = storage().maxRevision() + 1;
 
     {
