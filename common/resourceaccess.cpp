@@ -154,6 +154,13 @@ Async::Job<void> ResourceAccess::sendCommand(int commandId)
     });
 }
 
+/*
+ * TODO JOBAPI: This is a workaround to be able to return a job below to
+ * may or may not already be finished when the job is started. The job API should provide a mechanism
+ * for this. Essentially we need a way to set a job finished externally (we use the finisher as handle for that).
+ * If the job is then started the continuation should immediately be executed if the job finished already, and otherwise
+ * just wait until the work is done, and then execute the continuation as usual.
+ */
 struct JobFinisher {
     bool finished;
     std::function<void(int error, const QString &errorMessage)> callback;
