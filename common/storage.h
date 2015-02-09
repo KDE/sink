@@ -52,7 +52,7 @@ public:
     //TODO: row removal
     //TODO: cursor based read
     //TODO: query?
-    bool write(void const *key, size_t keySize, void const *value, size_t valueSize);
+    bool write(const void *key, size_t keySize, const void *value, size_t valueSize);
     bool write(const std::string &sKey, const std::string &sValue);
     void read(const std::string &sKey,
               const std::function<bool(const std::string &value)> &resultHandler);

@@ -216,7 +216,7 @@ void Storage::abortTransaction()
     d->transaction = 0;
 }
 
-bool Storage::write(void const *keyPtr, size_t keySize, void const *valuePtr, size_t valueSize)
+bool Storage::write(const void *keyPtr, size_t keySize, const void *valuePtr, size_t valueSize)
 {
     if (!d->env) {
         return false;
@@ -354,12 +354,12 @@ void Storage::scan(const char *keyData, uint keySize,
     }
 }
 
-void Storage::remove(void const *keyData, uint keySize)
+void Storage::remove(const void *keyData, uint keySize)
 {
     remove(keyData, keySize, basicErrorHandler());
 }
 
-void Storage::remove(void const *keyData, uint keySize, const std::function<void(const Storage::Error &error)> &errorHandler)
+void Storage::remove(const void *keyData, uint keySize, const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d->env) {
         Error error(d->name.toStdString(), -1, "Not open");
