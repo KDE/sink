@@ -41,7 +41,7 @@ static const char *s_unqliteDir = "/unqlite/";
 class Storage::Private
 {
 public:
-    Private(const QString &s, const QString &name, AccessMode m);
+    Private(const QString &s, const QString &name, AccessMode m, bool allowDuplicates);
     ~Private();
 
     void reportDbError(const char *functionName);
@@ -53,14 +53,16 @@ public:
     AccessMode mode;
 
     unqlite *db;
+    bool allowDuplicates;
     bool inTransaction;
 };
 
-Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
+Storage::Private::Private(const QString &s, const QString &n, AccessMode m, bool duplicates)
     : storageRoot(s),
       name(n),
       mode(m),
       db(0),
+      allowDuplicates(duplicates), //FIXME: currently does nothing ... should do what it says
       inTransaction(false)
 {
     const QString fullPath(storageRoot + s_unqliteDir + name);
@@ -121,8 +123,8 @@ void Storage::Private::reportDbError(const char *functionName, int errorCode,
     errorHandler(error);
 }
 
-Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode)
-    : d(new Private(storageRoot, name, mode))
+Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode, bool allowDuplicates)
+    : d(new Private(storageRoot, name, mode, allowDuplicates))
 {
 }
 
@@ -189,24 +191,24 @@ void Storage::abortTransaction()
     d->inTransaction = false;
 }
 
-bool Storage::write(const char *key, size_t keySize, const char *value, size_t valueSize)
-{
-    return write(std::string(key, keySize), std::string(value, valueSize));
-}
-
-bool Storage::write(const std::string &sKey, const std::string &sValue)
+bool Storage::write(const void *key, size_t keySize, const void *value, size_t valueSize)
 {
     if (!d->db) {
         return false;
     }
 
-    int rc = unqlite_kv_store(d->db, sKey.data(), -1, sValue.data(), sValue.size());
+    int rc = unqlite_kv_store(d->db, key, keySize, value, valueSize);
 
     if (rc != UNQLITE_OK) {
         d->reportDbError("unqlite_kv_store");
     }
 
     return !rc;
+}
+
+bool Storage::write(const std::string &sKey, const std::string &sValue)
+{
+    return write(sKey.data(), sKey.size(), sValue.data(), sKey.size());
 }
 
 void Storage::read(const std::string &sKey,
@@ -232,6 +234,24 @@ void Storage::read(const std::string &sKey,
         return resultHandler(valuePtr, valueSize);
     }, errorHandler);
 }
+
+void Storage::remove(const void *keyData, uint keySize)
+{
+    remove(keyData, keySize, basicErrorHandler());
+}
+
+void Storage::remove(const void *keyData, uint keySize,
+                     const std::function<void(const Storage::Error &error)> &errorHandler)
+{
+    if (!d->db) {
+        Error error(d->name.toStdString(), -1, "Not open");
+        errorHandler(error);
+        return;
+    }
+
+    unqlite_kv_delete(d->db, keyData, keySize);
+}
+
 
 void fetchCursorData(unqlite_kv_cursor *cursor,
                      void **keyBuffer, int *keyBufferLength, void **dataBuffer, unqlite_int64 *dataBufferLength,
@@ -305,6 +325,11 @@ qint64 Storage::diskUsage() const
 {
     QFileInfo info(d->storageRoot + s_unqliteDir + d->name);
     return info.size();
+}
+
+bool Storage::exists() const
+{
+    return d->db != 0;
 }
 
 void Storage::removeFromDisk() const
