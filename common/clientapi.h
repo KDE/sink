@@ -421,14 +421,7 @@ public:
                 //We have to bind an instance to the function callback. Since we use a shared pointer this keeps the result provider instance (and thus also the emitter) alive.
                 std::function<void(const typename DomainType::Ptr &)> addCallback = std::bind(&ResultProvider<typename DomainType::Ptr>::add, resultSet, std::placeholders::_1);
                 //We copy the facade pointer to keep it alive
-                //TODO JOBAPI: we should be able to just do, job = job.then(facade->load(..))
-                job = job.then<void>([facade, query, addCallback](Async::Future<void> &future) {
-                    Async::Job<void> j = facade->load(query, addCallback);
-                    j.then<void>([&future, facade](Async::Future<void> &f) {
-                        future.setFinished();
-                        f.setFinished();
-                    }).exec();
-                });
+                job = job.then(facade->load(query, addCallback));
             }
             job.then<void>([/* eventloop,  */resultSet](Async::Future<void> &future) {
                 qDebug() << "Query complete";
