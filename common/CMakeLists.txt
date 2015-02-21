@@ -41,6 +41,6 @@ generate_export_header(${PROJECT_NAME} BASE_NAME Akonadi2Common EXPORT_FILE_NAME
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 qt5_use_modules(${PROJECT_NAME} Widgets Network)
 target_link_libraries(${PROJECT_NAME} ${storage_LIBS} akonadi2async)
-install(TARGETS ${PROJECT_NAME} DESTINATION lib)
+install(TARGETS ${PROJECT_NAME} ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 add_subdirectory(test)

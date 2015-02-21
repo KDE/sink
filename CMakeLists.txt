@@ -14,11 +14,12 @@ include(GenerateExportHeader)
 #include(ECMSetupVersion)
 include(ECMGenerateHeaders)
 include(ECMPackageConfigHelpers)
-# include(KDEInstallDirs)
+include(KDEInstallDirs)
 # include(KDEFrameworkCompilerSettings)
 # include(KDECMakeSettings)
 
-find_package(Qt5Core REQUIRED)
+find_package(Qt5 COMPONENTS REQUIRED Core Widgets Network)
+
 find_package(FlatBuffers REQUIRED)
 function(generate_flatbuffers)
     foreach(fbs ${ARGN})
@@ -41,7 +42,8 @@ include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/common)
 
 configure_file(hawd.conf hawd.conf)
 
-set(AKONADI2_RESOURCE_PLUGINS_PATH plugins/akonadi2/resources)
+set(AKONADI2_RESOURCE_PLUGINS_PATH ${QT_PLUGIN_INSTALL_DIR}/akonadi2/resources)
+
 # common, eventually a lib but right now just the command buffers
 add_subdirectory(common)
 
