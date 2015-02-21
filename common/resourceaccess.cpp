@@ -154,51 +154,24 @@ Async::Job<void> ResourceAccess::sendCommand(int commandId)
     });
 }
 
-/*
- * TODO JOBAPI: This is a workaround to be able to return a job below to
- * may or may not already be finished when the job is started. The job API should provide a mechanism
- * for this. Essentially we need a way to set a job finished externally (we use the finisher as handle for that).
- * If the job is then started the continuation should immediately be executed if the job finished already, and otherwise
- * just wait until the work is done, and then execute the continuation as usual.
- */
-struct JobFinisher {
-    bool finished;
-    std::function<void(int error, const QString &errorMessage)> callback;
-
-    JobFinisher() : finished(false) {}
-
-    void setFinished(int error, const QString &errorMessage) {
-        finished = true;
-        if (callback) {
-            callback(error, errorMessage);
-        }
-    }
-};
-
 Async::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb)
 {
-    auto finisher = QSharedPointer<JobFinisher>::create();
-    auto callback = [finisher] (int error, const QString &errorMessage) {
-        finisher->setFinished(error, errorMessage);
-    };
-    if (isReady()) {
-        d->messageId++;
-        log(QString("Sending command %1 with messageId %2").arg(commandId).arg(d->messageId));
-        registerCallback(d->messageId, callback);
-        Commands::write(d->socket, d->messageId, commandId, fbb);
-    } else {
-        d->commandQueue << new QueuedCommand(commandId, fbb, callback);
-    }
-    return Async::start<void>([this, finisher](Async::Future<void> &f) {
-        if (finisher->finished) {
-            f.setFinished();
-        } else {
-            finisher->callback = [&f](int error, const QString &errorMessage) {
-                if (error) {
-                    f.setError(error, errorMessage);
-                }
+    return Async::start<void>([commandId, &fbb, this](Async::Future<void> &f) {
+        auto callback = [&f](int error, const QString &errorMessage) {
+            if (error) {
+                f.setError(error, errorMessage);
+            } else {
                 f.setFinished();
-            };
+            }
+        };
+
+        if (isReady()) {
+            d->messageId++;
+            log(QString("Sending command %1 with messageId %2").arg(commandId).arg(d->messageId));
+            registerCallback(d->messageId, callback);
+            Commands::write(d->socket, d->messageId, commandId, fbb);
+        } else {
+            d->commandQueue << new QueuedCommand(commandId, fbb, callback);
         }
     });
 }
