@@ -23,6 +23,7 @@ else (STORAGE_unqlite)
 endif (STORAGE_unqlite)
 
 set(command_SRCS
+    log.cpp
     entitybuffer.cpp
     clientapi.cpp
     commands.cpp

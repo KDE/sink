@@ -20,12 +20,12 @@
 
 #include "resourceaccess.h"
 
-#include "common/console.h"
 #include "common/commands.h"
 #include "common/commandcompletion_generated.h"
 #include "common/handshake_generated.h"
 #include "common/revisionupdate_generated.h"
 #include "common/synchronize_generated.h"
+#include "log.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -343,8 +343,7 @@ void ResourceAccess::callCallbacks(int id)
 
 void ResourceAccess::log(const QString &message)
 {
-    qDebug() << d->resourceName + ": " + message;
-    // Console::main()->log(d->resourceName + ": " + message);
+    Log() << d->resourceName + ": " + message;
 }
 
 }

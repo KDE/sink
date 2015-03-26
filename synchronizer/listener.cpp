@@ -23,6 +23,7 @@
 #include "common/console.h"
 #include "common/commands.h"
 #include "common/resource.h"
+#include "common/log.h"
 
 // commands
 #include "common/commandcompletion_generated.h"
@@ -46,18 +47,18 @@ Listener::Listener(const QString &resourceName, QObject *parent)
             this, &Listener::refreshRevision);
     connect(m_server, &QLocalServer::newConnection,
              this, &Listener::acceptConnection);
-    log(QString("Trying to open %1").arg(resourceName));
+    Log() << QString("Trying to open %1").arg(resourceName);
     if (!m_server->listen(resourceName)) {
         // FIXME: multiple starts need to be handled here
         m_server->removeServer(resourceName);
         if (!m_server->listen(resourceName)) {
-            log("Utter failure to start server");
+            Warning() << "Utter failure to start server";
             exit(-1);
         }
     }
 
     if (m_server->isListening()) {
-        log(QString("Listening on %1").arg(m_server->serverName()));
+        Log() << QString("Listening on %1").arg(m_server->serverName());
     }
 
     m_checkConnectionsTimer = new QTimer;
@@ -65,7 +66,7 @@ Listener::Listener(const QString &resourceName, QObject *parent)
     m_checkConnectionsTimer->setInterval(1000);
     connect(m_checkConnectionsTimer, &QTimer::timeout, [this]() {
         if (m_connections.isEmpty()) {
-            log(QString("No connections, shutting down."));
+            Log() << QString("No connections, shutting down.");
             m_server->close();
             emit noClients();
         }
@@ -98,14 +99,14 @@ void Listener::closeAllConnections()
 
 void Listener::acceptConnection()
 {
-    log(QString("Accepting connection"));
+    Log() << QString("Accepting connection");
     QLocalSocket *socket = m_server->nextPendingConnection();
 
     if (!socket) {
         return;
     }
 
-    log("Got a connection");
+    Log() << "Got a connection";
     Client client("Unknown Client", socket);
     connect(socket, &QIODevice::readyRead,
             this, &Listener::readFromSocket);
@@ -123,15 +124,19 @@ void Listener::clientDropped()
         return;
     }
 
-    log("Dropping connection...");
+    bool dropped = false;
     QMutableVectorIterator<Client> it(m_connections);
     while (it.hasNext()) {
         const Client &client = it.next();
         if (client.socket == socket) {
-            log(QString("    dropped... %1").arg(client.name));
+            dropped = true;
+            Log() << QString("Dropped connection: %1").arg(client.name) << socket;
             it.remove();
             break;
         }
+    }
+    if (!dropped) {
+        Warning() << "Failed to find connection for disconnected socket: " << socket;
     }
 
     checkConnections();
@@ -149,7 +154,7 @@ void Listener::readFromSocket()
         return;
     }
 
-    log("Reading from socket...");
+    Log() << "Reading from socket...";
     for (Client &client: m_connections) {
         if (client.socket == socket) {
             client.commandBuffer += socket->readAll();
@@ -193,7 +198,7 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
                 client.name = buffer->name()->c_str();
                 sendCurrentRevision(client);
             } else {
-                qWarning() << "received invalid command";
+                Warning() << "received invalid command";
             }
             break;
         }
@@ -201,10 +206,10 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
             flatbuffers::Verifier verifier((const uint8_t *)client.commandBuffer.constData(), size);
             if (Akonadi2::VerifySynchronizeBuffer(verifier)) {
                 auto buffer = Akonadi2::GetSynchronize(client.commandBuffer.constData());
-                log(QString("\tSynchronize request (id %1) from %2").arg(messageId).arg(client.name));
+                Log() << QString("\tSynchronize request (id %1) from %2").arg(messageId).arg(client.name);
                 loadResource();
                 if (!m_resource) {
-                    qWarning() << "No resource loaded";
+                    Warning() << "No resource loaded";
                     break;
                 }
                 //TODO a more elegant composition of jobs should be possible
@@ -229,7 +234,7 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
                 }
                 return;
             } else {
-                qWarning() << "received invalid command";
+                Warning() << "received invalid command";
             }
             break;
         }
@@ -237,14 +242,14 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
         case Akonadi2::Commands::DeleteEntityCommand:
         case Akonadi2::Commands::ModifyEntityCommand:
         case Akonadi2::Commands::CreateEntityCommand:
-            log(QString("\tCommand id %1 of type %2 from %3").arg(messageId).arg(commandId).arg(client.name));
+            Log() << QString("\tCommand id %1 of type %2 from %3").arg(messageId).arg(commandId).arg(client.name);
             loadResource();
             if (m_resource) {
                 m_resource->processCommand(commandId, client.commandBuffer, size, m_pipeline);
             }
             break;
         case Akonadi2::Commands::ShutdownCommand:
-            log(QString("\tReceived shutdown command from %1").arg(client.name));
+            Log() << QString("\tReceived shutdown command from %1").arg(client.name);
             callback();
             m_server->close();
             emit noClients();
@@ -279,10 +284,15 @@ bool Listener::processClientBuffer(Client &client)
     if (size <= uint(client.commandBuffer.size() - headerSize)) {
         client.commandBuffer.remove(0, headerSize);
 
-        processCommand(commandId, messageId, client, size, [this, messageId, commandId, &client]() {
-            log(QString("\tCompleted command messageid %1 of type %2 from %3").arg(messageId).arg(commandId).arg(client.name));
-            //FIXME, client needs to become a shared pointer and not a reference, or we have to search through m_connections everytime.
-            sendCommandCompleted(client, messageId);
+        auto socket = QPointer<QLocalSocket>(client.socket);
+        auto clientName = client.name;
+        processCommand(commandId, messageId, client, size, [this, messageId, commandId, socket, clientName]() {
+            Log() << QString("\tCompleted command messageid %1 of type %2 from %3").arg(messageId).arg(commandId).arg(clientName);
+            if (socket) {
+                sendCommandCompleted(socket.data(), messageId);
+            } else {
+                Log() << QString("Socket became invalid before we could send a response. client: %1").arg(clientName);
+            }
         });
         client.commandBuffer.remove(0, size);
 
@@ -346,21 +356,15 @@ void Listener::loadResource()
     Akonadi2::ResourceFactory *resourceFactory = Akonadi2::ResourceFactory::load(m_resourceName);
     if (resourceFactory) {
         m_resource = resourceFactory->createResource();
-        log(QString("Resource factory: %1").arg((qlonglong)resourceFactory));
-        log(QString("\tResource: %1").arg((qlonglong)m_resource));
+        Log() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
+        Log() << QString("\tResource: %1").arg((qlonglong)m_resource);
         //TODO: this doesn't really list all the facades .. fix
-        log(QString("\tFacades: %1").arg(Akonadi2::FacadeFactory::instance().getFacade<Akonadi2::Domain::Event>(m_resourceName)->type()));
+        Log() << QString("\tFacades: %1").arg(Akonadi2::FacadeFactory::instance().getFacade<Akonadi2::Domain::Event>(m_resourceName)->type());
         m_resource->configurePipeline(m_pipeline);
     } else {
-        log(QString("Failed to load resource %1").arg(m_resourceName));
+        Warning() << QString("Failed to load resource %1").arg(m_resourceName);
     }
     //TODO: on failure ... what?
     //Enter broken state?
-}
-
-void Listener::log(const QString &message)
-{
-    qDebug() << "Listener: " << message;
-    // Akonadi2::Console::main()->log("Listener: " + message);
 }
 

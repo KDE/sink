@@ -82,7 +82,6 @@ private:
     void sendCommandCompleted(Client &client, uint messageId);
     void updateClientsWithRevision();
     void loadResource();
-    void log(const QString &);
 
     QLocalServer *m_server;
     QVector<Client> m_connections;

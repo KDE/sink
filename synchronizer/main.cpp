@@ -19,15 +19,25 @@
 
 #include <QApplication>
 
-#include "common/console.h"
+#include <signal.h>
+
 #include "listener.h"
+#include "log.h"
+
+void crashHandler(int sig) {
+    std::fprintf(stderr, "Error: signal %d\n", sig);
+    std::system("exec xterm -e gdb -p \"$PPID\"");
+    std::abort();
+}
 
 int main(int argc, char *argv[])
 {
+    //For crashes
+    signal(SIGSEGV, crashHandler);
     QApplication app(argc, argv);
 
     if (argc < 2) {
-        qWarning() << "Not enough args passed, no resource loaded.";
+        Warning() << "Not enough args passed, no resource loaded.";
         return app.exec();
     }
 
