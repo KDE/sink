@@ -248,7 +248,7 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
     auto eventFactory = QSharedPointer<DummyEventAdaptorFactory>::create();
     //FIXME we should setup for each resource entity type, not for each domain type
     //i.e. If a resource stores tags as part of each message it needs to update the tag index
-    //TODO setup preprocessors for each domain type and pipeline type allowing full customization
+    //TODO setup preprocessors for each resource entity type and pipeline type allowing full customization
     //Eventually the order should be self configuring, for now it's hardcoded.
     auto eventIndexer = new SimpleProcessor("summaryprocessor", [eventFactory](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
         auto adaptor = eventFactory->createAdaptor(entity);

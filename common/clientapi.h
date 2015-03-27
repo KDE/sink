@@ -179,6 +179,7 @@ namespace Domain {
  */
 class BufferAdaptor {
 public:
+    virtual ~BufferAdaptor() {}
     virtual QVariant getProperty(const QString &key) const { return QVariant(); }
     virtual void setProperty(const QString &key, const QVariant &value) {}
     virtual QStringList availableProperties() const { return QStringList(); }
@@ -198,6 +199,8 @@ public:
             mValues.insert(property, buffer.getProperty(property));
         }
     }
+
+    virtual ~MemoryBufferAdaptor() {}
 
     virtual QVariant getProperty(const QString &key) const { return mValues.value(key); }
     virtual void setProperty(const QString &key, const QVariant &value) { mValues.insert(key, value); }
@@ -226,6 +229,8 @@ public:
         mRevision(revision)
     {
     }
+
+    virtual ~AkonadiDomainType() {}
 
     virtual QVariant getProperty(const QString &key) const { return mAdaptor->getProperty(key); }
     virtual void setProperty(const QString &key, const QVariant &value){ mChangeSet.insert(key, value); mAdaptor->setProperty(key, value); }

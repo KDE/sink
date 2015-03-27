@@ -67,6 +67,7 @@ template<typename DomainType, typename LocalBuffer, typename ResourceBuffer>
 class DomainTypeAdaptorFactory/* <typename DomainType, LocalBuffer, ResourceBuffer> */
 {
 public:
+    virtual ~DomainTypeAdaptorFactory() {};
     virtual QSharedPointer<Akonadi2::Domain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity) = 0;
     virtual void createBuffer(const Akonadi2::Domain::Event &event, flatbuffers::FlatBufferBuilder &fbb) {};
 
