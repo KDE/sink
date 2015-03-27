@@ -25,6 +25,7 @@
 #include "common/handshake_generated.h"
 #include "common/revisionupdate_generated.h"
 #include "common/synchronize_generated.h"
+#include "common/notification_generated.h"
 #include "log.h"
 
 #include <QCoreApplication>
@@ -323,6 +324,19 @@ bool ResourceAccess::processMessageBuffer()
 
             //The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
             QMetaObject::invokeMethod(this, "callCallbacks", Qt::QueuedConnection, QGenericReturnArgument(), Q_ARG(int, buffer->id()));
+            break;
+        }
+        case Commands::NotificationCommand: {
+            auto buffer = GetNotification(d->partialMessageBuffer.constData() + headerSize);
+            switch (buffer->type()) {
+                case Akonadi2::NotificationType::NotificationType_Shutdown:
+                    Log() << "Received shutdown notification.";
+                    close();
+                    break;
+                default:
+                    Warning() << "Received unknown notification: " << buffer->type();
+                    break;
+            }
             break;
         }
         default:

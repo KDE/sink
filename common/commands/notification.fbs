@@ -1,0 +1,9 @@
+namespace Akonadi2;
+
+enum NotificationType : byte { Shutdown = 1, Status, Warning, Progress }
+
+table Notification {
+    type: NotificationType = Status;
+}
+
+root_type Notification;

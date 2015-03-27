@@ -30,6 +30,7 @@
 #include "common/handshake_generated.h"
 #include "common/revisionupdate_generated.h"
 #include "common/synchronize_generated.h"
+#include "common/notification_generated.h"
 
 #include <QLocalSocket>
 #include <QTimer>
@@ -67,8 +68,7 @@ Listener::Listener(const QString &resourceName, QObject *parent)
     connect(m_checkConnectionsTimer, &QTimer::timeout, [this]() {
         if (m_connections.isEmpty()) {
             Log() << QString("No connections, shutting down.");
-            m_server->close();
-            emit noClients();
+            quit();
         }
     });
 
@@ -250,10 +250,8 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
             break;
         case Akonadi2::Commands::ShutdownCommand:
             Log() << QString("\tReceived shutdown command from %1").arg(client.name);
-            callback();
-            m_server->close();
-            emit noClients();
-            return;
+            QTimer::singleShot(0, this, &Listener::quit);
+            break;
         default:
             if (commandId > Akonadi2::Commands::CustomCommand) {
                 loadResource();
@@ -266,6 +264,22 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
             break;
     }
     callback();
+}
+
+void Listener::quit()
+{
+    //Broadcast shutdown notifications to open clients, so they don't try to restart the resource
+    auto command = Akonadi2::CreateNotification(m_fbb, Akonadi2::NotificationType::NotificationType_Shutdown);
+    Akonadi2::FinishNotificationBuffer(m_fbb, command);
+    for (Client &client : m_connections) {
+        if (client.socket && client.socket->isOpen()) {
+            Akonadi2::Commands::write(client.socket, ++m_messageId, Akonadi2::Commands::NotificationCommand, m_fbb);
+        }
+    }
+    m_fbb.Clear();
+
+    m_server->close();
+    emit noClients();
 }
 
 bool Listener::processClientBuffer(Client &client)
@@ -314,15 +328,15 @@ void Listener::sendCurrentRevision(Client &client)
     m_fbb.Clear();
 }
 
-void Listener::sendCommandCompleted(Client &client, uint messageId)
+void Listener::sendCommandCompleted(QLocalSocket *socket, uint messageId)
 {
-    if (!client.socket || !client.socket->isValid()) {
+    if (!socket || !socket->isValid()) {
         return;
     }
 
     auto command = Akonadi2::CreateCommandCompletion(m_fbb, messageId);
     Akonadi2::FinishCommandCompletionBuffer(m_fbb, command);
-    Akonadi2::Commands::write(client.socket, ++m_messageId, Akonadi2::Commands::CommandCompletion, m_fbb);
+    Akonadi2::Commands::write(socket, ++m_messageId, Akonadi2::Commands::CommandCompletion, m_fbb);
     m_fbb.Clear();
 }
 
