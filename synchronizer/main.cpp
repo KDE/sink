@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
         return app.exec();
     }
 
-    Listener *listener = new Listener(argv[1]);
+    Listener *listener = new Listener(argv[1], &app);
 
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      listener, &Listener::closeAllConnections);
