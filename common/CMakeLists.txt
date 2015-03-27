@@ -8,6 +8,7 @@ generate_flatbuffers(
     commands/modifyentity
     commands/revisionupdate
     commands/synchronize
+    commands/notification
     domain/event
     entity
     metadata
