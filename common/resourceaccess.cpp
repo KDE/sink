@@ -79,6 +79,7 @@ public:
     QLocalSocket *socket;
     QTimer *tryOpenTimer;
     bool startingProcess;
+    bool openingConnection;
     QByteArray partialMessageBuffer;
     flatbuffers::FlatBufferBuilder fbb;
     QVector<QueuedCommand *> commandQueue;
@@ -91,6 +92,7 @@ ResourceAccess::Private::Private(const QString &name, ResourceAccess *q)
       socket(new QLocalSocket(q)),
       tryOpenTimer(new QTimer(q)),
       startingProcess(false),
+      openingConnection(false),
       messageId(0)
 {
 }
@@ -191,6 +193,7 @@ void ResourceAccess::open()
         log("Socket valid, so not opening again");
         return;
     }
+    d->openingConnection = true;
 
     //TODO: if we try and try and the process does not pick up
     //      we should probably try to start the process again
@@ -209,6 +212,7 @@ void ResourceAccess::close()
 void ResourceAccess::connected()
 {
     d->startingProcess = false;
+    d->openingConnection = false;
 
     if (!isReady()) {
         return;
@@ -246,7 +250,6 @@ void ResourceAccess::disconnected()
     d->socket->close();
     log(QString("Disconnected from %1").arg(d->socket->fullServerName()));
     emit ready(false);
-    open();
 }
 
 void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
@@ -257,18 +260,30 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
         }
         return;
     }
-    log(QString("Connection error: %1 : %2").arg(error).arg(d->socket->errorString()));
+
     if (error == QLocalSocket::PeerClosedError) {
-        log("The resource closed the connection. It probably crashed.");
+        Log() << "The resource closed the connection.";
+    } else {
+        Warning() << QString("Connection error: %1 : %2").arg(error).arg(d->socket->errorString());
     }
 
+    //TODO We could first try to reconnect and resend the message if necessary.
     for(auto handler : d->resultHandler.values()) {
         handler(1, "The resource closed unexpectedly");
     }
     d->resultHandler.clear();
 
+    //We're trying to connect but failed, start the resource and retry.
+    //Don't automatically restart on later disconnects.
+    if (d->openingConnection) {
+        startResourceAndConnect();
+    }
+}
+
+void ResourceAccess::startResourceAndConnect()
+{
     d->startingProcess = true;
-    log(QString("Attempting to start resource ") + d->resourceName);
+    Log() << "Attempting to start resource " + d->resourceName;
     QStringList args;
     args << d->resourceName;
     if (QProcess::startDetached("akonadi2_synchronizer", args, QDir::homePath())) {
