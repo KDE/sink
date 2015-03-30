@@ -135,7 +135,7 @@ Async::Job<void> DummyResourceFacade::synchronizeResource(bool sync, bool proces
 
 void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, const QByteArray &key, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local)> preparedQuery)
 {
-    storage->scan(key.data(), key.size(), [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+    storage->scan(key, [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
 
         //Skip internals
         if (Akonadi2::Storage::isInternalKey(keyValue, keySize)) {
@@ -170,7 +170,7 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
         }
 
         if (!resourceBuffer || !metadataBuffer) {
-            qWarning() << "invalid buffer " << QString::fromStdString(std::string(static_cast<char*>(keyValue), keySize));
+            qWarning() << "invalid buffer " << QByteArray::fromRawData(static_cast<char*>(keyValue), keySize);
             return true;
         }
 
@@ -189,7 +189,7 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
         return true;
     },
     [](const Akonadi2::Storage::Error &error) {
-        qWarning() << "Error during query: " << QString::fromStdString(error.message);
+        qWarning() << "Error during query: " << error.message;
     });
 }
 
@@ -208,7 +208,7 @@ Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const s
                 keys << value;
             },
             [](const Index::Error &error) {
-                qWarning() << "Error in index: " <<  QString::fromStdString(error.message);
+                qWarning() << "Error in index: " <<  error.message;
             });
         }
 

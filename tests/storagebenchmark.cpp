@@ -15,7 +15,7 @@
 using namespace Calendar;
 using namespace flatbuffers;
 
-static std::string createEvent()
+static QByteArray createEvent()
 {
     static const size_t attachmentSize = 1024*2; // 2KB
     static uint8_t rawData[attachmentSize];
@@ -33,7 +33,7 @@ static std::string createEvent()
         memcpy((void*)Calendar::GetEvent(fbb.GetBufferPointer())->attachment()->Data(), rawData, attachmentSize);
     }
 
-    return std::string(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
+    return QByteArray::fromRawData(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
 
 // static void readEvent(const std::string &data)
@@ -103,9 +103,9 @@ private Q_SLOTS:
                         store->startTransaction();
                     }
 
-                    store->write(keyPrefix + std::to_string(i), event);
+                    store->write(keyPrefix + QByteArray::number(i), event);
                 } else {
-                    myfile << event;
+                    myfile << event.toStdString();
                 }
             }
 
@@ -122,7 +122,7 @@ private Q_SLOTS:
         {
             for (int i = 0; i < count; i++) {
                 if (store) {
-                    store->read(keyPrefix + std::to_string(i), [](std::string value) -> bool { return true; });
+                    store->scan(keyPrefix + QByteArray::number(i), [](const QByteArray &value) -> bool { return true; });
                 }
             }
         }

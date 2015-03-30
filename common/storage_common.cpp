@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2014 Aaron Seigo <aseigo@kde.org>
+ * Copyright (C) 2014 Christian Mollekopf <mollekopf@kolabsys.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -32,7 +33,7 @@ void errorHandler(const Storage::Error &error)
 {
     //TODO: allow this to be turned on / off globally
     //TODO: log $SOMEWHERE $SOMEHOW rather than just spit to stderr
-    std::cerr << "Read error in " << error.store << ", code " << error.code << ", message: " << error.message << std::endl;
+    std::cout << "Read error in " << error.store.toStdString() << ", code " << error.code << ", message: " << error.message.toStdString() << std::endl;
 }
 
 std::function<void(const Storage::Error &error)> Storage::basicErrorHandler()
@@ -40,36 +41,47 @@ std::function<void(const Storage::Error &error)> Storage::basicErrorHandler()
     return errorHandler;
 }
 
-void Storage::read(const std::string &sKey, const std::function<bool(const std::string &value)> &resultHandler)
+void Storage::setDefaultErrorHandler(const std::function<void(const Storage::Error &error)> &errorHandler)
 {
-    read(sKey, resultHandler, &errorHandler);
+    mErrorHandler = errorHandler;
 }
 
-void Storage::read(const std::string &sKey, const std::function<bool(void *ptr, int size)> &resultHandler)
+std::function<void(const Storage::Error &error)> Storage::defaultErrorHandler()
 {
-    read(sKey, resultHandler, &errorHandler);
+    if (mErrorHandler) {
+        return mErrorHandler;
+    }
+    return basicErrorHandler();
 }
 
-void Storage::scan(const std::string &sKey, const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> &resultHandler)
+int Storage::scan(const QByteArray &key, const std::function<bool(const QByteArray &value)> &resultHandler, const std::function<void(const Storage::Error &error)> &errorHandler)
 {
-    scan(sKey.data(), sKey.size(), resultHandler, &errorHandler);
+    return scan(key, [&resultHandler](void *keyPtr, int keySize, void *valuePtr, int valueSize) {
+        return resultHandler(QByteArray::fromRawData((char*)(valuePtr), valueSize));
+    },
+    errorHandler);
+}
+
+bool Storage::write(const QByteArray &sKey, const QByteArray &sValue, const std::function<void(const Storage::Error &error)> &errorHandler)
+{
+    return write(const_cast<char*>(sKey.data()), sKey.size(), const_cast<char*>(sValue.data()), sValue.size(), errorHandler);
 }
 
 void Storage::setMaxRevision(qint64 revision)
 {
-    write("__internal_maxRevision", QString::number(revision).toStdString());
+    write("__internal_maxRevision", QByteArray::number(revision));
 }
 
 qint64 Storage::maxRevision()
 {
     qint64 r = 0;
-    read(std::string("__internal_maxRevision"), [&](const std::string &revision) -> bool {
-        r = QString::fromStdString(revision).toLongLong();
+    scan("__internal_maxRevision", [&](const QByteArray &revision) -> bool {
+        r = revision.toLongLong();
         return false;
-    },
-    [](const Storage::Error &error) {
-        //Ignore the error in case we don't find the value
-        //TODO only ignore value not found errors
+    }, [this](const Error &error){
+        if (error.code != ErrorCodes::NotFound) {
+            defaultErrorHandler()(error);
+        }
     });
     return r;
 }

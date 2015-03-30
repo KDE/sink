@@ -14,10 +14,10 @@ public:
     class Error
     {
     public:
-        Error(const std::string &s, int c, const std::string &m)
+        Error(const QByteArray &s, int c, const QByteArray &m)
             : store(s), message(m), code(c) {}
-        std::string store;
-        std::string message;
+        QByteArray store;
+        QByteArray message;
         int code;
     };
 

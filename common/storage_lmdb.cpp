@@ -36,6 +36,17 @@
 namespace Akonadi2
 {
 
+int getErrorCode(int e)
+{
+    switch (e) {
+        case MDB_NOTFOUND:
+            return Storage::ErrorCodes::NotFound;
+        default:
+            break;
+    }
+    return -1;
+}
+
 class Storage::Private
 {
 public:
@@ -130,12 +141,14 @@ bool Storage::exists() const
 {
     return (d->env != 0);
 }
+
 bool Storage::isInTransaction() const
 {
     return d->transaction;
 }
 
-bool Storage::startTransaction(AccessMode type)
+bool Storage::startTransaction(AccessMode type,
+                  const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d->env) {
         return false;
@@ -144,9 +157,12 @@ bool Storage::startTransaction(AccessMode type)
     bool requestedRead = type == ReadOnly;
 
     if (d->mode == ReadOnly && !requestedRead) {
+        Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Requested read/write transaction in read-only mode.");
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
         return false;
     }
 
+    //We already have a transaction
     if (d->transaction && (!d->readTransaction || requestedRead)) {
         return true;
     }
@@ -172,11 +188,13 @@ bool Storage::startTransaction(AccessMode type)
     if (!rc) {
         rc = mdb_dbi_open(d->transaction, NULL, d->allowDuplicates ? MDB_DUPSORT : 0, &d->dbi);
         if (rc) {
-            qWarning() << "Error while opening transaction: " << mdb_strerror(rc);
+            Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Error while opening transaction: " + QByteArray(mdb_strerror(rc)));
+            errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
         }
     } else {
         if (rc) {
-            qWarning() << "Error while beginning transaction: " << mdb_strerror(rc);
+            Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Error while beginning transaction: " + QByteArray(mdb_strerror(rc)));
+            errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
         }
     }
 
@@ -185,7 +203,7 @@ bool Storage::startTransaction(AccessMode type)
     return !rc;
 }
 
-bool Storage::commitTransaction()
+bool Storage::commitTransaction(const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d->env) {
         return false;
@@ -200,7 +218,8 @@ bool Storage::commitTransaction()
     d->transaction = 0;
 
     if (rc) {
-        std::cerr << "mdb_txn_commit: " << rc << " " << mdb_strerror(rc) << std::endl;
+        Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Error during transaction commit: " + QByteArray(mdb_strerror(rc)));
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
     }
 
     return !rc;
@@ -216,25 +235,32 @@ void Storage::abortTransaction()
     d->transaction = 0;
 }
 
-bool Storage::write(const void *keyPtr, size_t keySize, const void *valuePtr, size_t valueSize)
+bool Storage::write(const void *keyPtr, size_t keySize, const void *valuePtr, size_t valueSize,
+                  const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d->env) {
+        Error error(d->name.toLatin1(), ErrorCodes::NotOpen, "Not open");
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
         return false;
     }
 
     if (d->mode == ReadOnly) {
-        std::cerr << "tried to write in read-only mode." << std::endl;
+        Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Tried to write in read-only mode.");
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
         return false;
     }
 
     if (!keyPtr || keySize == 0) {
-        std::cerr << "tried to write empty key." << std::endl;
+        Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Tried to write empty key.");
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
         return false;
     }
 
     const bool implicitTransaction = !d->transaction || d->readTransaction;
     if (implicitTransaction) {
         if (!startTransaction()) {
+            Error error(d->name.toLatin1(), ErrorCodes::TransactionError, "Failed to start transaction.");
+            errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
             return false;
         }
     }
@@ -248,11 +274,14 @@ bool Storage::write(const void *keyPtr, size_t keySize, const void *valuePtr, si
     rc = mdb_put(d->transaction, d->dbi, &key, &data, 0);
 
     if (rc) {
-        std::cerr << "mdb_put: " << rc << " " << mdb_strerror(rc) << std::endl;
+        Error error(d->name.toLatin1(), ErrorCodes::GenericError, "mdb_put: " + QByteArray(mdb_strerror(rc)));
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
     }
 
     if (implicitTransaction) {
         if (rc) {
+            Error error(d->name.toLatin1(), ErrorCodes::GenericError, "aborting transaction");
+            errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
             abortTransaction();
         } else {
             rc = commitTransaction();
@@ -262,39 +291,14 @@ bool Storage::write(const void *keyPtr, size_t keySize, const void *valuePtr, si
     return !rc;
 }
 
-bool Storage::write(const std::string &sKey, const std::string &sValue)
-{
-    return write(const_cast<char*>(sKey.data()), sKey.size(), const_cast<char*>(sValue.data()), sValue.size());
-}
-
-void Storage::read(const std::string &sKey,
-                   const std::function<bool(const std::string &value)> &resultHandler,
-                   const std::function<void(const Storage::Error &error)> &errorHandler)
-{
-    read(sKey,
-         [&](void *ptr, int size) -> bool {
-            const std::string resultValue(static_cast<char*>(ptr), size);
-            return resultHandler(resultValue);
-         }, errorHandler);
-}
-
-void Storage::read(const std::string &sKey,
-                   const std::function<bool(void *ptr, int size)> &resultHandler,
-                   const std::function<void(const Storage::Error &error)> &errorHandler)
-{
-    scan(sKey.data(), sKey.size(), [resultHandler](void *keyPtr, int keySize, void *valuePtr, int valueSize) {
-        return resultHandler(valuePtr, valueSize);
-    }, errorHandler);
-}
-
-void Storage::scan(const char *keyData, uint keySize,
-                   const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> &resultHandler,
-                   const std::function<void(const Storage::Error &error)> &errorHandler)
+int Storage::scan(const QByteArray &k,
+                  const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> &resultHandler,
+                  const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d->env) {
-        Error error(d->name.toStdString(), -1, "Not open");
-        errorHandler(error);
-        return;
+        Error error(d->name.toLatin1(), ErrorCodes::NotOpen, "Not open");
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
+        return 0;
     }
 
     int rc;
@@ -302,29 +306,33 @@ void Storage::scan(const char *keyData, uint keySize,
     MDB_val data;
     MDB_cursor *cursor;
 
-    key.mv_data = (void*)keyData;
-    key.mv_size = keySize;
+    key.mv_data = (void*)k.constData();
+    key.mv_size = k.size();
 
     const bool implicitTransaction = !d->transaction;
     if (implicitTransaction) {
         if (!startTransaction(ReadOnly)) {
-            Error error(d->name.toStdString(), -2, "Could not start transaction");
-            errorHandler(error);
-            return;
+            Error error(d->name.toLatin1(), ErrorCodes::TransactionError, "Could not start transaction");
+            errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
+            return 0;
         }
     }
 
     rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
     if (rc) {
-        Error error(d->name.toStdString(), rc, std::string("Error during mdb_cursor open: ") + mdb_strerror(rc));
-        errorHandler(error);
-        return;
+        Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Error during mdb_cursor open: ") + QByteArray(mdb_strerror(rc)));
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
+        return 0;
     }
 
-    if (!keyData || keySize == 0 || d->allowDuplicates) {
+    int numberOfRetrievedValues = 0;
+
+    if (k.isEmpty() || d->allowDuplicates) {
         if ((rc = mdb_cursor_get(cursor, &key, &data, d->allowDuplicates ? MDB_SET_RANGE : MDB_FIRST)) == 0) {
+            numberOfRetrievedValues++;
             if (resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
                 while ((rc = mdb_cursor_get(cursor, &key, &data, d->allowDuplicates ? MDB_NEXT_DUP : MDB_NEXT)) == 0) {
+                    numberOfRetrievedValues++;
                     if (!resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size)) {
                         break;
                     }
@@ -338,6 +346,7 @@ void Storage::scan(const char *keyData, uint keySize,
         }
     } else {
         if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_SET)) == 0) {
+            numberOfRetrievedValues++;
             resultHandler(key.mv_data, key.mv_size, data.mv_data, data.mv_size);
         }
     }
@@ -345,39 +354,42 @@ void Storage::scan(const char *keyData, uint keySize,
     mdb_cursor_close(cursor);
 
     if (rc) {
-        Error error(d->name.toStdString(), rc, std::string("Key: ") + std::string(keyData, keySize) + " : " + mdb_strerror(rc));
-        errorHandler(error);
+        Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Key: ") + k + " : " + QByteArray(mdb_strerror(rc)));
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
     }
 
     if (implicitTransaction) {
         abortTransaction();
     }
+    return numberOfRetrievedValues;
 }
 
-void Storage::remove(const void *keyData, uint keySize)
+void Storage::remove(const QByteArray &key,
+                     const std::function<void(const Storage::Error &error)> &errorHandler)
 {
-    remove(keyData, keySize, basicErrorHandler());
+    remove(key.data(), key.size(), errorHandler);
 }
 
-void Storage::remove(const void *keyData, uint keySize, const std::function<void(const Storage::Error &error)> &errorHandler)
+void Storage::remove(const void *keyData, uint keySize,
+                     const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d->env) {
-        Error error(d->name.toStdString(), -1, "Not open");
-        errorHandler(error);
+        Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Not open");
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
         return;
     }
 
     if (d->mode == ReadOnly) {
-        Error error(d->name.toStdString(), -3, "Tried to write in read-only mode");
-        errorHandler(error);
+        Error error(d->name.toLatin1(), ErrorCodes::ReadOnlyError, "Tried to write in read-only mode");
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
         return;
     }
 
     const bool implicitTransaction = !d->transaction || d->readTransaction;
     if (implicitTransaction) {
         if (!startTransaction()) {
-            Error error(d->name.toStdString(), -2, "Could not start transaction");
-            errorHandler(error);
+            Error error(d->name.toLatin1(), ErrorCodes::TransactionError, "Could not start transaction");
+            errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
             return;
         }
     }
@@ -389,8 +401,8 @@ void Storage::remove(const void *keyData, uint keySize, const std::function<void
     rc = mdb_del(d->transaction, d->dbi, &key, 0);
 
     if (rc) {
-        Error error(d->name.toStdString(), -1, QString("Error on mdb_del: %1 %2").arg(rc).arg(mdb_strerror(rc)).toStdString());
-        errorHandler(error);
+        Error error(d->name.toLatin1(), ErrorCodes::GenericError, QString("Error on mdb_del: %1 %2").arg(rc).arg(mdb_strerror(rc)).toLatin1());
+        errorHandler ? errorHandler(error) : defaultErrorHandler()(error);
     }
 
     if (implicitTransaction) {
@@ -413,6 +425,7 @@ qint64 Storage::diskUsage() const
 void Storage::removeFromDisk() const
 {
     const QString fullPath(d->storageRoot + '/' + d->name);
+    qDebug() << "removing " << fullPath;
     QMutexLocker locker(&d->sMutex);
     QDir dir(fullPath);
     if (!dir.removeRecursively()) {

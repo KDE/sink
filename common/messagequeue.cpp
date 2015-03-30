@@ -23,7 +23,7 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
                            const std::function<void(const Error &error)> &errorHandler)
 {
     bool readValue = false;
-    mStorage.scan("", 0, [this, resultHandler, &readValue](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
+    mStorage.scan("", [this, resultHandler, &readValue](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
         const auto key  = QByteArray::fromRawData(static_cast<char*>(keyPtr), keySize);
         if (Akonadi2::Storage::isInternalKey(key)) {
             return true;
@@ -42,7 +42,7 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
         return false;
     },
     [errorHandler](const Akonadi2::Storage::Error &error) {
-        qDebug() << "Error while retrieving value" << QString::fromStdString(error.message);
+        qDebug() << "Error while retrieving value" << error.message;
         errorHandler(Error(error.store, error.code, error.message));
     }
     );

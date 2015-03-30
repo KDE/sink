@@ -288,7 +288,7 @@ void PipelineState::step()
         //TODO skip step if already processed
         //FIXME error handling if no result is found
         auto preprocessor = d->filterIt.next();
-        d->pipeline->storage().scan(d->key.toStdString(), [this, preprocessor](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+        d->pipeline->storage().scan(d->key, [this, preprocessor](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
             auto entity = Akonadi2::GetEntity(dataValue);
             preprocessor->process(*this, *entity);
             return false;

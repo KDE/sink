@@ -33,45 +33,80 @@ class AKONADI2COMMON_EXPORT Storage {
 public:
     enum AccessMode { ReadOnly, ReadWrite };
 
+    enum ErrorCodes {
+        GenericError,
+        NotOpen,
+        ReadOnlyError,
+        TransactionError,
+        NotFound
+    };
+
     class Error
     {
     public:
-        Error(const std::string &s, int c, const std::string &m)
+        Error(const QByteArray &s, int c, const QByteArray &m)
             : store(s), message(m), code(c) {}
-        std::string store;
-        std::string message;
+        QByteArray store;
+        QByteArray message;
         int code;
     };
 
     Storage(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly, bool allowDuplicates = false);
     ~Storage();
     bool isInTransaction() const;
-    bool startTransaction(AccessMode mode = ReadWrite);
-    bool commitTransaction();
+    bool startTransaction(AccessMode mode = ReadWrite, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+    bool commitTransaction(const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
     void abortTransaction();
-    //TODO: row removal
-    //TODO: cursor based read
-    //TODO: query?
-    bool write(const void *key, size_t keySize, const void *value, size_t valueSize);
-    bool write(const std::string &sKey, const std::string &sValue);
-    void read(const std::string &sKey,
-              const std::function<bool(const std::string &value)> &resultHandler);
-    void read(const std::string &sKey,
-              const std::function<bool(const std::string &value)> &resultHandler,
-              const std::function<void(const Storage::Error &error)> &errorHandler);
-    void read(const std::string &sKey, const std::function<bool(void *ptr, int size)> &resultHandler);
-    void read(const std::string &sKey,
-              const std::function<bool(void *ptr, int size)> & resultHandler,
-              const std::function<void(const Storage::Error &error)> &errorHandler);
-    void scan(const std::string &sKey, const std::function<bool(void *keyPtr, int keySize, void *valuePtr, int valueSize)> &resultHandler);
-    void scan(const char *keyData, uint keySize,
-              const std::function<bool(void *keyPtr, int keySize, void *ptr, int size)> &resultHandler,
-              const std::function<void(const Storage::Error &error)> &errorHandler);
-    void remove(void const *keyData, uint keySize);
-    void remove(void const *keyData, uint keySize,
-                const std::function<void(const Storage::Error &error)> &errorHandler);
 
+    /**
+     * Write values.
+     */
+    bool write(const void *key, size_t keySize, const void *value, size_t valueSize, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+
+    /**
+     * Convenience API
+     */
+    bool write(const QByteArray &key, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+
+    /**
+     * Read values with a give key.
+     * 
+     * * An empty @param key results in a full scan
+     * * If duplicates are existing (revisions), all values are returned.
+     * * The pointers of the returned values are valid during the execution of the @param resultHandler
+     * 
+     * @return The number of values retrieved.
+     */
+    int scan(const QByteArray &key, const std::function<bool(void *keyPtr, int keySize, void *ptr, int size)> &resultHandler, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+
+    /**
+     * Convenience API
+     */
+    int scan(const QByteArray &key, const std::function<bool(const QByteArray &value)> &resultHandler, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+
+    /**
+     * Remove a value
+     */
+    void remove(void const *key, uint keySize, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+
+    /**
+     * Convenience API
+     */
+    void remove(const QByteArray &key, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+
+    /**
+     * Set the default error handler.
+     */
+    void setDefaultErrorHandler(const std::function<void(const Storage::Error &error)> &errorHandler);
+    std::function<void(const Storage::Error &error)> defaultErrorHandler();
+
+    /**
+     * A basic error handler that writes to std::cerr.
+     * 
+     * Used if nothing else is configured.
+     */
     static std::function<void(const Storage::Error &error)> basicErrorHandler();
+
     qint64 diskUsage() const;
     void removeFromDisk() const;
 
@@ -83,6 +118,9 @@ public:
     static bool isInternalKey(const char *key);
     static bool isInternalKey(void *key, int keySize);
     static bool isInternalKey(const QByteArray &key);
+
+private:
+    std::function<void(const Storage::Error &error)> mErrorHandler;
 
 private:
     class Private;

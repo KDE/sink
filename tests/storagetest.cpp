@@ -28,7 +28,7 @@ private:
                 }
                 storage.startTransaction();
             }
-            storage.write(keyPrefix + std::to_string(i), keyPrefix + std::to_string(i));
+            storage.write(keyPrefix + QByteArray::number(i), keyPrefix + QByteArray::number(i));
         }
         storage.commitTransaction();
     }
@@ -37,9 +37,9 @@ private:
     {
         bool success = true;
         bool keyMatch = true;
-        const auto reference = keyPrefix + std::to_string(i);
-        storage.read(keyPrefix + std::to_string(i),
-            [&keyMatch, &reference](const std::string &value) -> bool {
+        const auto reference = keyPrefix + QByteArray::number(i);
+        storage.scan(keyPrefix + QByteArray::number(i),
+            [&keyMatch, &reference](const QByteArray &value) -> bool {
                 if (value != reference) {
                     qDebug() << "Mismatch while reading";
                     keyMatch = false;
@@ -47,7 +47,7 @@ private:
                 return keyMatch;
             },
             [&success](const Akonadi2::Storage::Error &error) {
-                qDebug() << QString::fromStdString(error.message);
+                qDebug() << error.message;
                 success = false;
             }
         );
@@ -133,7 +133,7 @@ private Q_SLOTS:
         populate(3);
         Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
         store.scan("key1", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-            store.remove(keyValue, keySize, [](const Akonadi2::Storage::Error &) {
+            store.remove(QByteArray::fromRawData(static_cast<const char*>(keyValue), keySize), [](const Akonadi2::Storage::Error &) {
                 QVERIFY(false);
             });
             return false;
@@ -144,14 +144,16 @@ private Q_SLOTS:
     {
         bool gotResult = false;
         bool gotError = false;
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadOnly);
-        store.scan(0, 0, [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        int numValues = store.scan("", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
             gotResult = true;
             return false;
         },
-        [&](Akonadi2::Storage::Error) {
+        [&](const Akonadi2::Storage::Error &error) {
+            qDebug() << error.message;
             gotError = true;
         });
+        QCOMPARE(numValues, 0);
         QVERIFY(!gotResult);
         QVERIFY(!gotError);
     }

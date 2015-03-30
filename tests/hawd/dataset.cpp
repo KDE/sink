@@ -253,7 +253,7 @@ void Dataset::eachRow(const std::function<void(const Row &row)> &resultHandler)
     }
 
     Row row(*this);
-    m_storage.scan(nullptr, 0,
+    m_storage.scan("",
                    [&](void *key, int keySize, void *data, int dataSize) -> bool {
                        if (keySize != sizeof(qint64)) {
                            return true;
@@ -277,7 +277,7 @@ Dataset::Row Dataset::row(qint64 key)
     }
 
     Row row(*this, key);
-    m_storage.scan((const char *)&key, sizeof(qint64),
+    m_storage.scan(QByteArray::fromRawData((const char *)&key, sizeof(qint64)),
             [&row](void *keyPtr, int keyLength, void *valuePtr, int valueSize) -> bool {
                 QByteArray array((const char*)valuePtr, valueSize);
                 row.fromBinary(array);
