@@ -29,6 +29,7 @@
 #include "commands.h"
 #include "clientapi.h"
 #include "index.h"
+#include "log.h"
 #include <QUuid>
 #include <assert.h>
 
@@ -143,39 +144,22 @@ private slots:
         }).exec();
     }
 
-    void processCommand(const Akonadi2::QueuedCommand *queuedCommand, std::function<void(bool success)> callback)
+    Async::Job<void> processQueuedCommand(const Akonadi2::QueuedCommand *queuedCommand)
     {
-        qDebug() << "Dequeued: " << queuedCommand->commandId();
         //Throw command into appropriate pipeline
         switch (queuedCommand->commandId()) {
             case Akonadi2::Commands::DeleteEntityCommand:
                 //mPipeline->removedEntity
-                break;
+                return Async::null<void>();
             case Akonadi2::Commands::ModifyEntityCommand:
                 //mPipeline->modifiedEntity
-                break;
-            case Akonadi2::Commands::CreateEntityCommand: {
-                //TODO JOBAPI: job lifetime management
-                //Right now we're just leaking jobs. In this case we'd like jobs that are heap allocated and delete
-                //themselves once done. In other cases we'd like jobs that only live as long as their handle though.
-                //FIXME this job is stack allocated and thus simply dies....
-                //FIXME get rid of waitForFinished, it's a workaround for the missing lifetime management
-                mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size()).then<void>([callback]() {
-                    callback(true);
-                },
-                [this, callback](int errorCode, const QString &errorMessage) {
-                    qWarning() << "Error while creating entity: " << errorCode << errorMessage;
-                    emit error(errorCode, errorMessage);
-                    callback(false);
-                }).exec().waitForFinished();
-            }
-                break;
+                return Async::null<void>();
+            case Akonadi2::Commands::CreateEntityCommand:
+                return mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
             default:
-                //Unhandled command
-                qWarning() << "Unhandled command";
-                callback(false);
-                break;
+                return Async::error<void>(-1, "Unhandled command");
         }
+        return Async::null<void>();
     }
 
     //Process all messages of this queue
@@ -183,19 +167,36 @@ private slots:
     {
         auto job = Async::start<void>([this, queue](Async::Future<void> &future) {
             asyncWhile([&, queue](std::function<void(bool)> whileCallback) {
+                // auto job = Async::start<Akonadi2::QueuedCommand*>(void *ptr, int size)
+                //TODO use something like:
+                //Async::foreach("pass iterator here").each("process value here").join();
+                //Async::foreach("pass iterator here").parallel("process value here").join();
                 queue->dequeue([this, whileCallback](void *ptr, int size, std::function<void(bool success)> messageQueueCallback) {
+                    auto callback = [messageQueueCallback, whileCallback](bool success) {
+                        messageQueueCallback(success);
+                        whileCallback(!success);
+                    };
+
                     flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(ptr), size);
                     if (!Akonadi2::VerifyQueuedCommandBuffer(verifyer)) {
                         qWarning() << "invalid buffer";
-                        messageQueueCallback(false);
-                        whileCallback(true);
+                        callback(false);
                         return;
                     }
                     auto queuedCommand = Akonadi2::GetQueuedCommand(ptr);
-                    processCommand(queuedCommand, [whileCallback, messageQueueCallback](bool success) {
-                        messageQueueCallback(success);
-                        whileCallback(!success);
-                    });
+                    qDebug() << "Dequeued: " << queuedCommand->commandId();
+                    //TODO JOBAPI: job lifetime management
+                    //Right now we're just leaking jobs. In this case we'd like jobs that are heap allocated and delete
+                    //themselves once done. In other cases we'd like jobs that only live as long as their handle though.
+                    //FIXME this job is stack allocated and thus simply dies....
+                    //FIXME get rid of waitForFinished, it's a workaround for the missing lifetime management
+                    processQueuedCommand(queuedCommand).then<void>([callback]() {
+                        callback(true);
+                    },
+                    [callback](int errorCode, QString errorMessage) {
+                        Warning() << errorMessage;
+                        callback(false);
+                    }).exec().waitForFinished();
                 },
                 [whileCallback](const MessageQueue::Error &error) {
                     whileCallback(true);
