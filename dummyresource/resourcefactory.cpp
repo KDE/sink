@@ -210,26 +210,17 @@ private slots:
 
     Async::Job<void> processPipeline()
     {
-        auto job = Async::start<void>([this](Async::Future<void> &future) {
-            //An async for loop. Go through all message queues
-            //TODO: replace by Async::foreach
-            auto it = QSharedPointer<QListIterator<MessageQueue*> >::create(mCommandQueues);
-            asyncWhile([&, it](std::function<void(bool)> forCallback) {
-                if (it->hasNext()) {
-                    auto queue = it->next();
-                    processQueue(queue).then<void>([forCallback]() {
-                      forCallback(false);
-                    }).exec();
-                } else {
-                    forCallback(true);
-                }
-            },
-            [&future]() { //while complete
-                future.setFinished();
-            });
-
-        });
-        return job;
+        //Go through all message queues
+        auto it = QSharedPointer<QListIterator<MessageQueue*> >::create(mCommandQueues);
+        return Async::dowhile<void>(
+            [it]() { return it->hasNext(); },
+            [it, this](Async::Future<void> &future) {
+                auto queue = it->next();
+                processQueue(queue).then<void>([&future]() {
+                    future.setFinished();
+                }).exec();
+            }
+        );
     }
 
 private:
