@@ -138,10 +138,44 @@ private slots:
             return;
         }
         mProcessingLock = true;
-        auto job = processPipeline().then<void>([this](Async::Future<void> &future) {
+        auto job = processPipeline().then<void>([this]() {
             mProcessingLock = false;
-            future.setFinished();
         }).exec();
+    }
+
+    void processCommand(const Akonadi2::QueuedCommand *queuedCommand, std::function<void(bool success)> callback)
+    {
+        qDebug() << "Dequeued: " << queuedCommand->commandId();
+        //Throw command into appropriate pipeline
+        switch (queuedCommand->commandId()) {
+            case Akonadi2::Commands::DeleteEntityCommand:
+                //mPipeline->removedEntity
+                break;
+            case Akonadi2::Commands::ModifyEntityCommand:
+                //mPipeline->modifiedEntity
+                break;
+            case Akonadi2::Commands::CreateEntityCommand: {
+                //TODO JOBAPI: job lifetime management
+                //Right now we're just leaking jobs. In this case we'd like jobs that are heap allocated and delete
+                //themselves once done. In other cases we'd like jobs that only live as long as their handle though.
+                //FIXME this job is stack allocated and thus simply dies....
+                //FIXME get rid of waitForFinished, it's a workaround for the missing lifetime management
+                mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size()).then<void>([callback]() {
+                    callback(true);
+                },
+                [this, callback](int errorCode, const QString &errorMessage) {
+                    qWarning() << "Error while creating entity: " << errorCode << errorMessage;
+                    emit error(errorCode, errorMessage);
+                    callback(false);
+                }).exec().waitForFinished();
+            }
+                break;
+            default:
+                //Unhandled command
+                qWarning() << "Unhandled command";
+                callback(false);
+                break;
+        }
     }
 
     //Process all messages of this queue
@@ -158,39 +192,10 @@ private slots:
                         return;
                     }
                     auto queuedCommand = Akonadi2::GetQueuedCommand(ptr);
-                    qDebug() << "Dequeued: " << queuedCommand->commandId();
-                    //Throw command into appropriate pipeline
-                    switch (queuedCommand->commandId()) {
-                        case Akonadi2::Commands::DeleteEntityCommand:
-                            //mPipeline->removedEntity
-                            break;
-                        case Akonadi2::Commands::ModifyEntityCommand:
-                            //mPipeline->modifiedEntity
-                            break;
-                        case Akonadi2::Commands::CreateEntityCommand: {
-                            //TODO JOBAPI: job lifetime management
-                            //Right now we're just leaking jobs. In this case we'd like jobs that are heap allocated and delete
-                            //themselves once done. In other cases we'd like jobs that only live as long as their handle though.
-                            mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size()).then<void>([messageQueueCallback, whileCallback](Async::Future<void> &future) {
-                                messageQueueCallback(true);
-                                whileCallback(false);
-                                future.setFinished();
-                            },
-                            [this, messageQueueCallback, whileCallback](int errorCode, const QString &errorMessage) {
-                                qWarning() << "Error while creating entity: " << errorCode << errorMessage;
-                                emit error(errorCode, errorMessage);
-                                messageQueueCallback(true);
-                                whileCallback(false);
-                            }).exec();
-                        }
-                            break;
-                        default:
-                            //Unhandled command
-                            qWarning() << "Unhandled command";
-                            messageQueueCallback(true);
-                            whileCallback(false);
-                            break;
-                    }
+                    processCommand(queuedCommand, [whileCallback, messageQueueCallback](bool success) {
+                        messageQueueCallback(success);
+                        whileCallback(!success);
+                    });
                 },
                 [whileCallback](const MessageQueue::Error &error) {
                     whileCallback(true);
@@ -201,20 +206,19 @@ private slots:
             });
         });
         return job;
-
     }
 
     Async::Job<void> processPipeline()
     {
         auto job = Async::start<void>([this](Async::Future<void> &future) {
             //An async for loop. Go through all message queues
+            //TODO: replace by Async::foreach
             auto it = QSharedPointer<QListIterator<MessageQueue*> >::create(mCommandQueues);
             asyncWhile([&, it](std::function<void(bool)> forCallback) {
                 if (it->hasNext()) {
                     auto queue = it->next();
-                    processQueue(queue).then<void>([forCallback](Async::Future<void> &future) {
+                    processQueue(queue).then<void>([forCallback]() {
                       forCallback(false);
-                      future.setFinished();
                     }).exec();
                 } else {
                     forCallback(true);
