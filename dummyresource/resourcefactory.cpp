@@ -123,16 +123,6 @@ signals:
     void error(int errorCode, const QString &errorMessage);
 
 private slots:
-    static void asyncWhile(const std::function<void(std::function<void(bool)>)> &body, const std::function<void()> &completionHandler) {
-        body([body, completionHandler](bool complete) {
-            if (complete) {
-                completionHandler();
-            } else {
-                asyncWhile(body, completionHandler);
-            }
-        });
-    }
-
     void process()
     {
         if (mProcessingLock) {
@@ -165,55 +155,56 @@ private slots:
     //Process all messages of this queue
     Async::Job<void> processQueue(MessageQueue *queue)
     {
-        auto job = Async::start<void>([this, queue](Async::Future<void> &future) {
-            asyncWhile([&, queue](std::function<void(bool)> whileCallback) {
-                // auto job = Async::start<Akonadi2::QueuedCommand*>(void *ptr, int size)
-                //TODO use something like:
-                //Async::foreach("pass iterator here").each("process value here").join();
-                //Async::foreach("pass iterator here").parallel("process value here").join();
-                queue->dequeue([this, whileCallback](void *ptr, int size, std::function<void(bool success)> messageQueueCallback) {
-                    auto callback = [messageQueueCallback, whileCallback](bool success) {
-                        messageQueueCallback(success);
-                        whileCallback(!success);
-                    };
+        //TODO use something like:
+        //Async::foreach("pass iterator here").each("process value here").join();
+        //Async::foreach("pass iterator here").parallel("process value here").join();
+        return Async::dowhile(
+            [this, queue](Async::Future<bool> &future) {
+                queue->dequeue(
+                    [this, &future](void *ptr, int size, std::function<void(bool success)> messageQueueCallback) {
+                        auto callback = [messageQueueCallback, &future](bool success) {
+                            messageQueueCallback(success);
+                            future.setValue(!success);
+                            future.setFinished();
+                        };
 
-                    flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(ptr), size);
-                    if (!Akonadi2::VerifyQueuedCommandBuffer(verifyer)) {
-                        qWarning() << "invalid buffer";
-                        callback(false);
-                        return;
-                    }
-                    auto queuedCommand = Akonadi2::GetQueuedCommand(ptr);
-                    qDebug() << "Dequeued: " << queuedCommand->commandId();
-                    //TODO JOBAPI: job lifetime management
-                    //Right now we're just leaking jobs. In this case we'd like jobs that are heap allocated and delete
-                    //themselves once done. In other cases we'd like jobs that only live as long as their handle though.
-                    //FIXME this job is stack allocated and thus simply dies....
-                    //FIXME get rid of waitForFinished, it's a workaround for the missing lifetime management
-                    processQueuedCommand(queuedCommand).then<void>([callback]() {
-                        callback(true);
+                        flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(ptr), size);
+                        if (!Akonadi2::VerifyQueuedCommandBuffer(verifyer)) {
+                            qWarning() << "invalid buffer";
+                            callback(false);
+                            return;
+                        }
+                        auto queuedCommand = Akonadi2::GetQueuedCommand(ptr);
+                        qDebug() << "Dequeued: " << queuedCommand->commandId();
+                        //TODO JOBAPI: job lifetime management
+                        //Right now we're just leaking jobs. In this case we'd like jobs that are heap allocated and delete
+                        //themselves once done. In other cases we'd like jobs that only live as long as their handle though.
+                        //FIXME this job is stack allocated and thus simply dies....
+                        processQueuedCommand(queuedCommand).then<void>(
+                            [callback]() {
+                                callback(true);
+                            },
+                            [callback](int errorCode, QString errorMessage) {
+                                Warning() << errorMessage;
+                                callback(false);
+                            }
+                        ).exec();
                     },
-                    [callback](int errorCode, QString errorMessage) {
-                        Warning() << errorMessage;
-                        callback(false);
-                    }).exec().waitForFinished();
-                },
-                [whileCallback](const MessageQueue::Error &error) {
-                    whileCallback(true);
-                });
-            },
-            [&future]() { //while complete
-                future.setFinished();
-            });
-        });
-        return job;
+                    [&future](const MessageQueue::Error &error) {
+                        Warning() << error.message;
+                        future.setValue(false);
+                        future.setFinished();
+                    }
+                );
+            }
+        );
     }
 
     Async::Job<void> processPipeline()
     {
         //Go through all message queues
         auto it = QSharedPointer<QListIterator<MessageQueue*> >::create(mCommandQueues);
-        return Async::dowhile<void>(
+        return Async::dowhile(
             [it]() { return it->hasNext(); },
             [it, this](Async::Future<void> &future) {
                 auto queue = it->next();
