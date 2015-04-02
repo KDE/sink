@@ -438,10 +438,9 @@ public:
                     }).exec();
                 });
             }
-            job.then<void>([/* eventloop,  */resultSet](Async::Future<void> &future) {
+            job.then<void>([resultSet]() {
                 qDebug() << "Query complete";
                 resultSet->complete();
-                future.setFinished();
             }).exec().waitForFinished(); //We use the eventloop provided by waitForFinished to keep the thread alive until all is done
         });
         return resultSet->emitter();

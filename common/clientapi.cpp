@@ -36,10 +36,7 @@ void Store::shutdown(const QString &identifier)
     Akonadi2::ResourceAccess resourceAccess(identifier);
     //FIXME this starts the resource, just to shut it down again if it's not running in the first place.
     resourceAccess.open();
-    resourceAccess.sendCommand(Akonadi2::Commands::ShutdownCommand).then<void>([](Async::Future<void> &f){
-        //TODO wait for disconnect
-        f.setFinished();
-    }).exec().waitForFinished();
+    resourceAccess.sendCommand(Akonadi2::Commands::ShutdownCommand).exec().waitForFinished();
 }
 
 } // namespace Akonadi2
