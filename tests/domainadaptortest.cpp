@@ -74,13 +74,13 @@ public:
             }
         }
 
-        Akonadi2::Metadata const *metadataBuffer = 0;
-        if (auto metadataData = entity.metadata()) {
-            flatbuffers::Verifier verifyer(metadataData->Data(), metadataData->size());
-            if (Akonadi2::VerifyMetadataBuffer(verifyer)) {
-                metadataBuffer = Akonadi2::GetMetadata(metadataData);
-            }
-        }
+        // Akonadi2::Metadata const *metadataBuffer = 0;
+        // if (auto metadataData = entity.metadata()) {
+        //     flatbuffers::Verifier verifyer(metadataData->Data(), metadataData->size());
+        //     if (Akonadi2::VerifyMetadataBuffer(verifyer)) {
+        //         metadataBuffer = Akonadi2::GetMetadata(metadataData);
+        //     }
+        // }
 
         Akonadi2::Domain::Buffer::Event const *localBuffer = 0;
         if (auto localData = entity.local()) {

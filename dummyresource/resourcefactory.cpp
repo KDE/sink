@@ -170,7 +170,7 @@ private slots:
 
                         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(ptr), size);
                         if (!Akonadi2::VerifyQueuedCommandBuffer(verifyer)) {
-                            qWarning() << "invalid buffer";
+                            Warning() << "invalid buffer";
                             callback(false);
                             return;
                         }
@@ -185,13 +185,13 @@ private slots:
                                 callback(true);
                             },
                             [callback](int errorCode, QString errorMessage) {
-                                Warning() << errorMessage;
+                                Warning() << "Error while processing queue command: " << errorMessage;
                                 callback(false);
                             }
                         ).exec();
                     },
                     [&future](const MessageQueue::Error &error) {
-                        Warning() << error.message;
+                        Warning() << "Error while getting message from messagequeue: " << error.message;
                         future.setValue(false);
                         future.setFinished();
                     }
@@ -209,6 +209,7 @@ private slots:
             [it, this](Async::Future<void> &future) {
                 auto queue = it->next();
                 processQueue(queue).then<void>([&future]() {
+                    Trace() << "Queue processed";
                     future.setFinished();
                 }).exec();
             }

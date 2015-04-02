@@ -376,7 +376,7 @@ void Listener::loadResource()
         Log() << QString("\tFacades: %1").arg(Akonadi2::FacadeFactory::instance().getFacade<Akonadi2::Domain::Event>(m_resourceName)->type());
         m_resource->configurePipeline(m_pipeline);
     } else {
-        Warning() << QString("Failed to load resource %1").arg(m_resourceName);
+        Error() << QString("Failed to load resource %1").arg(m_resourceName);
     }
     //TODO: on failure ... what?
     //Enter broken state?
