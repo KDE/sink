@@ -32,6 +32,7 @@
 #include "domainadaptor.h"
 #include <common/entitybuffer.h>
 #include <common/index.h>
+#include <common/log.h>
 
 using namespace DummyCalendar;
 using namespace flatbuffers;
@@ -100,7 +101,6 @@ static std::function<bool(const std::string &key, DummyEvent const *buffer, Akon
             const QByteArray uid = query.propertyFilter.value("uid").toByteArray();
             preparedQuery = [uid](const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local) {
                 if (local && local->uid() && (QByteArray::fromRawData(local->uid()->c_str(), local->uid()->size()) == uid)) {
-                    qDebug() << "uid match";
                     return true;
                 }
                 return false;
@@ -208,7 +208,7 @@ Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const s
                 keys << value;
             },
             [](const Index::Error &error) {
-                qWarning() << "Error in index: " <<  error.message;
+                Warning() << "Error in index: " <<  error.message;
             });
         }
 
@@ -216,7 +216,7 @@ Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const s
         //The transaction will be closed automatically once the storage object is destroyed.
         storage->startTransaction(Akonadi2::Storage::ReadOnly);
         if (keys.isEmpty()) {
-            qDebug() << "full scan";
+            Log() << "Executing a full scan";
             readValue(storage, QByteArray(), resultCallback, preparedQuery);
         } else {
             for (const auto &key : keys) {
