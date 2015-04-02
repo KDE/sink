@@ -122,6 +122,17 @@ public:
 signals:
     void error(int errorCode, const QString &errorMessage);
 
+private:
+    bool messagesToProcessAvailable()
+    {
+        for (auto queue : mCommandQueues) {
+            if (!queue->isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 private slots:
     void process()
     {
@@ -131,6 +142,9 @@ private slots:
         mProcessingLock = true;
         auto job = processPipeline().then<void>([this]() {
             mProcessingLock = false;
+            if (messagesToProcessAvailable()) {
+                process();
+            }
         }).exec();
     }
 
