@@ -212,9 +212,6 @@ Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const s
             });
         }
 
-        //We start a transaction explicitly that we'll leave open so the values can be read.
-        //The transaction will be closed automatically once the storage object is destroyed.
-        storage->startTransaction(Akonadi2::Storage::ReadOnly);
         if (keys.isEmpty()) {
             Log() << "Executing a full scan";
             readValue(storage, QByteArray(), resultCallback, preparedQuery);
