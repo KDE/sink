@@ -254,11 +254,13 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
             break;
         default:
             if (commandId > Akonadi2::Commands::CustomCommand) {
+                Log() << QString("\tReceived custom command from %1: ").arg(client.name) << commandId;
                 loadResource();
                 if (m_resource) {
                     m_resource->processCommand(commandId, client.commandBuffer, size, m_pipeline);
                 }
             } else {
+                Warning() << QString("\tReceived invalid command from %1: ").arg(client.name) << commandId;
                 //TODO: handle error: we don't know wtf this command is
             }
             break;

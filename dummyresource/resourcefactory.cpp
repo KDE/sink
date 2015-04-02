@@ -150,6 +150,7 @@ private slots:
 
     Async::Job<void> processQueuedCommand(const Akonadi2::QueuedCommand *queuedCommand)
     {
+        Log() << "Processing command: " << queuedCommand->commandId();
         //Throw command into appropriate pipeline
         switch (queuedCommand->commandId()) {
             case Akonadi2::Commands::DeleteEntityCommand:
