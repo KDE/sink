@@ -41,23 +41,14 @@ class QueuedCommand
 public:
     QueuedCommand(int commandId, const std::function<void(int, const QString &)> &callback)
         : commandId(commandId),
-          bufferSize(0),
-          buffer(0),
           callback(callback)
     {}
 
-    QueuedCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb, const std::function<void(int, const QString &)> &callback)
+    QueuedCommand(int commandId, const QByteArray &b, const std::function<void(int, const QString &)> &callback)
         : commandId(commandId),
-          bufferSize(fbb.GetSize()),
-          buffer(new char[bufferSize]),
+          buffer(b),
           callback(callback)
     {
-        memcpy(buffer, fbb.GetBufferPointer(), bufferSize);
-    }
-
-    ~QueuedCommand()
-    {
-        delete[] buffer;
     }
 
 private:
@@ -66,8 +57,7 @@ private:
 
 public:
     const int commandId;
-    const uint bufferSize;
-    char *buffer;
+    QByteArray buffer;
     std::function<void(int, const QString &)> callback;
 };
 
@@ -159,7 +149,9 @@ Async::Job<void> ResourceAccess::sendCommand(int commandId)
 
 Async::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb)
 {
-    return Async::start<void>([commandId, &fbb, this](Async::Future<void> &f) {
+    //The flatbuffer is transient, but we want to store it until the job is executed
+    QByteArray buffer(reinterpret_cast<const char*>(fbb.GetBufferPointer()), fbb.GetSize());
+    return Async::start<void>([commandId, buffer, this](Async::Future<void> &f) {
         auto callback = [&f](int error, const QString &errorMessage) {
             if (error) {
                 f.setError(error, errorMessage);
@@ -169,12 +161,13 @@ Async::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBu
         };
 
         if (isReady()) {
+            //TODO: We probably always want to queue the command, so we can resend it in case something goes wrong
             d->messageId++;
             log(QString("Sending command %1 with messageId %2").arg(commandId).arg(d->messageId));
             registerCallback(d->messageId, callback);
-            Commands::write(d->socket, d->messageId, commandId, fbb);
+            Commands::write(d->socket, d->messageId, commandId, buffer.constData(), buffer.size());
         } else {
-            d->commandQueue << new QueuedCommand(commandId, fbb, callback);
+            d->commandQueue << new QueuedCommand(commandId, buffer, callback);
         }
     });
 }
@@ -237,7 +230,7 @@ void ResourceAccess::connected()
         if (command->callback) {
             registerCallback(d->messageId, command->callback);
         }
-        Commands::write(d->socket, d->messageId, command->commandId, command->buffer, command->bufferSize);
+        Commands::write(d->socket, d->messageId, command->commandId, command->buffer.constData(), command->buffer.size());
         delete command;
     }
     d->commandQueue.clear();
