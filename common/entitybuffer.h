@@ -15,7 +15,14 @@ public:
     const Entity &entity();
 
     static void extractResourceBuffer(void *dataValue, int dataSize, const std::function<void(const uint8_t *, size_t size)> &handler);
+    /*
+     * TODO: Ideally we would be passing references to vectors in the same bufferbuilder, to avoid needlessly copying data.
+     * Unfortunately I couldn't find a way to cast a table to a vector<uint8_t> reference.
+     * We can't use union's either (which would allow to have a field that stores a selection of tables), as we don't want to modify
+     * the entity schema for each resource's buffers.
+     */
     static void assembleEntityBuffer(flatbuffers::FlatBufferBuilder &fbb, void const *metadataData, size_t metadataSize, void const *resourceData, size_t resourceSize, void const *localData, size_t localSize);
+    static flatbuffers::Offset<flatbuffers::Vector<uint8_t> > appendAsVector(flatbuffers::FlatBufferBuilder &fbb, void const *data, size_t size);
 
 private:
     const Entity *mEntity;

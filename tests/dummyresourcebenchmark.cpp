@@ -3,6 +3,7 @@
 #include <QString>
 
 #include "dummyresource/resourcefactory.h"
+#include "dummyresource/domainadaptor.h"
 #include "clientapi.h"
 #include "commands.h"
 #include "entitybuffer.h"
@@ -11,7 +12,6 @@
 #include "entity_generated.h"
 #include "metadata_generated.h"
 #include "createentity_generated.h"
-#include "dummyresource/resourcefactory.h"
 
 static void removeFromDisk(const QString &name)
 {
@@ -143,6 +143,26 @@ private Q_SLOTS:
 
         qDebug() << "Append to messagequeue " << appendTime;
         qDebug() << "All processed: " << allProcessedTime << "/sec " << num*1000/allProcessedTime;
+    }
+    void testCreateCommand()
+    {
+        Akonadi2::Domain::Event event;
+
+        QBENCHMARK {
+            auto mFactory = new DummyEventAdaptorFactory;
+            static flatbuffers::FlatBufferBuilder entityFbb;
+            entityFbb.Clear();
+            mFactory->createBuffer(event, entityFbb);
+
+            static flatbuffers::FlatBufferBuilder fbb;
+            fbb.Clear();
+            //This is the resource buffer type and not the domain type
+            auto type = fbb.CreateString("event");
+            // auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
+            auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
+            auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
+            Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+        }
     }
 };
 

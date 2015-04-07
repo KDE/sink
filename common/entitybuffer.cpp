@@ -56,17 +56,24 @@ void EntityBuffer::extractResourceBuffer(void *dataValue, int dataSize, const st
     }
 }
 
+flatbuffers::Offset<flatbuffers::Vector<uint8_t> > EntityBuffer::appendAsVector(flatbuffers::FlatBufferBuilder &fbb, void const *data, size_t size)
+{
+    //Since we do memcpy trickery, this will only work on little endian
+    assert(FLATBUFFERS_LITTLEENDIAN);
+    auto metadata = fbb.CreateUninitializedVector<uint8_t>(size);
+    {
+        auto ptr = reinterpret_cast<flatbuffers::Vector<uint8_t> *>(fbb.GetBufferPointer())->Data();
+        std::memcpy((void*)ptr, data, size);
+    }
+    return metadata;
+}
+
 void EntityBuffer::assembleEntityBuffer(flatbuffers::FlatBufferBuilder &fbb, void const *metadataData, size_t metadataSize, void const *resourceData, size_t resourceSize, void const *localData, size_t localSize)
 {
-    auto metadata = fbb.CreateVector<uint8_t>(static_cast<uint8_t const*>(metadataData), metadataSize);
-    auto resource = fbb.CreateVector<uint8_t>(static_cast<uint8_t const*>(resourceData), resourceSize);
-    auto local = fbb.CreateVector<uint8_t>(static_cast<uint8_t const*>(localData), localSize);
-    auto builder = Akonadi2::EntityBuilder(fbb);
-    builder.add_metadata(metadata);
-    builder.add_resource(resource);
-    builder.add_local(local);
-
-    auto buffer = builder.Finish();
-    Akonadi2::FinishEntityBuffer(fbb, buffer);
+    auto metadata = appendAsVector(fbb, metadataData, metadataSize);
+    auto resource = appendAsVector(fbb, resourceData, resourceSize);
+    auto local = appendAsVector(fbb, localData, localSize);
+    auto entity = Akonadi2::CreateEntity(fbb, metadata, resource, local);
+    Akonadi2::FinishEntityBuffer(fbb, entity);
 }
 
