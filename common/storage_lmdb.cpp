@@ -425,11 +425,11 @@ qint64 Storage::diskUsage() const
 void Storage::removeFromDisk() const
 {
     const QString fullPath(d->storageRoot + '/' + d->name);
-    qDebug() << "removing " << fullPath;
     QMutexLocker locker(&d->sMutex);
     QDir dir(fullPath);
     if (!dir.removeRecursively()) {
-        qWarning() << "Failed to remove directory" << d->storageRoot << d->name;
+        Error error(d->name.toLatin1(), ErrorCodes::GenericError, QString("Failed to remove directory %1 %2").arg(d->storageRoot).arg(d->name).toLatin1());
+        defaultErrorHandler()(error);
     }
     auto env = d->sEnvironments.take(fullPath);
     mdb_env_close(env);

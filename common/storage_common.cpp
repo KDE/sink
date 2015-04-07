@@ -46,7 +46,7 @@ void Storage::setDefaultErrorHandler(const std::function<void(const Storage::Err
     mErrorHandler = errorHandler;
 }
 
-std::function<void(const Storage::Error &error)> Storage::defaultErrorHandler()
+std::function<void(const Storage::Error &error)> Storage::defaultErrorHandler() const
 {
     if (mErrorHandler) {
         return mErrorHandler;

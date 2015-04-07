@@ -98,7 +98,7 @@ public:
      * Set the default error handler.
      */
     void setDefaultErrorHandler(const std::function<void(const Storage::Error &error)> &errorHandler);
-    std::function<void(const Storage::Error &error)> defaultErrorHandler();
+    std::function<void(const Storage::Error &error)> defaultErrorHandler() const;
 
     /**
      * A basic error handler that writes to std::cerr.
