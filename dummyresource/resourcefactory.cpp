@@ -324,11 +324,8 @@ void findByRemoteId(QSharedPointer<Akonadi2::Storage> storage, const QString &ri
 void DummyResource::enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data)
 {
     m_fbb.Clear();
-    auto commandData = m_fbb.CreateVector(reinterpret_cast<uint8_t const *>(data.data()), data.size());
-    auto builder = Akonadi2::QueuedCommandBuilder(m_fbb);
-    builder.add_commandId(commandId);
-    builder.add_command(commandData);
-    auto buffer = builder.Finish();
+    auto commandData = Akonadi2::EntityBuffer::appendAsVector(m_fbb, data.constData(), data.size());
+    auto buffer = Akonadi2::CreateQueuedCommand(m_fbb, commandId, commandData);
     Akonadi2::FinishQueuedCommandBuffer(m_fbb, buffer);
     mq.enqueue(m_fbb.GetBufferPointer(), m_fbb.GetSize());
 }
@@ -356,7 +353,7 @@ Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeli
                 auto rid = m_fbb.CreateString(it.key().toStdString().c_str());
                 auto description = m_fbb.CreateString(it.key().toStdString().c_str());
                 static uint8_t rawData[100];
-                auto attachment = m_fbb.CreateVector(rawData, 100);
+                auto attachment = Akonadi2::EntityBuffer::appendAsVector(m_fbb, rawData, 100);
 
                 auto builder = DummyCalendar::DummyEventBuilder(m_fbb);
                 builder.add_summary(summary);
@@ -371,7 +368,7 @@ Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeli
                 flatbuffers::FlatBufferBuilder fbb;
                 //This is the resource type and not the domain type
                 auto type = fbb.CreateString("event");
-                auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
+                auto delta = Akonadi2::EntityBuffer::appendAsVector(m_fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
                 auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
                 Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
 

@@ -56,7 +56,7 @@ Async::Job<void> DummyResourceFacade::create(const Akonadi2::Domain::Event &doma
     flatbuffers::FlatBufferBuilder fbb;
     //This is the resource buffer type and not the domain type
     auto type = fbb.CreateString("event");
-    auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
+    auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
     auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
     Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
     mResourceAccess->open();
