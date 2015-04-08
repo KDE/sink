@@ -190,7 +190,7 @@ private slots:
                             return;
                         }
                         auto queuedCommand = Akonadi2::GetQueuedCommand(ptr);
-                        qDebug() << "Dequeued: " << queuedCommand->commandId();
+                        Trace() << "Dequeued: " << queuedCommand->commandId();
                         //TODO JOBAPI: job lifetime management
                         //Right now we're just leaking jobs. In this case we'd like jobs that are heap allocated and delete
                         //themselves once done. In other cases we'd like jobs that only live as long as their handle though.
@@ -255,29 +255,18 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
     //Eventually the order should be self configuring, for now it's hardcoded.
     auto eventIndexer = new SimpleProcessor("summaryprocessor", [eventFactory](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
         auto adaptor = eventFactory->createAdaptor(entity);
-        // qDebug() << "Summary preprocessor: " << adaptor->getProperty("summary").toString();
+        // Log() << "Summary preprocessor: " << adaptor->getProperty("summary").toString();
     });
 
     auto uidIndexer = new SimpleProcessor("uidIndexer", [eventFactory](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
         static Index uidIndex(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", "org.kde.dummy.index.uid", Akonadi2::Storage::ReadWrite);
 
+        //TODO: Benchmark if this is performance wise acceptable, or if we have to access the buffer directly
         auto adaptor = eventFactory->createAdaptor(entity);
         const auto uid = adaptor->getProperty("uid");
         if (uid.isValid()) {
             uidIndex.add(uid.toByteArray(), state.key());
         }
-
-        //TODO would this be worthwhile for performance reasons?
-        // flatbuffers::Verifier verifyer(entity.local()->Data(), entity.local()->size());
-        // if (!Akonadi2::Domain::Buffer::VerifyEventBuffer(verifyer)) {
-        //     qWarning() << "invalid local buffer";
-        //     return;
-        // }
-        // auto localEvent = Akonadi2::Domain::Buffer::GetEvent(entity.local()->Data());
-        // if (localEvent && localEvent->uid()) {
-        //     qDebug() << "got uid: " << QByteArray::fromRawData(reinterpret_cast<const char *>(localEvent->uid()->Data()), localEvent->uid()->size());
-        //     uidIndex.add(QByteArray::fromRawData(reinterpret_cast<const char *>(localEvent->uid()->Data()), localEvent->uid()->size()), state.key());
-        // }
     });
 
     //event is the entitytype and not the domain type
@@ -288,7 +277,7 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
 
 void DummyResource::onProcessorError(int errorCode, const QString &errorMessage)
 {
-    qWarning() << "Received error from Processor: " << errorCode << errorMessage;
+    Warning() << "Received error from Processor: " << errorCode << errorMessage;
     mError = errorCode;
 }
 

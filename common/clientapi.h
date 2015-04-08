@@ -298,6 +298,9 @@ using namespace async;
  * * what resources to search
  * * filters on various properties (parent collection, startDate range, ....)
  * * properties we need (for on-demand querying)
+ * 
+ * syncOnDemand: Execute a source sync before executing the query
+ * processAll: Ensure all local messages are processed before querying to guarantee an up-to date dataset.
  */
 class Query
 {

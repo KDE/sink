@@ -120,6 +120,7 @@ Async::Job<void> DummyResourceFacade::synchronizeResource(bool sync, bool proces
     //TODO check if a sync is necessary
     //TODO Only sync what was requested
     //TODO timeout
+    //TODO the synchronization should normally not be necessary: We just return what is already available.
 
     if (sync || processAll) {
         return Async::start<void>([=](Async::Future<void> &future) {
