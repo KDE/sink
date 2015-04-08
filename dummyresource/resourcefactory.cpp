@@ -384,16 +384,22 @@ Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeli
 
 Async::Job<void> DummyResource::processAllMessages()
 {
+    //We have to wait for all items to be processed to ensure the synced items are available when a query gets executed.
+    //TODO: report errors while processing sync?
+    //TODO JOBAPI: A helper that waits for n events and then continues?
     return Async::start<void>([this](Async::Future<void> &f) {
-        //We have to wait for all items to be processed to ensure the synced items are available when a query gets executed.
-        //TODO: report errors while processing sync?
-        //TODO: also check user-queue?
         if (mSynchronizerQueue.isEmpty()) {
-            qDebug() << "synchronizer queue is empty";
             f.setFinished();
         } else {
             QObject::connect(&mSynchronizerQueue, &MessageQueue::drained, [&f]() {
-                qDebug() << "synchronizer queue drained";
+                f.setFinished();
+            });
+        }
+    }).then<void>([this](Async::Future<void> &f) {
+        if (mUserQueue.isEmpty()) {
+            f.setFinished();
+        } else {
+            QObject::connect(&mUserQueue, &MessageQueue::drained, [&f]() {
                 f.setFinished();
             });
         }
