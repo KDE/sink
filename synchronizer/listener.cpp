@@ -212,26 +212,16 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
                     Warning() << "No resource loaded";
                     break;
                 }
-                //TODO a more elegant composition of jobs should be possible
+                auto job = Async::null<void>();
                 if (buffer->sourceSync()) {
-                    bool localSync = buffer->localSync();
-                    m_resource->synchronizeWithSource(m_pipeline).then<void>([callback, localSync, this](Async::Future<void> &f){
-                        if (localSync) {
-                            m_resource->processAllMessages().then<void>([callback](Async::Future<void> &f){
-                                callback();
-                                f.setFinished();
-                            }).exec();
-                        } else {
-                            callback();
-                            f.setFinished();
-                        }
-                    }).exec();
-                } else if (buffer->localSync()) {
-                    m_resource->processAllMessages().then<void>([callback](Async::Future<void> &f){
-                        callback();
-                        f.setFinished();
-                    }).exec();
+                    job = m_resource->synchronizeWithSource(m_pipeline);
                 }
+                if (buffer->localSync()) {
+                    job = job.then<void>(m_resource->processAllMessages());
+                }
+                job.then<void>([callback]() {
+                    callback();
+                }).exec();
                 return;
             } else {
                 Warning() << "received invalid command";
