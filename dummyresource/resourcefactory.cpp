@@ -368,7 +368,7 @@ Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeli
                 flatbuffers::FlatBufferBuilder fbb;
                 //This is the resource type and not the domain type
                 auto type = fbb.CreateString("event");
-                auto delta = Akonadi2::EntityBuffer::appendAsVector(m_fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
+                auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
                 auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
                 Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
 
