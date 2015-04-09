@@ -12,6 +12,7 @@
 #include "entity_generated.h"
 #include "metadata_generated.h"
 #include "createentity_generated.h"
+#include <iostream>
 
 static void removeFromDisk(const QString &name)
 {
@@ -92,46 +93,45 @@ private Q_SLOTS:
         time.start();
         int num = 10000;
 
-        //Actual test
         Akonadi2::Pipeline pipeline("org.kde.dummy");
         QSignalSpy revisionSpy(&pipeline, SIGNAL(revisionUpdated()));
         DummyResource resource;
         resource.configurePipeline(&pipeline);
 
+        flatbuffers::FlatBufferBuilder eventFbb;
+        eventFbb.Clear();
+        {
+            auto summary = eventFbb.CreateString("summary");
+            Akonadi2::ApplicationDomain::Buffer::EventBuilder eventBuilder(eventFbb);
+            eventBuilder.add_summary(summary);
+            auto eventLocation = eventBuilder.Finish();
+            Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
+        }
+
+        flatbuffers::FlatBufferBuilder localFbb;
+        {
+            auto uid = localFbb.CreateString("testuid");
+            auto localBuilder = Akonadi2::ApplicationDomain::Buffer::EventBuilder(localFbb);
+            localBuilder.add_uid(uid);
+            auto location = localBuilder.Finish();
+            Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
+        }
+
+        flatbuffers::FlatBufferBuilder entityFbb;
+        Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
+
+        flatbuffers::FlatBufferBuilder fbb;
+        auto type = fbb.CreateString(Akonadi2::ApplicationDomain::getTypeName<Akonadi2::ApplicationDomain::Event>().toStdString().data());
+        auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
+        Akonadi2::Commands::CreateEntityBuilder builder(fbb);
+        builder.add_domainType(type);
+        builder.add_delta(delta);
+        auto location = builder.Finish();
+        Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+
+        const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
+
         for (int i = 0; i < num; i++) {
-            flatbuffers::FlatBufferBuilder eventFbb;
-            eventFbb.Clear();
-            {
-                auto summary = eventFbb.CreateString("summary");
-                Akonadi2::Domain::Buffer::EventBuilder eventBuilder(eventFbb);
-                eventBuilder.add_summary(summary);
-                auto eventLocation = eventBuilder.Finish();
-                Akonadi2::Domain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
-            }
-
-            flatbuffers::FlatBufferBuilder localFbb;
-            {
-                auto uid = localFbb.CreateString("testuid");
-                auto localBuilder = Akonadi2::Domain::Buffer::EventBuilder(localFbb);
-                localBuilder.add_uid(uid);
-                auto location = localBuilder.Finish();
-                Akonadi2::Domain::Buffer::FinishEventBuffer(localFbb, location);
-            }
-
-            flatbuffers::FlatBufferBuilder entityFbb;
-            Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
-
-            flatbuffers::FlatBufferBuilder fbb;
-            auto type = fbb.CreateString(Akonadi2::Domain::getTypeName<Akonadi2::Domain::Event>().toStdString().data());
-            auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
-            Akonadi2::Commands::CreateEntityBuilder builder(fbb);
-            builder.add_domainType(type);
-            builder.add_delta(delta);
-            auto location = builder.Finish();
-            Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
-
-            const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
-
             resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, command.size(), &pipeline);
         }
         auto appendTime = time.elapsed();
@@ -141,9 +141,10 @@ private Q_SLOTS:
 
         auto allProcessedTime = time.elapsed();
 
-        qDebug() << "Append to messagequeue " << appendTime;
-        qDebug() << "All processed: " << allProcessedTime << "/sec " << num*1000/allProcessedTime;
+        std::cout << "Append to messagequeue " << appendTime << std::endl;
+        std::cout << "All processed: " << allProcessedTime << "/sec " << num*1000/allProcessedTime << std::endl;
     }
+
     void testCreateCommand()
     {
         Akonadi2::ApplicationDomain::Event event;
