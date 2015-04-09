@@ -26,10 +26,12 @@
 namespace Akonadi2
 {
 
+/**
+ * Resource interface
+ */
 class AKONADI2COMMON_EXPORT Resource
 {
 public:
-    //TODO: configuration
     Resource();
     virtual ~Resource();
 
@@ -44,6 +46,9 @@ private:
     Private * const d;
 };
 
+/**
+ * Factory interface for resource to implement.
+ */
 class ResourceFactory : public QObject
 {
 public:

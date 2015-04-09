@@ -136,6 +136,7 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
             auto adaptor = mFactory->createAdaptor(buffer.entity());
             //TODO only copy requested properties
             auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create(*adaptor);
+            // here we could copy additional properties that don't have a 1:1 mapping, such as separately stored tags.
             auto event = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("org.kde.dummy", QByteArray::fromRawData(static_cast<char*>(keyValue), keySize), revision, memoryAdaptor);
             resultCallback(event);
         }
@@ -153,6 +154,8 @@ Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const s
         const auto preparedQuery = prepareQuery(query);
 
         auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
+
+        //TODO use transaction over full query and record store revision. We'll need it to update the query.
 
         //Index lookups
         QVector<QByteArray> keys;
