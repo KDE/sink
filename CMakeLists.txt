@@ -36,7 +36,7 @@ function(generate_flatbuffers)
 endfunction(generate_flatbuffers)
 
 set(CMAKE_AUTOMOC ON)
-add_definitions("-Wall -std=c++0x")
+add_definitions("-Wall -std=c++0x -g")
 include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${FLATBUFFERS_INCLUDE_DIR} ${CMAKE_BINARY_DIR}/common)
 include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/common)
 
