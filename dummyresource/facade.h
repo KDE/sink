@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include "common/facade.h"
+
 #include "common/clientapi.h"
 #include "common/storage.h"
 #include "resourcefactory.h"
@@ -27,12 +29,7 @@
 #include "dummycalendar_generated.h"
 #include "common/domainadaptor.h"
 
-namespace Akonadi2 {
-    class ResourceAccess;
-}
-
-
-class DummyResourceFacade : public Akonadi2::StoreFacade<Akonadi2::Domain::Event>
+class DummyResourceFacade : public Akonadi2::GenericFacade<Akonadi2::Domain::Event>
 {
 public:
     DummyResourceFacade();
@@ -44,7 +41,5 @@ public:
 
 private:
     void readValue(QSharedPointer<Akonadi2::Storage> storage, const QByteArray &key, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, std::function<bool(const std::string &key, DummyCalendar::DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local)>);
-    Async::Job<void> synchronizeResource(bool sync, bool processAll);
-    QSharedPointer<Akonadi2::ResourceAccess> mResourceAccess;
     QSharedPointer<DomainTypeAdaptorFactory<Akonadi2::Domain::Event, Akonadi2::Domain::Buffer::Event, DummyCalendar::DummyEvent> > mFactory;
 };

@@ -28,7 +28,6 @@
 #include "event_generated.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
-#include "createentity_generated.h"
 #include "domainadaptor.h"
 #include <common/entitybuffer.h>
 #include <common/index.h>
@@ -37,9 +36,9 @@
 using namespace DummyCalendar;
 using namespace flatbuffers;
 
+
 DummyResourceFacade::DummyResourceFacade()
-    : Akonadi2::StoreFacade<Akonadi2::Domain::Event>(),
-    mResourceAccess(new Akonadi2::ResourceAccess("org.kde.dummy")),
+    : Akonadi2::GenericFacade<Akonadi2::Domain::Event>("org.kde.dummy"),
     mFactory(new DummyEventAdaptorFactory)
 {
 }
@@ -52,15 +51,7 @@ Async::Job<void> DummyResourceFacade::create(const Akonadi2::Domain::Event &doma
 {
     flatbuffers::FlatBufferBuilder entityFbb;
     mFactory->createBuffer(domainObject, entityFbb);
-
-    flatbuffers::FlatBufferBuilder fbb;
-    //This is the resource buffer type and not the domain type
-    auto type = fbb.CreateString("event");
-    auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
-    auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
-    Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
-    mResourceAccess->open();
-    return mResourceAccess->sendCommand(Akonadi2::Commands::CreateEntityCommand, fbb);
+    return sendCreateCommand("event", QByteArray::fromRawData(reinterpret_cast<const char*>(entityFbb.GetBufferPointer()), entityFbb.GetSize()));
 }
 
 Async::Job<void> DummyResourceFacade::modify(const Akonadi2::Domain::Event &domainObject)
@@ -113,25 +104,6 @@ static std::function<bool(const std::string &key, DummyEvent const *buffer, Akon
         };
     }
     return preparedQuery;
-}
-
-Async::Job<void> DummyResourceFacade::synchronizeResource(bool sync, bool processAll)
-{
-    //TODO check if a sync is necessary
-    //TODO Only sync what was requested
-    //TODO timeout
-    //TODO the synchronization should normally not be necessary: We just return what is already available.
-
-    if (sync || processAll) {
-        return Async::start<void>([=](Async::Future<void> &future) {
-            mResourceAccess->open();
-            mResourceAccess->synchronizeResource(sync, processAll).then<void>([&future](Async::Future<void> &f) {
-                future.setFinished();
-                f.setFinished();
-            }).exec();
-        });
-    }
-    return Async::null<void>();
 }
 
 void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, const QByteArray &key, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local)> preparedQuery)
