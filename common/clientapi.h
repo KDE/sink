@@ -163,7 +163,7 @@ namespace async {
 namespace Akonadi2 {
 
 /**
- * Standardized Domain Types
+ * Standardized Application Domain Types
  *
  * They don't adhere to any standard and can be freely extended
  * Their sole purpose is providing a standardized interface to access data.
@@ -172,7 +172,7 @@ namespace Akonadi2 {
  *
  * These types will be frequently modified (for every new feature that should be exposed to the any client)
  */
-namespace Domain {
+namespace ApplicationDomain {
 
 /**
  * This class has to be implemented by resources and can be used as generic interface to access the buffer properties
@@ -215,14 +215,14 @@ private:
  * * provide a unified interface to read buffers (for zero-copy reading)
  * * record changes to generate changesets for modifications
  */
-class AkonadiDomainType {
+class ApplicationDomainType {
 public:
-    AkonadiDomainType()
+    ApplicationDomainType()
         :mAdaptor(new MemoryBufferAdaptor())
     {
 
     }
-    AkonadiDomainType(const QByteArray &resourceName, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
+    ApplicationDomainType(const QByteArray &resourceName, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
         : mAdaptor(adaptor),
         mResourceName(resourceName),
         mIdentifier(identifier),
@@ -230,7 +230,7 @@ public:
     {
     }
 
-    virtual ~AkonadiDomainType() {}
+    virtual ~ApplicationDomainType() {}
 
     virtual QVariant getProperty(const QByteArray &key) const { return mAdaptor->getProperty(key); }
     virtual void setProperty(const QByteArray &key, const QVariant &value){ mChangeSet.insert(key, value); mAdaptor->setProperty(key, value); }
@@ -246,25 +246,25 @@ private:
     qint64 mRevision;
 };
 
-struct Event : public AkonadiDomainType {
+struct Event : public ApplicationDomainType {
     typedef QSharedPointer<Event> Ptr;
-    using AkonadiDomainType::AkonadiDomainType;
+    using ApplicationDomainType::ApplicationDomainType;
 };
 
-struct Todo : public AkonadiDomainType {
+struct Todo : public ApplicationDomainType {
     typedef QSharedPointer<Todo> Ptr;
-    using AkonadiDomainType::AkonadiDomainType;
+    using ApplicationDomainType::ApplicationDomainType;
 };
 
-struct Calendar : public AkonadiDomainType {
+struct Calendar : public ApplicationDomainType {
     typedef QSharedPointer<Calendar> Ptr;
-    using AkonadiDomainType::AkonadiDomainType;
+    using ApplicationDomainType::ApplicationDomainType;
 };
 
-class Mail : public AkonadiDomainType {
+class Mail : public ApplicationDomainType {
 };
 
-class Folder : public AkonadiDomainType {
+class Folder : public ApplicationDomainType {
 };
 
 /**
@@ -331,7 +331,7 @@ template<class DomainType>
 class StoreFacade {
 public:
     virtual ~StoreFacade(){};
-    QByteArray type() const { return Domain::getTypeName<DomainType>(); }
+    QByteArray type() const { return ApplicationDomain::getTypeName<DomainType>(); }
     virtual Async::Job<void> create(const DomainType &domainObject) = 0;
     virtual Async::Job<void> modify(const DomainType &domainObject) = 0;
     virtual Async::Job<void> remove(const DomainType &domainObject) = 0;
@@ -362,7 +362,7 @@ public:
     template<class DomainType, class Facade>
     void registerFacade(const QByteArray &resource)
     {
-        const QByteArray typeName = Domain::getTypeName<DomainType>();
+        const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
         mFacadeRegistry.insert(key(resource, typeName), [](){ return new Facade; });
     }
 
@@ -378,14 +378,14 @@ public:
     template<class DomainType, class Facade>
     void registerFacade(const QByteArray &resource, const std::function<void*(void)> &customFactoryFunction)
     {
-        const QByteArray typeName = Domain::getTypeName<DomainType>();
+        const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
         mFacadeRegistry.insert(key(resource, typeName), customFactoryFunction);
     }
 
     template<class DomainType>
     QSharedPointer<StoreFacade<DomainType> > getFacade(const QByteArray &resource)
     {
-        const QByteArray typeName = Domain::getTypeName<DomainType>();
+        const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
         auto factoryFunction = mFacadeRegistry.value(key(resource, typeName));
         if (factoryFunction) {
             return QSharedPointer<StoreFacade<DomainType> >(static_cast<StoreFacade<DomainType>* >(factoryFunction()));

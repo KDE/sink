@@ -49,26 +49,26 @@ private Q_SLOTS:
         eventFbb.Clear();
         {
             auto summary = eventFbb.CreateString("summary");
-            Akonadi2::Domain::Buffer::EventBuilder eventBuilder(eventFbb);
+            Akonadi2::ApplicationDomain::Buffer::EventBuilder eventBuilder(eventFbb);
             eventBuilder.add_summary(summary);
             auto eventLocation = eventBuilder.Finish();
-            Akonadi2::Domain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
+            Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
         }
 
         flatbuffers::FlatBufferBuilder localFbb;
         {
             auto uid = localFbb.CreateString("testuid");
-            auto localBuilder = Akonadi2::Domain::Buffer::EventBuilder(localFbb);
+            auto localBuilder = Akonadi2::ApplicationDomain::Buffer::EventBuilder(localFbb);
             localBuilder.add_uid(uid);
             auto location = localBuilder.Finish();
-            Akonadi2::Domain::Buffer::FinishEventBuffer(localFbb, location);
+            Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
         }
 
         flatbuffers::FlatBufferBuilder entityFbb;
         Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
 
         flatbuffers::FlatBufferBuilder fbb;
-        auto type = fbb.CreateString(Akonadi2::Domain::getTypeName<Akonadi2::Domain::Event>().toStdString().data());
+        auto type = fbb.CreateString(Akonadi2::ApplicationDomain::getTypeName<Akonadi2::ApplicationDomain::Event>().toStdString().data());
         auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
         Akonadi2::Commands::CreateEntityBuilder builder(fbb);
         builder.add_domainType(type);
@@ -98,18 +98,18 @@ private Q_SLOTS:
 
     void testProperty()
     {
-        Akonadi2::Domain::Event event;
+        Akonadi2::ApplicationDomain::Event event;
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
     }
 
     void testWriteToFacadeAndQueryByUid()
     {
-        Akonadi2::Domain::Event event;
+        Akonadi2::ApplicationDomain::Event event;
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Akonadi2::Store::create<Akonadi2::Domain::Event>(event, "org.kde.dummy");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy");
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy";
@@ -117,7 +117,7 @@ private Q_SLOTS:
         query.processAll = true;
 
         query.propertyFilter.insert("uid", "testuid");
-        async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
+        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
         result.exec();
         QCOMPARE(result.size(), 1);
         auto value = result.first();
@@ -147,7 +147,7 @@ private Q_SLOTS:
         query.syncOnDemand = true;
         query.processAll = true;
 
-        async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
+        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
         result.exec();
         QVERIFY(!result.isEmpty());
         auto value = result.first();

@@ -416,7 +416,7 @@ Akonadi2::Resource *DummyResourceFactory::createResource()
 
 void DummyResourceFactory::registerFacades(Akonadi2::FacadeFactory &factory)
 {
-    factory.registerFacade<Akonadi2::Domain::Event, DummyResourceFacade>(PLUGIN_NAME);
+    factory.registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>(PLUGIN_NAME);
 }
 
 #include "resourcefactory.moc"

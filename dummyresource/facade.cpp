@@ -38,7 +38,7 @@ using namespace flatbuffers;
 
 
 DummyResourceFacade::DummyResourceFacade()
-    : Akonadi2::GenericFacade<Akonadi2::Domain::Event>("org.kde.dummy"),
+    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>("org.kde.dummy"),
     mFactory(new DummyEventAdaptorFactory)
 {
 }
@@ -47,30 +47,30 @@ DummyResourceFacade::~DummyResourceFacade()
 {
 }
 
-Async::Job<void> DummyResourceFacade::create(const Akonadi2::Domain::Event &domainObject)
+Async::Job<void> DummyResourceFacade::create(const Akonadi2::ApplicationDomain::Event &domainObject)
 {
     flatbuffers::FlatBufferBuilder entityFbb;
     mFactory->createBuffer(domainObject, entityFbb);
     return sendCreateCommand("event", QByteArray::fromRawData(reinterpret_cast<const char*>(entityFbb.GetBufferPointer()), entityFbb.GetSize()));
 }
 
-Async::Job<void> DummyResourceFacade::modify(const Akonadi2::Domain::Event &domainObject)
+Async::Job<void> DummyResourceFacade::modify(const Akonadi2::ApplicationDomain::Event &domainObject)
 {
     //Create message buffer and send to resource
     return Async::null<void>();
 }
 
-Async::Job<void> DummyResourceFacade::remove(const Akonadi2::Domain::Event &domainObject)
+Async::Job<void> DummyResourceFacade::remove(const Akonadi2::ApplicationDomain::Event &domainObject)
 {
     //Create message buffer and send to resource
     return Async::null<void>();
 }
 
-static std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local)> prepareQuery(const Akonadi2::Query &query)
+static std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local)> prepareQuery(const Akonadi2::Query &query)
 {
     //Compose some functions to make query matching fast.
     //This way we can process the query once, and convert all values into something that can be compared quickly
-    std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local)> preparedQuery;
+    std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local)> preparedQuery;
     if (!query.ids.isEmpty()) {
         //Match by id
         //TODO: for id's a direct lookup would be way faster
@@ -81,7 +81,7 @@ static std::function<bool(const std::string &key, DummyEvent const *buffer, Akon
         for (const auto &id : query.ids) {
             ids << id.toStdString();
         }
-        preparedQuery = [ids](const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local) {
+        preparedQuery = [ids](const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local) {
             if (ids.contains(key)) {
                 return true;
             }
@@ -90,7 +90,7 @@ static std::function<bool(const std::string &key, DummyEvent const *buffer, Akon
     } else if (!query.propertyFilter.isEmpty()) {
         if (query.propertyFilter.contains("uid")) {
             const QByteArray uid = query.propertyFilter.value("uid").toByteArray();
-            preparedQuery = [uid](const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local) {
+            preparedQuery = [uid](const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local) {
                 if (local && local->uid() && (QByteArray::fromRawData(local->uid()->c_str(), local->uid()->size()) == uid)) {
                     return true;
                 }
@@ -99,14 +99,14 @@ static std::function<bool(const std::string &key, DummyEvent const *buffer, Akon
         }
     } else {
         //Match everything
-        preparedQuery = [](const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local) {
+        preparedQuery = [](const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local) {
             return true;
         };
     }
     return preparedQuery;
 }
 
-void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, const QByteArray &key, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local)> preparedQuery)
+void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback, std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local)> preparedQuery)
 {
     storage->scan(key, [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
 
@@ -119,7 +119,7 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
         Akonadi2::EntityBuffer buffer(dataValue, dataSize);
 
         const auto resourceBuffer = Akonadi2::EntityBuffer::readBuffer<DummyEvent>(buffer.entity().resource());
-        const auto localBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Domain::Buffer::Event>(buffer.entity().local());
+        const auto localBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::ApplicationDomain::Buffer::Event>(buffer.entity().local());
         const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(buffer.entity().metadata());
 
         if (!resourceBuffer || !metadataBuffer) {
@@ -135,8 +135,8 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
             //Not i.e. for tags that are stored as flags in each entity of an imap store.
             auto adaptor = mFactory->createAdaptor(buffer.entity());
             //TODO only copy requested properties
-            auto memoryAdaptor = QSharedPointer<Akonadi2::Domain::MemoryBufferAdaptor>::create(*adaptor);
-            auto event = QSharedPointer<Akonadi2::Domain::Event>::create("org.kde.dummy", QByteArray::fromRawData(static_cast<char*>(keyValue), keySize), revision, memoryAdaptor);
+            auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create(*adaptor);
+            auto event = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("org.kde.dummy", QByteArray::fromRawData(static_cast<char*>(keyValue), keySize), revision, memoryAdaptor);
             resultCallback(event);
         }
         return true;
@@ -146,7 +146,7 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
     });
 }
 
-Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback)
+Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback)
 {
     return synchronizeResource(query.syncOnDemand, query.processAll).then<void>([=](Async::Future<void> &future) {
         //Now that the sync is complete we can execute the query
@@ -154,6 +154,7 @@ Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const s
 
         auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
 
+        //Index lookups
         QVector<QByteArray> keys;
         if (query.propertyFilter.contains("uid")) {
             static Index uidIndex(Akonadi2::Store::storageLocation(), "org.kde.dummy.index.uid", Akonadi2::Storage::ReadOnly);

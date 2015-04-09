@@ -47,11 +47,11 @@ private Q_SLOTS:
         time.start();
         int num = 10000;
         for (int i = 0; i < num; i++) {
-            Akonadi2::Domain::Event event;
+            Akonadi2::ApplicationDomain::Event event;
             event.setProperty("uid", "testuid");
             QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
             event.setProperty("summary", "summaryValue");
-            Akonadi2::Store::create<Akonadi2::Domain::Event>(event, "org.kde.dummy");
+            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy");
         }
         auto appendTime = time.elapsed();
 
@@ -63,7 +63,7 @@ private Q_SLOTS:
             query.processAll = true;
 
             query.propertyFilter.insert("uid", "nonexistantuid");
-            async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
+            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
             result.exec();
         }
         auto allProcessedTime = time.elapsed();
@@ -77,7 +77,7 @@ private Q_SLOTS:
             query.processAll = false;
 
             query.propertyFilter.insert("uid", "testuid");
-            async::SyncListResult<Akonadi2::Domain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::Domain::Event>(query));
+            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
             result.exec();
             QCOMPARE(result.size(), num);
         }
@@ -146,7 +146,7 @@ private Q_SLOTS:
     }
     void testCreateCommand()
     {
-        Akonadi2::Domain::Event event;
+        Akonadi2::ApplicationDomain::Event event;
 
         QBENCHMARK {
             auto mFactory = new DummyEventAdaptorFactory;

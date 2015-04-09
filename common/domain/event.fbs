@@ -1,4 +1,4 @@
-namespace Akonadi2.Domain.Buffer;
+namespace Akonadi2.ApplicationDomain.Buffer;
 
 table Event {
   uid:string;

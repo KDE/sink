@@ -13,11 +13,11 @@
 #include "metadata_generated.h"
 #include "entity_generated.h"
 
-class TestEventAdaptor : public Akonadi2::Domain::BufferAdaptor
+class TestEventAdaptor : public Akonadi2::ApplicationDomain::BufferAdaptor
 {
 public:
     TestEventAdaptor()
-        : Akonadi2::Domain::BufferAdaptor()
+        : Akonadi2::ApplicationDomain::BufferAdaptor()
     {
     }
 
@@ -40,20 +40,20 @@ public:
         return QVariant();
     }
 
-    Akonadi2::Domain::Buffer::Event const *mLocalBuffer;
-    Akonadi2::Domain::Buffer::Event const *mResourceBuffer;
+    Akonadi2::ApplicationDomain::Buffer::Event const *mLocalBuffer;
+    Akonadi2::ApplicationDomain::Buffer::Event const *mResourceBuffer;
 
-    QSharedPointer<PropertyMapper<Akonadi2::Domain::Buffer::Event> > mLocalMapper;
-    QSharedPointer<PropertyMapper<Akonadi2::Domain::Buffer::Event> > mResourceMapper;
+    QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > mLocalMapper;
+    QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > mResourceMapper;
 };
 
-class TestFactory : public DomainTypeAdaptorFactory<Akonadi2::Domain::Event, Akonadi2::Domain::Buffer::Event, Akonadi2::Domain::Buffer::Event>
+class TestFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Buffer::Event, Akonadi2::ApplicationDomain::Buffer::Event>
 {
 public:
     TestFactory()
     {
-        mResourceMapper = QSharedPointer<PropertyMapper<Akonadi2::Domain::Buffer::Event> >::create();
-        mResourceMapper->mReadAccessors.insert("summary", [](Akonadi2::Domain::Buffer::Event const *buffer) -> QVariant {
+        mResourceMapper = QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> >::create();
+        mResourceMapper->mReadAccessors.insert("summary", [](Akonadi2::ApplicationDomain::Buffer::Event const *buffer) -> QVariant {
             if (buffer->summary()) {
                 return QString::fromStdString(buffer->summary()->c_str());
             }
@@ -61,13 +61,13 @@ public:
         });
     }
 
-    virtual QSharedPointer<Akonadi2::Domain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity)
+    virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity)
     {
-        Akonadi2::Domain::Buffer::Event const *resourceBuffer = 0;
+        Akonadi2::ApplicationDomain::Buffer::Event const *resourceBuffer = 0;
         if (auto resourceData = entity.resource()) {
             flatbuffers::Verifier verifyer(resourceData->Data(), resourceData->size());
-            if (Akonadi2::Domain::Buffer::VerifyEventBuffer(verifyer)) {
-                resourceBuffer = Akonadi2::Domain::Buffer::GetEvent(resourceData->Data());
+            if (Akonadi2::ApplicationDomain::Buffer::VerifyEventBuffer(verifyer)) {
+                resourceBuffer = Akonadi2::ApplicationDomain::Buffer::GetEvent(resourceData->Data());
                 if (resourceBuffer->summary()) {
                     qDebug() << QString::fromStdString(std::string(resourceBuffer->summary()->c_str()));
                 }
@@ -82,11 +82,11 @@ public:
         //     }
         // }
 
-        Akonadi2::Domain::Buffer::Event const *localBuffer = 0;
+        Akonadi2::ApplicationDomain::Buffer::Event const *localBuffer = 0;
         if (auto localData = entity.local()) {
             flatbuffers::Verifier verifyer(localData->Data(), localData->size());
-            if (Akonadi2::Domain::Buffer::VerifyEventBuffer(verifyer)) {
-                localBuffer = Akonadi2::Domain::Buffer::GetEvent(localData);
+            if (Akonadi2::ApplicationDomain::Buffer::VerifyEventBuffer(verifyer)) {
+                localBuffer = Akonadi2::ApplicationDomain::Buffer::GetEvent(localData);
             }
         }
 
@@ -127,12 +127,12 @@ private Q_SLOTS:
         static uint8_t rawData[100];
         auto attachment = m_fbb.CreateVector(rawData, 100);
 
-        auto builder = Akonadi2::Domain::Buffer::EventBuilder(m_fbb);
+        auto builder = Akonadi2::ApplicationDomain::Buffer::EventBuilder(m_fbb);
         builder.add_summary(summary);
         builder.add_description(description);
         builder.add_attachment(attachment);
         auto buffer = builder.Finish();
-        Akonadi2::Domain::Buffer::FinishEventBuffer(m_fbb, buffer);
+        Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(m_fbb, buffer);
 
         flatbuffers::FlatBufferBuilder fbb;
         Akonadi2::EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), m_fbb.GetBufferPointer(), m_fbb.GetSize(), m_fbb.GetBufferPointer(), m_fbb.GetSize());

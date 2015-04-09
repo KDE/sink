@@ -14,11 +14,8 @@
 using namespace DummyCalendar;
 using namespace flatbuffers;
 
-using namespace DummyCalendar;
-using namespace flatbuffers;
-
 //This will become a generic implementation that simply takes the resource buffer and local buffer pointer
-class DummyEventAdaptor : public Akonadi2::Domain::BufferAdaptor
+class DummyEventAdaptor : public Akonadi2::ApplicationDomain::BufferAdaptor
 {
 public:
     DummyEventAdaptor()
@@ -55,10 +52,10 @@ public:
         return props;
     }
 
-    Akonadi2::Domain::Buffer::Event const *mLocalBuffer;
+    Akonadi2::ApplicationDomain::Buffer::Event const *mLocalBuffer;
     DummyEvent const *mResourceBuffer;
 
-    QSharedPointer<PropertyMapper<Akonadi2::Domain::Buffer::Event> > mLocalMapper;
+    QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > mLocalMapper;
     QSharedPointer<PropertyMapper<DummyEvent> > mResourceMapper;
 };
 
@@ -73,14 +70,14 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
         }
         return QVariant();
     });
-    mLocalMapper = QSharedPointer<PropertyMapper<Akonadi2::Domain::Buffer::Event> >::create();
-    mLocalMapper->mReadAccessors.insert("summary", [](Akonadi2::Domain::Buffer::Event const *buffer) -> QVariant {
+    mLocalMapper = QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> >::create();
+    mLocalMapper->mReadAccessors.insert("summary", [](Akonadi2::ApplicationDomain::Buffer::Event const *buffer) -> QVariant {
         if (buffer->summary()) {
             return QString::fromStdString(buffer->summary()->c_str());
         }
         return QVariant();
     });
-    mLocalMapper->mReadAccessors.insert("uid", [](Akonadi2::Domain::Buffer::Event const *buffer) -> QVariant {
+    mLocalMapper->mReadAccessors.insert("uid", [](Akonadi2::ApplicationDomain::Buffer::Event const *buffer) -> QVariant {
         if (buffer->uid()) {
             return QString::fromStdString(buffer->uid()->c_str());
         }
@@ -90,10 +87,10 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
 }
 
 //TODO pass EntityBuffer instead?
-QSharedPointer<Akonadi2::Domain::BufferAdaptor> DummyEventAdaptorFactory::createAdaptor(const Akonadi2::Entity &entity)
+QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> DummyEventAdaptorFactory::createAdaptor(const Akonadi2::Entity &entity)
 {
     const auto resourceBuffer = Akonadi2::EntityBuffer::readBuffer<DummyEvent>(entity.resource());
-    const auto localBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Domain::Buffer::Event>(entity.local());
+    const auto localBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::ApplicationDomain::Buffer::Event>(entity.local());
     // const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
 
     auto adaptor = QSharedPointer<DummyEventAdaptor>::create();
@@ -104,7 +101,7 @@ QSharedPointer<Akonadi2::Domain::BufferAdaptor> DummyEventAdaptorFactory::create
     return adaptor;
 }
 
-void DummyEventAdaptorFactory::createBuffer(const Akonadi2::Domain::Event &event, flatbuffers::FlatBufferBuilder &fbb)
+void DummyEventAdaptorFactory::createBuffer(const Akonadi2::ApplicationDomain::Event &event, flatbuffers::FlatBufferBuilder &fbb)
 {
     flatbuffers::FlatBufferBuilder eventFbb;
     eventFbb.Clear();
@@ -119,10 +116,10 @@ void DummyEventAdaptorFactory::createBuffer(const Akonadi2::Domain::Event &event
     flatbuffers::FlatBufferBuilder localFbb;
     {
         auto uid = localFbb.CreateString(event.getProperty("uid").toString().toStdString());
-        auto localBuilder = Akonadi2::Domain::Buffer::EventBuilder(localFbb);
+        auto localBuilder = Akonadi2::ApplicationDomain::Buffer::EventBuilder(localFbb);
         localBuilder.add_uid(uid);
         auto location = localBuilder.Finish();
-        Akonadi2::Domain::Buffer::FinishEventBuffer(localFbb, location);
+        Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
     }
 
     Akonadi2::EntityBuffer::assembleEntityBuffer(fbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());

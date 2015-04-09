@@ -29,17 +29,17 @@
 #include "dummycalendar_generated.h"
 #include "common/domainadaptor.h"
 
-class DummyResourceFacade : public Akonadi2::GenericFacade<Akonadi2::Domain::Event>
+class DummyResourceFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>
 {
 public:
     DummyResourceFacade();
     virtual ~DummyResourceFacade();
-    virtual Async::Job<void> create(const Akonadi2::Domain::Event &domainObject);
-    virtual Async::Job<void> modify(const Akonadi2::Domain::Event &domainObject);
-    virtual Async::Job<void> remove(const Akonadi2::Domain::Event &domainObject);
-    virtual Async::Job<void> load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback);
+    virtual Async::Job<void> create(const Akonadi2::ApplicationDomain::Event &domainObject);
+    virtual Async::Job<void> modify(const Akonadi2::ApplicationDomain::Event &domainObject);
+    virtual Async::Job<void> remove(const Akonadi2::ApplicationDomain::Event &domainObject);
+    virtual Async::Job<void> load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback);
 
 private:
-    void readValue(QSharedPointer<Akonadi2::Storage> storage, const QByteArray &key, const std::function<void(const Akonadi2::Domain::Event::Ptr &)> &resultCallback, std::function<bool(const std::string &key, DummyCalendar::DummyEvent const *buffer, Akonadi2::Domain::Buffer::Event const *local)>);
-    QSharedPointer<DomainTypeAdaptorFactory<Akonadi2::Domain::Event, Akonadi2::Domain::Buffer::Event, DummyCalendar::DummyEvent> > mFactory;
+    void readValue(QSharedPointer<Akonadi2::Storage> storage, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback, std::function<bool(const std::string &key, DummyCalendar::DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local)>);
+    QSharedPointer<DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Buffer::Event, DummyCalendar::DummyEvent> > mFactory;
 };

@@ -14,7 +14,7 @@ namespace async
 namespace Akonadi2
 {
 
-namespace Domain
+namespace ApplicationDomain
 {
 
 template<>
