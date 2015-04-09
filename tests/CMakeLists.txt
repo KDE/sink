@@ -14,14 +14,26 @@ macro(manual_tests)
     endforeach(_testname)
 endmacro(manual_tests)
 
+macro(auto_tests)
+    foreach(_testname ${ARGN})
+        add_executable(${_testname} ${_testname}.cpp)
+        add_test(${_testname} ${_testname})
+        qt5_use_modules(${_testname} Core Test Concurrent)
+        target_link_libraries(${_testname} akonadi2common libhawd)
+    endforeach(_testname)
+endmacro(auto_tests)
+
 manual_tests (
     storagebenchmark
+    dummyresourcebenchmark
+)
+
+auto_tests (
     storagetest
     dummyresourcetest
     domainadaptortest
     messagequeuetest
     indextest
-    dummyresourcebenchmark
 )
 
 target_link_libraries(dummyresourcetest akonadi2_resource_dummy)
