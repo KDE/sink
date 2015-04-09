@@ -14,55 +14,11 @@
 using namespace DummyCalendar;
 using namespace flatbuffers;
 
-//This will become a generic implementation that simply takes the resource buffer and local buffer pointer
-class DummyEventAdaptor : public Akonadi2::ApplicationDomain::BufferAdaptor
-{
-public:
-    DummyEventAdaptor()
-        : BufferAdaptor()
-    {
-
-    }
-
-    void setProperty(const QByteArray &key, const QVariant &value)
-    {
-        if (mResourceMapper && mResourceMapper->mWriteAccessors.contains(key)) {
-            // mResourceMapper->setProperty(key, value, mResourceBuffer);
-        } else {
-            // mLocalMapper.;
-        }
-    }
-
-    virtual QVariant getProperty(const QByteArray &key) const
-    {
-        if (mResourceBuffer && mResourceMapper->mReadAccessors.contains(key)) {
-            return mResourceMapper->getProperty(key, mResourceBuffer);
-        } else if (mLocalBuffer && mLocalMapper->mReadAccessors.contains(key)) {
-            return mLocalMapper->getProperty(key, mLocalBuffer);
-        }
-        qWarning() << "no mapping available for key " << key;
-        return QVariant();
-    }
-
-    virtual QList<QByteArray> availableProperties() const
-    {
-        QList<QByteArray> props;
-        props << mResourceMapper->mReadAccessors.keys();
-        props << mLocalMapper->mReadAccessors.keys();
-        return props;
-    }
-
-    Akonadi2::ApplicationDomain::Buffer::Event const *mLocalBuffer;
-    DummyEvent const *mResourceBuffer;
-
-    QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > mLocalMapper;
-    QSharedPointer<PropertyMapper<DummyEvent> > mResourceMapper;
-};
-
 
 DummyEventAdaptorFactory::DummyEventAdaptorFactory()
     : DomainTypeAdaptorFactory()
 {
+    //TODO turn this into initializePropertyMapper as well?
     mResourceMapper = QSharedPointer<PropertyMapper<DummyEvent> >::create();
     mResourceMapper->mReadAccessors.insert("summary", [](DummyEvent const *buffer) -> QVariant {
         if (buffer->summary()) {
@@ -70,36 +26,8 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
         }
         return QVariant();
     });
-    mLocalMapper = QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> >::create();
-    mLocalMapper->mReadAccessors.insert("summary", [](Akonadi2::ApplicationDomain::Buffer::Event const *buffer) -> QVariant {
-        if (buffer->summary()) {
-            return QString::fromStdString(buffer->summary()->c_str());
-        }
-        return QVariant();
-    });
-    mLocalMapper->mReadAccessors.insert("uid", [](Akonadi2::ApplicationDomain::Buffer::Event const *buffer) -> QVariant {
-        if (buffer->uid()) {
-            return QString::fromStdString(buffer->uid()->c_str());
-        }
-        return QVariant();
-    });
-
 }
 
-//TODO pass EntityBuffer instead?
-QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> DummyEventAdaptorFactory::createAdaptor(const Akonadi2::Entity &entity)
-{
-    const auto resourceBuffer = Akonadi2::EntityBuffer::readBuffer<DummyEvent>(entity.resource());
-    const auto localBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::ApplicationDomain::Buffer::Event>(entity.local());
-    // const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
-
-    auto adaptor = QSharedPointer<DummyEventAdaptor>::create();
-    adaptor->mLocalBuffer = localBuffer;
-    adaptor->mLocalMapper = mLocalMapper;
-    adaptor->mResourceBuffer = resourceBuffer;
-    adaptor->mResourceMapper = mResourceMapper;
-    return adaptor;
-}
 
 void DummyEventAdaptorFactory::createBuffer(const Akonadi2::ApplicationDomain::Event &event, flatbuffers::FlatBufferBuilder &fbb)
 {

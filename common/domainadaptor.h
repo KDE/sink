@@ -25,11 +25,17 @@
 #include <functional>
 #include "clientapi.h" //for domain parts
 
+#include "event_generated.h"
+#include "entity_generated.h"
+#include "metadata_generated.h"
+#include "entitybuffer.h"
+
 /**
- * The property mapper holds accessor functions for all properties.
+ * The property mapper is a non-typesafe virtual dispatch.
  *
- * It is by default initialized with accessors that access the local-only buffer,
- * and resource simply have to overwrite those accessors.
+ * Instead of using an interface and requring each implementation to override
+ * a virtual method per property, the property mapper can be filled with accessors
+ * that extract the properties from resource types.
  */
 template<typename BufferType>
 class PropertyMapper
@@ -55,20 +61,92 @@ public:
     QHash<QByteArray, std::function<void(const QVariant &, BufferType*)> > mWriteAccessors;
 };
 
-//The factory should define how to go from an entitybuffer (local + resource buffer), to a domain type adapter.
-//It defines how values are split accross local and resource buffer.
-//This is required by the facade the read the value, and by the pipeline preprocessors to access the domain values in a generic way.
-// template<typename DomainType, typename LocalBuffer, typename ResourceBuffer>
-// class DomainTypeAdaptorFactory
-// {
-// };
-
-template<typename DomainType, typename LocalBuffer, typename ResourceBuffer>
-class DomainTypeAdaptorFactory/* <typename DomainType, LocalBuffer, ResourceBuffer> */
+/**
+ * A generic adaptor implementation that uses a property mapper to read/write values.
+ */
+template <class LocalBuffer, class ResourceBuffer>
+class GenericBufferAdaptor : public Akonadi2::ApplicationDomain::BufferAdaptor
 {
 public:
+    GenericBufferAdaptor()
+        : BufferAdaptor()
+    {
+
+    }
+
+    void setProperty(const QByteArray &key, const QVariant &value)
+    {
+        if (mResourceMapper && mResourceMapper->mWriteAccessors.contains(key)) {
+            // mResourceMapper->setProperty(key, value, mResourceBuffer);
+        } else {
+            // mLocalMapper.;
+        }
+    }
+
+    virtual QVariant getProperty(const QByteArray &key) const
+    {
+        if (mResourceBuffer && mResourceMapper->mReadAccessors.contains(key)) {
+            return mResourceMapper->getProperty(key, mResourceBuffer);
+        } else if (mLocalBuffer && mLocalMapper->mReadAccessors.contains(key)) {
+            return mLocalMapper->getProperty(key, mLocalBuffer);
+        }
+        qWarning() << "no mapping available for key " << key;
+        return QVariant();
+    }
+
+    virtual QList<QByteArray> availableProperties() const
+    {
+        QList<QByteArray> props;
+        props << mResourceMapper->mReadAccessors.keys();
+        props << mLocalMapper->mReadAccessors.keys();
+        return props;
+    }
+
+    LocalBuffer const *mLocalBuffer;
+    ResourceBuffer const *mResourceBuffer;
+    QSharedPointer<PropertyMapper<LocalBuffer> > mLocalMapper;
+    QSharedPointer<PropertyMapper<ResourceBuffer> > mResourceMapper;
+};
+
+/**
+ * Initializes the local property mapper.
+ *
+ * Provide an implementation for each application domain type.
+ */
+template <class T>
+QSharedPointer<PropertyMapper<T> > initializePropertyMapper();
+
+/**
+ * The factory should define how to go from an entitybuffer (local + resource buffer), to a domain type adapter.
+ * It defines how values are split accross local and resource buffer.
+ * This is required by the facade the read the value, and by the pipeline preprocessors to access the domain values in a generic way.
+ */
+template<typename DomainType, typename LocalBuffer, typename ResourceBuffer>
+class DomainTypeAdaptorFactory
+{
+public:
+    DomainTypeAdaptorFactory() : mLocalMapper(initializePropertyMapper<LocalBuffer>()) {};
     virtual ~DomainTypeAdaptorFactory() {};
-    virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity) = 0;
+
+    /**
+     * Creates an adaptor for the given domain and resource types.
+     * 
+     * This returns by default a GenericBufferAdaptor initialized with the corresponding property mappers.
+     */
+    virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity)
+    {
+        const auto resourceBuffer = Akonadi2::EntityBuffer::readBuffer<ResourceBuffer>(entity.resource());
+        const auto localBuffer = Akonadi2::EntityBuffer::readBuffer<LocalBuffer>(entity.local());
+        // const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
+
+        auto adaptor = QSharedPointer<GenericBufferAdaptor<LocalBuffer, ResourceBuffer> >::create();
+        adaptor->mLocalBuffer = localBuffer;
+        adaptor->mLocalMapper = mLocalMapper;
+        adaptor->mResourceBuffer = resourceBuffer;
+        adaptor->mResourceMapper = mResourceMapper;
+        return adaptor;
+    }
+
     virtual void createBuffer(const Akonadi2::ApplicationDomain::Event &event, flatbuffers::FlatBufferBuilder &fbb) {};
 
 protected:
