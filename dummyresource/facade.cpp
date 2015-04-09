@@ -118,29 +118,9 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
         //Extract buffers
         Akonadi2::EntityBuffer buffer(dataValue, dataSize);
 
-        DummyEvent const *resourceBuffer = 0;
-        if (auto resourceData = buffer.entity().resource()) {
-            flatbuffers::Verifier verifyer(resourceData->Data(), resourceData->size());
-            if (VerifyDummyEventBuffer(verifyer)) {
-                resourceBuffer = GetDummyEvent(resourceData->Data());
-            }
-        }
-
-        Akonadi2::Domain::Buffer::Event const *localBuffer = 0;
-        if (auto localData = buffer.entity().local()) {
-            flatbuffers::Verifier verifyer(localData->Data(), localData->size());
-            if (Akonadi2::Domain::Buffer::VerifyEventBuffer(verifyer)) {
-                localBuffer = Akonadi2::Domain::Buffer::GetEvent(localData->Data());
-            }
-        }
-
-        Akonadi2::Metadata const *metadataBuffer = 0;
-        if (auto metadataData = buffer.entity().metadata()) {
-            flatbuffers::Verifier verifyer(metadataData->Data(), metadataData->size());
-            if (Akonadi2::VerifyMetadataBuffer(verifyer)) {
-                metadataBuffer = Akonadi2::GetMetadata(metadataData->Data());
-            }
-        }
+        const auto resourceBuffer = Akonadi2::EntityBuffer::readBuffer<DummyEvent>(buffer.entity().resource());
+        const auto localBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Domain::Buffer::Event>(buffer.entity().local());
+        const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(buffer.entity().metadata());
 
         if (!resourceBuffer || !metadataBuffer) {
             qWarning() << "invalid buffer " << QByteArray::fromRawData(static_cast<char*>(keyValue), keySize);

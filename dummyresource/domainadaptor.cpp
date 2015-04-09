@@ -92,29 +92,9 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
 //TODO pass EntityBuffer instead?
 QSharedPointer<Akonadi2::Domain::BufferAdaptor> DummyEventAdaptorFactory::createAdaptor(const Akonadi2::Entity &entity)
 {
-    DummyEvent const *resourceBuffer = 0;
-    if (auto resourceData = entity.resource()) {
-        flatbuffers::Verifier verifyer(resourceData->Data(), resourceData->size());
-        if (VerifyDummyEventBuffer(verifyer)) {
-            resourceBuffer = GetDummyEvent(resourceData->Data());
-        }
-    }
-
-    // Akonadi2::Metadata const *metadataBuffer = 0;
-    // if (auto metadataData = entity.metadata()) {
-    //     flatbuffers::Verifier verifyer(metadataData->Data(), metadataData->size());
-    //     if (Akonadi2::VerifyMetadataBuffer(verifyer)) {
-    //         metadataBuffer = Akonadi2::GetMetadata(metadataData->Data());
-    //     }
-    // }
-
-    Akonadi2::Domain::Buffer::Event const *localBuffer = 0;
-    if (auto localData = entity.local()) {
-        flatbuffers::Verifier verifyer(localData->Data(), localData->size());
-        if (Akonadi2::Domain::Buffer::VerifyEventBuffer(verifyer)) {
-            localBuffer = Akonadi2::Domain::Buffer::GetEvent(localData->Data());
-        }
-    }
+    const auto resourceBuffer = Akonadi2::EntityBuffer::readBuffer<DummyEvent>(entity.resource());
+    const auto localBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Domain::Buffer::Event>(entity.local());
+    // const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
 
     auto adaptor = QSharedPointer<DummyEventAdaptor>::create();
     adaptor->mLocalBuffer = localBuffer;

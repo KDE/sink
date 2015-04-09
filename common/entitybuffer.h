@@ -23,6 +23,25 @@ public:
      */
     static void assembleEntityBuffer(flatbuffers::FlatBufferBuilder &fbb, void const *metadataData, size_t metadataSize, void const *resourceData, size_t resourceSize, void const *localData, size_t localSize);
     static flatbuffers::Offset<flatbuffers::Vector<uint8_t> > appendAsVector(flatbuffers::FlatBufferBuilder &fbb, void const *data, size_t size);
+    template<typename T>
+    static const T *readBuffer(const uint8_t *data, int size)
+    {
+        flatbuffers::Verifier verifier(data, size);
+        if (verifier.VerifyBuffer<T>()) {
+            return flatbuffers::GetRoot<T>(data);
+        }
+        return nullptr;
+    }
+
+    template<typename T>
+    static const T *readBuffer(const flatbuffers::Vector<uint8_t> *data)
+    {
+        if (data) {
+            return readBuffer<T>(data->Data(), data->size());
+        }
+        return nullptr;
+    }
+
 
 private:
     const Entity *mEntity;
