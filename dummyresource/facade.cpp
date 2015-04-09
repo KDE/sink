@@ -184,7 +184,7 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
             auto adaptor = mFactory->createAdaptor(buffer.entity());
             //TODO only copy requested properties
             auto memoryAdaptor = QSharedPointer<Akonadi2::Domain::MemoryBufferAdaptor>::create(*adaptor);
-            auto event = QSharedPointer<Akonadi2::Domain::Event>::create("org.kde.dummy", QString::fromUtf8(static_cast<char*>(keyValue), keySize), revision, memoryAdaptor);
+            auto event = QSharedPointer<Akonadi2::Domain::Event>::create("org.kde.dummy", QByteArray::fromRawData(static_cast<char*>(keyValue), keySize), revision, memoryAdaptor);
             resultCallback(event);
         }
         return true;

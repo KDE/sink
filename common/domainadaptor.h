@@ -21,7 +21,7 @@
 
 #include "entity_generated.h"
 #include <QVariant>
-#include <QString>
+#include <QByteArray>
 #include <functional>
 #include "clientapi.h" //for domain parts
 
@@ -35,7 +35,7 @@ template<typename BufferType>
 class PropertyMapper
 {
 public:
-    void setProperty(const QString &key, const QVariant &value, BufferType *buffer)
+    void setProperty(const QByteArray &key, const QVariant &value, BufferType *buffer)
     {
         if (mWriteAccessors.contains(key)) {
             auto accessor = mWriteAccessors.value(key);
@@ -43,7 +43,7 @@ public:
         }
     }
 
-    virtual QVariant getProperty(const QString &key, BufferType const *buffer) const
+    virtual QVariant getProperty(const QByteArray &key, BufferType const *buffer) const
     {
         if (mReadAccessors.contains(key)) {
             auto accessor = mReadAccessors.value(key);
@@ -51,8 +51,8 @@ public:
         }
         return QVariant();
     }
-    QHash<QString, std::function<QVariant(BufferType const *)> > mReadAccessors;
-    QHash<QString, std::function<void(const QVariant &, BufferType*)> > mWriteAccessors;
+    QHash<QByteArray, std::function<QVariant(BufferType const *)> > mReadAccessors;
+    QHash<QByteArray, std::function<void(const QVariant &, BufferType*)> > mWriteAccessors;
 };
 
 //The factory should define how to go from an entitybuffer (local + resource buffer), to a domain type adapter.

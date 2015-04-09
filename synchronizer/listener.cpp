@@ -35,7 +35,7 @@
 #include <QLocalSocket>
 #include <QTimer>
 
-Listener::Listener(const QString &resourceName, QObject *parent)
+Listener::Listener(const QByteArray &resourceName, QObject *parent)
     : QObject(parent),
       m_server(new QLocalServer(this)),
       m_resourceName(resourceName),
@@ -48,11 +48,11 @@ Listener::Listener(const QString &resourceName, QObject *parent)
             this, &Listener::refreshRevision);
     connect(m_server, &QLocalServer::newConnection,
              this, &Listener::acceptConnection);
-    Log() << QString("Trying to open %1").arg(resourceName);
-    if (!m_server->listen(resourceName)) {
+    Log() << "Trying to open " << m_resourceName;
+    if (!m_server->listen(QString::fromLatin1(resourceName))) {
         // FIXME: multiple starts need to be handled here
         m_server->removeServer(resourceName);
-        if (!m_server->listen(resourceName)) {
+        if (!m_server->listen(QString::fromLatin1(resourceName))) {
             Warning() << "Utter failure to start server";
             exit(-1);
         }
@@ -365,10 +365,10 @@ void Listener::loadResource()
         Log() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
         Log() << QString("\tResource: %1").arg((qlonglong)m_resource);
         //TODO: this doesn't really list all the facades .. fix
-        Log() << QString("\tFacades: %1").arg(Akonadi2::FacadeFactory::instance().getFacade<Akonadi2::Domain::Event>(m_resourceName)->type());
+        Log() << "\tFacades: " << Akonadi2::FacadeFactory::instance().getFacade<Akonadi2::Domain::Event>(m_resourceName)->type();
         m_resource->configurePipeline(m_pipeline);
     } else {
-        Error() << QString("Failed to load resource %1").arg(m_resourceName);
+        Error() << "Failed to load resource " << m_resourceName;
     }
     //TODO: on failure ... what?
     //Enter broken state?

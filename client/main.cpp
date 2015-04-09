@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     }
 
     for (const QString &resource: resources) {
-        Akonadi2::ResourceAccess *resAccess = new Akonadi2::ResourceAccess(resource);
+        Akonadi2::ResourceAccess *resAccess = new Akonadi2::ResourceAccess(resource.toLatin1());
         QObject::connect(&app, &QCoreApplication::aboutToQuit,
                         resAccess, &Akonadi2::ResourceAccess::close);
         resAccess->sendCommand(Akonadi2::Commands::SynchronizeCommand);

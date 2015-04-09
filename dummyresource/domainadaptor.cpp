@@ -27,7 +27,7 @@ public:
 
     }
 
-    void setProperty(const QString &key, const QVariant &value)
+    void setProperty(const QByteArray &key, const QVariant &value)
     {
         if (mResourceMapper && mResourceMapper->mWriteAccessors.contains(key)) {
             // mResourceMapper->setProperty(key, value, mResourceBuffer);
@@ -36,7 +36,7 @@ public:
         }
     }
 
-    virtual QVariant getProperty(const QString &key) const
+    virtual QVariant getProperty(const QByteArray &key) const
     {
         if (mResourceBuffer && mResourceMapper->mReadAccessors.contains(key)) {
             return mResourceMapper->getProperty(key, mResourceBuffer);
@@ -47,9 +47,9 @@ public:
         return QVariant();
     }
 
-    virtual QStringList availableProperties() const
+    virtual QList<QByteArray> availableProperties() const
     {
-        QStringList props;
+        QList<QByteArray> props;
         props << mResourceMapper->mReadAccessors.keys();
         props << mLocalMapper->mReadAccessors.keys();
         return props;

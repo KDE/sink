@@ -180,9 +180,9 @@ namespace Domain {
 class BufferAdaptor {
 public:
     virtual ~BufferAdaptor() {}
-    virtual QVariant getProperty(const QString &key) const { return QVariant(); }
-    virtual void setProperty(const QString &key, const QVariant &value) {}
-    virtual QStringList availableProperties() const { return QStringList(); }
+    virtual QVariant getProperty(const QByteArray &key) const { return QVariant(); }
+    virtual void setProperty(const QByteArray &key, const QVariant &value) {}
+    virtual QList<QByteArray> availableProperties() const { return QList<QByteArray>(); }
 };
 
 class MemoryBufferAdaptor : public BufferAdaptor {
@@ -202,12 +202,12 @@ public:
 
     virtual ~MemoryBufferAdaptor() {}
 
-    virtual QVariant getProperty(const QString &key) const { return mValues.value(key); }
-    virtual void setProperty(const QString &key, const QVariant &value) { mValues.insert(key, value); }
-    virtual QStringList availableProperties() const { return mValues.keys(); }
+    virtual QVariant getProperty(const QByteArray &key) const { return mValues.value(key); }
+    virtual void setProperty(const QByteArray &key, const QVariant &value) { mValues.insert(key, value); }
+    virtual QByteArrayList availableProperties() const { return mValues.keys(); }
 
 private:
-    QHash<QString, QVariant> mValues;
+    QHash<QByteArray, QVariant> mValues;
 };
 
 /**
@@ -222,7 +222,7 @@ public:
     {
 
     }
-    AkonadiDomainType(const QString &resourceName, const QString &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
+    AkonadiDomainType(const QByteArray &resourceName, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
         : mAdaptor(adaptor),
         mResourceName(resourceName),
         mIdentifier(identifier),
@@ -232,17 +232,17 @@ public:
 
     virtual ~AkonadiDomainType() {}
 
-    virtual QVariant getProperty(const QString &key) const { return mAdaptor->getProperty(key); }
-    virtual void setProperty(const QString &key, const QVariant &value){ mChangeSet.insert(key, value); mAdaptor->setProperty(key, value); }
+    virtual QVariant getProperty(const QByteArray &key) const { return mAdaptor->getProperty(key); }
+    virtual void setProperty(const QByteArray &key, const QVariant &value){ mChangeSet.insert(key, value); mAdaptor->setProperty(key, value); }
 
 private:
     QSharedPointer<BufferAdaptor> mAdaptor;
-    QHash<QString, QVariant> mChangeSet;
+    QHash<QByteArray, QVariant> mChangeSet;
     /*
      * Each domain object needs to store the resource, identifier, revision triple so we can link back to the storage location.
      */
     QString mResourceName;
-    QString mIdentifier;
+    QByteArray mIdentifier;
     qint64 mRevision;
 };
 
@@ -274,13 +274,13 @@ class Folder : public AkonadiDomainType {
  */
 
 template<class DomainType>
-QString getTypeName();
+QByteArray getTypeName();
 
 template<>
-QString getTypeName<Event>();
+QByteArray getTypeName<Event>();
 
 template<>
-QString getTypeName<Todo>();
+QByteArray getTypeName<Todo>();
 
 }
 
@@ -307,13 +307,13 @@ class Query
 public:
     Query() : syncOnDemand(true), processAll(false) {}
     //Could also be a propertyFilter
-    QStringList resources;
+    QByteArrayList resources;
     //Could also be a propertyFilter
-    QStringList ids;
+    QByteArrayList ids;
     //Filters to apply
-    QHash<QString, QVariant> propertyFilter;
+    QHash<QByteArray, QVariant> propertyFilter;
     //Properties to retrieve
-    QSet<QString> requestedProperties;
+    QSet<QByteArray> requestedProperties;
     bool syncOnDemand;
     bool processAll;
 };
@@ -331,7 +331,7 @@ template<class DomainType>
 class StoreFacade {
 public:
     virtual ~StoreFacade(){};
-    QString type() const { return Domain::getTypeName<DomainType>(); }
+    QByteArray type() const { return Domain::getTypeName<DomainType>(); }
     virtual Async::Job<void> create(const DomainType &domainObject) = 0;
     virtual Async::Job<void> modify(const DomainType &domainObject) = 0;
     virtual Async::Job<void> remove(const DomainType &domainObject) = 0;
@@ -354,15 +354,15 @@ public:
         return factory;
     }
 
-    static QString key(const QString &resource, const QString &type)
+    static QByteArray key(const QByteArray &resource, const QByteArray &type)
     {
         return resource + type;
     }
 
     template<class DomainType, class Facade>
-    void registerFacade(const QString &resource)
+    void registerFacade(const QByteArray &resource)
     {
-        const QString typeName = Domain::getTypeName<DomainType>();
+        const QByteArray typeName = Domain::getTypeName<DomainType>();
         mFacadeRegistry.insert(key(resource, typeName), [](){ return new Facade; });
     }
 
@@ -376,16 +376,16 @@ public:
      * FIXME the factory function should really be returning QSharedPointer<void>, which doesn't work (std::shared_pointer<void> would though). That way i.e. a test could keep the object alive until it's done.
      */
     template<class DomainType, class Facade>
-    void registerFacade(const QString &resource, const std::function<void*(void)> &customFactoryFunction)
+    void registerFacade(const QByteArray &resource, const std::function<void*(void)> &customFactoryFunction)
     {
-        const QString typeName = Domain::getTypeName<DomainType>();
+        const QByteArray typeName = Domain::getTypeName<DomainType>();
         mFacadeRegistry.insert(key(resource, typeName), customFactoryFunction);
     }
 
     template<class DomainType>
-    QSharedPointer<StoreFacade<DomainType> > getFacade(const QString &resource)
+    QSharedPointer<StoreFacade<DomainType> > getFacade(const QByteArray &resource)
     {
-        const QString typeName = Domain::getTypeName<DomainType>();
+        const QByteArray typeName = Domain::getTypeName<DomainType>();
         auto factoryFunction = mFacadeRegistry.value(key(resource, typeName));
         if (factoryFunction) {
             return QSharedPointer<StoreFacade<DomainType> >(static_cast<StoreFacade<DomainType>* >(factoryFunction()));
@@ -395,7 +395,7 @@ public:
     }
 
 private:
-    QHash<QString, std::function<void*(void)> > mFacadeRegistry;
+    QHash<QByteArray, std::function<void*(void)> > mFacadeRegistry;
 };
 
 /**
@@ -424,7 +424,7 @@ public:
             // query tells us in which resources we're interested
             // TODO: queries to individual resources could be parallelized
             Async::Job<void> job = Async::null<void>();
-            for(const QString &resource : query.resources) {
+            for(const QByteArray &resource : query.resources) {
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
                 //We have to bind an instance to the function callback. Since we use a shared pointer this keeps the result provider instance (and thus also the emitter) alive.
                 std::function<void(const typename DomainType::Ptr &)> addCallback = std::bind(&ResultProvider<typename DomainType::Ptr>::add, resultSet, std::placeholders::_1);
@@ -463,7 +463,7 @@ public:
      */
     //TODO return job that tracks progress until resource has stored the message in it's queue?
     template <class DomainType>
-    static void create(const DomainType &domainObject, const QString &resourceIdentifier) {
+    static void create(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceIdentifier);
         auto job = facade->create(domainObject);
@@ -478,7 +478,7 @@ public:
      * This includes moving etc. since these are also simple settings on a property.
      */
     template <class DomainType>
-    static void modify(const DomainType &domainObject, const QString &resourceIdentifier) {
+    static void modify(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceIdentifier);
         facade.modify(domainObject);
@@ -488,13 +488,13 @@ public:
      * Remove an entity.
      */
     template <class DomainType>
-    static void remove(const DomainType &domainObject, const QString &resourceIdentifier) {
+    static void remove(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceIdentifier);
         facade.remove(domainObject);
     }
 
-    static void shutdown(const QString &resourceIdentifier);
+    static void shutdown(const QByteArray &resourceIdentifier);
 };
 
 }

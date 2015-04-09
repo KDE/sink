@@ -18,20 +18,20 @@ namespace Domain
 {
 
 template<>
-QString getTypeName<Event>()
+QByteArray getTypeName<Event>()
 {
     return "event";
 }
 
 template<>
-QString getTypeName<Todo>()
+QByteArray getTypeName<Todo>()
 {
     return "todo";
 }
 
 } // namespace Domain
 
-void Store::shutdown(const QString &identifier)
+void Store::shutdown(const QByteArray &identifier)
 {
     Akonadi2::ResourceAccess resourceAccess(identifier);
     //FIXME this starts the resource, just to shut it down again if it's not running in the first place.

@@ -35,10 +35,10 @@ class ResourceAccess : public QObject
     Q_OBJECT
 
 public:
-    ResourceAccess(const QString &resourceName, QObject *parent = 0);
+    ResourceAccess(const QByteArray &resourceName, QObject *parent = 0);
     ~ResourceAccess();
 
-    QString resourceName() const;
+    QByteArray resourceName() const;
     bool isReady() const;
 
     Async::Job<void> sendCommand(int commandId);

@@ -64,8 +64,8 @@ public:
 class ResourceAccess::Private
 {
 public:
-    Private(const QString &name, ResourceAccess *ra);
-    QString resourceName;
+    Private(const QByteArray &name, ResourceAccess *ra);
+    QByteArray resourceName;
     QLocalSocket *socket;
     QTimer *tryOpenTimer;
     bool startingProcess;
@@ -77,7 +77,7 @@ public:
     uint messageId;
 };
 
-ResourceAccess::Private::Private(const QString &name, ResourceAccess *q)
+ResourceAccess::Private::Private(const QByteArray &name, ResourceAccess *q)
     : resourceName(name),
       socket(new QLocalSocket(q)),
       tryOpenTimer(new QTimer(q)),
@@ -87,7 +87,7 @@ ResourceAccess::Private::Private(const QString &name, ResourceAccess *q)
 {
 }
 
-ResourceAccess::ResourceAccess(const QString &resourceName, QObject *parent)
+ResourceAccess::ResourceAccess(const QByteArray &resourceName, QObject *parent)
     : QObject(parent),
       d(new Private(resourceName, this))
 {
@@ -112,7 +112,7 @@ ResourceAccess::~ResourceAccess()
 
 }
 
-QString ResourceAccess::resourceName() const
+QByteArray ResourceAccess::resourceName() const
 {
     return d->resourceName;
 }

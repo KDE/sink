@@ -58,7 +58,7 @@ class Listener : public QObject
     Q_OBJECT
 
 public:
-    Listener(const QString &resourceName, QObject *parent = 0);
+    Listener(const QByteArray &resourceName, QObject *parent = 0);
     ~Listener();
 
 Q_SIGNALS:
@@ -87,7 +87,7 @@ private:
     QLocalServer *m_server;
     QVector<Client> m_connections;
     flatbuffers::FlatBufferBuilder m_fbb;
-    const QString m_resourceName;
+    const QByteArray m_resourceName;
     Akonadi2::Resource *m_resource;
     Akonadi2::Pipeline *m_pipeline;
     QTimer *m_clientBufferProcessesTimer;
