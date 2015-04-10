@@ -38,17 +38,9 @@
  * that extract the properties from resource types.
  */
 template<typename BufferType>
-class PropertyMapper
+class ReadPropertyMapper
 {
 public:
-    void setProperty(const QByteArray &key, const QVariant &value, BufferType *buffer)
-    {
-        if (mWriteAccessors.contains(key)) {
-            auto accessor = mWriteAccessors.value(key);
-            return accessor(value, buffer);
-        }
-    }
-
     virtual QVariant getProperty(const QByteArray &key, BufferType const *buffer) const
     {
         if (mReadAccessors.contains(key)) {
@@ -57,12 +49,38 @@ public:
         }
         return QVariant();
     }
+    bool hasMapping(const QByteArray &key) const { return mReadAccessors.contains(key); }
+    QList<QByteArray> availableProperties() const { return mReadAccessors.keys(); }
+    void addMapping(const QByteArray &property, const std::function<QVariant(BufferType const *)> &mapping) {
+        mReadAccessors.insert(property, mapping);
+    }
+private:
     QHash<QByteArray, std::function<QVariant(BufferType const *)> > mReadAccessors;
-    QHash<QByteArray, std::function<void(const QVariant &, BufferType*)> > mWriteAccessors;
+};
+
+template<typename BufferBuilder>
+class WritePropertyMapper
+{
+public:
+    virtual void setProperty(const QByteArray &key, const QVariant &value, QList<std::function<void(BufferBuilder &)> > &builderCalls, flatbuffers::FlatBufferBuilder &fbb) const
+    {
+        if (mWriteAccessors.contains(key)) {
+            auto accessor = mWriteAccessors.value(key);
+            builderCalls << accessor(value, fbb);
+        }
+    }
+    bool hasMapping(const QByteArray &key) const { return mWriteAccessors.contains(key); }
+    void addMapping(const QByteArray &property, const std::function<std::function<void(BufferBuilder &)>(const QVariant &, flatbuffers::FlatBufferBuilder &)> &mapping) {
+        mWriteAccessors.insert(property, mapping);
+    }
+private:
+    QHash<QByteArray, std::function<std::function<void(BufferBuilder &)>(const QVariant &, flatbuffers::FlatBufferBuilder &)> > mWriteAccessors;
 };
 
 /**
  * A generic adaptor implementation that uses a property mapper to read/write values.
+ * 
+ * TODO: this is the read-only part. Create a write only equivalent
  */
 template <class LocalBuffer, class ResourceBuffer>
 class GenericBufferAdaptor : public Akonadi2::ApplicationDomain::BufferAdaptor
@@ -74,20 +92,21 @@ public:
 
     }
 
+    //TODO remove
     void setProperty(const QByteArray &key, const QVariant &value)
     {
-        if (mResourceMapper && mResourceMapper->mWriteAccessors.contains(key)) {
-            // mResourceMapper->setProperty(key, value, mResourceBuffer);
-        } else {
-            // mLocalMapper.;
-        }
+        // if (mResourceMapper && mResourceMapper->hasMapping(key)) {
+        //     // mResourceMapper->setProperty(key, value, mResourceBuffer);
+        // } else {
+        //     // mLocalMapper.;
+        // }
     }
 
     virtual QVariant getProperty(const QByteArray &key) const
     {
-        if (mResourceBuffer && mResourceMapper->mReadAccessors.contains(key)) {
+        if (mResourceBuffer && mResourceMapper->hasMapping(key)) {
             return mResourceMapper->getProperty(key, mResourceBuffer);
-        } else if (mLocalBuffer && mLocalMapper->mReadAccessors.contains(key)) {
+        } else if (mLocalBuffer && mLocalMapper->hasMapping(key)) {
             return mLocalMapper->getProperty(key, mLocalBuffer);
         }
         qWarning() << "no mapping available for key " << key;
@@ -97,15 +116,58 @@ public:
     virtual QList<QByteArray> availableProperties() const
     {
         QList<QByteArray> props;
-        props << mResourceMapper->mReadAccessors.keys();
-        props << mLocalMapper->mReadAccessors.keys();
+        props << mResourceMapper->availableProperties();
+        props << mLocalMapper->availableProperties();
         return props;
     }
 
     LocalBuffer const *mLocalBuffer;
     ResourceBuffer const *mResourceBuffer;
-    QSharedPointer<PropertyMapper<LocalBuffer> > mLocalMapper;
-    QSharedPointer<PropertyMapper<ResourceBuffer> > mResourceMapper;
+    QSharedPointer<ReadPropertyMapper<LocalBuffer> > mLocalMapper;
+    QSharedPointer<ReadPropertyMapper<ResourceBuffer> > mResourceMapper;
+};
+
+/**
+ * A generic adaptor implementation that uses a property mapper to read/write values.
+ */
+template <class LocalBuilder, class ResourceBuilder>
+class GenericWriteBufferAdaptor : public Akonadi2::ApplicationDomain::BufferAdaptor
+{
+public:
+    GenericWriteBufferAdaptor(const BufferAdaptor &buffer)
+        : BufferAdaptor()
+    {
+        for(const auto &property : buffer.availableProperties()) {
+            setProperty(property, buffer.getProperty(property));
+        }
+    }
+
+    void setProperty(const QByteArray &key, const QVariant &value)
+    {
+        // if (mResourceMapper && mResourceMapper->hasMapping(key)) {
+        //     // mResourceMapper->setProperty(key, value, mResourceBuffer);
+        // } else {
+        //     // mLocalMapper.;
+        // }
+    }
+
+    //TODO remove
+    virtual QVariant getProperty(const QByteArray &key) const
+    {
+        Q_ASSERT(false);
+    }
+
+    virtual QList<QByteArray> availableProperties() const
+    {
+        Q_ASSERT(false);
+        QList<QByteArray> props;
+        return props;
+    }
+
+    // LocalBuffer const *mLocalBuffer;
+    // ResourceBuffer const *mResourceBuffer;
+    QSharedPointer<WritePropertyMapper<LocalBuilder> > mLocalMapper;
+    QSharedPointer<WritePropertyMapper<ResourceBuilder> > mResourceMapper;
 };
 
 /**
@@ -114,7 +176,7 @@ public:
  * Provide an implementation for each application domain type.
  */
 template <class T>
-QSharedPointer<PropertyMapper<T> > initializePropertyMapper();
+QSharedPointer<ReadPropertyMapper<T> > initializeReadPropertyMapper();
 
 /**
  * The factory should define how to go from an entitybuffer (local + resource buffer), to a domain type adapter.
@@ -125,7 +187,7 @@ template<typename DomainType, typename LocalBuffer, typename ResourceBuffer>
 class DomainTypeAdaptorFactory
 {
 public:
-    DomainTypeAdaptorFactory() : mLocalMapper(initializePropertyMapper<LocalBuffer>()) {};
+    DomainTypeAdaptorFactory() : mLocalMapper(initializeReadPropertyMapper<LocalBuffer>()) {};
     virtual ~DomainTypeAdaptorFactory() {};
 
     /**
@@ -150,8 +212,8 @@ public:
     virtual void createBuffer(const Akonadi2::ApplicationDomain::Event &event, flatbuffers::FlatBufferBuilder &fbb) {};
 
 protected:
-    QSharedPointer<PropertyMapper<LocalBuffer> > mLocalMapper;
-    QSharedPointer<PropertyMapper<ResourceBuffer> > mResourceMapper;
+    QSharedPointer<ReadPropertyMapper<LocalBuffer> > mLocalMapper;
+    QSharedPointer<ReadPropertyMapper<ResourceBuffer> > mResourceMapper;
 };
 
 

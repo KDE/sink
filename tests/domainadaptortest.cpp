@@ -23,16 +23,16 @@ public:
 
     void setProperty(const QByteArray &key, const QVariant &value)
     {
-        if (mResourceMapper->mWriteAccessors.contains(key)) {
-            // mResourceMapper.setProperty(key, value, mResourceBuffer);
-        } else {
-            // mLocalMapper.;
-        }
+        // if (mResourceMapper->mWriteAccessors.contains(key)) {
+        //     // mResourceMapper.setProperty(key, value, mResourceBuffer);
+        // } else {
+        //     // mLocalMapper.;
+        // }
     }
 
     virtual QVariant getProperty(const QByteArray &key) const
     {
-        if (mResourceBuffer && mResourceMapper->mReadAccessors.contains(key)) {
+        if (mResourceBuffer && mResourceMapper->hasMapping(key)) {
             return mResourceMapper->getProperty(key, mResourceBuffer);
         } else if (mLocalBuffer) {
             return mLocalMapper->getProperty(key, mLocalBuffer);
@@ -43,8 +43,8 @@ public:
     Akonadi2::ApplicationDomain::Buffer::Event const *mLocalBuffer;
     Akonadi2::ApplicationDomain::Buffer::Event const *mResourceBuffer;
 
-    QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > mLocalMapper;
-    QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > mResourceMapper;
+    QSharedPointer<ReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > mLocalMapper;
+    QSharedPointer<ReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > mResourceMapper;
 };
 
 class TestFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Buffer::Event, Akonadi2::ApplicationDomain::Buffer::Event>
@@ -52,8 +52,8 @@ class TestFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain:
 public:
     TestFactory()
     {
-        mResourceMapper = QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> >::create();
-        mResourceMapper->mReadAccessors.insert("summary", [](Akonadi2::ApplicationDomain::Buffer::Event const *buffer) -> QVariant {
+        mResourceMapper = QSharedPointer<ReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> >::create();
+        mResourceMapper->addMapping("summary", [](Akonadi2::ApplicationDomain::Buffer::Event const *buffer) -> QVariant {
             if (buffer->summary()) {
                 return QString::fromStdString(buffer->summary()->c_str());
             }

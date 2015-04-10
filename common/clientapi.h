@@ -234,6 +234,8 @@ public:
 
     virtual QVariant getProperty(const QByteArray &key) const { return mAdaptor->getProperty(key); }
     virtual void setProperty(const QByteArray &key, const QVariant &value){ mChangeSet.insert(key, value); mAdaptor->setProperty(key, value); }
+    virtual QByteArrayList changedProperties() const { return mChangeSet.keys(); }
+    qint64 revision() const { return mRevision; }
 
 private:
     QSharedPointer<BufferAdaptor> mAdaptor;

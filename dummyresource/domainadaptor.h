@@ -11,4 +11,8 @@ public:
     DummyEventAdaptorFactory();
     virtual ~DummyEventAdaptorFactory() {};
     virtual void createBuffer(const Akonadi2::ApplicationDomain::Event &event, flatbuffers::FlatBufferBuilder &fbb);
+
+private:
+    QSharedPointer<WritePropertyMapper<DummyCalendar::DummyEventBuilder> > mResourceWriteMapper;
+    QSharedPointer<WritePropertyMapper<Akonadi2::ApplicationDomain::Buffer::EventBuilder> > mLocalWriteMapper;
 };

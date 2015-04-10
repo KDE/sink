@@ -20,16 +20,16 @@
 #include "domainadaptor.h"
 
 template <>
-QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > initializePropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event>()
+QSharedPointer<ReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > initializeReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event>()
 {
-    auto propertyMapper = QSharedPointer<PropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> >::create();
-    propertyMapper->mReadAccessors.insert("summary", [](Akonadi2::ApplicationDomain::Buffer::Event const *buffer) -> QVariant {
+    auto propertyMapper = QSharedPointer<ReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> >::create();
+    propertyMapper->addMapping("summary", [](Akonadi2::ApplicationDomain::Buffer::Event const *buffer) -> QVariant {
         if (buffer->summary()) {
             return QString::fromStdString(buffer->summary()->c_str());
         }
         return QVariant();
     });
-    propertyMapper->mReadAccessors.insert("uid", [](Akonadi2::ApplicationDomain::Buffer::Event const *buffer) -> QVariant {
+    propertyMapper->addMapping("uid", [](Akonadi2::ApplicationDomain::Buffer::Event const *buffer) -> QVariant {
         if (buffer->uid()) {
             return QString::fromStdString(buffer->uid()->c_str());
         }
