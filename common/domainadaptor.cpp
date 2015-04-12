@@ -20,6 +20,15 @@
 #include "domainadaptor.h"
 
 template <>
+flatbuffers::uoffset_t extractProperty<QString>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
+{
+    if (property.isValid()) {
+        return fbb.CreateString(property.toString().toStdString()).o;
+    }
+    return 0;
+}
+
+template <>
 QSharedPointer<ReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > initializeReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event>()
 {
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> >::create();
@@ -38,3 +47,17 @@ QSharedPointer<ReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > 
     return propertyMapper;
 }
 
+template <>
+QSharedPointer<WritePropertyMapper<Akonadi2::ApplicationDomain::Buffer::EventBuilder> > initializeWritePropertyMapper<Akonadi2::ApplicationDomain::Buffer::EventBuilder>()
+{
+    auto propertyMapper = QSharedPointer<WritePropertyMapper<Akonadi2::ApplicationDomain::Buffer::EventBuilder> >::create();
+    propertyMapper->addMapping("summary", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(Akonadi2::ApplicationDomain::Buffer::EventBuilder &)> {
+        auto offset = extractProperty<QString>(value, fbb);
+        return [offset](Akonadi2::ApplicationDomain::Buffer::EventBuilder &builder) { builder.add_summary(offset); };
+    });
+    propertyMapper->addMapping("uid", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(Akonadi2::ApplicationDomain::Buffer::EventBuilder &)> {
+        auto offset = extractProperty<QString>(value, fbb);
+        return [offset](Akonadi2::ApplicationDomain::Buffer::EventBuilder &builder) { builder.add_uid(offset); };
+    });
+    return propertyMapper;
+}

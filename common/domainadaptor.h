@@ -78,6 +78,39 @@ private:
 };
 
 /**
+ * Defines how to convert qt primitives to flatbuffer ones
+ * TODO: rename to createProperty or so?
+ */
+template <class T>
+flatbuffers::uoffset_t extractProperty(const QVariant &, flatbuffers::FlatBufferBuilder &fbb);
+
+/**
+ * Create a buffer from a domain object using the provided mappings
+ */
+template <class Builder, class Buffer>
+flatbuffers::Offset<Buffer> createBufferPart(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, const WritePropertyMapper<Builder> &mapper)
+{
+    //First create a primitives such as strings using the mappings
+    QList<std::function<void(Builder &)> > propertiesToAddToResource;
+    for (const auto &property : domainObject.changedProperties()) {
+        qWarning() << "copying property " << property;
+        const auto value = domainObject.getProperty(property);
+        if (mapper.hasMapping(property)) {
+            mapper.setProperty(property, domainObject.getProperty(property), propertiesToAddToResource, fbb);
+        } else {
+            qWarning() << "no mapping for property available " << property;
+        }
+    }
+
+    //Then create all porperties using the above generated builderCalls
+    Builder builder(fbb);
+    for (auto propertyBuilder : propertiesToAddToResource) {
+        propertyBuilder(builder);
+    }
+    return builder.Finish();
+}
+
+/**
  * A generic adaptor implementation that uses a property mapper to read/write values.
  * 
  * TODO: this is the read-only part. Create a write only equivalent
@@ -95,11 +128,6 @@ public:
     //TODO remove
     void setProperty(const QByteArray &key, const QVariant &value)
     {
-        // if (mResourceMapper && mResourceMapper->hasMapping(key)) {
-        //     // mResourceMapper->setProperty(key, value, mResourceBuffer);
-        // } else {
-        //     // mLocalMapper.;
-        // }
     }
 
     virtual QVariant getProperty(const QByteArray &key) const
@@ -128,49 +156,6 @@ public:
 };
 
 /**
- * A generic adaptor implementation that uses a property mapper to read/write values.
- */
-template <class LocalBuilder, class ResourceBuilder>
-class GenericWriteBufferAdaptor : public Akonadi2::ApplicationDomain::BufferAdaptor
-{
-public:
-    GenericWriteBufferAdaptor(const BufferAdaptor &buffer)
-        : BufferAdaptor()
-    {
-        for(const auto &property : buffer.availableProperties()) {
-            setProperty(property, buffer.getProperty(property));
-        }
-    }
-
-    void setProperty(const QByteArray &key, const QVariant &value)
-    {
-        // if (mResourceMapper && mResourceMapper->hasMapping(key)) {
-        //     // mResourceMapper->setProperty(key, value, mResourceBuffer);
-        // } else {
-        //     // mLocalMapper.;
-        // }
-    }
-
-    //TODO remove
-    virtual QVariant getProperty(const QByteArray &key) const
-    {
-        Q_ASSERT(false);
-    }
-
-    virtual QList<QByteArray> availableProperties() const
-    {
-        Q_ASSERT(false);
-        QList<QByteArray> props;
-        return props;
-    }
-
-    // LocalBuffer const *mLocalBuffer;
-    // ResourceBuffer const *mResourceBuffer;
-    QSharedPointer<WritePropertyMapper<LocalBuilder> > mLocalMapper;
-    QSharedPointer<WritePropertyMapper<ResourceBuilder> > mResourceMapper;
-};
-
-/**
  * Initializes the local property mapper.
  *
  * Provide an implementation for each application domain type.
@@ -178,16 +163,24 @@ public:
 template <class T>
 QSharedPointer<ReadPropertyMapper<T> > initializeReadPropertyMapper();
 
+template <class T>
+QSharedPointer<WritePropertyMapper<T> > initializeWritePropertyMapper();
+
 /**
  * The factory should define how to go from an entitybuffer (local + resource buffer), to a domain type adapter.
  * It defines how values are split accross local and resource buffer.
  * This is required by the facade the read the value, and by the pipeline preprocessors to access the domain values in a generic way.
  */
-template<typename DomainType, typename LocalBuffer, typename ResourceBuffer>
+template<typename DomainType, typename LocalBuffer, typename ResourceBuffer, typename LocalBuilder, typename ResourceBuilder>
 class DomainTypeAdaptorFactory
 {
 public:
-    DomainTypeAdaptorFactory() : mLocalMapper(initializeReadPropertyMapper<LocalBuffer>()) {};
+    DomainTypeAdaptorFactory() :
+        mLocalMapper(initializeReadPropertyMapper<LocalBuffer>()),
+        mResourceMapper(QSharedPointer<ReadPropertyMapper<ResourceBuffer> >::create()),
+        mLocalWriteMapper(initializeWritePropertyMapper<LocalBuilder>()),
+        mResourceWriteMapper(QSharedPointer<WritePropertyMapper<ResourceBuilder> >::create())
+    {};
     virtual ~DomainTypeAdaptorFactory() {};
 
     /**
@@ -214,6 +207,8 @@ public:
 protected:
     QSharedPointer<ReadPropertyMapper<LocalBuffer> > mLocalMapper;
     QSharedPointer<ReadPropertyMapper<ResourceBuffer> > mResourceMapper;
+    QSharedPointer<WritePropertyMapper<LocalBuilder> > mLocalWriteMapper;
+    QSharedPointer<WritePropertyMapper<ResourceBuilder> > mResourceWriteMapper;
 };
 
 
