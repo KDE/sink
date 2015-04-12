@@ -60,12 +60,10 @@ flatbuffers::Offset<flatbuffers::Vector<uint8_t> > EntityBuffer::appendAsVector(
 {
     //Since we do memcpy trickery, this will only work on little endian
     assert(FLATBUFFERS_LITTLEENDIAN);
-    auto metadata = fbb.CreateUninitializedVector<uint8_t>(size);
-    {
-        auto ptr = reinterpret_cast<flatbuffers::Vector<uint8_t> *>(fbb.GetBufferPointer())->Data();
-        std::memcpy((void*)ptr, data, size);
-    }
-    return metadata;
+    uint8_t *rawDataPtr = Q_NULLPTR;
+    const auto pos = fbb.CreateUninitializedVector<uint8_t>(size, &rawDataPtr);
+    std::memcpy((void*)rawDataPtr, data, size);
+    return pos;
 }
 
 void EntityBuffer::assembleEntityBuffer(flatbuffers::FlatBufferBuilder &fbb, void const *metadataData, size_t metadataSize, void const *resourceData, size_t resourceSize, void const *localData, size_t localSize)
