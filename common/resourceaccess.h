@@ -30,6 +30,8 @@
 namespace Akonadi2
 {
 
+class QueuedCommand;
+
 class ResourceAccess : public QObject
 {
     Q_OBJECT
@@ -67,6 +69,9 @@ private:
     void log(const QString &message);
     void registerCallback(uint messageId, const std::function<void(int error, const QString &)> &callback);
     void startResourceAndConnect();
+
+    void sendCommand(const QSharedPointer<QueuedCommand> &command);
+    void processCommandQueue();
 
     class Private;
     Private * const d;
