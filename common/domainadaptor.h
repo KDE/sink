@@ -79,10 +79,15 @@ private:
 
 /**
  * Defines how to convert qt primitives to flatbuffer ones
- * TODO: rename to createProperty or so?
  */
 template <class T>
-flatbuffers::uoffset_t extractProperty(const QVariant &, flatbuffers::FlatBufferBuilder &fbb);
+flatbuffers::uoffset_t variantToProperty(const QVariant &, flatbuffers::FlatBufferBuilder &fbb);
+
+/**
+ * Defines how to convert flatbuffer primitives to qt ones
+ */
+template <typename T>
+QVariant propertyToVariant(const flatbuffers::String *);
 
 /**
  * Create a buffer from a domain object using the provided mappings

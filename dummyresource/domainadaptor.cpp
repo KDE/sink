@@ -23,14 +23,11 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
 {
     //TODO turn this into initializeReadPropertyMapper as well?
     mResourceMapper->addMapping("summary", [](DummyEvent const *buffer) -> QVariant {
-        if (buffer->summary()) {
-            return QString::fromStdString(buffer->summary()->c_str());
-        }
-        return QVariant();
+        return propertyToVariant<QString>(buffer->summary());
     });
 
     mResourceWriteMapper->addMapping("summary", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(DummyEventBuilder &)> {
-        auto offset = extractProperty<QString>(value, fbb);
+        auto offset = variantToProperty<QString>(value, fbb);
         return [offset](DummyEventBuilder &builder) { builder.add_summary(offset); };
     });
 }
