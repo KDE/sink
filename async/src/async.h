@@ -25,6 +25,7 @@
 #include <iterator>
 
 #include "future.h"
+#include "debug.h"
 #include "async_impl.h"
 
 #include <QVector>
@@ -46,20 +47,22 @@
  * that can be stored and executed later on. Jobs can be composed, similarly to functions.
  *
  * Relations between the components:
- * * Job: description of what should happen
- * * Executor: Running execution of a job, the process that calculates the result.
+ * * Job: API wrapper around Executors chain. Can be destroyed while still running,
+ *        because the actual execution happens in the background
+ * * Executor: Describes task to execute. Executors form a linked list matching the
+ *        order in which they will be executed. The Executor chain is destroyed when
+ *        the parent Job is destroyed. However if the Job is still running it is
+ *        guaranteed that the Executor chain will not be destroyed until the execution
+ *        is finished.
+ * * Execution: The running execution of the task stored in Executor. Each call to Job::exec()
+ *        instantiates new Execution chain, which makes it possible for the Job to be
+ *        executed multiple times (even in parallel).
  * * Future: Representation of the result that is being calculated
  *
- * Lifetime:
- * * Before a job is executed is treated like a normal value on the stack.
- * * As soon as the job is executed, a heap allocated executor keeps the task running until complete. The associated future handle remains
- *   valid until the task is complete. To abort a job it has to be killed through the future handle.
- *   TODO: Can we tie the lifetime of the executor to the last available future handle?
  *
- * TODO: Progress reporting through future
+ * TODO: Composed progress reporting
  * TODO: Possibility to abort a job through future (perhaps optional?)
  * TODO: Support for timeout, specified during exec call, after which the error handler gets called with a defined errorCode.
- * TODO: Repeated execution of a job to facilitate i.e. an async while loop of a job?
  */
 namespace Async {
 
@@ -94,38 +97,18 @@ class ExecutorBase;
 typedef QSharedPointer<ExecutorBase> ExecutorBasePtr;
 
 struct Execution {
-    Execution(const ExecutorBasePtr &executor)
-        : executor(executor)
-        , resultBase(nullptr)
-        , isRunning(false)
-        , isFinished(false)
-    {}
-
-    ~Execution()
-    {
-        if (resultBase) {
-            resultBase->releaseExecution();
-            delete resultBase;
-        }
-        prevExecution.reset();
-    }
-
-    void setFinished()
-    {
-        isFinished = true;
-        executor.clear();
-    }
+    Execution(const ExecutorBasePtr &executor);
+    ~Execution();
+    void setFinished();
 
     template<typename T>
-    Async::Future<T>* result()
+    Async::Future<T>* result() const
     {
         return static_cast<Async::Future<T>*>(resultBase);
     }
 
-    void releaseFuture()
-    {
-        resultBase = 0;
-    }
+    void releaseFuture();
+    bool errorWasHandled() const;
 
     ExecutorBasePtr executor;
     FutureBase *resultBase;
@@ -133,7 +116,12 @@ struct Execution {
     bool isFinished;
 
     ExecutionPtr prevExecution;
+
+#ifndef QT_NO_DEBUG
+    Tracer *tracer;
+#endif
 };
+
 
 typedef QSharedPointer<Execution> ExecutionPtr;
 
@@ -145,6 +133,9 @@ class ExecutorBase
     template<typename Out, typename ... In>
     friend class Async::Job;
 
+    friend class Execution;
+    friend class Async::Tracer;
+
 public:
     virtual ~ExecutorBase();
     virtual ExecutionPtr exec(const ExecutorBasePtr &self) = 0;
@@ -155,21 +146,31 @@ protected:
     template<typename T>
     Async::Future<T>* createFuture(const ExecutionPtr &execution) const;
 
+    virtual bool hasErrorFunc() const = 0;
+    virtual bool handleError(const ExecutionPtr &execution) = 0;
+
     ExecutorBasePtr mPrev;
+
+#ifndef QT_NO_DEBUG
+    QString mExecutorName;
+#endif
 };
 
 template<typename PrevOut, typename Out, typename ... In>
 class Executor : public ExecutorBase
 {
 protected:
-    Executor(ErrorHandler errorHandler, const Private::ExecutorBasePtr &parent)
+    Executor(ErrorHandler errorFunc, const Private::ExecutorBasePtr &parent)
         : ExecutorBase(parent)
-        , mErrorFunc(errorHandler)
+        , mErrorFunc(errorFunc)
     {}
+
     virtual ~Executor() {}
     virtual void run(const ExecutionPtr &execution) = 0;
 
     ExecutionPtr exec(const ExecutorBasePtr &self);
+    bool hasErrorFunc() const { return (bool) mErrorFunc; }
+    bool handleError(const ExecutionPtr &execution);
 
     std::function<void(int, const QString &)> mErrorFunc;
 };
@@ -178,7 +179,7 @@ template<typename Out, typename ... In>
 class ThenExecutor: public Executor<typename detail::prevOut<In ...>::type, Out, In ...>
 {
 public:
-    ThenExecutor(ThenTask<Out, In ...> then, ErrorHandler errorHandler, const ExecutorBasePtr &parent);
+    ThenExecutor(ThenTask<Out, In ...> then, ErrorHandler errorFunc, const ExecutorBasePtr &parent);
     void run(const ExecutionPtr &execution);
 private:
     ThenTask<Out, In ...> mFunc;
@@ -188,7 +189,7 @@ template<typename PrevOut, typename Out, typename In>
 class EachExecutor : public Executor<PrevOut, Out, In>
 {
 public:
-    EachExecutor(EachTask<Out, In> each, ErrorHandler errorHandler, const ExecutorBasePtr &parent);
+    EachExecutor(EachTask<Out, In> each, ErrorHandler errorFunc, const ExecutorBasePtr &parent);
     void run(const ExecutionPtr &execution);
 private:
     EachTask<Out, In> mFunc;
@@ -199,7 +200,7 @@ template<typename Out, typename In>
 class ReduceExecutor : public ThenExecutor<Out, In>
 {
 public:
-    ReduceExecutor(ReduceTask<Out, In> reduce, ErrorHandler errorHandler, const ExecutorBasePtr &parent);
+    ReduceExecutor(ReduceTask<Out, In> reduce, ErrorHandler errorFunc, const ExecutorBasePtr &parent);
 private:
     ReduceTask<Out, In> mFunc;
 };
@@ -208,7 +209,7 @@ template<typename Out, typename ... In>
 class SyncThenExecutor : public Executor<typename detail::prevOut<In ...>::type, Out, In ...>
 {
 public:
-    SyncThenExecutor(SyncThenTask<Out, In ...> then, ErrorHandler errorHandler, const ExecutorBasePtr &parent);
+    SyncThenExecutor(SyncThenTask<Out, In ...> then, ErrorHandler errorFunc, const ExecutorBasePtr &parent);
     void run(const ExecutionPtr &execution);
 
 private:
@@ -221,7 +222,7 @@ template<typename Out, typename In>
 class SyncReduceExecutor : public SyncThenExecutor<Out, In>
 {
 public:
-    SyncReduceExecutor(SyncReduceTask<Out, In> reduce, ErrorHandler errorHandler, const ExecutorBasePtr &parent);
+    SyncReduceExecutor(SyncReduceTask<Out, In> reduce, ErrorHandler errorFunc, const ExecutorBasePtr &parent);
 private:
     SyncReduceTask<Out, In> mFunc;
 };
@@ -230,7 +231,7 @@ template<typename PrevOut, typename Out, typename In>
 class SyncEachExecutor : public Executor<PrevOut, Out, In>
 {
 public:
-    SyncEachExecutor(SyncEachTask<Out, In> each, ErrorHandler errorHandler, const ExecutorBasePtr &parent);
+    SyncEachExecutor(SyncEachTask<Out, In> each, ErrorHandler errorFunc, const ExecutorBasePtr &parent);
     void run(const ExecutionPtr &execution);
 private:
     void run(Async::Future<Out> *future, const typename PrevOut::value_type &arg, std::false_type); // !std::is_void<Out>
@@ -251,10 +252,10 @@ private:
  *             where @p In is type of the result.
  */
 template<typename Out, typename ... In>
-Job<Out, In ...> start(ThenTask<Out, In ...> func);
+Job<Out, In ...> start(ThenTask<Out, In ...> func, ErrorHandler errorFunc = ErrorHandler());
 
 template<typename Out, typename ... In>
-Job<Out, In ...> start(SyncThenTask<Out, In ...> func);
+Job<Out, In ...> start(SyncThenTask<Out, In ...> func, ErrorHandler errorFunc = ErrorHandler());
 
 #ifdef WITH_KJOB
 template<typename ReturnType, typename KJobType, ReturnType (KJobType::*KJobResultMethod)(), typename ... Args>
@@ -356,10 +357,10 @@ class Job : public JobBase
     friend class Job;
 
     template<typename OutOther, typename ... InOther>
-    friend Job<OutOther, InOther ...> start(Async::ThenTask<OutOther, InOther ...> func);
+    friend Job<OutOther, InOther ...> start(Async::ThenTask<OutOther, InOther ...> func, ErrorHandler errorFunc);
 
     template<typename OutOther, typename ... InOther>
-    friend Job<OutOther, InOther ...> start(Async::SyncThenTask<OutOther, InOther ...> func);
+    friend Job<OutOther, InOther ...> start(Async::SyncThenTask<OutOther, InOther ...> func, ErrorHandler errorFunc);
 
 #ifdef WITH_KJOB
     template<typename ReturnType, typename KJobType, ReturnType (KJobType::*KJobResultMethod)(), typename ... Args>
@@ -499,9 +500,14 @@ private:
             auto job = otherJob;
             FutureWatcher<OutOther> *watcher = new FutureWatcher<OutOther>();
             QObject::connect(watcher, &FutureWatcherBase::futureReady,
-                             [watcher, &future]() {
-                                 Async::detail::copyFutureValue(watcher->future(), future);
-                                 future.setFinished();
+                             [watcher, future]() {
+                                 // FIXME: We pass future by value, because using reference causes the
+                                 // future to get deleted before this lambda is invoked, leading to crash
+                                 // in copyFutureValue()
+                                 // copy by value is const
+                                 auto outFuture = future;
+                                 Async::detail::copyFutureValue(watcher->future(), outFuture);
+                                 outFuture.setFinished();
                                  delete watcher;
                              });
             watcher->setFuture(job.exec(in ...));
@@ -517,17 +523,17 @@ private:
 namespace Async {
 
 template<typename Out, typename ... In>
-Job<Out, In ...> start(ThenTask<Out, In ...> func)
+Job<Out, In ...> start(ThenTask<Out, In ...> func, ErrorHandler error)
 {
     return Job<Out, In...>(Private::ExecutorBasePtr(
-        new Private::ThenExecutor<Out, In ...>(func, ErrorHandler(), Private::ExecutorBasePtr())));
+        new Private::ThenExecutor<Out, In ...>(func, error, Private::ExecutorBasePtr())));
 }
 
 template<typename Out, typename ... In>
-Job<Out, In ...> start(SyncThenTask<Out, In ...> func)
+Job<Out, In ...> start(SyncThenTask<Out, In ...> func, ErrorHandler error)
 {
     return Job<Out, In...>(Private::ExecutorBasePtr(
-        new Private::SyncThenExecutor<Out, In ...>(func, ErrorHandler(), Private::ExecutorBasePtr())));
+        new Private::SyncThenExecutor<Out, In ...>(func, error, Private::ExecutorBasePtr())));
 }
 
 #ifdef WITH_KJOB
@@ -586,20 +592,18 @@ ExecutionPtr Executor<PrevOut, Out, In ...>::exec(const ExecutorBasePtr &self)
     // Passing 'self' to execution ensures that the Executor chain remains
     // valid until the entire execution is finished
     ExecutionPtr execution = ExecutionPtr::create(self);
+#ifndef QT_NO_DEBUG
+    execution->tracer = new Tracer(execution.data()); // owned by execution
+#endif
 
     // chainup
     execution->prevExecution = mPrev ? mPrev->exec(mPrev) : ExecutionPtr();
-    /*
-    } else if (mPrev && !mPrevFuture) {
-        // If previous job is running or finished, just get it's future
-        mPrevFuture = static_cast<Async::Future<PrevOut>*>(mPrev->result());
-    }
-    */
 
-    execution->resultBase = this->createFuture<Out>(execution);
+    execution->resultBase = ExecutorBase::createFuture<Out>(execution);
     auto fw = new Async::FutureWatcher<Out>();
     QObject::connect(fw, &Async::FutureWatcher<Out>::futureReady,
                      [fw, execution, this]() {
+                         handleError(execution);
                          execution->setFinished();
                          delete fw;
                      });
@@ -607,42 +611,68 @@ ExecutionPtr Executor<PrevOut, Out, In ...>::exec(const ExecutorBasePtr &self)
 
     Async::Future<PrevOut> *prevFuture = execution->prevExecution ? execution->prevExecution->result<PrevOut>() : nullptr;
     if (!prevFuture || prevFuture->isFinished()) {
-        if (prevFuture && prevFuture->errorCode() != 0) {
-            if (mErrorFunc) {
-                mErrorFunc(prevFuture->errorCode(), prevFuture->errorMessage());
-                execution->resultBase->setFinished();
-                execution->setFinished();
-                return execution;
+        if (prevFuture) { // prevFuture implies execution->prevExecution
+            if (prevFuture->errorCode()) {
+                // Propagate the errorCode and message to the outer Future
+                execution->resultBase->setError(prevFuture->errorCode(), prevFuture->errorMessage());
+                if (!execution->errorWasHandled()) {
+                    if (handleError(execution)) {
+                        return execution;
+                    }
+                } else {
+                    return execution;
+                }
             } else {
-                // Propagate the error to next caller
+                // Propagate error (if any)
             }
         }
+
         execution->isRunning = true;
         run(execution);
     } else {
-        auto futureWatcher = new Async::FutureWatcher<PrevOut>();
-        QObject::connect(futureWatcher, &Async::FutureWatcher<PrevOut>::futureReady,
-                         [futureWatcher, execution, this]() {
-                             auto prevFuture = futureWatcher->future();
+        auto prevFutureWatcher = new Async::FutureWatcher<PrevOut>();
+        QObject::connect(prevFutureWatcher, &Async::FutureWatcher<PrevOut>::futureReady,
+                         [prevFutureWatcher, execution, this]() {
+                             auto prevFuture = prevFutureWatcher->future();
                              assert(prevFuture.isFinished());
-                             delete futureWatcher;
-                             if (prevFuture.errorCode() != 0) {
-                                 if (mErrorFunc) {
-                                     mErrorFunc(prevFuture.errorCode(), prevFuture.errorMessage());
-                                     execution->resultBase->setFinished();
-                                     return;
+                             delete prevFutureWatcher;
+                             auto prevExecutor = execution->executor->mPrev;
+                             if (prevFuture.errorCode()) {
+                                 execution->resultBase->setError(prevFuture.errorCode(), prevFuture.errorMessage());
+                                 if (!execution->errorWasHandled()) {
+                                    if (handleError(execution)) {
+                                        return;
+                                    }
                                  } else {
-                                     // Propagate the error to next caller
+                                     return;
                                  }
                              }
+
+
+                             // propagate error (if any)
                              execution->isRunning = true;
                              run(execution);
                          });
 
-        futureWatcher->setFuture(*static_cast<Async::Future<PrevOut>*>(prevFuture));
+        prevFutureWatcher->setFuture(*static_cast<Async::Future<PrevOut>*>(prevFuture));
     }
 
     return execution;
+}
+
+template<typename PrevOut, typename Out, typename ... In>
+bool Executor<PrevOut, Out, In ...>::handleError(const ExecutionPtr &execution)
+{
+    assert(execution->resultBase->isFinished());
+    if (execution->resultBase->errorCode()) {
+        if (mErrorFunc) {
+            mErrorFunc(execution->resultBase->errorCode(),
+                       execution->resultBase->errorMessage());
+            return true;
+        }
+    }
+
+    return false;
 }
 
 
@@ -651,6 +681,7 @@ ThenExecutor<Out, In ...>::ThenExecutor(ThenTask<Out, In ...> then, ErrorHandler
     : Executor<typename detail::prevOut<In ...>::type, Out, In ...>(error, parent)
     , mFunc(then)
 {
+    STORE_EXECUTOR_NAME("ThenExecutor", Out, In ...);
 }
 
 template<typename Out, typename ... In>
@@ -662,7 +693,7 @@ void ThenExecutor<Out, In ...>::run(const ExecutionPtr &execution)
         assert(prevFuture->isFinished());
     }
 
-    this->mFunc(prevFuture ? prevFuture->value() : In() ..., *execution->result<Out>());
+    ThenExecutor<Out, In ...>::mFunc(prevFuture ? prevFuture->value() : In() ..., *execution->result<Out>());
 }
 
 template<typename PrevOut, typename Out, typename In>
@@ -670,6 +701,7 @@ EachExecutor<PrevOut, Out, In>::EachExecutor(EachTask<Out, In> each, ErrorHandle
     : Executor<PrevOut, Out, In>(error, parent)
     , mFunc(each)
 {
+    STORE_EXECUTOR_NAME("EachExecutor", PrevOut, Out, In);
 }
 
 template<typename PrevOut, typename Out, typename In>
@@ -687,7 +719,7 @@ void EachExecutor<PrevOut, Out, In>::run(const ExecutionPtr &execution)
 
     for (auto arg : prevFuture->value()) {
         Async::Future<Out> future;
-        this->mFunc(arg, future);
+        EachExecutor<PrevOut, Out, In>::mFunc(arg, future);
         auto fw = new Async::FutureWatcher<Out>();
         mFutureWatchers.append(fw);
         QObject::connect(fw, &Async::FutureWatcher<Out>::futureReady,
@@ -708,16 +740,18 @@ void EachExecutor<PrevOut, Out, In>::run(const ExecutionPtr &execution)
 }
 
 template<typename Out, typename In>
-ReduceExecutor<Out, In>::ReduceExecutor(ReduceTask<Out, In> reduce, ErrorHandler error, const ExecutorBasePtr &parent)
-    : ThenExecutor<Out, In>(reduce, error, parent)
+ReduceExecutor<Out, In>::ReduceExecutor(ReduceTask<Out, In> reduce, ErrorHandler errorFunc, const ExecutorBasePtr &parent)
+    : ThenExecutor<Out, In>(reduce, errorFunc, parent)
 {
+    STORE_EXECUTOR_NAME("ReduceExecutor", Out, In);
 }
 
 template<typename Out, typename ... In>
-SyncThenExecutor<Out, In ...>::SyncThenExecutor(SyncThenTask<Out, In ...> then, ErrorHandler errorHandler, const ExecutorBasePtr &parent)
-    : Executor<typename detail::prevOut<In ...>::type, Out, In ...>(errorHandler, parent)
+SyncThenExecutor<Out, In ...>::SyncThenExecutor(SyncThenTask<Out, In ...> then, ErrorHandler errorFunc, const ExecutorBasePtr &parent)
+    : Executor<typename detail::prevOut<In ...>::type, Out, In ...>(errorFunc, parent)
     , mFunc(then)
 {
+    STORE_EXECUTOR_NAME("SyncThenExecutor", Out, In ...);
 }
 
 template<typename Out, typename ... In>
@@ -740,7 +774,7 @@ void SyncThenExecutor<Out, In ...>::run(const ExecutionPtr &execution, std::fals
             : nullptr;
     (void) prevFuture; // silence 'set but not used' warning
     Async::Future<Out> *future = execution->result<Out>();
-    future->setValue(this->mFunc(prevFuture ? prevFuture->value() : In() ...));
+    future->setValue(SyncThenExecutor<Out, In...>::mFunc(prevFuture ? prevFuture->value() : In() ...));
 }
 
 template<typename Out, typename ... In>
@@ -751,14 +785,15 @@ void SyncThenExecutor<Out, In ...>::run(const ExecutionPtr &execution, std::true
             ? execution->prevExecution->result<typename detail::prevOut<In ...>::type>()
             : nullptr;
     (void) prevFuture; // silence 'set but not used' warning
-    this->mFunc(prevFuture ? prevFuture->value() : In() ...);
+    SyncThenExecutor<Out, In ...>::mFunc(prevFuture ? prevFuture->value() : In() ...);
 }
 
 template<typename PrevOut, typename Out, typename In>
-SyncEachExecutor<PrevOut, Out, In>::SyncEachExecutor(SyncEachTask<Out, In> each, ErrorHandler errorHandler, const ExecutorBasePtr &parent)
-    : Executor<PrevOut, Out, In>(errorHandler, parent)
+SyncEachExecutor<PrevOut, Out, In>::SyncEachExecutor(SyncEachTask<Out, In> each, ErrorHandler errorFunc, const ExecutorBasePtr &parent)
+    : Executor<PrevOut, Out, In>(errorFunc, parent)
     , mFunc(each)
 {
+    STORE_EXECUTOR_NAME("SyncEachExecutor", PrevOut, Out, In);
 }
 
 template<typename PrevOut, typename Out, typename In>
@@ -783,19 +818,20 @@ void SyncEachExecutor<PrevOut, Out, In>::run(const ExecutionPtr &execution)
 template<typename PrevOut, typename Out, typename In>
 void SyncEachExecutor<PrevOut, Out, In>::run(Async::Future<Out> *out, const typename PrevOut::value_type &arg, std::false_type)
 {
-    out->setValue(out->value() + this->mFunc(arg));
+    out->setValue(out->value() + SyncEachExecutor<PrevOut, Out, In>::mFunc(arg));
 }
 
 template<typename PrevOut, typename Out, typename In>
 void SyncEachExecutor<PrevOut, Out, In>::run(Async::Future<Out> * /* unused */, const typename PrevOut::value_type &arg, std::true_type)
 {
-    this->mFunc(arg);
+    SyncEachExecutor<PrevOut, Out, In>::mFunc(arg);
 }
 
 template<typename Out, typename In>
-SyncReduceExecutor<Out, In>::SyncReduceExecutor(SyncReduceTask<Out, In> reduce, ErrorHandler errorHandler, const ExecutorBasePtr &parent)
-    : SyncThenExecutor<Out, In>(reduce, errorHandler, parent)
+SyncReduceExecutor<Out, In>::SyncReduceExecutor(SyncReduceTask<Out, In> reduce, ErrorHandler errorFunc, const ExecutorBasePtr &parent)
+    : SyncThenExecutor<Out, In>(reduce, errorFunc, parent)
 {
+    STORE_EXECUTOR_NAME("SyncReduceExecutor", Out, In);
 }
 
 

@@ -27,6 +27,8 @@
 #include <QtTest/QTest>
 #include <QDebug>
 
+#include <functional>
+
 class AsyncTest : public QObject
 {
     Q_OBJECT
@@ -60,7 +62,11 @@ private Q_SLOTS:
     void testJoinedReduce();
     void testVoidReduce();
 
+    void testProgressReporting();
     void testErrorHandler();
+    void testErrorPropagation();
+    void testErrorHandlerAsync();
+    void testErrorPropagationAsync();
 
     void testChainingRunningJob();
     void testChainingFinishedJob();
@@ -91,8 +97,25 @@ private:
             mTimer.start(200);
         }
 
+        AsyncSimulator(Async::Future<T> &future, std::function<void(Async::Future<T>&)> callback)
+            : mFuture(future)
+            , mCallback(callback)
+        {
+            QObject::connect(&mTimer, &QTimer::timeout,
+                             [this]() {
+                                 mCallback(mFuture);
+                             });
+            QObject::connect(&mTimer, &QTimer::timeout,
+                             [this]() {
+                                 delete this;
+                             });
+            mTimer.setSingleShot(true);
+            mTimer.start(200);
+        }
+
     private:
         Async::Future<T> mFuture;
+        std::function<void(Async::Future<T>&)> mCallback;
         T mResult;
         QTimer mTimer;
     };
@@ -340,8 +363,6 @@ void AsyncTest::testSyncEach()
 
 void AsyncTest::testJoinedEach()
 {
-    QFAIL("Crashes due to bad lifetime of Future");
-
     auto job1 = Async::start<QList<int>, int>(
         [](int v, Async::Future<QList<int>> &future) {
             new AsyncSimulator<QList<int>>(future, { v * 2 });
@@ -391,18 +412,14 @@ void AsyncTest::testAsyncReduce()
         })
     .reduce<int, QList<int>>(
         [](const QList<int> &list, Async::Future<int> &future) {
-            QTimer *timer = new QTimer();
-            QObject::connect(timer, &QTimer::timeout,
-                             [list, &future]() {
-                                 int sum = 0;
-                                 for (int i : list) sum += i;
-                                 future.setValue(sum);
-                                 future.setFinished();
-                             });
-            QObject::connect(timer, &QTimer::timeout,
-                             timer, &QObject::deleteLater);
-            timer->setSingleShot(true);
-            timer->start(0);
+            new AsyncSimulator<int>(future,
+                [list](Async::Future<int> &future) {
+                    int sum = 0;
+                    for (int i : list) sum += i;
+                    future.setValue(sum);
+                    future.setFinished();
+                }
+            );
         });
 
     Async::Future<int> future = job.exec();
@@ -473,27 +490,179 @@ void AsyncTest::testVoidReduce()
 }
 
 
+void AsyncTest::testProgressReporting()
+{
+    static int progress;
+    progress = 0;
+
+    auto job = Async::start<void>(
+        [](Async::Future<void> &f) {
+            QTimer *timer = new QTimer();
+            connect(timer, &QTimer::timeout,
+                    [&f, timer]() {
+                        f.setProgress(++progress);
+                        if (progress == 100) {
+                            timer->stop();
+                            timer->deleteLater();
+                            f.setFinished();
+                        }
+                    });
+            timer->start(1);
+        });
+
+    int progressCheck = 0;
+    Async::FutureWatcher<void> watcher;
+    connect(&watcher, &Async::FutureWatcher<void>::futureProgress,
+            [&progressCheck](qreal progress) {
+                progressCheck++;
+                // FIXME: Don't use Q_ASSERT in unit tests
+                Q_ASSERT((int) progress == progressCheck);
+            });
+    watcher.setFuture(job.exec());
+    watcher.future().waitForFinished();
+
+    QVERIFY(watcher.future().isFinished());
+    QCOMPARE(progressCheck, 100);
+}
 
 void AsyncTest::testErrorHandler()
 {
+
+    {
+        auto job = Async::start<int>(
+            [](Async::Future<int> &f) {
+                f.setError(1, "error");
+            });
+
+        auto future = job.exec();
+        QVERIFY(future.isFinished());
+        QCOMPARE(future.errorCode(), 1);
+        QCOMPARE(future.errorMessage(), QString::fromLatin1("error"));
+    }
+
+    {
+        int error = 0;
+        auto job = Async::start<int>(
+            [](Async::Future<int> &f) {
+                f.setError(1, "error");
+            },
+            [&error](int errorCode, const QString &errorMessage) {
+                error += errorCode;
+            }
+        );
+
+        auto future = job.exec();
+        QVERIFY(future.isFinished());
+        QCOMPARE(error, 1);
+        QCOMPARE(future.errorCode(), 1);
+        QCOMPARE(future.errorMessage(), QString::fromLatin1("error"));
+    }
+}
+
+void AsyncTest::testErrorPropagation()
+{
     int error = 0;
+    bool called = false;
     auto job = Async::start<int>(
         [](Async::Future<int> &f) {
             f.setError(1, "error");
         })
     .then<int, int>(
-        [](int v, Async::Future<int> &f) {
+        [&called](int v, Async::Future<int> &f) {
+            called = true;
             f.setFinished();
         },
         [&error](int errorCode, const QString &errorMessage) {
-            error = errorCode; 
+            error += errorCode;
         }
     );
     auto future = job.exec();
-    future.waitForFinished();
-    QCOMPARE(error, 1);
     QVERIFY(future.isFinished());
+    QCOMPARE(future.errorCode(), 1);
+    QCOMPARE(future.errorMessage(), QString::fromLatin1("error"));
+    QCOMPARE(called, false);
+    QCOMPARE(error, 1);
 }
+
+void AsyncTest::testErrorHandlerAsync()
+{
+    {
+        auto job = Async::start<int>(
+            [](Async::Future<int> &f) {
+                new AsyncSimulator<int>(f,
+                    [](Async::Future<int> &f) {
+                        f.setError(1, "error");
+                    }
+                );
+            }
+        );
+
+        auto future = job.exec();
+        future.waitForFinished();
+
+        QVERIFY(future.isFinished());
+        QCOMPARE(future.errorCode(), 1);
+        QCOMPARE(future.errorMessage(), QString::fromLatin1("error"));
+    }
+
+    {
+        int error = 0;
+        auto job = Async::start<int>(
+            [](Async::Future<int> &f) {
+                new AsyncSimulator<int>(f,
+                    [](Async::Future<int> &f) {
+                        f.setError(1, "error");
+                    }
+                );
+            },
+            [&error](int errorCode, const QString &errorMessage) {
+                error += errorCode;
+            }
+        );
+
+        auto future = job.exec();
+        future.waitForFinished();
+
+        QVERIFY(future.isFinished());
+        QCOMPARE(error, 1);
+        QCOMPARE(future.errorCode(), 1);
+        QCOMPARE(future.errorMessage(), QString::fromLatin1("error"));
+    }
+}
+
+void AsyncTest::testErrorPropagationAsync()
+{
+    int error = 0;
+    bool called = false;
+    auto job = Async::start<int>(
+        [](Async::Future<int> &f) {
+            new AsyncSimulator<int>(f,
+                [](Async::Future<int> &f) {
+                    f.setError(1, "error");
+                }
+            );
+        })
+    .then<int, int>(
+        [&called](int v, Async::Future<int> &f) {
+            called = true;
+            f.setFinished();
+        },
+        [&error](int errorCode, const QString &errorMessage) {
+            error += errorCode;
+        }
+    );
+
+    auto future = job.exec();
+    future.waitForFinished();
+
+    QVERIFY(future.isFinished());
+    QCOMPARE(future.errorCode(), 1);
+    QCOMPARE(future.errorMessage(), QString::fromLatin1("error"));
+    QCOMPARE(called, false);
+    QCOMPARE(error, 1);
+}
+
+
 
 
 
@@ -635,8 +804,6 @@ void AsyncTest::benchmarkSyncThenExecutor()
        job.exec();
     }
 }
-
-
 
 QTEST_MAIN(AsyncTest);
 

@@ -22,15 +22,16 @@ static QByteArray createEvent()
     static FlatBufferBuilder fbb;
     fbb.Clear();
     {
+        uint8_t *rawDataPtr = Q_NULLPTR;
         auto summary = fbb.CreateString("summary");
-        auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize);
+        auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize, &rawDataPtr);
         //auto data = fbb.CreateVector(rawData, attachmentSize);
         Calendar::EventBuilder eventBuilder(fbb);
         eventBuilder.add_summary(summary);
         eventBuilder.add_attachment(data);
         auto eventLocation = eventBuilder.Finish();
         Calendar::FinishEventBuffer(fbb, eventLocation);
-        memcpy((void*)Calendar::GetEvent(fbb.GetBufferPointer())->attachment()->Data(), rawData, attachmentSize);
+        memcpy((void*)rawDataPtr, rawData, attachmentSize);
     }
 
     return QByteArray::fromRawData(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());

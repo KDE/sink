@@ -21,8 +21,56 @@
 #include <QDebug>
 #include <QEventLoop>
 
-
 using namespace Async;
+
+Private::Execution::Execution(const Private::ExecutorBasePtr &executor)
+    : executor(executor)
+    , resultBase(nullptr)
+    , isRunning(false)
+    , isFinished(false)
+{
+}
+
+Private::Execution::~Execution()
+{
+    if (resultBase) {
+        resultBase->releaseExecution();
+        delete resultBase;
+    }
+    prevExecution.reset();
+}
+
+void Private::Execution::setFinished()
+{
+    isFinished = true;
+    //executor.clear();
+#ifndef QT_NO_DEBUG
+    if (tracer) {
+        delete tracer;
+    }
+#endif
+}
+
+void Private::Execution::releaseFuture()
+{
+    resultBase = 0;
+}
+
+bool Private::Execution::errorWasHandled() const
+{
+    Execution *exec = const_cast<Execution*>(this);
+    while (exec) {
+        if (exec->executor->hasErrorFunc()) {
+            return true;
+        }
+        exec = exec->prevExecution.data();
+    }
+    return false;
+}
+
+
+
+
 
 Private::ExecutorBase::ExecutorBase(const ExecutorBasePtr &parent)
     : mPrev(parent)
@@ -32,6 +80,8 @@ Private::ExecutorBase::ExecutorBase(const ExecutorBasePtr &parent)
 Private::ExecutorBase::~ExecutorBase()
 {
 }
+
+
 
 
 JobBase::JobBase(const Private::ExecutorBasePtr &executor)

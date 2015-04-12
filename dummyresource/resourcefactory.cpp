@@ -77,14 +77,15 @@ static std::string createEvent()
     static flatbuffers::FlatBufferBuilder fbb;
     fbb.Clear();
     {
+        uint8_t *rawDataPtr = Q_NULLPTR;
         auto summary = fbb.CreateString("summary");
-        auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize);
+        auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize, &rawDataPtr);
         DummyCalendar::DummyEventBuilder eventBuilder(fbb);
         eventBuilder.add_summary(summary);
         eventBuilder.add_attachment(data);
         auto eventLocation = eventBuilder.Finish();
         DummyCalendar::FinishDummyEventBuffer(fbb, eventLocation);
-        memcpy((void*)DummyCalendar::GetDummyEvent(fbb.GetBufferPointer())->attachment()->Data(), rawData, attachmentSize);
+        memcpy((void*)rawDataPtr, rawData, attachmentSize);
     }
 
     return std::string(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
