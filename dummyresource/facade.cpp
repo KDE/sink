@@ -147,15 +147,51 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
     });
 }
 
-Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback)
+Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider)
 {
-    return synchronizeResource(query.syncOnDemand, query.processAll).then<void>([=](Async::Future<void> &future) {
+    auto runner = QSharedPointer<QueryRunner>::create(query);
+    //The runner only lives as long as the resultProvider
+    resultProvider->setQueryRunner(runner);
+    runner->setQuery([this, resultProvider, query](qint64 oldRevision, qint64 newRevision) -> Async::Job<qint64> {
+        return Async::start<qint64>([this, resultProvider, query](Async::Future<qint64> &future) {
+            //TODO only emit changes and don't replace everything
+            resultProvider->clear();
+            //rerun query
+            std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> addCallback = std::bind(&Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr>::add, resultProvider, std::placeholders::_1);
+            load(query, addCallback).then<void, qint64>([resultProvider, &future](qint64 queriedRevision) {
+                //TODO set revision in result provider?
+                //TODO update all existing results with new revision
+                resultProvider->complete();
+                future.setValue(queriedRevision);
+                future.setFinished();
+            }).exec();
+        });
+    });
+
+    auto resourceAccess = mResourceAccess;
+    //TODO we need to somehow disconnect this
+    QObject::connect(resourceAccess.data(), &Akonadi2::ResourceAccess::revisionChanged, [runner](qint64 newRevision) {
+        runner->revisionChanged(newRevision);
+    });
+
+    return Async::start<void>([runner](Async::Future<void> &future) {
+        runner->run().then<void>([&future]() {
+            //TODO if not live query, destroy runner.
+            future.setFinished();
+        }).exec();
+    });
+}
+
+Async::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback)
+{
+    return synchronizeResource(query.syncOnDemand, query.processAll).then<qint64>([=](Async::Future<qint64> &future) {
         //Now that the sync is complete we can execute the query
         const auto preparedQuery = prepareQuery(query);
 
         auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
 
-        //TODO use transaction over full query and record store revision. We'll need it to update the query.
+        storage->startTransaction(Akonadi2::Storage::ReadOnly);
+        const qint64 revision = storage->maxRevision();
 
         //Index lookups
         QVector<QByteArray> keys;
@@ -177,6 +213,8 @@ Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const s
                 readValue(storage, key, resultCallback, preparedQuery);
             }
         }
+        storage->abortTransaction();
+        future.setValue(revision);
         future.setFinished();
     });
 }

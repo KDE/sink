@@ -29,6 +29,7 @@ set(command_SRCS
     clientapi.cpp
     commands.cpp
     console.cpp
+    facade.cpp
     pipeline.cpp
     domainadaptor.cpp
     resource.cpp

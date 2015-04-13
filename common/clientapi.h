@@ -49,17 +49,44 @@ namespace async {
     */
     template<class T>
     class ResultProvider {
-    public:
-        //Called from worker thread
-        void add(const T &value)
+    private:
+        void callInMainThreadOnEmitter(void (ResultEmitter<T>::*f)())
         {
             //We use the eventloop to call the addHandler directly from the main eventloop.
             //That way the result emitter implementation doesn't have to care about threadsafety at all.
             //The alternative would be to make all handlers of the emitter threadsafe.
-            auto emitter = mResultEmitter;
-            mResultEmitter->mThreadBoundary.callInMainThread([emitter, value]() {
-                if (emitter) {
-                    emitter->addHandler(value);
+            if (auto emitter = mResultEmitter.toStrongRef()) {
+                auto weakEmitter = mResultEmitter;
+                //We don't want to keep the emitter alive here, so we only capture a weak reference
+                emitter->mThreadBoundary.callInMainThread([weakEmitter, f]() {
+                    if (auto strongRef = weakEmitter.toStrongRef()) {
+                        (strongRef.data()->*f)();
+                    }
+                });
+            }
+        }
+
+        void callInMainThreadOnEmitter(const std::function<void()> &f)
+        {
+            //We use the eventloop to call the addHandler directly from the main eventloop.
+            //That way the result emitter implementation doesn't have to care about threadsafety at all.
+            //The alternative would be to make all handlers of the emitter threadsafe.
+            if (auto emitter = mResultEmitter.toStrongRef()) {
+                emitter->mThreadBoundary.callInMainThread([f]() {
+                    f();
+                });
+            }
+        }
+
+    public:
+        //Called from worker thread
+        void add(const T &value)
+        {
+            //Because I don't know how to use bind
+            auto weakEmitter = mResultEmitter;
+            callInMainThreadOnEmitter([weakEmitter, value](){
+                if (auto strongRef = weakEmitter.toStrongRef()) {
+                    strongRef->addHandler(value);
                 }
             });
         }
@@ -67,25 +94,39 @@ namespace async {
         //Called from worker thread
         void complete()
         {
-            auto emitter = mResultEmitter;
-            mResultEmitter->mThreadBoundary.callInMainThread([emitter]() {
-                if (emitter) {
-                    emitter->completeHandler();
-                }
-            });
+            callInMainThreadOnEmitter(&ResultEmitter<T>::complete);
         }
+
+        void clear()
+        {
+            callInMainThreadOnEmitter(&ResultEmitter<T>::clear);
+        }
+
 
         QSharedPointer<ResultEmitter<T> > emitter()
         {
             if (!mResultEmitter) {
-                mResultEmitter = QSharedPointer<ResultEmitter<T> >(new ResultEmitter<T>());
+                //We have to go over a separate var and return that, otherwise we'd delete the emitter immediately again
+                auto sharedPtr = QSharedPointer<ResultEmitter<T> >::create();
+                mResultEmitter = sharedPtr;
+                return sharedPtr;
             }
 
-            return mResultEmitter;
+            return mResultEmitter.toStrongRef();
+        }
+
+        /**
+         * For lifetimemanagement only.
+         * We keep the runner alive as long as the result provider exists.
+         */
+        void setQueryRunner(const QSharedPointer<QObject> &runner)
+        {
+            mQueryRunner = runner;
         }
 
     private:
-        QSharedPointer<ResultEmitter<T> > mResultEmitter;
+        QWeakPointer<ResultEmitter<T> > mResultEmitter;
+        QSharedPointer<QObject> mQueryRunner;
     };
 
     /*
@@ -99,7 +140,6 @@ namespace async {
     * * build async interfaces with signals
     * * build sync interfaces that block when accessing the value
     *
-    * TODO: This should probably be merged with daniels futurebase used in Async
     */
     template<class DomainType>
     class ResultEmitter {
@@ -113,51 +153,36 @@ namespace async {
         {
             completeHandler = handler;
         }
+        void onClear(const std::function<void(void)> &handler)
+        {
+            clearHandler = handler;
+        }
+
+        void add(const DomainType &value)
+        {
+            addHandler(value);
+        }
+
+        void complete()
+        {
+            completeHandler();
+        }
+
+        void clear()
+        {
+            clearHandler();
+        }
 
     private:
         friend class ResultProvider<DomainType>;
+
         std::function<void(const DomainType&)> addHandler;
         // std::function<void(const T&)> removeHandler;
         std::function<void(void)> completeHandler;
+        std::function<void(void)> clearHandler;
         ThreadBoundary mThreadBoundary;
     };
 
-
-    /*
-     * A result set specialization that provides a syncronous list
-     */
-    template<class T>
-    class SyncListResult : public QList<T> {
-    public:
-        SyncListResult(const QSharedPointer<ResultEmitter<T> > &emitter)
-            :QList<T>(),
-            mComplete(false),
-            mEmitter(emitter)
-        {
-            emitter->onAdded([this](const T &value) {
-                this->append(value);
-            });
-            emitter->onComplete([this]() {
-                mComplete = true;
-                auto loop = mWaitLoop.toStrongRef();
-                if (loop) {
-                    loop->quit();
-                }
-            });
-        }
-
-        void exec()
-        {
-            auto loop = QSharedPointer<QEventLoop>::create();
-            mWaitLoop = loop;
-            loop->exec(QEventLoop::ExcludeUserInputEvents);
-        }
-
-    private:
-        bool mComplete;
-        QWeakPointer<QEventLoop> mWaitLoop;
-        QSharedPointer<ResultEmitter<T> > mEmitter;
-    };
 }
 
 namespace Akonadi2 {
@@ -307,7 +332,7 @@ using namespace async;
 class Query
 {
 public:
-    Query() : syncOnDemand(true), processAll(false) {}
+    Query() : syncOnDemand(true), processAll(false), liveQuery(false) {}
     //Could also be a propertyFilter
     QByteArrayList resources;
     //Could also be a propertyFilter
@@ -318,6 +343,8 @@ public:
     QSet<QByteArray> requestedProperties;
     bool syncOnDemand;
     bool processAll;
+    //If live query is false, this query will not continuously be updated
+    bool liveQuery;
 };
 
 
@@ -337,7 +364,9 @@ public:
     virtual Async::Job<void> create(const DomainType &domainObject) = 0;
     virtual Async::Job<void> modify(const DomainType &domainObject) = 0;
     virtual Async::Job<void> remove(const DomainType &domainObject) = 0;
-    virtual Async::Job<void> load(const Query &query, const std::function<void(const typename DomainType::Ptr &)> &resultCallback) = 0;
+    //TODO remove from public API
+    virtual Async::Job<qint64> load(const Query &query, const std::function<void(const typename DomainType::Ptr &)> &resultCallback) = 0;
+    virtual Async::Job<void> load(const Query &query, const QSharedPointer<ResultProvider<typename DomainType::Ptr> > &resultProvider) { return Async::null<void>(); };
 };
 
 
@@ -349,6 +378,8 @@ public:
 
 class FacadeFactory {
 public:
+    typedef std::function<void*(bool &externallyManaged)> FactoryFunction;
+
     //FIXME: proper singleton implementation
     static FacadeFactory &instance()
     {
@@ -365,7 +396,7 @@ public:
     void registerFacade(const QByteArray &resource)
     {
         const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
-        mFacadeRegistry.insert(key(resource, typeName), [](){ return new Facade; });
+        mFacadeRegistry.insert(key(resource, typeName), [](bool &externallyManaged){ return new Facade; });
     }
 
     /*
@@ -375,13 +406,28 @@ public:
      * The facade factory takes ovnership of the pointer and typically deletes the instance via shared pointer.
      * Supplied factory functions should therefore always return a new pointer (i.e. via clone())
      *
-     * FIXME the factory function should really be returning QSharedPointer<void>, which doesn't work (std::shared_pointer<void> would though). That way i.e. a test could keep the object alive until it's done.
+     * FIXME the factory function should really be returning QSharedPointer<void>, which doesn't work (std::shared_pointer<void> would though). That way i.e. a test could keep the object alive until it's done. As a workaround the factory function can define wether it manages the lifetime of the facade itself.
      */
     template<class DomainType, class Facade>
-    void registerFacade(const QByteArray &resource, const std::function<void*(void)> &customFactoryFunction)
+    void registerFacade(const QByteArray &resource, const FactoryFunction &customFactoryFunction)
     {
         const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
         mFacadeRegistry.insert(key(resource, typeName), customFactoryFunction);
+    }
+
+    /*
+     * Can be used to clear the factory.
+     *
+     * Primarily for testing.
+     */
+    void resetFactory()
+    {
+        mFacadeRegistry.clear();
+    }
+
+    static void doNothingDeleter(void *)
+    {
+        qWarning() << "Do nothing";
     }
 
     template<class DomainType>
@@ -390,14 +436,21 @@ public:
         const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
         auto factoryFunction = mFacadeRegistry.value(key(resource, typeName));
         if (factoryFunction) {
-            return QSharedPointer<StoreFacade<DomainType> >(static_cast<StoreFacade<DomainType>* >(factoryFunction()));
+            bool externallyManaged = false;
+            auto ptr = static_cast<StoreFacade<DomainType>* >(factoryFunction(externallyManaged));
+            if (externallyManaged) {
+                //Allows tests to manage the lifetime of injected facades themselves
+                return QSharedPointer<StoreFacade<DomainType> >(ptr, doNothingDeleter);
+            } else {
+                return QSharedPointer<StoreFacade<DomainType> >(ptr);
+            }
         }
         qWarning() << "Failed to find facade for resource: " << resource << " and type: " << typeName;
         return QSharedPointer<StoreFacade<DomainType> >();
     }
 
 private:
-    QHash<QByteArray, std::function<void*(void)> > mFacadeRegistry;
+    QHash<QByteArray, FactoryFunction> mFacadeRegistry;
 };
 
 /**
@@ -416,7 +469,7 @@ public:
     template <class DomainType>
     static QSharedPointer<ResultEmitter<typename DomainType::Ptr> > load(Query query)
     {
-        QSharedPointer<ResultProvider<typename DomainType::Ptr> > resultSet(new ResultProvider<typename DomainType::Ptr>);
+        auto resultSet = QSharedPointer<ResultProvider<typename DomainType::Ptr> >::create();
 
         //Execute the search in a thread.
         //We must guarantee that the emitter is returned before the first result is emitted.
@@ -428,15 +481,15 @@ public:
             Async::Job<void> job = Async::null<void>();
             for(const QByteArray &resource : query.resources) {
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
-                //We have to bind an instance to the function callback. Since we use a shared pointer this keeps the result provider instance (and thus also the emitter) alive.
-                std::function<void(const typename DomainType::Ptr &)> addCallback = std::bind(&ResultProvider<typename DomainType::Ptr>::add, resultSet, std::placeholders::_1);
 
                 // TODO The following is a necessary hack to keep the facade alive.
                 // Otherwise this would reduce to:
                 // job = job.then(facade->load(query, addCallback));
                 // We somehow have to guarantee that the facade remains valid for the duration of the job
-                job = job.then<void>([facade, query, addCallback](Async::Future<void> &future) {
-                    Async::Job<void> j = facade->load(query, addCallback);
+                // TODO: Use one result set per facade, and merge the results separately
+                // resultSet->addSubset(facade->query(query));
+                job = job.then<void>([facade, query, resultSet](Async::Future<void> &future) {
+                    Async::Job<void> j = facade->load(query, resultSet);
                     j.then<void>([&future, facade](Async::Future<void> &f) {
                         future.setFinished();
                         f.setFinished();

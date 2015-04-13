@@ -7,6 +7,7 @@
 #include "clientapi.h"
 #include "commands.h"
 #include "entitybuffer.h"
+#include "synclistresult.h"
 
 #include "event_generated.h"
 #include "entity_generated.h"

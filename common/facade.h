@@ -30,6 +30,55 @@
 #include "domainadaptor.h"
 #include "entitybuffer.h"
 
+/**
+ * A QueryRunner runs a query and updates the corresponding result set.
+ * 
+ * The lifetime of the QueryRunner is defined by the resut set (otherwise it's doing useless work),
+ * and by how long a result set must be updated. If the query is one off the runner dies after the execution,
+ * otherwise it lives on the react to changes and updates the corresponding result set.
+ * 
+ * QueryRunner has to keep ResourceAccess alive in order to keep getting updates.
+ */
+class QueryRunner : public QObject
+{
+    Q_OBJECT
+public:
+    typedef std::function<Async::Job<qint64>(qint64 oldRevision, qint64 newRevision)> QueryFunction;
+
+    QueryRunner(const Akonadi2::Query &query) : mLatestRevision(0) {};
+    /**
+     * Starts query
+     */
+    Async::Job<void> run(qint64 newRevision = 0)
+    {
+        //TODO: JOBAPI: that last empty .then should not be necessary
+        return queryFunction(mLatestRevision, newRevision).then<void, qint64>([this](qint64 revision) {
+            mLatestRevision = revision;
+        }).then<void>([](){});
+    }
+
+    /**
+     *
+     */
+    void setQuery(const QueryFunction &query)
+    {
+        queryFunction = query;
+    }
+
+public slots:
+    /**
+     * Rerun query with new revision
+     */
+    void revisionChanged(qint64 newRevision)
+    {
+        run(newRevision).exec();
+    }
+
+private:
+    QueryFunction queryFunction;
+    qint64 mLatestRevision;
+};
+
 namespace Akonadi2 {
     class ResourceAccess;
 /**
@@ -80,7 +129,7 @@ protected:
         return Async::null<void>();
     }
 
-private:
+protected:
     //TODO use one resource access instance per application => make static
     QSharedPointer<Akonadi2::ResourceAccess> mResourceAccess;
 };
