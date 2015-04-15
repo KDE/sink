@@ -2,9 +2,9 @@
 #include <QDebug>
 #include <functional>
 
-#include "../clientapi.h"
-#include "../facade.h"
-#include "../synclistresult.h"
+#include "clientapi.h"
+#include "facade.h"
+#include "synclistresult.h"
 
 class RevisionNotifier : public QObject
 {
