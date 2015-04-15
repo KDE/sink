@@ -150,14 +150,20 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
 Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider)
 {
     auto runner = QSharedPointer<QueryRunner>::create(query);
-    //The runner only lives as long as the resultProvider
-    resultProvider->setQueryRunner(runner);
-    runner->setQuery([this, resultProvider, query](qint64 oldRevision, qint64 newRevision) -> Async::Job<qint64> {
-        return Async::start<qint64>([this, resultProvider, query](Async::Future<qint64> &future) {
+    QWeakPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > weakResultProvider = resultProvider;
+    runner->setQuery([this, weakResultProvider, query] (qint64 oldRevision, qint64 newRevision) -> Async::Job<qint64> {
+        return Async::start<qint64>([this, weakResultProvider, query](Async::Future<qint64> &future) {
+            auto resultProvider = weakResultProvider.toStrongRef();
+            if (!resultProvider) {
+                Warning() << "Tried executing query after result provider is already gone";
+                future.setError(0, QString());
+                future.setFinished();
+                return;
+            }
             //TODO only emit changes and don't replace everything
             resultProvider->clear();
             //rerun query
-            std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> addCallback = std::bind(&Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr>::add, resultProvider, std::placeholders::_1);
+            auto addCallback = std::bind(&Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr>::add, resultProvider, std::placeholders::_1);
             load(query, addCallback).then<void, qint64>([resultProvider, &future](qint64 queriedRevision) {
                 //TODO set revision in result provider?
                 //TODO update all existing results with new revision
@@ -168,15 +174,14 @@ Async::Job<void> DummyResourceFacade::load(const Akonadi2::Query &query, const Q
         });
     });
 
-    auto resourceAccess = mResourceAccess;
-    //TODO we need to somehow disconnect this
-    QObject::connect(resourceAccess.data(), &Akonadi2::ResourceAccess::revisionChanged, [runner](qint64 newRevision) {
-        runner->revisionChanged(newRevision);
-    });
+    //In case of a live query we keep the runner for as long alive as the result provider exists
+    if (query.liveQuery) {
+        resultProvider->setQueryRunner(runner);
+        QObject::connect(mResourceAccess.data(), &Akonadi2::ResourceAccess::revisionChanged, runner.data(), &QueryRunner::revisionChanged);
+    }
 
     return Async::start<void>([runner](Async::Future<void> &future) {
         runner->run().then<void>([&future]() {
-            //TODO if not live query, destroy runner.
             future.setFinished();
         }).exec();
     });
