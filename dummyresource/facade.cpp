@@ -189,6 +189,9 @@ Async::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const
         const auto preparedQuery = prepareQuery(query);
 
         auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
+        storage->setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
+            Warning() << "Error during query: " << error.store << error.message;
+        });
 
         storage->startTransaction(Akonadi2::Storage::ReadOnly);
         const qint64 revision = storage->maxRevision();
