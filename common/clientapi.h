@@ -364,9 +364,7 @@ public:
     virtual Async::Job<void> create(const DomainType &domainObject) = 0;
     virtual Async::Job<void> modify(const DomainType &domainObject) = 0;
     virtual Async::Job<void> remove(const DomainType &domainObject) = 0;
-    //TODO remove from public API
-    // virtual Async::Job<qint64> load(const Query &query, const std::function<void(const typename DomainType::Ptr &)> &resultCallback) = 0;
-    virtual Async::Job<void> load(const Query &query, const QSharedPointer<ResultProvider<typename DomainType::Ptr> > &resultProvider) { return Async::null<void>(); };
+    virtual Async::Job<void> load(const Query &query, const QSharedPointer<ResultProvider<typename DomainType::Ptr> > &resultProvider) = 0;
 };
 
 
