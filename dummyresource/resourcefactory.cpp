@@ -176,6 +176,11 @@ private slots:
         //Async::foreach("pass iterator here").parallel("process value here").join();
         return Async::dowhile(
             [this, queue](Async::Future<bool> &future) {
+                if (queue->isEmpty()) {
+                    future.setValue(false);
+                    future.setFinished();
+                    return;
+                }
                 queue->dequeue(
                     [this, &future](void *ptr, int size, std::function<void(bool success)> messageQueueCallback) {
                         auto callback = [messageQueueCallback, &future](bool success) {
