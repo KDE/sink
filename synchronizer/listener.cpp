@@ -368,7 +368,7 @@ void Listener::loadResource()
         Log() << "\tFacades: " << Akonadi2::FacadeFactory::instance().getFacade<Akonadi2::ApplicationDomain::Event>(m_resourceName)->type();
         m_resource->configurePipeline(m_pipeline);
     } else {
-        Error() << "Failed to load resource " << m_resourceName;
+        ErrorMsg() << "Failed to load resource " << m_resourceName;
     }
     //TODO: on failure ... what?
     //Enter broken state?
