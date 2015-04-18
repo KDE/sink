@@ -28,6 +28,39 @@ namespace Akonadi2
 namespace Commands
 {
 
+QByteArray name(int commandId)
+{
+    switch(commandId) {
+        case UnknownCommand:
+            return "Unknown";
+        case CommandCompletion:
+            return "Completion";
+        case HandshakeCommand:
+            return "Handshake";
+        case RevisionUpdateCommand:
+            return "RevisionUpdate";
+        case SynchronizeCommand:
+            return "Synchronize";
+        case FetchEntityCommand:
+            return "FetchEntity";
+        case DeleteEntityCommand:
+            return "DeleteEntity";
+        case ModifyEntityCommand:
+            return "ModifyEntity";
+        case CreateEntityCommand:
+            return "CreateEntity";
+        case SearchSourceCommand:
+            return "SearchSource";
+        case ShutdownCommand:
+            return "Shutdown";
+        case NotificationCommand:
+            return "Notification";
+        case CustomCommand:
+            return "Custom";
+    };
+    return QByteArray("Invalid commandId");
+}
+
 int headerSize()
 {
     return sizeof(int) + (sizeof(uint) * 2);

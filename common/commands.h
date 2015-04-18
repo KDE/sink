@@ -22,6 +22,7 @@
 
 #include <akonadi2common_export.h>
 #include <flatbuffers/flatbuffers.h>
+#include <QByteArray>
 
 class QIODevice;
 
@@ -46,6 +47,9 @@ enum CommandIds {
     NotificationCommand,
     CustomCommand = 0xffff
 };
+
+
+QByteArray name(int commandId);
 
 int AKONADI2COMMON_EXPORT headerSize();
 void AKONADI2COMMON_EXPORT write(QIODevice *device, int messageId, int commandId);

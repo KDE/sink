@@ -200,7 +200,7 @@ void ResourceAccess::sendCommand(const QSharedPointer<QueuedCommand> &command)
     //TODO: we should have a timeout for commands
     d->messageId++;
     const auto messageId = d->messageId;
-    log(QString("Sending command %1 with messageId %2").arg(command->commandId).arg(d->messageId));
+    log(QString("Sending command \"%1\" with messageId %2").arg(QString(Akonadi2::Commands::name(command->commandId))).arg(d->messageId));
     if (command->callback) {
         registerCallback(d->messageId, [this, messageId, command](int number, QString foo) {
             d->pendingCommands.remove(messageId);
@@ -215,7 +215,7 @@ void ResourceAccess::sendCommand(const QSharedPointer<QueuedCommand> &command)
 void ResourceAccess::processCommandQueue()
 {
     //TODO: serialize instead of blast them all through the socket?
-    log(QString("We have %1 queued commands").arg(d->commandQueue.size()));
+    Trace() << "We have " << d->commandQueue.size() << " queued commands";
     for (auto command: d->commandQueue) {
         sendCommand(command);
     }

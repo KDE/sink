@@ -48,7 +48,7 @@ Listener::Listener(const QByteArray &resourceName, QObject *parent)
             this, &Listener::refreshRevision);
     connect(m_server, &QLocalServer::newConnection,
              this, &Listener::acceptConnection);
-    Log() << "Trying to open " << m_resourceName;
+    Trace() << "Trying to open " << m_resourceName;
     if (!m_server->listen(QString::fromLatin1(resourceName))) {
         // FIXME: multiple starts need to be handled here
         m_server->removeServer(resourceName);
@@ -99,7 +99,7 @@ void Listener::closeAllConnections()
 
 void Listener::acceptConnection()
 {
-    Log() << QString("Accepting connection");
+    Trace() << "Accepting connection";
     QLocalSocket *socket = m_server->nextPendingConnection();
 
     if (!socket) {
@@ -154,7 +154,7 @@ void Listener::readFromSocket()
         return;
     }
 
-    Log() << "Reading from socket...";
+    Trace() << "Reading from socket...";
     for (Client &client: m_connections) {
         if (client.socket == socket) {
             client.commandBuffer += socket->readAll();
@@ -232,7 +232,7 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
         case Akonadi2::Commands::DeleteEntityCommand:
         case Akonadi2::Commands::ModifyEntityCommand:
         case Akonadi2::Commands::CreateEntityCommand:
-            Log() << QString("\tCommand id %1 of type %2 from %3").arg(messageId).arg(commandId).arg(client.name);
+            Log() << "\tCommand id  " << messageId << " of type \"" << Akonadi2::Commands::name(commandId) << "\" from " << client.name;
             loadResource();
             if (m_resource) {
                 m_resource->processCommand(commandId, client.commandBuffer, size, m_pipeline);
@@ -293,7 +293,7 @@ bool Listener::processClientBuffer(Client &client)
         auto socket = QPointer<QLocalSocket>(client.socket);
         auto clientName = client.name;
         processCommand(commandId, messageId, client, size, [this, messageId, commandId, socket, clientName]() {
-            Log() << QString("\tCompleted command messageid %1 of type %2 from %3").arg(messageId).arg(commandId).arg(clientName);
+            Log() << QString("\tCompleted command messageid %1 of type \"%2\" from %3").arg(messageId).arg(QString(Akonadi2::Commands::name(commandId))).arg(clientName);
             if (socket) {
                 sendCommandCompleted(socket.data(), messageId);
             } else {

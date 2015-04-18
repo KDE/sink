@@ -151,7 +151,7 @@ private slots:
 
     Async::Job<void> processQueuedCommand(const Akonadi2::QueuedCommand *queuedCommand)
     {
-        Log() << "Processing command: " << queuedCommand->commandId();
+        Log() << "Processing command: " << Akonadi2::Commands::name(queuedCommand->commandId());
         //Throw command into appropriate pipeline
         switch (queuedCommand->commandId()) {
             case Akonadi2::Commands::DeleteEntityCommand:
@@ -191,7 +191,7 @@ private slots:
                             return;
                         }
                         auto queuedCommand = Akonadi2::GetQueuedCommand(ptr);
-                        Trace() << "Dequeued: " << queuedCommand->commandId();
+                        Trace() << "Dequeued Command: " << Akonadi2::Commands::name(queuedCommand->commandId());
                         //TODO JOBAPI: job lifetime management
                         //Right now we're just leaking jobs. In this case we'd like jobs that are heap allocated and delete
                         //themselves once done. In other cases we'd like jobs that only live as long as their handle though.
