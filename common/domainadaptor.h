@@ -171,13 +171,22 @@ QSharedPointer<ReadPropertyMapper<T> > initializeReadPropertyMapper();
 template <class T>
 QSharedPointer<WritePropertyMapper<T> > initializeWritePropertyMapper();
 
+template<typename DomainType>
+class DomainTypeAdaptorFactoryInterface
+{
+public:
+    virtual ~DomainTypeAdaptorFactoryInterface() {};
+    virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity) = 0;
+    virtual void createBuffer(const DomainType &event, flatbuffers::FlatBufferBuilder &fbb) = 0;
+};
+
 /**
  * The factory should define how to go from an entitybuffer (local + resource buffer), to a domain type adapter.
  * It defines how values are split accross local and resource buffer.
  * This is required by the facade the read the value, and by the pipeline preprocessors to access the domain values in a generic way.
  */
 template<typename DomainType, typename LocalBuffer, typename ResourceBuffer, typename LocalBuilder, typename ResourceBuilder>
-class DomainTypeAdaptorFactory
+class DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInterface<DomainType>
 {
 public:
     DomainTypeAdaptorFactory() :
@@ -193,7 +202,7 @@ public:
      * 
      * This returns by default a GenericBufferAdaptor initialized with the corresponding property mappers.
      */
-    virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity)
+    virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity) Q_DECL_OVERRIDE
     {
         const auto resourceBuffer = Akonadi2::EntityBuffer::readBuffer<ResourceBuffer>(entity.resource());
         const auto localBuffer = Akonadi2::EntityBuffer::readBuffer<LocalBuffer>(entity.local());
@@ -207,7 +216,7 @@ public:
         return adaptor;
     }
 
-    virtual void createBuffer(const Akonadi2::ApplicationDomain::Event &event, flatbuffers::FlatBufferBuilder &fbb) {};
+    virtual void createBuffer(const Akonadi2::ApplicationDomain::Event &event, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE {};
 
 protected:
     QSharedPointer<ReadPropertyMapper<LocalBuffer> > mLocalMapper;

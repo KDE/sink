@@ -84,19 +84,62 @@ namespace Akonadi2 {
     class ResourceAccess;
 /**
  * Default facade implementation for resources that are implemented in a separate process using the ResourceAccess class.
+ * 
+ * Ideally a basic resource has no implementation effort for the facades and can simply instanciate default implementations (meaning it only has to implement the factory with all supported types).
+ * A resource has to implement:
+ * * A facade factory registering all available facades
+ * * An adaptor factory if it uses special resource buffers (default implementation can be used otherwise)
+ * * A mapping between resource and buffertype if default can't be used.
+ *
+ * Additionally a resource only has to provide a synchronizer plugin to execute the synchronization
  */
 template <typename DomainType>
 class GenericFacade: public Akonadi2::StoreFacade<DomainType>
 {
 public:
-    GenericFacade(const QByteArray &resourceIdentifier)
+    /**
+     * Create a new GenericFacade
+     * 
+     * @param resourceIdentifier is the identifier of the resource instance
+     * @param adaptorFactory is the adaptor factory used to generate the mappings from domain to resource types and vice versa
+     */
+    GenericFacade(const QByteArray &resourceIdentifier, const QSharedPointer<DomainTypeAdaptorFactoryInterface<DomainType> > &adaptorFactory = QSharedPointer<DomainTypeAdaptorFactoryInterface<DomainType> >())
         : Akonadi2::StoreFacade<DomainType>(),
-        mResourceAccess(new ResourceAccess(resourceIdentifier))
+        mResourceAccess(new ResourceAccess(resourceIdentifier)),
+        mDomainTypeAdaptorFactory(adaptorFactory)
     {
     }
 
     ~GenericFacade()
     {
+    }
+
+    static QByteArray bufferTypeForDomainType()
+    {
+        //We happen to have a one to one mapping
+        return Akonadi2::ApplicationDomain::getTypeName<DomainType>();
+    }
+
+    Async::Job<void> create(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
+    {
+        if (!mDomainTypeAdaptorFactory) {
+            Warning() << "No domain type adaptor factory available";
+        }
+        flatbuffers::FlatBufferBuilder entityFbb;
+        mDomainTypeAdaptorFactory->createBuffer(domainObject, entityFbb);
+        return sendCreateCommand(bufferTypeForDomainType(), QByteArray::fromRawData(reinterpret_cast<const char*>(entityFbb.GetBufferPointer()), entityFbb.GetSize()));
+    }
+
+    Async::Job<void> modify(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
+    {
+        //TODO
+        return Async::null<void>();
+    }
+
+    Async::Job<void> remove(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
+    {
+        //TODO
+        return Async::null<void>();
     }
 
     //TODO JOBAPI return job from sync continuation to execute it as subjob?
@@ -142,11 +185,11 @@ public:
     }
 
 protected:
-    Async::Job<void> sendCreateCommand(const QByteArray &t, const QByteArray &buffer)
+    Async::Job<void> sendCreateCommand(const QByteArray &resourceBufferType, const QByteArray &buffer)
     {
         flatbuffers::FlatBufferBuilder fbb;
         //This is the resource buffer type and not the domain type
-        auto type = fbb.CreateString(t.constData());
+        auto type = fbb.CreateString(resourceBufferType.constData());
         auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
         auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
         Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
@@ -177,6 +220,7 @@ protected:
 protected:
     //TODO use one resource access instance per application => make static
     QSharedPointer<Akonadi2::ResourceAccess> mResourceAccess;
+    QSharedPointer<DomainTypeAdaptorFactoryInterface<DomainType> > mDomainTypeAdaptorFactory;
 };
 
 }

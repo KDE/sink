@@ -38,32 +38,12 @@ using namespace flatbuffers;
 
 
 DummyResourceFacade::DummyResourceFacade()
-    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>("org.kde.dummy"),
-    mFactory(new DummyEventAdaptorFactory)
+    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>("org.kde.dummy", QSharedPointer<DummyEventAdaptorFactory>::create())
 {
 }
 
 DummyResourceFacade::~DummyResourceFacade()
 {
-}
-
-Async::Job<void> DummyResourceFacade::create(const Akonadi2::ApplicationDomain::Event &domainObject)
-{
-    flatbuffers::FlatBufferBuilder entityFbb;
-    mFactory->createBuffer(domainObject, entityFbb);
-    return sendCreateCommand("event", QByteArray::fromRawData(reinterpret_cast<const char*>(entityFbb.GetBufferPointer()), entityFbb.GetSize()));
-}
-
-Async::Job<void> DummyResourceFacade::modify(const Akonadi2::ApplicationDomain::Event &domainObject)
-{
-    //Create message buffer and send to resource
-    return Async::null<void>();
-}
-
-Async::Job<void> DummyResourceFacade::remove(const Akonadi2::ApplicationDomain::Event &domainObject)
-{
-    //Create message buffer and send to resource
-    return Async::null<void>();
 }
 
 static std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local)> prepareQuery(const Akonadi2::Query &query)
@@ -133,7 +113,7 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
             qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
             //This only works for a 1:1 mapping of resource to domain types.
             //Not i.e. for tags that are stored as flags in each entity of an imap store.
-            auto adaptor = mFactory->createAdaptor(buffer.entity());
+            auto adaptor = mDomainTypeAdaptorFactory->createAdaptor(buffer.entity());
             //TODO only copy requested properties
             auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create(*adaptor);
             // here we could copy additional properties that don't have a 1:1 mapping, such as separately stored tags.
