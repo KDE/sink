@@ -474,30 +474,25 @@ public:
         //The result provider must be threadsafe.
         async::run([resultSet, query](){
             // Query all resources and aggregate results
-            // query tells us in which resources we're interested
-            // TODO: queries to individual resources could be parallelized
-            Async::Job<void> job = Async::null<void>();
-            for(const QByteArray &resource : query.resources) {
+            const QList<QByteArray> resources = query.resources;
+            Async::start<QList<QByteArray>>([resources](){return resources;})
+            .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, Async::Future<void> &future) {
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
-
                 // TODO The following is a necessary hack to keep the facade alive.
                 // Otherwise this would reduce to:
-                // job = job.then(facade->load(query, addCallback));
+                // facade->load(query, addCallback).exec();
                 // We somehow have to guarantee that the facade remains valid for the duration of the job
                 // TODO: Use one result set per facade, and merge the results separately
                 // resultSet->addSubset(facade->query(query));
-                job = job.then<void>([facade, query, resultSet](Async::Future<void> &future) {
-                    Async::Job<void> j = facade->load(query, resultSet);
-                    j.then<void>([&future, facade](Async::Future<void> &f) {
-                        future.setFinished();
-                        f.setFinished();
-                    }).exec();
-                });
-            }
-            job.then<void>([resultSet]() {
+                facade->load(query, resultSet).template then<void>([&future, facade]() {
+                    future.setFinished();
+                }).exec();
+            }).template then<void>([resultSet]() {
                 qDebug() << "Query complete";
                 resultSet->complete();
             }).exec().waitForFinished(); //We use the eventloop provided by waitForFinished to keep the thread alive until all is done
+            //FIXME for live query the thread dies after the initial query?
+            //TODO associate the thread with the query runner
         });
         return resultSet->emitter();
     }
