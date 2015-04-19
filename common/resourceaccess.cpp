@@ -255,6 +255,14 @@ void ResourceAccess::disconnected()
 
 void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
 {
+    //We tried to connect to the server, but the socket is not yet available.
+    //We're trying to connect but failed, start the resource and retry.
+    //Don't automatically restart on later disconnects.
+    if (d->openingConnection && error == QLocalSocket::LocalSocketError::ServerNotFoundError) {
+        startResourceAndConnect();
+        return;
+    }
+    //Retry to connect to the server while starting the process
     if (d->startingProcess) {
         if (!d->tryOpenTimer->isActive()) {
             d->tryOpenTimer->start();
@@ -273,12 +281,6 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
         handler(1, "The resource closed unexpectedly");
     }
     d->resultHandler.clear();
-
-    //We're trying to connect but failed, start the resource and retry.
-    //Don't automatically restart on later disconnects.
-    if (d->openingConnection) {
-        startResourceAndConnect();
-    }
 }
 
 void ResourceAccess::startResourceAndConnect()
