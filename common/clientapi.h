@@ -528,9 +528,7 @@ public:
     static void create(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceIdentifier);
-        auto job = facade->create(domainObject);
-        auto future = job.exec();
-        future.waitForFinished();
+        facade->create(domainObject).exec().waitForFinished();
         //TODO return job?
     }
 
@@ -543,7 +541,8 @@ public:
     static void modify(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceIdentifier);
-        facade.modify(domainObject);
+        facade->modify(domainObject).exec().waitForFinished();
+        //TODO return job?
     }
 
     /**
@@ -553,7 +552,8 @@ public:
     static void remove(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceIdentifier);
-        facade.remove(domainObject);
+        facade->remove(domainObject).exec().waitForFinished();
+        //TODO return job?
     }
 
     static void shutdown(const QByteArray &resourceIdentifier);
