@@ -295,6 +295,17 @@ class Folder : public ApplicationDomainType {
 };
 
 /**
+ * Represents an akonadi resource.
+ * 
+ * This type is used for configuration of resources,
+ * and for creating and removing resource instances.
+ */
+struct AkonadiResource : public ApplicationDomainType {
+    typedef QSharedPointer<AkonadiResource> Ptr;
+    using ApplicationDomainType::ApplicationDomainType;
+};
+
+/**
  * All types need to be registered here an MUST return a different name.
  * 
  * Do not store these types to disk, they may change over time.
@@ -308,6 +319,9 @@ QByteArray getTypeName<Event>();
 
 template<>
 QByteArray getTypeName<Todo>();
+
+template<>
+QByteArray getTypeName<AkonadiResource>();
 
 }
 
@@ -543,6 +557,48 @@ public:
     }
 
     static void shutdown(const QByteArray &resourceIdentifier);
+};
+
+/**
+ * Configuration interface used in the client API.
+ *
+ * This interface provides convenience API for manipulating resources.
+ * This interface uses internally the same interface that is part of the regular Store API.
+ * 
+ * Resources provide their configuration implementation by implementing a StoreFacade for the AkonadiResource type.
+ */
+class Configuration {
+public:
+    static QWidget *getConfigurationWidget(const QByteArray &resourceIdentifier)
+    {
+        //TODO here we want to implement the code to create a configuration widget from the QML config interface provided by the resource
+        return nullptr;
+    }
+
+    static ApplicationDomain::AkonadiResource::Ptr getConfiguration(const QByteArray &resource)
+    {
+        Query query;
+        query.resources << resource;
+        // auto result = Store::load<ApplicationDomain::AkonadiResource>(query);
+        //FIXME retrieve result and return it
+        return ApplicationDomain::AkonadiResource::Ptr::create();
+    }
+
+    static void setConfiguration(const ApplicationDomain::AkonadiResource &resource, const QByteArray &resourceIdentifier)
+    {
+        Store::modify<ApplicationDomain::AkonadiResource>(resource, resourceIdentifier);
+    }
+
+    static void createResource(const ApplicationDomain::AkonadiResource &resource, const QByteArray &resourceIdentifier)
+    {
+        Store::create<ApplicationDomain::AkonadiResource>(resource, resourceIdentifier);
+    }
+
+    static void removeResource(const QByteArray &resourceIdentifier)
+    {
+        ApplicationDomain::AkonadiResource resource;
+        Store::remove<ApplicationDomain::AkonadiResource>(resource, resourceIdentifier);
+    }
 };
 
 }
