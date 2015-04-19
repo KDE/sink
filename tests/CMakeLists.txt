@@ -1,8 +1,12 @@
 add_subdirectory(hawd)
 
 set(CMAKE_AUTOMOC ON)
-include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/hawd)
-include_directories (${CMAKE_CURRENT_BINARY_DIR}/../dummyresource)
+include_directories(
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/hawd
+    ${CMAKE_CURRENT_BINARY_DIR}/../examples/dummyresource
+    ${CMAKE_CURRENT_SOURCE_DIR}/../examples/
+    )
 
 generate_flatbuffers(calendar)
 

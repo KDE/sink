@@ -49,14 +49,11 @@ set(AKONADI2_RESOURCE_PLUGINS_PATH ${QT_PLUGIN_INSTALL_DIR}/akonadi2/resources)
 # common, eventually a lib but right now just the command buffers
 add_subdirectory(common)
 
-# the client
-add_subdirectory(client)
-
 # the synchronizer
 add_subdirectory(synchronizer)
 
-# a simple dummy resource implementation
-add_subdirectory(dummyresource)
+# example implementations
+add_subdirectory(examples)
 
 # some tests
 add_subdirectory(tests)
