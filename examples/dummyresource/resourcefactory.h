@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "common/resource.h"
+#include "common/genericresource.h"
 #include "async/src/async.h"
 #include "common/messagequeue.h"
 
@@ -28,26 +28,12 @@
 //TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
 #define PLUGIN_NAME "org.kde.dummy"
 
-class Processor;
-
-class DummyResource : public Akonadi2::Resource
+class DummyResource : public Akonadi2::GenericResource
 {
 public:
     DummyResource();
-    Async::Job<void> synchronizeWithSource(Akonadi2::Pipeline *pipeline);
-    Async::Job<void> processAllMessages();
-    void processCommand(int commandId, const QByteArray &data, uint size, Akonadi2::Pipeline *pipeline);
-    void configurePipeline(Akonadi2::Pipeline *pipeline);
-    int error() const;
-
-private:
-    void onProcessorError(int errorCode, const QString &errorMessage);
-    void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);
-    flatbuffers::FlatBufferBuilder m_fbb;
-    MessageQueue mUserQueue;
-    MessageQueue mSynchronizerQueue;
-    Processor *mProcessor;
-    int mError;
+    Async::Job<void> synchronizeWithSource(Akonadi2::Pipeline *pipeline) Q_DECL_OVERRIDE;
+    void configurePipeline(Akonadi2::Pipeline *pipeline) Q_DECL_OVERRIDE;
 };
 
 class DummyResourceFactory : public Akonadi2::ResourceFactory

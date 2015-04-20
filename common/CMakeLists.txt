@@ -33,6 +33,7 @@ set(command_SRCS
     pipeline.cpp
     domainadaptor.cpp
     resource.cpp
+    genericresource.cpp
     resourceaccess.cpp
     storage_common.cpp
     threadboundary.cpp
