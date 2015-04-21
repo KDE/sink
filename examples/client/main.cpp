@@ -21,15 +21,15 @@
 #include <QCommandLineParser>
 
 #include "common/commands.h"
-#include "common/console.h"
 #include "common/resourceaccess.h"
+#include "console.h"
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    new Akonadi2::Console("Akonadi2 Client");
-    Akonadi2::Console::main()->log(QString("PID: %1").arg(QCoreApplication::applicationPid()));
+    new Console("Akonadi2 Client");
+    Console::main()->log(QString("PID: %1").arg(QCoreApplication::applicationPid()));
 
     QCommandLineParser cliOptions;
     cliOptions.addPositionalArgument(QObject::tr("[resource]"),

@@ -25,9 +25,6 @@
 #include <QTextBrowser>
 #include <QVBoxLayout>
 
-namespace Akonadi2
-{
-
 static Console *s_console = 0;
 
 Console *Console::main()
@@ -77,4 +74,3 @@ void Console::log(const QString &message)
     m_textDisplay->append(QString::number(m_timestamper.elapsed()).rightJustified(6) + ": " + message);
 }
 
-} // namespace Akonadi2

@@ -20,7 +20,6 @@
 #include "listener.h"
 
 #include "common/clientapi.h"
-#include "common/console.h"
 #include "common/commands.h"
 #include "common/resource.h"
 #include "common/log.h"
