@@ -24,10 +24,11 @@ class DummyResourceFacade : public Akonadi2::StoreFacade<Akonadi2::ApplicationDo
 {
 public:
     ~DummyResourceFacade(){};
-    virtual Async::Job<void> create(const Akonadi2::ApplicationDomain::Event &domainObject){ return Async::null<void>(); };
-    virtual Async::Job<void> modify(const Akonadi2::ApplicationDomain::Event &domainObject){ return Async::null<void>(); };
-    virtual Async::Job<void> remove(const Akonadi2::ApplicationDomain::Event &domainObject){ return Async::null<void>(); };
-    virtual Async::Job<qint64> load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback)
+    Async::Job<void> create(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return Async::null<void>(); };
+    Async::Job<void> modify(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return Async::null<void>(); };
+    Async::Job<void> remove(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return Async::null<void>(); };
+
+    Async::Job<qint64> load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback)
     {
         return Async::start<qint64>([this, resultCallback](Async::Future<qint64> &future) {
             qDebug() << "load called";
@@ -39,14 +40,23 @@ public:
         });
     }
 
-    Async::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider)
+    Async::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider) Q_DECL_OVERRIDE 
     {
         auto runner = QSharedPointer<QueryRunner>::create(query);
         //The runner only lives as long as the resultProvider
         resultProvider->setQueryRunner(runner);
-        runner->setQuery([this, resultProvider, query](qint64 oldRevision, qint64 newRevision) -> Async::Job<qint64> {
+        QWeakPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > weakResultProvider = resultProvider;
+        capturedResultProvider = resultProvider;
+        runner->setQuery([this, weakResultProvider, query](qint64 oldRevision, qint64 newRevision) -> Async::Job<qint64> {
             qDebug() << "Creating query for revisions: " << oldRevision << newRevision;
-            return Async::start<qint64>([this, resultProvider, query](Async::Future<qint64> &future) {
+            return Async::start<qint64>([this, weakResultProvider, query](Async::Future<qint64> &future) {
+                auto resultProvider = weakResultProvider.toStrongRef();
+                if (!resultProvider) {
+                    Warning() << "Tried executing query after result provider is already gone";
+                    future.setError(0, QString());
+                    future.setFinished();
+                    return;
+                }
                 //TODO only emit changes and don't replace everything
                 resultProvider->clear();
                 //rerun query
@@ -84,6 +94,7 @@ public:
 
     QList<Akonadi2::ApplicationDomain::Event::Ptr> results;
     QSharedPointer<RevisionNotifier> notifier;
+    QWeakPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > capturedResultProvider;
 };
 
 class ClientAPITest : public QObject
@@ -123,8 +134,8 @@ private Q_SLOTS:
         facade.results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
 
         Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
-            [&facade](bool &externallManage){
-                externallManage = true;
+            [&facade](bool &externallyManaged){
+                externallyManaged = true;
                 return &facade;
             }
         );
@@ -143,6 +154,31 @@ private Q_SLOTS:
         QVERIFY(facade.notifier);
         facade.notifier->revisionChanged(2);
         QTRY_COMPARE(result.size(), 2);
+    }
+
+    void testQueryLifetime()
+    {
+        DummyResourceFacade facade;
+        facade.results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+
+        Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
+            [&facade](bool &externallyManaged){
+                externallyManaged = true;
+                return &facade;
+            }
+        );
+
+        Akonadi2::Query query;
+        query.resources << "dummyresource";
+        query.liveQuery = true;
+
+        {
+            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
+            result.exec();
+            QCOMPARE(result.size(), 1);
+        }
+        //It's running in a separate thread, so we have to wait for a moment.
+        QTRY_VERIFY(!facade.capturedResultProvider);
     }
 
 };
