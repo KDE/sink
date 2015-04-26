@@ -19,19 +19,20 @@ class SyncListResult : public QList<T> {
 public:
     SyncListResult(const QSharedPointer<ResultEmitter<T> > &emitter)
         :QList<T>(),
-        mComplete(false),
         mEmitter(emitter)
     {
         emitter->onAdded([this](const T &value) {
             this->append(value);
         });
-        emitter->onComplete([this]() {
-            mComplete = true;
+        emitter->onInitialResultSetComplete([this]() {
             if (eventLoopAborter) {
                 eventLoopAborter();
                 //Be safe in case of a second invocation of the complete handler
                 eventLoopAborter = std::function<void()>();
             }
+        });
+        emitter->onComplete([this]() {
+            mEmitter.clear();
         });
         emitter->onClear([this]() {
             this->clear();
@@ -46,7 +47,6 @@ public:
     }
 
 private:
-    bool mComplete;
     QSharedPointer<ResultEmitter<T> > mEmitter;
     std::function<void()> eventLoopAborter;
 };

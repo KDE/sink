@@ -61,10 +61,7 @@ public:
                 resultProvider->clear();
                 //rerun query
                 std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> addCallback = std::bind(&Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr>::add, resultProvider, std::placeholders::_1);
-                load(query, addCallback).then<void, qint64>([resultProvider, &future](qint64 queriedRevision) {
-                    //TODO set revision in result provider?
-                    //TODO update all existing results with new revision
-                    resultProvider->complete();
+                load(query, addCallback).then<void, qint64>([resultProvider, &future, query](qint64 queriedRevision) {
                     future.setValue(queriedRevision);
                     future.setFinished();
                 }).exec();

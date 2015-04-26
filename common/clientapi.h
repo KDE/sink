@@ -29,6 +29,7 @@
 #include <QEventLoop>
 #include <QtConcurrent/QtConcurrentRun>
 #include <functional>
+#include <memory>
 #include "threadboundary.h"
 #include "async/src/async.h"
 
@@ -91,6 +92,11 @@ namespace async {
             });
         }
 
+        void initialResultSetComplete()
+        {
+            callInMainThreadOnEmitter(&ResultEmitter<T>::initialResultSetComplete);
+        }
+
         //Called from worker thread
         void complete()
         {
@@ -124,6 +130,15 @@ namespace async {
             mQueryRunner = runner;
         }
 
+        /**
+         * For lifetimemanagement only.
+         * We keep the runner alive as long as the result provider exists.
+         */
+        void setFacade(const std::shared_ptr<void> &facade)
+        {
+            mFacade = facade;
+        }
+
         void onDone(const std::function<void()> &callback)
         {
             mOnDoneCallback = callback;
@@ -141,12 +156,13 @@ namespace async {
             qWarning() << "done";
             if (mOnDoneCallback) {
                 mOnDoneCallback();
+                mOnDoneCallback = std::function<void()>();
             }
-            mOnDoneCallback = std::function<void()>();
         }
 
         QWeakPointer<ResultEmitter<T> > mResultEmitter;
         QSharedPointer<QObject> mQueryRunner;
+        std::shared_ptr<void> mFacade;
         std::function<void()> mOnDoneCallback;
     };
 
@@ -170,6 +186,10 @@ namespace async {
             addHandler = handler;
         }
         // void onRemoved(const std::function<void(const T&)> &handler);
+        void onInitialResultSetComplete(const std::function<void(void)> &handler)
+        {
+            initialResultSetCompleteHandler = handler;
+        }
         void onComplete(const std::function<void(void)> &handler)
         {
             completeHandler = handler;
@@ -182,6 +202,11 @@ namespace async {
         void add(const DomainType &value)
         {
             addHandler(value);
+        }
+
+        void initialResultSetComplete()
+        {
+            initialResultSetCompleteHandler();
         }
 
         void complete()
@@ -199,6 +224,7 @@ namespace async {
 
         std::function<void(const DomainType&)> addHandler;
         // std::function<void(const T&)> removeHandler;
+        std::function<void(void)> initialResultSetCompleteHandler;
         std::function<void(void)> completeHandler;
         std::function<void(void)> clearHandler;
         ThreadBoundary mThreadBoundary;
@@ -486,6 +512,14 @@ private:
     QHash<QByteArray, FactoryFunction> mFacadeRegistry;
 };
 
+template <class DomainType>
+struct LifeExtender {
+    LifeExtender(const QSharedPointer<StoreFacade<DomainType> > &f) : facade(f) {}
+private:
+    QSharedPointer<StoreFacade<DomainType> > facade;
+};
+
+
 /**
  * Store interface used in the client API.
  */
@@ -503,45 +537,37 @@ public:
     static QSharedPointer<ResultEmitter<typename DomainType::Ptr> > load(Query query)
     {
         auto resultSet = QSharedPointer<ResultProvider<typename DomainType::Ptr> >::create();
-        // FIXME This is ridiculous but otherwise I can't release the shared pointer before the thread quits
-        auto resultSetPtr = QSharedPointer<QSharedPointer<ResultProvider<typename DomainType::Ptr> > >::create(resultSet);
 
         //Execute the search in a thread.
         //We must guarantee that the emitter is returned before the first result is emitted.
         //The result provider must be threadsafe.
-        async::run([resultSetPtr, query](){
+        async::run([query, resultSet](){
             // Query all resources and aggregate results
             const QList<QByteArray> resources = query.resources;
-            Async::start<QList<QByteArray>>([resources](){return resources;})
-            .template each<void, QByteArray>([query, resultSetPtr](const QByteArray &resource, Async::Future<void> &future) {
-                //TODO pass resource identifier to factory
-                auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
-                if (auto resultSet = *resultSetPtr) {
+            {
+                Async::start<QList<QByteArray>>([resources](){return resources;})
+                .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, Async::Future<void> &future) {
+                    //TODO pass resource identifier to factory
+                    auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
                     facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
-                } else {
-                    qWarning() << "result set is already gone";
-                    future.setFinished();
-                }
-            }).template then<void>([resultSetPtr]() {
-                qDebug() << "Query complete";
-                if (auto resultSet = *resultSetPtr) {
-                    resultSet->complete();
-                } else {
-                    qWarning() << "result set is already gone";
-                }
-            }).exec();
+                    //Keep the facade alive for the duration for the lifetime of the resultSet.
+                    //TODO If the factory returned a std::shared_ptr we wouldn't require LifeExtender
+                    resultSet->setFacade(std::make_shared<LifeExtender<DomainType> >(facade));
+                }).template then<void>([query, resultSet]() {
+                    resultSet->initialResultSetComplete();
+                    if (!query.liveQuery) {
+                        resultSet->complete();
+                    }
+                }).exec();
+            }
 
-            if (auto resultSet = *resultSetPtr) {
-                resultSetPtr->clear();
-                if (!resultSet->isDone()) {
-                    QEventLoop eventLoop;
-                    resultSet->onDone([&eventLoop](){
-                        eventLoop.quit();
-                    });
-                    eventLoop.exec();
-                }
-            } else {
-                qWarning() << "result set is already gone";
+            //Keep the thread alive until the result is ready
+            if (!resultSet->isDone()) {
+                QEventLoop eventLoop;
+                resultSet->onDone([&eventLoop](){
+                    eventLoop.quit();
+                });
+                eventLoop.exec();
             }
         });
         return resultSet->emitter();

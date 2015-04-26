@@ -163,7 +163,6 @@ public:
                 load(query, addCallback).template then<void, qint64>([resultProvider, &future](qint64 queriedRevision) {
                     //TODO set revision in result provider?
                     //TODO update all existing results with new revision
-                    resultProvider->complete();
                     future.setValue(queriedRevision);
                     future.setFinished();
                 }).exec();
