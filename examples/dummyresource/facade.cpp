@@ -127,7 +127,7 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
     });
 }
 
-Async::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback)
+Async::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision)
 {
     return Async::start<qint64>([=](Async::Future<qint64> &future) {
         //Now that the sync is complete we can execute the query
@@ -152,6 +152,11 @@ Async::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const
                 Warning() << "Error in index: " <<  error.message;
             });
         }
+
+        // TODO only emit changes and don't replace everything
+        resultProvider->clear();
+        // rerun query
+        auto resultCallback = std::bind(&Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr>::add, resultProvider, std::placeholders::_1);
 
         if (keys.isEmpty()) {
             Log() << "Executing a full scan";

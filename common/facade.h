@@ -148,7 +148,7 @@ public:
         auto runner = QSharedPointer<QueryRunner>::create(query);
         QWeakPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > weakResultProvider = resultProvider;
         runner->setQuery([this, weakResultProvider, query] (qint64 oldRevision, qint64 newRevision) -> Async::Job<qint64> {
-            return Async::start<qint64>([this, weakResultProvider, query](Async::Future<qint64> &future) {
+            return Async::start<qint64>([this, weakResultProvider, query, oldRevision, newRevision](Async::Future<qint64> &future) {
                 auto resultProvider = weakResultProvider.toStrongRef();
                 if (!resultProvider) {
                     Warning() << "Tried executing query after result provider is already gone";
@@ -156,11 +156,7 @@ public:
                     future.setFinished();
                     return;
                 }
-                //TODO only emit changes and don't replace everything
-                resultProvider->clear();
-                //rerun query
-                auto addCallback = std::bind(&Akonadi2::ResultProvider<typename DomainType::Ptr>::add, resultProvider, std::placeholders::_1);
-                load(query, addCallback).template then<void, qint64>([resultProvider, &future](qint64 queriedRevision) {
+                load(query, resultProvider, oldRevision, newRevision).template then<void, qint64>([&future](qint64 queriedRevision) {
                     //TODO set revision in result provider?
                     //TODO update all existing results with new revision
                     future.setValue(queriedRevision);
@@ -214,7 +210,7 @@ protected:
         return Async::null<void>();
     }
 
-    virtual Async::Job<qint64> load(const Akonadi2::Query &query, const std::function<void(const typename DomainType::Ptr &)> &resultCallback) { return Async::null<qint64>(); };
+    virtual Async::Job<qint64> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision) { return Async::null<qint64>(); };
 
 protected:
     //TODO use one resource access instance per application => make static
