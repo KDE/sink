@@ -490,7 +490,7 @@ public:
     }
 
     template<class DomainType>
-    QSharedPointer<StoreFacade<DomainType> > getFacade(const QByteArray &resource)
+    std::shared_ptr<StoreFacade<DomainType> > getFacade(const QByteArray &resource)
     {
         const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
         auto factoryFunction = mFacadeRegistry.value(key(resource, typeName));
@@ -499,26 +499,18 @@ public:
             auto ptr = static_cast<StoreFacade<DomainType>* >(factoryFunction(externallyManaged));
             if (externallyManaged) {
                 //Allows tests to manage the lifetime of injected facades themselves
-                return QSharedPointer<StoreFacade<DomainType> >(ptr, doNothingDeleter);
+                return std::shared_ptr<StoreFacade<DomainType> >(ptr, doNothingDeleter);
             } else {
-                return QSharedPointer<StoreFacade<DomainType> >(ptr);
+                return std::shared_ptr<StoreFacade<DomainType> >(ptr);
             }
         }
         qWarning() << "Failed to find facade for resource: " << resource << " and type: " << typeName;
-        return QSharedPointer<StoreFacade<DomainType> >();
+        return std::shared_ptr<StoreFacade<DomainType> >();
     }
 
 private:
     QHash<QByteArray, FactoryFunction> mFacadeRegistry;
 };
-
-template <class DomainType>
-struct LifeExtender {
-    LifeExtender(const QSharedPointer<StoreFacade<DomainType> > &f) : facade(f) {}
-private:
-    QSharedPointer<StoreFacade<DomainType> > facade;
-};
-
 
 /**
  * Store interface used in the client API.
@@ -551,8 +543,7 @@ public:
                     auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
                     facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
                     //Keep the facade alive for the duration for the lifetime of the resultSet.
-                    //TODO If the factory returned a std::shared_ptr we wouldn't require LifeExtender
-                    resultSet->setFacade(std::make_shared<LifeExtender<DomainType> >(facade));
+                    resultSet->setFacade(facade);
                 }).template then<void>([query, resultSet]() {
                     resultSet->initialResultSetComplete();
                     if (!query.liveQuery) {
