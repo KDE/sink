@@ -535,22 +535,19 @@ public:
         //The result provider must be threadsafe.
         async::run([query, resultSet](){
             // Query all resources and aggregate results
-            const QList<QByteArray> resources = query.resources;
-            {
-                Async::start<QList<QByteArray>>([resources](){return resources;})
-                .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, Async::Future<void> &future) {
-                    //TODO pass resource identifier to factory
-                    auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
-                    facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
-                    //Keep the facade alive for the duration for the lifetime of the resultSet.
-                    resultSet->setFacade(facade);
-                }).template then<void>([query, resultSet]() {
-                    resultSet->initialResultSetComplete();
-                    if (!query.liveQuery) {
-                        resultSet->complete();
-                    }
-                }).exec();
-            }
+            Async::iterate(query.resources)
+            .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, Async::Future<void> &future) {
+                //TODO pass resource identifier to factory
+                auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
+                facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
+                //Keep the facade alive for the duration for the lifetime of the resultSet.
+                resultSet->setFacade(facade);
+            }).template then<void>([query, resultSet]() {
+                resultSet->initialResultSetComplete();
+                if (!query.liveQuery) {
+                    resultSet->complete();
+                }
+            }).exec();
 
             //Keep the thread alive until the result is ready
             if (!resultSet->isDone()) {
