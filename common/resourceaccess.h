@@ -58,7 +58,6 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     //TODO: move these to the Private class
-    void connected();
     void disconnected();
     void connectionError(QLocalSocket::LocalSocketError error);
     void readResourceMessage();
@@ -66,9 +65,9 @@ private Q_SLOTS:
     void callCallbacks(int id);
 
 private:
+    void connected();
     void log(const QString &message);
     void registerCallback(uint messageId, const std::function<void(int error, const QString &)> &callback);
-    void startResourceAndConnect();
 
     void sendCommand(const QSharedPointer<QueuedCommand> &command);
     void processCommandQueue();
