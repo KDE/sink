@@ -84,7 +84,7 @@ ResourceAccess::Private::Private(const QByteArray &name, ResourceAccess *q)
 }
 
 //Connects to server and returns connected socket on success
-static Async::Job<QSharedPointer<QLocalSocket> > connectToServer(const QByteArray &identifier)
+Async::Job<QSharedPointer<QLocalSocket> > ResourceAccess::connectToServer(const QByteArray &identifier)
 {
     auto s = QSharedPointer<QLocalSocket>::create();
     return Async::start<QSharedPointer<QLocalSocket> >([identifier, s](Async::Future<QSharedPointer<QLocalSocket> > &future) {
@@ -161,7 +161,9 @@ ResourceAccess::ResourceAccess(const QByteArray &resourceName, QObject *parent)
 
 ResourceAccess::~ResourceAccess()
 {
-
+    if (!d->resultHandler.isEmpty()) {
+        Warning() << "Left jobs running while shutting down ResourceAccess";
+    }
 }
 
 QByteArray ResourceAccess::resourceName() const

@@ -2,6 +2,7 @@
 #include "clientapi.h"
 #include "resourceaccess.h"
 #include "commands.h"
+#include "log.h"
 
 namespace async
 {
@@ -39,10 +40,19 @@ QByteArray getTypeName<AkonadiResource>()
 
 void Store::shutdown(const QByteArray &identifier)
 {
-    Akonadi2::ResourceAccess resourceAccess(identifier);
-    //FIXME this starts the resource, just to shut it down again if it's not running in the first place.
-    resourceAccess.open();
-    resourceAccess.sendCommand(Akonadi2::Commands::ShutdownCommand).exec().waitForFinished();
+    Trace() << "shutdown";
+    ResourceAccess::connectToServer(identifier).then<void, QSharedPointer<QLocalSocket>>([identifier](const QSharedPointer<QLocalSocket> &socket, Async::Future<void> &future) {
+        //We can't currently reuse the socket
+        socket->close();
+        auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(identifier);
+        resourceAccess->open();
+        resourceAccess->sendCommand(Akonadi2::Commands::ShutdownCommand).then<void>([&future, resourceAccess]() {
+            future.setFinished();
+        }).exec();
+    },
+    [](int, const QString &) {
+        //Resource isn't started, nothing to shutdown
+    }).exec().waitForFinished();
 }
 
 } // namespace Akonadi2

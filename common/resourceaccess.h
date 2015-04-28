@@ -46,6 +46,10 @@ public:
     Async::Job<void> sendCommand(int commandId);
     Async::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb);
     Async::Job<void> synchronizeResource(bool remoteSync, bool localSync);
+    /**
+     * Tries to connect to server, and returns a connected socket on success.
+     */
+    static Async::Job<QSharedPointer<QLocalSocket> > connectToServer(const QByteArray &identifier);
 
 public Q_SLOTS:
     void open();
