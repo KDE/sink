@@ -1,6 +1,5 @@
 #include "genericresource.h"
 
-#include "facade.h"
 #include "entitybuffer.h"
 #include "pipeline.h"
 #include "queuedcommand_generated.h"

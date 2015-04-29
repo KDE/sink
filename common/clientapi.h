@@ -540,7 +540,7 @@ public:
                 //TODO pass resource identifier to factory
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
                 facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
-                //Keep the facade alive for the duration for the lifetime of the resultSet.
+                //Keep the facade alive for the lifetime of the resultSet.
                 resultSet->setFacade(facade);
             }).template then<void>([query, resultSet]() {
                 resultSet->initialResultSetComplete();

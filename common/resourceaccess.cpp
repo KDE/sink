@@ -140,7 +140,9 @@ Async::Job<void> ResourceAccess::Private::initializeSocket()
             //We failed to connect, so let's start the resource
             QStringList args;
             args << resourceName;
-            if (QProcess::startDetached("akonadi2_synchronizer", args, QDir::homePath())) {
+            qint64 pid = 0;
+            if (QProcess::startDetached("akonadi2_synchronizer", args, QDir::homePath(), &pid)) {
+                Trace() << "Started resource " << pid;
                 tryToConnect()
                 .then<void>([&future]() {
                     future.setFinished();
@@ -257,9 +259,9 @@ void ResourceAccess::sendCommand(const QSharedPointer<QueuedCommand> &command)
     const auto messageId = d->messageId;
     log(QString("Sending command \"%1\" with messageId %2").arg(QString(Akonadi2::Commands::name(command->commandId))).arg(d->messageId));
     if (command->callback) {
-        registerCallback(d->messageId, [this, messageId, command](int number, QString foo) {
+        registerCallback(d->messageId, [this, messageId, command](int errorCode, QString errorMessage) {
             d->pendingCommands.remove(messageId);
-            command->callback(number, foo);
+            command->callback(errorCode, errorMessage);
         });
     }
     //Keep track of the command until we're sure it arrived
@@ -336,7 +338,7 @@ bool ResourceAccess::processMessageBuffer()
 {
     static const int headerSize = Commands::headerSize();
     if (d->partialMessageBuffer.size() < headerSize) {
-        qWarning() << "command too small";
+        Warning() << "command too small";
         return false;
     }
 
@@ -345,7 +347,7 @@ bool ResourceAccess::processMessageBuffer()
     const uint size = *(int*)(d->partialMessageBuffer.constData() + sizeof(int) + sizeof(uint));
 
     if (size > (uint)(d->partialMessageBuffer.size() - headerSize)) {
-        qWarning() << "command too small";
+        Warning() << "command too small";
         return false;
     }
 
