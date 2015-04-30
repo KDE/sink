@@ -372,8 +372,6 @@ void Listener::loadResource()
         m_resource = resourceFactory->createResource();
         Log() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
         Log() << QString("\tResource: %1").arg((qlonglong)m_resource);
-        //TODO: this doesn't really list all the facades .. fix
-        Log() << "\tFacades: " << Akonadi2::FacadeFactory::instance().getFacade<Akonadi2::ApplicationDomain::Event>(m_resourceName)->type();
         m_resource->configurePipeline(m_pipeline);
     } else {
         ErrorMsg() << "Failed to load resource " << m_resourceName;
