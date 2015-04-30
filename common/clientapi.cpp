@@ -3,6 +3,7 @@
 #include "resourceaccess.h"
 #include "commands.h"
 #include "log.h"
+#include <QtConcurrent/QtConcurrentRun>
 
 namespace async
 {
