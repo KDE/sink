@@ -413,6 +413,9 @@ public:
     }
 
     static void shutdown(const QByteArray &resourceIdentifier);
+
+    //TODO do we really want this command? And if yes, shouldn't it take a query to specify what to sync exactly?
+    static void synchronize(const QByteArray &resourceIdentifier);
 };
 
 /**

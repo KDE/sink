@@ -56,4 +56,12 @@ void Store::shutdown(const QByteArray &identifier)
     }).exec().waitForFinished();
 }
 
+void Store::synchronize(const QByteArray &identifier)
+{
+    Trace() << "synchronize";
+    auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(identifier);
+    resourceAccess->open();
+    resourceAccess->synchronizeResource(true, false).exec().waitForFinished();
+}
+
 } // namespace Akonadi2
