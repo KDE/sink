@@ -9,7 +9,7 @@ enum DebugLevel {
     Error
 };
 
-QDebug debugStream(DebugLevel debugLevel, int line, const char* file, const char* function);
+QDebug debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
 
 #define Trace() debugStream(DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO)
 #define Log() debugStream(DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO)

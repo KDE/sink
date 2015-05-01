@@ -73,7 +73,7 @@ static QString colorCommand(QList<int> colorCodes)
     return string;
 }
 
-QDebug debugStream(DebugLevel debugLevel, int line, const char* file, const char* function)
+QDebug debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea)
 {
     static DebugStream stream;
     QDebug debug(&stream);
@@ -90,25 +90,42 @@ QDebug debugStream(DebugLevel debugLevel, int line, const char* file, const char
     int prefixColorCode = ANSI_Colors::DoNothing;
     switch (debugLevel) {
         case DebugLevel::Trace:
-            prefix = "Trace:";
+            prefix = "Trace:  ";
             break;
         case DebugLevel::Log:
-            prefix = "Log:";
+            prefix = "Log:    ";
             break;
         case DebugLevel::Warning:
             prefix = "Warning:";
             prefixColorCode = ANSI_Colors::Red;
             break;
         case DebugLevel::Error:
-            prefix = "Error:";
+            prefix = "Error:  ";
             prefixColorCode = ANSI_Colors::Red;
             break;
         default:
             break;
     };
 
+    bool showLocation = false;
+    bool showProgram = true;
+
     const QString resetColor = colorCommand(ANSI_Colors::Reset);
-    debug << colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode) + prefix + resetColor + QString(" %1(%2) %3:").arg(QString::fromLatin1(programName)).arg(unsigned(getpid())).arg(function) + resetColor/* << file << ":" << line */;
+    QString output;
+    output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode) + prefix + resetColor;
+    if (showProgram) {
+        output += QString(" %1(%2)").arg(QString::fromLatin1(programName)).arg(unsigned(getpid()));
+    }
+    if (debugArea) {
+        output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode) + QString(" %1 ").arg(QString::fromLatin1(debugArea)) + resetColor;
+    }
+    if (showLocation) {
+        output += QString(" %3").arg(function);
+        /*debug << file << ":" << line */
+    }
+    output += ":";
+
+    debug << output;
 
     return debug;
 }

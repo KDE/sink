@@ -33,6 +33,11 @@
 #include <QDir>
 #include <QProcess>
 
+#undef Trace
+#define Trace() debugStream(DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess")
+#undef Log
+#define Log(IDENTIFIER) debugStream(DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess("+IDENTIFIER+")")
+
 namespace Akonadi2
 {
 
@@ -163,6 +168,7 @@ ResourceAccess::ResourceAccess(const QByteArray &resourceName, QObject *parent)
 
 ResourceAccess::~ResourceAccess()
 {
+    log("Closing access");
     if (!d->resultHandler.isEmpty()) {
         Warning() << "Left jobs running while shutting down ResourceAccess";
     }
@@ -310,7 +316,7 @@ void ResourceAccess::disconnected()
 void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
 {
     if (error == QLocalSocket::PeerClosedError) {
-        Log() << "The resource closed the connection.";
+        Log(d->resourceName) << "The resource closed the connection.";
     } else {
         Warning() << QString("Connection error: %1 : %2").arg(error).arg(d->socket->errorString());
     }
@@ -325,6 +331,7 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
 void ResourceAccess::readResourceMessage()
 {
     if (!d->socket || !d->socket->isValid()) {
+        Warning() << "No socket available";
         return;
     }
 
@@ -372,7 +379,7 @@ bool ResourceAccess::processMessageBuffer()
             auto buffer = GetNotification(d->partialMessageBuffer.constData() + headerSize);
             switch (buffer->type()) {
                 case Akonadi2::NotificationType::NotificationType_Shutdown:
-                    Log() << "Received shutdown notification.";
+                    Log(d->resourceName) << "Received shutdown notification.";
                     close();
                     break;
                 default:
@@ -399,7 +406,7 @@ void ResourceAccess::callCallbacks(int id)
 
 void ResourceAccess::log(const QString &message)
 {
-    Log() << d->resourceName + ": " + message;
+    Log(d->resourceName) << this << message;
 }
 
 }
