@@ -168,6 +168,9 @@ public:
         //In case of a live query we keep the runner for as long alive as the result provider exists
         if (query.liveQuery) {
             resultProvider->setQueryRunner(runner);
+            //Ensure the connection is open, if it wasn't already opened
+            //TODO If we are not connected already, we have to check for the latest revision once connected, otherwise we could miss some updates
+            mResourceAccess->open();
             QObject::connect(mResourceAccess.data(), &Akonadi2::ResourceAccess::revisionChanged, runner.data(), &QueryRunner::revisionChanged);
         }
 
