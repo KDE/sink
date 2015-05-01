@@ -345,9 +345,15 @@ public:
             .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, Async::Future<void> &future) {
                 //TODO pass resource identifier to factory
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
-                facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
-                //Keep the facade alive for the lifetime of the resultSet.
-                resultSet->setFacade(facade);
+                if (facade) {
+                    facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
+                    //Keep the facade alive for the lifetime of the resultSet.
+                    resultSet->setFacade(facade);
+                } else {
+                    qWarning() << "Could not find facade for resource " << resource;
+                    //Ignore the error and carry on
+                    future.setFinished();
+                }
             }).template then<void>([query, resultSet]() {
                 resultSet->initialResultSetComplete();
                 if (!query.liveQuery) {
