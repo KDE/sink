@@ -293,6 +293,9 @@ void PipelineState::step()
             auto entity = Akonadi2::GetEntity(dataValue);
             preprocessor->process(*this, *entity);
             return false;
+        }, [this](const Akonadi2::Storage::Error &error) {
+            ErrorMsg() << "Failed to find value in pipeline: " << error.message;
+            d->pipeline->pipelineCompleted(*this);
         });
     } else {
         //This object becomes invalid after this call

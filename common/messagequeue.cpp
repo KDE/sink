@@ -23,15 +23,18 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
                            const std::function<void(const Error &error)> &errorHandler)
 {
     bool readValue = false;
-    mStorage.scan("", [this, resultHandler, &readValue](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
+    mStorage.scan("", [this, resultHandler, errorHandler, &readValue](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
         const auto key  = QByteArray::fromRawData(static_cast<char*>(keyPtr), keySize);
         if (Akonadi2::Storage::isInternalKey(key)) {
             return true;
         }
         readValue = true;
-        resultHandler(valuePtr, valueSize, [this, key](bool success) {
+        resultHandler(valuePtr, valueSize, [this, key, errorHandler](bool success) {
             if (success) {
-                mStorage.remove(key.data(), key.size());
+                mStorage.remove(key.data(), key.size(), [errorHandler](const Akonadi2::Storage::Error &error) {
+                    qDebug() << "Error while removing value" << error.message;
+                    errorHandler(Error(error.store, error.code, "Error while removing value: " + error.message));
+                });
                 if (isEmpty()) {
                     emit this->drained();
                 }
@@ -61,6 +64,9 @@ bool MessageQueue::isEmpty()
             return false;
         }
         return true;
+    },
+    [](const Akonadi2::Storage::Error &error) {
+        qDebug() << "Error while checking if empty" << error.message;
     });
     return count == 0;
 }
