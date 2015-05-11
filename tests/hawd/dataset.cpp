@@ -22,6 +22,7 @@
 
 #include <QDateTime>
 #include <QDebug>
+#include <QDataStream>
 
 #include <iostream>
 
