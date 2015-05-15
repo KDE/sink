@@ -21,7 +21,7 @@ include(KDEInstallDirs)
 find_package(Qt5 COMPONENTS REQUIRED Core Widgets Network)
 
 find_package(FlatBuffers REQUIRED)
-function(generate_flatbuffers)
+function(generate_flatbuffers _target)
     foreach(fbs ${ARGN})
        message("making ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h from ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs")
        add_custom_command(
@@ -32,6 +32,7 @@ function(generate_flatbuffers)
        set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h PROPERTIES GENERATED 1)
        string(REGEX REPLACE "/" "_" target_name ${fbs})
        add_custom_target(generate_bindings${target_name} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h)
+       add_dependencies(${_target} generate_bindings${target_name})
     endforeach(fbs)
 endfunction(generate_flatbuffers)
 

@@ -1,19 +1,6 @@
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
 project(akonadi2common)
-generate_flatbuffers(
-    commands/commandcompletion
-    commands/createentity
-    commands/deleteentity
-    commands/fetchentity
-    commands/handshake
-    commands/modifyentity
-    commands/revisionupdate
-    commands/synchronize
-    commands/notification
-    domain/event
-    entity
-    metadata
-    queuedcommand
-)
 
 if (STORAGE_unqlite)
     add_definitions(-DUNQLITE_ENABLE_THREADS -fpermissive)
@@ -41,6 +28,25 @@ set(command_SRCS
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})
+
+generate_flatbuffers(
+    ${PROJECT_NAME}
+
+    commands/commandcompletion
+    commands/createentity
+    commands/deleteentity
+    commands/fetchentity
+    commands/handshake
+    commands/modifyentity
+    commands/revisionupdate
+    commands/synchronize
+    commands/notification
+    domain/event
+    entity
+    metadata
+    queuedcommand
+)
+
 generate_export_header(${PROJECT_NAME} BASE_NAME Akonadi2Common EXPORT_FILE_NAME akonadi2common_export.h)
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 qt5_use_modules(${PROJECT_NAME} Network)
