@@ -220,7 +220,7 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
                     Warning() << "No resource loaded";
                     break;
                 }
-                auto job = Async::null<void>();
+                auto job = KAsync::null<void>();
                 if (buffer->sourceSync()) {
                     job = m_resource->synchronizeWithSource(m_pipeline);
                 }

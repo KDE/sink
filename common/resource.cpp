@@ -53,16 +53,16 @@ void Resource::processCommand(int commandId, const QByteArray &data, uint size, 
     pipeline->null();
 }
 
-Async::Job<void> Resource::synchronizeWithSource(Pipeline *pipeline)
+KAsync::Job<void> Resource::synchronizeWithSource(Pipeline *pipeline)
 {
-    return Async::start<void>([pipeline](Async::Future<void> &f) {
+    return KAsync::start<void>([pipeline](KAsync::Future<void> &f) {
         pipeline->null();
     });
 }
 
-Async::Job<void> Resource::processAllMessages()
+KAsync::Job<void> Resource::processAllMessages()
 {
-    return Async::null<void>();
+    return KAsync::null<void>();
 }
 
 class ResourceFactory::Private

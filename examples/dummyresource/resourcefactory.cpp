@@ -162,9 +162,9 @@ void findByRemoteId(QSharedPointer<Akonadi2::Storage> storage, const QString &ri
     });
 }
 
-Async::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
+KAsync::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
 {
-    return Async::start<void>([this, pipeline](Async::Future<void> &f) {
+    return KAsync::start<void>([this, pipeline](KAsync::Future<void> &f) {
         //TODO use a read-only transaction during the complete sync to sync against a defined revision
         auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
         for (auto it = s_dataSource.constBegin(); it != s_dataSource.constEnd(); it++) {

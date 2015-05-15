@@ -50,5 +50,5 @@ generate_flatbuffers(
 generate_export_header(${PROJECT_NAME} BASE_NAME Akonadi2Common EXPORT_FILE_NAME akonadi2common_export.h)
 SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 qt5_use_modules(${PROJECT_NAME} Network)
-target_link_libraries(${PROJECT_NAME} ${storage_LIBS} akonadi2async)
+target_link_libraries(${PROJECT_NAME} ${storage_LIBS} KF5Async)
 install(TARGETS ${PROJECT_NAME} ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})

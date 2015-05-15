@@ -228,10 +228,10 @@ class StoreFacade {
 public:
     virtual ~StoreFacade(){};
     QByteArray type() const { return ApplicationDomain::getTypeName<DomainType>(); }
-    virtual Async::Job<void> create(const DomainType &domainObject) = 0;
-    virtual Async::Job<void> modify(const DomainType &domainObject) = 0;
-    virtual Async::Job<void> remove(const DomainType &domainObject) = 0;
-    virtual Async::Job<void> load(const Query &query, const QSharedPointer<ResultProvider<typename DomainType::Ptr> > &resultProvider) = 0;
+    virtual KAsync::Job<void> create(const DomainType &domainObject) = 0;
+    virtual KAsync::Job<void> modify(const DomainType &domainObject) = 0;
+    virtual KAsync::Job<void> remove(const DomainType &domainObject) = 0;
+    virtual KAsync::Job<void> load(const Query &query, const QSharedPointer<ResultProvider<typename DomainType::Ptr> > &resultProvider) = 0;
 };
 
 
@@ -341,8 +341,8 @@ public:
         //The result provider must be threadsafe.
         async::run([query, resultSet](){
             // Query all resources and aggregate results
-            Async::iterate(query.resources)
-            .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, Async::Future<void> &future) {
+            KAsync::iterate(query.resources)
+            .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, KAsync::Future<void> &future) {
                 //TODO pass resource identifier to factory
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
                 if (facade) {

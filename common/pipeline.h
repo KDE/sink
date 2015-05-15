@@ -53,7 +53,7 @@ public:
 
     void null();
 
-    Async::Job<void> newEntity(void const *command, size_t size);
+    KAsync::Job<void> newEntity(void const *command, size_t size);
     void modifiedEntity(const QString &entityType, const QByteArray &key, void *data, size_t size);
     void deletedEntity(const QString &entityType, const QByteArray &key);
 

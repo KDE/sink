@@ -61,33 +61,33 @@ private slots:
         }).exec();
     }
 
-    Async::Job<void> processQueuedCommand(const Akonadi2::QueuedCommand *queuedCommand)
+    KAsync::Job<void> processQueuedCommand(const Akonadi2::QueuedCommand *queuedCommand)
     {
         Log() << "Processing command: " << Akonadi2::Commands::name(queuedCommand->commandId());
         //Throw command into appropriate pipeline
         switch (queuedCommand->commandId()) {
             case Akonadi2::Commands::DeleteEntityCommand:
                 //mPipeline->removedEntity
-                return Async::null<void>();
+                return KAsync::null<void>();
             case Akonadi2::Commands::ModifyEntityCommand:
                 //mPipeline->modifiedEntity
-                return Async::null<void>();
+                return KAsync::null<void>();
             case Akonadi2::Commands::CreateEntityCommand:
                 return mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
             default:
-                return Async::error<void>(-1, "Unhandled command");
+                return KAsync::error<void>(-1, "Unhandled command");
         }
-        return Async::null<void>();
+        return KAsync::null<void>();
     }
 
     //Process all messages of this queue
-    Async::Job<void> processQueue(MessageQueue *queue)
+    KAsync::Job<void> processQueue(MessageQueue *queue)
     {
         //TODO use something like:
-        //Async::foreach("pass iterator here").each("process value here").join();
-        //Async::foreach("pass iterator here").parallel("process value here").join();
-        return Async::dowhile(
-            [this, queue](Async::Future<bool> &future) {
+        //KAsync::foreach("pass iterator here").each("process value here").join();
+        //KAsync::foreach("pass iterator here").parallel("process value here").join();
+        return KAsync::dowhile(
+            [this, queue](KAsync::Future<bool> &future) {
                 if (queue->isEmpty()) {
                     future.setValue(false);
                     future.setFinished();
@@ -133,13 +133,13 @@ private slots:
         );
     }
 
-    Async::Job<void> processPipeline()
+    KAsync::Job<void> processPipeline()
     {
         //Go through all message queues
         auto it = QSharedPointer<QListIterator<MessageQueue*> >::create(mCommandQueues);
-        return Async::dowhile(
+        return KAsync::dowhile(
             [it]() { return it->hasNext(); },
-            [it, this](Async::Future<void> &future) {
+            [it, this](KAsync::Future<void> &future) {
                 auto queue = it->next();
                 processQueue(queue).then<void>([&future]() {
                     Trace() << "Queue processed";
@@ -206,12 +206,12 @@ void GenericResource::processCommand(int commandId, const QByteArray &data, uint
     enqueueCommand(mUserQueue, commandId, data);
 }
 
-Async::Job<void> GenericResource::processAllMessages()
+KAsync::Job<void> GenericResource::processAllMessages()
 {
     //We have to wait for all items to be processed to ensure the synced items are available when a query gets executed.
     //TODO: report errors while processing sync?
     //TODO JOBAPI: A helper that waits for n events and then continues?
-    return Async::start<void>([this](Async::Future<void> &f) {
+    return KAsync::start<void>([this](KAsync::Future<void> &f) {
         if (mSynchronizerQueue.isEmpty()) {
             f.setFinished();
         } else {
@@ -219,7 +219,7 @@ Async::Job<void> GenericResource::processAllMessages()
                 f.setFinished();
             });
         }
-    }).then<void>([this](Async::Future<void> &f) {
+    }).then<void>([this](KAsync::Future<void> &f) {
         if (mUserQueue.isEmpty()) {
             f.setFinished();
         } else {

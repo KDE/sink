@@ -36,8 +36,8 @@ public:
     virtual ~Resource();
 
     virtual void processCommand(int commandId, const QByteArray &data, uint size, Pipeline *pipeline);
-    virtual Async::Job<void> synchronizeWithSource(Pipeline *pipeline);
-    virtual Async::Job<void> processAllMessages();
+    virtual KAsync::Job<void> synchronizeWithSource(Pipeline *pipeline);
+    virtual KAsync::Job<void> processAllMessages();
 
     virtual void configurePipeline(Pipeline *pipeline);
 

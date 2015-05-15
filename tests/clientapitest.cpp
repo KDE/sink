@@ -24,13 +24,13 @@ class DummyResourceFacade : public Akonadi2::StoreFacade<Akonadi2::ApplicationDo
 {
 public:
     ~DummyResourceFacade(){};
-    Async::Job<void> create(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return Async::null<void>(); };
-    Async::Job<void> modify(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return Async::null<void>(); };
-    Async::Job<void> remove(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return Async::null<void>(); };
+    KAsync::Job<void> create(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
+    KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
+    KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
 
-    Async::Job<qint64> load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback)
+    KAsync::Job<qint64> load(const Akonadi2::Query &query, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback)
     {
-        return Async::start<qint64>([this, resultCallback](Async::Future<qint64> &future) {
+        return KAsync::start<qint64>([this, resultCallback](KAsync::Future<qint64> &future) {
             qDebug() << "load called";
             for(const auto &result : results) {
                 resultCallback(result);
@@ -40,16 +40,16 @@ public:
         });
     }
 
-    Async::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider) Q_DECL_OVERRIDE 
+    KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider) Q_DECL_OVERRIDE 
     {
         auto runner = QSharedPointer<QueryRunner>::create(query);
         //The runner only lives as long as the resultProvider
         resultProvider->setQueryRunner(runner);
         QWeakPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > weakResultProvider = resultProvider;
         capturedResultProvider = resultProvider;
-        runner->setQuery([this, weakResultProvider, query](qint64 oldRevision, qint64 newRevision) -> Async::Job<qint64> {
+        runner->setQuery([this, weakResultProvider, query](qint64 oldRevision, qint64 newRevision) -> KAsync::Job<qint64> {
             qDebug() << "Creating query for revisions: " << oldRevision << newRevision;
-            return Async::start<qint64>([this, weakResultProvider, query](Async::Future<qint64> &future) {
+            return KAsync::start<qint64>([this, weakResultProvider, query](KAsync::Future<qint64> &future) {
                 auto resultProvider = weakResultProvider.toStrongRef();
                 if (!resultProvider) {
                     Warning() << "Tried executing query after result provider is already gone";
@@ -81,7 +81,7 @@ public:
             });
         }
 
-        return Async::start<void>([runner](Async::Future<void> &future) {
+        return KAsync::start<void>([runner](KAsync::Future<void> &future) {
             runner->run().then<void>([&future]() {
                 //TODO if not live query, destroy runner.
                 future.setFinished();

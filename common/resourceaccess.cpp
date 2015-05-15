@@ -70,8 +70,8 @@ class ResourceAccess::Private
 {
 public:
     Private(const QByteArray &name, ResourceAccess *ra);
-    Async::Job<void> tryToConnect();
-    Async::Job<void> initializeSocket();
+    KAsync::Job<void> tryToConnect();
+    KAsync::Job<void> initializeSocket();
     QByteArray resourceName;
     QSharedPointer<QLocalSocket> socket;
     QByteArray partialMessageBuffer;
@@ -89,10 +89,10 @@ ResourceAccess::Private::Private(const QByteArray &name, ResourceAccess *q)
 }
 
 //Connects to server and returns connected socket on success
-Async::Job<QSharedPointer<QLocalSocket> > ResourceAccess::connectToServer(const QByteArray &identifier)
+KAsync::Job<QSharedPointer<QLocalSocket> > ResourceAccess::connectToServer(const QByteArray &identifier)
 {
     auto s = QSharedPointer<QLocalSocket>::create();
-    return Async::start<QSharedPointer<QLocalSocket> >([identifier, s](Async::Future<QSharedPointer<QLocalSocket> > &future) {
+    return KAsync::start<QSharedPointer<QLocalSocket> >([identifier, s](KAsync::Future<QSharedPointer<QLocalSocket> > &future) {
         s->setServerName(identifier);
         auto context = new QObject;
         QObject::connect(s.data(), &QLocalSocket::connected, context, [&future, &s, context]() {
@@ -109,15 +109,15 @@ Async::Job<QSharedPointer<QLocalSocket> > ResourceAccess::connectToServer(const 
     });
 }
 
-Async::Job<void> ResourceAccess::Private::tryToConnect()
+KAsync::Job<void> ResourceAccess::Private::tryToConnect()
 {
-    return Async::dowhile([this]() -> bool {
+    return KAsync::dowhile([this]() -> bool {
         //TODO abort after N retries?
         return !socket;
     },
-    [this](Async::Future<void> &future) {
+    [this](KAsync::Future<void> &future) {
         Trace() << "Loop";
-        Async::wait(50)
+        KAsync::wait(50)
         .then(connectToServer(resourceName))
         .then<void, QSharedPointer<QLocalSocket> >([this, &future](const QSharedPointer<QLocalSocket> &s) {
             Q_ASSERT(s);
@@ -130,9 +130,9 @@ Async::Job<void> ResourceAccess::Private::tryToConnect()
     });
 }
 
-Async::Job<void> ResourceAccess::Private::initializeSocket()
+KAsync::Job<void> ResourceAccess::Private::initializeSocket()
 {
-    return Async::start<void>([this](Async::Future<void> &future) {
+    return KAsync::start<void>([this](KAsync::Future<void> &future) {
         Trace() << "Trying to connect";
         connectToServer(resourceName).then<void, QSharedPointer<QLocalSocket> >([this, &future](const QSharedPointer<QLocalSocket> &s) {
             Trace() << "Connected to resource, without having to start it.";
@@ -189,9 +189,9 @@ void ResourceAccess::registerCallback(uint messageId, const std::function<void(i
     d->resultHandler.insert(messageId, callback);
 }
 
-Async::Job<void> ResourceAccess::sendCommand(int commandId)
+KAsync::Job<void> ResourceAccess::sendCommand(int commandId)
 {
-    return Async::start<void>([this, commandId](Async::Future<void> &f) {
+    return KAsync::start<void>([this, commandId](KAsync::Future<void> &f) {
         auto continuation = [&f](int error, const QString &errorMessage) {
             if (error) {
                 f.setError(error, errorMessage);
@@ -205,11 +205,11 @@ Async::Job<void> ResourceAccess::sendCommand(int commandId)
     });
 }
 
-Async::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb)
+KAsync::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb)
 {
     //The flatbuffer is transient, but we want to store it until the job is executed
     QByteArray buffer(reinterpret_cast<const char*>(fbb.GetBufferPointer()), fbb.GetSize());
-    return Async::start<void>([commandId, buffer, this](Async::Future<void> &f) {
+    return KAsync::start<void>([commandId, buffer, this](KAsync::Future<void> &f) {
         auto callback = [&f](int error, const QString &errorMessage) {
             if (error) {
                 f.setError(error, errorMessage);
@@ -225,7 +225,7 @@ Async::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBu
     });
 }
 
-Async::Job<void> ResourceAccess::synchronizeResource(bool sourceSync, bool localSync)
+KAsync::Job<void> ResourceAccess::synchronizeResource(bool sourceSync, bool localSync)
 {
     auto command = Akonadi2::CreateSynchronize(d->fbb, sourceSync, localSync);
     Akonadi2::FinishSynchronizeBuffer(d->fbb, command);

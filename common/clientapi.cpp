@@ -42,7 +42,7 @@ QByteArray getTypeName<AkonadiResource>()
 void Store::shutdown(const QByteArray &identifier)
 {
     Trace() << "shutdown";
-    ResourceAccess::connectToServer(identifier).then<void, QSharedPointer<QLocalSocket>>([identifier](const QSharedPointer<QLocalSocket> &socket, Async::Future<void> &future) {
+    ResourceAccess::connectToServer(identifier).then<void, QSharedPointer<QLocalSocket>>([identifier](const QSharedPointer<QLocalSocket> &socket, KAsync::Future<void> &future) {
         //We can't currently reuse the socket
         socket->close();
         auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(identifier);

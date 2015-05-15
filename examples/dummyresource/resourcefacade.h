@@ -30,13 +30,13 @@ public:
     DummyResourceConfigFacade();
     ~DummyResourceConfigFacade();
     //Create an instance
-    Async::Job<void> create(const Akonadi2::ApplicationDomain::AkonadiResource &domainObject) Q_DECL_OVERRIDE;
+    KAsync::Job<void> create(const Akonadi2::ApplicationDomain::AkonadiResource &domainObject) Q_DECL_OVERRIDE;
     //Modify configuration
-    Async::Job<void> modify(const Akonadi2::ApplicationDomain::AkonadiResource &domainObject) Q_DECL_OVERRIDE;
+    KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::AkonadiResource &domainObject) Q_DECL_OVERRIDE;
     //Remove instance
-    Async::Job<void> remove(const Akonadi2::ApplicationDomain::AkonadiResource &domainObject) Q_DECL_OVERRIDE;
+    KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::AkonadiResource &domainObject) Q_DECL_OVERRIDE;
     //Read configuration and available instances
-    Async::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<async::ResultProvider<typename Akonadi2::ApplicationDomain::AkonadiResource::Ptr> > &resultProvider) Q_DECL_OVERRIDE;
+    KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<async::ResultProvider<typename Akonadi2::ApplicationDomain::AkonadiResource::Ptr> > &resultProvider) Q_DECL_OVERRIDE;
 
 private:
     QSharedPointer<QSettings> getSettings();

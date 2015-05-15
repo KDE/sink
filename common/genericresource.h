@@ -38,8 +38,8 @@ public:
     virtual ~GenericResource();
 
     virtual void processCommand(int commandId, const QByteArray &data, uint size, Pipeline *pipeline) Q_DECL_OVERRIDE;
-    virtual Async::Job<void> synchronizeWithSource(Pipeline *pipeline) Q_DECL_OVERRIDE = 0;
-    virtual Async::Job<void> processAllMessages() Q_DECL_OVERRIDE;
+    virtual KAsync::Job<void> synchronizeWithSource(Pipeline *pipeline) Q_DECL_OVERRIDE = 0;
+    virtual KAsync::Job<void> processAllMessages() Q_DECL_OVERRIDE;
 
     virtual void configurePipeline(Pipeline *pipeline) Q_DECL_OVERRIDE;
     int error() const;

@@ -32,7 +32,7 @@ class DummyResource : public Akonadi2::GenericResource
 {
 public:
     DummyResource();
-    Async::Job<void> synchronizeWithSource(Akonadi2::Pipeline *pipeline) Q_DECL_OVERRIDE;
+    KAsync::Job<void> synchronizeWithSource(Akonadi2::Pipeline *pipeline) Q_DECL_OVERRIDE;
     void configurePipeline(Akonadi2::Pipeline *pipeline) Q_DECL_OVERRIDE;
 };
 

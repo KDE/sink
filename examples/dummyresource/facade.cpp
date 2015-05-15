@@ -127,9 +127,9 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
     });
 }
 
-Async::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision)
+KAsync::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision)
 {
-    return Async::start<qint64>([=]() {
+    return KAsync::start<qint64>([=]() {
         //Now that the sync is complete we can execute the query
         const auto preparedQuery = prepareQuery(query);
 

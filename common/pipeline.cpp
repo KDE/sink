@@ -94,7 +94,7 @@ void Pipeline::null()
     // state.step();
 }
 
-Async::Job<void> Pipeline::newEntity(void const *command, size_t size)
+KAsync::Job<void> Pipeline::newEntity(void const *command, size_t size)
 {
     Log() << "Pipeline: New Entity";
 
@@ -107,7 +107,7 @@ Async::Job<void> Pipeline::newEntity(void const *command, size_t size)
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
         if (!Akonadi2::Commands::VerifyCreateEntityBuffer(verifyer)) {
             qWarning() << "invalid buffer, not a create entity buffer";
-            return Async::error<void>();
+            return KAsync::error<void>();
         }
     }
     auto createEntity = Akonadi2::Commands::GetCreateEntity(command);
@@ -118,7 +118,7 @@ Async::Job<void> Pipeline::newEntity(void const *command, size_t size)
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(createEntity->delta()->Data()), createEntity->delta()->size());
         if (!Akonadi2::VerifyEntityBuffer(verifyer)) {
             qWarning() << "invalid buffer, not an entity buffer";
-            return Async::error<void>();
+            return KAsync::error<void>();
         }
     }
     auto entity = Akonadi2::GetEntity(createEntity->delta()->Data());
@@ -139,7 +139,7 @@ Async::Job<void> Pipeline::newEntity(void const *command, size_t size)
     storage().setMaxRevision(newRevision);
     Log() << "Pipeline: wrote entity: "<< newRevision;
 
-    return Async::start<void>([this, key, entityType](Async::Future<void> &future) {
+    return KAsync::start<void>([this, key, entityType](KAsync::Future<void> &future) {
         PipelineState state(this, NewPipeline, key, d->newPipeline[entityType], [&future]() {
             future.setFinished();
         });

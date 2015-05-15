@@ -44,13 +44,13 @@ class QueryRunner : public QObject
 {
     Q_OBJECT
 public:
-    typedef std::function<Async::Job<qint64>(qint64 oldRevision, qint64 newRevision)> QueryFunction;
+    typedef std::function<KAsync::Job<qint64>(qint64 oldRevision, qint64 newRevision)> QueryFunction;
 
     QueryRunner(const Akonadi2::Query &query) : mLatestRevision(0) {};
     /**
      * Starts query
      */
-    Async::Job<void> run(qint64 newRevision = 0)
+    KAsync::Job<void> run(qint64 newRevision = 0)
     {
         //TODO: JOBAPI: that last empty .then should not be necessary
         return queryFunction(mLatestRevision, newRevision).then<void, qint64>([this](qint64 revision) {
@@ -120,7 +120,7 @@ public:
         return Akonadi2::ApplicationDomain::getTypeName<DomainType>();
     }
 
-    Async::Job<void> create(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
+    KAsync::Job<void> create(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
     {
         if (!mDomainTypeAdaptorFactory) {
             Warning() << "No domain type adaptor factory available";
@@ -130,25 +130,25 @@ public:
         return sendCreateCommand(bufferTypeForDomainType(), QByteArray::fromRawData(reinterpret_cast<const char*>(entityFbb.GetBufferPointer()), entityFbb.GetSize()));
     }
 
-    Async::Job<void> modify(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
+    KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
     {
         //TODO
-        return Async::null<void>();
+        return KAsync::null<void>();
     }
 
-    Async::Job<void> remove(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
+    KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
     {
         //TODO
-        return Async::null<void>();
+        return KAsync::null<void>();
     }
 
     //TODO JOBAPI return job from sync continuation to execute it as subjob?
-    Async::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider) Q_DECL_OVERRIDE
+    KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider) Q_DECL_OVERRIDE
     {
         auto runner = QSharedPointer<QueryRunner>::create(query);
         QWeakPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > weakResultProvider = resultProvider;
-        runner->setQuery([this, weakResultProvider, query] (qint64 oldRevision, qint64 newRevision) -> Async::Job<qint64> {
-            return Async::start<qint64>([this, weakResultProvider, query, oldRevision, newRevision](Async::Future<qint64> &future) {
+        runner->setQuery([this, weakResultProvider, query] (qint64 oldRevision, qint64 newRevision) -> KAsync::Job<qint64> {
+            return KAsync::start<qint64>([this, weakResultProvider, query, oldRevision, newRevision](KAsync::Future<qint64> &future) {
                 auto resultProvider = weakResultProvider.toStrongRef();
                 if (!resultProvider) {
                     Warning() << "Tried executing query after result provider is already gone";
@@ -175,7 +175,7 @@ public:
         }
 
         //We have to capture the runner to keep it alive
-        return synchronizeResource(query.syncOnDemand, query.processAll).template then<void>([runner](Async::Future<void> &future) {
+        return synchronizeResource(query.syncOnDemand, query.processAll).template then<void>([runner](KAsync::Future<void> &future) {
             runner->run().then<void>([&future]() {
                 future.setFinished();
             }).exec();
@@ -183,7 +183,7 @@ public:
     }
 
 protected:
-    Async::Job<void> sendCreateCommand(const QByteArray &resourceBufferType, const QByteArray &buffer)
+    KAsync::Job<void> sendCreateCommand(const QByteArray &resourceBufferType, const QByteArray &buffer)
     {
         flatbuffers::FlatBufferBuilder fbb;
         //This is the resource buffer type and not the domain type
@@ -195,7 +195,7 @@ protected:
         return mResourceAccess->sendCommand(Akonadi2::Commands::CreateEntityCommand, fbb);
     }
 
-    Async::Job<void> synchronizeResource(bool sync, bool processAll)
+    KAsync::Job<void> synchronizeResource(bool sync, bool processAll)
     {
         //TODO check if a sync is necessary
         //TODO Only sync what was requested
@@ -203,17 +203,17 @@ protected:
         //TODO the synchronization should normally not be necessary: We just return what is already available.
 
         if (sync || processAll) {
-            return Async::start<void>([=](Async::Future<void> &future) {
+            return KAsync::start<void>([=](KAsync::Future<void> &future) {
                 mResourceAccess->open();
                 mResourceAccess->synchronizeResource(sync, processAll).then<void>([&future]() {
                     future.setFinished();
                 }).exec();
             });
         }
-        return Async::null<void>();
+        return KAsync::null<void>();
     }
 
-    virtual Async::Job<qint64> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision) { return Async::null<qint64>(); };
+    virtual KAsync::Job<qint64> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision) { return KAsync::null<qint64>(); };
 
 protected:
     //TODO use one resource access instance per application => make static
