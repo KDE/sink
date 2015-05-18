@@ -20,7 +20,8 @@
 #pragma once
 
 #include "common/clientapi.h"
-#include "async/src/async.h"
+
+#include <Async/Async>
 
 class QSettings;
 

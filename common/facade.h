@@ -23,7 +23,8 @@
 
 #include <QByteArray>
 
-#include "async/src/async.h"
+#include <Async/Async>
+
 #include "resourceaccess.h"
 #include "commands.h"
 #include "createentity_generated.h"

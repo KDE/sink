@@ -20,8 +20,9 @@
 #pragma once
 
 #include "common/genericresource.h"
-#include "async/src/async.h"
 #include "common/messagequeue.h"
+
+#include <Async/Async>
 
 #include <flatbuffers/flatbuffers.h>
 

@@ -21,7 +21,8 @@
 #include <akonadi2common_export.h>
 #include <clientapi.h>
 #include <pipeline.h>
-#include <async/src/async.h>
+
+#include <Async/Async>
 
 namespace Akonadi2
 {

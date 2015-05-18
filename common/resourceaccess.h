@@ -24,8 +24,9 @@
 #include <QObject>
 #include <QTimer>
 
+#include <Async/Async>
+
 #include <flatbuffers/flatbuffers.h>
-#include <async/src/async.h>
 
 namespace Akonadi2
 {

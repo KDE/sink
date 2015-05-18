@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.12)
 
 
 # ECM setup
@@ -19,7 +19,7 @@ include(KDEInstallDirs)
 # include(KDECMakeSettings)
 
 find_package(Qt5 COMPONENTS REQUIRED Core Widgets Network)
-
+find_package(KF5 COMPONENTS REQUIRED Async)
 find_package(FlatBuffers REQUIRED)
 function(generate_flatbuffers _target)
     foreach(fbs ${ARGN})
@@ -58,8 +58,5 @@ add_subdirectory(examples)
 
 # some tests
 add_subdirectory(tests)
-
-# async library prototype
-add_subdirectory(async)
 
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)

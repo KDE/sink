@@ -28,8 +28,10 @@
 #include <QEventLoop>
 #include <functional>
 #include <memory>
+
+#include <Async/Async>
+
 #include "threadboundary.h"
-#include "async/src/async.h"
 #include "resultprovider.h"
 
 namespace async {

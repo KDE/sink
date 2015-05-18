@@ -27,7 +27,8 @@
 
 #include <akonadi2common_export.h>
 #include <storage.h>
-#include "async/src/async.h"
+
+#include <Async/Async>
 
 #include "entity_generated.h"
 

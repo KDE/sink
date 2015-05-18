@@ -29,7 +29,6 @@
 #include "metadata_generated.h"
 #include "createentity_generated.h"
 #include "entitybuffer.h"
-#include "async/src/async.h"
 #include "log.h"
 
 namespace Akonadi2
