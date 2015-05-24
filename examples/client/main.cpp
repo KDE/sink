@@ -19,17 +19,92 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QStringListModel>
 
-#include "common/commands.h"
-#include "common/resourceaccess.h"
+#include "common/clientapi.h"
+#include "common/resultprovider.h"
+#include "common/resource.h"
+#include "common/synclistresult.h"
 #include "console.h"
+
+#include <QWidget>
+#include <QListView>
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+
+class View : public QWidget
+{
+public:
+    View(QAbstractItemModel *model)
+        : QWidget()
+    {
+        auto listView = new QListView(this);
+        listView->setModel(model);
+        resize(1000, 1500);
+
+        auto topLayout = new QVBoxLayout(this);
+
+        auto titleLabel = new QLabel(this);
+        titleLabel->setText("Demo");
+        auto font = titleLabel->font();
+        font.setWeight(QFont::Bold);
+        titleLabel->setFont(font);
+        titleLabel->setAlignment(Qt::AlignCenter);
+
+        auto syncButton = new QPushButton(this);
+        syncButton->setText("Synchronize!");
+        QObject::connect(syncButton, &QPushButton::pressed, []() {
+            Akonadi2::Store::synchronize("org.kde.dummy");
+        });
+
+        topLayout->addWidget(titleLabel);
+        topLayout->addWidget(syncButton);
+        topLayout->addWidget(listView, 10);
+
+        show();
+    }
+
+};
+
+template<class T>
+class AkonadiListModel : public QStringListModel
+{
+public:
+    AkonadiListModel(const QSharedPointer<async::ResultEmitter<T> > &emitter, const QByteArray &property)
+        :QStringListModel(),
+        mEmitter(emitter)
+    {
+        emitter->onAdded([this, property](const T &value) {
+            // qDebug() << "VALUE ADDED";
+            Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr type(value);
+            mStringList << type->getProperty(property).toString();
+            setStringList(mStringList);
+        });
+        emitter->onInitialResultSetComplete([this]() {
+        });
+        emitter->onComplete([this]() {
+            // qDebug() << "COMPLETE";
+            mEmitter.clear();
+        });
+        emitter->onClear([this]() {
+            // qDebug() << "CLEAR";
+            mStringList.clear();
+            setStringList(mStringList);
+        });
+    }
+
+private:
+    QSharedPointer<async::ResultEmitter<T> > mEmitter;
+    QStringList mStringList;
+};
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    new Console("Akonadi2 Client");
-    Console::main()->log(QString("PID: %1").arg(QCoreApplication::applicationPid()));
+    Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy", Akonadi2::Storage::ReadWrite);
+    store.removeFromDisk();
 
     QCommandLineParser cliOptions;
     cliOptions.addPositionalArgument(QObject::tr("[resource]"),
@@ -40,13 +115,18 @@ int main(int argc, char *argv[])
         resources << "org.kde.dummy";
     }
 
-    for (const QString &resource: resources) {
-        Akonadi2::ResourceAccess *resAccess = new Akonadi2::ResourceAccess(resource.toLatin1());
-        QObject::connect(&app, &QCoreApplication::aboutToQuit,
-                        resAccess, &Akonadi2::ResourceAccess::close);
-        resAccess->sendCommand(Akonadi2::Commands::SynchronizeCommand);
-        resAccess->open();
-    }
+    //FIXME move to clientapi
+    Akonadi2::ResourceFactory::load("org.kde.dummy");
+
+    Akonadi2::Query query;
+    query.resources << "org.kde.dummy";
+    query.syncOnDemand = false;
+    query.processAll = false;
+    query.liveQuery = true;
+    // query.propertyFilter.insert("uid", "testuid");
+
+    auto model = QSharedPointer<AkonadiListModel<Akonadi2::ApplicationDomain::Event::Ptr> >::create(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query), "summary");
+    auto view = QSharedPointer<View>::create(model.data());
 
     return app.exec();
 }
