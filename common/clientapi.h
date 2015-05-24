@@ -97,6 +97,8 @@ private:
  */
 class ApplicationDomainType {
 public:
+    typedef QSharedPointer<ApplicationDomainType> Ptr;
+
     ApplicationDomainType()
         :mAdaptor(new MemoryBufferAdaptor())
     {
