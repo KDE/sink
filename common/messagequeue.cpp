@@ -1,6 +1,7 @@
 #include "messagequeue.h"
 #include "storage.h"
 #include <QDebug>
+#include <log.h>
 
 MessageQueue::MessageQueue(const QString &storageRoot, const QString &name)
     : mStorage(storageRoot, name, Akonadi2::Storage::ReadWrite)
@@ -24,16 +25,17 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
 {
     bool readValue = false;
     mStorage.scan("", [this, resultHandler, errorHandler, &readValue](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
-        const auto key  = QByteArray::fromRawData(static_cast<char*>(keyPtr), keySize);
+        //We need a copy of the key here, otherwise we can't store it in the lambda (the pointers will become invalid)
+        const auto key  = QByteArray(static_cast<char*>(keyPtr), keySize);
         if (Akonadi2::Storage::isInternalKey(key)) {
             return true;
         }
         readValue = true;
         resultHandler(valuePtr, valueSize, [this, key, errorHandler](bool success) {
             if (success) {
-                mStorage.remove(key.data(), key.size(), [errorHandler](const Akonadi2::Storage::Error &error) {
-                    qDebug() << "Error while removing value" << error.message;
-                    errorHandler(Error(error.store, error.code, "Error while removing value: " + error.message));
+                mStorage.remove(key.data(), key.size(), [errorHandler, key](const Akonadi2::Storage::Error &error) {
+                    ErrorMsg() << "Error while removing value" << error.message << key;
+                    //Don't call the errorhandler in here, we already called the result handler
                 });
                 if (isEmpty()) {
                     emit this->drained();
@@ -45,7 +47,7 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
         return false;
     },
     [errorHandler](const Akonadi2::Storage::Error &error) {
-        qDebug() << "Error while retrieving value" << error.message;
+        ErrorMsg() << "Error while retrieving value" << error.message;
         errorHandler(Error(error.store, error.code, error.message));
     }
     );
