@@ -30,6 +30,7 @@
 #include "clientapi.h"
 #include "index.h"
 #include "log.h"
+#include "domain/event.h"
 #include <QUuid>
 #include <assert.h>
 
@@ -106,35 +107,26 @@ static QMap<QString, QString> s_dataSource = populate();
 
 //FIXME We need to pass the resource-instance name to generic resource, not the plugin name
 DummyResource::DummyResource()
-    : Akonadi2::GenericResource(PLUGIN_NAME)
+    : Akonadi2::GenericResource(PLUGIN_NAME ".instance1")
 {
 }
 
 void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
 {
-    auto eventFactory = QSharedPointer<DummyEventAdaptorFactory>::create();
-    //FIXME we should setup for each resource entity type, not for each domain type
+    //TODO In case of a non 1:1 mapping between resource and domain types special handling is required.
     //i.e. If a resource stores tags as part of each message it needs to update the tag index
-    //TODO setup preprocessors for each resource entity type and pipeline type allowing full customization
-    //Eventually the order should be self configuring, for now it's hardcoded.
-    auto eventIndexer = new SimpleProcessor("summaryprocessor", [eventFactory](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
-        auto adaptor = eventFactory->createAdaptor(entity);
-        // Log() << "Summary preprocessor: " << adaptor->getProperty("summary").toString();
-    });
 
-    auto uidIndexer = new SimpleProcessor("uidIndexer", [eventFactory](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
-        static Index uidIndex(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", "org.kde.dummy.index.uid", Akonadi2::Storage::ReadWrite);
-
-        //TODO: Benchmark if this is performance wise acceptable, or if we have to access the buffer directly
+    auto eventFactory = QSharedPointer<DummyEventAdaptorFactory>::create();
+    const auto resourceIdentifier = mResourceInstanceIdentifier;
+    auto eventIndexer = new SimpleProcessor("eventIndexer", [eventFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
         auto adaptor = eventFactory->createAdaptor(entity);
-        const auto uid = adaptor->getProperty("uid");
-        if (uid.isValid()) {
-            uidIndex.add(uid.toByteArray(), state.key());
-        }
+        //FIXME set revision?
+        Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, adaptor);
+        Akonadi2::ApplicationDomain::EventImplementation::index(event);
     });
 
     //event is the entitytype and not the domain type
-    pipeline->setPreprocessors("event", Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer << uidIndexer);
+    pipeline->setPreprocessors("event", Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
     GenericResource::configurePipeline(pipeline);
 }
 

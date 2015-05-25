@@ -25,6 +25,7 @@ set(command_SRCS
     threadboundary.cpp
     messagequeue.cpp
     index.cpp
+    domain/event.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

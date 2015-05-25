@@ -104,9 +104,10 @@ public:
     {
 
     }
-    ApplicationDomainType(const QByteArray &resourceName, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
+
+    ApplicationDomainType(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
         : mAdaptor(adaptor),
-        mResourceName(resourceName),
+        mResourceInstanceIdentifier(resourceInstanceIdentifier),
         mIdentifier(identifier),
         mRevision(revision)
     {
@@ -117,7 +118,7 @@ public:
     {
         //TODO only copy requested properties
         auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create(*(domainType->mAdaptor));
-        return QSharedPointer<DomainType>::create(domainType->mResourceName, domainType->mIdentifier, domainType->mRevision, memoryAdaptor);
+        return QSharedPointer<DomainType>::create(domainType->mResourceInstanceIdentifier, domainType->mIdentifier, domainType->mRevision, memoryAdaptor);
     }
 
     virtual ~ApplicationDomainType() {}
@@ -126,6 +127,8 @@ public:
     virtual void setProperty(const QByteArray &key, const QVariant &value){ mChangeSet.insert(key, value); mAdaptor->setProperty(key, value); }
     virtual QByteArrayList changedProperties() const { return mChangeSet.keys(); }
     qint64 revision() const { return mRevision; }
+    QByteArray resourceInstanceIdentifier() const { return mResourceInstanceIdentifier; }
+    QByteArray identifier() const { return mIdentifier; }
 
 private:
     QSharedPointer<BufferAdaptor> mAdaptor;
@@ -133,7 +136,7 @@ private:
     /*
      * Each domain object needs to store the resource, identifier, revision triple so we can link back to the storage location.
      */
-    QByteArray mResourceName;
+    QByteArray mResourceInstanceIdentifier;
     QByteArray mIdentifier;
     qint64 mRevision;
 };

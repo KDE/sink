@@ -24,6 +24,8 @@
 
 #include "common/resourceaccess.h"
 #include "common/commands.h"
+#include "common/resultset.h"
+#include "common/domain/event.h"
 #include "dummycalendar_generated.h"
 #include "event_generated.h"
 #include "entity_generated.h"
@@ -126,60 +128,16 @@ void DummyResourceFacade::readValue(const QSharedPointer<Akonadi2::Storage> &sto
     });
 }
 
-/*
- * An iterator to a result set.
- *
- * We'll eventually want to lazy load results in next().
- */
-class ResultSet {
-    public:
-        ResultSet(const QVector<QByteArray> &resultSet)
-            : mResultSet(resultSet),
-            mIt(nullptr)
-        {
-
-        }
-
-        bool next()
-        {
-            if (!mIt) {
-                mIt = mResultSet.constBegin();
-            } else {
-                mIt++;
-            }
-            return mIt != mResultSet.constEnd();
-        }
-
-        QByteArray id()
-        {
-            return *mIt;
-        }
-
-    private:
-        QVector<QByteArray> mResultSet;
-        QVector<QByteArray>::ConstIterator mIt;
-};
-
 static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage)
 {
-    //Now that the sync is complete we can execute the query
-    const auto preparedQuery = prepareQuery(query);
-
-    //Index lookups
-    //TODO query standard indexes
-    QVector<QByteArray> keys;
-    if (query.propertyFilter.contains("uid")) {
-        static Index uidIndex(Akonadi2::Store::storageLocation(), "org.kde.dummy.index.uid", Akonadi2::Storage::ReadOnly);
-        uidIndex.lookup(query.propertyFilter.value("uid").toByteArray(), [&](const QByteArray &value) {
-            keys << value;
-        },
-        [](const Index::Error &error) {
-            Warning() << "Error in index: " <<  error.message;
-        });
-    }
+    auto resultSet = Akonadi2::ApplicationDomain::EventImplementation::queryIndexes(query, "org.kde.dummy");
 
     //Scan for where we don't have an index
-    if (keys.isEmpty()) {
+    //TODO: we may want a way for queryIndexes to indicate that the resultSet is not final, and that a scan over the remaining set is required
+    //TODO: the prepared query should be generalized in EventImplementation on top of domain adaptors
+    if (resultSet.isEmpty()) {
+        QVector<QByteArray> keys;
+        const auto preparedQuery = prepareQuery(query);
         scan(storage, QByteArray(), [preparedQuery, &keys](const QByteArray &key, const Akonadi2::Entity &entity, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local, Akonadi2::Metadata const *metadataBuffer) {
             //TODO use adapter for query and scan?
             if (preparedQuery && preparedQuery(std::string(key.constData(), key.size()), buffer, local)) {
@@ -187,9 +145,10 @@ static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer
             }
             return true;
         });
+        return ResultSet(keys);
     }
 
-    return ResultSet(keys);
+    return resultSet;
 }
 
 KAsync::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision)

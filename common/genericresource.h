@@ -34,7 +34,7 @@ namespace Akonadi2
 class AKONADI2COMMON_EXPORT GenericResource : public Resource
 {
 public:
-    GenericResource(const QByteArray &resourceIdentifier);
+    GenericResource(const QByteArray &resourceInstanceIdentifier);
     virtual ~GenericResource();
 
     virtual void processCommand(int commandId, const QByteArray &data, uint size, Pipeline *pipeline) Q_DECL_OVERRIDE;
@@ -50,6 +50,7 @@ protected:
     flatbuffers::FlatBufferBuilder m_fbb;
     MessageQueue mUserQueue;
     MessageQueue mSynchronizerQueue;
+    QByteArray mResourceInstanceIdentifier;
 
 private:
     Processor *mProcessor;
