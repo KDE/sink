@@ -126,8 +126,41 @@ void DummyResourceFacade::readValue(const QSharedPointer<Akonadi2::Storage> &sto
     });
 }
 
-//TODO this should return an iterator to the result set so we can lazy load
-static QVector<QByteArray> getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage)
+/*
+ * An iterator to a result set.
+ *
+ * We'll eventually want to lazy load results in next().
+ */
+class ResultSet {
+    public:
+        ResultSet(const QVector<QByteArray> &resultSet)
+            : mResultSet(resultSet),
+            mIt(nullptr)
+        {
+
+        }
+
+        bool next()
+        {
+            if (!mIt) {
+                mIt = mResultSet.constBegin();
+            } else {
+                mIt++;
+            }
+            return mIt != mResultSet.constEnd();
+        }
+
+        QByteArray id()
+        {
+            return *mIt;
+        }
+
+    private:
+        QVector<QByteArray> mResultSet;
+        QVector<QByteArray>::ConstIterator mIt;
+};
+
+static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage)
 {
     //Now that the sync is complete we can execute the query
     const auto preparedQuery = prepareQuery(query);
@@ -156,7 +189,7 @@ static QVector<QByteArray> getResultSet(const Akonadi2::Query &query, const QSha
         });
     }
 
-    return keys;
+    return ResultSet(keys);
 }
 
 KAsync::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision)
@@ -176,8 +209,8 @@ KAsync::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, cons
         // TODO only emit changes and don't replace everything
         resultProvider->clear();
         auto resultCallback = std::bind(&Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr>::add, resultProvider, std::placeholders::_1);
-        for (const auto &key : resultSet) {
-            readValue(storage, key, [resultCallback](const Akonadi2::ApplicationDomain::Event::Ptr &event) {
+        while (resultSet.next()) {
+            readValue(storage, resultSet.id(), [resultCallback](const Akonadi2::ApplicationDomain::Event::Ptr &event) {
                 //We create an in-memory copy because the result provider will store the value, and the result we get back is only valid during the callback
                 resultCallback(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<Akonadi2::ApplicationDomain::Event>(event));
             });
