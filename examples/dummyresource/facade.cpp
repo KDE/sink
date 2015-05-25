@@ -86,10 +86,9 @@ static std::function<bool(const std::string &key, DummyEvent const *buffer, Akon
     return preparedQuery;
 }
 
-void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback, std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local)> preparedQuery)
+static void scan(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, std::function<bool(const QByteArray &key, const Akonadi2::Entity &entity, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local, Akonadi2::Metadata const *metadata)> callback)
 {
     storage->scan(key, [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-
         //Skip internals
         if (Akonadi2::Storage::isInternalKey(keyValue, keySize)) {
             return true;
@@ -106,65 +105,82 @@ void DummyResourceFacade::readValue(QSharedPointer<Akonadi2::Storage> storage, c
             qWarning() << "invalid buffer " << QByteArray::fromRawData(static_cast<char*>(keyValue), keySize);
             return true;
         }
-
-        //We probably only want to create all buffers after the scan
-        //TODO use adapter for query and scan?
-        if (preparedQuery && preparedQuery(std::string(static_cast<char*>(keyValue), keySize), resourceBuffer, localBuffer)) {
-            qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-            //This only works for a 1:1 mapping of resource to domain types.
-            //Not i.e. for tags that are stored as flags in each entity of an imap store.
-            auto adaptor = mDomainTypeAdaptorFactory->createAdaptor(buffer.entity());
-            //TODO only copy requested properties
-            auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create(*adaptor);
-            // here we could copy additional properties that don't have a 1:1 mapping, such as separately stored tags.
-            auto event = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("org.kde.dummy", QByteArray::fromRawData(static_cast<char*>(keyValue), keySize), revision, memoryAdaptor);
-            resultCallback(event);
-        }
-        return true;
+        return callback(QByteArray::fromRawData(static_cast<char*>(keyValue), keySize), buffer.entity(), resourceBuffer, localBuffer, metadataBuffer);
     },
     [](const Akonadi2::Storage::Error &error) {
         qWarning() << "Error during query: " << error.message;
     });
 }
 
+void DummyResourceFacade::readValue(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback)
+{
+    scan(storage, key, [=](const QByteArray &key, const Akonadi2::Entity &entity, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local, Akonadi2::Metadata const *metadataBuffer) {
+        qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
+        //This only works for a 1:1 mapping of resource to domain types.
+        //Not i.e. for tags that are stored as flags in each entity of an imap store.
+        //additional properties that don't have a 1:1 mapping (such as separately stored tags),
+        //could be added to the adaptor
+        auto event = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("org.kde.dummy", key, revision, mDomainTypeAdaptorFactory->createAdaptor(entity));
+        resultCallback(event);
+        return true;
+    });
+}
+
+//TODO this should return an iterator to the result set so we can lazy load
+static QVector<QByteArray> getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage)
+{
+    //Now that the sync is complete we can execute the query
+    const auto preparedQuery = prepareQuery(query);
+
+    //Index lookups
+    //TODO query standard indexes
+    QVector<QByteArray> keys;
+    if (query.propertyFilter.contains("uid")) {
+        static Index uidIndex(Akonadi2::Store::storageLocation(), "org.kde.dummy.index.uid", Akonadi2::Storage::ReadOnly);
+        uidIndex.lookup(query.propertyFilter.value("uid").toByteArray(), [&](const QByteArray &value) {
+            keys << value;
+        },
+        [](const Index::Error &error) {
+            Warning() << "Error in index: " <<  error.message;
+        });
+    }
+
+    //Scan for where we don't have an index
+    if (keys.isEmpty()) {
+        scan(storage, QByteArray(), [preparedQuery, &keys](const QByteArray &key, const Akonadi2::Entity &entity, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local, Akonadi2::Metadata const *metadataBuffer) {
+            //TODO use adapter for query and scan?
+            if (preparedQuery && preparedQuery(std::string(key.constData(), key.size()), buffer, local)) {
+                keys << key;
+            }
+            return true;
+        });
+    }
+
+    return keys;
+}
+
 KAsync::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision)
 {
     return KAsync::start<qint64>([=]() {
-        //Now that the sync is complete we can execute the query
-        const auto preparedQuery = prepareQuery(query);
-
         auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
         storage->setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
             Warning() << "Error during query: " << error.store << error.message;
         });
 
         storage->startTransaction(Akonadi2::Storage::ReadOnly);
+        //TODO start transaction on indexes as well
         const qint64 revision = storage->maxRevision();
 
-        //Index lookups
-        QVector<QByteArray> keys;
-        if (query.propertyFilter.contains("uid")) {
-            static Index uidIndex(Akonadi2::Store::storageLocation(), "org.kde.dummy.index.uid", Akonadi2::Storage::ReadOnly);
-            uidIndex.lookup(query.propertyFilter.value("uid").toByteArray(), [&](const QByteArray &value) {
-                keys << value;
-            },
-            [](const Index::Error &error) {
-                Warning() << "Error in index: " <<  error.message;
-            });
-        }
+        auto resultSet = getResultSet(query, storage);
 
         // TODO only emit changes and don't replace everything
         resultProvider->clear();
-        // rerun query
         auto resultCallback = std::bind(&Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr>::add, resultProvider, std::placeholders::_1);
-
-        if (keys.isEmpty()) {
-            Log() << "Executing a full scan";
-            readValue(storage, QByteArray(), resultCallback, preparedQuery);
-        } else {
-            for (const auto &key : keys) {
-                readValue(storage, key, resultCallback, preparedQuery);
-            }
+        for (const auto &key : resultSet) {
+            readValue(storage, key, [resultCallback](const Akonadi2::ApplicationDomain::Event::Ptr &event) {
+                //We create an in-memory copy because the result provider will store the value, and the result we get back is only valid during the callback
+                resultCallback(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<Akonadi2::ApplicationDomain::Event>(event));
+            });
         }
         storage->abortTransaction();
         return revision;
