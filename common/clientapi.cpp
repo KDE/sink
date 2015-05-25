@@ -16,29 +16,6 @@ namespace async
 namespace Akonadi2
 {
 
-namespace ApplicationDomain
-{
-
-template<>
-QByteArray getTypeName<Event>()
-{
-    return "event";
-}
-
-template<>
-QByteArray getTypeName<Todo>()
-{
-    return "todo";
-}
-
-template<>
-QByteArray getTypeName<AkonadiResource>()
-{
-    return "akonadiresource";
-}
-
-} // namespace Domain
-
 void Store::shutdown(const QByteArray &identifier)
 {
     Trace() << "shutdown";
