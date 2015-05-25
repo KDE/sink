@@ -109,10 +109,6 @@ private slots:
                         }
                         auto queuedCommand = Akonadi2::GetQueuedCommand(ptr);
                         Trace() << "Dequeued Command: " << Akonadi2::Commands::name(queuedCommand->commandId());
-                        //TODO JOBAPI: job lifetime management
-                        //Right now we're just leaking jobs. In this case we'd like jobs that are heap allocated and delete
-                        //themselves once done. In other cases we'd like jobs that only live as long as their handle though.
-                        //FIXME this job is stack allocated and thus simply dies....
                         processQueuedCommand(queuedCommand).then<void>(
                             [callback]() {
                                 callback(true);
