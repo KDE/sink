@@ -51,7 +51,7 @@ class ResultSet {
 
         bool isEmpty()
         {
-            mResultSet.isEmpty();
+            return mResultSet.isEmpty();
         }
 
     private:
