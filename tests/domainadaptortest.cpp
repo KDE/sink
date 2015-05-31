@@ -13,7 +13,7 @@
 #include "metadata_generated.h"
 #include "entity_generated.h"
 
-class TestFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Buffer::Event, Akonadi2::ApplicationDomain::Buffer::Event, Akonadi2::ApplicationDomain::Buffer::EventBuilder, Akonadi2::ApplicationDomain::Buffer::EventBuilder>
+class TestFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Buffer::Event, Akonadi2::ApplicationDomain::Buffer::EventBuilder>
 {
 public:
     TestFactory()

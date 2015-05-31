@@ -41,7 +41,10 @@ namespace ApplicationDomain {
  * Implements all type-specific code such as updating and querying indexes.
  */
 template<>
-struct TypeImplementation<Akonadi2::ApplicationDomain::Event> {
+class TypeImplementation<Akonadi2::ApplicationDomain::Event> {
+public:
+    typedef Akonadi2::ApplicationDomain::Buffer::Event Buffer;
+    typedef Akonadi2::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
     /**
      * Returns the potential result set based on the indexes.
      * 
@@ -49,8 +52,8 @@ struct TypeImplementation<Akonadi2::ApplicationDomain::Event> {
      */
     static ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier);
     static void index(const Event &type);
-    static QSharedPointer<ReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > initializeReadPropertyMapper();
-    static QSharedPointer<WritePropertyMapper<Akonadi2::ApplicationDomain::Buffer::EventBuilder> > initializeWritePropertyMapper();
+    static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();
+    static QSharedPointer<WritePropertyMapper<BufferBuilder> > initializeWritePropertyMapper();
 };
 
 }

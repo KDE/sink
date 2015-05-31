@@ -56,28 +56,28 @@ void TypeImplementation<Event>::index(const Event &type)
     }
 }
 
-QSharedPointer<ReadPropertyMapper<Buffer::Event> > TypeImplementation<Event>::initializeReadPropertyMapper()
+QSharedPointer<ReadPropertyMapper<TypeImplementation<Event>::Buffer> > TypeImplementation<Event>::initializeReadPropertyMapper()
 {
-    auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer::Event> >::create();
-    propertyMapper->addMapping("summary", [](Buffer::Event const *buffer) -> QVariant {
+    auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();
+    propertyMapper->addMapping("summary", [](Buffer const *buffer) -> QVariant {
         return propertyToVariant<QString>(buffer->summary());
     });
-    propertyMapper->addMapping("uid", [](Buffer::Event const *buffer) -> QVariant {
+    propertyMapper->addMapping("uid", [](Buffer const *buffer) -> QVariant {
         return propertyToVariant<QString>(buffer->uid());
     });
     return propertyMapper;
 }
 
-QSharedPointer<WritePropertyMapper<Buffer::EventBuilder> > TypeImplementation<Event>::initializeWritePropertyMapper()
+QSharedPointer<WritePropertyMapper<TypeImplementation<Event>::BufferBuilder> > TypeImplementation<Event>::initializeWritePropertyMapper()
 {
-    auto propertyMapper = QSharedPointer<WritePropertyMapper<Buffer::EventBuilder> >::create();
-    propertyMapper->addMapping("summary", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(Buffer::EventBuilder &)> {
+    auto propertyMapper = QSharedPointer<WritePropertyMapper<BufferBuilder> >::create();
+    propertyMapper->addMapping("summary", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
         auto offset = variantToProperty<QString>(value, fbb);
-        return [offset](Buffer::EventBuilder &builder) { builder.add_summary(offset); };
+        return [offset](BufferBuilder &builder) { builder.add_summary(offset); };
     });
-    propertyMapper->addMapping("uid", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(Buffer::EventBuilder &)> {
+    propertyMapper->addMapping("uid", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
         auto offset = variantToProperty<QString>(value, fbb);
-        return [offset](Buffer::EventBuilder &builder) { builder.add_uid(offset); };
+        return [offset](BufferBuilder &builder) { builder.add_uid(offset); };
     });
     return propertyMapper;
 }

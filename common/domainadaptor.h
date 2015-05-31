@@ -25,7 +25,6 @@
 #include <functional>
 #include "clientapi.h" //for domain parts
 
-#include "event_generated.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
 #include "entitybuffer.h"
@@ -103,17 +102,6 @@ public:
     QSharedPointer<ReadPropertyMapper<ResourceBuffer> > mResourceMapper;
 };
 
-/**
- * Initializes the local property mapper.
- *
- * Provide an implementation for each application domain type.
- */
-template <class T>
-QSharedPointer<ReadPropertyMapper<T> > initializeReadPropertyMapper();
-
-template <class T>
-QSharedPointer<WritePropertyMapper<T> > initializeWritePropertyMapper();
-
 template<typename DomainType>
 class DomainTypeAdaptorFactoryInterface
 {
@@ -128,9 +116,11 @@ public:
  * It defines how values are split accross local and resource buffer.
  * This is required by the facade the read the value, and by the pipeline preprocessors to access the domain values in a generic way.
  */
-template<typename DomainType, typename LocalBuffer, typename ResourceBuffer, typename LocalBuilder, typename ResourceBuilder>
+template<typename DomainType, typename ResourceBuffer, typename ResourceBuilder>
 class DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInterface<DomainType>
 {
+    typedef typename Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::Buffer LocalBuffer;
+    typedef typename Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::BufferBuilder LocalBuilder;
 public:
     DomainTypeAdaptorFactory() :
         mLocalMapper(Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::initializeReadPropertyMapper()),

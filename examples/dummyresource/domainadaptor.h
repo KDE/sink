@@ -5,7 +5,7 @@
 #include "dummycalendar_generated.h"
 #include "entity_generated.h"
 
-class DummyEventAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Buffer::Event, DummyCalendar::DummyEvent, Akonadi2::ApplicationDomain::Buffer::EventBuilder, DummyCalendar::DummyEventBuilder>
+class DummyEventAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, DummyCalendar::DummyEvent, DummyCalendar::DummyEventBuilder>
 {
 public:
     DummyEventAdaptorFactory();
