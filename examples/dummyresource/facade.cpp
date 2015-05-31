@@ -130,11 +130,11 @@ void DummyResourceFacade::readValue(const QSharedPointer<Akonadi2::Storage> &sto
 
 static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage)
 {
-    auto resultSet = Akonadi2::ApplicationDomain::EventImplementation::queryIndexes(query, "org.kde.dummy");
+    auto resultSet = Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::queryIndexes(query, "org.kde.dummy");
 
     //Scan for where we don't have an index
     //TODO: we may want a way for queryIndexes to indicate that the resultSet is not final, and that a scan over the remaining set is required
-    //TODO: the prepared query should be generalized in EventImplementation on top of domain adaptors
+    //TODO: the prepared query should be generalized in TypeImplementation on top of domain adaptors
     if (resultSet.isEmpty()) {
         QVector<QByteArray> keys;
         const auto preparedQuery = prepareQuery(query);

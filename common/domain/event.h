@@ -23,23 +23,34 @@
 class ResultSet;
 class QByteArray;
 
+template<typename T>
+class ReadPropertyMapper;
+template<typename T>
+class WritePropertyMapper;
+
 namespace Akonadi2 {
     class Query;
 
 namespace ApplicationDomain {
+    namespace Buffer {
+        class Event;
+        class EventBuilder;
+    }
 
 /**
  * Implements all type-specific code such as updating and querying indexes.
  */
-namespace EventImplementation {
-    typedef Event DomainType;
+template<>
+struct TypeImplementation<Akonadi2::ApplicationDomain::Event> {
     /**
      * Returns the potential result set based on the indexes.
      * 
      * An empty result set indicates that a full scan is required.
      */
-    ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier);
-    void index(const Event &type);
+    static ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier);
+    static void index(const Event &type);
+    static QSharedPointer<ReadPropertyMapper<Akonadi2::ApplicationDomain::Buffer::Event> > initializeReadPropertyMapper();
+    static QSharedPointer<WritePropertyMapper<Akonadi2::ApplicationDomain::Buffer::EventBuilder> > initializeWritePropertyMapper();
 };
 
 }

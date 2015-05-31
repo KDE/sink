@@ -130,5 +130,14 @@ QByteArray getTypeName<Todo>();
 template<>
 QByteArray getTypeName<AkonadiResource>();
 
+/**
+ * Type implementation.
+ * 
+ * Needs to be implemented for every application domain type.
+ * Contains all non-resource specific, but type-specific code.
+ */
+template<typename DomainType>
+class TypeImplementation;
+
 }
 }

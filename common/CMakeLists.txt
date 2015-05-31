@@ -17,6 +17,7 @@ set(command_SRCS
     commands.cpp
     facade.cpp
     pipeline.cpp
+    propertymapper.cpp
     domainadaptor.cpp
     resource.cpp
     genericresource.cpp

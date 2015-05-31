@@ -122,7 +122,7 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
         auto adaptor = eventFactory->createAdaptor(entity);
         //FIXME set revision?
         Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, adaptor);
-        Akonadi2::ApplicationDomain::EventImplementation::index(event);
+        Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::index(event);
     });
 
     //event is the entitytype and not the domain type

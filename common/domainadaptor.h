@@ -29,65 +29,8 @@
 #include "entity_generated.h"
 #include "metadata_generated.h"
 #include "entitybuffer.h"
-
-/**
- * The property mapper is a non-typesafe virtual dispatch.
- *
- * Instead of using an interface and requring each implementation to override
- * a virtual method per property, the property mapper can be filled with accessors
- * that extract the properties from resource types.
- */
-template<typename BufferType>
-class ReadPropertyMapper
-{
-public:
-    virtual QVariant getProperty(const QByteArray &key, BufferType const *buffer) const
-    {
-        if (mReadAccessors.contains(key)) {
-            auto accessor = mReadAccessors.value(key);
-            return accessor(buffer);
-        }
-        return QVariant();
-    }
-    bool hasMapping(const QByteArray &key) const { return mReadAccessors.contains(key); }
-    QList<QByteArray> availableProperties() const { return mReadAccessors.keys(); }
-    void addMapping(const QByteArray &property, const std::function<QVariant(BufferType const *)> &mapping) {
-        mReadAccessors.insert(property, mapping);
-    }
-private:
-    QHash<QByteArray, std::function<QVariant(BufferType const *)> > mReadAccessors;
-};
-
-template<typename BufferBuilder>
-class WritePropertyMapper
-{
-public:
-    virtual void setProperty(const QByteArray &key, const QVariant &value, QList<std::function<void(BufferBuilder &)> > &builderCalls, flatbuffers::FlatBufferBuilder &fbb) const
-    {
-        if (mWriteAccessors.contains(key)) {
-            auto accessor = mWriteAccessors.value(key);
-            builderCalls << accessor(value, fbb);
-        }
-    }
-    bool hasMapping(const QByteArray &key) const { return mWriteAccessors.contains(key); }
-    void addMapping(const QByteArray &property, const std::function<std::function<void(BufferBuilder &)>(const QVariant &, flatbuffers::FlatBufferBuilder &)> &mapping) {
-        mWriteAccessors.insert(property, mapping);
-    }
-private:
-    QHash<QByteArray, std::function<std::function<void(BufferBuilder &)>(const QVariant &, flatbuffers::FlatBufferBuilder &)> > mWriteAccessors;
-};
-
-/**
- * Defines how to convert qt primitives to flatbuffer ones
- */
-template <class T>
-flatbuffers::uoffset_t variantToProperty(const QVariant &, flatbuffers::FlatBufferBuilder &fbb);
-
-/**
- * Defines how to convert flatbuffer primitives to qt ones
- */
-template <typename T>
-QVariant propertyToVariant(const flatbuffers::String *);
+#include "propertymapper.h"
+#include "domain/event.h"
 
 /**
  * Create a buffer from a domain object using the provided mappings
@@ -177,7 +120,7 @@ class DomainTypeAdaptorFactoryInterface
 public:
     virtual ~DomainTypeAdaptorFactoryInterface() {};
     virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity) = 0;
-    virtual void createBuffer(const DomainType &event, flatbuffers::FlatBufferBuilder &fbb) = 0;
+    virtual void createBuffer(const DomainType &domainType, flatbuffers::FlatBufferBuilder &fbb) = 0;
 };
 
 /**
@@ -190,9 +133,9 @@ class DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInterface<Domain
 {
 public:
     DomainTypeAdaptorFactory() :
-        mLocalMapper(initializeReadPropertyMapper<LocalBuffer>()),
+        mLocalMapper(Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::initializeReadPropertyMapper()),
         mResourceMapper(QSharedPointer<ReadPropertyMapper<ResourceBuffer> >::create()),
-        mLocalWriteMapper(initializeWritePropertyMapper<LocalBuilder>()),
+        mLocalWriteMapper(Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::initializeWritePropertyMapper()),
         mResourceWriteMapper(QSharedPointer<WritePropertyMapper<ResourceBuilder> >::create())
     {};
     virtual ~DomainTypeAdaptorFactory() {};
@@ -216,7 +159,7 @@ public:
         return adaptor;
     }
 
-    virtual void createBuffer(const Akonadi2::ApplicationDomain::Event &event, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE {};
+    virtual void createBuffer(const DomainType &domainType, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE {};
 
 protected:
     QSharedPointer<ReadPropertyMapper<LocalBuffer> > mLocalMapper;

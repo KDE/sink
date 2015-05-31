@@ -17,5 +17,23 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include "domainadaptor.h"
+#include "propertymapper.h"
+
+template <>
+flatbuffers::uoffset_t variantToProperty<QString>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
+{
+    if (property.isValid()) {
+        return fbb.CreateString(property.toString().toStdString()).o;
+    }
+    return 0;
+}
+
+template <>
+QVariant propertyToVariant<QString>(const flatbuffers::String *property)
+{
+    if (property) {
+        return QString::fromStdString(property->c_str());
+    }
+    return QVariant();
+}
 

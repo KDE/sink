@@ -18,7 +18,7 @@ class TestFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain:
 public:
     TestFactory()
     {
-        mResourceWriteMapper = initializeWritePropertyMapper<Akonadi2::ApplicationDomain::Buffer::EventBuilder>();
+        mResourceWriteMapper = Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::initializeWritePropertyMapper();
     }
 };
 
@@ -36,7 +36,7 @@ private Q_SLOTS:
 
     void testCreateBufferPart()
     {
-        auto writeMapper = initializeWritePropertyMapper<Akonadi2::ApplicationDomain::Buffer::EventBuilder>();
+        auto writeMapper = Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::initializeWritePropertyMapper();
 
         Akonadi2::ApplicationDomain::Event event;
         event.setProperty("summary", "foo");
