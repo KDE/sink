@@ -30,6 +30,7 @@
 #include "entitybuffer.h"
 #include "propertymapper.h"
 #include "domain/event.h"
+#include "log.h"
 
 /**
  * Create a buffer from a domain object using the provided mappings
@@ -55,6 +56,25 @@ flatbuffers::Offset<Buffer> createBufferPart(const Akonadi2::ApplicationDomain::
         propertyBuilder(builder);
     }
     return builder.Finish();
+}
+
+/**
+ * Create the buffer and finish the FlatBufferBuilder.
+ * 
+ * After this the buffer can be extracted from the FlatBufferBuilder object.
+ */
+template <typename Buffer, typename BufferBuilder>
+static void createBufferPartBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, WritePropertyMapper<BufferBuilder> &mapper)
+{
+    auto pos = createBufferPart<BufferBuilder, Buffer>(domainObject, fbb, mapper);
+    // Because we cannot template the following call
+    // Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(fbb, pos);
+    // FIXME: This means all buffers in here must have the AKFB identifier
+    fbb.Finish(pos, "AKFB");
+    flatbuffers::Verifier verifier(fbb.GetBufferPointer(), fbb.GetSize());
+    if (!verifier.VerifyBuffer<Buffer>()) {
+        Warning() << "Created invalid uffer";
+    }
 }
 
 /**
@@ -149,7 +169,21 @@ public:
         return adaptor;
     }
 
-    virtual void createBuffer(const DomainType &domainType, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE {};
+    virtual void createBuffer(const DomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE
+    {
+        flatbuffers::FlatBufferBuilder localFbb;
+        if (mLocalWriteMapper) {
+            createBufferPartBuffer<LocalBuffer, LocalBuilder>(domainObject, localFbb, *mLocalWriteMapper);
+        }
+
+        flatbuffers::FlatBufferBuilder resFbb;
+        if (mResourceWriteMapper) {
+            createBufferPartBuffer<ResourceBuffer, ResourceBuilder>(domainObject, resFbb, *mResourceWriteMapper);
+        }
+
+        Akonadi2::EntityBuffer::assembleEntityBuffer(fbb, 0, 0, resFbb.GetBufferPointer(), resFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
+    }
+
 
 protected:
     QSharedPointer<ReadPropertyMapper<LocalBuffer> > mLocalMapper;
