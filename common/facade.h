@@ -121,7 +121,7 @@ public:
         return Akonadi2::ApplicationDomain::getTypeName<DomainType>();
     }
 
-    KAsync::Job<void> create(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
+    KAsync::Job<void> create(const DomainType &domainObject) Q_DECL_OVERRIDE
     {
         if (!mDomainTypeAdaptorFactory) {
             Warning() << "No domain type adaptor factory available";
@@ -131,13 +131,13 @@ public:
         return sendCreateCommand(bufferTypeForDomainType(), QByteArray::fromRawData(reinterpret_cast<const char*>(entityFbb.GetBufferPointer()), entityFbb.GetSize()));
     }
 
-    KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
+    KAsync::Job<void> modify(const DomainType &domainObject) Q_DECL_OVERRIDE
     {
         //TODO
         return KAsync::null<void>();
     }
 
-    KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE
+    KAsync::Job<void> remove(const DomainType &domainObject) Q_DECL_OVERRIDE
     {
         //TODO
         return KAsync::null<void>();
