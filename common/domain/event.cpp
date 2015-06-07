@@ -32,7 +32,7 @@
 
 using namespace Akonadi2::ApplicationDomain;
 
-ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier)
+ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters)
 {
     QVector<QByteArray> keys;
     if (query.propertyFilter.contains("uid")) {
@@ -43,6 +43,7 @@ ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, 
         [](const Index::Error &error) {
             Warning() << "Error in index: " <<  error.message;
         });
+        appliedFilters << "uid";
     }
     return ResultSet(keys);
 }

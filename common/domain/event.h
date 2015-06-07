@@ -39,18 +39,21 @@ namespace ApplicationDomain {
 
 /**
  * Implements all type-specific code such as updating and querying indexes.
+ * 
+ * These are type specifiy default implementations. Theoretically a resource could implement it's own implementation.
  */
 template<>
 class TypeImplementation<Akonadi2::ApplicationDomain::Event> {
 public:
     typedef Akonadi2::ApplicationDomain::Buffer::Event Buffer;
     typedef Akonadi2::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
+    static QSet<QByteArray> indexedProperties();
     /**
      * Returns the potential result set based on the indexes.
      * 
      * An empty result set indicates that a full scan is required.
      */
-    static ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier);
+    static ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters);
     static void index(const Event &type);
     static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();
     static QSharedPointer<WritePropertyMapper<BufferBuilder> > initializeWritePropertyMapper();

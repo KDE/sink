@@ -48,46 +48,6 @@ DummyResourceFacade::~DummyResourceFacade()
 {
 }
 
-static std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local)> prepareQuery(const Akonadi2::Query &query)
-{
-    //Compose some functions to make query matching fast.
-    //This way we can process the query once, and convert all values into something that can be compared quickly
-    std::function<bool(const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local)> preparedQuery;
-    if (!query.ids.isEmpty()) {
-        //Match by id
-        //TODO: for id's a direct lookup would be way faster
-
-        //We convert the id's to std::string so we don't have to convert each key during the scan. (This runs only once, and the query will be run for every key)
-        //Probably a premature optimization, but perhaps a useful technique to be investigated.
-        QVector<std::string> ids;
-        for (const auto &id : query.ids) {
-            ids << id.toStdString();
-        }
-        preparedQuery = [ids](const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local) {
-            if (ids.contains(key)) {
-                return true;
-            }
-            return false;
-        };
-    } else if (!query.propertyFilter.isEmpty()) {
-        if (query.propertyFilter.contains("uid")) {
-            const QByteArray uid = query.propertyFilter.value("uid").toByteArray();
-            preparedQuery = [uid](const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local) {
-                if (local && local->uid() && (QByteArray::fromRawData(local->uid()->c_str(), local->uid()->size()) == uid)) {
-                    return true;
-                }
-                return false;
-            };
-        }
-    } else {
-        //Match everything
-        preparedQuery = [](const std::string &key, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local) {
-            return true;
-        };
-    }
-    return preparedQuery;
-}
-
 static void scan(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, std::function<bool(const QByteArray &key, const Akonadi2::Entity &entity, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local, Akonadi2::Metadata const *metadata)> callback)
 {
     storage->scan(key, [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
@@ -130,22 +90,17 @@ void DummyResourceFacade::readValue(const QSharedPointer<Akonadi2::Storage> &sto
 
 static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage)
 {
-    auto resultSet = Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::queryIndexes(query, "org.kde.dummy");
+    QSet<QByteArray> appliedFilters;
+    ResultSet resultSet = Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::queryIndexes(query, "org.kde.dummy", appliedFilters);
+    const auto remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
 
-    //Scan for where we don't have an index
-    //TODO: we may want a way for queryIndexes to indicate that the resultSet is not final, and that a scan over the remaining set is required
-    //TODO: the prepared query should be generalized in TypeImplementation on top of domain adaptors
     if (resultSet.isEmpty()) {
         QVector<QByteArray> keys;
-        const auto preparedQuery = prepareQuery(query);
-        scan(storage, QByteArray(), [preparedQuery, &keys](const QByteArray &key, const Akonadi2::Entity &entity, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local, Akonadi2::Metadata const *metadataBuffer) {
-            //TODO use adapter for query and scan?
-            if (preparedQuery && preparedQuery(std::string(key.constData(), key.size()), buffer, local)) {
-                keys << key;
-            }
+        scan(storage, QByteArray(), [=, &keys](const QByteArray &key, const Akonadi2::Entity &entity, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local, Akonadi2::Metadata const *metadataBuffer) {
+            keys << key;
             return true;
         });
-        return ResultSet(keys);
+        resultSet = ResultSet(keys);
     }
 
     return resultSet;
