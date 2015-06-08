@@ -40,7 +40,7 @@ using namespace flatbuffers;
 
 
 DummyResourceFacade::DummyResourceFacade()
-    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>("org.kde.dummy", QSharedPointer<DummyEventAdaptorFactory>::create())
+    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>("org.kde.dummy.instance1", QSharedPointer<DummyEventAdaptorFactory>::create())
 {
 }
 
@@ -82,7 +82,7 @@ void DummyResourceFacade::readValue(const QSharedPointer<Akonadi2::Storage> &sto
         //Not i.e. for tags that are stored as flags in each entity of an imap store.
         //additional properties that don't have a 1:1 mapping (such as separately stored tags),
         //could be added to the adaptor
-        auto event = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("org.kde.dummy", key, revision, mDomainTypeAdaptorFactory->createAdaptor(entity));
+        auto event = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("org.kde.dummy.instance1", key, revision, mDomainTypeAdaptorFactory->createAdaptor(entity));
         resultCallback(event);
         return true;
     });
@@ -91,7 +91,7 @@ void DummyResourceFacade::readValue(const QSharedPointer<Akonadi2::Storage> &sto
 static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage)
 {
     QSet<QByteArray> appliedFilters;
-    ResultSet resultSet = Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::queryIndexes(query, "org.kde.dummy", appliedFilters);
+    ResultSet resultSet = Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::queryIndexes(query, "org.kde.dummy.instance1", appliedFilters);
     const auto remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
 
     if (resultSet.isEmpty()) {
@@ -109,7 +109,7 @@ static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer
 KAsync::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision)
 {
     return KAsync::start<qint64>([=]() {
-        auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
+        auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy.instance1");
         storage->setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
             Warning() << "Error during query: " << error.store << error.message;
         });

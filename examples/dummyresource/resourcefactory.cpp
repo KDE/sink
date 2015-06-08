@@ -158,7 +158,7 @@ KAsync::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipel
 {
     return KAsync::start<void>([this, pipeline](KAsync::Future<void> &f) {
         //TODO use a read-only transaction during the complete sync to sync against a defined revision
-        auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy");
+        auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy.instance1");
         for (auto it = s_dataSource.constBegin(); it != s_dataSource.constEnd(); it++) {
             bool isNew = true;
             if (storage->exists()) {

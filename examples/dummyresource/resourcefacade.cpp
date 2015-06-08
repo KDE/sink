@@ -78,6 +78,6 @@ KAsync::Job<void> DummyResourceConfigFacade::load(const Akonadi2::Query &query, 
         //
         //TODO use correct instance identifier
         //TODO key == instance identifier ?
-        resultProvider->add(QSharedPointer<Akonadi2::ApplicationDomain::AkonadiResource>::create("org.kde.dummy", "org.kde.dummy.config", 0, memoryAdaptor));
+        resultProvider->add(QSharedPointer<Akonadi2::ApplicationDomain::AkonadiResource>::create("org.kde.dummy.instance1", "org.kde.dummy.config", 0, memoryAdaptor));
     });
 }

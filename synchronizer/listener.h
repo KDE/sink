@@ -90,6 +90,7 @@ private:
     QVector<Client> m_connections;
     flatbuffers::FlatBufferBuilder m_fbb;
     const QByteArray m_resourceName;
+    const QByteArray m_resourceInstanceIdentifier;
     Akonadi2::Resource *m_resource;
     Akonadi2::Pipeline *m_pipeline;
     QTimer *m_clientBufferProcessesTimer;

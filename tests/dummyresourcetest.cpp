@@ -26,19 +26,19 @@ private Q_SLOTS:
     {
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
-        removeFromDisk("org.kde.dummy");
-        removeFromDisk("org.kde.dummy.userqueue");
-        removeFromDisk("org.kde.dummy.synchronizerqueue");
-        removeFromDisk("org.kde.dummy.index.uid");
+        removeFromDisk("org.kde.dummy.instance1");
+        removeFromDisk("org.kde.dummy.instance1.userqueue");
+        removeFromDisk("org.kde.dummy.instance1.synchronizerqueue");
+        removeFromDisk("org.kde.dummy.instance1.index.uid");
     }
 
     void cleanup()
     {
-        Akonadi2::Store::shutdown("org.kde.dummy");
-        removeFromDisk("org.kde.dummy");
-        removeFromDisk("org.kde.dummy.userqueue");
-        removeFromDisk("org.kde.dummy.synchronizerqueue");
-        removeFromDisk("org.kde.dummy.index.uid");
+        Akonadi2::Store::shutdown("org.kde.dummy.instance1");
+        removeFromDisk("org.kde.dummy.instance1");
+        removeFromDisk("org.kde.dummy.instance1.userqueue");
+        removeFromDisk("org.kde.dummy.instance1.synchronizerqueue");
+        removeFromDisk("org.kde.dummy.instance1.index.uid");
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
     }
@@ -83,7 +83,7 @@ private Q_SLOTS:
         }
 
         //Actual test
-        Akonadi2::Pipeline pipeline("org.kde.dummy");
+        Akonadi2::Pipeline pipeline("org.kde.dummy.instance1");
         QSignalSpy revisionSpy(&pipeline, SIGNAL(revisionUpdated()));
         DummyResource resource;
         resource.configurePipeline(&pipeline);
@@ -109,10 +109,10 @@ private Q_SLOTS:
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
 
         Akonadi2::Query query;
-        query.resources << "org.kde.dummy";
+        query.resources << "org.kde.dummy.instance1";
         query.syncOnDemand = false;
         query.processAll = true;
 
@@ -126,7 +126,7 @@ private Q_SLOTS:
 
     void testResourceSync()
     {
-        Akonadi2::Pipeline pipeline("org.kde.dummy");
+        Akonadi2::Pipeline pipeline("org.kde.dummy.instance1");
         DummyResource resource;
         resource.configurePipeline(&pipeline);
         auto job = resource.synchronizeWithSource(&pipeline);
@@ -143,7 +143,7 @@ private Q_SLOTS:
     void testSyncAndFacade()
     {
         Akonadi2::Query query;
-        query.resources << "org.kde.dummy";
+        query.resources << "org.kde.dummy.instance1";
         query.syncOnDemand = true;
         query.processAll = true;
 

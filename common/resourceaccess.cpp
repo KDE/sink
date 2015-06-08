@@ -69,10 +69,11 @@ public:
 class ResourceAccess::Private
 {
 public:
-    Private(const QByteArray &name, ResourceAccess *ra);
+    Private(const QByteArray &name, const QByteArray &instanceIdentifier, ResourceAccess *ra);
     KAsync::Job<void> tryToConnect();
     KAsync::Job<void> initializeSocket();
     QByteArray resourceName;
+    QByteArray resourceInstanceIdentifier;
     QSharedPointer<QLocalSocket> socket;
     QByteArray partialMessageBuffer;
     flatbuffers::FlatBufferBuilder fbb;
@@ -82,8 +83,9 @@ public:
     uint messageId;
 };
 
-ResourceAccess::Private::Private(const QByteArray &name, ResourceAccess *q)
+ResourceAccess::Private::Private(const QByteArray &name, const QByteArray &instanceIdentifier, ResourceAccess *q)
     : resourceName(name),
+      resourceInstanceIdentifier(instanceIdentifier),
       messageId(0)
 {
 }
@@ -118,7 +120,7 @@ KAsync::Job<void> ResourceAccess::Private::tryToConnect()
     [this](KAsync::Future<void> &future) {
         Trace() << "Loop";
         KAsync::wait(50)
-        .then(connectToServer(resourceName))
+        .then(connectToServer(resourceInstanceIdentifier))
         .then<void, QSharedPointer<QLocalSocket> >([this, &future](const QSharedPointer<QLocalSocket> &s) {
             Q_ASSERT(s);
             socket = s;
@@ -134,7 +136,7 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
 {
     return KAsync::start<void>([this](KAsync::Future<void> &future) {
         Trace() << "Trying to connect";
-        connectToServer(resourceName).then<void, QSharedPointer<QLocalSocket> >([this, &future](const QSharedPointer<QLocalSocket> &s) {
+        connectToServer(resourceInstanceIdentifier).then<void, QSharedPointer<QLocalSocket> >([this, &future](const QSharedPointer<QLocalSocket> &s) {
             Trace() << "Connected to resource, without having to start it.";
             Q_ASSERT(s);
             socket = s;
@@ -144,7 +146,7 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
             Trace() << "Failed to connect, starting resource";
             //We failed to connect, so let's start the resource
             QStringList args;
-            args << resourceName;
+            args << resourceInstanceIdentifier;
             qint64 pid = 0;
             if (QProcess::startDetached("akonadi2_synchronizer", args, QDir::homePath(), &pid)) {
                 Trace() << "Started resource " << pid;
@@ -159,9 +161,16 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
     });
 }
 
-ResourceAccess::ResourceAccess(const QByteArray &resourceName, QObject *parent)
+static QByteArray getResourceName(const QByteArray &instanceIdentifier)
+{
+    auto split = instanceIdentifier.split('.');
+    split.removeLast();
+    return split.join('.');
+}
+
+ResourceAccess::ResourceAccess(const QByteArray &resourceInstanceIdentifier, QObject *parent)
     : QObject(parent),
-      d(new Private(resourceName, this))
+      d(new Private(getResourceName(resourceInstanceIdentifier), resourceInstanceIdentifier, this))
 {
     log("Starting access");
 }
@@ -316,7 +325,7 @@ void ResourceAccess::disconnected()
 void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
 {
     if (error == QLocalSocket::PeerClosedError) {
-        Log(d->resourceName) << "The resource closed the connection.";
+        Log(d->resourceInstanceIdentifier) << "The resource closed the connection.";
     } else {
         Warning() << QString("Connection error: %1 : %2").arg(error).arg(d->socket->errorString());
     }
@@ -379,7 +388,7 @@ bool ResourceAccess::processMessageBuffer()
             auto buffer = GetNotification(d->partialMessageBuffer.constData() + headerSize);
             switch (buffer->type()) {
                 case Akonadi2::NotificationType::NotificationType_Shutdown:
-                    Log(d->resourceName) << "Received shutdown notification.";
+                    Log(d->resourceInstanceIdentifier) << "Received shutdown notification.";
                     close();
                     break;
                 default:
@@ -406,7 +415,7 @@ void ResourceAccess::callCallbacks(int id)
 
 void ResourceAccess::log(const QString &message)
 {
-    Log(d->resourceName) << this << message;
+    Log(d->resourceInstanceIdentifier) << this << message;
 }
 
 }

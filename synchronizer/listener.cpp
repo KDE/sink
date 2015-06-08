@@ -35,12 +35,13 @@
 #include <QTimer>
 #include <QLockFile>
 
-Listener::Listener(const QByteArray &resourceName, QObject *parent)
+Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent)
     : QObject(parent),
       m_server(new QLocalServer(this)),
-      m_resourceName(resourceName),
+      m_resourceName(Akonadi2::Store::resourceName(resourceInstanceIdentifier)),
+      m_resourceInstanceIdentifier(resourceInstanceIdentifier),
       m_resource(0),
-      m_pipeline(new Akonadi2::Pipeline(resourceName, parent)),
+      m_pipeline(new Akonadi2::Pipeline(resourceInstanceIdentifier, parent)),
       m_clientBufferProcessesTimer(new QTimer(this)),
       m_messageId(0)
 {
@@ -48,19 +49,19 @@ Listener::Listener(const QByteArray &resourceName, QObject *parent)
             this, &Listener::refreshRevision);
     connect(m_server, &QLocalServer::newConnection,
              this, &Listener::acceptConnection);
-    Trace() << "Trying to open " << m_resourceName;
+    Trace() << "Trying to open " << m_resourceInstanceIdentifier;
 
-    m_lockfile = new QLockFile(resourceName + ".lock");
+    m_lockfile = new QLockFile(m_resourceInstanceIdentifier + ".lock");
     m_lockfile->setStaleLockTime(0);
     if (!m_lockfile->tryLock(0)) {
         Warning() << "Failed to acquire exclusive lock on socket.";
         exit(-1);
     }
 
-    if (!m_server->listen(QString::fromLatin1(resourceName))) {
+    if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
         // FIXME: multiple starts need to be handled here
-        m_server->removeServer(resourceName);
-        if (!m_server->listen(QString::fromLatin1(resourceName))) {
+        m_server->removeServer(m_resourceInstanceIdentifier);
+        if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
             Warning() << "Utter failure to start server";
             exit(-1);
         }

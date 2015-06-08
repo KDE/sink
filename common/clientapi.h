@@ -193,6 +193,13 @@ public:
         return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage";
     }
 
+    static QByteArray resourceName(const QByteArray &instanceIdentifier)
+    {
+        auto split = instanceIdentifier.split('.');
+        split.removeLast();
+        return split.join('.');
+    }
+
     /**
      * Asynchronusly load a dataset
      */
@@ -209,7 +216,7 @@ public:
             KAsync::iterate(query.resources)
             .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, KAsync::Future<void> &future) {
                 //TODO pass resource identifier to factory
-                auto facade = FacadeFactory::instance().getFacade<DomainType>(resource);
+                auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource));
                 if (facade) {
                     facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
                     //Keep the facade alive for the lifetime of the resultSet.
@@ -254,7 +261,7 @@ public:
     template <class DomainType>
     static void create(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
-        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceIdentifier);
+        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier));
         facade->create(domainObject).exec().waitForFinished();
         //TODO return job?
     }
@@ -267,7 +274,7 @@ public:
     template <class DomainType>
     static void modify(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
-        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceIdentifier);
+        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier));
         facade->modify(domainObject).exec().waitForFinished();
         //TODO return job?
     }
@@ -278,7 +285,7 @@ public:
     template <class DomainType>
     static void remove(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
-        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceIdentifier);
+        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier));
         facade->remove(domainObject).exec().waitForFinished();
         //TODO return job?
     }

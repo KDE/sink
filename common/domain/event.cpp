@@ -36,7 +36,7 @@ ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, 
 {
     QVector<QByteArray> keys;
     if (query.propertyFilter.contains("uid")) {
-        Index uidIndex(Akonadi2::Store::storageLocation(), resourceInstanceIdentifier + "index.uid", Akonadi2::Storage::ReadOnly);
+        Index uidIndex(Akonadi2::Store::storageLocation(), resourceInstanceIdentifier + ".index.uid", Akonadi2::Storage::ReadOnly);
         uidIndex.lookup(query.propertyFilter.value("uid").toByteArray(), [&](const QByteArray &value) {
             keys << value;
         },
@@ -50,7 +50,7 @@ ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, 
 
 void TypeImplementation<Event>::index(const Event &type)
 {
-    Index uidIndex(Akonadi2::Store::storageLocation(), type.resourceInstanceIdentifier() + "index.uid", Akonadi2::Storage::ReadWrite);
+    Index uidIndex(Akonadi2::Store::storageLocation(), type.resourceInstanceIdentifier() + ".index.uid", Akonadi2::Storage::ReadWrite);
     const auto uid = type.getProperty("uid");
     if (uid.isValid()) {
         uidIndex.add(uid.toByteArray(), type.identifier());
