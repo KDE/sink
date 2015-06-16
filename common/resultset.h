@@ -19,6 +19,8 @@
 #pragma once
 
 #include <QVector>
+#include <functional>
+#include "domain/applicationdomaintype.h"
 
 /*
  * An iterator to a result set.
@@ -27,6 +29,22 @@
  */
 class ResultSet {
     public:
+
+
+        ResultSet(const std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)>)> &generator)
+            : mValueGenerator(generator),
+            mIt(nullptr)
+        {
+
+        }
+
+        ResultSet(const std::function<QByteArray()> &generator)
+            : mGenerator(generator),
+            mIt(nullptr)
+        {
+
+        }
+
         ResultSet(const QVector<QByteArray> &resultSet)
             : mResultSet(resultSet),
             mIt(nullptr)
@@ -36,17 +54,46 @@ class ResultSet {
 
         bool next()
         {
-            if (!mIt) {
-                mIt = mResultSet.constBegin();
+            if (mGenerator) {
+                mCurrentValue = mGenerator();
             } else {
-                mIt++;
+                if (!mIt) {
+                    mIt = mResultSet.constBegin();
+                } else {
+                    mIt++;
+                }
+                return mIt != mResultSet.constEnd();
             }
-            return mIt != mResultSet.constEnd();
+        }
+
+        bool next(std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value)> callback)
+        {
+            Q_ASSERT(mValueGenerator);
+            return mValueGenerator(callback);
+        }
+
+        bool next(std::function<void(const QByteArray &key)> callback)
+        {
+            if (mGenerator) {
+                mCurrentValue = mGenerator();
+            } else {
+                if (!mIt) {
+                    mIt = mResultSet.constBegin();
+                } else {
+                    mIt++;
+                }
+                return mIt != mResultSet.constEnd();
+            }
+
         }
 
         QByteArray id()
         {
-            return *mIt;
+            if (mIt) {
+                return *mIt;
+            } else {
+                return mCurrentValue;
+            }
         }
 
         bool isEmpty()
@@ -57,5 +104,8 @@ class ResultSet {
     private:
         QVector<QByteArray> mResultSet;
         QVector<QByteArray>::ConstIterator mIt;
+        QByteArray mCurrentValue;
+        std::function<QByteArray()> mGenerator;
+        std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)>)> mValueGenerator;
 };
 

@@ -124,6 +124,57 @@ private Q_SLOTS:
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
     }
 
+    void testWriteToFacadeAndQueryByUid2()
+    {
+        Akonadi2::ApplicationDomain::Event event;
+        event.setProperty("summary", "summaryValue");
+
+        event.setProperty("uid", "testuid");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+
+        event.setProperty("uid", "testuid2");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+
+        Akonadi2::Query query;
+        query.resources << "org.kde.dummy.instance1";
+        query.syncOnDemand = false;
+        query.processAll = true;
+
+        query.propertyFilter.insert("uid", "testuid");
+        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
+        result.exec();
+        QCOMPARE(result.size(), 1);
+        auto value = result.first();
+        qDebug() << value->getProperty("uid").toByteArray();
+        QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
+    }
+
+    void testWriteToFacadeAndQueryBySummary()
+    {
+        Akonadi2::ApplicationDomain::Event event;
+
+        event.setProperty("uid", "testuid");
+        event.setProperty("summary", "summaryValue1");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+
+        event.setProperty("uid", "testuid2");
+        event.setProperty("summary", "summaryValue2");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+
+        Akonadi2::Query query;
+        query.resources << "org.kde.dummy.instance1";
+        query.syncOnDemand = false;
+        query.processAll = true;
+
+        query.propertyFilter.insert("summary", "summaryValue2");
+        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
+        result.exec();
+        QCOMPARE(result.size(), 1);
+        auto value = result.first();
+        qDebug() << value->getProperty("uid").toByteArray();
+        QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid2"));
+    }
+
     void testResourceSync()
     {
         Akonadi2::Pipeline pipeline("org.kde.dummy.instance1");

@@ -74,7 +74,7 @@ static void scan(const QSharedPointer<Akonadi2::Storage> &storage, const QByteAr
     });
 }
 
-void DummyResourceFacade::readValue(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback)
+static void readValue(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback, const QSharedPointer<DomainTypeAdaptorFactoryInterface<Akonadi2::ApplicationDomain::Event> > &adaptorFactory)
 {
     scan(storage, key, [=](const QByteArray &key, const Akonadi2::Entity &entity, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local, Akonadi2::Metadata const *metadataBuffer) {
         qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
@@ -82,19 +82,21 @@ void DummyResourceFacade::readValue(const QSharedPointer<Akonadi2::Storage> &sto
         //Not i.e. for tags that are stored as flags in each entity of an imap store.
         //additional properties that don't have a 1:1 mapping (such as separately stored tags),
         //could be added to the adaptor
-        auto event = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("org.kde.dummy.instance1", key, revision, mDomainTypeAdaptorFactory->createAdaptor(entity));
+        auto event = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("org.kde.dummy.instance1", key, revision, adaptorFactory->createAdaptor(entity));
         resultCallback(event);
         return true;
     });
 }
 
-static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage)
+static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage, const QSharedPointer<DomainTypeAdaptorFactoryInterface<Akonadi2::ApplicationDomain::Event> > &adaptorFactory)
 {
     QSet<QByteArray> appliedFilters;
     ResultSet resultSet = Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::queryIndexes(query, "org.kde.dummy.instance1", appliedFilters);
     const auto remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
 
-    if (resultSet.isEmpty()) {
+    //We do a full scan if there were no indexes available to create the initial set.
+    //TODO use a result set with an iterator, to read values on demand
+    if (appliedFilters.isEmpty()) {
         QVector<QByteArray> keys;
         scan(storage, QByteArray(), [=, &keys](const QByteArray &key, const Akonadi2::Entity &entity, DummyEvent const *buffer, Akonadi2::ApplicationDomain::Buffer::Event const *local, Akonadi2::Metadata const *metadataBuffer) {
             keys << key;
@@ -103,9 +105,34 @@ static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer
         resultSet = ResultSet(keys);
     }
 
-    return resultSet;
+    auto filter = [remainingFilters, query](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &event) -> bool {
+        for (const auto &filterProperty : remainingFilters) {
+            //TODO implement other comparison operators than equality
+            if (event->getProperty(filterProperty) != query.propertyFilter.value(filterProperty)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
+
+    //Read through the source values and return whatever matches the filter
+    std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)>)> generator = [resultSetPtr, storage, adaptorFactory, filter](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> callback) -> bool {
+        while (resultSetPtr->next()) {
+            Akonadi2::ApplicationDomain::Event::Ptr event;
+            readValue(storage, resultSetPtr->id(), [filter, callback](const Akonadi2::ApplicationDomain::Event::Ptr &event) {
+                if (filter(event)) {
+                    callback(event);
+                }
+            }, adaptorFactory);
+        }
+        return false;
+    };
+    return ResultSet(generator);
 }
 
+//TODO generalize
 KAsync::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision)
 {
     return KAsync::start<qint64>([=]() {
@@ -118,17 +145,14 @@ KAsync::Job<qint64> DummyResourceFacade::load(const Akonadi2::Query &query, cons
         //TODO start transaction on indexes as well
         const qint64 revision = storage->maxRevision();
 
-        auto resultSet = getResultSet(query, storage);
+        auto resultSet = getResultSet(query, storage, mDomainTypeAdaptorFactory);
 
         // TODO only emit changes and don't replace everything
         resultProvider->clear();
         auto resultCallback = std::bind(&Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr>::add, resultProvider, std::placeholders::_1);
-        while (resultSet.next()) {
-            readValue(storage, resultSet.id(), [resultCallback](const Akonadi2::ApplicationDomain::Event::Ptr &event) {
-                //We create an in-memory copy because the result provider will store the value, and the result we get back is only valid during the callback
-                resultCallback(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<Akonadi2::ApplicationDomain::Event>(event));
-            });
-        }
+        while(resultSet.next([resultCallback](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value) -> bool {
+            resultCallback(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<Akonadi2::ApplicationDomain::Event>(value));
+        })){};
         storage->abortTransaction();
         return revision;
     });
