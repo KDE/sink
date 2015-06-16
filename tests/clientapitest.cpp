@@ -117,7 +117,7 @@ private Q_SLOTS:
         );
 
         Akonadi2::Query query;
-        query.resources << "dummyresource";
+        query.resources << "dummyresource.instance1";
         query.liveQuery = false;
 
         async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
@@ -138,7 +138,7 @@ private Q_SLOTS:
         );
 
         Akonadi2::Query query;
-        query.resources << "dummyresource";
+        query.resources << "dummyresource.instance1";
         query.liveQuery = true;
 
         async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
@@ -166,7 +166,7 @@ private Q_SLOTS:
         );
 
         Akonadi2::Query query;
-        query.resources << "dummyresource";
+        query.resources << "dummyresource.instance1";
         query.liveQuery = true;
 
         {
