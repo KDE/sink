@@ -20,22 +20,11 @@
 #pragma once
 
 #include "common/facade.h"
-
-#include "common/clientapi.h"
-#include "common/storage.h"
-#include "resourcefactory.h"
-#include "entity_generated.h"
-#include "event_generated.h"
-#include "dummycalendar_generated.h"
-#include "common/domainadaptor.h"
+#include "common/domain/event.h"
 
 class DummyResourceFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>
 {
 public:
     DummyResourceFacade();
     virtual ~DummyResourceFacade();
-    KAsync::Job<qint64> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision) Q_DECL_OVERRIDE;
-
-private:
-    void readValue(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::Event::Ptr &)> &resultCallback);
 };
