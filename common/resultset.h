@@ -32,15 +32,15 @@ class ResultSet {
 
 
         ResultSet(const std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)>)> &generator)
-            : mValueGenerator(generator),
-            mIt(nullptr)
+            : mIt(nullptr),
+            mValueGenerator(generator)
         {
 
         }
 
         ResultSet(const std::function<QByteArray()> &generator)
-            : mGenerator(generator),
-            mIt(nullptr)
+            : mIt(nullptr),
+            mGenerator(generator)
         {
 
         }
@@ -64,6 +64,7 @@ class ResultSet {
                 }
                 return mIt != mResultSet.constEnd();
             }
+            return false;
         }
 
         bool next(std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value)> callback)
@@ -84,7 +85,7 @@ class ResultSet {
                 }
                 return mIt != mResultSet.constEnd();
             }
-
+            return false;
         }
 
         QByteArray id()

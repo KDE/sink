@@ -31,7 +31,7 @@
 namespace Akonadi2
 {
 
-class QueuedCommand;
+struct QueuedCommand;
 
 class ResourceAccess : public QObject
 {

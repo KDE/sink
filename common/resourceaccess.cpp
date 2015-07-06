@@ -41,7 +41,7 @@
 namespace Akonadi2
 {
 
-class QueuedCommand
+struct QueuedCommand
 {
 public:
     QueuedCommand(int commandId, const std::function<void(int, const QString &)> &callback)

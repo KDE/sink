@@ -33,8 +33,8 @@ namespace Akonadi2 {
 
 namespace ApplicationDomain {
     namespace Buffer {
-        class Event;
-        class EventBuilder;
+        struct Event;
+        struct EventBuilder;
     }
 
 /**

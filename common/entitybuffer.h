@@ -4,7 +4,7 @@
 #include <flatbuffers/flatbuffers.h>
 
 namespace Akonadi2 {
-class Entity;
+struct Entity;
 
 class EntityBuffer {
 public:
