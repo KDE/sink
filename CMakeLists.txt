@@ -5,18 +5,14 @@ cmake_minimum_required(VERSION 2.8.12)
 find_package(ECM 0.0.10 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH
         ${ECM_MODULE_PATH}
-        #        ${ECM_KDE_MODULE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules
         ${CMAKE_MODULE_PATH})
 
 include(FeatureSummary)
 include(GenerateExportHeader)
-#include(ECMSetupVersion)
 include(ECMGenerateHeaders)
 include(ECMPackageConfigHelpers)
 include(KDEInstallDirs)
-# include(KDEFrameworkCompilerSettings)
-# include(KDECMakeSettings)
 
 find_package(Qt5 COMPONENTS REQUIRED Core Widgets Network)
 find_package(KF5 COMPONENTS REQUIRED Async)
@@ -26,7 +22,7 @@ function(generate_flatbuffers _target)
        message("making ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h from ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs")
        add_custom_command(
               OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h
-              COMMAND ${FLATBUFFERS_FLATC_EXECUTABLE} -c -b --gen-includes -o ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs
+              COMMAND ${FLATBUFFERS_FLATC_EXECUTABLE} -c -b -o ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs
               DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs
             )
        set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h PROPERTIES GENERATED 1)
