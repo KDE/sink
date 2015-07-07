@@ -17,7 +17,7 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include <QApplication>
+#include <QCoreApplication>
 
 #include <signal.h>
 
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 {
     //For crashes
     signal(SIGSEGV, crashHandler);
-    QApplication app(argc, argv);
+    QCoreApplication app(argc, argv);
 
     if (argc < 2) {
         Warning() << "Not enough args passed, no resource loaded.";
