@@ -110,7 +110,7 @@ private Q_SLOTS:
         facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
 
         Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
-            [facade]() {
+            [facade](const QByteArray &instanceIdentifier) {
                 return facade;
             }
         );
@@ -130,7 +130,7 @@ private Q_SLOTS:
         facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
 
         Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
-            [facade](){
+            [facade](const QByteArray &instanceIdentifier){
                 return facade;
             }
         );
@@ -156,7 +156,7 @@ private Q_SLOTS:
         facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
 
         Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
-            [facade](){
+            [facade](const QByteArray &instanceIdentifier){
                 return facade;
             }
         );

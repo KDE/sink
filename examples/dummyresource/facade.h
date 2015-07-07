@@ -25,6 +25,6 @@
 class DummyResourceFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>
 {
 public:
-    DummyResourceFacade();
+    DummyResourceFacade(const QByteArray &instanceIdentifier);
     virtual ~DummyResourceFacade();
 };

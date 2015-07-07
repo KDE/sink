@@ -21,8 +21,8 @@
 
 #include "domainadaptor.h"
 
-DummyResourceFacade::DummyResourceFacade()
-    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>("org.kde.dummy.instance1", QSharedPointer<DummyEventAdaptorFactory>::create())
+DummyResourceFacade::DummyResourceFacade(const QByteArray &instanceIdentifier)
+    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<DummyEventAdaptorFactory>::create())
 {
 }
 

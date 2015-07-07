@@ -108,7 +108,7 @@ public:
 
 class FacadeFactory {
 public:
-    typedef std::function<std::shared_ptr<void>()> FactoryFunction;
+    typedef std::function<std::shared_ptr<void>(const QByteArray &)> FactoryFunction;
 
     //FIXME: proper singleton implementation
     static FacadeFactory &instance()
@@ -126,7 +126,7 @@ public:
     void registerFacade(const QByteArray &resource)
     {
         const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
-        mFacadeRegistry.insert(key(resource, typeName), [](){ return std::shared_ptr<Facade>(new Facade); });
+        mFacadeRegistry.insert(key(resource, typeName), [](const QByteArray &instanceIdentifier){ return std::make_shared<Facade>(instanceIdentifier); });
     }
 
     /*
@@ -152,11 +152,11 @@ public:
     }
 
     template<class DomainType>
-    std::shared_ptr<StoreFacade<DomainType> > getFacade(const QByteArray &resource)
+    std::shared_ptr<StoreFacade<DomainType> > getFacade(const QByteArray &resource, const QByteArray &instanceIdentifier)
     {
         const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
         if (auto factoryFunction = mFacadeRegistry.value(key(resource, typeName))) {
-            return std::static_pointer_cast<StoreFacade<DomainType> >(factoryFunction());
+            return std::static_pointer_cast<StoreFacade<DomainType> >(factoryFunction(instanceIdentifier));
         }
         qWarning() << "Failed to find facade for resource: " << resource << " and type: " << typeName;
         return std::shared_ptr<StoreFacade<DomainType> >();
@@ -199,7 +199,7 @@ public:
             KAsync::iterate(query.resources)
             .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, KAsync::Future<void> &future) {
                 //TODO pass resource identifier to factory
-                auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource));
+                auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
                 if (facade) {
                     facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
                     //Keep the facade alive for the lifetime of the resultSet.
@@ -244,7 +244,7 @@ public:
     template <class DomainType>
     static void create(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
-        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier));
+        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
         facade->create(domainObject).exec().waitForFinished();
         //TODO return job?
     }
@@ -257,7 +257,7 @@ public:
     template <class DomainType>
     static void modify(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
-        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier));
+        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
         facade->modify(domainObject).exec().waitForFinished();
         //TODO return job?
     }
@@ -268,7 +268,7 @@ public:
     template <class DomainType>
     static void remove(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
-        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier));
+        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
         facade->remove(domainObject).exec().waitForFinished();
         //TODO return job?
     }
