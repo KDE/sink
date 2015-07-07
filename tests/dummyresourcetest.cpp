@@ -85,7 +85,7 @@ private Q_SLOTS:
         //Actual test
         Akonadi2::Pipeline pipeline("org.kde.dummy.instance1");
         QSignalSpy revisionSpy(&pipeline, SIGNAL(revisionUpdated()));
-        DummyResource resource;
+        DummyResource resource("org.kde.dummy.instance1");
         resource.configurePipeline(&pipeline);
         resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, command.size(), &pipeline);
         resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, command.size(), &pipeline);
@@ -178,7 +178,7 @@ private Q_SLOTS:
     void testResourceSync()
     {
         Akonadi2::Pipeline pipeline("org.kde.dummy.instance1");
-        DummyResource resource;
+        DummyResource resource("org.kde.dummy.instance1");
         resource.configurePipeline(&pipeline);
         auto job = resource.synchronizeWithSource(&pipeline);
         //TODO pass in optional timeout?

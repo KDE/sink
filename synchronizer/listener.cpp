@@ -370,7 +370,7 @@ void Listener::loadResource()
 
     Akonadi2::ResourceFactory *resourceFactory = Akonadi2::ResourceFactory::load(m_resourceName);
     if (resourceFactory) {
-        m_resource = resourceFactory->createResource();
+        m_resource = resourceFactory->createResource(m_resourceInstanceIdentifier);
         Log() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
         Log() << QString("\tResource: %1").arg((qlonglong)m_resource);
         m_resource->configurePipeline(m_pipeline);

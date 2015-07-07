@@ -32,7 +32,7 @@
 class DummyResource : public Akonadi2::GenericResource
 {
 public:
-    DummyResource();
+    DummyResource(const QByteArray &instanceIdentifier);
     KAsync::Job<void> synchronizeWithSource(Akonadi2::Pipeline *pipeline) Q_DECL_OVERRIDE;
     void configurePipeline(Akonadi2::Pipeline *pipeline) Q_DECL_OVERRIDE;
 };
@@ -46,7 +46,7 @@ class DummyResourceFactory : public Akonadi2::ResourceFactory
 public:
     DummyResourceFactory(QObject *parent = 0);
 
-    Akonadi2::Resource *createResource();
-    void registerFacades(Akonadi2::FacadeFactory &factory);
+    Akonadi2::Resource *createResource(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
+    void registerFacades(Akonadi2::FacadeFactory &factory) Q_DECL_OVERRIDE;
 };
 

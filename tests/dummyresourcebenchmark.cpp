@@ -29,18 +29,18 @@ private Q_SLOTS:
     {
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
-        removeFromDisk("org.kde.dummy");
-        removeFromDisk("org.kde.dummy.userqueue");
-        removeFromDisk("org.kde.dummy.synchronizerqueue");
-        removeFromDisk("org.kde.dummy.index.uid");
+        removeFromDisk("org.kde.dummy.instance1");
+        removeFromDisk("org.kde.dummy.instance1.userqueue");
+        removeFromDisk("org.kde.dummy.instance1.synchronizerqueue");
+        removeFromDisk("org.kde.dummy.instance1.index.uid");
     }
 
     void cleanup()
     {
-        removeFromDisk("org.kde.dummy");
-        removeFromDisk("org.kde.dummy.userqueue");
-        removeFromDisk("org.kde.dummy.synchronizerqueue");
-        removeFromDisk("org.kde.dummy.index.uid");
+        removeFromDisk("org.kde.dummy.instance1");
+        removeFromDisk("org.kde.dummy.instance1.userqueue");
+        removeFromDisk("org.kde.dummy.instance1.synchronizerqueue");
+        removeFromDisk("org.kde.dummy.instance1.index.uid");
     }
 
     void testWriteToFacadeAndQueryByUid()
@@ -53,14 +53,14 @@ private Q_SLOTS:
             event.setProperty("uid", "testuid");
             QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
             event.setProperty("summary", "summaryValue");
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy");
+            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
         }
         auto appendTime = time.elapsed();
 
         //Ensure everything is processed
         {
             Akonadi2::Query query;
-            query.resources << "org.kde.dummy";
+            query.resources << "org.kde.dummy.instance1";
             query.syncOnDemand = false;
             query.processAll = true;
 
@@ -74,7 +74,7 @@ private Q_SLOTS:
         {
             time.start();
             Akonadi2::Query query;
-            query.resources << "org.kde.dummy";
+            query.resources << "org.kde.dummy.instance1";
             query.syncOnDemand = false;
             query.processAll = false;
 
@@ -94,9 +94,9 @@ private Q_SLOTS:
         time.start();
         int num = 10000;
 
-        Akonadi2::Pipeline pipeline("org.kde.dummy");
+        Akonadi2::Pipeline pipeline("org.kde.dummy.instance1");
         QSignalSpy revisionSpy(&pipeline, SIGNAL(revisionUpdated()));
-        DummyResource resource;
+        DummyResource resource("org.kde.dummy.instance1");
         resource.configurePipeline(&pipeline);
 
         flatbuffers::FlatBufferBuilder eventFbb;

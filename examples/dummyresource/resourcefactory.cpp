@@ -105,9 +105,8 @@ QMap<QString, QString> populate()
 static QMap<QString, QString> s_dataSource = populate();
 
 
-//FIXME We need to pass the resource-instance name to generic resource, not the plugin name
-DummyResource::DummyResource()
-    : Akonadi2::GenericResource(PLUGIN_NAME ".instance1")
+DummyResource::DummyResource(const QByteArray &instanceIdentifier)
+    : Akonadi2::GenericResource(instanceIdentifier)
 {
 }
 
@@ -213,9 +212,9 @@ DummyResourceFactory::DummyResourceFactory(QObject *parent)
 
 }
 
-Akonadi2::Resource *DummyResourceFactory::createResource()
+Akonadi2::Resource *DummyResourceFactory::createResource(const QByteArray &instanceIdentifier)
 {
-    return new DummyResource();
+    return new DummyResource(instanceIdentifier);
 }
 
 void DummyResourceFactory::registerFacades(Akonadi2::FacadeFactory &factory)

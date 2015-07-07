@@ -155,8 +155,8 @@ private:
 
 GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier)
     : Akonadi2::Resource(),
-    mUserQueue(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", "org.kde." + resourceInstanceIdentifier + ".userqueue"),
-    mSynchronizerQueue(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", "org.kde." + resourceInstanceIdentifier + ".synchronizerqueue"),
+    mUserQueue(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", resourceInstanceIdentifier + ".userqueue"),
+    mSynchronizerQueue(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", resourceInstanceIdentifier + ".synchronizerqueue"),
     mResourceInstanceIdentifier(resourceInstanceIdentifier),
     mError(0)
 {

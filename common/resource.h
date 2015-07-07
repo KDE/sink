@@ -58,7 +58,7 @@ public:
     ResourceFactory(QObject *parent);
     virtual ~ResourceFactory();
 
-    virtual Resource *createResource() = 0;
+    virtual Resource *createResource(const QByteArray &instanceIdentifier) = 0;
     virtual void registerFacades(FacadeFactory &factory) = 0;
 
 private:
