@@ -108,7 +108,7 @@ public:
 
 class FacadeFactory {
 public:
-    typedef std::function<void*(bool &externallyManaged)> FactoryFunction;
+    typedef std::function<std::shared_ptr<void>()> FactoryFunction;
 
     //FIXME: proper singleton implementation
     static FacadeFactory &instance()
@@ -126,17 +126,13 @@ public:
     void registerFacade(const QByteArray &resource)
     {
         const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
-        mFacadeRegistry.insert(key(resource, typeName), [](bool &externallyManaged){ return new Facade; });
+        mFacadeRegistry.insert(key(resource, typeName), [](){ return std::shared_ptr<Facade>(new Facade); });
     }
 
     /*
      * Allows the registrar to register a specific instance.
      *
      * Primarily for testing.
-     * The facade factory takes ovnership of the pointer and typically deletes the instance via shared pointer.
-     * Supplied factory functions should therefore always return a new pointer (i.e. via clone())
-     *
-     * FIXME the factory function should really be returning QSharedPointer<void>, which doesn't work (std::shared_pointer<void> would though). That way i.e. a test could keep the object alive until it's done. As a workaround the factory function can define wether it manages the lifetime of the facade itself.
      */
     template<class DomainType, class Facade>
     void registerFacade(const QByteArray &resource, const FactoryFunction &customFactoryFunction)
@@ -155,25 +151,12 @@ public:
         mFacadeRegistry.clear();
     }
 
-    static void doNothingDeleter(void *)
-    {
-        qWarning() << "Do nothing";
-    }
-
     template<class DomainType>
     std::shared_ptr<StoreFacade<DomainType> > getFacade(const QByteArray &resource)
     {
         const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
-        auto factoryFunction = mFacadeRegistry.value(key(resource, typeName));
-        if (factoryFunction) {
-            bool externallyManaged = false;
-            auto ptr = static_cast<StoreFacade<DomainType>* >(factoryFunction(externallyManaged));
-            if (externallyManaged) {
-                //Allows tests to manage the lifetime of injected facades themselves
-                return std::shared_ptr<StoreFacade<DomainType> >(ptr, doNothingDeleter);
-            } else {
-                return std::shared_ptr<StoreFacade<DomainType> >(ptr);
-            }
+        if (auto factoryFunction = mFacadeRegistry.value(key(resource, typeName))) {
+            return std::static_pointer_cast<StoreFacade<DomainType> >(factoryFunction());
         }
         qWarning() << "Failed to find facade for resource: " << resource << " and type: " << typeName;
         return std::shared_ptr<StoreFacade<DomainType> >();

@@ -106,13 +106,12 @@ private Q_SLOTS:
 
     void testLoad()
     {
-        DummyResourceFacade facade;
-        facade.results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        auto facade = std::make_shared<DummyResourceFacade>();
+        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
 
         Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
-            [&facade](bool &externallyManaged) {
-                externallyManaged = true;
-                return &facade;
+            [facade]() {
+                return facade;
             }
         );
 
@@ -127,13 +126,12 @@ private Q_SLOTS:
 
     void testLiveQuery()
     {
-        DummyResourceFacade facade;
-        facade.results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        auto facade = std::make_shared<DummyResourceFacade>();
+        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
 
         Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
-            [&facade](bool &externallyManaged){
-                externallyManaged = true;
-                return &facade;
+            [facade](){
+                return facade;
             }
         );
 
@@ -146,22 +144,20 @@ private Q_SLOTS:
         QCOMPARE(result.size(), 1);
 
         //Enter a second result
-        facade.results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
-        qWarning() << &facade;
-        QVERIFY(facade.notifier);
-        facade.notifier->revisionChanged(2);
+        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        QVERIFY(facade->notifier);
+        facade->notifier->revisionChanged(2);
         QTRY_COMPARE(result.size(), 2);
     }
 
     void testQueryLifetime()
     {
-        DummyResourceFacade facade;
-        facade.results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        auto facade = std::make_shared<DummyResourceFacade>();
+        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
 
         Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
-            [&facade](bool &externallyManaged){
-                externallyManaged = true;
-                return &facade;
+            [facade](){
+                return facade;
             }
         );
 
@@ -175,7 +171,7 @@ private Q_SLOTS:
             QCOMPARE(result.size(), 1);
         }
         //It's running in a separate thread, so we have to wait for a moment.
-        QTRY_VERIFY(!facade.capturedResultProvider);
+        QTRY_VERIFY(!facade->capturedResultProvider);
     }
 
 };
