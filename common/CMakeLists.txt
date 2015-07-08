@@ -27,6 +27,7 @@ set(command_SRCS
     messagequeue.cpp
     index.cpp
     resourcefacade.cpp
+    resourceconfig.cpp
     domain/applicationdomaintype.cpp
     domain/event.cpp
     ${storage_SRCS})

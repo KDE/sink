@@ -18,8 +18,7 @@
  */
 #include "resourcefacade.h"
 
-#include <QSettings>
-#include <QStandardPaths>
+#include "resourceconfig.h"
 
 ResourceFacade::ResourceFacade(const QByteArray &)
     : Akonadi2::StoreFacade<Akonadi2::ApplicationDomain::AkonadiResource>()
@@ -32,25 +31,12 @@ ResourceFacade::~ResourceFacade()
 
 }
 
-static QSharedPointer<QSettings> getSettings()
-{
-    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/resources.ini", QSettings::IniFormat);
-}
-
 KAsync::Job<void> ResourceFacade::create(const Akonadi2::ApplicationDomain::AkonadiResource &resource)
 {
     return KAsync::start<void>([resource, this]() {
-        auto settings = getSettings();
         const QByteArray identifier = resource.getProperty("identifier").toByteArray();
         const QByteArray type = resource.getProperty("type").toByteArray();
-
-        settings->beginGroup("resources");
-        settings->setValue(identifier, type);
-        settings->endGroup();
-        settings->beginGroup(identifier);
-        //Add some settings?
-        settings->endGroup();
-        settings->sync();
+        ResourceConfig::addResource(identifier, type);
     });
 }
 
@@ -62,30 +48,20 @@ KAsync::Job<void> ResourceFacade::modify(const Akonadi2::ApplicationDomain::Akon
 KAsync::Job<void> ResourceFacade::remove(const Akonadi2::ApplicationDomain::AkonadiResource &resource)
 {
     return KAsync::start<void>([resource, this]() {
-        auto settings = getSettings();
         const QByteArray identifier = resource.getProperty("identifier").toByteArray();
-
-        settings->beginGroup("resources");
-        settings->remove(identifier);
-        settings->endGroup();
-        settings->sync();
+        ResourceConfig::removeResource(identifier);
     });
 }
 
 KAsync::Job<void> ResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename Akonadi2::ApplicationDomain::AkonadiResource::Ptr> > &resultProvider)
 {
     return KAsync::start<void>([query, resultProvider]() {
-        auto settings = getSettings();
-        settings->beginGroup("resources");
-        for (const auto &identifier : settings->childKeys()) {
-            const auto type = settings->value(identifier).toByteArray();
+        for (const auto &res : ResourceConfig::getResources()) {
             auto resource = Akonadi2::ApplicationDomain::AkonadiResource::Ptr::create();
-            resource->setProperty("identifier", identifier);
-            resource->setProperty("type", type);
+            resource->setProperty("identifier", res.first);
+            resource->setProperty("type", res.second);
             resultProvider->add(resource);
         }
-        settings->endGroup();
-
         //TODO initialResultSetComplete should be implicit
         resultProvider->initialResultSetComplete();
         resultProvider->complete();

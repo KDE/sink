@@ -190,6 +190,15 @@ private Q_SLOTS:
             result.exec();
             QCOMPARE(result.size(), 1);
         }
+
+        Akonadi2::Store::remove(res, "resourceconfig");
+        {
+            Akonadi2::Query query;
+            query.resources << "resourceconfig";
+            async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
+            result.exec();
+            QCOMPARE(result.size(), 0);
+        }
     }
 
 };
