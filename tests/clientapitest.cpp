@@ -174,6 +174,24 @@ private Q_SLOTS:
         QTRY_VERIFY(!facade->capturedResultProvider);
     }
 
+    void resourceManagement()
+    {
+        Akonadi2::FacadeFactory::registerStaticFacades();
+        Akonadi2::ApplicationDomain::AkonadiResource res;
+        res.setProperty("identifier", "identifier1");
+        res.setProperty("type", "dummyresource");
+
+        Akonadi2::Store::create(res, "resourceconfig");
+
+        {
+            Akonadi2::Query query;
+            query.resources << "resourceconfig";
+            async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
+            result.exec();
+            QCOMPARE(result.size(), 1);
+        }
+    }
+
 };
 
 QTEST_MAIN(ClientAPITest)

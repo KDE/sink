@@ -110,6 +110,8 @@ class FacadeFactory {
 public:
     typedef std::function<std::shared_ptr<void>(const QByteArray &)> FactoryFunction;
 
+    static void registerStaticFacades();
+
     //FIXME: proper singleton implementation
     static FacadeFactory &instance()
     {
@@ -179,6 +181,9 @@ public:
     static QByteArray resourceName(const QByteArray &instanceIdentifier)
     {
         auto split = instanceIdentifier.split('.');
+        if (split.size() <= 1) {
+            return instanceIdentifier;
+        }
         split.removeLast();
         return split.join('.');
     }
@@ -195,6 +200,7 @@ public:
         //We must guarantee that the emitter is returned before the first result is emitted.
         //The result provider must be threadsafe.
         async::run([query, resultSet](){
+            //TODO if query.resources is empty, search for all resource that provide the type we're looking for
             // Query all resources and aggregate results
             KAsync::iterate(query.resources)
             .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, KAsync::Future<void> &future) {
@@ -205,7 +211,6 @@ public:
                     //Keep the facade alive for the lifetime of the resultSet.
                     resultSet->setFacade(facade);
                 } else {
-                    qWarning() << "Could not find facade for resource " << resource;
                     //Ignore the error and carry on
                     future.setFinished();
                 }
@@ -245,7 +250,9 @@ public:
     static void create(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
-        facade->create(domainObject).exec().waitForFinished();
+        if (facade) {
+            facade->create(domainObject).exec().waitForFinished();
+        }
         //TODO return job?
     }
 
@@ -258,7 +265,9 @@ public:
     static void modify(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
-        facade->modify(domainObject).exec().waitForFinished();
+        if (facade) {
+            facade->modify(domainObject).exec().waitForFinished();
+        }
         //TODO return job?
     }
 
@@ -269,7 +278,9 @@ public:
     static void remove(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
-        facade->remove(domainObject).exec().waitForFinished();
+        if (facade) {
+            facade->remove(domainObject).exec().waitForFinished();
+        }
         //TODO return job?
     }
 

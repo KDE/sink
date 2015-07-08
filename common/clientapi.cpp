@@ -2,6 +2,7 @@
 #include "clientapi.h"
 #include "resourceaccess.h"
 #include "commands.h"
+#include "resourcefacade.h"
 #include "log.h"
 #include <QtConcurrent/QtConcurrentRun>
 
@@ -15,6 +16,11 @@ namespace async
 
 namespace Akonadi2
 {
+
+void FacadeFactory::registerStaticFacades()
+{
+    FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::AkonadiResource, ResourceFacade>("resourceconfig");
+}
 
 void Store::shutdown(const QByteArray &identifier)
 {
