@@ -34,6 +34,7 @@
 #include "threadboundary.h"
 #include "resultprovider.h"
 #include "domain/applicationdomaintype.h"
+#include "resourceconfig.h"
 
 namespace async {
     //This should abstract if we execute from eventloop or in thread.
@@ -110,7 +111,7 @@ class FacadeFactory {
 public:
     typedef std::function<std::shared_ptr<void>(const QByteArray &)> FactoryFunction;
 
-    static void registerStaticFacades();
+    void registerStaticFacades();
 
     //FIXME: proper singleton implementation
     static FacadeFactory &instance()
@@ -165,6 +166,11 @@ public:
     }
 
 private:
+    FacadeFactory()
+    {
+        registerStaticFacades();
+    }
+
     QHash<QByteArray, FactoryFunction> mFacadeRegistry;
 };
 
@@ -188,6 +194,27 @@ public:
         return split.join('.');
     }
 
+    static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter)
+    {
+        QList<QByteArray> resources;
+        const auto configuredResources = ResourceConfig::getResources();
+        if (resourceFilter.isEmpty()) {
+            for (const auto &res : configuredResources) {
+                //TODO filter by type
+                resources << res;
+            }
+        } else {
+            for (const auto &res : resourceFilter) {
+                if (configuredResources.contains(res)) {
+                    resources << res;
+                } else {
+                    qWarning() << "Resource is not existing: " << res;
+                }
+            }
+        }
+        return resources;
+    }
+
     /**
      * Asynchronusly load a dataset
      */
@@ -200,9 +227,8 @@ public:
         //We must guarantee that the emitter is returned before the first result is emitted.
         //The result provider must be threadsafe.
         async::run([query, resultSet](){
-            //TODO if query.resources is empty, search for all resource that provide the type we're looking for
             // Query all resources and aggregate results
-            KAsync::iterate(query.resources)
+            KAsync::iterate(getResources(query.resources))
             .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, KAsync::Future<void> &future) {
                 //TODO pass resource identifier to factory
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);

@@ -5,6 +5,7 @@
 #include "clientapi.h"
 #include "facade.h"
 #include "synclistresult.h"
+#include "resourceconfig.h"
 
 class RevisionNotifier : public QObject
 {
@@ -99,21 +100,29 @@ class ClientAPITest : public QObject
     Q_OBJECT
 private Q_SLOTS:
 
-    void initTestCase()
-    {
-        Akonadi2::FacadeFactory::instance().resetFactory();
-    }
-
-    void testLoad()
+    static std::shared_ptr<DummyResourceFacade> registerDummyFacade()
     {
         auto facade = std::make_shared<DummyResourceFacade>();
-        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
-
         Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
             [facade](const QByteArray &instanceIdentifier) {
                 return facade;
             }
         );
+        return facade;
+    }
+
+    void initTestCase()
+    {
+        Akonadi2::FacadeFactory::instance().resetFactory();
+        ResourceConfig::clear();
+    }
+
+
+    void testLoad()
+    {
+        auto facade = registerDummyFacade();
+        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Akonadi2::Query query;
         query.resources << "dummyresource.instance1";
@@ -126,14 +135,9 @@ private Q_SLOTS:
 
     void testLiveQuery()
     {
-        auto facade = std::make_shared<DummyResourceFacade>();
+        auto facade = registerDummyFacade();
         facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
-
-        Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
-            [facade](const QByteArray &instanceIdentifier){
-                return facade;
-            }
-        );
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Akonadi2::Query query;
         query.resources << "dummyresource.instance1";
@@ -152,14 +156,9 @@ private Q_SLOTS:
 
     void testQueryLifetime()
     {
-        auto facade = std::make_shared<DummyResourceFacade>();
+        auto facade = registerDummyFacade();
         facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
-
-        Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
-            [facade](const QByteArray &instanceIdentifier){
-                return facade;
-            }
-        );
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Akonadi2::Query query;
         query.resources << "dummyresource.instance1";
@@ -176,9 +175,12 @@ private Q_SLOTS:
 
     void resourceManagement()
     {
-        Akonadi2::FacadeFactory::registerStaticFacades();
+        ResourceConfig::clear();
+        Akonadi2::FacadeFactory::instance().registerStaticFacades();
+        ResourceConfig::addResource("resourceconfig", "resourceconfig");
+
         Akonadi2::ApplicationDomain::AkonadiResource res;
-        res.setProperty("identifier", "identifier1");
+        res.setProperty("identifier", "dummyresource.identifier1");
         res.setProperty("type", "dummyresource");
 
         Akonadi2::Store::create(res, "resourceconfig");
@@ -186,6 +188,7 @@ private Q_SLOTS:
         {
             Akonadi2::Query query;
             query.resources << "resourceconfig";
+            query.propertyFilter.insert("type", "dummyresource");
             async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
             result.exec();
             QCOMPARE(result.size(), 1);
@@ -195,6 +198,7 @@ private Q_SLOTS:
         {
             Akonadi2::Query query;
             query.resources << "resourceconfig";
+            query.propertyFilter.insert("type", "dummyresource");
             async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
             result.exec();
             QCOMPARE(result.size(), 0);

@@ -21,12 +21,13 @@
 
 #include <QList>
 #include <QByteArray>
-#include <QPair>
+#include <QMap>
 
 class ResourceConfig
 {
 public:
-    static QList<QPair<QByteArray, QByteArray> > getResources();
+    static QMap<QByteArray, QByteArray> getResources();
     static void addResource(const QByteArray &identifier, const QByteArray &type);
     static void removeResource(const QByteArray &identifier);
+    static void clear();
 };

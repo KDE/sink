@@ -19,7 +19,7 @@ namespace Akonadi2
 
 void FacadeFactory::registerStaticFacades()
 {
-    FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::AkonadiResource, ResourceFacade>("resourceconfig");
+    registerFacade<Akonadi2::ApplicationDomain::AkonadiResource, ResourceFacade>("resourceconfig");
 }
 
 void Store::shutdown(const QByteArray &identifier)

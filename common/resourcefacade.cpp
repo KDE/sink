@@ -56,11 +56,15 @@ KAsync::Job<void> ResourceFacade::remove(const Akonadi2::ApplicationDomain::Akon
 KAsync::Job<void> ResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename Akonadi2::ApplicationDomain::AkonadiResource::Ptr> > &resultProvider)
 {
     return KAsync::start<void>([query, resultProvider]() {
-        for (const auto &res : ResourceConfig::getResources()) {
-            auto resource = Akonadi2::ApplicationDomain::AkonadiResource::Ptr::create();
-            resource->setProperty("identifier", res.first);
-            resource->setProperty("type", res.second);
-            resultProvider->add(resource);
+        const auto configuredResources = ResourceConfig::getResources();
+        for (const auto &res : configuredResources.keys()) {
+            const auto type = configuredResources.value(res);
+            if (!query.propertyFilter.contains("type") || query.propertyFilter.value("type").toByteArray() == type) {
+                auto resource = Akonadi2::ApplicationDomain::AkonadiResource::Ptr::create();
+                resource->setProperty("identifier", res);
+                resource->setProperty("type", type);
+                resultProvider->add(resource);
+            }
         }
         //TODO initialResultSetComplete should be implicit
         resultProvider->initialResultSetComplete();

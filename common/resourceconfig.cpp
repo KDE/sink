@@ -30,33 +30,38 @@ static QSharedPointer<QSettings> getSettings()
 void ResourceConfig::addResource(const QByteArray &identifier, const QByteArray &type)
 {
     auto settings = getSettings();
-    settings->beginGroup("resources");
-    settings->setValue(QString::fromLatin1(identifier), type);
+    settings->beginGroup(QString::fromLatin1(identifier));
+    settings->setValue("type", type);
+    settings->setValue("enabled", true);
     settings->endGroup();
-    // settings->beginGroup(identifier);
-    // //Add some settings?
-    // settings->endGroup();
     settings->sync();
 }
 
 void ResourceConfig::removeResource(const QByteArray &identifier)
 {
     auto settings = getSettings();
-    settings->beginGroup("resources");
-    settings->remove(QString::fromLatin1(identifier));
+    settings->beginGroup(QString::fromLatin1(identifier));
+    settings->remove("");
     settings->endGroup();
     settings->sync();
 }
 
-QList<QPair<QByteArray, QByteArray> > ResourceConfig::getResources()
+QMap<QByteArray, QByteArray> ResourceConfig::getResources()
 {
-    QList<QPair<QByteArray, QByteArray> > resources;
+    QMap<QByteArray, QByteArray> resources;
     auto settings = getSettings();
-    settings->beginGroup("resources");
-    for (const auto &identifier : settings->childKeys()) {
-        const auto type = settings->value(identifier).toByteArray();
-        resources << qMakePair<QByteArray, QByteArray>(identifier.toLatin1(), type);
+    for (const auto &identifier : settings->childGroups()) {
+        settings->beginGroup(identifier);
+        const auto type = settings->value("type").toByteArray();
+        resources.insert(identifier.toLatin1(), type);
+        settings->endGroup();
     }
-    settings->endGroup();
     return resources;
+}
+
+void ResourceConfig::clear()
+{
+    auto settings = getSettings();
+    settings->clear();
+    settings->sync();
 }
