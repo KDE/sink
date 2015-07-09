@@ -33,42 +33,6 @@
 #include "domain/event.h"
 #include "dummystore.h"
 #include <QUuid>
-#include <assert.h>
-
-
-/*
- * Figure out how to implement various classes of processors:
- * * read-only (index and such) => extractor function, probably using domain adaptor
- * * filter => provide means to move entity elsewhere, and also reflect change in source (I guess?)
- * * flag extractors? => like read-only? Or write to local portion of buffer?
- * ** $ISSPAM should become part of domain object and is written to the local part of the mail. 
- * ** => value could be calculated by the server directly
- */
-class SimpleProcessor : public Akonadi2::Preprocessor
-{
-public:
-    SimpleProcessor(const QString &id, const std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> &f)
-        : Akonadi2::Preprocessor(),
-        mFunction(f),
-        mId(id)
-    {
-    }
-
-    void process(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e) Q_DECL_OVERRIDE
-    {
-        mFunction(state, e);
-        processingCompleted(state);
-    }
-
-    QString id() const
-    {
-        return mId;
-    }
-
-protected:
-    std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> mFunction;
-    QString mId;
-};
 
 
 DummyResource::DummyResource(const QByteArray &instanceIdentifier)
@@ -78,12 +42,9 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier)
 
 void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
 {
-    //TODO In case of a non 1:1 mapping between resource and domain types special handling is required.
-    //i.e. If a resource stores tags as part of each message it needs to update the tag index
-
     auto eventFactory = QSharedPointer<DummyEventAdaptorFactory>::create();
     const auto resourceIdentifier = mResourceInstanceIdentifier;
-    auto eventIndexer = new SimpleProcessor("eventIndexer", [eventFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
+    auto eventIndexer = new Akonadi2::SimpleProcessor("eventIndexer", [eventFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
         auto adaptor = eventFactory->createAdaptor(entity);
         //FIXME set revision?
         Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, adaptor);

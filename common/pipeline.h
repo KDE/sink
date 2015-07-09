@@ -122,5 +122,34 @@ private:
     Private * const d;
 };
 
+/**
+ * A simple processor that takes a single function
+ */
+class AKONADI2COMMON_EXPORT SimpleProcessor : public Akonadi2::Preprocessor
+{
+public:
+    SimpleProcessor(const QString &id, const std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> &f)
+        : Akonadi2::Preprocessor(),
+        mFunction(f),
+        mId(id)
+    {
+    }
+
+    void process(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e) Q_DECL_OVERRIDE
+    {
+        mFunction(state, e);
+        processingCompleted(state);
+    }
+
+    QString id() const
+    {
+        return mId;
+    }
+
+protected:
+    std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> mFunction;
+    QString mId;
+};
+
 } // namespace Akonadi2
 
