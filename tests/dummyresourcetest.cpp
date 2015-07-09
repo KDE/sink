@@ -11,6 +11,7 @@
 #include "synclistresult.h"
 #include "commands.h"
 #include "entitybuffer.h"
+#include "resourceconfig.h"
 
 static void removeFromDisk(const QString &name)
 {
@@ -30,6 +31,7 @@ private Q_SLOTS:
         removeFromDisk("org.kde.dummy.instance1.userqueue");
         removeFromDisk("org.kde.dummy.instance1.synchronizerqueue");
         removeFromDisk("org.kde.dummy.instance1.index.uid");
+        ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
     }
 
     void cleanup()
