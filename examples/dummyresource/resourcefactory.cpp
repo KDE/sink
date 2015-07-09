@@ -66,8 +66,8 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
 KAsync::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
 {
     return KAsync::start<void>([this, pipeline](KAsync::Future<void> &f) {
-        //TODO use a read-only transaction during the complete sync to sync against a defined revision
         auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier);
+        storage->startTransaction(Akonadi2::Storage::ReadOnly);
 
         Index uidIndex(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier + ".index.uid", Akonadi2::Storage::ReadOnly);
 
@@ -117,6 +117,7 @@ KAsync::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipel
                 //TODO diff and create modification if necessary
             }
         }
+        storage->abortTransaction();
         //TODO find items to remove
         f.setFinished();
     });
