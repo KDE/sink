@@ -31,6 +31,7 @@
 #include "index.h"
 #include "log.h"
 #include "domain/event.h"
+#include "dummystore.h"
 #include <QUuid>
 #include <assert.h>
 
@@ -68,41 +69,6 @@ protected:
     std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> mFunction;
     QString mId;
 };
-
-
-
-static std::string createEvent()
-{
-    static const size_t attachmentSize = 1024*2; // 2KB
-    static uint8_t rawData[attachmentSize];
-    static flatbuffers::FlatBufferBuilder fbb;
-    fbb.Clear();
-    {
-        uint8_t *rawDataPtr = Q_NULLPTR;
-        auto summary = fbb.CreateString("summary");
-        auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize, &rawDataPtr);
-        DummyCalendar::DummyEventBuilder eventBuilder(fbb);
-        eventBuilder.add_summary(summary);
-        eventBuilder.add_attachment(data);
-        auto eventLocation = eventBuilder.Finish();
-        DummyCalendar::FinishDummyEventBuffer(fbb, eventLocation);
-        memcpy((void*)rawDataPtr, rawData, attachmentSize);
-    }
-
-    return std::string(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
-}
-
-QMap<QString, QString> populate()
-{
-    QMap<QString, QString> content;
-    for (int i = 0; i < 2; i++) {
-        auto event = createEvent();
-        content.insert(QString("key%1").arg(i), QString::fromStdString(event));
-    }
-    return content;
-}
-
-static QMap<QString, QString> s_dataSource = populate();
 
 
 DummyResource::DummyResource(const QByteArray &instanceIdentifier)
@@ -157,8 +123,9 @@ KAsync::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipel
 {
     return KAsync::start<void>([this, pipeline](KAsync::Future<void> &f) {
         //TODO use a read-only transaction during the complete sync to sync against a defined revision
-        auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), "org.kde.dummy.instance1");
-        for (auto it = s_dataSource.constBegin(); it != s_dataSource.constEnd(); it++) {
+        auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier);
+        const auto data = DummyStore::instance().data();
+        for (auto it = data.constBegin(); it != data.constEnd(); it++) {
             bool isNew = true;
             if (storage->exists()) {
                 findByRemoteId(storage, it.key(), [&](void *keyValue, int keySize, void *dataValue, int dataSize) {
