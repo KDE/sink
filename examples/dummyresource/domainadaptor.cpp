@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Christian Mollekopf <chrigi_1@fastmail.fm>
+ *   Copyright (C) 2015 Christian Mollekopf <chrigi_1@fastmail.fm>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by

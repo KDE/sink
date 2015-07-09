@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2014 Aaron Seigo <aseigo@kde.org>
+ *   Copyright (C) 2014 Aaron Seigo <aseigo@kde.org>
+ *   Copyright (C) 2015 Christian Mollekopf <chrigi_1@fastmail.fm>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -22,18 +23,17 @@
 #include "entitybuffer.h"
 #include "pipeline.h"
 #include "dummycalendar_generated.h"
-#include "metadata_generated.h"
 #include "queuedcommand_generated.h"
 #include "createentity_generated.h"
 #include "domainadaptor.h"
 #include "commands.h"
-#include "clientapi.h"
 #include "index.h"
 #include "log.h"
 #include "domain/event.h"
 #include "dummystore.h"
-#include <QUuid>
 
+//This is the resources entity type, and not the domain type
+#define ENTITY_TYPE_EVENT "event"
 
 DummyResource::DummyResource(const QByteArray &instanceIdentifier)
     : Akonadi2::GenericResource(instanceIdentifier)
@@ -57,8 +57,7 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
         }
     });
 
-    //event is the entitytype and not the domain type
-    pipeline->setPreprocessors("event", Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
+    pipeline->setPreprocessors(ENTITY_TYPE_EVENT, Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
     //TODO cleanup indexes during removal
     GenericResource::configurePipeline(pipeline);
 }
@@ -107,7 +106,7 @@ KAsync::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipel
 
                 flatbuffers::FlatBufferBuilder fbb;
                 //This is the resource type and not the domain type
-                auto type = fbb.CreateString("event");
+                auto type = fbb.CreateString(ENTITY_TYPE_EVENT);
                 auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
                 auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
                 Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
