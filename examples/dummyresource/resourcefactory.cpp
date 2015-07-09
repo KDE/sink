@@ -49,35 +49,18 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
         //FIXME set revision?
         Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, adaptor);
         Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::index(event);
+
+        Index ridIndex(Akonadi2::Store::storageLocation(), resourceIdentifier + ".index.rid", Akonadi2::Storage::ReadWrite);
+        const auto rid = event.getProperty("remoteId");
+        if (rid.isValid()) {
+            ridIndex.add(rid.toByteArray(), event.identifier());
+        }
     });
 
     //event is the entitytype and not the domain type
     pipeline->setPreprocessors("event", Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
+    //TODO cleanup indexes during removal
     GenericResource::configurePipeline(pipeline);
-}
-
-void findByRemoteId(QSharedPointer<Akonadi2::Storage> storage, const QString &rid, std::function<void(void *keyValue, int keySize, void *dataValue, int dataSize)> callback)
-{
-    //TODO lookup in rid index instead of doing a full scan
-    const std::string ridString = rid.toStdString();
-    storage->scan("", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-        if (Akonadi2::Storage::isInternalKey(keyValue, keySize)) {
-            return true;
-        }
-
-        Akonadi2::EntityBuffer::extractResourceBuffer(dataValue, dataSize, [&](const uint8_t *buffer, size_t size) {
-            flatbuffers::Verifier verifier(buffer, size);
-            if (DummyCalendar::VerifyDummyEventBuffer(verifier)) {
-                DummyCalendar::DummyEvent const *resourceBuffer = DummyCalendar::GetDummyEvent(buffer);
-                if (resourceBuffer && resourceBuffer->remoteId()) {
-                    if (std::string(resourceBuffer->remoteId()->c_str(), resourceBuffer->remoteId()->size()) == ridString) {
-                        callback(keyValue, keySize, dataValue, dataSize);
-                    }
-                }
-            }
-        });
-        return true;
-    });
 }
 
 KAsync::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
@@ -85,12 +68,18 @@ KAsync::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipel
     return KAsync::start<void>([this, pipeline](KAsync::Future<void> &f) {
         //TODO use a read-only transaction during the complete sync to sync against a defined revision
         auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier);
+
+        Index uidIndex(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier + ".index.uid", Akonadi2::Storage::ReadOnly);
+
         const auto data = DummyStore::instance().data();
         for (auto it = data.constBegin(); it != data.constEnd(); it++) {
             bool isNew = true;
             if (storage->exists()) {
-                findByRemoteId(storage, it.key(), [&](void *keyValue, int keySize, void *dataValue, int dataSize) {
+                uidIndex.lookup(it.key().toLatin1(), [&](const QByteArray &value) {
                     isNew = false;
+                },
+                [](const Index::Error &error) {
+                    Warning() << "Error in index: " <<  error.message;
                 });
             }
             if (isNew) {

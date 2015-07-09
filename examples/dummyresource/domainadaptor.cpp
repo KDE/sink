@@ -31,10 +31,17 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
     mResourceMapper->addMapping("summary", [](DummyEvent const *buffer) -> QVariant {
         return propertyToVariant<QString>(buffer->summary());
     });
+    mResourceMapper->addMapping("remoteId", [](DummyEvent const *buffer) -> QVariant {
+        return propertyToVariant<QString>(buffer->remoteId());
+    });
 
     mResourceWriteMapper->addMapping("summary", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(DummyEventBuilder &)> {
         auto offset = variantToProperty<QString>(value, fbb);
         return [offset](DummyEventBuilder &builder) { builder.add_summary(offset); };
+    });
+    mResourceWriteMapper->addMapping("remoteId", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(DummyEventBuilder &)> {
+        auto offset = variantToProperty<QString>(value, fbb);
+        return [offset](DummyEventBuilder &builder) { builder.add_remoteId(offset); };
     });
 }
 
