@@ -128,7 +128,7 @@ public:
     typedef QSharedPointer<DomainTypeAdaptorFactoryInterface> Ptr;
     virtual ~DomainTypeAdaptorFactoryInterface() {};
     virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity) = 0;
-    virtual void createBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainType, flatbuffers::FlatBufferBuilder &fbb) = 0;
+    virtual void createBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainType, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) = 0;
 };
 
 /**
@@ -169,7 +169,7 @@ public:
         return adaptor;
     }
 
-    virtual void createBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE
+    virtual void createBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) Q_DECL_OVERRIDE
     {
         flatbuffers::FlatBufferBuilder localFbb;
         if (mLocalWriteMapper) {
@@ -181,7 +181,7 @@ public:
             createBufferPartBuffer<ResourceBuffer, ResourceBuilder>(domainObject, resFbb, *mResourceWriteMapper);
         }
 
-        Akonadi2::EntityBuffer::assembleEntityBuffer(fbb, 0, 0, resFbb.GetBufferPointer(), resFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
+        Akonadi2::EntityBuffer::assembleEntityBuffer(fbb, metadataData, metadataSize, resFbb.GetBufferPointer(), resFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
     }
 
 
