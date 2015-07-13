@@ -106,7 +106,7 @@ public:
      * @param resourceIdentifier is the identifier of the resource instance
      * @param adaptorFactory is the adaptor factory used to generate the mappings from domain to resource types and vice versa
      */
-    GenericFacade(const QByteArray &resourceIdentifier, const QSharedPointer<DomainTypeAdaptorFactoryInterface<DomainType> > &adaptorFactory = QSharedPointer<DomainTypeAdaptorFactoryInterface<DomainType> >())
+    GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr())
         : Akonadi2::StoreFacade<DomainType>(),
         mResourceAccess(new ResourceAccess(resourceIdentifier)),
         mDomainTypeAdaptorFactory(adaptorFactory),
@@ -244,7 +244,7 @@ protected:
         });
     }
 
-    static void readValue(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, const std::function<void(const typename DomainType::Ptr &)> &resultCallback, const QSharedPointer<DomainTypeAdaptorFactoryInterface<DomainType> > &adaptorFactory)
+    static void readValue(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, const std::function<void(const typename DomainType::Ptr &)> &resultCallback, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory)
     {
         scan(storage, key, [=](const QByteArray &key, const Akonadi2::Entity &entity) {
             const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
@@ -270,7 +270,7 @@ protected:
         return ResultSet(keys);
     }
 
-    static ResultSet filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const QSharedPointer<Akonadi2::Storage> &storage, const QSharedPointer<DomainTypeAdaptorFactoryInterface<DomainType> > &adaptorFactory)
+    static ResultSet filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const QSharedPointer<Akonadi2::Storage> &storage, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory)
     {
         auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
 
@@ -288,7 +288,7 @@ protected:
         return ResultSet(generator);
     }
 
-    static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage, const QSharedPointer<DomainTypeAdaptorFactoryInterface<DomainType> > &adaptorFactory, const QByteArray &resourceInstanceIdentifier)
+    static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory, const QByteArray &resourceInstanceIdentifier)
     {
         QSet<QByteArray> appliedFilters;
         ResultSet resultSet = Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::queryIndexes(query, resourceInstanceIdentifier, appliedFilters);
@@ -342,7 +342,7 @@ private:
 protected:
     //TODO use one resource access instance per application => make static
     QSharedPointer<Akonadi2::ResourceAccess> mResourceAccess;
-    QSharedPointer<DomainTypeAdaptorFactoryInterface<DomainType> > mDomainTypeAdaptorFactory;
+    DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
     QByteArray mResourceInstanceIdentifier;
 };
 

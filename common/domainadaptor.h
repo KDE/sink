@@ -122,13 +122,13 @@ public:
     QSharedPointer<ReadPropertyMapper<ResourceBuffer> > mResourceMapper;
 };
 
-template<typename DomainType>
 class DomainTypeAdaptorFactoryInterface
 {
 public:
+    typedef QSharedPointer<DomainTypeAdaptorFactoryInterface> Ptr;
     virtual ~DomainTypeAdaptorFactoryInterface() {};
     virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity) = 0;
-    virtual void createBuffer(const DomainType &domainType, flatbuffers::FlatBufferBuilder &fbb) = 0;
+    virtual void createBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainType, flatbuffers::FlatBufferBuilder &fbb) = 0;
 };
 
 /**
@@ -137,7 +137,7 @@ public:
  * This is required by the facade the read the value, and by the pipeline preprocessors to access the domain values in a generic way.
  */
 template<typename DomainType, typename ResourceBuffer, typename ResourceBuilder>
-class DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInterface<DomainType>
+class DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInterface
 {
     typedef typename Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::Buffer LocalBuffer;
     typedef typename Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::BufferBuilder LocalBuilder;
@@ -169,7 +169,7 @@ public:
         return adaptor;
     }
 
-    virtual void createBuffer(const DomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE
+    virtual void createBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE
     {
         flatbuffers::FlatBufferBuilder localFbb;
         if (mLocalWriteMapper) {
