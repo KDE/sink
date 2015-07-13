@@ -31,6 +31,7 @@
 #include <Async/Async>
 
 #include "entity_generated.h"
+#include "domainadaptor.h"
 
 namespace Akonadi2
 {
@@ -53,10 +54,11 @@ public:
     void setPreprocessors(const QString &entityType, Type pipelineType, const QVector<Preprocessor *> &preprocessors);
 
     void null();
+    void setAdaptorFactory(const QString &entityType, DomainTypeAdaptorFactoryInterface::Ptr factory);
 
     KAsync::Job<void> newEntity(void const *command, size_t size);
-    void modifiedEntity(const QString &entityType, const QByteArray &key, void *data, size_t size);
-    void deletedEntity(const QString &entityType, const QByteArray &key);
+    KAsync::Job<void> modifiedEntity(void const *command, size_t size);
+    KAsync::Job<void> deletedEntity(void const *command, size_t size);
 
 Q_SIGNALS:
     void revisionUpdated();

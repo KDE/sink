@@ -58,6 +58,7 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
     });
 
     pipeline->setPreprocessors(ENTITY_TYPE_EVENT, Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
+    pipeline->setAdaptorFactory(ENTITY_TYPE_EVENT, eventFactory);
     //TODO cleanup indexes during removal
     GenericResource::configurePipeline(pipeline);
 }

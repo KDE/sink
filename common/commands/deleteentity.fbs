@@ -1,8 +1,9 @@
-namespace Akonadi2;
+namespace Akonadi2.Commands;
 
 table DeleteEntity {
     revision: ulong;
     entityId: string;
+    domainType: string;
 }
 
 root_type DeleteEntity;

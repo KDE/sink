@@ -9,7 +9,6 @@
 #include "clientapi.h"
 #include "index.h"
 #include "log.h"
-#include <assert.h>
 
 using namespace Akonadi2;
 
@@ -67,11 +66,9 @@ private slots:
         //Throw command into appropriate pipeline
         switch (queuedCommand->commandId()) {
             case Akonadi2::Commands::DeleteEntityCommand:
-                //mPipeline->removedEntity
-                return KAsync::null<void>();
+                return mPipeline->deletedEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
             case Akonadi2::Commands::ModifyEntityCommand:
-                //mPipeline->modifiedEntity
-                return KAsync::null<void>();
+                return mPipeline->modifiedEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
             case Akonadi2::Commands::CreateEntityCommand:
                 return mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
             default:

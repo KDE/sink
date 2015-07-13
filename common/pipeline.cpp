@@ -28,8 +28,11 @@
 #include "entity_generated.h"
 #include "metadata_generated.h"
 #include "createentity_generated.h"
+#include "modifyentity_generated.h"
+#include "deleteentity_generated.h"
 #include "entitybuffer.h"
 #include "log.h"
+#include "domain/applicationdomaintype.h"
 
 namespace Akonadi2
 {
@@ -50,6 +53,7 @@ public:
     QHash<QString, QVector<Preprocessor *> > deletedPipeline;
     QVector<PipelineState> activePipelines;
     bool stepScheduled;
+    QHash<QString, DomainTypeAdaptorFactoryInterface::Ptr> adaptorFactory;
 };
 
 Pipeline::Pipeline(const QString &resourceName, QObject *parent)
@@ -81,8 +85,10 @@ void Pipeline::setPreprocessors(const QString &entityType, Type pipelineType, co
 }
 
 Storage &Pipeline::storage() const
+void Pipeline::setAdaptorFactory(const QString &entityType, DomainTypeAdaptorFactoryInterface::Ptr factory)
 {
     return d->storage;
+    d->adaptorFactory.insert(entityType, factory);
 }
 
 void Pipeline::null()
@@ -147,18 +153,115 @@ KAsync::Job<void> Pipeline::newEntity(void const *command, size_t size)
     });
 }
 
-void Pipeline::modifiedEntity(const QString &entityType, const QByteArray &key, void *data, size_t size)
+KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
 {
-    PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline[entityType], [](){});
-    d->activePipelines << state;
-    state.step();
+    Log() << "Pipeline: Modified Entity";
+
+    const qint64 newRevision = storage().maxRevision() + 1;
+
+    {
+        flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
+        if (!Akonadi2::Commands::VerifyModifyEntityBuffer(verifyer)) {
+            qWarning() << "invalid buffer, not a modify entity buffer";
+            return KAsync::error<void>();
+        }
+    }
+    auto modifyEntity = Akonadi2::Commands::GetModifyEntity(command);
+
+    //TODO rename modifyEntity->domainType to bufferType
+    const QByteArray entityType = QByteArray(reinterpret_cast<char const*>(modifyEntity->domainType()->Data()), modifyEntity->domainType()->size());
+    const QByteArray key = QByteArray(reinterpret_cast<char const*>(modifyEntity->entityId()->Data()), modifyEntity->entityId()->size());
+    {
+        flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(modifyEntity->delta()->Data()), modifyEntity->delta()->size());
+        if (!Akonadi2::VerifyEntityBuffer(verifyer)) {
+            qWarning() << "invalid buffer, not an entity buffer";
+            return KAsync::error<void>();
+        }
+    }
+
+    auto adaptorFactory = d->adaptorFactory.value(entityType);
+    if (adaptorFactory) {
+        qWarning() << "no adaptor factory";
+        return KAsync::error<void>();
+    }
+
+    auto diffEntity = Akonadi2::GetEntity(modifyEntity->delta()->Data());
+    auto diff = adaptorFactory->createAdaptor(*diffEntity);
+
+    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr domainType;
+    storage().scan(QByteArray::fromRawData(key.data(), key.size()), [&domainType](const QByteArray &data) -> bool {
+        auto existingEntity = Akonadi2::GetEntity(data.data());
+        domainType = getDomainType(*existingEntity);
+        return false;
+    });
+    //TODO error handler
+
+    //Apply diff
+    //FIXME only apply the properties that are available in the buffer
+    for (const auto &property : diff->availableProperties()) {
+        domainType->setProperty(property, diff->getProperty(property));
+    }
+    //Remove deletions
+    for (const auto &property : *modifyEntity->deletions()) {
+        domainType->setProperty(QByteArray::fromRawData(property->data(), property->size()), QVariant());
+    }
+
+
+    //Add metadata buffer
+    flatbuffers::FlatBufferBuilder metadataFbb;
+    auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
+    metadataBuilder.add_revision(newRevision);
+    metadataBuilder.add_processed(false);
+    auto metadataBuffer = metadataBuilder.Finish();
+    Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
+
+
+    flatbuffers::FlatBufferBuilder fbb;
+    adaptorFactory->createBuffer(*domainType, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
+
+    //TODO don't overwrite the old entry, but instead store a new revision
+    storage().write(key.data(), key.size(), fbb.GetBufferPointer(), fbb.GetSize());
+    storage().setMaxRevision(newRevision);
+
+    return KAsync::start<void>([this, key, entityType](KAsync::Future<void> &future) {
+        PipelineState state(this, ModifiedPipeline, key, d->newPipeline[entityType], [&future]() {
+            future.setFinished();
+        });
+        d->activePipelines << state;
+        state.step();
+    });
 }
 
-void Pipeline::deletedEntity(const QString &entityType, const QByteArray &key)
+KAsync::Job<void> Pipeline::deletedEntity(void const *command, size_t size)
 {
-    PipelineState state(this, DeletedPipeline, key, d->deletedPipeline[entityType], [](){});
-    d->activePipelines << state;
-    state.step();
+    Log() << "Pipeline: Deleted Entity";
+
+    const qint64 newRevision = storage().maxRevision() + 1;
+
+    {
+        flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
+        if (!Akonadi2::Commands::VerifyDeleteEntityBuffer(verifyer)) {
+            qWarning() << "invalid buffer, not a delete entity buffer";
+            return KAsync::error<void>();
+        }
+    }
+    auto deleteEntity = Akonadi2::Commands::GetDeleteEntity(command);
+
+    const QByteArray entityType = QByteArray(reinterpret_cast<char const*>(deleteEntity->domainType()->Data()), deleteEntity->domainType()->size());
+    const QByteArray key = QByteArray(reinterpret_cast<char const*>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
+
+    //TODO instead of deleting the entry, a new revision should be created that marks the entity as deleted
+    storage().remove(key.data(), key.size());
+    storage().setMaxRevision(newRevision);
+    Log() << "Pipeline: deleted entity: "<< newRevision;
+
+    return KAsync::start<void>([this, key, entityType](KAsync::Future<void> &future) {
+        PipelineState state(this, DeletedPipeline, key, d->deletedPipeline[entityType], [&future](){
+            future.setFinished();
+        });
+        d->activePipelines << state;
+        state.step();
+    });
 }
 
 void Pipeline::pipelineStepped(const PipelineState &state)
