@@ -54,11 +54,11 @@ public:
     }
 
     template <typename DomainType>
-    static typename DomainType::Ptr getInMemoryRepresentation(const ApplicationDomainType::Ptr &domainType)
+    static typename DomainType::Ptr getInMemoryRepresentation(const ApplicationDomainType &domainType)
     {
         //TODO only copy requested properties
-        auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create(*(domainType->mAdaptor));
-        return QSharedPointer<DomainType>::create(domainType->mResourceInstanceIdentifier, domainType->mIdentifier, domainType->mRevision, memoryAdaptor);
+        auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create(*(domainType.mAdaptor));
+        return QSharedPointer<DomainType>::create(domainType.mResourceInstanceIdentifier, domainType.mIdentifier, domainType.mRevision, memoryAdaptor);
     }
 
     virtual ~ApplicationDomainType() {}

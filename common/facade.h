@@ -330,7 +330,7 @@ protected:
             resultProvider->clear();
             auto resultCallback = std::bind(&Akonadi2::ResultProvider<typename DomainType::Ptr>::add, resultProvider, std::placeholders::_1);
             while(resultSet.next([resultCallback](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value) -> bool {
-                resultCallback(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(value));
+                resultCallback(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value));
                 return true;
             })){};
             storage->abortTransaction();
