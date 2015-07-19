@@ -6,7 +6,7 @@
 
 using namespace Akonadi2;
 
-EntityBuffer::EntityBuffer(void *dataValue, int dataSize)
+EntityBuffer::EntityBuffer(const void *dataValue, int dataSize)
     : mEntity(nullptr)
 {
     flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(dataValue), dataSize);
@@ -16,6 +16,11 @@ EntityBuffer::EntityBuffer(void *dataValue, int dataSize)
     } else {
         mEntity = Akonadi2::GetEntity(dataValue);
     }
+}
+
+bool EntityBuffer::isValid() const
+{
+    return mEntity;
 }
 
 const Akonadi2::Entity &EntityBuffer::entity()

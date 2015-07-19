@@ -28,6 +28,8 @@
 #include "resourceaccess.h"
 #include "commands.h"
 #include "createentity_generated.h"
+#include "modifyentity_generated.h"
+#include "deleteentity_generated.h"
 #include "domainadaptor.h"
 #include "entitybuffer.h"
 #include "log.h"
@@ -128,6 +130,7 @@ public:
     {
         if (!mDomainTypeAdaptorFactory) {
             Warning() << "No domain type adaptor factory available";
+            return KAsync::error<void>();
         }
         flatbuffers::FlatBufferBuilder entityFbb;
         mDomainTypeAdaptorFactory->createBuffer(domainObject, entityFbb);
@@ -136,14 +139,18 @@ public:
 
     KAsync::Job<void> modify(const DomainType &domainObject) Q_DECL_OVERRIDE
     {
-        //TODO
-        return KAsync::null<void>();
+        if (!mDomainTypeAdaptorFactory) {
+            Warning() << "No domain type adaptor factory available";
+            return KAsync::error<void>();
+        }
+        flatbuffers::FlatBufferBuilder entityFbb;
+        mDomainTypeAdaptorFactory->createBuffer(domainObject, entityFbb);
+        return sendModifyCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType(), QByteArrayList(), QByteArray::fromRawData(reinterpret_cast<const char*>(entityFbb.GetBufferPointer()), entityFbb.GetSize()));
     }
 
     KAsync::Job<void> remove(const DomainType &domainObject) Q_DECL_OVERRIDE
     {
-        //TODO
-        return KAsync::null<void>();
+        return sendDeleteCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType());
     }
 
     //TODO JOBAPI return job from sync continuation to execute it as subjob?
@@ -197,6 +204,33 @@ protected:
         Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
         mResourceAccess->open();
         return mResourceAccess->sendCommand(Akonadi2::Commands::CreateEntityCommand, fbb);
+    }
+
+    KAsync::Job<void> sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer)
+    {
+        flatbuffers::FlatBufferBuilder fbb;
+        auto entityId = fbb.CreateString(uid.constData());
+        //This is the resource buffer type and not the domain type
+        auto type = fbb.CreateString(resourceBufferType.constData());
+        //FIXME
+        auto deletions = 0;
+        auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
+        auto location = Akonadi2::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta);
+        Akonadi2::Commands::FinishModifyEntityBuffer(fbb, location);
+        mResourceAccess->open();
+        return mResourceAccess->sendCommand(Akonadi2::Commands::ModifyEntityCommand, fbb);
+    }
+
+    KAsync::Job<void> sendDeleteCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType)
+    {
+        flatbuffers::FlatBufferBuilder fbb;
+        auto entityId = fbb.CreateString(uid.constData());
+        //This is the resource buffer type and not the domain type
+        auto type = fbb.CreateString(resourceBufferType.constData());
+        auto location = Akonadi2::Commands::CreateDeleteEntity(fbb, revision, entityId, type);
+        Akonadi2::Commands::FinishDeleteEntityBuffer(fbb, location);
+        mResourceAccess->open();
+        return mResourceAccess->sendCommand(Akonadi2::Commands::DeleteEntityCommand, fbb);
     }
 
     KAsync::Job<void> synchronizeResource(bool sync, bool processAll)

@@ -8,11 +8,12 @@ struct Entity;
 
 class EntityBuffer {
 public:
-    EntityBuffer(void *dataValue, int size);
+    EntityBuffer(const void *dataValue, int size);
     const uint8_t *resourceBuffer();
     const uint8_t *metadataBuffer();
     const uint8_t *localBuffer();
     const Entity &entity();
+    bool isValid() const;
 
     static void extractResourceBuffer(void *dataValue, int dataSize, const std::function<void(const uint8_t *, size_t size)> &handler);
     /*

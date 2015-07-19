@@ -208,6 +208,47 @@ private Q_SLOTS:
         qDebug() << value->getProperty("summary").toString();
     }
 
+    void testWriteModifyDelete()
+    {
+        Akonadi2::ApplicationDomain::Event event;
+        event.setProperty("uid", "testuid");
+        QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
+        event.setProperty("summary", "summaryValue");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+
+        Akonadi2::Query query;
+        query.resources << "org.kde.dummy.instance1";
+        query.syncOnDemand = false;
+        query.processAll = true;
+        query.propertyFilter.insert("uid", "testuid");
+
+        //Test create
+        Akonadi2::ApplicationDomain::Event event2;
+        {
+            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
+            result.exec();
+            QCOMPARE(result.size(), 1);
+            auto value = result.first();
+            QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
+            QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue"));
+            event2 = *value;
+        }
+
+        event2.setProperty("uid", "testuid");
+        event2.setProperty("summary", "summaryValue2");
+        Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2, "org.kde.dummy.instance1");
+
+        //Test modify
+        {
+            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
+            result.exec();
+            QCOMPARE(result.size(), 1);
+            auto value = result.first();
+            QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
+            QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
+        }
+    }
+
 };
 
 QTEST_MAIN(DummyResourceTest)
