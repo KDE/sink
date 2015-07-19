@@ -273,12 +273,12 @@ void ResourceAccess::sendCommand(const QSharedPointer<QueuedCommand> &command)
     d->messageId++;
     const auto messageId = d->messageId;
     log(QString("Sending command \"%1\" with messageId %2").arg(QString(Akonadi2::Commands::name(command->commandId))).arg(d->messageId));
-    if (command->callback) {
-        registerCallback(d->messageId, [this, messageId, command](int errorCode, QString errorMessage) {
-            d->pendingCommands.remove(messageId);
-            command->callback(errorCode, errorMessage);
-        });
-    }
+    Q_ASSERT(command->callback);
+    registerCallback(d->messageId, [this, messageId, command](int errorCode, QString errorMessage) {
+        Trace() << "Command complete " << messageId;
+        d->pendingCommands.remove(messageId);
+        command->callback(errorCode, errorMessage);
+    });
     //Keep track of the command until we're sure it arrived
     d->pendingCommands.insert(d->messageId, command);
     Commands::write(d->socket.data(), d->messageId, command->commandId, command->buffer.constData(), command->buffer.size());
