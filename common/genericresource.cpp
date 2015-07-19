@@ -93,7 +93,7 @@ private slots:
                 queue->dequeue(
                     [this, &future](void *ptr, int size, std::function<void(bool success)> messageQueueCallback) {
                         auto callback = [messageQueueCallback, &future](bool success) {
-                            messageQueueCallback(success);
+                            messageQueueCallback(true);
                             future.setValue(!success);
                             future.setFinished();
                         };
@@ -105,9 +105,11 @@ private slots:
                             return;
                         }
                         auto queuedCommand = Akonadi2::GetQueuedCommand(ptr);
-                        Trace() << "Dequeued Command: " << Akonadi2::Commands::name(queuedCommand->commandId());
+                        const auto commandId = queuedCommand->commandId();
+                        Trace() << "Dequeued Command: " << Akonadi2::Commands::name(commandId);
                         processQueuedCommand(queuedCommand).then<void>(
-                            [callback]() {
+                            [callback, commandId]() {
+                                Trace() << "Command pipeline processed: " << Akonadi2::Commands::name(commandId);
                                 callback(true);
                             },
                             [callback](int errorCode, QString errorMessage) {
