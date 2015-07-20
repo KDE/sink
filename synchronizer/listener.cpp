@@ -97,6 +97,7 @@ void Listener::closeAllConnections()
 {
     for (Client &client: m_connections) {
         if (client.socket) {
+            disconnect(client.socket, 0, this, 0);
             client.socket->close();
             delete client.socket;
             client.socket = 0;
