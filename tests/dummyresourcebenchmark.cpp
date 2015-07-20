@@ -133,7 +133,7 @@ private Q_SLOTS:
         const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 
         for (int i = 0; i < num; i++) {
-            resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, command.size(), &pipeline);
+            resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, &pipeline);
         }
         auto appendTime = time.elapsed();
 

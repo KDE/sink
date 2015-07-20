@@ -194,7 +194,7 @@ void GenericResource::enqueueCommand(MessageQueue &mq, int commandId, const QByt
     mq.enqueue(m_fbb.GetBufferPointer(), m_fbb.GetSize());
 }
 
-void GenericResource::processCommand(int commandId, const QByteArray &data, uint size, Akonadi2::Pipeline *pipeline)
+void GenericResource::processCommand(int commandId, const QByteArray &data, Akonadi2::Pipeline *pipeline)
 {
     //TODO instead of copying the command including the full entity first into the command queue, we could directly
     //create a new revision, only pushing a handle into the commandqueue with the relevant changeset (for changereplay).

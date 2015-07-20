@@ -89,8 +89,8 @@ private Q_SLOTS:
         QSignalSpy revisionSpy(&pipeline, SIGNAL(revisionUpdated()));
         DummyResource resource("org.kde.dummy.instance1");
         resource.configurePipeline(&pipeline);
-        resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, command.size(), &pipeline);
-        resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, command.size(), &pipeline);
+        resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, &pipeline);
+        resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, &pipeline);
 
         QVERIFY(revisionSpy.isValid());
         QTRY_COMPARE(revisionSpy.count(), 2);

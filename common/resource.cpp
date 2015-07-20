@@ -44,11 +44,10 @@ void Resource::configurePipeline(Pipeline *pipeline)
 
 }
 
-void Resource::processCommand(int commandId, const QByteArray &data, uint size, Pipeline *pipeline)
+void Resource::processCommand(int commandId, const QByteArray &data, Pipeline *pipeline)
 {
     Q_UNUSED(commandId)
     Q_UNUSED(data)
-    Q_UNUSED(size)
     Q_UNUSED(pipeline)
     pipeline->null();
 }

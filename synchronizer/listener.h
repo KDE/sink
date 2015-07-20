@@ -79,7 +79,7 @@ private Q_SLOTS:
     void quit();
 
 private:
-    void processCommand(int commandId, uint messageId, Client &client, uint size, const std::function<void()> &callback);
+    void processCommand(int commandId, uint messageId, const QByteArray &commandBuffer, Client &client, const std::function<void()> &callback);
     bool processClientBuffer(Client &client);
     void sendCurrentRevision(Client &client);
     void sendCommandCompleted(QLocalSocket *socket, uint messageId);

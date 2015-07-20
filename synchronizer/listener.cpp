@@ -203,13 +203,13 @@ void Listener::processClientBuffers()
     }
 }
 
-void Listener::processCommand(int commandId, uint messageId, Client &client, uint size, const std::function<void()> &callback)
+void Listener::processCommand(int commandId, uint messageId, const QByteArray &commandBuffer, Client &client, const std::function<void()> &callback)
 {
     switch (commandId) {
         case Akonadi2::Commands::HandshakeCommand: {
-            flatbuffers::Verifier verifier((const uint8_t *)client.commandBuffer.constData(), size);
+            flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
             if (Akonadi2::VerifyHandshakeBuffer(verifier)) {
-                auto buffer = Akonadi2::GetHandshake(client.commandBuffer.constData());
+                auto buffer = Akonadi2::GetHandshake(commandBuffer.constData());
                 client.name = buffer->name()->c_str();
                 sendCurrentRevision(client);
             } else {
@@ -218,9 +218,9 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
             break;
         }
         case Akonadi2::Commands::SynchronizeCommand: {
-            flatbuffers::Verifier verifier((const uint8_t *)client.commandBuffer.constData(), size);
+            flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
             if (Akonadi2::VerifySynchronizeBuffer(verifier)) {
-                auto buffer = Akonadi2::GetSynchronize(client.commandBuffer.constData());
+                auto buffer = Akonadi2::GetSynchronize(commandBuffer.constData());
                 Log() << QString("\tSynchronize request (id %1) from %2").arg(messageId).arg(client.name);
                 loadResource();
                 if (!m_resource) {
@@ -250,7 +250,7 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
             Log() << "\tCommand id  " << messageId << " of type \"" << Akonadi2::Commands::name(commandId) << "\" from " << client.name;
             loadResource();
             if (m_resource) {
-                m_resource->processCommand(commandId, client.commandBuffer, size, m_pipeline);
+                m_resource->processCommand(commandId, commandBuffer, m_pipeline);
             }
             break;
         case Akonadi2::Commands::ShutdownCommand:
@@ -262,7 +262,7 @@ void Listener::processCommand(int commandId, uint messageId, Client &client, uin
                 Log() << QString("\tReceived custom command from %1: ").arg(client.name) << commandId;
                 loadResource();
                 if (m_resource) {
-                    m_resource->processCommand(commandId, client.commandBuffer, size, m_pipeline);
+                    m_resource->processCommand(commandId, commandBuffer, m_pipeline);
                 }
             } else {
                 Warning() << QString("\tReceived invalid command from %1: ").arg(client.name) << commandId;
@@ -307,7 +307,9 @@ bool Listener::processClientBuffer(Client &client)
 
         auto socket = QPointer<QLocalSocket>(client.socket);
         auto clientName = client.name;
-        processCommand(commandId, messageId, client, size, [this, messageId, commandId, socket, clientName]() {
+        const QByteArray commandBuffer = client.commandBuffer.left(size);
+        client.commandBuffer.remove(0, size);
+        processCommand(commandId, messageId, commandBuffer, client, [this, messageId, commandId, socket, clientName]() {
             Log() << QString("\tCompleted command messageid %1 of type \"%2\" from %3").arg(messageId).arg(QString(Akonadi2::Commands::name(commandId))).arg(clientName);
             if (socket) {
                 sendCommandCompleted(socket.data(), messageId);
@@ -315,7 +317,6 @@ bool Listener::processClientBuffer(Client &client)
                 Log() << QString("Socket became invalid before we could send a response. client: %1").arg(clientName);
             }
         });
-        client.commandBuffer.remove(0, size);
 
         return client.commandBuffer.size() >= headerSize;
     }
