@@ -17,6 +17,10 @@ void Index::add(const QByteArray &key, const QByteArray &value)
 void Index::lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler,
                                           const std::function<void(const Error &error)> &errorHandler)
 {
+    if (!mStorage.exists()) {
+        errorHandler(Error("index", IndexNotAvailable, "Index not existing"));
+        return;
+    }
     mStorage.scan(key, [this, resultHandler](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
         resultHandler(QByteArray(static_cast<char*>(valuePtr), valueSize));
         return true;

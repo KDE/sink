@@ -66,22 +66,20 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
 KAsync::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
 {
     return KAsync::start<void>([this, pipeline](KAsync::Future<void> &f) {
-        auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier);
-        storage->startTransaction(Akonadi2::Storage::ReadOnly);
-
+        //TODO start transaction on index
         Index uidIndex(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier + ".index.uid", Akonadi2::Storage::ReadOnly);
 
         const auto data = DummyStore::instance().data();
         for (auto it = data.constBegin(); it != data.constEnd(); it++) {
             bool isNew = true;
-            if (storage->exists()) {
-                uidIndex.lookup(it.key().toLatin1(), [&](const QByteArray &value) {
-                    isNew = false;
-                },
-                [](const Index::Error &error) {
-                    Warning() << "Error in index: " <<  error.message;
-                });
-            }
+            uidIndex.lookup(it.key().toLatin1(), [&](const QByteArray &value) {
+                isNew = false;
+            },
+            [](const Index::Error &error) {
+                if (error.code != Index::IndexNotAvailable) {
+                    Warning() << "Error in uid index: " <<  error.message;
+                }
+            });
             if (isNew) {
                 m_fbb.Clear();
 
@@ -117,7 +115,6 @@ KAsync::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipel
                 //TODO diff and create modification if necessary
             }
         }
-        storage->abortTransaction();
         //TODO find items to remove
         f.setFinished();
     });

@@ -11,6 +11,10 @@
 class Index
 {
 public:
+    enum ErrorCodes {
+        IndexNotAvailable = -1
+    };
+
     class Error
     {
     public:
