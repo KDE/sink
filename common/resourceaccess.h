@@ -67,7 +67,7 @@ private Q_SLOTS:
     void connectionError(QLocalSocket::LocalSocketError error);
     void readResourceMessage();
     bool processMessageBuffer();
-    void callCallbacks(int id);
+    void callCallbacks();
 
 private:
     void connected();

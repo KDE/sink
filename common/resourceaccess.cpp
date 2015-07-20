@@ -72,6 +72,9 @@ public:
     Private(const QByteArray &name, const QByteArray &instanceIdentifier, ResourceAccess *ra);
     KAsync::Job<void> tryToConnect();
     KAsync::Job<void> initializeSocket();
+    void abortPendingOperations();
+    void callCallbacks();
+
     QByteArray resourceName;
     QByteArray resourceInstanceIdentifier;
     QSharedPointer<QLocalSocket> socket;
@@ -80,6 +83,7 @@ public:
     QVector<QSharedPointer<QueuedCommand>> commandQueue;
     QMap<uint, QSharedPointer<QueuedCommand>> pendingCommands;
     QMultiMap<uint, std::function<void(int error, const QString &errorMessage)> > resultHandler;
+    QSet<uint> completeCommands;
     uint messageId;
 };
 
@@ -88,6 +92,31 @@ ResourceAccess::Private::Private(const QByteArray &name, const QByteArray &insta
       resourceInstanceIdentifier(instanceIdentifier),
       messageId(0)
 {
+}
+
+void ResourceAccess::Private::abortPendingOperations()
+{
+    callCallbacks();
+    if (!resultHandler.isEmpty()) {
+        Warning() << "Aborting pending operations " << resultHandler.keys();
+    }
+    auto handlers = resultHandler.values();
+    resultHandler.clear();
+    for(auto handler : handlers) {
+        handler(1, "The resource closed unexpectedly");
+    }
+}
+
+void ResourceAccess::Private::callCallbacks()
+{
+    for (auto id : completeCommands) {
+        //We remove the callbacks first because the handler can kill resourceaccess directly
+        const auto callbacks = resultHandler.values(id);
+        resultHandler.remove(id);
+        for(auto handler : callbacks) {
+            handler(0, QString());
+        }
+    }
 }
 
 //Connects to server and returns connected socket on success
@@ -333,6 +362,8 @@ void ResourceAccess::disconnected()
 {
     d->socket->close();
     log(QString("Disconnected from %1").arg(d->socket->fullServerName()));
+    //TODO fail all existing jobs? or retry
+    d->abortPendingOperations();
     emit ready(false);
 }
 
@@ -345,10 +376,7 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
     }
 
     //TODO We could first try to reconnect and resend the message if necessary.
-    for(auto handler : d->resultHandler.values()) {
-        handler(1, "The resource closed unexpectedly");
-    }
-    d->resultHandler.clear();
+    d->abortPendingOperations();
 }
 
 void ResourceAccess::readResourceMessage()
@@ -392,10 +420,10 @@ bool ResourceAccess::processMessageBuffer()
         case Commands::CommandCompletion: {
             auto buffer = GetCommandCompletion(d->partialMessageBuffer.constData() + headerSize);
             log(QString("Command with messageId %1 completed %2").arg(buffer->id()).arg(buffer->success() ? "sucessfully" : "unsuccessfully"));
-            //TODO: if a queued command, get it out of the queue ... pass on completion ot the relevant objects .. etc
 
+            d->completeCommands << buffer->id();
             //The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
-            QMetaObject::invokeMethod(this, "callCallbacks", Qt::QueuedConnection, QGenericReturnArgument(), Q_ARG(int, buffer->id()));
+            QMetaObject::invokeMethod(this, "callCallbacks", Qt::QueuedConnection);
             break;
         }
         case Commands::NotificationCommand: {
@@ -419,14 +447,9 @@ bool ResourceAccess::processMessageBuffer()
     return d->partialMessageBuffer.size() >= headerSize;
 }
 
-void ResourceAccess::callCallbacks(int id)
+void ResourceAccess::callCallbacks()
 {
-    //We remove the callbacks first because the handler can kill resourceaccess directly
-    const auto callbacks = d->resultHandler.values(id);
-    d->resultHandler.remove(id);
-    for(auto handler : callbacks) {
-        handler(0, QString());
-    }
+    d->callCallbacks();
 }
 
 void ResourceAccess::log(const QString &message)
