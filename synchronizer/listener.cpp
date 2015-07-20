@@ -174,8 +174,7 @@ void Listener::readFromSocket(QLocalSocket *socket)
     for (Client &client: m_connections) {
         if (client.socket == socket) {
             client.commandBuffer += socket->readAll();
-            if (processClientBuffer(client) && !m_clientBufferProcessesTimer->isActive()) {
-                // we have more client buffers to handle
+            if (!m_clientBufferProcessesTimer->isActive()) {
                 m_clientBufferProcessesTimer->start();
             }
             break;
