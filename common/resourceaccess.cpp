@@ -113,11 +113,12 @@ KAsync::Job<QSharedPointer<QLocalSocket> > ResourceAccess::connectToServer(const
 
 KAsync::Job<void> ResourceAccess::Private::tryToConnect()
 {
+    auto counter = QSharedPointer<int>::create();
+    *counter = 0;
     return KAsync::dowhile([this]() -> bool {
-        //TODO abort after N retries?
         return !socket;
     },
-    [this](KAsync::Future<void> &future) {
+    [this, counter](KAsync::Future<void> &future) {
         Trace() << "Loop";
         KAsync::wait(50)
         .then(connectToServer(resourceInstanceIdentifier))
@@ -126,8 +127,15 @@ KAsync::Job<void> ResourceAccess::Private::tryToConnect()
             socket = s;
             future.setFinished();
         },
-        [&future](int errorCode, const QString &errorString) {
-            future.setFinished();
+        [&future, counter](int errorCode, const QString &errorString) {
+            const int maxRetries = 10;
+            if (*counter > maxRetries) {
+                Trace() << "Giving up";
+                future.setError(-1, "Failed to connect to socket");
+            } else {
+                future.setFinished();
+            }
+            *counter = *counter + 1;
         }).exec();
     });
 }
@@ -153,6 +161,9 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                 tryToConnect()
                 .then<void>([&future]() {
                     future.setFinished();
+                }, [this, &future](int errorCode, const QString &errorString) {
+                    Warning() << "Failed to connect to started resource";
+                    future.setError(errorCode, errorString);
                 }).exec();
             } else {
                 Warning() << "Failed to start resource";
@@ -179,7 +190,7 @@ ResourceAccess::~ResourceAccess()
 {
     log("Closing access");
     if (!d->resultHandler.isEmpty()) {
-        Warning() << "Left jobs running while shutting down ResourceAccess";
+        Warning() << "Left jobs running while shutting down ResourceAccess: " << d->resultHandler.keys();
     }
 }
 
@@ -257,6 +268,9 @@ void ResourceAccess::open()
         QObject::connect(d->socket.data(), &QIODevice::readyRead,
                 this, &ResourceAccess::readResourceMessage);
         connected();
+    },
+    [](int error, const QString &errorString) {
+        Warning() << "Failed to initialize socket " << errorString;
     }).exec();
 }
 
