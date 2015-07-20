@@ -73,7 +73,7 @@ private Q_SLOTS:
     void acceptConnection();
     void clientDropped();
     void checkConnections();
-    void readFromSocket();
+    void onDataAvailable();
     void processClientBuffers();
     void refreshRevision();
     void quit();
@@ -85,6 +85,7 @@ private:
     void sendCommandCompleted(QLocalSocket *socket, uint messageId);
     void updateClientsWithRevision();
     void loadResource();
+    void readFromSocket(QLocalSocket *socket);
 
     QLocalServer *m_server;
     QVector<Client> m_connections;

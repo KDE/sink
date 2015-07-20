@@ -124,6 +124,9 @@ void Listener::acceptConnection()
             this, &Listener::clientDropped);
     m_checkConnectionsTimer->stop();
 
+    if (socket->bytesAvailable()) {
+        readFromSocket(socket);
+    }
 }
 
 void Listener::clientDropped()
@@ -156,13 +159,17 @@ void Listener::checkConnections()
     m_checkConnectionsTimer->start();
 }
 
-void Listener::readFromSocket()
+void Listener::onDataAvailable()
 {
     QLocalSocket *socket = qobject_cast<QLocalSocket *>(sender());
     if (!socket) {
         return;
     }
+    readFromSocket(socket);
+}
 
+void Listener::readFromSocket(QLocalSocket *socket)
+{
     Trace() << "Reading from socket...";
     for (Client &client: m_connections) {
         if (client.socket == socket) {
