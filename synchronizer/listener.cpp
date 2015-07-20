@@ -117,10 +117,9 @@ void Listener::acceptConnection()
     }
 
     Log() << "Got a connection";
-    Client client("Unknown Client", socket);
+    m_connections << Client("Unknown Client", socket);
     connect(socket, &QIODevice::readyRead,
-            this, &Listener::readFromSocket);
-    m_connections << client;
+            this, &Listener::onDataAvailable);
     connect(socket, &QLocalSocket::disconnected,
             this, &Listener::clientDropped);
     m_checkConnectionsTimer->stop();
