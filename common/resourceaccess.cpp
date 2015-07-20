@@ -421,10 +421,12 @@ bool ResourceAccess::processMessageBuffer()
 
 void ResourceAccess::callCallbacks(int id)
 {
-    for(auto handler : d->resultHandler.values(id)) {
+    //We remove the callbacks first because the handler can kill resourceaccess directly
+    const auto callbacks = d->resultHandler.values(id);
+    d->resultHandler.remove(id);
+    for(auto handler : callbacks) {
         handler(0, QString());
     }
-    d->resultHandler.remove(id);
 }
 
 void ResourceAccess::log(const QString &message)
