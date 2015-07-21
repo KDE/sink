@@ -255,6 +255,8 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             break;
         case Akonadi2::Commands::ShutdownCommand:
             Log() << QString("\tReceived shutdown command from %1").arg(client.name);
+            //Immediately reject new connections
+            m_server->close();
             QTimer::singleShot(0, this, &Listener::quit);
             break;
         default:
@@ -285,7 +287,7 @@ void Listener::quit()
     }
     m_fbb.Clear();
 
-    m_server->close();
+    //Connections will be cleaned up later
     emit noClients();
 }
 
