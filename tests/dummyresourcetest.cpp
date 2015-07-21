@@ -45,6 +45,13 @@ private Q_SLOTS:
         QVERIFY(factory);
     }
 
+    void init()
+    {
+        qDebug();
+        qDebug() << "-----------------------------------------";
+        qDebug();
+    }
+
     void testProcessCommand()
     {
         flatbuffers::FlatBufferBuilder eventFbb;
