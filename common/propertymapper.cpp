@@ -32,6 +32,7 @@ template <>
 QVariant propertyToVariant<QString>(const flatbuffers::String *property)
 {
     if (property) {
+        //We have to copy the memory, otherwise it would become eventually invalid
         return QString::fromStdString(property->c_str());
     }
     return QVariant();

@@ -41,7 +41,7 @@ ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, 
             keys << value;
         },
         [](const Index::Error &error) {
-            Warning() << "Error in index: " <<  error.message;
+            Warning() << "Error in uid index: " <<  error.message;
         });
         appliedFilters << "uid";
     }

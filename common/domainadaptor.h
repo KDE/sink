@@ -41,12 +41,12 @@ flatbuffers::Offset<Buffer> createBufferPart(const Akonadi2::ApplicationDomain::
     //First create a primitives such as strings using the mappings
     QList<std::function<void(Builder &)> > propertiesToAddToResource;
     for (const auto &property : domainObject.changedProperties()) {
-        qWarning() << "copying property " << property;
+        // Trace() << "copying property " << property;
         const auto value = domainObject.getProperty(property);
         if (mapper.hasMapping(property)) {
             mapper.setProperty(property, domainObject.getProperty(property), propertiesToAddToResource, fbb);
         } else {
-            qWarning() << "no mapping for property available " << property;
+            // Trace() << "no mapping for property available " << property;
         }
     }
 
@@ -173,11 +173,13 @@ public:
     {
         flatbuffers::FlatBufferBuilder localFbb;
         if (mLocalWriteMapper) {
+            Trace() << "Creating local buffer part";
             createBufferPartBuffer<LocalBuffer, LocalBuilder>(domainObject, localFbb, *mLocalWriteMapper);
         }
 
         flatbuffers::FlatBufferBuilder resFbb;
         if (mResourceWriteMapper) {
+            Trace() << "Creating resouce buffer part";
             createBufferPartBuffer<ResourceBuffer, ResourceBuilder>(domainObject, resFbb, *mResourceWriteMapper);
         }
 

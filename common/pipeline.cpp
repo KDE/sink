@@ -210,7 +210,7 @@ KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
     //TODO error handler
 
     if (!current) {
-        Warning() << "Failed to read local value ";
+        Warning() << "Failed to read local value " << key;
         return KAsync::error<void>();
     }
 
