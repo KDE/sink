@@ -53,6 +53,21 @@ public:
     {
     }
 
+    ApplicationDomainType(const ApplicationDomainType &other)
+    {
+        *this = other;
+    }
+
+    ApplicationDomainType& operator=(const ApplicationDomainType &other)
+    {
+        mAdaptor = other.mAdaptor;
+        mChangeSet = other.mChangeSet;
+        mResourceInstanceIdentifier = other.mResourceInstanceIdentifier;
+        mIdentifier = other.mIdentifier;
+        mRevision = other.mRevision;
+        return *this;
+    }
+
     template <typename DomainType>
     static typename DomainType::Ptr getInMemoryRepresentation(const ApplicationDomainType &domainType)
     {
