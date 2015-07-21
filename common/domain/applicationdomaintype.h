@@ -73,7 +73,8 @@ public:
     {
         //TODO only copy requested properties
         auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create(*(domainType.mAdaptor));
-        return QSharedPointer<DomainType>::create(domainType.mResourceInstanceIdentifier, domainType.mIdentifier, domainType.mRevision, memoryAdaptor);
+        //The identifier still internal refers to the memory-mapped pointer, we need to copy the memory or it will become invalid
+        return QSharedPointer<DomainType>::create(domainType.mResourceInstanceIdentifier, QByteArray(domainType.mIdentifier.constData()), domainType.mRevision, memoryAdaptor);
     }
 
     virtual ~ApplicationDomainType() {}
