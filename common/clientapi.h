@@ -35,6 +35,7 @@
 #include "resultprovider.h"
 #include "domain/applicationdomaintype.h"
 #include "resourceconfig.h"
+#include "log.h"
 
 namespace async {
     //This should abstract if we execute from eventloop or in thread.
@@ -277,7 +278,9 @@ public:
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
         if (facade) {
-            facade->create(domainObject).exec().waitForFinished();
+            facade->create(domainObject).template then<void>([](){}, [](int errorCode, const QString &error) {
+                Warning() << "Failed to create";
+            }).exec().waitForFinished();
         }
         //TODO return job?
     }
@@ -292,7 +295,9 @@ public:
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
         if (facade) {
-            facade->modify(domainObject).exec().waitForFinished();
+            facade->modify(domainObject).template then<void>([](){}, [](int errorCode, const QString &error) {
+                Warning() << "Failed to modify";
+            }).exec().waitForFinished();
         }
         //TODO return job?
     }
@@ -305,7 +310,9 @@ public:
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
         if (facade) {
-            facade->remove(domainObject).exec().waitForFinished();
+            facade->remove(domainObject).template then<void>([](){}, [](int errorCode, const QString &error) {
+                Warning() << "Failed to remove";
+            }).exec().waitForFinished();
         }
         //TODO return job?
     }

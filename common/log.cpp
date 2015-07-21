@@ -33,6 +33,27 @@ private:
     Q_DISABLE_COPY(DebugStream)
 };
 
+class NullStream: public QIODevice
+{
+public:
+    NullStream()
+        : QIODevice()
+    {
+        open(WriteOnly);
+    }
+    virtual ~NullStream(){};
+
+    bool isSequential() const { return true; }
+    qint64 readData(char *, qint64) { return 0; /* eof */ }
+    qint64 readLineData(char *, qint64) { return 0; /* eof */ }
+    qint64 writeData(const char *data, qint64 len)
+    {
+        return len;
+    }
+private:
+    Q_DISABLE_COPY(NullStream)
+};
+
     /*
      * ANSI color codes:
      * 0: reset colors/style
@@ -75,6 +96,11 @@ static QString colorCommand(QList<int> colorCodes)
 
 QDebug debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea)
 {
+    if (debugLevel <= DebugLevel::Trace) {
+        static NullStream stream;
+        return QDebug(&stream);
+    }
+
     static DebugStream stream;
     QDebug debug(&stream);
 
