@@ -77,6 +77,7 @@ public slots:
      */
     void revisionChanged(qint64 newRevision)
     {
+        Trace() << "New revision: " << newRevision;
         run(newRevision).exec();
     }
 
@@ -160,6 +161,7 @@ public:
         QWeakPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > weakResultProvider = resultProvider;
         runner->setQuery([this, weakResultProvider, query] (qint64 oldRevision, qint64 newRevision) -> KAsync::Job<qint64> {
             return KAsync::start<qint64>([this, weakResultProvider, query, oldRevision, newRevision](KAsync::Future<qint64> &future) {
+                Trace() << "Executing query " << oldRevision << newRevision;
                 auto resultProvider = weakResultProvider.toStrongRef();
                 if (!resultProvider) {
                     Warning() << "Tried executing query after result provider is already gone";
@@ -301,6 +303,7 @@ protected:
             keys << key;
             return true;
         });
+        Trace() << "Full scan found " << keys.size() << " results";
         return ResultSet(keys);
     }
 
