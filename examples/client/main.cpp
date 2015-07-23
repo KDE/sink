@@ -19,7 +19,8 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
-#include <QStringListModel>
+#include <QCommandLineOption>
+#include <QAbstractListModel>
 
 #include "common/clientapi.h"
 #include "common/resultprovider.h"
@@ -55,7 +56,7 @@ public:
         auto syncButton = new QPushButton(this);
         syncButton->setText("Synchronize!");
         QObject::connect(syncButton, &QPushButton::pressed, []() {
-            Akonadi2::Store::synchronize("org.kde.dummy");
+            Akonadi2::Store::synchronize("org.kde.dummy.instance1");
         });
 
         topLayout->addWidget(titleLabel);
@@ -68,18 +69,19 @@ public:
 };
 
 template<class T>
-class AkonadiListModel : public QStringListModel
+class AkonadiListModel : public QAbstractListModel
 {
 public:
     AkonadiListModel(const QSharedPointer<async::ResultEmitter<T> > &emitter, const QByteArray &property)
-        :QStringListModel(),
+        :QAbstractListModel(),
         mEmitter(emitter)
     {
         emitter->onAdded([this, property](const T &value) {
             // qDebug() << "VALUE ADDED";
             Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr type(value);
+            beginInsertRows(QModelIndex(), mStringList.size(), mStringList.size());
             mStringList << type->getProperty(property).toString();
-            setStringList(mStringList);
+            endInsertRows();
         });
         emitter->onInitialResultSetComplete([this]() {
         });
@@ -89,9 +91,27 @@ public:
         });
         emitter->onClear([this]() {
             // qDebug() << "CLEAR";
+            beginResetModel();
             mStringList.clear();
-            setStringList(mStringList);
+            endResetModel();
         });
+    }
+
+    int rowCount(const QModelIndex &parent = QModelIndex()) const
+    {
+        return mStringList.size();
+    }
+
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
+    {
+        if (index.row() >= mStringList.size()) {
+            qWarning() << "Out of bounds access";
+            return QVariant();
+        }
+        if (role == Qt::DisplayRole) {
+            return QVariant::fromValue(mStringList.at(index.row()));
+        }
+        return QVariant();
     }
 
 private:
@@ -103,23 +123,32 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy", Akonadi2::Storage::ReadWrite);
-    store.removeFromDisk();
-
     QCommandLineParser cliOptions;
     cliOptions.addPositionalArgument(QObject::tr("[resource]"),
                                      QObject::tr("A resource to connect to"));
+    cliOptions.addOption(QCommandLineOption("clear"));
+    cliOptions.addHelpOption();
     cliOptions.process(app);
     QStringList resources = cliOptions.positionalArguments();
     if (resources.isEmpty()) {
-        resources << "org.kde.dummy";
+        resources << "org.kde.dummy.instance1";
+    }
+
+    if (!cliOptions.value("clear").isEmpty()) {
+        qDebug() << "Clearing";
+        Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy.instance1", Akonadi2::Storage::ReadWrite);
+        store.removeFromDisk();
+        return 0;
     }
 
     //FIXME move to clientapi
     Akonadi2::ResourceFactory::load("org.kde.dummy");
 
+    //Ensure resource is ready
+    ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
+
     Akonadi2::Query query;
-    query.resources << "org.kde.dummy";
+    query.resources << "org.kde.dummy.instance1";
     query.syncOnDemand = false;
     query.processAll = false;
     query.liveQuery = true;
