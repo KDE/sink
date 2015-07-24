@@ -14,6 +14,7 @@ set(command_SRCS
     log.cpp
     entitybuffer.cpp
     clientapi.cpp
+    facadefactory.cpp
     commands.cpp
     facade.cpp
     pipeline.cpp

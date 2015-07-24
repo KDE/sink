@@ -28,13 +28,9 @@ namespace async
     };
 } // namespace async
 
+
 namespace Akonadi2
 {
-
-void FacadeFactory::registerStaticFacades()
-{
-    registerFacade<Akonadi2::ApplicationDomain::AkonadiResource, ResourceFacade>("resourceconfig");
-}
 
 void Store::shutdown(const QByteArray &identifier)
 {

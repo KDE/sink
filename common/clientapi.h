@@ -35,6 +35,7 @@
 #include "resultprovider.h"
 #include "domain/applicationdomaintype.h"
 #include "resourceconfig.h"
+#include "facadefactory.h"
 #include "log.h"
 
 namespace async {
@@ -82,98 +83,6 @@ public:
 };
 
 
-/**
- * Interface for the store facade.
- * 
- * All methods are synchronous.
- * Facades are stateful (they hold connections to resources and database).
- * 
- * TODO: would it make sense to split the write, read and notification parts? (we could potentially save some connections)
- */
-template<class DomainType>
-class StoreFacade {
-public:
-    virtual ~StoreFacade(){};
-    QByteArray type() const { return ApplicationDomain::getTypeName<DomainType>(); }
-    virtual KAsync::Job<void> create(const DomainType &domainObject) = 0;
-    virtual KAsync::Job<void> modify(const DomainType &domainObject) = 0;
-    virtual KAsync::Job<void> remove(const DomainType &domainObject) = 0;
-    virtual KAsync::Job<void> load(const Query &query, const QSharedPointer<ResultProvider<typename DomainType::Ptr> > &resultProvider) = 0;
-};
-
-
-/**
- * Facade factory that returns a store facade implementation, by loading a plugin and providing the relevant implementation.
- *
- * If we were to provide default implementations for certain capabilities. Here would be the place to do so.
- */
-
-class FacadeFactory {
-public:
-    typedef std::function<std::shared_ptr<void>(const QByteArray &)> FactoryFunction;
-
-    void registerStaticFacades();
-
-    //FIXME: proper singleton implementation
-    static FacadeFactory &instance()
-    {
-        static FacadeFactory factory;
-        return factory;
-    }
-
-    static QByteArray key(const QByteArray &resource, const QByteArray &type)
-    {
-        return resource + type;
-    }
-
-    template<class DomainType, class Facade>
-    void registerFacade(const QByteArray &resource)
-    {
-        const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
-        mFacadeRegistry.insert(key(resource, typeName), [](const QByteArray &instanceIdentifier){ return std::make_shared<Facade>(instanceIdentifier); });
-    }
-
-    /*
-     * Allows the registrar to register a specific instance.
-     *
-     * Primarily for testing.
-     */
-    template<class DomainType, class Facade>
-    void registerFacade(const QByteArray &resource, const FactoryFunction &customFactoryFunction)
-    {
-        const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
-        mFacadeRegistry.insert(key(resource, typeName), customFactoryFunction);
-    }
-
-    /*
-     * Can be used to clear the factory.
-     *
-     * Primarily for testing.
-     */
-    void resetFactory()
-    {
-        mFacadeRegistry.clear();
-    }
-
-    template<class DomainType>
-    std::shared_ptr<StoreFacade<DomainType> > getFacade(const QByteArray &resource, const QByteArray &instanceIdentifier)
-    {
-        const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
-        if (auto factoryFunction = mFacadeRegistry.value(key(resource, typeName))) {
-            return std::static_pointer_cast<StoreFacade<DomainType> >(factoryFunction(instanceIdentifier));
-        }
-        qWarning() << "Failed to find facade for resource: " << resource << " and type: " << typeName;
-        return std::shared_ptr<StoreFacade<DomainType> >();
-    }
-
-private:
-    FacadeFactory()
-    {
-        registerStaticFacades();
-    }
-
-    QHash<QByteArray, FactoryFunction> mFacadeRegistry;
-};
 
 /**
  * Store interface used in the client API.
@@ -231,7 +140,6 @@ public:
             // Query all resources and aggregate results
             KAsync::iterate(getResources(query.resources))
             .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, KAsync::Future<void> &future) {
-                //TODO pass resource identifier to factory
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
                 if (facade) {
                     facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
