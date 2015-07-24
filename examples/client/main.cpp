@@ -141,18 +141,18 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    //FIXME move to clientapi
-    Akonadi2::ResourceFactory::load("org.kde.dummy");
-
     //Ensure resource is ready
-    ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
+    for (const auto &resource : resources) {
+        ResourceConfig::addResource(resource.toLatin1(), Akonadi2::Store::resourceName(resource.toLatin1()));
+    }
 
     Akonadi2::Query query;
-    query.resources << "org.kde.dummy.instance1";
+    for (const auto &res : resources) {
+        query.resources << res.toLatin1();
+    }
     query.syncOnDemand = false;
     query.processAll = false;
     query.liveQuery = true;
-    // query.propertyFilter.insert("uid", "testuid");
 
     auto model = QSharedPointer<AkonadiListModel<Akonadi2::ApplicationDomain::Event::Ptr> >::create(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query), "summary");
     auto view = QSharedPointer<View>::create(model.data());
