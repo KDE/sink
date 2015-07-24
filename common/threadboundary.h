@@ -36,11 +36,11 @@ namespace async {
 
         //Call in worker thread
         void callInMainThread(std::function<void()> f) {
-            QMetaObject::invokeMethod(this, "addValueInMainThread", Qt::QueuedConnection, QGenericReturnArgument(), Q_ARG(std::function<void()>, f));
+            QMetaObject::invokeMethod(this, "runInMainThread", Qt::QueuedConnection, QGenericReturnArgument(), Q_ARG(std::function<void()>, f));
         }
     public slots:
         //Get's called in main thread by it's eventloop
-        void addValueInMainThread(std::function<void()> f) {
+        void runInMainThread(std::function<void()> f) {
             f();
         }
     };
