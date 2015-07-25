@@ -211,7 +211,6 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             if (Akonadi2::VerifyHandshakeBuffer(verifier)) {
                 auto buffer = Akonadi2::GetHandshake(commandBuffer.constData());
                 client.name = buffer->name()->c_str();
-                sendCurrentRevision(client);
             } else {
                 Warning() << "received invalid command";
             }
