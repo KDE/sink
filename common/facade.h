@@ -58,7 +58,10 @@ public:
     KAsync::Job<void> run(qint64 newRevision = 0)
     {
         //TODO: JOBAPI: that last empty .then should not be necessary
-        return queryFunction(mLatestRevision, newRevision).then<void, qint64>([this](qint64 revision) {
+        if (mLatestRevision == newRevision && mLatestRevision > 0) {
+            return KAsync::null<void>();
+        }
+        return queryFunction(mLatestRevision + 1, newRevision).then<void, qint64>([this](qint64 revision) {
             mLatestRevision = revision;
         }).then<void>([](){});
     }
@@ -280,7 +283,7 @@ protected:
         });
     }
 
-    static void readValue(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, const std::function<void(const typename DomainType::Ptr &)> &resultCallback, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory)
+    static void readValue(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, const std::function<void(const typename DomainType::Ptr &)> &resultCallback, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory, const QByteArray &instanceIdentifier)
     {
         scan(storage, key, [=](const QByteArray &key, const Akonadi2::Entity &entity) {
             const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
@@ -289,7 +292,7 @@ protected:
             //Not i.e. for tags that are stored as flags in each entity of an imap store.
             //additional properties that don't have a 1:1 mapping (such as separately stored tags),
             //could be added to the adaptor
-            auto domainObject = QSharedPointer<DomainType>::create(mResourceInstanceIdentifier, key, revision, adaptorFactory->createAdaptor(entity));
+            auto domainObject = QSharedPointer<DomainType>::create(instanceIdentifier, key, revision, adaptorFactory->createAdaptor(entity));
             resultCallback(domainObject);
             return true;
         });
@@ -307,25 +310,25 @@ protected:
         return ResultSet(keys);
     }
 
-    static ResultSet filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const QSharedPointer<Akonadi2::Storage> &storage, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory)
+    static ResultSet filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const QSharedPointer<Akonadi2::Storage> &storage, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory, qint64 baseRevision, qint64 topRevision, const QByteArray &instanceIdentifier)
     {
         auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
 
         //Read through the source values and return whatever matches the filter
-        std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)>)> generator = [resultSetPtr, storage, adaptorFactory, filter](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> callback) -> bool {
+        std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)>)> generator = [resultSetPtr, storage, adaptorFactory, filter, instanceIdentifier](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> callback) -> bool {
             while (resultSetPtr->next()) {
                 readValue(storage, resultSetPtr->id(), [filter, callback](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) {
                     if (filter(domainObject)) {
                         callback(domainObject);
                     }
-                }, adaptorFactory);
+                }, adaptorFactory, instanceIdentifier);
             }
             return false;
         };
         return ResultSet(generator);
     }
 
-    static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory, const QByteArray &resourceInstanceIdentifier)
+    static ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory, const QByteArray &resourceInstanceIdentifier, qint64 baseRevision, qint64 topRevision)
     {
         QSet<QByteArray> appliedFilters;
         ResultSet resultSet = Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::queryIndexes(query, resourceInstanceIdentifier, appliedFilters);
@@ -336,7 +339,12 @@ protected:
             resultSet = fullScan(storage);
         }
 
-        auto filter = [remainingFilters, query](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
+        auto filter = [remainingFilters, query, baseRevision, topRevision](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
+            if (topRevision > 0) {
+                if (domainObject->revision() < baseRevision || domainObject->revision() > topRevision) {
+                    return false;
+                }
+            }
             for (const auto &filterProperty : remainingFilters) {
                 //TODO implement other comparison operators than equality
                 if (domainObject->getProperty(filterProperty) != query.propertyFilter.value(filterProperty)) {
@@ -346,7 +354,7 @@ protected:
             return true;
         };
 
-        return filteredSet(resultSet, filter, storage, adaptorFactory);
+        return filteredSet(resultSet, filter, storage, adaptorFactory, baseRevision, topRevision, resourceInstanceIdentifier);
     }
 
     virtual KAsync::Job<qint64> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision)
@@ -359,19 +367,15 @@ protected:
 
             storage->startTransaction(Akonadi2::Storage::ReadOnly);
             //TODO start transaction on indexes as well
-            const qint64 revision = storage->maxRevision();
 
-            auto resultSet = getResultSet(query, storage, mDomainTypeAdaptorFactory, mResourceInstanceIdentifier);
-
-            // TODO only emit changes and don't replace everything
-            resultProvider->clear();
+            auto resultSet = getResultSet(query, storage, mDomainTypeAdaptorFactory, mResourceInstanceIdentifier, oldRevision, newRevision);
             auto resultCallback = std::bind(&Akonadi2::ResultProvider<typename DomainType::Ptr>::add, resultProvider, std::placeholders::_1);
             while(resultSet.next([resultCallback](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value) -> bool {
                 resultCallback(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value));
                 return true;
             })){};
             storage->abortTransaction();
-            return revision;
+            return newRevision;
         });
     }
 
