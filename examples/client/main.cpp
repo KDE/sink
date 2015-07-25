@@ -134,15 +134,18 @@ int main(int argc, char *argv[])
         resources << "org.kde.dummy.instance1";
     }
 
-    if (!cliOptions.value("clear").isEmpty()) {
+    if (cliOptions.isSet("clear")) {
         qDebug() << "Clearing";
-        Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy.instance1", Akonadi2::Storage::ReadWrite);
-        store.removeFromDisk();
+        for (const auto &resource : resources) {
+            Akonadi2::Storage store(Akonadi2::Store::storageLocation(), resource, Akonadi2::Storage::ReadWrite);
+            store.removeFromDisk();
+        }
         return 0;
     }
 
     //Ensure resource is ready
     for (const auto &resource : resources) {
+        Akonadi2::ResourceFactory::load(Akonadi2::Store::resourceName(resource.toLatin1()));
         ResourceConfig::addResource(resource.toLatin1(), Akonadi2::Store::resourceName(resource.toLatin1()));
     }
 
