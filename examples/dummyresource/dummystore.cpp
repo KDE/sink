@@ -22,7 +22,7 @@
 
 #include "dummycalendar_generated.h"
 
-static std::string createEvent()
+static std::string createEvent(int i)
 {
     static const size_t attachmentSize = 1024*2; // 2KB
     static uint8_t rawData[attachmentSize];
@@ -30,7 +30,7 @@ static std::string createEvent()
     fbb.Clear();
     {
         uint8_t *rawDataPtr = nullptr;
-        auto summary = fbb.CreateString("summary");
+        auto summary = fbb.CreateString("summary" + std::to_string(i));
         auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize, &rawDataPtr);
         DummyCalendar::DummyEventBuilder eventBuilder(fbb);
         eventBuilder.add_summary(summary);
@@ -47,7 +47,7 @@ QMap<QString, QString> populate()
 {
     QMap<QString, QString> content;
     for (int i = 0; i < 2; i++) {
-        auto event = createEvent();
+        auto event = createEvent(i);
         content.insert(QString("key%1").arg(i), QString::fromStdString(event));
     }
     return content;
