@@ -289,7 +289,7 @@ protected:
             //Not i.e. for tags that are stored as flags in each entity of an imap store.
             //additional properties that don't have a 1:1 mapping (such as separately stored tags),
             //could be added to the adaptor
-            auto domainObject = QSharedPointer<DomainType>::create("org.kde.dummy.instance1", key, revision, adaptorFactory->createAdaptor(entity));
+            auto domainObject = QSharedPointer<DomainType>::create(mResourceInstanceIdentifier, key, revision, adaptorFactory->createAdaptor(entity));
             resultCallback(domainObject);
             return true;
         });
