@@ -13,6 +13,7 @@ endif (STORAGE_unqlite)
 set(command_SRCS
     log.cpp
     entitybuffer.cpp
+    entitystorage.cpp
     clientapi.cpp
     facadefactory.cpp
     commands.cpp

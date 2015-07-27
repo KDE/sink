@@ -112,9 +112,10 @@ public:
      * @param resourceIdentifier is the identifier of the resource instance
      * @param adaptorFactory is the adaptor factory used to generate the mappings from domain to resource types and vice versa
      */
-    GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr())
+    GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr(), const QSharedPointer<EntityStorage<DomainType> > storage = QSharedPointer<EntityStorage<DomainType> >())
         : Akonadi2::StoreFacade<DomainType>(),
         mResourceAccess(new ResourceAccess(resourceIdentifier)),
+        mStorage(storage ? storage : QSharedPointer<EntityStorage<DomainType> >::create(resourceIdentifier, adaptorFactory)),
         mDomainTypeAdaptorFactory(adaptorFactory),
         mResourceInstanceIdentifier(resourceIdentifier)
     {
@@ -257,11 +258,11 @@ protected:
     }
 
 
+private:
     virtual KAsync::Job<qint64> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision)
     {
         return KAsync::start<qint64>([=]() -> qint64 {
-            EntityStorage<DomainType> storage(mResourceInstanceIdentifier, mDomainTypeAdaptorFactory);
-            storage.read(query, qMakePair(oldRevision, newRevision), resultProvider);
+            mStorage->read(query, qMakePair(oldRevision, newRevision), resultProvider);
             return newRevision;
         });
     }
@@ -269,6 +270,7 @@ protected:
 protected:
     //TODO use one resource access instance per application & per resource
     QSharedPointer<Akonadi2::ResourceAccess> mResourceAccess;
+    QSharedPointer<EntityStorage<DomainType> > mStorage;
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
     QByteArray mResourceInstanceIdentifier;
 };
