@@ -4,7 +4,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 set(akonadi2synchronizer_SRCS
     main.cpp
-    listener.cpp
 )
 
 add_executable(${PROJECT_NAME} ${akonadi2synchronizer_SRCS})

@@ -24,6 +24,7 @@ set(command_SRCS
     resource.cpp
     genericresource.cpp
     resourceaccess.cpp
+    listener.cpp
     storage_common.cpp
     threadboundary.cpp
     messagequeue.cpp
