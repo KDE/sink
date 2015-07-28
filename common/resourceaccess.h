@@ -33,33 +33,46 @@ namespace Akonadi2
 
 struct QueuedCommand;
 
-class ResourceAccess : public QObject
+class ResourceAccessInterface : public QObject
 {
     Q_OBJECT
-
 public:
-    ResourceAccess(const QByteArray &resourceName, QObject *parent = 0);
+    ResourceAccessInterface() {}
+    virtual ~ResourceAccessInterface() {}
+    virtual KAsync::Job<void> sendCommand(int commandId) = 0;
+    virtual KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) = 0;
+    virtual KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) = 0;
+
+Q_SIGNALS:
+    void ready(bool isReady);
+    void revisionChanged(unsigned long long revision);
+
+public Q_SLOTS:
+    virtual void open() = 0;
+    virtual void close() = 0;
+};
+
+class ResourceAccess : public ResourceAccessInterface
+{
+    Q_OBJECT
+public:
+    ResourceAccess(const QByteArray &resourceName);
     ~ResourceAccess();
 
     QByteArray resourceName() const;
     bool isReady() const;
 
-    KAsync::Job<void> sendCommand(int commandId);
-    KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb);
-    KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync);
+    KAsync::Job<void> sendCommand(int commandId) Q_DECL_OVERRIDE;
+    KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE;
+    KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) Q_DECL_OVERRIDE;
     /**
      * Tries to connect to server, and returns a connected socket on success.
      */
     static KAsync::Job<QSharedPointer<QLocalSocket> > connectToServer(const QByteArray &identifier);
 
 public Q_SLOTS:
-    void open();
-    void close();
-
-Q_SIGNALS:
-    void ready(bool isReady);
-    void revisionChanged(unsigned long long revision);
-    void commandCompleted();
+    void open() Q_DECL_OVERRIDE;
+    void close() Q_DECL_OVERRIDE;
 
 private Q_SLOTS:
     //TODO: move these to the Private class

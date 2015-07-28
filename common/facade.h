@@ -90,7 +90,6 @@ private:
 };
 
 namespace Akonadi2 {
-    class ResourceAccess;
 /**
  * Default facade implementation for resources that are implemented in a separate process using the ResourceAccess class.
  * 
@@ -112,13 +111,16 @@ public:
      * @param resourceIdentifier is the identifier of the resource instance
      * @param adaptorFactory is the adaptor factory used to generate the mappings from domain to resource types and vice versa
      */
-    GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr(), const QSharedPointer<EntityStorage<DomainType> > storage = QSharedPointer<EntityStorage<DomainType> >())
+    GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr(), const QSharedPointer<EntityStorage<DomainType> > storage = QSharedPointer<EntityStorage<DomainType> >(), const QSharedPointer<Akonadi2::ResourceAccessInterface> resourceAccess = QSharedPointer<Akonadi2::ResourceAccessInterface>())
         : Akonadi2::StoreFacade<DomainType>(),
-        mResourceAccess(new ResourceAccess(resourceIdentifier)),
+        mResourceAccess(resourceAccess),
         mStorage(storage ? storage : QSharedPointer<EntityStorage<DomainType> >::create(resourceIdentifier, adaptorFactory)),
         mDomainTypeAdaptorFactory(adaptorFactory),
         mResourceInstanceIdentifier(resourceIdentifier)
     {
+        if (!mResourceAccess) {
+            mResourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resourceIdentifier);
+        }
     }
 
     ~GenericFacade()
@@ -269,7 +271,7 @@ private:
 
 protected:
     //TODO use one resource access instance per application & per resource
-    QSharedPointer<Akonadi2::ResourceAccess> mResourceAccess;
+    QSharedPointer<Akonadi2::ResourceAccessInterface> mResourceAccess;
     QSharedPointer<EntityStorage<DomainType> > mStorage;
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
     QByteArray mResourceInstanceIdentifier;

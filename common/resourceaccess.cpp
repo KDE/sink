@@ -208,8 +208,8 @@ static QByteArray getResourceName(const QByteArray &instanceIdentifier)
     return split.join('.');
 }
 
-ResourceAccess::ResourceAccess(const QByteArray &resourceInstanceIdentifier, QObject *parent)
-    : QObject(parent),
+ResourceAccess::ResourceAccess(const QByteArray &resourceInstanceIdentifier)
+    : ResourceAccessInterface(),
       d(new Private(getResourceName(resourceInstanceIdentifier), resourceInstanceIdentifier, this))
 {
     log("Starting access");
