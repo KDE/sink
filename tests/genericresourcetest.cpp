@@ -90,7 +90,7 @@ private Q_SLOTS:
 
         //Actual test
         Akonadi2::Pipeline pipeline("org.kde.test.instance1");
-        QSignalSpy revisionSpy(&pipeline, SIGNAL(revisionUpdated()));
+        QSignalSpy revisionSpy(&pipeline, SIGNAL(revisionUpdated(qint64)));
         TestResource resource("org.kde.test.instance1");
         resource.configurePipeline(&pipeline);
         resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, &pipeline);

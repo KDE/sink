@@ -75,15 +75,14 @@ private Q_SLOTS:
     void checkConnections();
     void onDataAvailable();
     void processClientBuffers();
-    void refreshRevision();
+    void refreshRevision(qint64);
     void quit();
 
 private:
     void processCommand(int commandId, uint messageId, const QByteArray &commandBuffer, Client &client, const std::function<void()> &callback);
     bool processClientBuffer(Client &client);
-    void sendCurrentRevision(Client &client);
     void sendCommandCompleted(QLocalSocket *socket, uint messageId);
-    void updateClientsWithRevision();
+    void updateClientsWithRevision(qint64);
     void loadResource();
     void readFromSocket(QLocalSocket *socket);
 

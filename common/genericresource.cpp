@@ -171,6 +171,7 @@ void GenericResource::configurePipeline(Akonadi2::Pipeline *pipeline)
     //TODO figure out lifetime of the processor
     mProcessor = new Processor(pipeline, QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
     QObject::connect(mProcessor, &Processor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
+    QObject::connect(pipeline, &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
 }
 
 void GenericResource::onProcessorError(int errorCode, const QString &errorMessage)

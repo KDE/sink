@@ -61,7 +61,7 @@ public:
     KAsync::Job<void> deletedEntity(void const *command, size_t size);
 
 Q_SIGNALS:
-    void revisionUpdated();
+    void revisionUpdated(qint64);
     void pipelinesDrained();
 
 private Q_SLOTS:

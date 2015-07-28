@@ -45,8 +45,6 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent
       m_clientBufferProcessesTimer(new QTimer(this)),
       m_messageId(0)
 {
-    connect(m_pipeline, &Akonadi2::Pipeline::revisionUpdated,
-            this, &Listener::refreshRevision);
     connect(m_server, &QLocalServer::newConnection,
              this, &Listener::acceptConnection);
     Trace() << "Trying to open " << m_resourceInstanceIdentifier;
@@ -325,18 +323,6 @@ bool Listener::processClientBuffer(Client &client)
     return false;
 }
 
-void Listener::sendCurrentRevision(Client &client)
-{
-    if (!client.socket || !client.socket->isValid()) {
-        return;
-    }
-
-    auto command = Akonadi2::CreateRevisionUpdate(m_fbb, m_pipeline->storage().maxRevision());
-    Akonadi2::FinishRevisionUpdateBuffer(m_fbb, command);
-    Akonadi2::Commands::write(client.socket, ++m_messageId, Akonadi2::Commands::RevisionUpdateCommand, m_fbb);
-    m_fbb.Clear();
-}
-
 void Listener::sendCommandCompleted(QLocalSocket *socket, uint messageId)
 {
     if (!socket || !socket->isValid()) {
@@ -349,15 +335,15 @@ void Listener::sendCommandCompleted(QLocalSocket *socket, uint messageId)
     m_fbb.Clear();
 }
 
-void Listener::refreshRevision()
+void Listener::refreshRevision(qint64 revision)
 {
-    updateClientsWithRevision();
+    updateClientsWithRevision(revision);
 }
 
-void Listener::updateClientsWithRevision()
+void Listener::updateClientsWithRevision(qint64 revision)
 {
     //FIXME don't send revision updates for revisions that are still being processed.
-    auto command = Akonadi2::CreateRevisionUpdate(m_fbb, m_pipeline->storage().maxRevision());
+    auto command = Akonadi2::CreateRevisionUpdate(m_fbb, revision);
     Akonadi2::FinishRevisionUpdateBuffer(m_fbb, command);
 
     for (const Client &client: m_connections) {
@@ -382,6 +368,8 @@ void Listener::loadResource()
         Log() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
         Log() << QString("\tResource: %1").arg((qlonglong)m_resource);
         m_resource->configurePipeline(m_pipeline);
+        connect(m_resource, &Akonadi2::Resource::revisionUpdated,
+            this, &Listener::refreshRevision);
     } else {
         ErrorMsg() << "Failed to load resource " << m_resourceName;
     }

@@ -321,7 +321,7 @@ void Pipeline::pipelineCompleted(PipelineState state)
 
     if (state.type() != NullPipeline) {
         //TODO what revision is finalized?
-        emit revisionUpdated();
+        emit revisionUpdated(storage().maxRevision());
     }
     scheduleStep();
     if (d->activePipelines.isEmpty()) {

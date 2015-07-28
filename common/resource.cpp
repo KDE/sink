@@ -29,7 +29,8 @@ namespace Akonadi2
 {
 
 Resource::Resource()
-    : d(0)
+    : QObject(),
+    d(0)
 {
 
 }

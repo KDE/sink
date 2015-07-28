@@ -30,8 +30,9 @@ namespace Akonadi2
 /**
  * Resource interface
  */
-class AKONADI2COMMON_EXPORT Resource
+class AKONADI2COMMON_EXPORT Resource : public QObject
 {
+    Q_OBJECT
 public:
     Resource();
     virtual ~Resource();
@@ -41,6 +42,9 @@ public:
     virtual KAsync::Job<void> processAllMessages();
 
     virtual void configurePipeline(Pipeline *pipeline);
+
+Q_SIGNALS:
+    void revisionUpdated(qint64);
 
 private:
     class Private;
