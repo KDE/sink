@@ -246,6 +246,9 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             m_server->close();
             QTimer::singleShot(0, this, &Listener::quit);
             break;
+        case Akonadi2::Commands::PingCommand:
+            Log() << QString("\tReceived ping command from %1").arg(client.name);
+            break;
         default:
             if (commandId > Akonadi2::Commands::CustomCommand) {
                 Log() << QString("\tReceived custom command from %1: ").arg(client.name) << commandId;

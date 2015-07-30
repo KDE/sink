@@ -55,6 +55,8 @@ QByteArray name(int commandId)
             return "Shutdown";
         case NotificationCommand:
             return "Notification";
+        case PingCommand:
+            return "Ping";
         case CustomCommand:
             return "Custom";
     };

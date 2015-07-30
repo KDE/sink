@@ -45,6 +45,7 @@ enum CommandIds {
     SearchSourceCommand, // need a buffer definition for this, but relies on Query API
     ShutdownCommand,
     NotificationCommand,
+    PingCommand,
     CustomCommand = 0xffff
 };
 
