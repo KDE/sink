@@ -14,19 +14,14 @@
 class TestResource : public Akonadi2::GenericResource
 {
 public:
-    TestResource(const QByteArray &instanceIdentifier)
-        : Akonadi2::GenericResource(instanceIdentifier)
+    TestResource(const QByteArray &instanceIdentifier, QSharedPointer<Akonadi2::Pipeline> pipeline)
+        : Akonadi2::GenericResource(instanceIdentifier, pipeline)
     {
     }
 
-    KAsync::Job<void> synchronizeWithSource(Akonadi2::Pipeline *pipeline) Q_DECL_OVERRIDE
+    KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
     {
         return KAsync::null<void>();
-    }
-
-    void configurePipeline(Akonadi2::Pipeline *pipeline) Q_DECL_OVERRIDE
-    {
-        GenericResource::configurePipeline(pipeline);
     }
 };
 
@@ -89,12 +84,11 @@ private Q_SLOTS:
         }
 
         //Actual test
-        Akonadi2::Pipeline pipeline("org.kde.test.instance1");
-        QSignalSpy revisionSpy(&pipeline, SIGNAL(revisionUpdated(qint64)));
-        TestResource resource("org.kde.test.instance1");
-        resource.configurePipeline(&pipeline);
-        resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, &pipeline);
-        resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, &pipeline);
+        auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.test.instance1");
+        QSignalSpy revisionSpy(pipeline.data(), SIGNAL(revisionUpdated(qint64)));
+        TestResource resource("org.kde.test.instance1", pipeline);
+        resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command);
+        resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command);
 
         QVERIFY(revisionSpy.isValid());
         QTRY_COMPARE(revisionSpy.count(), 2);

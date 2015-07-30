@@ -22,6 +22,7 @@
 #include <akonadi2common_export.h>
 #include <resource.h>
 #include <messagequeue.h>
+#include <flatbuffers/flatbuffers.h>
 
 class Processor;
 
@@ -34,14 +35,13 @@ namespace Akonadi2
 class AKONADI2COMMON_EXPORT GenericResource : public Resource
 {
 public:
-    GenericResource(const QByteArray &resourceInstanceIdentifier);
+    GenericResource(const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline = QSharedPointer<Pipeline>());
     virtual ~GenericResource();
 
-    virtual void processCommand(int commandId, const QByteArray &data, Pipeline *pipeline) Q_DECL_OVERRIDE;
-    virtual KAsync::Job<void> synchronizeWithSource(Pipeline *pipeline) Q_DECL_OVERRIDE = 0;
+    virtual void processCommand(int commandId, const QByteArray &data) Q_DECL_OVERRIDE;
+    virtual KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE = 0;
     virtual KAsync::Job<void> processAllMessages() Q_DECL_OVERRIDE;
 
-    virtual void configurePipeline(Pipeline *pipeline) Q_DECL_OVERRIDE;
     int error() const;
 
 protected:
@@ -51,6 +51,7 @@ protected:
     MessageQueue mUserQueue;
     MessageQueue mSynchronizerQueue;
     QByteArray mResourceInstanceIdentifier;
+    QSharedPointer<Pipeline> mPipeline;
 
 private:
     Processor *mProcessor;

@@ -20,12 +20,12 @@
 
 #include <akonadi2common_export.h>
 #include <clientapi.h>
-#include <pipeline.h>
 
 #include <Async/Async>
 
 namespace Akonadi2
 {
+class Pipeline;
 
 /**
  * Resource interface
@@ -37,11 +37,9 @@ public:
     Resource();
     virtual ~Resource();
 
-    virtual void processCommand(int commandId, const QByteArray &data, Pipeline *pipeline);
-    virtual KAsync::Job<void> synchronizeWithSource(Pipeline *pipeline);
+    virtual void processCommand(int commandId, const QByteArray &data);
+    virtual KAsync::Job<void> synchronizeWithSource();
     virtual KAsync::Job<void> processAllMessages();
-
-    virtual void configurePipeline(Pipeline *pipeline);
 
 Q_SIGNALS:
     void revisionUpdated(qint64);

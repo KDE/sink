@@ -12,6 +12,7 @@
 #include "commands.h"
 #include "entitybuffer.h"
 #include "resourceconfig.h"
+#include "pipeline.h"
 
 static void removeFromDisk(const QString &name)
 {
@@ -133,10 +134,9 @@ private Q_SLOTS:
 
     void testResourceSync()
     {
-        Akonadi2::Pipeline pipeline("org.kde.dummy.instance1");
-        DummyResource resource("org.kde.dummy.instance1");
-        resource.configurePipeline(&pipeline);
-        auto job = resource.synchronizeWithSource(&pipeline);
+        auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.dummy.instance1");
+        DummyResource resource("org.kde.dummy.instance1", pipeline);
+        auto job = resource.synchronizeWithSource();
         //TODO pass in optional timeout?
         auto future = job.exec();
         future.waitForFinished();

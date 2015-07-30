@@ -152,26 +152,21 @@ private:
 };
 
 
-GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier)
+GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline)
     : Akonadi2::Resource(),
     mUserQueue(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", resourceInstanceIdentifier + ".userqueue"),
     mSynchronizerQueue(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", resourceInstanceIdentifier + ".synchronizerqueue"),
     mResourceInstanceIdentifier(resourceInstanceIdentifier),
+    mPipeline(pipeline ? pipeline : QSharedPointer<Akonadi2::Pipeline>::create(resourceInstanceIdentifier)),
     mError(0)
 {
+    mProcessor = new Processor(mPipeline.data(), QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
+    QObject::connect(mProcessor, &Processor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
+    QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
 }
 
 GenericResource::~GenericResource()
 {
-
-}
-
-void GenericResource::configurePipeline(Akonadi2::Pipeline *pipeline)
-{
-    //TODO figure out lifetime of the processor
-    mProcessor = new Processor(pipeline, QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
-    QObject::connect(mProcessor, &Processor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
-    QObject::connect(pipeline, &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
 }
 
 void GenericResource::onProcessorError(int errorCode, const QString &errorMessage)
@@ -195,7 +190,7 @@ void GenericResource::enqueueCommand(MessageQueue &mq, int commandId, const QByt
     mq.enqueue(m_fbb.GetBufferPointer(), m_fbb.GetSize());
 }
 
-void GenericResource::processCommand(int commandId, const QByteArray &data, Akonadi2::Pipeline *pipeline)
+void GenericResource::processCommand(int commandId, const QByteArray &data)
 {
     //TODO instead of copying the command including the full entity first into the command queue, we could directly
     //create a new revision, only pushing a handle into the commandqueue with the relevant changeset (for changereplay).

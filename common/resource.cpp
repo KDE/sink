@@ -40,24 +40,15 @@ Resource::~Resource()
     //delete d;
 }
 
-void Resource::configurePipeline(Pipeline *pipeline)
-{
-
-}
-
-void Resource::processCommand(int commandId, const QByteArray &data, Pipeline *pipeline)
+void Resource::processCommand(int commandId, const QByteArray &data)
 {
     Q_UNUSED(commandId)
     Q_UNUSED(data)
-    Q_UNUSED(pipeline)
-    pipeline->null();
 }
 
-KAsync::Job<void> Resource::synchronizeWithSource(Pipeline *pipeline)
+KAsync::Job<void> Resource::synchronizeWithSource()
 {
-    return KAsync::start<void>([pipeline](KAsync::Future<void> &f) {
-        pipeline->null();
-    });
+    return KAsync::null<void>();
 }
 
 KAsync::Job<void> Resource::processAllMessages()

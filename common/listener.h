@@ -92,7 +92,6 @@ private:
     const QByteArray m_resourceName;
     const QByteArray m_resourceInstanceIdentifier;
     Akonadi2::Resource *m_resource;
-    Akonadi2::Pipeline *m_pipeline;
     QTimer *m_clientBufferProcessesTimer;
     QTimer *m_checkConnectionsTimer;
     int m_messageId;

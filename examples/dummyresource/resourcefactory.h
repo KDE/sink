@@ -32,9 +32,8 @@
 class DummyResource : public Akonadi2::GenericResource
 {
 public:
-    DummyResource(const QByteArray &instanceIdentifier);
-    KAsync::Job<void> synchronizeWithSource(Akonadi2::Pipeline *pipeline) Q_DECL_OVERRIDE;
-    void configurePipeline(Akonadi2::Pipeline *pipeline) Q_DECL_OVERRIDE;
+    DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline = QSharedPointer<Akonadi2::Pipeline>());
+    KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE;
 };
 
 class DummyResourceFactory : public Akonadi2::ResourceFactory

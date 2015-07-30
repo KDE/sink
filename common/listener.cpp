@@ -41,7 +41,6 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent
       m_resourceName(Akonadi2::Store::resourceName(resourceInstanceIdentifier)),
       m_resourceInstanceIdentifier(resourceInstanceIdentifier),
       m_resource(0),
-      m_pipeline(new Akonadi2::Pipeline(resourceInstanceIdentifier, parent)),
       m_clientBufferProcessesTimer(new QTimer(this)),
       m_messageId(0)
 {
@@ -226,7 +225,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 }
                 auto job = KAsync::null<void>();
                 if (buffer->sourceSync()) {
-                    job = m_resource->synchronizeWithSource(m_pipeline);
+                    job = m_resource->synchronizeWithSource();
                 }
                 if (buffer->localSync()) {
                     job = job.then<void>(m_resource->processAllMessages());
@@ -247,7 +246,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             Log() << "\tCommand id  " << messageId << " of type \"" << Akonadi2::Commands::name(commandId) << "\" from " << client.name;
             loadResource();
             if (m_resource) {
-                m_resource->processCommand(commandId, commandBuffer, m_pipeline);
+                m_resource->processCommand(commandId, commandBuffer);
             }
             break;
         case Akonadi2::Commands::ShutdownCommand:
@@ -261,7 +260,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 Log() << QString("\tReceived custom command from %1: ").arg(client.name) << commandId;
                 loadResource();
                 if (m_resource) {
-                    m_resource->processCommand(commandId, commandBuffer, m_pipeline);
+                    m_resource->processCommand(commandId, commandBuffer);
                 }
             } else {
                 Warning() << QString("\tReceived invalid command from %1: ").arg(client.name) << commandId;
@@ -367,7 +366,6 @@ void Listener::loadResource()
         m_resource = resourceFactory->createResource(m_resourceInstanceIdentifier);
         Log() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
         Log() << QString("\tResource: %1").arg((qlonglong)m_resource);
-        m_resource->configurePipeline(m_pipeline);
         connect(m_resource, &Akonadi2::Resource::revisionUpdated,
             this, &Listener::refreshRevision);
     } else {

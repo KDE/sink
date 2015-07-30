@@ -8,11 +8,13 @@
 #include "commands.h"
 #include "entitybuffer.h"
 #include "synclistresult.h"
+#include "pipeline.h"
 
 #include "event_generated.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
 #include "createentity_generated.h"
+
 #include <iostream>
 
 static void removeFromDisk(const QString &name)
@@ -94,10 +96,9 @@ private Q_SLOTS:
         time.start();
         int num = 10000;
 
-        Akonadi2::Pipeline pipeline("org.kde.dummy.instance1");
-        QSignalSpy revisionSpy(&pipeline, SIGNAL(revisionUpdated()));
-        DummyResource resource("org.kde.dummy.instance1");
-        resource.configurePipeline(&pipeline);
+        auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.dummy.instance1");
+        QSignalSpy revisionSpy(pipeline.data(), SIGNAL(revisionUpdated()));
+        DummyResource resource("org.kde.dummy.instance1", pipeline);
 
         flatbuffers::FlatBufferBuilder eventFbb;
         eventFbb.Clear();
@@ -133,7 +134,7 @@ private Q_SLOTS:
         const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 
         for (int i = 0; i < num; i++) {
-            resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command, &pipeline);
+            resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command);
         }
         auto appendTime = time.elapsed();
 

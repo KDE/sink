@@ -35,12 +35,8 @@
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_EVENT "event"
 
-DummyResource::DummyResource(const QByteArray &instanceIdentifier)
-    : Akonadi2::GenericResource(instanceIdentifier)
-{
-}
-
-void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
+DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline)
+    : Akonadi2::GenericResource(instanceIdentifier, pipeline)
 {
     auto eventFactory = QSharedPointer<DummyEventAdaptorFactory>::create();
     const auto resourceIdentifier = mResourceInstanceIdentifier;
@@ -57,15 +53,14 @@ void DummyResource::configurePipeline(Akonadi2::Pipeline *pipeline)
         }
     });
 
-    pipeline->setPreprocessors(ENTITY_TYPE_EVENT, Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
-    pipeline->setAdaptorFactory(ENTITY_TYPE_EVENT, eventFactory);
+    mPipeline->setPreprocessors(ENTITY_TYPE_EVENT, Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
+    mPipeline->setAdaptorFactory(ENTITY_TYPE_EVENT, eventFactory);
     //TODO cleanup indexes during removal
-    GenericResource::configurePipeline(pipeline);
 }
 
-KAsync::Job<void> DummyResource::synchronizeWithSource(Akonadi2::Pipeline *pipeline)
+KAsync::Job<void> DummyResource::synchronizeWithSource()
 {
-    return KAsync::start<void>([this, pipeline](KAsync::Future<void> &f) {
+    return KAsync::start<void>([this](KAsync::Future<void> &f) {
         //TODO start transaction on index
         Index uidIndex(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier + ".index.uid", Akonadi2::Storage::ReadOnly);
 
