@@ -160,7 +160,8 @@ private Q_SLOTS:
 
     void testConcurrentRead()
     {
-        const int count = 10000;
+        //With a count of 10000 this test is more likely to expose problems, but also takes some time to execute.
+        const int count = 1000;
 
         populate(count);
         // QTest::qWait(500);
