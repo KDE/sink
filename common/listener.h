@@ -53,8 +53,6 @@ public:
     QByteArray commandBuffer;
 };
 
-class QLockFile;
-
 class Listener : public QObject
 {
     Q_OBJECT
@@ -95,5 +93,4 @@ private:
     QTimer *m_clientBufferProcessesTimer;
     QTimer *m_checkConnectionsTimer;
     int m_messageId;
-    QLockFile *m_lockfile;
 };

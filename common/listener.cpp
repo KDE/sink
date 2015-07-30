@@ -33,7 +33,6 @@
 
 #include <QLocalSocket>
 #include <QTimer>
-#include <QLockFile>
 
 Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent)
     : QObject(parent),
@@ -48,15 +47,7 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent
              this, &Listener::acceptConnection);
     Trace() << "Trying to open " << m_resourceInstanceIdentifier;
 
-    m_lockfile = new QLockFile(m_resourceInstanceIdentifier + ".lock");
-    m_lockfile->setStaleLockTime(0);
-    if (!m_lockfile->tryLock(0)) {
-        Warning() << "Failed to acquire exclusive lock on socket.";
-        exit(-1);
-    }
-
     if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
-        // FIXME: multiple starts need to be handled here
         m_server->removeServer(m_resourceInstanceIdentifier);
         if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
             Warning() << "Utter failure to start server";

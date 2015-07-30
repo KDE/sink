@@ -18,6 +18,7 @@
  */
 
 #include <QCoreApplication>
+#include <QLockFile>
 
 #include <signal.h>
 
@@ -41,7 +42,16 @@ int main(int argc, char *argv[])
         return app.exec();
     }
 
-    Listener *listener = new Listener(argv[1], &app);
+    const QByteArray instanceIdentifier = argv[1];
+
+    QLockFile lockfile(instanceIdentifier + ".lock");
+    lockfile.setStaleLockTime(0);
+    if (!lockfile.tryLock(0)) {
+        Warning() << "Failed to acquire exclusive lock on socket.";
+        return -1;
+    }
+
+    Listener *listener = new Listener(instanceIdentifier, &app);
 
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      listener, &Listener::closeAllConnections);
