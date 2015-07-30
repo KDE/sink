@@ -291,10 +291,12 @@ bool Listener::processClientBuffer(Client &client)
     const uint messageId = *(uint*)client.commandBuffer.constData();
     const int commandId = *(int*)(client.commandBuffer.constData() + sizeof(uint));
     const uint size = *(uint*)(client.commandBuffer.constData() + sizeof(int) + sizeof(uint));
+    Trace() << "Received message. Id:" << messageId << " CommandId: " << commandId << " Size: " << size;
 
     //TODO: reject messages above a certain size?
 
-    if (size <= uint(client.commandBuffer.size() - headerSize)) {
+    const bool commandComplete = size <= uint(client.commandBuffer.size() - headerSize);
+    if (commandComplete) {
         client.commandBuffer.remove(0, headerSize);
 
         auto socket = QPointer<QLocalSocket>(client.socket);
