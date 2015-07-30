@@ -137,6 +137,10 @@ public:
         //We must guarantee that the emitter is returned before the first result is emitted.
         //The result provider must be threadsafe.
         async::run([query, resultSet](){
+            QEventLoop eventLoop;
+            resultSet->onDone([&eventLoop](){
+                eventLoop.quit();
+            });
             // Query all resources and aggregate results
             KAsync::iterate(getResources(query.resources))
             .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, KAsync::Future<void> &future) {
@@ -158,10 +162,6 @@ public:
 
             //Keep the thread alive until the result is ready
             if (!resultSet->isDone()) {
-                QEventLoop eventLoop;
-                resultSet->onDone([&eventLoop](){
-                    eventLoop.quit();
-                });
                 eventLoop.exec();
             }
         });

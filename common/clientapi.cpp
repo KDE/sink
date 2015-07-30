@@ -5,26 +5,24 @@
 #include "resourcefacade.h"
 #include "log.h"
 #include <QtConcurrent/QtConcurrentRun>
-#define ASYNCINTHREAD
-#ifndef ASYNCINTHREAD
 #include <QTimer>
-#endif
+
+#define ASYNCINTHREAD
 
 namespace async
 {
     void run(const std::function<void()> &runner) {
-#ifndef ASYNCINTHREAD
         auto timer = new QTimer();
         timer->setSingleShot(true);
         QObject::connect(timer, &QTimer::timeout, [runner, timer]() {
             delete timer;
+#ifndef ASYNCINTHREAD
             runner();
+#else
+            QtConcurrent::run(runner);
+#endif
         });
         timer->start(0);
-#else
-        //TODO use a job that runs in a thread?
-        QtConcurrent::run(runner);
-#endif
     };
 } // namespace async
 

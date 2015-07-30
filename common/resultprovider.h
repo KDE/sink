@@ -100,7 +100,7 @@ public:
     {
         if (!mResultEmitter) {
             //We have to go over a separate var and return that, otherwise we'd delete the emitter immediately again
-            auto sharedPtr = QSharedPointer<ResultEmitter<T> >(new ResultEmitter<T>, [this](ResultEmitter<T> *emitter){ done(); delete emitter; });
+            auto sharedPtr = QSharedPointer<ResultEmitter<T> >(new ResultEmitter<T>, [this](ResultEmitter<T> *emitter){ mThreadBoundary->callInMainThread([this]() {done();}); delete emitter; });
             mResultEmitter = sharedPtr;
             return sharedPtr;
         }
@@ -128,6 +128,7 @@ public:
 
     void onDone(const std::function<void()> &callback)
     {
+        mThreadBoundary = QSharedPointer<ThreadBoundary>::create();
         mOnDoneCallback = callback;
     }
 
@@ -151,6 +152,7 @@ private:
     QSharedPointer<QObject> mQueryRunner;
     std::shared_ptr<void> mFacade;
     std::function<void()> mOnDoneCallback;
+    QSharedPointer<ThreadBoundary> mThreadBoundary;
 };
 
 /*
