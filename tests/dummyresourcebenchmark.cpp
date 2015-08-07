@@ -45,18 +45,50 @@ private Q_SLOTS:
         removeFromDisk("org.kde.dummy.instance1.index.uid");
     }
 
+    static KAsync::Job<void> waitForCompletion(QList<KAsync::Future<void> > &futures)
+    {
+        auto context = new QObject;
+        return KAsync::start<void>([futures, context](KAsync::Future<void> &future) {
+            const auto total = futures.size();
+            auto count = QSharedPointer<int>::create();
+            int i = 0;
+            for (KAsync::Future<void> subFuture : futures) {
+                i++;
+                if (subFuture.isFinished()) {
+                    *count += 1;
+                    continue;
+                }
+                //FIXME bind lifetime all watcher to future (repectively the main job
+                auto watcher = QSharedPointer<KAsync::FutureWatcher<void> >::create();
+                QObject::connect(watcher.data(), &KAsync::FutureWatcher<void>::futureReady,
+                [count, total, &future](){
+                    *count += 1;
+                    if (*count == total) {
+                        future.setFinished();
+                    }
+                });
+                watcher->setFuture(subFuture);
+                context->setProperty(QString("future%1").arg(i).toLatin1().data(), QVariant::fromValue(watcher));
+            }
+        }).then<void>([context]() {
+            delete context;
+        });
+    }
+
     void testWriteToFacadeAndQueryByUid()
     {
         QTime time;
         time.start();
         int num = 10000;
+        QList<KAsync::Future<void> > waitCondition;
         for (int i = 0; i < num; i++) {
             Akonadi2::ApplicationDomain::Event event;
             event.setProperty("uid", "testuid");
             QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
             event.setProperty("summary", "summaryValue");
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+            waitCondition << Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec();
         }
+        waitForCompletion(waitCondition).exec().waitForFinished();
         auto appendTime = time.elapsed();
 
         //Ensure everything is processed
