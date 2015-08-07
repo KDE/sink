@@ -180,17 +180,16 @@ public:
     /**
      * Create a new entity.
      */
-    //TODO return job that tracks progress until resource has stored the message in it's queue?
     template <class DomainType>
-    static void create(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
+    static KAsync::Job<void> create(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
         if (facade) {
-            facade->create(domainObject).template then<void>([](){}, [](int errorCode, const QString &error) {
+            return facade->create(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
                 Warning() << "Failed to create";
-            }).exec().waitForFinished();
+            });
         }
-        //TODO return job?
+        return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
     /**
@@ -199,30 +198,30 @@ public:
      * This includes moving etc. since these are also simple settings on a property.
      */
     template <class DomainType>
-    static void modify(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
+    static KAsync::Job<void> modify(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
         if (facade) {
-            facade->modify(domainObject).template then<void>([](){}, [](int errorCode, const QString &error) {
+            return facade->modify(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
                 Warning() << "Failed to modify";
-            }).exec().waitForFinished();
+            });
         }
-        //TODO return job?
+        return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
     /**
      * Remove an entity.
      */
     template <class DomainType>
-    static void remove(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
+    static KAsync::Job<void> remove(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
         if (facade) {
-            facade->remove(domainObject).template then<void>([](){}, [](int errorCode, const QString &error) {
+            facade->remove(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
                 Warning() << "Failed to remove";
             }).exec().waitForFinished();
         }
-        //TODO return job?
+        return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
     static void shutdown(const QByteArray &resourceIdentifier);
