@@ -12,6 +12,7 @@ set(lib_SRCS
     dataset.cpp
     datasetdefinition.cpp
     state.cpp
+    formatter.cpp
 )
 
 set(SRCS
