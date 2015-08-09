@@ -19,16 +19,16 @@
 
 #include "entitystorage.h"
 
-static void scan(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, std::function<bool(const QByteArray &key, const Akonadi2::Entity &entity)> callback)
+static void scan(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, std::function<bool(const QByteArray &key, const Akonadi2::Entity &entity)> callback)
 {
-    storage->scan(key, [=](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+    transaction.scan(key, [=](const QByteArray &key, const QByteArray &value) -> bool {
         //Skip internals
-        if (Akonadi2::Storage::isInternalKey(keyValue, keySize)) {
+        if (Akonadi2::Storage::isInternalKey(key)) {
             return true;
         }
 
         //Extract buffers
-        Akonadi2::EntityBuffer buffer(dataValue, dataSize);
+        Akonadi2::EntityBuffer buffer(value.data(), value.size());
 
         //FIXME implement buffer.isValid()
         // const auto resourceBuffer = Akonadi2::EntityBuffer::readBuffer<DummyEvent>(buffer.entity().resource());
@@ -39,16 +39,16 @@ static void scan(const QSharedPointer<Akonadi2::Storage> &storage, const QByteAr
         //     qWarning() << "invalid buffer " << QByteArray::fromRawData(static_cast<char*>(keyValue), keySize);
         //     return true;
         // }
-        return callback(QByteArray::fromRawData(static_cast<char*>(keyValue), keySize), buffer.entity());
+        return callback(key, buffer.entity());
     },
     [](const Akonadi2::Storage::Error &error) {
         qWarning() << "Error during query: " << error.message;
     });
 }
 
-void EntityStorageBase::readValue(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> &resultCallback)
+void EntityStorageBase::readValue(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> &resultCallback)
 {
-    scan(storage, key, [=](const QByteArray &key, const Akonadi2::Entity &entity) {
+    scan(transaction, key, [=](const QByteArray &key, const Akonadi2::Entity &entity) {
         const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
         qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
         //This only works for a 1:1 mapping of resource to domain types.
@@ -61,11 +61,11 @@ void EntityStorageBase::readValue(const QSharedPointer<Akonadi2::Storage> &stora
     });
 }
 
-static ResultSet fullScan(const QSharedPointer<Akonadi2::Storage> &storage)
+static ResultSet fullScan(const Akonadi2::Storage::Transaction &transaction)
 {
     //TODO use a result set with an iterator, to read values on demand
     QVector<QByteArray> keys;
-    scan(storage, QByteArray(), [=, &keys](const QByteArray &key, const Akonadi2::Entity &) {
+    scan(transaction, QByteArray(), [=, &keys](const QByteArray &key, const Akonadi2::Entity &) {
         keys << key;
         return true;
     });
@@ -73,14 +73,14 @@ static ResultSet fullScan(const QSharedPointer<Akonadi2::Storage> &storage)
     return ResultSet(keys);
 }
 
-ResultSet EntityStorageBase::filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const QSharedPointer<Akonadi2::Storage> &storage, qint64 baseRevision, qint64 topRevision)
+ResultSet EntityStorageBase::filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision)
 {
     auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
 
     //Read through the source values and return whatever matches the filter
-    std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)>)> generator = [this, resultSetPtr, storage, filter](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> callback) -> bool {
+    std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)>)> generator = [this, resultSetPtr, &transaction, filter](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> callback) -> bool {
         while (resultSetPtr->next()) {
-            readValue(storage, resultSetPtr->id(), [this, filter, callback](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) {
+            readValue(transaction, resultSetPtr->id(), [this, filter, callback](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) {
                 if (filter(domainObject)) {
                     callback(domainObject);
                 }
@@ -91,7 +91,7 @@ ResultSet EntityStorageBase::filteredSet(const ResultSet &resultSet, const std::
     return ResultSet(generator);
 }
 
-ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage, qint64 baseRevision, qint64 topRevision)
+ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, const Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision)
 {
     QSet<QByteArray> appliedFilters;
     ResultSet resultSet = queryIndexes(query, mResourceInstanceIdentifier, appliedFilters);
@@ -99,7 +99,7 @@ ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, const QS
 
     //We do a full scan if there were no indexes available to create the initial set.
     if (appliedFilters.isEmpty()) {
-        resultSet = fullScan(storage);
+        resultSet = fullScan(transaction);
     }
 
     auto filter = [remainingFilters, query, baseRevision, topRevision](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
@@ -118,5 +118,5 @@ ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, const QS
         return true;
     };
 
-    return filteredSet(resultSet, filter, storage, baseRevision, topRevision);
+    return filteredSet(resultSet, filter, transaction, baseRevision, topRevision);
 }

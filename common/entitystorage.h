@@ -45,9 +45,9 @@ protected:
     virtual Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr copy(const Akonadi2::ApplicationDomain::ApplicationDomainType &) = 0;
     virtual ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters) = 0;
 
-    void readValue(const QSharedPointer<Akonadi2::Storage> &storage, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> &resultCallback);
-    ResultSet filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const QSharedPointer<Akonadi2::Storage> &storage, qint64 baseRevision, qint64 topRevision);
-    ResultSet getResultSet(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::Storage> &storage, qint64 baseRevision, qint64 topRevision);
+    void readValue(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> &resultCallback);
+    ResultSet filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision);
+    ResultSet getResultSet(const Akonadi2::Query &query, const Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision);
 
 protected:
     QByteArray mResourceInstanceIdentifier;
@@ -85,23 +85,21 @@ public:
 
     virtual void read(const Akonadi2::Query &query, const QPair<qint64, qint64> &revisionRange, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider) 
     {
-        auto storage = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier);
-        storage->setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
+        Akonadi2::Storage storage(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier);
+        storage.setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
             Warning() << "Error during query: " << error.store << error.message;
         });
 
-        storage->startTransaction(Akonadi2::Storage::ReadOnly);
-        //TODO start transaction on indexes as well
+        auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
 
         Log() << "Querying" << revisionRange.first << revisionRange.second;
-        auto resultSet = getResultSet(query, storage, revisionRange.first, revisionRange.second);
+        auto resultSet = getResultSet(query, transaction, revisionRange.first, revisionRange.second);
         while(resultSet.next([this, resultProvider](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value) -> bool {
             auto cloned = copy(*value);
             resultProvider->add(cloned.template staticCast<DomainType>());
             return true;
         })){};
         //TODO replay removals and modifications
-        storage->abortTransaction();
     }
 
 };
