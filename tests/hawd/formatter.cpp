@@ -36,12 +36,11 @@ void Formatter::print(const QString &datasetName, const QStringList &cols, State
         std::cout << QObject::tr("The dataset %1 could not be loaded; try checking it with the check command").arg(datasetName).toStdString() << std::endl;
         return;
     }
-    print(dataset);
+    print(dataset, cols);
 }
 
 void Formatter::print(Dataset &dataset, const QStringList &cols)
 {
-    QStringList cols;
     std::cout << dataset.tableHeaders(cols).toStdString() << std::endl;
     dataset.eachRow(
         [cols](const Dataset::Row &row) {

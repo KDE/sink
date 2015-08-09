@@ -3,6 +3,7 @@
 #include "calendar_generated.h"
 
 #include "hawd/dataset.h"
+#include "hawd/formatter.h"
 #include "common/storage.h"
 
 #include <iostream>
@@ -139,7 +140,7 @@ private Q_SLOTS:
             row.setValue("read", readOpsPerMs);
             row.setValue("readOps", readOpsPerMs);
             dataset.insertRow(row);
-            qDebug() << "Reading took[ms]: " << readDuration << "->" << readOpsPerMs << "ops/ms";
+            HAWD::Formatter::print(dataset);
         } else {
             qDebug() << "File reading is not implemented.";
         }
@@ -199,7 +200,7 @@ private Q_SLOTS:
         row.setValue("time", bufferDuration);
         row.setValue("ops", opsPerMs);
         dataset.insertRow(row);
-        qDebug() << "Creating buffers took[ms]: " << bufferDuration << "->" << opsPerMs << "ops/ms";
+        HAWD::Formatter::print(dataset);
     }
 
     void testSizes()
