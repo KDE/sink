@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     const QByteArray instanceIdentifier = argv[1];
 
     QLockFile lockfile(instanceIdentifier + ".lock");
-    lockfile.setStaleLockTime(0);
+    lockfile.setStaleLockTime(500);
     if (!lockfile.tryLock(0)) {
         Warning() << "Failed to acquire exclusive lock on socket.";
         return -1;
