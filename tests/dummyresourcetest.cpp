@@ -66,7 +66,7 @@ private Q_SLOTS:
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
@@ -87,10 +87,10 @@ private Q_SLOTS:
         event.setProperty("summary", "summaryValue");
 
         event.setProperty("uid", "testuid");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
 
         event.setProperty("uid", "testuid2");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
@@ -112,11 +112,11 @@ private Q_SLOTS:
 
         event.setProperty("uid", "testuid");
         event.setProperty("summary", "summaryValue1");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
 
         event.setProperty("uid", "testuid2");
         event.setProperty("summary", "summaryValue2");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
@@ -168,7 +168,7 @@ private Q_SLOTS:
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1");
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
@@ -190,7 +190,7 @@ private Q_SLOTS:
 
         event2.setProperty("uid", "testuid");
         event2.setProperty("summary", "summaryValue2");
-        Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2, "org.kde.dummy.instance1");
+        Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2, "org.kde.dummy.instance1").exec().waitForFinished();
 
         //Test modify
         {
