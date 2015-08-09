@@ -79,7 +79,7 @@ private Q_SLOTS:
     {
         QTime time;
         time.start();
-        int num = 10000;
+        int num = 100;
         QList<KAsync::Future<void> > waitCondition;
         for (int i = 0; i < num; i++) {
             Akonadi2::ApplicationDomain::Event event;
@@ -126,10 +126,9 @@ private Q_SLOTS:
     {
         QTime time;
         time.start();
-        int num = 10000;
+        int num = 100;
 
         auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.dummy.instance1");
-        QSignalSpy revisionSpy(pipeline.data(), SIGNAL(revisionUpdated()));
         DummyResource resource("org.kde.dummy.instance1", pipeline);
 
         flatbuffers::FlatBufferBuilder eventFbb;
@@ -175,8 +174,8 @@ private Q_SLOTS:
 
         auto allProcessedTime = time.elapsed();
 
-        std::cout << "Append to messagequeue " << appendTime << std::endl;
-        std::cout << "All processed: " << allProcessedTime << "/sec " << num*1000/allProcessedTime << std::endl;
+        std::cout << "Append to messagequeue " << appendTime << " /sec " << num*1000/appendTime << std::endl;
+        std::cout << "All processed: " << allProcessedTime << " /sec " << num*1000/allProcessedTime << std::endl;
     }
 
     void testCreateCommand()
