@@ -165,7 +165,7 @@ bool Storage::Transaction::write(const QByteArray &sKey, const QByteArray &sValu
 
 int Storage::Transaction::scan(const QByteArray &k,
                   const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-                  const std::function<void(const Storage::Error &error)> &errorHandler)
+                  const std::function<void(const Storage::Error &error)> &errorHandler) const
 {
     if (!d || !d->transaction) {
         Error error(d->name.toLatin1(), ErrorCodes::NotOpen, "Not open");

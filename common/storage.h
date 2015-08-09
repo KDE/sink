@@ -54,6 +54,7 @@ public:
     class Transaction
     {
     public:
+        Transaction();
         ~Transaction();
         bool commit(const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
         void abort();
@@ -79,7 +80,7 @@ public:
         */
         int scan(const QByteArray &k,
                     const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
 
         Transaction(Transaction&& other) : d(other.d)
         {
@@ -96,7 +97,6 @@ public:
         Transaction& operator=(Transaction& other);
         friend Storage;
         class Private;
-        Transaction();
         Transaction(Private*);
         Private *d;
     };
