@@ -94,7 +94,7 @@ qint64 Dataset::Row::key() const
     return m_key;
 }
 
-void Dataset::Row::fromBinary(QByteArray &data)
+void Dataset::Row::fromBinary(QByteArray data)
 {
     QVariant value;
     QString key;
@@ -210,14 +210,14 @@ QString Dataset::Row::toString(const QStringList &cols, int standardCols, const 
 Dataset::Dataset(const QString &name, const State &state)
     : m_definition(state.datasetDefinition(name)),
       m_storage(state.resultsPath(), name, Akonadi2::Storage::ReadWrite),
-      m_commitHash(state.commitHash())
+      m_commitHash(state.commitHash()),
+      m_transaction(std::move(m_storage.createTransaction()))
 {
-    m_storage.startTransaction();
 }
 
 Dataset::~Dataset()
 {
-    m_storage.commitTransaction();
+    m_transaction.commit();
 }
 
 bool Dataset::isValid() const
@@ -237,8 +237,7 @@ qint64 Dataset::insertRow(const Row &row)
     }
 
     qint64 key = row.key();
-    QByteArray data = row.toBinary();
-    m_storage.write((const char *)&key, sizeof(qint64), data.constData(), data.size());
+    m_transaction.write(QByteArray::fromRawData((const char *)&key, sizeof(qint64)), row.toBinary());
     return key;
 }
 
@@ -254,15 +253,14 @@ void Dataset::eachRow(const std::function<void(const Row &row)> &resultHandler)
     }
 
     Row row(*this);
-    m_storage.scan("",
-                   [&](void *key, int keySize, void *data, int dataSize) -> bool {
-                       if (keySize != sizeof(qint64)) {
+    m_transaction.scan("",
+                   [&](const QByteArray &key, const QByteArray &value) -> bool {
+                       if (key.size() != sizeof(qint64)) {
                            return true;
                        }
 
-                       QByteArray array((const char*)data, dataSize);
-                       row.fromBinary(array);
-                       row.m_key = *(qint64 *)key;
+                       row.fromBinary(value);
+                       row.m_key = *(qint64 *)key.data();
                        resultHandler(row);
                        return true;
                    },
@@ -278,10 +276,9 @@ Dataset::Row Dataset::row(qint64 key)
     }
 
     Row row(*this, key);
-    m_storage.scan(QByteArray::fromRawData((const char *)&key, sizeof(qint64)),
-            [&row](void *keyPtr, int keyLength, void *valuePtr, int valueSize) -> bool {
-                QByteArray array((const char*)valuePtr, valueSize);
-                row.fromBinary(array);
+    m_transaction.scan(QByteArray::fromRawData((const char *)&key, sizeof(qint64)),
+            [&row](const QByteArray &key, const QByteArray &value) -> bool {
+                row.fromBinary(value);
                 return true;
             },
             Akonadi2::Storage::basicErrorHandler()

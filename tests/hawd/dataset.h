@@ -57,7 +57,7 @@ public:
         private:
             Row();
             Row(const Dataset &dataset, qint64 key = 0);
-            void fromBinary(QByteArray &binary);
+            void fromBinary(QByteArray binary);
 
             qint64 m_key;
             QHash<QString, DataDefinition> m_columns;
@@ -85,6 +85,7 @@ public:
 private:
     DatasetDefinition m_definition;
     Akonadi2::Storage m_storage;
+    Akonadi2::Storage::Transaction m_transaction;
     QString m_commitHash;
 };
 
