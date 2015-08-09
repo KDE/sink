@@ -51,8 +51,64 @@ public:
         int code;
     };
 
+    class Transaction
+    {
+    public:
+        ~Transaction();
+        bool commit(const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+        void abort();
+
+        /**
+         * Write a value
+         */
+        bool write(const QByteArray &key, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+
+        /**
+         * Remove a value
+         */
+        void remove(const QByteArray &key,
+                    const std::function<void(const Storage::Error &error)> &errorHandler);
+        /**
+        * Read values with a given key.
+        * 
+        * * An empty @param key results in a full scan
+        * * If duplicates are existing (revisions), all values are returned.
+        * * The pointers of the returned values are valid during the execution of the @param resultHandler
+        * 
+        * @return The number of values retrieved.
+        */
+        int scan(const QByteArray &k,
+                    const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
+                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+
+        Transaction(Transaction&& other) : d(other.d)
+        {
+            d = other.d;
+            other.d = nullptr;
+        } 
+        Transaction& operator=(Transaction&& other) {
+            d = other.d;
+            other.d = nullptr;
+            return *this;
+        }
+    private:
+        Transaction(Transaction& other);
+        Transaction& operator=(Transaction& other);
+        friend Storage;
+        class Private;
+        Transaction();
+        Transaction(Private*);
+        Private *d;
+    };
+
     Storage(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly, bool allowDuplicates = false);
     ~Storage();
+
+    Transaction createTransaction(AccessMode mode = ReadWrite,
+                  const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+
+
+    //Old API
     bool isInTransaction() const;
     bool startTransaction(AccessMode mode = ReadWrite, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
     bool commitTransaction(const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());

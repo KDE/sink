@@ -20,17 +20,18 @@ private:
     void populate(int count)
     {
         Akonadi2::Storage storage(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        auto transaction = storage.createTransaction(Akonadi2::Storage::ReadWrite);
         for (int i = 0; i < count; i++) {
             //This should perhaps become an implementation detail of the db?
             if (i % 10000 == 0) {
                 if (i > 0) {
-                    storage.commitTransaction();
+                    transaction.commit();
+                    transaction = std::move(storage.createTransaction(Akonadi2::Storage::ReadWrite));
                 }
-                storage.startTransaction();
             }
-            storage.write(keyPrefix + QByteArray::number(i), keyPrefix + QByteArray::number(i));
+            transaction.write(keyPrefix + QByteArray::number(i), keyPrefix + QByteArray::number(i));
         }
-        storage.commitTransaction();
+        transaction.commit();
     }
 
     bool verify(Akonadi2::Storage &storage, int i)
@@ -38,8 +39,8 @@ private:
         bool success = true;
         bool keyMatch = true;
         const auto reference = keyPrefix + QByteArray::number(i);
-        storage.scan(keyPrefix + QByteArray::number(i),
-            [&keyMatch, &reference](const QByteArray &value) -> bool {
+        storage.createTransaction(Akonadi2::Storage::ReadOnly).scan(keyPrefix + QByteArray::number(i),
+            [&keyMatch, &reference](const QByteArray &key, const QByteArray &value) -> bool {
                 if (value != reference) {
                     qDebug() << "Mismatch while reading";
                     keyMatch = false;
@@ -102,8 +103,8 @@ private Q_SLOTS:
         {
             int hit = 0;
             Akonadi2::Storage store(testDataPath, dbName);
-            store.scan("", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-                if (std::string(static_cast<char*>(keyValue), keySize) == "key50") {
+            store.createTransaction(Akonadi2::Storage::ReadOnly).scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
+                if (key == "key50") {
                     hit++;
                 }
                 return true;
@@ -116,8 +117,8 @@ private Q_SLOTS:
             int hit = 0;
             bool foundInvalidValue = false;
             Akonadi2::Storage store(testDataPath, dbName);
-            store.scan("key50", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-                if (std::string(static_cast<char*>(keyValue), keySize) != "key50") {
+            store.createTransaction(Akonadi2::Storage::ReadOnly).scan("key50", [&](const QByteArray &key, const QByteArray &value) -> bool {
+                if (key != "key50") {
                     foundInvalidValue = true;
                 }
                 hit++;
@@ -128,12 +129,13 @@ private Q_SLOTS:
         }
     }
 
-    void testTurnReadToWrite()
+    void testNestedOperations()
     {
         populate(3);
         Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        store.scan("key1", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-            store.remove(QByteArray::fromRawData(static_cast<const char*>(keyValue), keySize), [](const Akonadi2::Storage::Error &) {
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        transaction.scan("key1", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            transaction.remove(key, [](const Akonadi2::Storage::Error &) {
                 QVERIFY(false);
             });
             return false;
@@ -145,7 +147,7 @@ private Q_SLOTS:
         bool gotResult = false;
         bool gotError = false;
         Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        int numValues = store.scan("", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
+        int numValues = store.createTransaction(Akonadi2::Storage::ReadOnly).scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
             gotResult = true;
             return false;
         },
