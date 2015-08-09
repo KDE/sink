@@ -92,28 +92,26 @@ private Q_SLOTS:
         const char *keyPrefix = "key";
 
         QTime time;
-
         time.start();
         {
             auto event = createEvent();
-            for (int i = 0; i < count; i++) {
-                if (store) {
+            if (store) {
+                auto transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
+                for (int i = 0; i < count; i++) {
                     if (i % 10000 == 0) {
                         if (i > 0) {
-                            store->commitTransaction();
+                            transaction.commit();
+                            transaction = std::move(store->createTransaction(Akonadi2::Storage::ReadWrite));
                         }
-                        store->startTransaction();
                     }
 
-                    store->write(keyPrefix + QByteArray::number(i), event);
-                } else {
+                    transaction.write(keyPrefix + QByteArray::number(i), event);
+                }
+                transaction.commit();
+            } else {
+                for (int i = 0; i < count; i++) {
                     myfile << event.toStdString();
                 }
-            }
-
-            if (store) {
-                store->commitTransaction();
-            } else {
                 myfile.close();
             }
         }
@@ -122,9 +120,10 @@ private Q_SLOTS:
         qDebug() << "Writing took[ms]: " << writeDuration << "->" << writeOpsPerMs << "ops/ms";
 
         {
-            for (int i = 0; i < count; i++) {
-                if (store) {
-                    store->scan(keyPrefix + QByteArray::number(i), [](const QByteArray &value) -> bool { return true; });
+            if (store) {
+                auto transaction = store->createTransaction(Akonadi2::Storage::ReadOnly);
+                for (int i = 0; i < count; i++) {
+                    transaction.scan(keyPrefix + QByteArray::number(i), [](const QByteArray &key, const QByteArray &value) -> bool { return true; });
                 }
             }
         }
@@ -152,8 +151,8 @@ private Q_SLOTS:
 
         QBENCHMARK {
             int hit = 0;
-            store->scan("", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-                if (std::string(static_cast<char*>(keyValue), keySize) == "key10000") {
+            store->createTransaction(Akonadi2::Storage::ReadOnly).scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
+                if (key == "key10000") {
                     //qDebug() << "hit";
                     hit++;
                 }
@@ -169,12 +168,7 @@ private Q_SLOTS:
 
         QBENCHMARK {
             int hit = 0;
-            store->scan("key40000", [&](void *keyValue, int keySize, void *dataValue, int dataSize) -> bool {
-                /*
-                if (std::string(static_cast<char*>(keyValue), keySize) == "foo") {
-                    qDebug() << "hit";
-                }
-                */
+            store->createTransaction(Akonadi2::Storage::ReadOnly).scan("key40000", [&](const QByteArray &key, const QByteArray &value) -> bool {
                 hit++;
                 return true;
             });
