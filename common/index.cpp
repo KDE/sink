@@ -9,9 +9,7 @@ Index::Index(const QString &storageRoot, const QString &name, Akonadi2::Storage:
 
 void Index::add(const QByteArray &key, const QByteArray &value)
 {
-    mStorage.startTransaction(Akonadi2::Storage::ReadWrite);
-    mStorage.write(key.data(), key.size(), value.data(), value.size());
-    mStorage.commitTransaction();
+    mStorage.createTransaction(Akonadi2::Storage::ReadWrite).write(key, value);
 }
 
 void Index::lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler,
@@ -21,8 +19,8 @@ void Index::lookup(const QByteArray &key, const std::function<void(const QByteAr
         errorHandler(Error("index", IndexNotAvailable, "Index not existing"));
         return;
     }
-    mStorage.scan(key, [this, resultHandler](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
-        resultHandler(QByteArray(static_cast<char*>(valuePtr), valueSize));
+    mStorage.createTransaction(Akonadi2::Storage::ReadOnly).scan(key, [this, resultHandler](const QByteArray &key, const QByteArray &value) -> bool {
+        resultHandler(value);
         return true;
     },
     [errorHandler](const Akonadi2::Storage::Error &error) {
