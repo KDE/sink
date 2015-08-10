@@ -39,4 +39,5 @@ signals:
 private:
     Q_DISABLE_COPY(MessageQueue);
     Akonadi2::Storage mStorage;
+    Akonadi2::Storage::Transaction mTransaction;
 };

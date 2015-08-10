@@ -69,18 +69,31 @@ bool Storage::write(const QByteArray &sKey, const QByteArray &sValue, const std:
 
 void Storage::setMaxRevision(qint64 revision)
 {
-    write("__internal_maxRevision", QByteArray::number(revision));
+    auto transaction = createTransaction(Akonadi2::Storage::ReadWrite);
+    setMaxRevision(transaction, revision);
+}
+
+void Storage::setMaxRevision(Akonadi2::Storage::Transaction &transaction, qint64 revision)
+{
+    transaction.write("__internal_maxRevision", QByteArray::number(revision));
 }
 
 qint64 Storage::maxRevision()
 {
+    auto transaction = createTransaction(Akonadi2::Storage::ReadOnly);
+    return maxRevision(transaction);
+}
+
+qint64 Storage::maxRevision(const Akonadi2::Storage::Transaction &transaction)
+{
     qint64 r = 0;
-    scan("__internal_maxRevision", [&](const QByteArray &revision) -> bool {
+    transaction.scan("__internal_maxRevision", [&](const QByteArray &, const QByteArray &revision) -> bool {
         r = revision.toLongLong();
         return false;
-    }, [this](const Error &error){
+    }, [](const Error &error){
         if (error.code != ErrorCodes::NotFound) {
-            defaultErrorHandler()(error);
+            //FIXME
+            // defaultErrorHandler()(error);
         }
     });
     return r;

@@ -11,12 +11,11 @@ MessageQueue::MessageQueue(const QString &storageRoot, const QString &name)
 
 void MessageQueue::enqueue(void const *msg, size_t size)
 {
-    mStorage.startTransaction(Akonadi2::Storage::ReadWrite);
+    auto transaction = mStorage.createTransaction(Akonadi2::Storage::ReadWrite);
     const qint64 revision = mStorage.maxRevision() + 1;
     const QByteArray key = QString("%1").arg(revision).toUtf8();
-    mStorage.write(key.data(), key.size(), msg, size);
-    mStorage.setMaxRevision(revision);
-    mStorage.commitTransaction();
+    transaction.write(key, QByteArray::fromRawData(static_cast<const char*>(msg), size));
+    Akonadi2::Storage::setMaxRevision(transaction, revision);
     emit messageReady();
 }
 
@@ -24,19 +23,21 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
                            const std::function<void(const Error &error)> &errorHandler)
 {
     bool readValue = false;
-    mStorage.scan("", [this, resultHandler, errorHandler, &readValue](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
-        //We need a copy of the key here, otherwise we can't store it in the lambda (the pointers will become invalid)
-        const auto key  = QByteArray(static_cast<char*>(keyPtr), keySize);
+    mTransaction = std::move(mStorage.createTransaction(Akonadi2::Storage::ReadWrite));
+    mTransaction.scan("", [this, resultHandler, errorHandler, &readValue](const QByteArray &key, const QByteArray &value) -> bool {
         if (Akonadi2::Storage::isInternalKey(key)) {
             return true;
         }
         readValue = true;
-        resultHandler(valuePtr, valueSize, [this, key, errorHandler](bool success) {
+        //We need a copy of the key here, otherwise we can't store it in the lambda (the pointers will become invalid)
+        const auto keyCopy  = QByteArray(key.constData(), key.size());
+        resultHandler(const_cast<void*>(static_cast<const void*>(value.data())), value.size(), [this, keyCopy, errorHandler](bool success) {
             if (success) {
-                mStorage.remove(key.data(), key.size(), [errorHandler, key](const Akonadi2::Storage::Error &error) {
-                    ErrorMsg() << "Error while removing value" << error.message << key;
+                mTransaction.remove(keyCopy, [errorHandler, keyCopy](const Akonadi2::Storage::Error &error) {
+                    ErrorMsg() << "Error while removing value" << error.message << keyCopy;
                     //Don't call the errorhandler in here, we already called the result handler
                 });
+                mTransaction.commit();
                 if (isEmpty()) {
                     emit this->drained();
                 }
@@ -59,8 +60,7 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
 bool MessageQueue::isEmpty()
 {
     int count = 0;
-    mStorage.scan("", [&count](void *keyPtr, int keySize, void *valuePtr, int valueSize) -> bool {
-        const auto key = QByteArray::fromRawData(static_cast<char*>(keyPtr), keySize);
+    mStorage.createTransaction(Akonadi2::Storage::ReadOnly).scan("", [&count](const QByteArray &key, const QByteArray &value) -> bool {
         if (!Akonadi2::Storage::isInternalKey(key)) {
             count++;
             return false;
