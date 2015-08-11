@@ -26,6 +26,10 @@
 #include "common/revisionupdate_generated.h"
 #include "common/synchronize_generated.h"
 #include "common/notification_generated.h"
+#include "common/createentity_generated.h"
+#include "common/modifyentity_generated.h"
+#include "common/deleteentity_generated.h"
+#include "common/entitybuffer.h"
 #include "log.h"
 
 #include <QCoreApplication>
@@ -79,7 +83,6 @@ public:
     QByteArray resourceInstanceIdentifier;
     QSharedPointer<QLocalSocket> socket;
     QByteArray partialMessageBuffer;
-    flatbuffers::FlatBufferBuilder fbb;
     QVector<QSharedPointer<QueuedCommand>> commandQueue;
     QMap<uint, QSharedPointer<QueuedCommand>> pendingCommands;
     QMultiMap<uint, std::function<void(int error, const QString &errorMessage)> > resultHandler;
@@ -276,10 +279,50 @@ KAsync::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatB
 
 KAsync::Job<void> ResourceAccess::synchronizeResource(bool sourceSync, bool localSync)
 {
-    auto command = Akonadi2::CreateSynchronize(d->fbb, sourceSync, localSync);
-    Akonadi2::FinishSynchronizeBuffer(d->fbb, command);
-    return sendCommand(Commands::SynchronizeCommand, d->fbb);
-    d->fbb.Clear();
+    flatbuffers::FlatBufferBuilder fbb;
+    auto command = Akonadi2::CreateSynchronize(fbb, sourceSync, localSync);
+    Akonadi2::FinishSynchronizeBuffer(fbb, command);
+    open();
+    return sendCommand(Commands::SynchronizeCommand, fbb);
+}
+
+KAsync::Job<void> ResourceAccess::sendCreateCommand(const QByteArray &resourceBufferType, const QByteArray &buffer)
+{
+    flatbuffers::FlatBufferBuilder fbb;
+    //This is the resource buffer type and not the domain type
+    auto type = fbb.CreateString(resourceBufferType.constData());
+    auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
+    auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
+    Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+    open();
+    return sendCommand(Akonadi2::Commands::CreateEntityCommand, fbb);
+}
+
+KAsync::Job<void> ResourceAccess::sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer)
+{
+    flatbuffers::FlatBufferBuilder fbb;
+    auto entityId = fbb.CreateString(uid.constData());
+    //This is the resource buffer type and not the domain type
+    auto type = fbb.CreateString(resourceBufferType.constData());
+    //FIXME
+    auto deletions = 0;
+    auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
+    auto location = Akonadi2::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta);
+    Akonadi2::Commands::FinishModifyEntityBuffer(fbb, location);
+    open();
+    return sendCommand(Akonadi2::Commands::ModifyEntityCommand, fbb);
+}
+
+KAsync::Job<void> ResourceAccess::sendDeleteCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType)
+{
+    flatbuffers::FlatBufferBuilder fbb;
+    auto entityId = fbb.CreateString(uid.constData());
+    //This is the resource buffer type and not the domain type
+    auto type = fbb.CreateString(resourceBufferType.constData());
+    auto location = Akonadi2::Commands::CreateDeleteEntity(fbb, revision, entityId, type);
+    Akonadi2::Commands::FinishDeleteEntityBuffer(fbb, location);
+    open();
+    return sendCommand(Akonadi2::Commands::DeleteEntityCommand, fbb);
 }
 
 void ResourceAccess::open()
@@ -346,11 +389,11 @@ void ResourceAccess::connected()
     log(QString("Connected: %1").arg(d->socket->fullServerName()));
 
     {
-        auto name = d->fbb.CreateString(QString::number(QCoreApplication::applicationPid()).toLatin1());
-        auto command = Akonadi2::CreateHandshake(d->fbb, name);
-        Akonadi2::FinishHandshakeBuffer(d->fbb, command);
-        Commands::write(d->socket.data(), ++d->messageId, Commands::HandshakeCommand, d->fbb);
-        d->fbb.Clear();
+        flatbuffers::FlatBufferBuilder fbb;
+        auto name = fbb.CreateString(QString::number(QCoreApplication::applicationPid()).toLatin1());
+        auto command = Akonadi2::CreateHandshake(fbb, name);
+        Akonadi2::FinishHandshakeBuffer(fbb, command);
+        Commands::write(d->socket.data(), ++d->messageId, Commands::HandshakeCommand, fbb);
     }
 
     processCommandQueue();
