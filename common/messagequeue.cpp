@@ -29,18 +29,14 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
                            const std::function<void(const Error &error)> &errorHandler)
 {
     bool readValue = false;
-    auto readTransaction = std::move(mStorage.createTransaction(Akonadi2::Storage::ReadOnly));
-    readTransaction.scan("", [this, resultHandler, errorHandler, &readValue, &readTransaction](const QByteArray &key, const QByteArray &value) -> bool {
+    mStorage.createTransaction(Akonadi2::Storage::ReadOnly).scan("", [this, resultHandler, errorHandler, &readValue](const QByteArray &key, const QByteArray &value) -> bool {
         if (Akonadi2::Storage::isInternalKey(key)) {
             return true;
         }
         readValue = true;
         //We need a copy of the key here, otherwise we can't store it in the lambda (the pointers will become invalid)
         const auto keyCopy  = QByteArray(key.constData(), key.size());
-        //TODO The value copy and the early transaction abort is necessary because we don't support parallel read-transactions yet (in case of a synchronous callback)
-        const auto valueCopy  = QByteArray(value.constData(), value.size());
-        readTransaction.abort();
-        resultHandler(const_cast<void*>(static_cast<const void*>(valueCopy.data())), valueCopy.size(), [this, keyCopy, errorHandler](bool success) {
+        resultHandler(const_cast<void*>(static_cast<const void*>(value.data())), value.size(), [this, keyCopy, errorHandler](bool success) {
             if (success) {
                 mStorage.createTransaction(Akonadi2::Storage::ReadWrite).remove(keyCopy, [errorHandler, keyCopy](const Akonadi2::Storage::Error &error) {
                     ErrorMsg() << "Error while removing value" << error.message << keyCopy;
