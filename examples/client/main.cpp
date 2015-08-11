@@ -26,6 +26,7 @@
 #include "common/resultprovider.h"
 #include "common/resource.h"
 #include "common/synclistresult.h"
+#include "common/storage.h"
 #include "console.h"
 
 #include <QWidget>
