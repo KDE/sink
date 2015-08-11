@@ -68,7 +68,7 @@ public:
          * Remove a value
          */
         void remove(const QByteArray &key,
-                    const std::function<void(const Storage::Error &error)> &errorHandler);
+                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
         /**
         * Read values with a given key.
         * 
