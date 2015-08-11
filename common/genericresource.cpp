@@ -198,27 +198,26 @@ void GenericResource::processCommand(int commandId, const QByteArray &data)
     enqueueCommand(mUserQueue, commandId, data);
 }
 
+static void waitForDrained(KAsync::Future<void> &f, MessageQueue &queue)
+{
+    if (queue.isEmpty()) {
+        f.setFinished();
+    } else {
+        QObject::connect(&queue, &MessageQueue::drained, [&f]() {
+            f.setFinished();
+        });
+    }
+};
+
 KAsync::Job<void> GenericResource::processAllMessages()
 {
     //We have to wait for all items to be processed to ensure the synced items are available when a query gets executed.
     //TODO: report errors while processing sync?
     //TODO JOBAPI: A helper that waits for n events and then continues?
     return KAsync::start<void>([this](KAsync::Future<void> &f) {
-        if (mSynchronizerQueue.isEmpty()) {
-            f.setFinished();
-        } else {
-            QObject::connect(&mSynchronizerQueue, &MessageQueue::drained, [&f]() {
-                f.setFinished();
-            });
-        }
+        waitForDrained(f, mSynchronizerQueue);
     }).then<void>([this](KAsync::Future<void> &f) {
-        if (mUserQueue.isEmpty()) {
-            f.setFinished();
-        } else {
-            QObject::connect(&mUserQueue, &MessageQueue::drained, [&f]() {
-                f.setFinished();
-            });
-        }
+        waitForDrained(f, mUserQueue);
     });
 }
 
