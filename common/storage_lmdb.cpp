@@ -227,7 +227,7 @@ int Storage::Transaction::scan(const QByteArray &k,
 void Storage::Transaction::remove(const QByteArray &k,
                      const std::function<void(const Storage::Error &error)> &errorHandler)
 {
-    if (!d) {
+    if (!d || !d->transaction) {
         Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Not open");
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
         return;
