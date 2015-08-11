@@ -54,19 +54,6 @@ std::function<void(const Storage::Error &error)> Storage::defaultErrorHandler() 
     return basicErrorHandler();
 }
 
-int Storage::scan(const QByteArray &key, const std::function<bool(const QByteArray &value)> &resultHandler, const std::function<void(const Storage::Error &error)> &errorHandler)
-{
-    return scan(key, [&resultHandler](void *keyPtr, int keySize, void *valuePtr, int valueSize) {
-        return resultHandler(QByteArray::fromRawData((char*)(valuePtr), valueSize));
-    },
-    errorHandler);
-}
-
-bool Storage::write(const QByteArray &sKey, const QByteArray &sValue, const std::function<void(const Storage::Error &error)> &errorHandler)
-{
-    return write(const_cast<char*>(sKey.data()), sKey.size(), const_cast<char*>(sValue.data()), sValue.size(), errorHandler);
-}
-
 void Storage::setMaxRevision(qint64 revision)
 {
     auto transaction = createTransaction(Akonadi2::Storage::ReadWrite);

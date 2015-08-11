@@ -107,49 +107,6 @@ public:
     Transaction createTransaction(AccessMode mode = ReadWrite,
                   const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
 
-
-    //Old API
-    bool isInTransaction() const;
-    bool startTransaction(AccessMode mode = ReadWrite, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
-    bool commitTransaction(const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
-    void abortTransaction();
-
-    /**
-     * Write values.
-     */
-    bool write(const void *key, size_t keySize, const void *value, size_t valueSize, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
-
-    /**
-     * Convenience API
-     */
-    bool write(const QByteArray &key, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
-
-    /**
-     * Read values with a give key.
-     * 
-     * * An empty @param key results in a full scan
-     * * If duplicates are existing (revisions), all values are returned.
-     * * The pointers of the returned values are valid during the execution of the @param resultHandler
-     * 
-     * @return The number of values retrieved.
-     */
-    int scan(const QByteArray &key, const std::function<bool(void *keyPtr, int keySize, void *ptr, int size)> &resultHandler, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
-
-    /**
-     * Convenience API
-     */
-    int scan(const QByteArray &key, const std::function<bool(const QByteArray &value)> &resultHandler, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
-
-    /**
-     * Remove a value
-     */
-    void remove(void const *key, uint keySize, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
-
-    /**
-     * Convenience API
-     */
-    void remove(const QByteArray &key, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
-
     /**
      * Set the default error handler.
      */
