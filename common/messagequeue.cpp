@@ -46,7 +46,6 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
                     ErrorMsg() << "Error while removing value" << error.message << keyCopy;
                     //Don't call the errorhandler in here, we already called the result handler
                 });
-                mTransaction.commit();
                 if (isEmpty()) {
                     emit this->drained();
                 }
