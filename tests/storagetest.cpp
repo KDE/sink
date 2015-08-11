@@ -142,6 +142,18 @@ private Q_SLOTS:
         });
     }
 
+    void testNestedTransactions()
+    {
+        populate(3);
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        store.createTransaction(Akonadi2::Storage::ReadOnly).scan("key1", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            store.createTransaction(Akonadi2::Storage::ReadWrite).remove(key, [](const Akonadi2::Storage::Error &) {
+                QVERIFY(false);
+            });
+            return false;
+        });
+    }
+
     void testReadEmptyDb()
     {
         bool gotResult = false;

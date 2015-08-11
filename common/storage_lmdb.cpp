@@ -317,7 +317,7 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m, bool
                 // TODO: handle error
                 std::cerr << "mdb_env_create: " << rc << " " << mdb_strerror(rc) << std::endl;
             } else {
-                if ((rc = mdb_env_open(env, fullPath.toStdString().data(), mode == ReadOnly ? MDB_RDONLY : 0 , 0664))) {
+                if ((rc = mdb_env_open(env, fullPath.toStdString().data(), mode == ReadOnly ? MDB_RDONLY : 0 | MDB_NOTLS, 0664))) {
                     std::cerr << "mdb_env_open: " << rc << " " << mdb_strerror(rc) << std::endl;
                     mdb_env_close(env);
                     env = 0;
