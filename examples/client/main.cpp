@@ -73,7 +73,7 @@ template<class T>
 class AkonadiListModel : public QAbstractListModel
 {
 public:
-    AkonadiListModel(const QSharedPointer<async::ResultEmitter<T> > &emitter, const QByteArray &property)
+    AkonadiListModel(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter, const QByteArray &property)
         :QAbstractListModel(),
         mEmitter(emitter)
     {
@@ -116,7 +116,7 @@ public:
     }
 
 private:
-    QSharedPointer<async::ResultEmitter<T> > mEmitter;
+    QSharedPointer<Akonadi2::ResultEmitter<T> > mEmitter;
     QStringList mStringList;
 };
 

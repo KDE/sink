@@ -20,6 +20,7 @@
 #include "resourcefacade.h"
 
 #include <QSettings>
+#include <QStandardPaths>
 
 DummyResourceConfigFacade::DummyResourceConfigFacade()
     : Akonadi2::StoreFacade<Akonadi2::ApplicationDomain::AkonadiResource>()
@@ -64,7 +65,7 @@ KAsync::Job<void> DummyResourceConfigFacade::remove(const Akonadi2::ApplicationD
     return KAsync::null<void>();
 }
 
-KAsync::Job<void> DummyResourceConfigFacade::load(const Akonadi2::Query &query, const QSharedPointer<async::ResultProvider<typename Akonadi2::ApplicationDomain::AkonadiResource::Ptr> > &resultProvider)
+KAsync::Job<void> DummyResourceConfigFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename Akonadi2::ApplicationDomain::AkonadiResource::Ptr> > &resultProvider)
 {
     //Read configuration and list all available instances.
     //This includes runtime information about runing instances etc.

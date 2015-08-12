@@ -25,6 +25,8 @@
 #include <QPluginLoader>
 #include <QPointer>
 
+#include "facadefactory.h"
+
 namespace Akonadi2
 {
 

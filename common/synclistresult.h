@@ -3,7 +3,8 @@
 #include <QList>
 #include <functional>
 #include <QSharedPointer>
-#include <clientapi.h>
+#include <QEventLoop>
+#include "resultprovider.h"
 
 namespace async {
 
@@ -17,7 +18,7 @@ namespace async {
 template<class T>
 class SyncListResult : public QList<T> {
 public:
-    SyncListResult(const QSharedPointer<ResultEmitter<T> > &emitter)
+    SyncListResult(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter)
         :QList<T>(),
         mEmitter(emitter)
     {
@@ -47,7 +48,7 @@ public:
     }
 
 private:
-    QSharedPointer<ResultEmitter<T> > mEmitter;
+    QSharedPointer<Akonadi2::ResultEmitter<T> > mEmitter;
     std::function<void()> eventLoopAborter;
 };
 

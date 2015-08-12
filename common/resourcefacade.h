@@ -19,8 +19,15 @@
 
 #pragma once
 
-#include "common/clientapi.h"
+#include "common/facadeinterface.h"
+
+#include <Async/Async>
 #include "common/resultprovider.h"
+#include "common/domain/applicationdomaintype.h"
+
+namespace Akonadi2 {
+    class Query;
+}
 
 class ResourceFacade : public Akonadi2::StoreFacade<Akonadi2::ApplicationDomain::AkonadiResource>
 {

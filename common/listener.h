@@ -19,13 +19,11 @@
 
 #pragma once
 
-#include <QLocalServer>
-#include <QLocalSocket>
 #include <QObject>
 
+#include <QPointer>
+#include <QLocalSocket>
 #include <flatbuffers/flatbuffers.h>
-
-#include "common/pipeline.h"
 
 namespace Akonadi2
 {
@@ -33,6 +31,7 @@ namespace Akonadi2
 }
 
 class QTimer;
+class QLocalServer;
 
 class Client
 {

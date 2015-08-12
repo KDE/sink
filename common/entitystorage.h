@@ -18,15 +18,16 @@
  */
 #pragma once
 
-#include "clientapi.h"
-
 #include <QByteArray>
 
+#include "query.h"
 #include "domainadaptor.h"
 #include "entitybuffer.h"
 #include "log.h"
 #include "storage.h"
 #include "resultset.h"
+#include "resultprovider.h"
+#include "definitions.h"
 
 /**
  * Wraps storage, entity adaptor factory and indexes into one.
@@ -85,7 +86,7 @@ public:
 
     virtual void read(const Akonadi2::Query &query, const QPair<qint64, qint64> &revisionRange, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider) 
     {
-        Akonadi2::Storage storage(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier);
+        Akonadi2::Storage storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier);
         storage.setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
             Warning() << "Error during query: " << error.store << error.message;
         });

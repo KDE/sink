@@ -31,6 +31,8 @@
 #include "log.h"
 #include "domain/event.h"
 #include "dummystore.h"
+#include "definitions.h"
+#include "facadefactory.h"
 
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_EVENT "event"
@@ -46,7 +48,7 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
         Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, adaptor);
         Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::index(event);
 
-        Index ridIndex(Akonadi2::Store::storageLocation(), resourceIdentifier + ".index.rid", Akonadi2::Storage::ReadWrite);
+        Index ridIndex(Akonadi2::storageLocation(), resourceIdentifier + ".index.rid", Akonadi2::Storage::ReadWrite);
         const auto rid = event.getProperty("remoteId");
         if (rid.isValid()) {
             ridIndex.add(rid.toByteArray(), event.identifier());
@@ -62,7 +64,7 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
 {
     return KAsync::start<void>([this](KAsync::Future<void> &f) {
         //TODO start transaction on index
-        Index uidIndex(Akonadi2::Store::storageLocation(), mResourceInstanceIdentifier + ".index.uid", Akonadi2::Storage::ReadOnly);
+        Index uidIndex(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".index.uid", Akonadi2::Storage::ReadOnly);
 
         const auto data = DummyStore::instance().data();
         for (auto it = data.constBegin(); it != data.constEnd(); it++) {

@@ -24,7 +24,9 @@
 #include <memory>
 #include "threadboundary.h"
 
-namespace async {
+using namespace async;
+
+namespace Akonadi2 {
 
 /**
 * Query result set

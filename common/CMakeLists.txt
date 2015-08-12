@@ -11,6 +11,7 @@ else (STORAGE_unqlite)
 endif (STORAGE_unqlite)
 
 set(command_SRCS
+    definitions.cpp
     log.cpp
     entitybuffer.cpp
     entitystorage.cpp

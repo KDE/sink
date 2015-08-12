@@ -19,6 +19,7 @@
 #include "resourcefacade.h"
 
 #include "resourceconfig.h"
+#include "query.h"
 
 ResourceFacade::ResourceFacade(const QByteArray &)
     : Akonadi2::StoreFacade<Akonadi2::ApplicationDomain::AkonadiResource>()

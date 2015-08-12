@@ -18,7 +18,7 @@
  */
 #pragma once
 
-#include "../clientapi.h"
+#include "applicationdomaintype.h"
 
 class ResultSet;
 class QByteArray;

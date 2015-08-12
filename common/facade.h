@@ -19,8 +19,9 @@
 
 #pragma once
 
-#include <QByteArray>
+#include "facadeinterface.h"
 
+#include <QByteArray>
 #include <Async/Async>
 
 #include "resourceaccess.h"

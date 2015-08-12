@@ -19,17 +19,16 @@
 
 #pragma once
 
-#include "entity_generated.h"
 #include <QVariant>
 #include <QByteArray>
 #include <functional>
-#include "clientapi.h" //for domain parts
 
+#include "domain/applicationdomaintype.h"
+#include "domain/event.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
 #include "entitybuffer.h"
 #include "propertymapper.h"
-#include "domain/event.h"
 #include "log.h"
 
 /**

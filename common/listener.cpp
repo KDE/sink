@@ -19,10 +19,10 @@
 
 #include "listener.h"
 
-#include "common/clientapi.h"
 #include "common/commands.h"
 #include "common/resource.h"
 #include "common/log.h"
+#include "common/definitions.h"
 
 // commands
 #include "common/commandcompletion_generated.h"
@@ -31,13 +31,14 @@
 #include "common/synchronize_generated.h"
 #include "common/notification_generated.h"
 
+#include <QLocalServer>
 #include <QLocalSocket>
 #include <QTimer>
 
 Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent)
     : QObject(parent),
       m_server(new QLocalServer(this)),
-      m_resourceName(Akonadi2::Store::resourceName(resourceInstanceIdentifier)),
+      m_resourceName(Akonadi2::resourceName(resourceInstanceIdentifier)),
       m_resourceInstanceIdentifier(resourceInstanceIdentifier),
       m_resource(0),
       m_clientBufferProcessesTimer(new QTimer(this)),

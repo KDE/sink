@@ -20,32 +20,10 @@
 
 #pragma once
 
-#include <Async/Async>
+#include <QString>
 #include <QByteArray>
-#include <QSharedPointer>
-#include "domain/applicationdomaintype.h"
-#include "resultprovider.h"
 
 namespace Akonadi2 {
-class Query;
-
-/**
- * Interface for the store facade.
- * 
- * All methods are synchronous.
- * Facades are stateful (they hold connections to resources and database).
- * 
- * TODO: would it make sense to split the write, read and notification parts? (we could potentially save some connections)
- */
-template<class DomainType>
-class StoreFacade {
-public:
-    virtual ~StoreFacade(){};
-    QByteArray type() const { return ApplicationDomain::getTypeName<DomainType>(); }
-    virtual KAsync::Job<void> create(const DomainType &domainObject) = 0;
-    virtual KAsync::Job<void> modify(const DomainType &domainObject) = 0;
-    virtual KAsync::Job<void> remove(const DomainType &domainObject) = 0;
-    virtual KAsync::Job<void> load(const Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider) = 0;
-};
-
+    QString storageLocation();
+    QByteArray resourceName(const QByteArray &instanceIdentifier);
 }

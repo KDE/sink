@@ -4,6 +4,7 @@
 #include "commands.h"
 #include "resourcefacade.h"
 #include "log.h"
+#include "definitions.h"
 #include <QtConcurrent/QtConcurrentRun>
 #include <QTimer>
 

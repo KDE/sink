@@ -21,22 +21,21 @@
 #pragma once
 
 #include <QString>
-#include <QSet>
 #include <QSharedPointer>
-#include <QStandardPaths>
-#include <QDebug>
 #include <QEventLoop>
 #include <functional>
 #include <memory>
 
 #include <Async/Async>
 
+#include "query.h"
 #include "threadboundary.h"
 #include "resultprovider.h"
 #include "domain/applicationdomaintype.h"
 #include "resourceconfig.h"
 #include "facadefactory.h"
 #include "log.h"
+#include "definitions.h"
 
 namespace async {
     //This should abstract if we execute from eventloop or in thread.
@@ -49,59 +48,18 @@ namespace Akonadi2 {
 using namespace async;
 
 /**
- * A query that matches a set of objects
- * 
- * The query will have to be updated regularly similary to the domain objects.
- * It probably also makes sense to have a domain specific part of the query,
- * such as what properties we're interested in (necessary information for on-demand
- * loading of data).
- *
- * The query defines:
- * * what resources to search
- * * filters on various properties (parent collection, startDate range, ....)
- * * properties we need (for on-demand querying)
- * 
- * syncOnDemand: Execute a source sync before executing the query
- * processAll: Ensure all local messages are processed before querying to guarantee an up-to date dataset.
- */
-class Query
-{
-public:
-    Query() : syncOnDemand(true), processAll(false), liveQuery(false) {}
-    //Could also be a propertyFilter
-    QByteArrayList resources;
-    //Could also be a propertyFilter
-    QByteArrayList ids;
-    //Filters to apply
-    QHash<QByteArray, QVariant> propertyFilter;
-    //Properties to retrieve
-    QSet<QByteArray> requestedProperties;
-    bool syncOnDemand;
-    bool processAll;
-    //If live query is false, this query will not continuously be updated
-    bool liveQuery;
-};
-
-
-
-/**
  * Store interface used in the client API.
  */
 class Store {
 public:
     static QString storageLocation()
     {
-        return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage";
+        return Akonadi2::storageLocation();
     }
 
     static QByteArray resourceName(const QByteArray &instanceIdentifier)
     {
-        auto split = instanceIdentifier.split('.');
-        if (split.size() <= 1) {
-            return instanceIdentifier;
-        }
-        split.removeLast();
-        return split.join('.');
+        return Akonadi2::resourceName(instanceIdentifier);
     }
 
     static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter)

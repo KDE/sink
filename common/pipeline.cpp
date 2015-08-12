@@ -21,7 +21,6 @@
 #include "pipeline.h"
 
 #include <QByteArray>
-#include <QStandardPaths>
 #include <QVector>
 #include <QUuid>
 #include <QDebug>
@@ -33,6 +32,7 @@
 #include "entitybuffer.h"
 #include "log.h"
 #include "domain/applicationdomaintype.h"
+#include "definitions.h"
 
 namespace Akonadi2
 {
@@ -41,7 +41,7 @@ class Pipeline::Private
 {
 public:
     Private(const QString &resourceName)
-        : storage(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", resourceName, Storage::ReadWrite),
+        : storage(Akonadi2::storageLocation(), resourceName, Storage::ReadWrite),
           stepScheduled(false)
     {
     }

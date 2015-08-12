@@ -6,9 +6,9 @@
 #include "createentity_generated.h"
 #include "domainadaptor.h"
 #include "commands.h"
-#include "clientapi.h"
 #include "index.h"
 #include "log.h"
+#include "definitions.h"
 
 using namespace Akonadi2;
 
@@ -154,8 +154,8 @@ private:
 
 GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline)
     : Akonadi2::Resource(),
-    mUserQueue(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", resourceInstanceIdentifier + ".userqueue"),
-    mSynchronizerQueue(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage", resourceInstanceIdentifier + ".synchronizerqueue"),
+    mUserQueue(Akonadi2::storageLocation(), resourceInstanceIdentifier + ".userqueue"),
+    mSynchronizerQueue(Akonadi2::storageLocation(), resourceInstanceIdentifier + ".synchronizerqueue"),
     mResourceInstanceIdentifier(resourceInstanceIdentifier),
     mPipeline(pipeline ? pipeline : QSharedPointer<Akonadi2::Pipeline>::create(resourceInstanceIdentifier)),
     mError(0)

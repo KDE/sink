@@ -30,7 +30,6 @@
 
 #include <Async/Async>
 
-#include "entity_generated.h"
 #include "domainadaptor.h"
 
 namespace Akonadi2
