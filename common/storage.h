@@ -59,6 +59,8 @@ public:
         bool commit(const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
         void abort();
 
+        void setAutocommit(int interval);
+
         /**
          * Write a value
          */

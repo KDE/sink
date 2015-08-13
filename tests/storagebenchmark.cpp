@@ -97,14 +97,8 @@ private Q_SLOTS:
             auto event = createEvent();
             if (store) {
                 auto transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
+                transaction.setAutocommit(10000);
                 for (int i = 0; i < count; i++) {
-                    if (i % 10000 == 0) {
-                        if (i > 0) {
-                            transaction.commit();
-                            transaction = std::move(store->createTransaction(Akonadi2::Storage::ReadWrite));
-                        }
-                    }
-
                     transaction.write(keyPrefix + QByteArray::number(i), event);
                 }
                 transaction.commit();

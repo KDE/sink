@@ -52,14 +52,17 @@ int getErrorCode(int e)
 class Storage::Transaction::Private
 {
 public:
-    Private(MDB_txn *_txn, MDB_dbi _dbi, bool _allowDuplicates, const std::function<void(const Storage::Error &error)> &_defaultErrorHandler, const QString &_name)
-        : transaction(_txn),
+    Private(MDB_txn *_txn, MDB_dbi _dbi, bool _allowDuplicates, const std::function<void(const Storage::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
+        : env(_env),
+        transaction(_txn),
         dbi(_dbi),
         allowDuplicates(_allowDuplicates),
         defaultErrorHandler(_defaultErrorHandler),
         name(_name),
         implicitCommit(false),
-        error(false)
+        error(false),
+        autoCommitInterval(0),
+        modificationCounter(0)
     {
 
     }
@@ -68,6 +71,7 @@ public:
 
     }
 
+    MDB_env *env;
     MDB_txn *transaction;
     MDB_dbi dbi;
     bool allowDuplicates;
@@ -75,6 +79,8 @@ public:
     QString name;
     bool implicitCommit;
     bool error;
+    int autoCommitInterval;
+    int modificationCounter;
 };
 
 Storage::Transaction::Transaction()
@@ -128,6 +134,13 @@ void Storage::Transaction::abort()
     d->transaction = nullptr;
 }
 
+void Storage::Transaction::setAutocommit(int interval)
+{
+    if (d) {
+        d->autoCommitInterval = interval;
+    }
+}
+
 bool Storage::Transaction::write(const QByteArray &sKey, const QByteArray &sValue, const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d || !d->transaction) {
@@ -158,6 +171,29 @@ bool Storage::Transaction::write(const QByteArray &sKey, const QByteArray &sValu
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     } else {
         d->implicitCommit = true;
+    }
+
+    if (d->autoCommitInterval > 0) {
+        d->modificationCounter++;
+        if (d->modificationCounter >= d->autoCommitInterval) {
+            commit();
+
+            MDB_txn *txn;
+            rc = mdb_txn_begin(d->env, NULL, 0, &txn);
+            if (!rc) {
+                //TODO: Move opening of dbi into Transaction for different named databases
+                MDB_dbi dbi;
+                rc = mdb_dbi_open(txn, NULL, d->allowDuplicates ? MDB_DUPSORT : 0, &dbi);
+                if (rc) {
+                    errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Error while opening transaction: " + QByteArray(mdb_strerror(rc))));
+                } else {
+                    d->transaction = txn;
+                    d->dbi = dbi;
+                }
+            }
+
+            d->modificationCounter = 0;
+        }
     }
 
     return !rc;
@@ -387,7 +423,7 @@ Storage::Transaction Storage::createTransaction(AccessMode type, const std::func
             errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Error while opening transaction: " + QByteArray(mdb_strerror(rc))));
             return Transaction();
         }
-        return Transaction(new Transaction::Private(txn, dbi, d->allowDuplicates, defaultErrorHandler(), d->name));
+        return Transaction(new Transaction::Private(txn, dbi, d->allowDuplicates, defaultErrorHandler(), d->name, d->env));
     } else {
         if (rc) {
             errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Error while beginning transaction: " + QByteArray(mdb_strerror(rc))));
