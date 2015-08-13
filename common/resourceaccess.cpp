@@ -38,9 +38,9 @@
 #include <QProcess>
 
 #undef Trace
-#define Trace() debugStream(DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess")
+#define Trace() Akonadi2::Log::debugStream(Akonadi2::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess")
 #undef Log
-#define Log(IDENTIFIER) debugStream(DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess("+IDENTIFIER+")")
+#define Log(IDENTIFIER) Akonadi2::Log::debugStream(Akonadi2::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess("+IDENTIFIER+")")
 
 namespace Akonadi2
 {
