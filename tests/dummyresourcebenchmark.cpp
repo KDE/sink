@@ -9,6 +9,7 @@
 #include "entitybuffer.h"
 #include "synclistresult.h"
 #include "pipeline.h"
+#include "log.h"
 
 #include "event_generated.h"
 #include "entity_generated.h"
@@ -29,6 +30,7 @@ class DummyResourceBenchmark : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
+        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Warning);
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
         removeFromDisk("org.kde.dummy.instance1");
