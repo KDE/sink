@@ -77,6 +77,27 @@ private slots:
         return KAsync::null<void>();
     }
 
+    KAsync::Job<void> processQueuedCommand(const QByteArray &data)
+    {
+        flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(data.constData()), data.size());
+        if (!Akonadi2::VerifyQueuedCommandBuffer(verifyer)) {
+            Warning() << "invalid buffer";
+            return KAsync::error<void>(1, "Invalid Buffer");
+        }
+        auto queuedCommand = Akonadi2::GetQueuedCommand(data.constData());
+        const auto commandId = queuedCommand->commandId();
+        Trace() << "Dequeued Command: " << Akonadi2::Commands::name(commandId);
+        return processQueuedCommand(queuedCommand).then<void>(
+            [commandId]() {
+                Trace() << "Command pipeline processed: " << Akonadi2::Commands::name(commandId);
+            },
+            [](int errorCode, QString errorMessage) {
+                //FIXME propagate error, we didn't handle it
+                Warning() << "Error while processing queue command: " << errorMessage;
+            }
+        );
+    }
+
     //Process all messages of this queue
     KAsync::Job<void> processQueue(MessageQueue *queue)
     {
@@ -85,45 +106,29 @@ private slots:
         //KAsync::foreach("pass iterator here").parallel("process value here").join();
         return KAsync::dowhile(
             [this, queue](KAsync::Future<bool> &future) {
-                if (queue->isEmpty()) {
-                    future.setValue(false);
-                    future.setFinished();
-                    return;
-                }
-                queue->dequeue(
-                    [this, &future](void *ptr, int size, std::function<void(bool success)> messageQueueCallback) {
-                        auto callback = [messageQueueCallback, &future](bool success) {
-                            messageQueueCallback(true);
-                            future.setValue(!success);
-                            future.setFinished();
-                        };
-
-                        flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(ptr), size);
-                        if (!Akonadi2::VerifyQueuedCommandBuffer(verifyer)) {
-                            Warning() << "invalid buffer";
-                            callback(false);
-                            return;
-                        }
-                        auto queuedCommand = Akonadi2::GetQueuedCommand(ptr);
-                        const auto commandId = queuedCommand->commandId();
-                        Trace() << "Dequeued Command: " << Akonadi2::Commands::name(commandId);
-                        processQueuedCommand(queuedCommand).then<void>(
-                            [callback, commandId]() {
-                                Trace() << "Command pipeline processed: " << Akonadi2::Commands::name(commandId);
-                                callback(true);
+                queue->dequeueBatch(100, [this](void *ptr, int size, std::function<void(bool success)> messageQueueCallback) {
+                        Trace() << "Got value";
+                        processQueuedCommand(QByteArray::fromRawData(static_cast<char*>(ptr), size)).then<void>(
+                            [&messageQueueCallback]() {
+                                Trace() << "done";
+                                messageQueueCallback(true);
                             },
-                            [callback](int errorCode, QString errorMessage) {
-                                Warning() << "Error while processing queue command: " << errorMessage;
-                                callback(false);
+                            [&messageQueueCallback](int errorCode, QString errorMessage) {
+                                //Use false?
+                                //For now we use true to make sure we don't get stuck on messages we fail to process
+                                messageQueueCallback(true);
                             }
                         ).exec();
-                    },
-                    [&future](const MessageQueue::Error &error) {
-                        Warning() << "Error while getting message from messagequeue: " << error.message;
-                        future.setValue(false);
-                        future.setFinished();
                     }
-                );
+                ).then<void>([&future](){
+                    future.setValue(true);
+                    future.setFinished();
+                },
+                [&future](int i, QString error) {
+                    Warning() << "Error while getting message from messagequeue: " << error;
+                    future.setValue(false);
+                    future.setFinished();
+                }).exec();
             }
         );
     }
