@@ -106,19 +106,9 @@ private slots:
         //KAsync::foreach("pass iterator here").parallel("process value here").join();
         return KAsync::dowhile(
             [this, queue](KAsync::Future<bool> &future) {
-                queue->dequeueBatch(100, [this](void *ptr, int size, std::function<void(bool success)> messageQueueCallback) {
+                queue->dequeueBatch(100, [this](const QByteArray &data) {
                         Trace() << "Got value";
-                        processQueuedCommand(QByteArray::fromRawData(static_cast<char*>(ptr), size)).then<void>(
-                            [&messageQueueCallback]() {
-                                Trace() << "done";
-                                messageQueueCallback(true);
-                            },
-                            [&messageQueueCallback](int errorCode, QString errorMessage) {
-                                //Use false?
-                                //For now we use true to make sure we don't get stuck on messages we fail to process
-                                messageQueueCallback(true);
-                            }
-                        ).exec();
+                        return processQueuedCommand(data);
                     }
                 ).then<void>([&future](){
                     future.setValue(true);

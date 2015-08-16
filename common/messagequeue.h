@@ -33,7 +33,7 @@ public:
     //TODO track processing progress to avoid processing the same message with the same preprocessor twice?
     void dequeue(const std::function<void(void *ptr, int size, std::function<void(bool success)>)> & resultHandler,
               const std::function<void(const Error &error)> &errorHandler);
-    KAsync::Job<void> dequeueBatch(int maxBatchSize, const std::function<void(void *ptr, int size, std::function<void(bool success)>)> & resultHandler);
+    KAsync::Job<void> dequeueBatch(int maxBatchSize, const std::function<KAsync::Job<void>(const QByteArray &)> &resultHandler);
     bool isEmpty();
 signals:
     void messageReady();

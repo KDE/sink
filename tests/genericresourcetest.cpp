@@ -87,14 +87,12 @@ private Q_SLOTS:
         //Actual test
         auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.test.instance1");
         QSignalSpy revisionSpy(pipeline.data(), SIGNAL(revisionUpdated(qint64)));
+        QVERIFY(revisionSpy.isValid());
         TestResource resource("org.kde.test.instance1", pipeline);
         resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command);
         resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command);
-
-        QVERIFY(revisionSpy.isValid());
-        QTRY_COMPARE(revisionSpy.count(), 2);
-        QTest::qWait(100);
-        QCOMPARE(revisionSpy.count(), 2);
+        resource.processAllMessages().exec().waitForFinished();
+        QCOMPARE(revisionSpy.last().at(0).toInt(), 2);
     }
 };
 

@@ -3,6 +3,39 @@
 #include <QDebug>
 #include <log.h>
 
+static KAsync::Job<void> waitForCompletion(QList<KAsync::Future<void> > &futures)
+{
+    auto context = new QObject;
+    return KAsync::start<void>([futures, context](KAsync::Future<void> &future) {
+        const auto total = futures.size();
+        auto count = QSharedPointer<int>::create();
+        int i = 0;
+        for (KAsync::Future<void> subFuture : futures) {
+            i++;
+            if (subFuture.isFinished()) {
+                *count += 1;
+                continue;
+            }
+            //FIXME bind lifetime all watcher to future (repectively the main job
+            auto watcher = QSharedPointer<KAsync::FutureWatcher<void> >::create();
+            QObject::connect(watcher.data(), &KAsync::FutureWatcher<void>::futureReady,
+            [count, total, &future](){
+                *count += 1;
+                if (*count == total) {
+                    future.setFinished();
+                }
+            });
+            watcher->setFuture(subFuture);
+            context->setProperty(QString("future%1").arg(i).toLatin1().data(), QVariant::fromValue(watcher));
+        }
+        if (*count == total) {
+            future.setFinished();
+        }
+    }).then<void>([context]() {
+        delete context;
+    });
+}
+
 MessageQueue::MessageQueue(const QString &storageRoot, const QString &name)
     : mStorage(storageRoot, name, Akonadi2::Storage::ReadWrite)
 {
@@ -61,38 +94,22 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
     }
 }
 
-KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::function<void(void *ptr, int size, std::function<void(bool success)>)> &resultHandler)
+KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::function<KAsync::Job<void>(const QByteArray &)> &resultHandler)
 {
     auto resultCount = QSharedPointer<int>::create(0);
     auto keyList = QSharedPointer<QByteArrayList>::create();
     return KAsync::start<void>([this, maxBatchSize, resultHandler, resultCount, keyList](KAsync::Future<void> &future) {
-        bool readValue = false;
         int count = 0;
-        mStorage.createTransaction(Akonadi2::Storage::ReadOnly).scan("", [this, resultHandler, &readValue, resultCount, keyList, &count, maxBatchSize](const QByteArray &key, const QByteArray &value) -> bool {
+        QList<KAsync::Future<void> > waitCondition;
+        mStorage.createTransaction(Akonadi2::Storage::ReadOnly).scan("", [this, resultHandler, resultCount, keyList, &count, maxBatchSize, &waitCondition](const QByteArray &key, const QByteArray &value) -> bool {
             if (Akonadi2::Storage::isInternalKey(key)) {
                 return true;
             }
-            readValue = true;
             //We need a copy of the key here, otherwise we can't store it in the lambda (the pointers will become invalid)
             keyList->append(QByteArray(key.constData(), key.size()));
-            resultHandler(const_cast<void*>(static_cast<const void*>(value.data())), value.size(), [this, resultCount, keyList, &count](bool success) {
-                *resultCount += 1;
-                //We're done
-                //FIXME the check below should only be done once we finished reading
-                if (*resultCount >= count) {
-                    //FIXME do this from the caller thread
-                    auto transaction = std::move(mStorage.createTransaction(Akonadi2::Storage::ReadWrite));
-                    for (const auto &key : *keyList) {
-                        transaction.remove(key, [key](const Akonadi2::Storage::Error &error) {
-                            ErrorMsg() << "Error while removing value" << error.message << key;
-                            //Don't call the errorhandler in here, we already called the result handler
-                        });
-                    }
-                    if (isEmpty()) {
-                        emit this->drained();
-                    }
-                }
-            });
+
+            waitCondition << resultHandler(value).exec();
+
             count++;
             if (count <= maxBatchSize) {
                 return true;
@@ -102,12 +119,28 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
         [](const Akonadi2::Storage::Error &error) {
             ErrorMsg() << "Error while retrieving value" << error.message;
             // errorHandler(Error(error.store, error.code, error.message));
-        }
-        );
-        if (!readValue) {
-            future.setError(-1, "No message found");
-            future.setFinished();
-        }
+        });
+
+        ::waitForCompletion(waitCondition).then<void>([this, keyList, &future]() {
+            Trace() << "Dequeue complete, removing values " << *keyList;
+            auto transaction = std::move(mStorage.createTransaction(Akonadi2::Storage::ReadWrite));
+            for (const auto &key : *keyList) {
+                transaction.remove(key, [key](const Akonadi2::Storage::Error &error) {
+                    ErrorMsg() << "Error while removing value" << error.message << key;
+                    //Don't call the errorhandler in here, we already called the result handler
+                });
+            }
+            transaction.commit();
+            if (keyList->isEmpty()) {
+                future.setError(-1, "No message found");
+                future.setFinished();
+            } else {
+                if (isEmpty()) {
+                    emit this->drained();
+                }
+                future.setFinished();
+            }
+        }).exec();
     });
 }
 
