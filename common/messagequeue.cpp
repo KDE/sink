@@ -44,18 +44,18 @@ MessageQueue::MessageQueue(const QString &storageRoot, const QString &name)
 
 void MessageQueue::enqueue(void const *msg, size_t size)
 {
-    auto transaction = std::move(mStorage.createTransaction(Akonadi2::Storage::ReadWrite));
-    const qint64 revision = Akonadi2::Storage::maxRevision(transaction) + 1;
-    const QByteArray key = QString("%1").arg(revision).toUtf8();
-    transaction.write(key, QByteArray::fromRawData(static_cast<const char*>(msg), size));
-    Akonadi2::Storage::setMaxRevision(transaction, revision);
-    transaction.commit();
-    emit messageReady();
+    enqueue(QByteArray::fromRawData(static_cast<const char*>(msg), size));
 }
 
 void MessageQueue::enqueue(const QByteArray &value)
 {
-    enqueue(value.data(), value.size());
+    auto transaction = std::move(mStorage.createTransaction(Akonadi2::Storage::ReadWrite));
+    const qint64 revision = Akonadi2::Storage::maxRevision(transaction) + 1;
+    const QByteArray key = QString("%1").arg(revision).toUtf8();
+    transaction.write(key, value);
+    Akonadi2::Storage::setMaxRevision(transaction, revision);
+    transaction.commit();
+    emit messageReady();
 }
 
 void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::function<void(bool success)>)> &resultHandler,
