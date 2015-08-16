@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QByteArrayList>
 #include <string>
 #include <functional>
 #include <QString>
@@ -25,7 +26,9 @@ public:
     };
 
     MessageQueue(const QString &storageRoot, const QString &name);
+    ~MessageQueue();
 
+    void startTransaction();
     void enqueue(void const *msg, size_t size);
     void enqueue(const QByteArray &value);
     //Dequeue a message. This will return a new message everytime called.
@@ -35,11 +38,20 @@ public:
               const std::function<void(const Error &error)> &errorHandler);
     KAsync::Job<void> dequeueBatch(int maxBatchSize, const std::function<KAsync::Job<void>(const QByteArray &)> &resultHandler);
     bool isEmpty();
+
+public slots:
+    void commit();
+
 signals:
     void messageReady();
     void drained();
 
+private slots:
+    void processRemovals();
+
 private:
     Q_DISABLE_COPY(MessageQueue);
     Akonadi2::Storage mStorage;
+    Akonadi2::Storage::Transaction mWriteTransaction;
+    QByteArrayList mPendingRemoval;
 };

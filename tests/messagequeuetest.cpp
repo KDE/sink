@@ -6,6 +6,7 @@
 #include "clientapi.h"
 #include "storage.h"
 #include "messagequeue.h"
+#include "log.h"
 
 class MessageQueueTest : public QObject
 {
@@ -13,6 +14,7 @@ class MessageQueueTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
+        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
         Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue", Akonadi2::Storage::ReadWrite);
         store.removeFromDisk();
     }
@@ -48,6 +50,14 @@ private Q_SLOTS:
         });
         QVERIFY(!gotValue);
         QVERIFY(gotError);
+    }
+
+    void testEnqueue()
+    {
+        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        QSignalSpy spy(&queue, SIGNAL(messageReady()));
+        queue.enqueue("value1");
+        QCOMPARE(spy.size(), 1);
     }
 
     void testDrained()
@@ -152,6 +162,44 @@ private Q_SLOTS:
         QVERIFY(!gotError);
     }
 
+    void testBatchDequeue()
+    {
+        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        queue.enqueue("value1");
+        queue.enqueue("value2");
+        queue.enqueue("value3");
+
+        int count = 0;
+        queue.dequeueBatch(2, [&count](const QByteArray &data) {
+            count++;
+            return KAsync::null<void>();
+        }).exec().waitForFinished();
+        QCOMPARE(count, 2);
+
+        queue.dequeueBatch(1, [&count](const QByteArray &data) {
+            count++;
+            return KAsync::null<void>();
+        }).exec().waitForFinished();
+        QCOMPARE(count, 3);
+    }
+
+    void testBatchEnqueue()
+    {
+        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        QSignalSpy spy(&queue, SIGNAL(messageReady()));
+        queue.startTransaction();
+        queue.enqueue("value1");
+        queue.enqueue("value2");
+        queue.enqueue("value3");
+
+        QVERIFY(queue.isEmpty());
+        QCOMPARE(spy.count(), 0);
+
+        queue.commit();
+
+        QVERIFY(!queue.isEmpty());
+        QCOMPARE(spy.count(), 1);
+    }
 
 };
 
