@@ -43,6 +43,7 @@ private Q_SLOTS:
         removeFromDisk("org.kde.test.instance1");
         removeFromDisk("org.kde.test.instance1.userqueue");
         removeFromDisk("org.kde.test.instance1.synchronizerqueue");
+        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
         qDebug();
         qDebug() << "-----------------------------------------";
         qDebug();

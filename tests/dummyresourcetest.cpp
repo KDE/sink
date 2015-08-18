@@ -13,6 +13,7 @@
 #include "entitybuffer.h"
 #include "resourceconfig.h"
 #include "pipeline.h"
+#include "log.h"
 
 static void removeFromDisk(const QString &name)
 {
@@ -26,6 +27,7 @@ class DummyResourceTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
+        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
         removeFromDisk("org.kde.dummy.instance1");
