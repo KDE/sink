@@ -40,6 +40,9 @@ private Q_SLOTS:
 
     void init()
     {
+        removeFromDisk("org.kde.test.instance1");
+        removeFromDisk("org.kde.test.instance1.userqueue");
+        removeFromDisk("org.kde.test.instance1.synchronizerqueue");
         qDebug();
         qDebug() << "-----------------------------------------";
         qDebug();
