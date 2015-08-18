@@ -94,6 +94,10 @@ public:
             other.d = nullptr;
             return *this;
         }
+
+        operator bool() const {
+            return (d != nullptr);
+        }
     private:
         Transaction(Transaction& other);
         Transaction& operator=(Transaction& other);
