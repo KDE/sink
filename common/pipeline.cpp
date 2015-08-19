@@ -47,6 +47,7 @@ public:
     }
 
     Storage storage;
+    Storage::Transaction transaction;
     QHash<QString, QVector<Preprocessor *> > nullPipeline;
     QHash<QString, QVector<Preprocessor *> > newPipeline;
     QHash<QString, QVector<Preprocessor *> > modifiedPipeline;
@@ -89,6 +90,27 @@ void Pipeline::setAdaptorFactory(const QString &entityType, DomainTypeAdaptorFac
     d->adaptorFactory.insert(entityType, factory);
 }
 
+void Pipeline::startTransaction()
+{
+    if (d->transaction) {
+        return;
+    }
+    d->transaction = std::move(storage().createTransaction(Akonadi2::Storage::ReadWrite));
+}
+
+void Pipeline::commit()
+{
+    if (d->transaction) {
+        d->transaction.commit();
+    }
+    d->transaction = Storage::Transaction();
+}
+
+Storage::Transaction &Pipeline::transaction()
+{
+    return d->transaction;
+}
+
 Storage &Pipeline::storage() const
 {
     return d->storage;
@@ -109,7 +131,7 @@ KAsync::Job<void> Pipeline::newEntity(void const *command, size_t size)
     //TODO toRFC4122 would probably be more efficient, but results in non-printable keys.
     const auto key = QUuid::createUuid().toString().toUtf8();
 
-    const qint64 newRevision = storage().maxRevision() + 1;
+    const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
 
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
@@ -143,10 +165,8 @@ KAsync::Job<void> Pipeline::newEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), entity->resource()->Data(), entity->resource()->size(), entity->local()->Data(), entity->local()->size());
 
-    auto transaction = storage().createTransaction(Akonadi2::Storage::ReadWrite);
-    transaction.write(key, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
-    Akonadi2::Storage::setMaxRevision(transaction, newRevision);
-    transaction.commit();
+    d->transaction.write(key, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+    Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
     Log() << "Pipeline: wrote entity: " << key << newRevision;
 
     return KAsync::start<void>([this, key, entityType](KAsync::Future<void> &future) {
@@ -162,7 +182,7 @@ KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
 {
     Log() << "Pipeline: Modified Entity";
 
-    const qint64 newRevision = storage().maxRevision() + 1;
+    const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
 
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
@@ -245,9 +265,8 @@ KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
     adaptorFactory->createBuffer(*newObject, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
     //TODO don't overwrite the old entry, but instead store a new revision
-    auto transaction = storage().createTransaction(Akonadi2::Storage::ReadWrite);
-    transaction.write(key, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
-    Akonadi2::Storage::setMaxRevision(transaction, newRevision);
+    d->transaction.write(key, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+    Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
 
     return KAsync::start<void>([this, key, entityType](KAsync::Future<void> &future) {
         PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline[entityType], [&future]() {
@@ -262,7 +281,7 @@ KAsync::Job<void> Pipeline::deletedEntity(void const *command, size_t size)
 {
     Log() << "Pipeline: Deleted Entity";
 
-    const qint64 newRevision = storage().maxRevision() + 1;
+    const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
 
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
@@ -277,9 +296,8 @@ KAsync::Job<void> Pipeline::deletedEntity(void const *command, size_t size)
     const QByteArray key = QByteArray(reinterpret_cast<char const*>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
 
     //TODO instead of deleting the entry, a new revision should be created that marks the entity as deleted
-    auto transaction = storage().createTransaction(Akonadi2::Storage::ReadWrite);
-    transaction.remove(key);
-    Akonadi2::Storage::setMaxRevision(transaction, newRevision);
+    d->transaction.remove(key);
+    Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
     Log() << "Pipeline: deleted entity: "<< newRevision;
 
     return KAsync::start<void>([this, key, entityType](KAsync::Future<void> &future) {
@@ -418,7 +436,9 @@ void PipelineState::step()
         //TODO skip step if already processed
         //FIXME error handling if no result is found
         auto preprocessor = d->filterIt.next();
-        d->pipeline->storage().createTransaction(Akonadi2::Storage::ReadOnly).scan(d->key, [this, preprocessor](const QByteArray &key, const QByteArray &value) -> bool {
+        //FIXME this read should not be necessary
+        //Perhaps simply use entity that is initially stored and synchronously process all filters. (Making the first filter somewhat redundant)
+        d->pipeline->transaction().scan(d->key, [this, preprocessor](const QByteArray &key, const QByteArray &value) -> bool {
             auto entity = Akonadi2::GetEntity(value);
             preprocessor->process(*this, *entity);
             return false;

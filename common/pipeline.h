@@ -51,6 +51,9 @@ public:
     Storage &storage() const;
 
     void setPreprocessors(const QString &entityType, Type pipelineType, const QVector<Preprocessor *> &preprocessors);
+    void startTransaction();
+    void commit();
+    Storage::Transaction &transaction();
 
     void null();
     void setAdaptorFactory(const QString &entityType, DomainTypeAdaptorFactoryInterface::Ptr factory);

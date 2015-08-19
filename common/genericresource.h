@@ -23,6 +23,7 @@
 #include <resource.h>
 #include <messagequeue.h>
 #include <flatbuffers/flatbuffers.h>
+#include <QTimer>
 
 class Processor;
 
@@ -56,6 +57,7 @@ protected:
 private:
     Processor *mProcessor;
     int mError;
+    QTimer mCommitQueueTimer;
 };
 
 }

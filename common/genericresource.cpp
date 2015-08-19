@@ -101,26 +101,26 @@ private slots:
     //Process all messages of this queue
     KAsync::Job<void> processQueue(MessageQueue *queue)
     {
-        //TODO use something like:
-        //KAsync::foreach("pass iterator here").each("process value here").join();
-        //KAsync::foreach("pass iterator here").parallel("process value here").join();
-        return KAsync::dowhile(
-            [this, queue](KAsync::Future<bool> &future) {
+        return KAsync::start<void>([this](){
+            mPipeline->startTransaction();
+        }).then(KAsync::dowhile(
+            [queue]() { return !queue->isEmpty(); },
+            [this, queue](KAsync::Future<void> &future) {
                 queue->dequeueBatch(100, [this](const QByteArray &data) {
                         Trace() << "Got value";
                         return processQueuedCommand(data);
                     }
-                ).then<void>([&future](){
-                    future.setValue(true);
+                ).then<void>([&future, queue](){
                     future.setFinished();
                 },
                 [&future](int i, QString error) {
                     Warning() << "Error while getting message from messagequeue: " << error;
-                    future.setValue(false);
                     future.setFinished();
                 }).exec();
             }
-        );
+        )).then<void>([this]() {
+            mPipeline->commit();
+        });
     }
 
     KAsync::Job<void> processPipeline()
@@ -158,6 +158,10 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
     mProcessor = new Processor(mPipeline.data(), QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
     QObject::connect(mProcessor, &Processor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
+
+    mCommitQueueTimer.setInterval(100);
+    mCommitQueueTimer.setSingleShot(true);
+    QObject::connect(&mCommitQueueTimer, &QTimer::timeout, &mUserQueue, &MessageQueue::commit);
 }
 
 GenericResource::~GenericResource()
@@ -187,10 +191,16 @@ void GenericResource::enqueueCommand(MessageQueue &mq, int commandId, const QByt
 
 void GenericResource::processCommand(int commandId, const QByteArray &data)
 {
-    //TODO instead of copying the command including the full entity first into the command queue, we could directly
-    //create a new revision, only pushing a handle into the commandqueue with the relevant changeset (for changereplay).
-    //The problem is that we then require write access from multiple threads (or even processes to avoid sending the full entity over the wire).
+    static int modifications = 0;
+    mUserQueue.startTransaction();
     enqueueCommand(mUserQueue, commandId, data);
+    modifications++;
+    if (modifications >= 100) {
+        mUserQueue.commit();
+        modifications = 0;
+    } else {
+        mCommitQueueTimer.start();
+    }
 }
 
 static void waitForDrained(KAsync::Future<void> &f, MessageQueue &queue)
