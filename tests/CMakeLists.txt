@@ -30,6 +30,7 @@ endmacro(auto_tests)
 manual_tests (
     storagebenchmark
     dummyresourcebenchmark
+    genericresourcebenchmark
 )
 
 auto_tests (
