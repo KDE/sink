@@ -195,12 +195,13 @@ void GenericResource::processCommand(int commandId, const QByteArray &data)
     mUserQueue.startTransaction();
     enqueueCommand(mUserQueue, commandId, data);
     modifications++;
-    // if (modifications >= 100) {
+    if (modifications >= 100) {
         mUserQueue.commit();
-    //     modifications = 0;
-    // } else {
-    //     mCommitQueueTimer.start();
-    // }
+        modifications = 0;
+        mCommitQueueTimer.stop();
+    } else {
+        mCommitQueueTimer.start();
+    }
 }
 
 static void waitForDrained(KAsync::Future<void> &f, MessageQueue &queue)
@@ -220,6 +221,14 @@ KAsync::Job<void> GenericResource::processAllMessages()
     //TODO: report errors while processing sync?
     //TODO JOBAPI: A helper that waits for n events and then continues?
     return KAsync::start<void>([this](KAsync::Future<void> &f) {
+        if (mCommitQueueTimer.isActive()) {
+            QObject::connect(&mCommitQueueTimer, &QTimer::timeout, [&f]() {
+                f.setFinished();
+            });
+        } else {
+            f.setFinished();
+        }
+    }).then<void>([this](KAsync::Future<void> &f) {
         waitForDrained(f, mSynchronizerQueue);
     }).then<void>([this](KAsync::Future<void> &f) {
         waitForDrained(f, mUserQueue);
