@@ -195,12 +195,12 @@ void GenericResource::processCommand(int commandId, const QByteArray &data)
     mUserQueue.startTransaction();
     enqueueCommand(mUserQueue, commandId, data);
     modifications++;
-    if (modifications >= 100) {
+    // if (modifications >= 100) {
         mUserQueue.commit();
-        modifications = 0;
-    } else {
-        mCommitQueueTimer.start();
-    }
+    //     modifications = 0;
+    // } else {
+    //     mCommitQueueTimer.start();
+    // }
 }
 
 static void waitForDrained(KAsync::Future<void> &f, MessageQueue &queue)
