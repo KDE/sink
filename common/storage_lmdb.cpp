@@ -52,10 +52,9 @@ int getErrorCode(int e)
 class Storage::Transaction::Private
 {
 public:
-    Private(MDB_txn *_txn, MDB_dbi _dbi, bool _allowDuplicates, const std::function<void(const Storage::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
+    Private(bool _requestRead, bool _allowDuplicates, const std::function<void(const Storage::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
         : env(_env),
-        transaction(_txn),
-        dbi(_dbi),
+        requestedRead(_requestRead),
         allowDuplicates(_allowDuplicates),
         defaultErrorHandler(_defaultErrorHandler),
         name(_name),
@@ -74,6 +73,7 @@ public:
     MDB_env *env;
     MDB_txn *transaction;
     MDB_dbi dbi;
+    bool requestedRead;
     bool allowDuplicates;
     std::function<void(const Storage::Error &error)> defaultErrorHandler;
     QString name;
@@ -81,6 +81,22 @@ public:
     bool error;
     int autoCommitInterval;
     int modificationCounter;
+
+    void startTransaction()
+    {
+        const int rc = mdb_txn_begin(env, NULL, requestedRead ? MDB_RDONLY : 0, &transaction);
+        if (rc) {
+            defaultErrorHandler(Error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening transaction: " + QByteArray(mdb_strerror(rc))));
+        }
+    }
+
+    void openDatabase()
+    {
+        const int rc = mdb_dbi_open(transaction, NULL, allowDuplicates ? MDB_DUPSORT : 0, &dbi);
+        if (rc) {
+            defaultErrorHandler(Error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening database: " + QByteArray(mdb_strerror(rc))));
+        }
+    }
 };
 
 Storage::Transaction::Transaction()
@@ -92,7 +108,8 @@ Storage::Transaction::Transaction()
 Storage::Transaction::Transaction(Transaction::Private *prv)
     : d(prv)
 {
-
+    d->startTransaction();
+    d->openDatabase();
 }
 
 Storage::Transaction::~Transaction()
@@ -177,21 +194,8 @@ bool Storage::Transaction::write(const QByteArray &sKey, const QByteArray &sValu
         d->modificationCounter++;
         if (d->modificationCounter >= d->autoCommitInterval) {
             commit();
-
-            MDB_txn *txn;
-            rc = mdb_txn_begin(d->env, NULL, 0, &txn);
-            if (!rc) {
-                //TODO: Move opening of dbi into Transaction for different named databases
-                MDB_dbi dbi;
-                rc = mdb_dbi_open(txn, NULL, d->allowDuplicates ? MDB_DUPSORT : 0, &dbi);
-                if (rc) {
-                    errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Error while opening transaction: " + QByteArray(mdb_strerror(rc))));
-                } else {
-                    d->transaction = txn;
-                    d->dbi = dbi;
-                }
-            }
-
+            d->startTransaction();
+            d->openDatabase();
             d->modificationCounter = 0;
         }
     }
@@ -412,25 +416,7 @@ Storage::Transaction Storage::createTransaction(AccessMode type, const std::func
         return Transaction();
     }
 
-    int rc;
-    MDB_txn *txn;
-    rc = mdb_txn_begin(d->env, NULL, requestedRead ? MDB_RDONLY : 0, &txn);
-    if (!rc) {
-        //TODO: Move opening of dbi into Transaction for different named databases
-        MDB_dbi dbi;
-        rc = mdb_dbi_open(txn, NULL, d->allowDuplicates ? MDB_DUPSORT : 0, &dbi);
-        if (rc) {
-            errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Error while opening transaction: " + QByteArray(mdb_strerror(rc))));
-            return Transaction();
-        }
-        return Transaction(new Transaction::Private(txn, dbi, d->allowDuplicates, defaultErrorHandler(), d->name, d->env));
-    } else {
-        if (rc) {
-            errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Error while beginning transaction: " + QByteArray(mdb_strerror(rc))));
-            return Transaction();
-        }
-    }
-    return Transaction();
+    return Transaction(new Transaction::Private(requestedRead, d->allowDuplicates, defaultErrorHandler(), d->name, d->env));
 }
 
 qint64 Storage::diskUsage() const
