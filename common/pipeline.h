@@ -85,7 +85,7 @@ class AKONADI2COMMON_EXPORT PipelineState
 {
 public:
     PipelineState();
-    PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters, const std::function<void()> &callback);
+    PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters, qint64 revision, const std::function<void()> &callback);
     PipelineState(const PipelineState &other);
     ~PipelineState();
 
@@ -95,6 +95,7 @@ public:
     bool isIdle() const;
     QByteArray key() const;
     Pipeline::Type type() const;
+    qint64 revision() const;
     //TODO expose command
 
     void step();

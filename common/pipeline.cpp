@@ -169,8 +169,8 @@ KAsync::Job<void> Pipeline::newEntity(void const *command, size_t size)
     Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
     Log() << "Pipeline: wrote entity: " << key << newRevision;
 
-    return KAsync::start<void>([this, key, entityType](KAsync::Future<void> &future) {
-        PipelineState state(this, NewPipeline, key, d->newPipeline[entityType], [&future]() {
+    return KAsync::start<void>([this, key, entityType, newRevision](KAsync::Future<void> &future) {
+        PipelineState state(this, NewPipeline, key, d->newPipeline[entityType], newRevision, [&future]() {
             future.setFinished();
         });
         d->activePipelines << state;
@@ -268,8 +268,8 @@ KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
     d->transaction.write(key, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
     Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
 
-    return KAsync::start<void>([this, key, entityType](KAsync::Future<void> &future) {
-        PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline[entityType], [&future]() {
+    return KAsync::start<void>([this, key, entityType, newRevision](KAsync::Future<void> &future) {
+        PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline[entityType], newRevision, [&future]() {
             future.setFinished();
         });
         d->activePipelines << state;
@@ -300,8 +300,8 @@ KAsync::Job<void> Pipeline::deletedEntity(void const *command, size_t size)
     Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
     Log() << "Pipeline: deleted entity: "<< newRevision;
 
-    return KAsync::start<void>([this, key, entityType](KAsync::Future<void> &future) {
-        PipelineState state(this, DeletedPipeline, key, d->deletedPipeline[entityType], [&future](){
+    return KAsync::start<void>([this, key, entityType, newRevision](KAsync::Future<void> &future) {
+        PipelineState state(this, DeletedPipeline, key, d->deletedPipeline[entityType], newRevision, [&future](){
             future.setFinished();
         });
         d->activePipelines << state;
@@ -342,8 +342,7 @@ void Pipeline::pipelineCompleted(PipelineState state)
     state.callback();
 
     if (state.type() != NullPipeline) {
-        //TODO what revision is finalized?
-        emit revisionUpdated(storage().maxRevision());
+        emit revisionUpdated(state.revision());
     }
     scheduleStep();
     if (d->activePipelines.isEmpty()) {
@@ -355,19 +354,21 @@ void Pipeline::pipelineCompleted(PipelineState state)
 class PipelineState::Private : public QSharedData
 {
 public:
-    Private(Pipeline *p, Pipeline::Type t, const QByteArray &k, QVector<Preprocessor *> filters, const std::function<void()> &c)
+    Private(Pipeline *p, Pipeline::Type t, const QByteArray &k, QVector<Preprocessor *> filters, const std::function<void()> &c, qint64 r)
         : pipeline(p),
           type(t),
           key(k),
           filterIt(filters),
           idle(true),
-          callback(c)
+          callback(c),
+          revision(r)
     {}
 
     Private()
         : pipeline(0),
           filterIt(QVector<Preprocessor *>()),
-          idle(true)
+          idle(true),
+          revision(-1)
     {}
 
     Pipeline *pipeline;
@@ -376,6 +377,7 @@ public:
     QVectorIterator<Preprocessor *> filterIt;
     bool idle;
     std::function<void()> callback;
+    qint64 revision;
 };
 
 PipelineState::PipelineState()
@@ -384,8 +386,8 @@ PipelineState::PipelineState()
 
 }
 
-PipelineState::PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters, const std::function<void()> &callback)
-    : d(new Private(pipeline, type, key, filters, callback))
+PipelineState::PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters, qint64 revision, const std::function<void()> &callback)
+    : d(new Private(pipeline, type, key, filters, callback, revision))
 {
 }
 
@@ -422,6 +424,11 @@ QByteArray PipelineState::key() const
 Pipeline::Type PipelineState::type() const
 {
     return d->type;
+}
+
+qint64 PipelineState::revision() const
+{
+    return d->revision;
 }
 
 void PipelineState::step()
