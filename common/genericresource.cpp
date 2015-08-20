@@ -222,7 +222,9 @@ KAsync::Job<void> GenericResource::processAllMessages()
     //TODO JOBAPI: A helper that waits for n events and then continues?
     return KAsync::start<void>([this](KAsync::Future<void> &f) {
         if (mCommitQueueTimer.isActive()) {
-            QObject::connect(&mCommitQueueTimer, &QTimer::timeout, [&f]() {
+            auto context = new QObject;
+            QObject::connect(&mCommitQueueTimer, &QTimer::timeout, context, [&f, context]() {
+                delete context;
                 f.setFinished();
             });
         } else {
