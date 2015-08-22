@@ -211,6 +211,120 @@ private Q_SLOTS:
             storage2.removeFromDisk();
         }
     }
+
+    void testNoDuplicates()
+    {
+        bool gotResult = false;
+        bool gotError = false;
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite, false);
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        auto db = transaction.openDatabase();
+        db.write("key","value");
+        db.write("key","value");
+
+        int numValues = db.scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            gotResult = true;
+            return true;
+        },
+        [&](const Akonadi2::Storage::Error &error) {
+            qDebug() << error.message;
+            gotError = true;
+        });
+
+        QCOMPARE(numValues, 1);
+        QVERIFY(!gotError);
+    }
+
+    void testDuplicates()
+    {
+        bool gotResult = false;
+        bool gotError = false;
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite, true);
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        auto db = transaction.openDatabase();
+        db.write("key","value1");
+        db.write("key","value2");
+        int numValues = db.scan("key", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            gotResult = true;
+            return true;
+        },
+        [&](const Akonadi2::Storage::Error &error) {
+            qDebug() << error.message;
+            gotError = true;
+        });
+
+        QCOMPARE(numValues, 2);
+        QVERIFY(!gotError);
+    }
+
+    void testNonexitingNamedDb()
+    {
+        bool gotResult = false;
+        bool gotError = false;
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadOnly);
+        int numValues = store.createTransaction(Akonadi2::Storage::ReadOnly).openDatabase("test").scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            gotResult = true;
+            return false;
+        },
+        [&](const Akonadi2::Storage::Error &error) {
+            qDebug() << error.message;
+            gotError = true;
+        });
+        QCOMPARE(numValues, 0);
+        QVERIFY(!gotResult);
+        QVERIFY(!gotError);
+    }
+
+    void testWriteToNamedDb()
+    {
+        bool gotError = false;
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        store.createTransaction(Akonadi2::Storage::ReadWrite).openDatabase("test").write("key1", "value1", [&](const Akonadi2::Storage::Error &error) {
+            qDebug() << error.message;
+            gotError = true;
+        });
+        QVERIFY(!gotError);
+    }
+
+    void testWriteDuplicatesToNamedDb()
+    {
+        bool gotError = false;
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite, true);
+        store.createTransaction(Akonadi2::Storage::ReadWrite).openDatabase("test").write("key1", "value1", [&](const Akonadi2::Storage::Error &error) {
+            qDebug() << error.message;
+            gotError = true;
+        });
+        QVERIFY(!gotError);
+    }
+
+    //By default we want only exact matches
+    void testSubstringKeys()
+    {
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite, true);
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        auto db = transaction.openDatabase();
+        db.write("sub","value1");
+        db.write("subsub","value2");
+        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            return true;
+        });
+
+        QCOMPARE(numValues, 1);
+    }
+
+    //Ensure we don't retrieve a key that is greater than the current key. We only want equal keys.
+    void testKeyRange()
+    {
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite, true);
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        auto db = transaction.openDatabase();
+        db.write("sub1","value1");
+        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            return true;
+        });
+
+        QCOMPARE(numValues, 0);
+    }
 };
 
 QTEST_MAIN(StorageTest)

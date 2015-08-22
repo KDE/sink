@@ -51,16 +51,12 @@ public:
         int code;
     };
 
-    class Transaction
+    class Transaction;
+    class NamedDatabase
     {
     public:
-        Transaction();
-        ~Transaction();
-        bool commit(const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
-        void abort();
-
-        void setAutocommit(int interval);
-
+        NamedDatabase();
+        ~NamedDatabase();
         /**
          * Write a value
          */
@@ -73,22 +69,57 @@ public:
                     const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
         /**
         * Read values with a given key.
-        * 
+        *
         * * An empty @param key results in a full scan
         * * If duplicates are existing (revisions), all values are returned.
         * * The pointers of the returned values are valid during the execution of the @param resultHandler
-        * 
+        *
         * @return The number of values retrieved.
         */
         int scan(const QByteArray &k,
                     const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
                     const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
 
+        NamedDatabase(NamedDatabase&& other) : d(other.d)
+        {
+            d = other.d;
+            other.d = nullptr;
+        }
+
+        NamedDatabase& operator=(NamedDatabase&& other) {
+            d = other.d;
+            other.d = nullptr;
+            return *this;
+        }
+
+        operator bool() const {
+            return (d != nullptr);
+        }
+
+    private:
+        friend Transaction;
+        NamedDatabase(NamedDatabase& other);
+        NamedDatabase& operator=(NamedDatabase& other);
+        class Private;
+        NamedDatabase(Private*);
+        Private *d;
+    };
+
+    class Transaction
+    {
+    public:
+        Transaction();
+        ~Transaction();
+        bool commit(const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+        void abort();
+
+        NamedDatabase openDatabase(const QByteArray &name = QByteArray("default"), const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
+
         Transaction(Transaction&& other) : d(other.d)
         {
             d = other.d;
             other.d = nullptr;
-        } 
+        }
         Transaction& operator=(Transaction&& other) {
             d = other.d;
             other.d = nullptr;
@@ -98,6 +129,14 @@ public:
         operator bool() const {
             return (d != nullptr);
         }
+
+        bool write(const QByteArray &key, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+
+        void remove(const QByteArray &key,
+                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+        int scan(const QByteArray &k,
+                    const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
+                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
     private:
         Transaction(Transaction& other);
         Transaction& operator=(Transaction& other);

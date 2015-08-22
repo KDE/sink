@@ -13,38 +13,39 @@ class IndexTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
-        Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy.testindex", Akonadi2::Storage::ReadWrite);
+        Akonadi2::Storage store("./testindex", "org.kde.dummy.testindex", Akonadi2::Storage::ReadWrite);
         store.removeFromDisk();
     }
 
     void cleanup()
     {
-        Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy.testindex", Akonadi2::Storage::ReadWrite);
+        Akonadi2::Storage store("./testindex", "org.kde.dummy.testindex", Akonadi2::Storage::ReadWrite);
         store.removeFromDisk();
     }
 
     void testIndex()
     {
-        Index index(Akonadi2::Store::storageLocation(), "org.kde.dummy.testindex", Akonadi2::Storage::ReadWrite);
-        index.add("key1", "value1");
-        index.add("key1", "value2");
-        index.add("key2", "value3");
+        Index index("./testindex", "org.kde.dummy.testindex", Akonadi2::Storage::ReadWrite);
+        //The first key is specifically a substring of the second key
+        index.add("key", "value1");
+        index.add("keyFoo", "value2");
+        index.add("keyFoo", "value3");
 
         {
             QList<QByteArray> values;
-            index.lookup(QByteArray("key1"), [&values](const QByteArray &value) {
-                values << value;
-            },
-            [](const Index::Error &error){ qWarning() << "Error: "; });
-            QCOMPARE(values.size(), 2);
-        }
-        {
-            QList<QByteArray> values;
-            index.lookup(QByteArray("key2"), [&values](const QByteArray &value) {
+            index.lookup(QByteArray("key"), [&values](const QByteArray &value) {
                 values << value;
             },
             [](const Index::Error &error){ qWarning() << "Error: "; });
             QCOMPARE(values.size(), 1);
+        }
+        {
+            QList<QByteArray> values;
+            index.lookup(QByteArray("keyFoo"), [&values](const QByteArray &value) {
+                values << value;
+            },
+            [](const Index::Error &error){ qWarning() << "Error: "; });
+            QCOMPARE(values.size(), 2);
         }
         {
             QList<QByteArray> values;

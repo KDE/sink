@@ -97,9 +97,12 @@ private Q_SLOTS:
             auto event = createEvent();
             if (store) {
                 auto transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
-                transaction.setAutocommit(10000);
                 for (int i = 0; i < count; i++) {
                     transaction.write(keyPrefix + QByteArray::number(i), event);
+                    if ((i % 10000) == 0) {
+                        transaction.commit();
+                        transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
+                    }
                 }
                 transaction.commit();
             } else {
@@ -116,8 +119,9 @@ private Q_SLOTS:
         {
             if (store) {
                 auto transaction = store->createTransaction(Akonadi2::Storage::ReadOnly);
+                auto db = transaction.openDatabase();
                 for (int i = 0; i < count; i++) {
-                    transaction.scan(keyPrefix + QByteArray::number(i), [](const QByteArray &key, const QByteArray &value) -> bool { return true; });
+                    db.scan(keyPrefix + QByteArray::number(i), [](const QByteArray &key, const QByteArray &value) -> bool { return true; });
                 }
             }
         }
