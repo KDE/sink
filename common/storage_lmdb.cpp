@@ -434,7 +434,7 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m, bool
                 // TODO: handle error
                 std::cerr << "mdb_env_create: " << rc << " " << mdb_strerror(rc) << std::endl;
             } else {
-                mdb_env_set_maxdbs(env, 10);
+                mdb_env_set_maxdbs(env, 50);
                 unsigned int flags = MDB_NOTLS;
                 if (mode == ReadOnly) {
                     flags |= MDB_RDONLY;
