@@ -2,7 +2,7 @@
 #include <QDebug>
 
 Index::Index(const QString &storageRoot, const QString &name, Akonadi2::Storage::AccessMode mode)
-    : mTransaction(Akonadi2::Storage(storageRoot, name, mode, true).createTransaction(mode)),
+    : mTransaction(Akonadi2::Storage(storageRoot, name, mode).createTransaction(mode)),
     mDb(mTransaction.openDatabase(name.toLatin1(), std::function<void(const Akonadi2::Storage::Error &)>(), true))
 {
 

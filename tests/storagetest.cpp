@@ -221,7 +221,7 @@ private Q_SLOTS:
     {
         bool gotResult = false;
         bool gotError = false;
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite, false);
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
         auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
         auto db = transaction.openDatabase("default", nullptr, false);
         db.write("key","value");
@@ -244,7 +244,7 @@ private Q_SLOTS:
     {
         bool gotResult = false;
         bool gotError = false;
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite, true);
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
         auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
         auto db = transaction.openDatabase("default", nullptr, true);
         db.write("key","value1");
@@ -294,8 +294,8 @@ private Q_SLOTS:
     void testWriteDuplicatesToNamedDb()
     {
         bool gotError = false;
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite, true);
-        store.createTransaction(Akonadi2::Storage::ReadWrite).openDatabase("test").write("key1", "value1", [&](const Akonadi2::Storage::Error &error) {
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        store.createTransaction(Akonadi2::Storage::ReadWrite).openDatabase("test", nullptr, true).write("key1", "value1", [&](const Akonadi2::Storage::Error &error) {
             qDebug() << error.message;
             gotError = true;
         });
@@ -305,9 +305,9 @@ private Q_SLOTS:
     //By default we want only exact matches
     void testSubstringKeys()
     {
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite, true);
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
         auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
-        auto db = transaction.openDatabase();
+        auto db = transaction.openDatabase("test", nullptr, true);
         db.write("sub","value1");
         db.write("subsub","value2");
         int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
@@ -320,9 +320,9 @@ private Q_SLOTS:
     //Ensure we don't retrieve a key that is greater than the current key. We only want equal keys.
     void testKeyRange()
     {
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite, true);
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
         auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
-        auto db = transaction.openDatabase();
+        auto db = transaction.openDatabase("test", nullptr, true);
         db.write("sub1","value1");
         int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
             return true;

@@ -146,7 +146,7 @@ public:
         Private *d;
     };
 
-    Storage(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly, bool allowDuplicates = false);
+    Storage(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly);
     ~Storage();
 
     Transaction createTransaction(AccessMode mode = ReadWrite,

@@ -233,10 +233,9 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
 class Storage::Transaction::Private
 {
 public:
-    Private(bool _requestRead, bool _allowDuplicates, const std::function<void(const Storage::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
+    Private(bool _requestRead, const std::function<void(const Storage::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
         : env(_env),
         requestedRead(_requestRead),
-        allowDuplicates(_allowDuplicates),
         defaultErrorHandler(_defaultErrorHandler),
         name(_name),
         implicitCommit(false),
@@ -254,7 +253,6 @@ public:
     MDB_txn *transaction;
     MDB_dbi dbi;
     bool requestedRead;
-    bool allowDuplicates;
     std::function<void(const Storage::Error &error)> defaultErrorHandler;
     QString name;
     bool implicitCommit;
@@ -345,7 +343,7 @@ bool Storage::Transaction::write(const QByteArray &key, const QByteArray &value,
         d->error = true;
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     };
-    openDatabase("default", eHandler, d->allowDuplicates).write(key, value, eHandler);
+    openDatabase("default", eHandler).write(key, value, eHandler);
     d->implicitCommit = true;
 
     return !d->error;
@@ -358,7 +356,7 @@ void Storage::Transaction::remove(const QByteArray &k,
         d->error = true;
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     };
-    openDatabase("default", eHandler, d->allowDuplicates).remove(k, eHandler);
+    openDatabase("default", eHandler).remove(k, eHandler);
     d->implicitCommit = true;
 }
 
@@ -366,7 +364,7 @@ int Storage::Transaction::scan(const QByteArray &k,
                   const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
                   const std::function<void(const Storage::Error &error)> &errorHandler) const
 {
-    auto db = openDatabase("default", std::function<void(const Storage::Error &error)>(), d->allowDuplicates);
+    auto db = openDatabase("default", std::function<void(const Storage::Error &error)>());
     if (db) {
         return db.scan(k, resultHandler, errorHandler);
     }
@@ -384,7 +382,7 @@ int Storage::Transaction::scan(const QByteArray &k,
 class Storage::Private
 {
 public:
-    Private(const QString &s, const QString &n, AccessMode m, bool duplicates);
+    Private(const QString &s, const QString &n, AccessMode m);
     ~Private();
 
     QString storageRoot;
@@ -392,9 +390,6 @@ public:
 
     MDB_env *env;
     AccessMode mode;
-    bool readTransaction;
-    bool firstOpen;
-    bool allowDuplicates;
     static QMutex sMutex;
     static QHash<QString, MDB_env*> sEnvironments;
 };
@@ -402,14 +397,11 @@ public:
 QMutex Storage::Private::sMutex;
 QHash<QString, MDB_env*> Storage::Private::sEnvironments;
 
-Storage::Private::Private(const QString &s, const QString &n, AccessMode m, bool duplicates)
+Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
     : storageRoot(s),
       name(n),
       env(0),
-      mode(m),
-      readTransaction(false),
-      firstOpen(true),
-      allowDuplicates(duplicates)
+      mode(m)
 {
     const QString fullPath(storageRoot + '/' + name);
     QFileInfo dirInfo(fullPath);
@@ -464,8 +456,8 @@ Storage::Private::~Private()
     // }
 }
 
-Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode, bool allowDuplicates)
-    : d(new Private(storageRoot, name, mode, allowDuplicates))
+Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode)
+    : d(new Private(storageRoot, name, mode))
 {
 }
 
@@ -494,7 +486,7 @@ Storage::Transaction Storage::createTransaction(AccessMode type, const std::func
         return Transaction();
     }
 
-    return Transaction(new Transaction::Private(requestedRead, d->allowDuplicates, defaultErrorHandler(), d->name, d->env));
+    return Transaction(new Transaction::Private(requestedRead, defaultErrorHandler(), d->name, d->env));
 }
 
 qint64 Storage::diskUsage() const
