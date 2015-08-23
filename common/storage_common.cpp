@@ -62,7 +62,7 @@ void Storage::setMaxRevision(qint64 revision)
 
 void Storage::setMaxRevision(Akonadi2::Storage::Transaction &transaction, qint64 revision)
 {
-    transaction.write("__internal_maxRevision", QByteArray::number(revision));
+    transaction.openDatabase().write("__internal_maxRevision", QByteArray::number(revision));
 }
 
 qint64 Storage::maxRevision()
@@ -74,7 +74,7 @@ qint64 Storage::maxRevision()
 qint64 Storage::maxRevision(const Akonadi2::Storage::Transaction &transaction)
 {
     qint64 r = 0;
-    transaction.scan("__internal_maxRevision", [&](const QByteArray &, const QByteArray &revision) -> bool {
+    transaction.openDatabase().scan("__internal_maxRevision", [&](const QByteArray &, const QByteArray &revision) -> bool {
         r = revision.toLongLong();
         return false;
     }, [](const Error &error){

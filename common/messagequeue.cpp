@@ -76,7 +76,7 @@ void MessageQueue::enqueue(const QByteArray &value)
     }
     const qint64 revision = Akonadi2::Storage::maxRevision(mWriteTransaction) + 1;
     const QByteArray key = QString("%1").arg(revision).toUtf8();
-    mWriteTransaction.write(key, value);
+    mWriteTransaction.openDatabase().write(key, value);
     Akonadi2::Storage::setMaxRevision(mWriteTransaction, revision);
     if (implicitTransaction) {
         commit();
@@ -90,7 +90,7 @@ void MessageQueue::processRemovals()
     }
     auto transaction = std::move(mStorage.createTransaction(Akonadi2::Storage::ReadWrite));
     for (const auto &key : mPendingRemoval) {
-        transaction.remove(key);
+        transaction.openDatabase().remove(key);
     }
     transaction.commit();
     mPendingRemoval.clear();
@@ -117,7 +117,7 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
     return KAsync::start<void>([this, maxBatchSize, resultHandler, resultCount](KAsync::Future<void> &future) {
         int count = 0;
         QList<KAsync::Future<void> > waitCondition;
-        mStorage.createTransaction(Akonadi2::Storage::ReadOnly).scan("", [this, resultHandler, resultCount, &count, maxBatchSize, &waitCondition](const QByteArray &key, const QByteArray &value) -> bool {
+        mStorage.createTransaction(Akonadi2::Storage::ReadOnly).openDatabase().scan("", [this, resultHandler, resultCount, &count, maxBatchSize, &waitCondition](const QByteArray &key, const QByteArray &value) -> bool {
             if (Akonadi2::Storage::isInternalKey(key) || mPendingRemoval.contains(key)) {
                 return true;
             }

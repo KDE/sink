@@ -21,7 +21,7 @@
 
 static void scan(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, std::function<bool(const QByteArray &key, const Akonadi2::Entity &entity)> callback)
 {
-    transaction.scan(key, [=](const QByteArray &key, const QByteArray &value) -> bool {
+    transaction.openDatabase().scan(key, [=](const QByteArray &key, const QByteArray &value) -> bool {
         //Skip internals
         if (Akonadi2::Storage::isInternalKey(key)) {
             return true;

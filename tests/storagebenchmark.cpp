@@ -98,7 +98,7 @@ private Q_SLOTS:
             if (store) {
                 auto transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
                 for (int i = 0; i < count; i++) {
-                    transaction.write(keyPrefix + QByteArray::number(i), event);
+                    transaction.openDatabase().write(keyPrefix + QByteArray::number(i), event);
                     if ((i % 10000) == 0) {
                         transaction.commit();
                         transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
@@ -149,7 +149,7 @@ private Q_SLOTS:
 
         QBENCHMARK {
             int hit = 0;
-            store->createTransaction(Akonadi2::Storage::ReadOnly).scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            store->createTransaction(Akonadi2::Storage::ReadOnly).openDatabase().scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
                 if (key == "key10000") {
                     //qDebug() << "hit";
                     hit++;
@@ -166,7 +166,7 @@ private Q_SLOTS:
 
         QBENCHMARK {
             int hit = 0;
-            store->createTransaction(Akonadi2::Storage::ReadOnly).scan("key40000", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            store->createTransaction(Akonadi2::Storage::ReadOnly).openDatabase().scan("key40000", [&](const QByteArray &key, const QByteArray &value) -> bool {
                 hit++;
                 return true;
             });

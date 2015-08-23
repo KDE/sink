@@ -130,13 +130,6 @@ public:
             return (d != nullptr);
         }
 
-        bool write(const QByteArray &key, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
-
-        void remove(const QByteArray &key,
-                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
-        int scan(const QByteArray &k,
-                    const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
     private:
         Transaction(Transaction& other);
         Transaction& operator=(Transaction& other);

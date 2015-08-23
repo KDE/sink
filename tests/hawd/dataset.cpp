@@ -237,7 +237,7 @@ qint64 Dataset::insertRow(const Row &row)
     }
 
     qint64 key = row.key();
-    m_transaction.write(QByteArray::fromRawData((const char *)&key, sizeof(qint64)), row.toBinary());
+    m_transaction.openDatabase().write(QByteArray::fromRawData((const char *)&key, sizeof(qint64)), row.toBinary());
     return key;
 }
 
@@ -253,7 +253,7 @@ void Dataset::eachRow(const std::function<void(const Row &row)> &resultHandler)
     }
 
     Row row(*this);
-    m_transaction.scan("",
+    m_transaction.openDatabase().scan("",
                    [&](const QByteArray &key, const QByteArray &value) -> bool {
                        if (key.size() != sizeof(qint64)) {
                            return true;
@@ -276,7 +276,7 @@ Dataset::Row Dataset::row(qint64 key)
     }
 
     Row row(*this, key);
-    m_transaction.scan(QByteArray::fromRawData((const char *)&key, sizeof(qint64)),
+    m_transaction.openDatabase().scan(QByteArray::fromRawData((const char *)&key, sizeof(qint64)),
             [&row](const QByteArray &key, const QByteArray &value) -> bool {
                 row.fromBinary(value);
                 return true;

@@ -142,7 +142,7 @@ public:
 
     void process(const PipelineState &state, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        transaction.scan(state.key(), [this, &state, &transaction](const QByteArray &key, const QByteArray &value) -> bool {
+        transaction.openDatabase().scan(state.key(), [this, &state, &transaction](const QByteArray &key, const QByteArray &value) -> bool {
             auto entity = Akonadi2::GetEntity(value);
             mFunction(state, *entity, transaction);
             processingCompleted(state);

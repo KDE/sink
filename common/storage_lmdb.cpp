@@ -337,40 +337,6 @@ Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, 
     return Storage::NamedDatabase(p);
 }
 
-bool Storage::Transaction::write(const QByteArray &key, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler)
-{
-    auto eHandler = [this, errorHandler](const Storage::Error &error) {
-        d->error = true;
-        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
-    };
-    openDatabase("default", eHandler).write(key, value, eHandler);
-    d->implicitCommit = true;
-
-    return !d->error;
-}
-
-void Storage::Transaction::remove(const QByteArray &k,
-                     const std::function<void(const Storage::Error &error)> &errorHandler)
-{
-    auto eHandler = [this, errorHandler](const Storage::Error &error) {
-        d->error = true;
-        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
-    };
-    openDatabase("default", eHandler).remove(k, eHandler);
-    d->implicitCommit = true;
-}
-
-int Storage::Transaction::scan(const QByteArray &k,
-                  const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-                  const std::function<void(const Storage::Error &error)> &errorHandler) const
-{
-    auto db = openDatabase("default", std::function<void(const Storage::Error &error)>());
-    if (db) {
-        return db.scan(k, resultHandler, errorHandler);
-    }
-    return 0;
-}
-
 
 
 
