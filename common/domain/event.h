@@ -20,6 +20,8 @@
 
 #include "applicationdomaintype.h"
 
+#include "storage.h"
+
 class ResultSet;
 class QByteArray;
 
@@ -53,8 +55,8 @@ public:
      * 
      * An empty result set indicates that a full scan is required.
      */
-    static ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters);
-    static void index(const Event &type);
+    static ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction);
+    static void index(const Event &type, Akonadi2::Storage::Transaction &transaction);
     static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();
     static QSharedPointer<WritePropertyMapper<BufferBuilder> > initializeWritePropertyMapper();
 };

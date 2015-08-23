@@ -441,18 +441,8 @@ void PipelineState::step()
     d->idle = false;
     if (d->filterIt.hasNext()) {
         //TODO skip step if already processed
-        //FIXME error handling if no result is found
         auto preprocessor = d->filterIt.next();
-        //FIXME this read should not be necessary
-        //Perhaps simply use entity that is initially stored and synchronously process all filters. (Making the first filter somewhat redundant)
-        d->pipeline->transaction().scan(d->key, [this, preprocessor](const QByteArray &key, const QByteArray &value) -> bool {
-            auto entity = Akonadi2::GetEntity(value);
-            preprocessor->process(*this, *entity);
-            return false;
-        }, [this](const Akonadi2::Storage::Error &error) {
-            ErrorMsg() << "Failed to find value in pipeline: " << error.message;
-            d->pipeline->pipelineCompleted(*this);
-        });
+        preprocessor->process(*this, d->pipeline->transaction());
     } else {
         //This object becomes invalid after this call
         d->pipeline->pipelineCompleted(*this);
@@ -483,7 +473,7 @@ Preprocessor::~Preprocessor()
 {
 }
 
-void Preprocessor::process(const PipelineState &state, const Akonadi2::Entity &)
+void Preprocessor::process(const PipelineState &state, Akonadi2::Storage::Transaction &transaction)
 {
     processingCompleted(state);
 }

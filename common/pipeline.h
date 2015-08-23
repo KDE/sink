@@ -115,7 +115,7 @@ public:
     virtual ~Preprocessor();
 
     //TODO pass actual command as well, for changerecording
-    virtual void process(const PipelineState &state, const Akonadi2::Entity &);
+    virtual void process(const PipelineState &state, Akonadi2::Storage::Transaction &transaction);
     //TODO to record progress
     virtual QString id() const;
 
@@ -133,17 +133,24 @@ private:
 class AKONADI2COMMON_EXPORT SimpleProcessor : public Akonadi2::Preprocessor
 {
 public:
-    SimpleProcessor(const QString &id, const std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> &f)
+    SimpleProcessor(const QString &id, const std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e, Akonadi2::Storage::Transaction &transaction)> &f)
         : Akonadi2::Preprocessor(),
         mFunction(f),
         mId(id)
     {
     }
 
-    void process(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e) Q_DECL_OVERRIDE
+    void process(const PipelineState &state, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        mFunction(state, e);
-        processingCompleted(state);
+        transaction.scan(state.key(), [this, &state, &transaction](const QByteArray &key, const QByteArray &value) -> bool {
+            auto entity = Akonadi2::GetEntity(value);
+            mFunction(state, *entity, transaction);
+            processingCompleted(state);
+            return false;
+        }, [this, state](const Akonadi2::Storage::Error &error) {
+            ErrorMsg() << "Failed to find value in pipeline: " << error.message;
+            processingCompleted(state);
+        });
     }
 
     QString id() const
@@ -152,7 +159,7 @@ public:
     }
 
 protected:
-    std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e)> mFunction;
+    std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e, Akonadi2::Storage::Transaction &transaction)> mFunction;
     QString mId;
 };
 

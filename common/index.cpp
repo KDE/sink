@@ -2,24 +2,27 @@
 #include <QDebug>
 
 Index::Index(const QString &storageRoot, const QString &name, Akonadi2::Storage::AccessMode mode)
-    : mStorage(storageRoot, name, mode, true)
+    : mTransaction(Akonadi2::Storage(storageRoot, name, mode, true).createTransaction(mode)),
+    mDb(mTransaction.openDatabase(name.toLatin1(), std::function<void(const Akonadi2::Storage::Error &)>(), true))
+{
+
+}
+
+Index::Index(const QByteArray &name, Akonadi2::Storage::Transaction &transaction)
+    : mDb(transaction.openDatabase(name, std::function<void(const Akonadi2::Storage::Error &)>(), true))
 {
 
 }
 
 void Index::add(const QByteArray &key, const QByteArray &value)
 {
-    mStorage.createTransaction(Akonadi2::Storage::ReadWrite).write(key, value);
+    mDb.write(key, value);
 }
 
 void Index::lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler,
                                           const std::function<void(const Error &error)> &errorHandler)
 {
-    if (!mStorage.exists()) {
-        errorHandler(Error("index", IndexNotAvailable, "Index not existing"));
-        return;
-    }
-    mStorage.createTransaction(Akonadi2::Storage::ReadOnly).scan(key, [this, resultHandler](const QByteArray &key, const QByteArray &value) -> bool {
+    mDb.scan(key, [this, resultHandler](const QByteArray &key, const QByteArray &value) -> bool {
         resultHandler(value);
         return true;
     },

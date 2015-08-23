@@ -12,6 +12,7 @@
 #include "genericresource.h"
 #include "definitions.h"
 #include "domainadaptor.h"
+#include "index.h"
 #include <iostream>
 
 class TestResource : public Akonadi2::GenericResource
@@ -89,21 +90,66 @@ private Q_SLOTS:
 
     void init()
     {
+        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Warning);
+    }
+
+    void initTestCase()
+    {
         removeFromDisk("org.kde.test.instance1");
         removeFromDisk("org.kde.test.instance1.userqueue");
         removeFromDisk("org.kde.test.instance1.synchronizerqueue");
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Warning);
-        qDebug();
-        qDebug() << "-----------------------------------------";
-        qDebug();
     }
 
 
     void testWriteInProcess()
     {
-        int num = 50000;
+        int num = 10000;
 
         auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.test.instance1");
+        TestResource resource("org.kde.test.instance1", pipeline);
+
+        auto command = createEntityBuffer();
+
+        QTime time;
+        time.start();
+
+        for (int i = 0; i < num; i++) {
+            resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command);
+        }
+        auto appendTime = time.elapsed();
+
+        //Wait until all messages have been processed
+        resource.processAllMessages().exec().waitForFinished();
+
+        auto allProcessedTime = time.elapsed();
+
+        std::cout << "Append to messagequeue " << appendTime << " /sec " << num*1000/appendTime << std::endl;
+        std::cout << "All processed: " << allProcessedTime << " /sec " << num*1000/allProcessedTime << std::endl;
+    }
+
+    void testWriteInProcessWithIndex()
+    {
+        int num = 10000;
+
+        auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.test.instance1");
+
+        auto eventFactory = QSharedPointer<TestEventAdaptorFactory>::create();
+        const QByteArray resourceIdentifier = "org.kde.test.instance1";
+        auto eventIndexer = new Akonadi2::SimpleProcessor("eventIndexer", [eventFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity, Akonadi2::Storage::Transaction &transaction) {
+            auto adaptor = eventFactory->createAdaptor(entity);
+            Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, adaptor);
+            Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::index(event, transaction);
+
+            //Create a bunch of indexes
+            for (int i = 0; i < 10; i++) {
+                Index ridIndex(QString("index.index%1").arg(i).toLatin1(), transaction);
+                ridIndex.add("foo", event.identifier());
+            }
+        });
+
+        pipeline->setPreprocessors("event", Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
+        pipeline->setAdaptorFactory("event", eventFactory);
+
         TestResource resource("org.kde.test.instance1", pipeline);
 
         auto command = createEntityBuffer();

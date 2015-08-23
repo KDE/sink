@@ -42,13 +42,13 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
 {
     auto eventFactory = QSharedPointer<DummyEventAdaptorFactory>::create();
     const auto resourceIdentifier = mResourceInstanceIdentifier;
-    auto eventIndexer = new Akonadi2::SimpleProcessor("eventIndexer", [eventFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity) {
+    auto eventIndexer = new Akonadi2::SimpleProcessor("eventIndexer", [eventFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity, Akonadi2::Storage::Transaction &transaction) {
         auto adaptor = eventFactory->createAdaptor(entity);
         //FIXME set revision?
         Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, adaptor);
-        Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::index(event);
+        Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::index(event, transaction);
 
-        Index ridIndex(Akonadi2::storageLocation(), resourceIdentifier + ".index.rid", Akonadi2::Storage::ReadWrite);
+        Index ridIndex("index.rid", transaction);
         const auto rid = event.getProperty("remoteId");
         if (rid.isValid()) {
             ridIndex.add(rid.toByteArray(), event.identifier());
@@ -63,8 +63,8 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
 KAsync::Job<void> DummyResource::synchronizeWithSource()
 {
     return KAsync::start<void>([this](KAsync::Future<void> &f) {
-        //TODO start transaction on index
-        Index uidIndex(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".index.uid", Akonadi2::Storage::ReadOnly);
+        auto transaction = Akonadi2::Storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".index.uid", Akonadi2::Storage::ReadOnly).createTransaction(Akonadi2::Storage::ReadOnly);
+        Index uidIndex("index.uid", transaction);
 
         const auto data = DummyStore::instance().data();
         for (auto it = data.constBegin(); it != data.constEnd(); it++) {

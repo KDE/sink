@@ -34,11 +34,11 @@
 
 using namespace Akonadi2::ApplicationDomain;
 
-ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters)
+ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction)
 {
     QVector<QByteArray> keys;
     if (query.propertyFilter.contains("uid")) {
-        Index uidIndex(Akonadi2::storageLocation(), resourceInstanceIdentifier + ".index.uid", Akonadi2::Storage::ReadOnly);
+        Index uidIndex("index.uid", transaction);
         uidIndex.lookup(query.propertyFilter.value("uid").toByteArray(), [&](const QByteArray &value) {
             keys << value;
         },
@@ -50,11 +50,11 @@ ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, 
     return ResultSet(keys);
 }
 
-void TypeImplementation<Event>::index(const Event &type)
+void TypeImplementation<Event>::index(const Event &type, Akonadi2::Storage::Transaction &transaction)
 {
-    Index uidIndex(Akonadi2::storageLocation(), type.resourceInstanceIdentifier() + ".index.uid", Akonadi2::Storage::ReadWrite);
     const auto uid = type.getProperty("uid");
     if (uid.isValid()) {
+        Index uidIndex("index.uid", transaction);
         uidIndex.add(uid.toByteArray(), type.identifier());
     }
 }

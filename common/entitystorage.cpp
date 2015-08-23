@@ -91,10 +91,10 @@ ResultSet EntityStorageBase::filteredSet(const ResultSet &resultSet, const std::
     return ResultSet(generator);
 }
 
-ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, const Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision)
+ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision)
 {
     QSet<QByteArray> appliedFilters;
-    ResultSet resultSet = queryIndexes(query, mResourceInstanceIdentifier, appliedFilters);
+    ResultSet resultSet = queryIndexes(query, mResourceInstanceIdentifier, appliedFilters, transaction);
     const auto remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
 
     //We do a full scan if there were no indexes available to create the initial set.

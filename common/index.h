@@ -26,6 +26,7 @@ public:
     };
 
     Index(const QString &storageRoot, const QString &name, Akonadi2::Storage::AccessMode mode = Akonadi2::Storage::ReadOnly);
+    Index(const QByteArray &name, Akonadi2::Storage::Transaction &);
 
     void add(const QByteArray &key, const QByteArray &value);
     // void remove(const QByteArray &key, const QByteArray &value);
@@ -35,5 +36,6 @@ public:
 
 private:
     Q_DISABLE_COPY(Index);
-    Akonadi2::Storage mStorage;
+    Akonadi2::Storage::Transaction mTransaction;
+    Akonadi2::Storage::NamedDatabase mDb;
 };
