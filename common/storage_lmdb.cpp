@@ -71,18 +71,23 @@ public:
     std::function<void(const Storage::Error &error)> defaultErrorHandler;
     QString name;
 
-    bool openDatabase(std::function<void(const Storage::Error &error)> errorHandler)
+    bool openDatabase(bool readOnly, std::function<void(const Storage::Error &error)> errorHandler)
     {
-        unsigned int flags = MDB_CREATE;
+        unsigned int flags = 0;
+        if (!readOnly) {
+            flags |= MDB_CREATE;
+        }
         if (allowDuplicates) {
             flags |= MDB_DUPSORT;
         }
         if (const int rc = mdb_dbi_open(transaction, db.constData(), flags, &dbi)) {
-            qWarning() << "Failed to open: " << rc << db;
             dbi = 0;
             transaction = 0;
-            Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening database: " + QByteArray(mdb_strerror(rc)));
-            errorHandler ? errorHandler(error) : defaultErrorHandler(error);
+            //The database is not existing, ignore in read-only mode
+            if (!(readOnly && rc == MDB_NOTFOUND)) {
+                Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening database: " + QByteArray(mdb_strerror(rc)));
+                errorHandler ? errorHandler(error) : defaultErrorHandler(error);
+            }
             return false;
         }
         return true;
@@ -108,7 +113,7 @@ Storage::NamedDatabase::~NamedDatabase()
 bool Storage::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sValue, const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d || !d->transaction) {
-        Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Not open");
+        Error error("", ErrorCodes::GenericError, "Not open");
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
         return false;
     }
@@ -167,8 +172,7 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
                   const std::function<void(const Storage::Error &error)> &errorHandler) const
 {
     if (!d || !d->transaction) {
-        // Error error(d->name.toLatin1(), ErrorCodes::NotOpen, "Not open");
-        // errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        //Not an error. We rely on this to read nothing from non-existing databases.
         return 0;
     }
 
@@ -328,16 +332,20 @@ Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, 
     //We don't now if anything changed
     d->implicitCommit = true;
     auto p = new Storage::NamedDatabase::Private(db, d->allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
-    p->openDatabase(errorHandler);
+    if (!p->openDatabase(d->requestedRead, errorHandler)) {
+        return Storage::NamedDatabase();
+        delete p;
+    }
     return Storage::NamedDatabase(p);
 }
 
 bool Storage::Transaction::write(const QByteArray &key, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler)
 {
-    openDatabase().write(key, value, [this, errorHandler](const Storage::Error &error) {
+    auto eHandler = [this, errorHandler](const Storage::Error &error) {
         d->error = true;
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
-    });
+    };
+    openDatabase("default", eHandler).write(key, value, eHandler);
     d->implicitCommit = true;
 
     return !d->error;
@@ -346,10 +354,11 @@ bool Storage::Transaction::write(const QByteArray &key, const QByteArray &value,
 void Storage::Transaction::remove(const QByteArray &k,
                      const std::function<void(const Storage::Error &error)> &errorHandler)
 {
-    openDatabase().remove(k, [this, errorHandler](const Storage::Error &error) {
+    auto eHandler = [this, errorHandler](const Storage::Error &error) {
         d->error = true;
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
-    });
+    };
+    openDatabase("default", eHandler).remove(k, eHandler);
     d->implicitCommit = true;
 }
 
@@ -357,7 +366,11 @@ int Storage::Transaction::scan(const QByteArray &k,
                   const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
                   const std::function<void(const Storage::Error &error)> &errorHandler) const
 {
-    return openDatabase().scan(k, resultHandler, errorHandler);
+    auto db = openDatabase("default");
+    if (db) {
+        return db.scan(k, resultHandler, errorHandler);
+    }
+    return 0;
 }
 
 

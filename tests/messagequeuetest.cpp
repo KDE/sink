@@ -49,7 +49,7 @@ private Q_SLOTS:
             gotError = true;
         });
         QVERIFY(!gotValue);
-        QVERIFY(gotError);
+        QVERIFY(!gotError);
     }
 
     void testEnqueue()

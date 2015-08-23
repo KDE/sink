@@ -113,7 +113,6 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
 
 KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::function<KAsync::Job<void>(const QByteArray &)> &resultHandler)
 {
-    Trace() << "Dequeue batch";
     auto resultCount = QSharedPointer<int>::create(0);
     return KAsync::start<void>([this, maxBatchSize, resultHandler, resultCount](KAsync::Future<void> &future) {
         int count = 0;
@@ -123,14 +122,12 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
                 return true;
             }
             *resultCount += 1;
-            Trace() << "Dequeue value";
             //We need a copy of the key here, otherwise we can't store it in the lambda (the pointers will become invalid)
             mPendingRemoval << QByteArray(key.constData(), key.size());
 
             waitCondition << resultHandler(value).exec();
 
             count++;
-            Trace() << count << maxBatchSize;
             if (count < maxBatchSize) {
                 return true;
             }
@@ -145,7 +142,7 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
         ::waitForCompletion(waitCondition).then<void>([this, resultCount, &future]() {
             processRemovals();
             if (*resultCount == 0) {
-                future.setError(-1, "No message found");
+                future.setError(static_cast<int>(ErrorCodes::NoMessageFound), "No message found");
                 future.setFinished();
             } else {
                 if (isEmpty()) {
@@ -160,16 +157,20 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
 bool MessageQueue::isEmpty()
 {
     int count = 0;
-    mStorage.createTransaction(Akonadi2::Storage::ReadOnly).scan("", [&count, this](const QByteArray &key, const QByteArray &value) -> bool {
-        if (!Akonadi2::Storage::isInternalKey(key) && !mPendingRemoval.contains(key)) {
-            count++;
-            return false;
-        }
-        return true;
-    },
-    [](const Akonadi2::Storage::Error &error) {
-        ErrorMsg() << "Error while checking if empty" << error.message;
-    });
+    auto t = mStorage.createTransaction(Akonadi2::Storage::ReadOnly);
+    auto db = t.openDatabase();
+    if (db) {
+        db.scan("", [&count, this](const QByteArray &key, const QByteArray &value) -> bool {
+            if (!Akonadi2::Storage::isInternalKey(key) && !mPendingRemoval.contains(key)) {
+                count++;
+                return false;
+            }
+            return true;
+        },
+        [](const Akonadi2::Storage::Error &error) {
+            ErrorMsg() << "Error while checking if empty" << error.message;
+        });
+    }
     return count == 0;
 }
 

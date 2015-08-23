@@ -15,6 +15,9 @@ class MessageQueue : public QObject
 {
     Q_OBJECT
 public:
+    enum ErrorCodes {
+        NoMessageFound
+    };
     class Error
     {
     public:

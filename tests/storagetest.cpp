@@ -159,7 +159,12 @@ private Q_SLOTS:
         bool gotResult = false;
         bool gotError = false;
         Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        int numValues = store.createTransaction(Akonadi2::Storage::ReadOnly).scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadOnly);
+        auto db = transaction.openDatabase("default", [&](const Akonadi2::Storage::Error &error) {
+            qDebug() << error.message;
+            gotError = true;
+        });
+        int numValues = db.scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
             gotResult = true;
             return false;
         },

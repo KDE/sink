@@ -107,14 +107,15 @@ private slots:
             [queue]() { return !queue->isEmpty(); },
             [this, queue](KAsync::Future<void> &future) {
                 queue->dequeueBatch(100, [this](const QByteArray &data) {
-                        Trace() << "Got value";
                         return processQueuedCommand(data);
                     }
                 ).then<void>([&future, queue](){
                     future.setFinished();
                 },
                 [&future](int i, QString error) {
-                    Warning() << "Error while getting message from messagequeue: " << error;
+                    if (i != MessageQueue::ErrorCodes::NoMessageFound) {
+                        Warning() << "Error while getting message from messagequeue: " << error;
+                    }
                     future.setFinished();
                 }).exec();
             }
