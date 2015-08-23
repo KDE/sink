@@ -42,10 +42,15 @@ void Formatter::print(const QString &datasetName, const QStringList &cols, State
 void Formatter::print(Dataset &dataset, const QStringList &cols)
 {
     std::cout << dataset.tableHeaders(cols).toStdString() << std::endl;
+    //Just reading doesn't sort the rows, let's use a map
+    QMap<qint64, QString> rows;
     dataset.eachRow(
-        [cols](const Dataset::Row &row) {
-            std::cout << row.toString(cols).toStdString() << std::endl;
+        [cols, &rows](const Dataset::Row &row) {
+            rows.insert(row.key(), row.toString());
         });
+    for (const auto &s : rows.values().mid(rows.size() - 10)) {
+        std::cout << s.toStdString() << std::endl;
+    }
 }
 
 }
