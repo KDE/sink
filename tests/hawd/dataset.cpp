@@ -31,6 +31,7 @@ namespace HAWD
 
 static const QString s_annotationKey("__annotation__");
 static const QString s_hashKey("__commithash__");
+static const int s_fieldWidth(15);
 
 Dataset::Row::Row(const Row &other)
     : m_key(other.m_key),
@@ -150,11 +151,11 @@ QString Dataset::tableHeaders(const QStringList &cols, int standardCols, const Q
     QStringList strings;
 
     if (standardCols & Row::Timestamp) {
-        strings << QObject::tr("Timestamp");
+        strings << QObject::tr("Timestamp").leftJustified(s_fieldWidth, ' ');
     }
 
     if (standardCols & Row::CommitHash) {
-        strings << QObject::tr("Commit");
+        strings << QObject::tr("Commit").leftJustified(s_fieldWidth, ' ');
     }
 
     QHashIterator<QString, DataDefinition> it(m_definition.columns());
@@ -165,12 +166,12 @@ QString Dataset::tableHeaders(const QStringList &cols, int standardCols, const Q
             if (!it.value().unit().isEmpty()) {
                 header.append(" (").append(it.value().unit()).append(")");
             }
-            strings << header;
+            strings << header.leftJustified(s_fieldWidth, ' ');
         }
     }
 
     if (standardCols & Row::Annotation) {
-        strings << QObject::tr("Annotation");
+        strings << QObject::tr("Annotation").leftJustified(s_fieldWidth, ' ');
     }
 
     return strings.join(seperator);
@@ -185,23 +186,29 @@ QString Dataset::Row::toString(const QStringList &cols, int standardCols, const 
     QStringList strings;
 
     if (standardCols & Timestamp) {
-        strings << QString::number(m_key);
+        QDateTime dt;
+        dt.setMSecsSinceEpoch(m_key);
+        strings << dt.toString("yyMMdd:hhmmss").leftJustified(s_fieldWidth, ' ');
     }
 
     if (standardCols & CommitHash) {
-        strings << m_commitHash;
+        strings << m_commitHash.leftJustified(s_fieldWidth, ' ');
     }
 
     QHashIterator<QString, QVariant> it(m_data);
     while (it.hasNext()) {
         it.next();
         if (cols.isEmpty() || cols.contains(it.key())) {
-            strings << it.value().toString();
+            if (it.value().canConvert<double>()) {
+                strings << QString("%1").arg(it.value().toDouble(), s_fieldWidth, 'f', 3);
+            } else {
+                strings << it.value().toString().leftJustified(s_fieldWidth, ' ');
+            }
         }
     }
 
     if (standardCols & Annotation) {
-        strings << m_annotation;
+        strings << m_annotation.leftJustified(s_fieldWidth, ' ');
     }
 
     return strings.join(seperator);
@@ -270,7 +277,7 @@ void Dataset::eachRow(const std::function<void(const Row &row)> &resultHandler)
 Dataset::Row Dataset::row(qint64 key)
 {
     if (key < 1) {
-        Row row(*this);
+        Row row(*this, Akonadi2::Storage::maxRevision(m_transaction));
         row.setCommitHash(m_commitHash);
         return row;
     }

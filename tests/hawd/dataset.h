@@ -52,7 +52,7 @@ public:
             void setCommitHash(const QString &hash);
             qint64 key() const;
             QByteArray toBinary() const;
-            QString toString(const QStringList &cols = QStringList(), int standardCols = All, const QString &seperator = "\t") const;
+            QString toString(const QStringList &cols = QStringList(), int standardCols = All, const QString &seperator = "|") const;
 
         private:
             Row();
@@ -73,7 +73,7 @@ public:
 
     bool isValid() const;
     const DatasetDefinition &definition() const;
-    QString tableHeaders(const QStringList &cols = QStringList(), int standardCols = Row::All, const QString &seperator = "\t") const;
+    QString tableHeaders(const QStringList &cols = QStringList(), int standardCols = Row::All, const QString &seperator = "|") const;
 
     qint64 insertRow(const Row &row);
     void removeRow(const Row &row);
