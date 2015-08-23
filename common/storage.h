@@ -113,7 +113,7 @@ public:
         bool commit(const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
         void abort();
 
-        NamedDatabase openDatabase(const QByteArray &name = QByteArray("default"), const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
+        NamedDatabase openDatabase(const QByteArray &name = QByteArray("default"), const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool allowDuplicates = false) const;
 
         Transaction(Transaction&& other) : d(other.d)
         {

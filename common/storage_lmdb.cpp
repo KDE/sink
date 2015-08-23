@@ -324,14 +324,14 @@ void Storage::Transaction::abort()
     d->transaction = nullptr;
 }
 
-Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, const std::function<void(const Storage::Error &error)> &errorHandler) const
+Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, const std::function<void(const Storage::Error &error)> &errorHandler, bool allowDuplicates) const
 {
     if (!d) {
         return Storage::NamedDatabase();
     }
     //We don't now if anything changed
     d->implicitCommit = true;
-    auto p = new Storage::NamedDatabase::Private(db, d->allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
+    auto p = new Storage::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
     if (!p->openDatabase(d->requestedRead, errorHandler)) {
         return Storage::NamedDatabase();
         delete p;
@@ -345,7 +345,7 @@ bool Storage::Transaction::write(const QByteArray &key, const QByteArray &value,
         d->error = true;
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     };
-    openDatabase("default", eHandler).write(key, value, eHandler);
+    openDatabase("default", eHandler, d->allowDuplicates).write(key, value, eHandler);
     d->implicitCommit = true;
 
     return !d->error;
@@ -358,7 +358,7 @@ void Storage::Transaction::remove(const QByteArray &k,
         d->error = true;
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     };
-    openDatabase("default", eHandler).remove(k, eHandler);
+    openDatabase("default", eHandler, d->allowDuplicates).remove(k, eHandler);
     d->implicitCommit = true;
 }
 
@@ -366,7 +366,7 @@ int Storage::Transaction::scan(const QByteArray &k,
                   const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
                   const std::function<void(const Storage::Error &error)> &errorHandler) const
 {
-    auto db = openDatabase("default");
+    auto db = openDatabase("default", std::function<void(const Storage::Error &error)>(), d->allowDuplicates);
     if (db) {
         return db.scan(k, resultHandler, errorHandler);
     }
