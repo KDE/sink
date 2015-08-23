@@ -15,6 +15,9 @@
 #include "index.h"
 #include <iostream>
 
+#include "hawd/dataset.h"
+#include "hawd/formatter.h"
+
 class TestResource : public Akonadi2::GenericResource
 {
 public:
@@ -123,13 +126,21 @@ private Q_SLOTS:
 
         auto allProcessedTime = time.elapsed();
 
-        std::cout << "Append to messagequeue " << appendTime << " /sec " << num*1000/appendTime << std::endl;
-        std::cout << "All processed: " << allProcessedTime << " /sec " << num*1000/allProcessedTime << std::endl;
+        HAWD::Dataset dataset("generic_write_in_process", m_hawdState);
+        HAWD::Dataset::Row row = dataset.row();
+
+        row.setValue("rows", num);
+        row.setValue("append", appendTime);
+        row.setValue("appendOps", (qreal)num/appendTime);
+        row.setValue("total", allProcessedTime);
+        row.setValue("totalOps", (qreal)num/allProcessedTime);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
     }
 
     void testWriteInProcessWithIndex()
     {
-        int num = 10000;
+        int num = 50000;
 
         auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.test.instance1");
 
@@ -167,8 +178,16 @@ private Q_SLOTS:
 
         auto allProcessedTime = time.elapsed();
 
-        std::cout << "Append to messagequeue " << appendTime << " /sec " << num*1000/appendTime << std::endl;
-        std::cout << "All processed: " << allProcessedTime << " /sec " << num*1000/allProcessedTime << std::endl;
+        HAWD::Dataset dataset("generic_write_in_process_with_indexes", m_hawdState);
+        HAWD::Dataset::Row row = dataset.row();
+
+        row.setValue("rows", num);
+        row.setValue("append", appendTime);
+        row.setValue("appendOps", (qreal)num/appendTime);
+        row.setValue("total", allProcessedTime);
+        row.setValue("totalOps", (qreal)num/allProcessedTime);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
     }
 
     void testCreateCommand()
@@ -191,6 +210,9 @@ private Q_SLOTS:
             Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
         }
     }
+
+private:
+    HAWD::State m_hawdState;
 };
 
 QTEST_MAIN(GenericResourceBenchmark)
