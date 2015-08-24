@@ -31,7 +31,7 @@ namespace HAWD
 
 static const QString s_annotationKey("__annotation__");
 static const QString s_hashKey("__commithash__");
-static const int s_fieldWidth(15);
+static const int s_fieldWidth(20);
 
 Dataset::Row::Row(const Row &other)
     : m_key(other.m_key),

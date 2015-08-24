@@ -48,7 +48,7 @@ void Formatter::print(Dataset &dataset, const QStringList &cols)
         [cols, &rows](const Dataset::Row &row) {
             rows.insert(row.key(), row.toString());
         });
-    for (const auto &s : rows.values().mid(rows.size() - 10)) {
+    for (const auto &s : rows.values().mid(rows.size() - 3)) {
         std::cout << s.toStdString() << std::endl;
     }
 }
