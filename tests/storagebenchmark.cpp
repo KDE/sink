@@ -5,8 +5,8 @@
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
 #include "common/storage.h"
+#include "common/log.h"
 
-#include <iostream>
 #include <fstream>
 
 #include <QDebug>
@@ -38,12 +38,6 @@ static QByteArray createEvent()
     return QByteArray::fromRawData(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
 
-// static void readEvent(const std::string &data)
-// {
-//     auto readEvent = GetEvent(data.c_str());
-//     std::cout << readEvent->summary()->c_str() << std::endl;
-// }
-
 class StorageBenchmark : public QObject
 {
     Q_OBJECT
@@ -57,6 +51,7 @@ private:
 private Q_SLOTS:
     void initTestCase()
     {
+        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Warning);
         testDataPath = "./testdb";
         dbName = "test";
         filePath = testDataPath + "buffer.fb";
@@ -68,79 +63,71 @@ private Q_SLOTS:
         store.removeFromDisk();
     }
 
-    void testWriteRead_data()
-    {
-        QTest::addColumn<bool>("useDb");
-        QTest::addColumn<int>("count");
-
-        QTest::newRow("db, 50k") << true << count;
-        QTest::newRow("file, 50k") << false << count;
-    }
-
     void testWriteRead()
     {
-        QFETCH(bool, useDb);
-        QFETCH(int, count);
+        auto event = createEvent();
 
-        QScopedPointer<Akonadi2::Storage> store;
-        if (useDb) {
-            store.reset(new Akonadi2::Storage(testDataPath, dbName, Akonadi2::Storage::ReadWrite));
-        }
+        QScopedPointer<Akonadi2::Storage> store(new Akonadi2::Storage(testDataPath, dbName, Akonadi2::Storage::ReadWrite));
 
-        std::ofstream myfile;
-        myfile.open(filePath.toStdString());
         const char *keyPrefix = "key";
 
         QTime time;
         time.start();
+        //Test db write time
         {
-            auto event = createEvent();
-            if (store) {
-                auto transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
-                for (int i = 0; i < count; i++) {
-                    transaction.openDatabase().write(keyPrefix + QByteArray::number(i), event);
-                    if ((i % 10000) == 0) {
-                        transaction.commit();
-                        transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
-                    }
+            auto transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
+            for (int i = 0; i < count; i++) {
+                transaction.openDatabase().write(keyPrefix + QByteArray::number(i), event);
+                if ((i % 10000) == 0) {
+                    transaction.commit();
+                    transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
                 }
-                transaction.commit();
-            } else {
-                for (int i = 0; i < count; i++) {
-                    myfile << event.toStdString();
-                }
-                myfile.close();
             }
+            transaction.commit();
         }
-        qreal writeDuration = time.restart();
-        qreal writeOpsPerMs = count / writeDuration;
-        qDebug() << "Writing took[ms]: " << writeDuration << "->" << writeOpsPerMs << "ops/ms";
+        qreal dbWriteDuration = time.restart();
+        qreal dbWriteOpsPerMs = count / dbWriteDuration;
 
+        //Test file write time
         {
-            if (store) {
-                auto transaction = store->createTransaction(Akonadi2::Storage::ReadOnly);
-                auto db = transaction.openDatabase();
-                for (int i = 0; i < count; i++) {
-                    db.scan(keyPrefix + QByteArray::number(i), [](const QByteArray &key, const QByteArray &value) -> bool { return true; });
-                }
+            std::ofstream myfile;
+            myfile.open(filePath.toStdString());
+            for (int i = 0; i < count; i++) {
+                myfile << event.toStdString();
+            }
+            myfile.close();
+        }
+        qreal fileWriteDuration = time.restart();
+        qreal fileWriteOpsPerMs = count / fileWriteDuration;
+
+        //Db read time
+        {
+            auto transaction = store->createTransaction(Akonadi2::Storage::ReadOnly);
+            auto db = transaction.openDatabase();
+            for (int i = 0; i < count; i++) {
+                db.scan(keyPrefix + QByteArray::number(i), [](const QByteArray &key, const QByteArray &value) -> bool { return true; });
             }
         }
         qreal readDuration = time.restart();
         qreal readOpsPerMs = count / readDuration;
 
-        if (store) {
-            HAWD::Dataset dataset("storage_readwrite", m_hawdState);
-            HAWD::Dataset::Row row = dataset.row();
-            row.setValue("rows", count);
-            row.setValue("write", writeDuration);
-            row.setValue("writeOps", writeOpsPerMs);
-            row.setValue("read", readOpsPerMs);
-            row.setValue("readOps", readOpsPerMs);
-            dataset.insertRow(row);
-            HAWD::Formatter::print(dataset);
-        } else {
-            qDebug() << "File reading is not implemented.";
-        }
+        HAWD::Dataset dataset("storage_readwrite", m_hawdState);
+        HAWD::Dataset::Row row = dataset.row();
+        row.setValue("rows", count);
+        row.setValue("dbWrite", dbWriteOpsPerMs);
+        row.setValue("fileWrite", fileWriteOpsPerMs);
+        row.setValue("dbRead", readOpsPerMs);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
+    }
+
+    void testSizes()
+    {
+        Akonadi2::Storage store(testDataPath, dbName);
+        qDebug() << "Database size [kb]: " << store.diskUsage()/1024;
+
+        QFileInfo fileInfo(filePath);
+        qDebug() << "File size [kb]: " << fileInfo.size()/1024;
     }
 
     void testScan()
@@ -193,15 +180,6 @@ private Q_SLOTS:
         row.setValue("ops", opsPerMs);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
-    }
-
-    void testSizes()
-    {
-        Akonadi2::Storage store(testDataPath, dbName);
-        qDebug() << "Database size [kb]: " << store.diskUsage()/1024;
-
-        QFileInfo fileInfo(filePath);
-        qDebug() << "File size [kb]: " << fileInfo.size()/1024;
     }
 
 
