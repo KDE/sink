@@ -3,9 +3,7 @@
     "description": "Measures performance of the GenericResource class with indexing",
     "columns": {
         "rows": { "type": "int" },
-        "append": { "type": "int", "unit": "ms", "min": 0, "max": 100 },
-        "appendOps": { "type": "float", "unit": "ops/ms" },
-        "total": { "type": "int", "unit": "ms", "min": 0, "max": 100 },
-        "totalOps": { "type": "float", "unit": "ops/ms" }
+        "append": { "type": "float", "unit": "ops/ms" },
+        "total": { "type": "float", "unit": "ops/ms" }
     }
 }

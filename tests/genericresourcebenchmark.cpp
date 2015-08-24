@@ -3,8 +3,6 @@
 #include <QString>
 
 #include "event_generated.h"
-#include "entity_generated.h"
-#include "metadata_generated.h"
 #include "createentity_generated.h"
 #include "commands.h"
 #include "entitybuffer.h"
@@ -13,7 +11,6 @@
 #include "definitions.h"
 #include "domainadaptor.h"
 #include "index.h"
-#include <iostream>
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
@@ -126,14 +123,15 @@ private Q_SLOTS:
 
         auto allProcessedTime = time.elapsed();
 
+        // Print memory layout, RSS is what is in memory
+        // std::system("exec pmap -x \"$PPID\"");
+
         HAWD::Dataset dataset("generic_write_in_process", m_hawdState);
         HAWD::Dataset::Row row = dataset.row();
 
         row.setValue("rows", num);
-        row.setValue("append", appendTime);
-        row.setValue("appendOps", (qreal)num/appendTime);
-        row.setValue("total", allProcessedTime);
-        row.setValue("totalOps", (qreal)num/allProcessedTime);
+        row.setValue("append", (qreal)num/appendTime);
+        row.setValue("total", (qreal)num/allProcessedTime);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
     }
@@ -178,14 +176,15 @@ private Q_SLOTS:
 
         auto allProcessedTime = time.elapsed();
 
+        // Print memory layout, RSS is what is in memory
+        // std::system("exec pmap -x \"$PPID\"");
+
         HAWD::Dataset dataset("generic_write_in_process_with_indexes", m_hawdState);
         HAWD::Dataset::Row row = dataset.row();
 
         row.setValue("rows", num);
-        row.setValue("append", appendTime);
-        row.setValue("appendOps", (qreal)num/appendTime);
-        row.setValue("total", allProcessedTime);
-        row.setValue("totalOps", (qreal)num/allProcessedTime);
+        row.setValue("append", (qreal)num/appendTime);
+        row.setValue("total", (qreal)num/allProcessedTime);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
     }
