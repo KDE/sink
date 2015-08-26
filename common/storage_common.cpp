@@ -54,21 +54,9 @@ std::function<void(const Storage::Error &error)> Storage::defaultErrorHandler() 
     return basicErrorHandler();
 }
 
-void Storage::setMaxRevision(qint64 revision)
-{
-    auto transaction = createTransaction(Akonadi2::Storage::ReadWrite);
-    setMaxRevision(transaction, revision);
-}
-
 void Storage::setMaxRevision(Akonadi2::Storage::Transaction &transaction, qint64 revision)
 {
     transaction.openDatabase().write("__internal_maxRevision", QByteArray::number(revision));
-}
-
-qint64 Storage::maxRevision()
-{
-    auto transaction = createTransaction(Akonadi2::Storage::ReadOnly);
-    return maxRevision(transaction);
 }
 
 qint64 Storage::maxRevision(const Akonadi2::Storage::Transaction &transaction)

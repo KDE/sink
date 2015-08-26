@@ -161,8 +161,6 @@ public:
     qint64 diskUsage() const;
     void removeFromDisk() const;
 
-    qint64 maxRevision();
-    void setMaxRevision(qint64 revision);
     static qint64 maxRevision(const Akonadi2::Storage::Transaction &);
     static void setMaxRevision(Akonadi2::Storage::Transaction &, qint64 revision);
 
