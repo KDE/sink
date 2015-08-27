@@ -1,5 +1,7 @@
 set(configplugin_SRCS
     configplugin.cpp
+    icalcalendarfile.cpp
+    imap.cpp
 )
 
 add_library(configplugin SHARED ${configplugin_SRCS})
