@@ -1,0 +1,4 @@
+[Desktop Entry]
+Name=ICal Calendar File Config
+Comment=UI for configuring ICal Calendar File resources for Akonadi
+X-KDE-PluginInfo-Name=org.kde.akonadi2.config.ical_calendar_file
