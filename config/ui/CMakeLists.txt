@@ -1,2 +1,3 @@
 find_package(KF5Package)
 kpackage_install_package(ical_calendar_file org.kde.akonadi2.ical_calendar_file akonadiConf)
+kpackage_install_package(imap_account org.kde.akonadi2.imap_account akonadiConf)
