@@ -2,6 +2,7 @@ set(mailplugin_SRCS
     mailplugin.cpp
     message.cpp
     composer.cpp
+    folderlistmodel.cpp
 )
 
 add_library(mailplugin SHARED ${mailplugin_SRCS})
