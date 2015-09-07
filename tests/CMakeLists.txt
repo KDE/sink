@@ -31,6 +31,7 @@ manual_tests (
     storagebenchmark
     dummyresourcebenchmark
     genericresourcebenchmark
+    genericfacadebenchmark
 )
 
 auto_tests (
