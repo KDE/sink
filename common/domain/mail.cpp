@@ -83,6 +83,9 @@ QSharedPointer<ReadPropertyMapper<TypeImplementation<Mail>::Buffer> > TypeImplem
     propertyMapper->addMapping("important", [](Buffer const *buffer) -> QVariant {
         return propertyToVariant<bool>(buffer->important());
     });
+    propertyMapper->addMapping("folder", [](Buffer const *buffer) -> QVariant {
+        return propertyToVariant<QString>(buffer->folder());
+    });
     return propertyMapper;
 }
 

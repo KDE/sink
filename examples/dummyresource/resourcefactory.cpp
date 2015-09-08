@@ -109,15 +109,19 @@ void DummyResource::createMail(const QByteArray &ridBuffer, const QByteArray &da
     //Map the source format to the buffer format (which happens to be an exact copy here)
     auto subject = m_fbb.CreateString(mailBuffer->subject()->c_str());
     auto rid = m_fbb.CreateString(std::string(ridBuffer.constData(), ridBuffer.size()));
-    // auto description = m_fbb.CreateString(std::string(ridBuffer.constData(), ridBuffer.size()));
-    // static uint8_t rawData[100];
-    // auto attachment = Akonadi2::EntityBuffer::appendAsVector(m_fbb, rawData, 100);
+    auto sender = m_fbb.CreateString(std::string("sender@example.org"));
+    auto senderName = m_fbb.CreateString(std::string("Sender Name"));
+    auto date = m_fbb.CreateString(std::string("2004"));
+    auto folder = m_fbb.CreateString(std::string("inbox"));
 
     auto builder = Akonadi2::ApplicationDomain::Buffer::MailBuilder(m_fbb);
     builder.add_subject(subject);
-    // builder.add(rid);
-    // builder.add_description(description);
-    // builder.add_attachment(attachment);
+    builder.add_sender(sender);
+    builder.add_senderName(senderName);
+    builder.add_unread(true);
+    builder.add_important(false);
+    builder.add_date(date);
+    builder.add_folder(folder);
     auto buffer = builder.Finish();
     Akonadi2::ApplicationDomain::Buffer::FinishMailBuffer(m_fbb, buffer);
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());

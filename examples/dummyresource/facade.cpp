@@ -38,3 +38,26 @@ DummyResourceMailFacade::DummyResourceMailFacade(const QByteArray &instanceIdent
 DummyResourceMailFacade::~DummyResourceMailFacade()
 {
 }
+
+static void addFolder(const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Folder::Ptr> > &resultProvider, QByteArray uid, QString name, QString icon)
+{
+    auto folder = Akonadi2::ApplicationDomain::Folder::Ptr::create();
+    folder->setProperty("name", name);
+    folder->setProperty("uid", uid);
+    resultProvider->add(folder);
+}
+
+KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Folder::Ptr> > &resultProvider)
+{
+    //Dummy implementation for a fixed set of folders
+    addFolder(resultProvider, "inbox", "INBOX", "mail-folder-inbox");
+    addFolder(resultProvider, "sent", "Sent", "mail-folder-sent");
+    addFolder(resultProvider, "trash", "Trash", "user-trash");
+    addFolder(resultProvider, "drafts", "Drafts", "document-edit");
+    addFolder(resultProvider, "1", "dragons", "folder");
+    addFolder(resultProvider, "1", "super mega long tailed dragons", "folder");
+    resultProvider->initialResultSetComplete();
+    resultProvider->complete();
+    return KAsync::null<void>();
+}
+

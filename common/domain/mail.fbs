@@ -2,6 +2,7 @@ namespace Akonadi2.ApplicationDomain.Buffer;
 
 table Mail {
   uid:string;
+  folder:string;
   sender:string;
   senderName:string;
   subject:string;
