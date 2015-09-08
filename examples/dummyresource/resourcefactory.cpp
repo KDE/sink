@@ -41,6 +41,13 @@
 #define ENTITY_TYPE_EVENT "event"
 #define ENTITY_TYPE_MAIL "mail"
 
+static void index(const QByteArray &index, const QVariant &value, const QByteArray &uid, Akonadi2::Storage::Transaction &transaction)
+{
+    if (value.isValid()) {
+        Index(index, transaction).add(value.toByteArray(), uid);
+    }
+}
+
 DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline)
     : Akonadi2::GenericResource(instanceIdentifier, pipeline)
 {
@@ -48,15 +55,9 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
     const auto resourceIdentifier = mResourceInstanceIdentifier;
 
     auto eventIndexer = new Akonadi2::SimpleProcessor("eventIndexer", [eventFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity, Akonadi2::Storage::Transaction &transaction) {
-        auto adaptor = eventFactory->createAdaptor(entity);
-        Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, adaptor);
+        Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, eventFactory->createAdaptor(entity));
         Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::index(event, transaction);
-
-        Index ridIndex("index.rid", transaction);
-        const auto rid = event.getProperty("remoteId");
-        if (rid.isValid()) {
-            ridIndex.add(rid.toByteArray(), event.identifier());
-        }
+        index("event.index.rid", event.getProperty("remoteId"), event.identifier(), transaction);
     });
 
     mPipeline->setPreprocessors(ENTITY_TYPE_EVENT, Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
@@ -66,15 +67,9 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
     {
         auto mailFactory = QSharedPointer<DummyMailAdaptorFactory>::create();
         auto mailIndexer = new Akonadi2::SimpleProcessor("mailIndexer", [mailFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity, Akonadi2::Storage::Transaction &transaction) {
-            auto adaptor = mailFactory->createAdaptor(entity);
-            Akonadi2::ApplicationDomain::Mail mail(resourceIdentifier, state.key(), -1, adaptor);
+            Akonadi2::ApplicationDomain::Mail mail(resourceIdentifier, state.key(), -1, mailFactory->createAdaptor(entity));
             Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Mail>::index(mail, transaction);
-
-            Index ridIndex("mail.index.rid", transaction);
-            const auto rid = mail.getProperty("remoteId");
-            if (rid.isValid()) {
-                ridIndex.add(rid.toByteArray(), mail.identifier());
-            }
+            index("mail.index.rid", mail.getProperty("remoteId"), mail.identifier(), transaction);
         });
 
         mPipeline->setPreprocessors(ENTITY_TYPE_MAIL, Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << mailIndexer);
