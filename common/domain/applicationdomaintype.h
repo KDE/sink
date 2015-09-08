@@ -112,10 +112,14 @@ struct Calendar : public ApplicationDomainType {
     using ApplicationDomainType::ApplicationDomainType;
 };
 
-class Mail : public ApplicationDomainType {
+struct Mail : public ApplicationDomainType {
+    typedef QSharedPointer<Mail> Ptr;
+    using ApplicationDomainType::ApplicationDomainType;
 };
 
-class Folder : public ApplicationDomainType {
+struct Folder : public ApplicationDomainType {
+    typedef QSharedPointer<Folder> Ptr;
+    using ApplicationDomainType::ApplicationDomainType;
 };
 
 /**
@@ -145,6 +149,12 @@ QByteArray getTypeName<Todo>();
 
 template<>
 QByteArray getTypeName<AkonadiResource>();
+
+template<>
+QByteArray getTypeName<Mail>();
+
+template<>
+QByteArray getTypeName<Folder>();
 
 /**
  * Type implementation.

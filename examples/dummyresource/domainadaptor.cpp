@@ -45,3 +45,9 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
     });
 }
 
+DummyMailAdaptorFactory::DummyMailAdaptorFactory()
+    : DomainTypeAdaptorFactory()
+{
+
+}
+

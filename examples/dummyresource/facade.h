@@ -28,3 +28,10 @@ public:
     DummyResourceFacade(const QByteArray &instanceIdentifier);
     virtual ~DummyResourceFacade();
 };
+
+class DummyResourceMailFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Mail>
+{
+public:
+    DummyResourceMailFacade(const QByteArray &instanceIdentifier);
+    virtual ~DummyResourceMailFacade();
+};

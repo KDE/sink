@@ -29,6 +29,6 @@ public:
         return instance;
     }
 
-    QMap<QString, QString> data() const;
-
+    QMap<QString, QString> events() const;
+    QMap<QString, QString> mails() const;
 };

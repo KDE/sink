@@ -21,6 +21,7 @@
 #include <QString>
 
 #include "dummycalendar_generated.h"
+#include "mail_generated.h"
 
 static std::string createEvent(int i)
 {
@@ -43,6 +44,20 @@ static std::string createEvent(int i)
     return std::string(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
 
+static std::string createMail(int i)
+{
+    static flatbuffers::FlatBufferBuilder fbb;
+    fbb.Clear();
+    {
+        auto subject = fbb.CreateString("summary" + std::to_string(i));
+        Akonadi2::ApplicationDomain::Buffer::MailBuilder mailBuilder(fbb);
+        mailBuilder.add_subject(subject);
+        Akonadi2::ApplicationDomain::Buffer::FinishMailBuffer(fbb, mailBuilder.Finish());
+    }
+
+    return std::string(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
+}
+
 QMap<QString, QString> populate()
 {
     QMap<QString, QString> content;
@@ -53,10 +68,24 @@ QMap<QString, QString> populate()
     return content;
 }
 
+QMap<QString, QString> populateMails()
+{
+    QMap<QString, QString> content;
+    for (int i = 0; i < 2; i++) {
+        content.insert(QString("key%1").arg(i), QString::fromStdString(createMail(i)));
+    }
+    return content;
+}
+
 static QMap<QString, QString> s_dataSource = populate();
+static QMap<QString, QString> s_mailSource = populateMails();
 
-
-QMap<QString, QString> DummyStore::data() const
+QMap<QString, QString> DummyStore::events() const
 {
     return s_dataSource;
+}
+
+QMap<QString, QString> DummyStore::mails() const
+{
+    return s_mailSource;
 }

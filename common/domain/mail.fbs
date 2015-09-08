@@ -1,0 +1,14 @@
+namespace Akonadi2.ApplicationDomain.Buffer;
+
+table Mail {
+  uid:string;
+  sender:string;
+  senderName:string;
+  subject:string;
+  date:string;
+  unread:bool = false;
+  important:bool = false;
+}
+
+root_type Mail;
+file_identifier "AKFB";

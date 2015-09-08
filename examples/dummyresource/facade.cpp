@@ -30,3 +30,11 @@ DummyResourceFacade::~DummyResourceFacade()
 {
 }
 
+DummyResourceMailFacade::DummyResourceMailFacade(const QByteArray &instanceIdentifier)
+    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<DummyMailAdaptorFactory>::create())
+{
+}
+
+DummyResourceMailFacade::~DummyResourceMailFacade()
+{
+}

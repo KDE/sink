@@ -19,9 +19,9 @@
 
 #include "entitystorage.h"
 
-static void scan(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, std::function<bool(const QByteArray &key, const Akonadi2::Entity &entity)> callback)
+static void scan(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, std::function<bool(const QByteArray &key, const Akonadi2::Entity &entity)> callback, const QByteArray &bufferType)
 {
-    transaction.openDatabase().scan(key, [=](const QByteArray &key, const QByteArray &value) -> bool {
+    transaction.openDatabase(bufferType + ".main").scan(key, [=](const QByteArray &key, const QByteArray &value) -> bool {
         //Skip internals
         if (Akonadi2::Storage::isInternalKey(key)) {
             return true;
@@ -58,17 +58,17 @@ void EntityStorageBase::readValue(const Akonadi2::Storage::Transaction &transact
         auto domainObject = create(key, revision, mDomainTypeAdaptorFactory->createAdaptor(entity));
         resultCallback(domainObject);
         return true;
-    });
+    }, mBufferType);
 }
 
-static ResultSet fullScan(const Akonadi2::Storage::Transaction &transaction)
+static ResultSet fullScan(const Akonadi2::Storage::Transaction &transaction, const QByteArray &bufferType)
 {
     //TODO use a result set with an iterator, to read values on demand
     QVector<QByteArray> keys;
     scan(transaction, QByteArray(), [=, &keys](const QByteArray &key, const Akonadi2::Entity &) {
         keys << key;
         return true;
-    });
+    }, bufferType);
     Trace() << "Full scan found " << keys.size() << " results";
     return ResultSet(keys);
 }
@@ -99,7 +99,7 @@ ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, Akonadi2
 
     //We do a full scan if there were no indexes available to create the initial set.
     if (appliedFilters.isEmpty()) {
-        resultSet = fullScan(transaction);
+        resultSet = fullScan(transaction, mBufferType);
     }
 
     auto filter = [remainingFilters, query, baseRevision, topRevision](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {

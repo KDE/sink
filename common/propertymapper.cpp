@@ -38,3 +38,9 @@ QVariant propertyToVariant<QString>(const flatbuffers::String *property)
     return QVariant();
 }
 
+template <>
+QVariant propertyToVariant<bool>(uint8_t property)
+{
+    return static_cast<bool>(property);
+}
+

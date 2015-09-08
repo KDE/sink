@@ -109,7 +109,7 @@ public:
     GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr(), const QSharedPointer<EntityStorage<DomainType> > storage = QSharedPointer<EntityStorage<DomainType> >(), const QSharedPointer<Akonadi2::ResourceAccessInterface> resourceAccess = QSharedPointer<Akonadi2::ResourceAccessInterface>())
         : Akonadi2::StoreFacade<DomainType>(),
         mResourceAccess(resourceAccess),
-        mStorage(storage ? storage : QSharedPointer<EntityStorage<DomainType> >::create(resourceIdentifier, adaptorFactory)),
+        mStorage(storage ? storage : QSharedPointer<EntityStorage<DomainType> >::create(resourceIdentifier, adaptorFactory, bufferTypeForDomainType())),
         mDomainTypeAdaptorFactory(adaptorFactory),
         mResourceInstanceIdentifier(resourceIdentifier)
     {

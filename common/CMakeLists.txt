@@ -34,6 +34,7 @@ set(command_SRCS
     resourceconfig.cpp
     domain/applicationdomaintype.cpp
     domain/event.cpp
+    domain/mail.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})
@@ -51,6 +52,7 @@ generate_flatbuffers(
     commands/synchronize
     commands/notification
     domain/event
+    domain/mail
     entity
     metadata
     queuedcommand

@@ -52,6 +52,7 @@ protected:
 
 protected:
     QByteArray mResourceInstanceIdentifier;
+    QByteArray mBufferType;
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
 };
 
@@ -60,10 +61,10 @@ class EntityStorage : public EntityStorageBase
 {
 
 public:
-    EntityStorage(const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory)
+    EntityStorage(const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory, const QByteArray &bufferType)
         : EntityStorageBase(instanceIdentifier, adaptorFactory)
     {
-
+        mBufferType = bufferType;
     }
 
 protected:
@@ -84,7 +85,7 @@ protected:
 
 public:
 
-    virtual void read(const Akonadi2::Query &query, const QPair<qint64, qint64> &revisionRange, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider) 
+    virtual void read(const Akonadi2::Query &query, const QPair<qint64, qint64> &revisionRange, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider)
     {
         Akonadi2::Storage storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier);
         storage.setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {

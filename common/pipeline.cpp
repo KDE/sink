@@ -143,7 +143,7 @@ KAsync::Job<void> Pipeline::newEntity(void const *command, size_t size)
     auto createEntity = Akonadi2::Commands::GetCreateEntity(command);
 
     //TODO rename createEntitiy->domainType to bufferType
-    const QString entityType = QString::fromUtf8(reinterpret_cast<char const*>(createEntity->domainType()->Data()), createEntity->domainType()->size());
+    const QByteArray bufferType = QByteArray(reinterpret_cast<char const*>(createEntity->domainType()->Data()), createEntity->domainType()->size());
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(createEntity->delta()->Data()), createEntity->delta()->size());
         if (!Akonadi2::VerifyEntityBuffer(verifyer)) {
@@ -152,6 +152,10 @@ KAsync::Job<void> Pipeline::newEntity(void const *command, size_t size)
         }
     }
     auto entity = Akonadi2::GetEntity(createEntity->delta()->Data());
+    if (!entity->resource()->size() && !entity->local()->size()) {
+        Warning() << "No local and no resource buffer while trying to create entity.";
+        return KAsync::error<void>();
+    }
 
     //Add metadata buffer
     flatbuffers::FlatBufferBuilder metadataFbb;
@@ -165,14 +169,14 @@ KAsync::Job<void> Pipeline::newEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), entity->resource()->Data(), entity->resource()->size(), entity->local()->Data(), entity->local()->size());
 
-    d->transaction.openDatabase().write(key, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+    d->transaction.openDatabase(bufferType + ".main").write(key, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
     Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
-    Log() << "Pipeline: wrote entity: " << key << newRevision;
+    Log() << "Pipeline: wrote entity: " << key << newRevision << bufferType;
 
-    return KAsync::start<void>([this, key, entityType, newRevision](KAsync::Future<void> &future) {
-        PipelineState state(this, NewPipeline, key, d->newPipeline[entityType], newRevision, [&future]() {
+    return KAsync::start<void>([this, key, bufferType, newRevision](KAsync::Future<void> &future) {
+        PipelineState state(this, NewPipeline, key, d->newPipeline[bufferType], newRevision, [&future]() {
             future.setFinished();
-        });
+        }, bufferType);
         d->activePipelines << state;
         state.step();
     });
@@ -195,10 +199,10 @@ KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
     Q_ASSERT(modifyEntity);
 
     //TODO rename modifyEntity->domainType to bufferType
-    const QByteArray entityType = QByteArray(reinterpret_cast<char const*>(modifyEntity->domainType()->Data()), modifyEntity->domainType()->size());
+    const QByteArray bufferType = QByteArray(reinterpret_cast<char const*>(modifyEntity->domainType()->Data()), modifyEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const*>(modifyEntity->entityId()->Data()), modifyEntity->entityId()->size());
-    if (entityType.isEmpty() || key.isEmpty()) {
-        Warning() << "entity type or key " << entityType << key;
+    if (bufferType.isEmpty() || key.isEmpty()) {
+        Warning() << "entity type or key " << bufferType << key;
         return KAsync::error<void>();
     }
     {
@@ -209,9 +213,9 @@ KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
         }
     }
 
-    auto adaptorFactory = d->adaptorFactory.value(entityType);
+    auto adaptorFactory = d->adaptorFactory.value(bufferType);
     if (!adaptorFactory) {
-        Warning() << "no adaptor factory for type " << entityType;
+        Warning() << "no adaptor factory for type " << bufferType;
         return KAsync::error<void>();
     }
 
@@ -220,7 +224,7 @@ KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
     auto diff = adaptorFactory->createAdaptor(*diffEntity);
 
     QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> current;
-    storage().createTransaction(Akonadi2::Storage::ReadOnly).openDatabase().scan(key, [&current, adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
+    storage().createTransaction(Akonadi2::Storage::ReadOnly).openDatabase(bufferType + ".main").scan(key, [&current, adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
         Akonadi2::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         if (!buffer.isValid()) {
             Warning() << "Read invalid buffer from disk";
@@ -228,6 +232,9 @@ KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
             current = adaptorFactory->createAdaptor(buffer.entity());
         }
         return false;
+    },
+    [](const Storage::Error &error) {
+        Warning() << "Failed to read value from storage: " << error.message;
     });
     //TODO error handler
 
@@ -265,13 +272,13 @@ KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
     adaptorFactory->createBuffer(*newObject, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
     //TODO don't overwrite the old entry, but instead store a new revision
-    d->transaction.openDatabase().write(key, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+    d->transaction.openDatabase(bufferType + ".main").write(key, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
     Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
 
-    return KAsync::start<void>([this, key, entityType, newRevision](KAsync::Future<void> &future) {
-        PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline[entityType], newRevision, [&future]() {
+    return KAsync::start<void>([this, key, bufferType, newRevision](KAsync::Future<void> &future) {
+        PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline[bufferType], newRevision, [&future]() {
             future.setFinished();
-        });
+        }, bufferType);
         d->activePipelines << state;
         state.step();
     });
@@ -292,18 +299,18 @@ KAsync::Job<void> Pipeline::deletedEntity(void const *command, size_t size)
     }
     auto deleteEntity = Akonadi2::Commands::GetDeleteEntity(command);
 
-    const QByteArray entityType = QByteArray(reinterpret_cast<char const*>(deleteEntity->domainType()->Data()), deleteEntity->domainType()->size());
+    const QByteArray bufferType = QByteArray(reinterpret_cast<char const*>(deleteEntity->domainType()->Data()), deleteEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const*>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
 
     //TODO instead of deleting the entry, a new revision should be created that marks the entity as deleted
-    d->transaction.openDatabase().remove(key);
+    d->transaction.openDatabase(bufferType + ".main").remove(key);
     Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
     Log() << "Pipeline: deleted entity: "<< newRevision;
 
-    return KAsync::start<void>([this, key, entityType, newRevision](KAsync::Future<void> &future) {
-        PipelineState state(this, DeletedPipeline, key, d->deletedPipeline[entityType], newRevision, [&future](){
+    return KAsync::start<void>([this, key, bufferType, newRevision](KAsync::Future<void> &future) {
+        PipelineState state(this, DeletedPipeline, key, d->deletedPipeline[bufferType], newRevision, [&future](){
             future.setFinished();
-        });
+        }, bufferType);
         d->activePipelines << state;
         state.step();
     });
@@ -354,14 +361,15 @@ void Pipeline::pipelineCompleted(PipelineState state)
 class PipelineState::Private : public QSharedData
 {
 public:
-    Private(Pipeline *p, Pipeline::Type t, const QByteArray &k, QVector<Preprocessor *> filters, const std::function<void()> &c, qint64 r)
+    Private(Pipeline *p, Pipeline::Type t, const QByteArray &k, QVector<Preprocessor *> filters, const std::function<void()> &c, qint64 r, const QByteArray &b)
         : pipeline(p),
           type(t),
           key(k),
           filterIt(filters),
           idle(true),
           callback(c),
-          revision(r)
+          revision(r),
+          bufferType(b)
     {}
 
     Private()
@@ -378,6 +386,7 @@ public:
     bool idle;
     std::function<void()> callback;
     qint64 revision;
+    QByteArray bufferType;
 };
 
 PipelineState::PipelineState()
@@ -386,8 +395,8 @@ PipelineState::PipelineState()
 
 }
 
-PipelineState::PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters, qint64 revision, const std::function<void()> &callback)
-    : d(new Private(pipeline, type, key, filters, callback, revision))
+PipelineState::PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters, qint64 revision, const std::function<void()> &callback, const QByteArray &bufferType)
+    : d(new Private(pipeline, type, key, filters, callback, revision, bufferType))
 {
 }
 
@@ -429,6 +438,11 @@ Pipeline::Type PipelineState::type() const
 qint64 PipelineState::revision() const
 {
     return d->revision;
+}
+
+QByteArray PipelineState::bufferType() const
+{
+    return d->bufferType;
 }
 
 void PipelineState::step()

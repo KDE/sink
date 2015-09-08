@@ -40,6 +40,18 @@ QByteArray getTypeName<AkonadiResource>()
     return "akonadiresource";
 }
 
+template<>
+QByteArray getTypeName<Mail>()
+{
+    return "mail";
+}
+
+template<>
+QByteArray getTypeName<Folder>()
+{
+    return "folder";
+}
+
 }
 }
 

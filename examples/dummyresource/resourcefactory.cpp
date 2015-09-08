@@ -23,6 +23,7 @@
 #include "entitybuffer.h"
 #include "pipeline.h"
 #include "dummycalendar_generated.h"
+#include "mail_generated.h"
 #include "queuedcommand_generated.h"
 #include "createentity_generated.h"
 #include "domainadaptor.h"
@@ -30,21 +31,23 @@
 #include "index.h"
 #include "log.h"
 #include "domain/event.h"
+#include "domain/mail.h"
 #include "dummystore.h"
 #include "definitions.h"
 #include "facadefactory.h"
 
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_EVENT "event"
+#define ENTITY_TYPE_MAIL "mail"
 
 DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline)
     : Akonadi2::GenericResource(instanceIdentifier, pipeline)
 {
     auto eventFactory = QSharedPointer<DummyEventAdaptorFactory>::create();
     const auto resourceIdentifier = mResourceInstanceIdentifier;
+
     auto eventIndexer = new Akonadi2::SimpleProcessor("eventIndexer", [eventFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity, Akonadi2::Storage::Transaction &transaction) {
         auto adaptor = eventFactory->createAdaptor(entity);
-        //FIXME set revision?
         Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, adaptor);
         Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::index(event, transaction);
 
@@ -58,15 +61,75 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
     mPipeline->setPreprocessors(ENTITY_TYPE_EVENT, Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
     mPipeline->setAdaptorFactory(ENTITY_TYPE_EVENT, eventFactory);
     //TODO cleanup indexes during removal
+
+    {
+        auto mailFactory = QSharedPointer<DummyMailAdaptorFactory>::create();
+        auto mailIndexer = new Akonadi2::SimpleProcessor("mailIndexer", [mailFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity, Akonadi2::Storage::Transaction &transaction) {
+            auto adaptor = mailFactory->createAdaptor(entity);
+            Akonadi2::ApplicationDomain::Mail mail(resourceIdentifier, state.key(), -1, adaptor);
+            Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Mail>::index(mail, transaction);
+
+            Index ridIndex("mail.index.rid", transaction);
+            const auto rid = mail.getProperty("remoteId");
+            if (rid.isValid()) {
+                ridIndex.add(rid.toByteArray(), mail.identifier());
+            }
+        });
+
+        mPipeline->setPreprocessors(ENTITY_TYPE_MAIL, Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << mailIndexer);
+        mPipeline->setAdaptorFactory(ENTITY_TYPE_MAIL, mailFactory);
+    }
+}
+
+void DummyResource::createEvent(const QByteArray &ridBuffer, const QByteArray &data, flatbuffers::FlatBufferBuilder &entityFbb)
+{
+    auto eventBuffer = DummyCalendar::GetDummyEvent(data.data());
+
+    //Map the source format to the buffer format (which happens to be an exact copy here)
+    auto summary = m_fbb.CreateString(eventBuffer->summary()->c_str());
+    auto rid = m_fbb.CreateString(std::string(ridBuffer.constData(), ridBuffer.size()));
+    auto description = m_fbb.CreateString(std::string(ridBuffer.constData(), ridBuffer.size()));
+    static uint8_t rawData[100];
+    auto attachment = Akonadi2::EntityBuffer::appendAsVector(m_fbb, rawData, 100);
+
+    auto builder = DummyCalendar::DummyEventBuilder(m_fbb);
+    builder.add_summary(summary);
+    builder.add_remoteId(rid);
+    builder.add_description(description);
+    builder.add_attachment(attachment);
+    auto buffer = builder.Finish();
+    DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
+    Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize(), 0, 0);
+}
+
+void DummyResource::createMail(const QByteArray &ridBuffer, const QByteArray &data, flatbuffers::FlatBufferBuilder &entityFbb)
+{
+    auto mailBuffer = Akonadi2::ApplicationDomain::Buffer::GetMail(data.data());
+
+    //Map the source format to the buffer format (which happens to be an exact copy here)
+    auto subject = m_fbb.CreateString(mailBuffer->subject()->c_str());
+    auto rid = m_fbb.CreateString(std::string(ridBuffer.constData(), ridBuffer.size()));
+    // auto description = m_fbb.CreateString(std::string(ridBuffer.constData(), ridBuffer.size()));
+    // static uint8_t rawData[100];
+    // auto attachment = Akonadi2::EntityBuffer::appendAsVector(m_fbb, rawData, 100);
+
+    auto builder = Akonadi2::ApplicationDomain::Buffer::MailBuilder(m_fbb);
+    builder.add_subject(subject);
+    // builder.add(rid);
+    // builder.add_description(description);
+    // builder.add_attachment(attachment);
+    auto buffer = builder.Finish();
+    Akonadi2::ApplicationDomain::Buffer::FinishMailBuffer(m_fbb, buffer);
+    Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
 }
 
 KAsync::Job<void> DummyResource::synchronizeWithSource()
 {
     return KAsync::start<void>([this](KAsync::Future<void> &f) {
-        auto transaction = Akonadi2::Storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".index.uid", Akonadi2::Storage::ReadOnly).createTransaction(Akonadi2::Storage::ReadOnly);
+        auto transaction = Akonadi2::Storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier, Akonadi2::Storage::ReadOnly).createTransaction(Akonadi2::Storage::ReadOnly);
         Index uidIndex("index.uid", transaction);
 
-        const auto data = DummyStore::instance().data();
+        const auto data = DummyStore::instance().events();
         for (auto it = data.constBegin(); it != data.constEnd(); it++) {
             bool isNew = true;
             uidIndex.lookup(it.key().toLatin1(), [&](const QByteArray &value) {
@@ -80,25 +143,8 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
             if (isNew) {
                 m_fbb.Clear();
 
-                const QByteArray data = it.value().toUtf8();
-                auto eventBuffer = DummyCalendar::GetDummyEvent(data.data());
-
-                //Map the source format to the buffer format (which happens to be an exact copy here)
-                auto summary = m_fbb.CreateString(eventBuffer->summary()->c_str());
-                auto rid = m_fbb.CreateString(it.key().toStdString().c_str());
-                auto description = m_fbb.CreateString(it.key().toStdString().c_str());
-                static uint8_t rawData[100];
-                auto attachment = Akonadi2::EntityBuffer::appendAsVector(m_fbb, rawData, 100);
-
-                auto builder = DummyCalendar::DummyEventBuilder(m_fbb);
-                builder.add_summary(summary);
-                builder.add_remoteId(rid);
-                builder.add_description(description);
-                builder.add_attachment(attachment);
-                auto buffer = builder.Finish();
-                DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
                 flatbuffers::FlatBufferBuilder entityFbb;
-                Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize(), 0, 0);
+                createEvent(it.key().toUtf8(), it.value().toUtf8(), entityFbb);
 
                 flatbuffers::FlatBufferBuilder fbb;
                 //This is the resource type and not the domain type
@@ -113,6 +159,43 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
             }
         }
         //TODO find items to remove
+ 
+        const auto mails = DummyStore::instance().mails();
+        for (auto it = mails.constBegin(); it != mails.constEnd(); it++) {
+            bool isNew = true;
+            uidIndex.lookup(it.key().toLatin1(), [&](const QByteArray &value) {
+                isNew = false;
+            },
+            [](const Index::Error &error) {
+                if (error.code != Index::IndexNotAvailable) {
+                    Warning() << "Error in uid index: " <<  error.message;
+                }
+            });
+            if (isNew) {
+                m_fbb.Clear();
+
+                flatbuffers::FlatBufferBuilder entityFbb;
+                createMail(it.key().toUtf8(), it.value().toUtf8(), entityFbb);
+
+                flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(entityFbb.GetBufferPointer()), entityFbb.GetSize());
+                if (!Akonadi2::ApplicationDomain::Buffer::VerifyMailBuffer(verifyer)) {
+                    Warning() << "invalid buffer, not a mail buffer";
+                }
+
+                flatbuffers::FlatBufferBuilder fbb;
+                //This is the resource type and not the domain type
+                auto type = fbb.CreateString(ENTITY_TYPE_MAIL);
+                auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
+                auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
+                Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+
+                enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+            } else { //modification
+                //TODO diff and create modification if necessary
+            }
+        }
+        //TODO find items to remove
+
         f.setFinished();
     });
 }
@@ -132,6 +215,7 @@ Akonadi2::Resource *DummyResourceFactory::createResource(const QByteArray &insta
 void DummyResourceFactory::registerFacades(Akonadi2::FacadeFactory &factory)
 {
     factory.registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>(PLUGIN_NAME);
+    factory.registerFacade<Akonadi2::ApplicationDomain::Mail, DummyResourceMailFacade>(PLUGIN_NAME);
 }
 
 #include "resourcefactory.moc"

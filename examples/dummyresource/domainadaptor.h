@@ -20,6 +20,7 @@
 
 #include "common/domainadaptor.h"
 #include "event_generated.h"
+#include "mail_generated.h"
 #include "dummycalendar_generated.h"
 #include "entity_generated.h"
 
@@ -28,4 +29,12 @@ class DummyEventAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::Appli
 public:
     DummyEventAdaptorFactory();
     virtual ~DummyEventAdaptorFactory() {};
+};
+
+//TODO replace the resource specific event class by a mail class or a dummy class if no resource type is required.
+class DummyMailAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Mail, DummyCalendar::DummyEvent, DummyCalendar::DummyEventBuilder>
+{
+public:
+    DummyMailAdaptorFactory();
+    virtual ~DummyMailAdaptorFactory() {};
 };

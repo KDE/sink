@@ -85,7 +85,7 @@ class AKONADI2COMMON_EXPORT PipelineState
 {
 public:
     PipelineState();
-    PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters, qint64 revision, const std::function<void()> &callback);
+    PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters, qint64 revision, const std::function<void()> &callback, const QByteArray &bufferType);
     PipelineState(const PipelineState &other);
     ~PipelineState();
 
@@ -96,7 +96,7 @@ public:
     QByteArray key() const;
     Pipeline::Type type() const;
     qint64 revision() const;
-    //TODO expose command
+    QByteArray bufferType() const;
 
     void step();
     void processingCompleted(Preprocessor *filter);
@@ -114,7 +114,6 @@ public:
     Preprocessor();
     virtual ~Preprocessor();
 
-    //TODO pass actual command as well, for changerecording
     virtual void process(const PipelineState &state, Akonadi2::Storage::Transaction &transaction);
     //TODO to record progress
     virtual QString id() const;
@@ -142,7 +141,7 @@ public:
 
     void process(const PipelineState &state, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        transaction.openDatabase().scan(state.key(), [this, &state, &transaction](const QByteArray &key, const QByteArray &value) -> bool {
+        transaction.openDatabase(state.bufferType() + ".main").scan(state.key(), [this, &state, &transaction](const QByteArray &key, const QByteArray &value) -> bool {
             auto entity = Akonadi2::GetEntity(value);
             mFunction(state, *entity, transaction);
             processingCompleted(state);

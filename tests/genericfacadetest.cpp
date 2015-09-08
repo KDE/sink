@@ -74,7 +74,7 @@ private Q_SLOTS:
         query.liveQuery = false;
 
         auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
-        auto storage = QSharedPointer<TestEntityStorage>::create("identifier", QSharedPointer<TestEventAdaptorFactory>::create());
+        auto storage = QSharedPointer<TestEntityStorage>::create("identifier", QSharedPointer<TestEventAdaptorFactory>::create(), "bufferType");
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         storage->mResults << Akonadi2::ApplicationDomain::Event::Ptr::create();
         TestResourceFacade facade("identifier", storage, resourceAccess);
@@ -96,7 +96,7 @@ private Q_SLOTS:
         query.liveQuery = true;
 
         auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
-        auto storage = QSharedPointer<TestEntityStorage>::create("identifier", QSharedPointer<TestEventAdaptorFactory>::create());
+        auto storage = QSharedPointer<TestEntityStorage>::create("identifier", QSharedPointer<TestEventAdaptorFactory>::create(), "bufferType");
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         storage->mResults << Akonadi2::ApplicationDomain::Event::Ptr::create();
         TestResourceFacade facade("identifier", storage, resourceAccess);

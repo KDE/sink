@@ -164,6 +164,21 @@ private Q_SLOTS:
         qDebug() << value->getProperty("summary").toString();
     }
 
+    void testSyncAndFacadeMail()
+    {
+        Akonadi2::Query query;
+        query.resources << "org.kde.dummy.instance1";
+        query.syncOnDemand = true;
+        query.processAll = true;
+
+        async::SyncListResult<Akonadi2::ApplicationDomain::Mail::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Mail>(query));
+        result.exec();
+        QVERIFY(!result.isEmpty());
+        auto value = result.first();
+        QVERIFY(!value->getProperty("subject").toString().isEmpty());
+        qDebug() << value->getProperty("subject").toString();
+    }
+
     void testWriteModifyDelete()
     {
         Akonadi2::ApplicationDomain::Event event;

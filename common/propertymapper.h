@@ -35,6 +35,8 @@ flatbuffers::uoffset_t variantToProperty(const QVariant &, flatbuffers::FlatBuff
  */
 template <typename T>
 QVariant propertyToVariant(const flatbuffers::String *);
+template <typename T>
+QVariant propertyToVariant(uint8_t);
 
 
 /**
