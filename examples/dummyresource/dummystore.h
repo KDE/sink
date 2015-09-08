@@ -18,6 +18,7 @@
  */
 #pragma once
 #include <QMap>
+#include <QVariant>
 
 class DummyStore
 {
@@ -29,6 +30,6 @@ public:
         return instance;
     }
 
-    QMap<QString, QString> events() const;
-    QMap<QString, QString> mails() const;
+    QMap<QString, QMap<QString, QVariant> > events() const;
+    QMap<QString, QMap<QString, QVariant> > mails() const;
 };

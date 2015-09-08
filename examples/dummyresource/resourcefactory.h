@@ -35,8 +35,8 @@ public:
     DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline = QSharedPointer<Akonadi2::Pipeline>());
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE;
 private:
-    void createEvent(const QByteArray &rid, const QByteArray &data, flatbuffers::FlatBufferBuilder &entityFbb);
-    void createMail(const QByteArray &rid, const QByteArray &data, flatbuffers::FlatBufferBuilder &entityFbb);
+    void createEvent(const QByteArray &rid, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb);
+    void createMail(const QByteArray &rid, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb);
 };
 
 class DummyResourceFactory : public Akonadi2::ResourceFactory

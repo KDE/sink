@@ -20,72 +20,49 @@
 
 #include <QString>
 
-#include "dummycalendar_generated.h"
-#include "mail_generated.h"
-
-static std::string createEvent(int i)
+static QMap<QString, QVariant> createEvent(int i)
 {
+    QMap<QString, QVariant> event;
+    event.insert("summary", QString("summary%1").arg(i));
     static const size_t attachmentSize = 1024*2; // 2KB
-    static uint8_t rawData[attachmentSize];
-    static flatbuffers::FlatBufferBuilder fbb;
-    fbb.Clear();
-    {
-        uint8_t *rawDataPtr = nullptr;
-        auto summary = fbb.CreateString("summary" + std::to_string(i));
-        auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize, &rawDataPtr);
-        DummyCalendar::DummyEventBuilder eventBuilder(fbb);
-        eventBuilder.add_summary(summary);
-        eventBuilder.add_attachment(data);
-        auto eventLocation = eventBuilder.Finish();
-        DummyCalendar::FinishDummyEventBuffer(fbb, eventLocation);
-        memcpy((void*)rawDataPtr, rawData, attachmentSize);
-    }
-
-    return std::string(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
+    event.insert("attachment", QByteArray(attachmentSize, 'c'));
+    return event;
 }
 
-static std::string createMail(int i)
+static QMap<QString, QVariant> createMail(int i)
 {
-    static flatbuffers::FlatBufferBuilder fbb;
-    fbb.Clear();
-    {
-        auto subject = fbb.CreateString("summary" + std::to_string(i));
-        Akonadi2::ApplicationDomain::Buffer::MailBuilder mailBuilder(fbb);
-        mailBuilder.add_subject(subject);
-        Akonadi2::ApplicationDomain::Buffer::FinishMailBuffer(fbb, mailBuilder.Finish());
-    }
-
-    return std::string(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
+    QMap<QString, QVariant> mail;
+    mail.insert("subject", QString("subject%1").arg(i));
+    return mail;
 }
 
-QMap<QString, QString> populate()
+QMap<QString, QMap<QString, QVariant> > populateEvents()
 {
-    QMap<QString, QString> content;
+    QMap<QString, QMap<QString, QVariant>> content;
     for (int i = 0; i < 2; i++) {
-        auto event = createEvent(i);
-        content.insert(QString("key%1").arg(i), QString::fromStdString(event));
+        content.insert(QString("key%1").arg(i), createEvent(i));
     }
     return content;
 }
 
-QMap<QString, QString> populateMails()
+QMap<QString, QMap<QString, QVariant> > populateMails()
 {
-    QMap<QString, QString> content;
+    QMap<QString, QMap<QString, QVariant>> content;
     for (int i = 0; i < 2; i++) {
-        content.insert(QString("key%1").arg(i), QString::fromStdString(createMail(i)));
+        content.insert(QString("key%1").arg(i), createMail(i));
     }
     return content;
 }
 
-static QMap<QString, QString> s_dataSource = populate();
-static QMap<QString, QString> s_mailSource = populateMails();
+static QMap<QString, QMap<QString, QVariant> > s_eventSource = populateEvents();
+static QMap<QString, QMap<QString, QVariant> > s_mailSource = populateMails();
 
-QMap<QString, QString> DummyStore::events() const
+QMap<QString, QMap<QString, QVariant> > DummyStore::events() const
 {
-    return s_dataSource;
+    return s_eventSource;
 }
 
-QMap<QString, QString> DummyStore::mails() const
+QMap<QString, QMap<QString, QVariant> > DummyStore::mails() const
 {
     return s_mailSource;
 }

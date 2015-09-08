@@ -81,12 +81,10 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
     }
 }
 
-void DummyResource::createEvent(const QByteArray &ridBuffer, const QByteArray &data, flatbuffers::FlatBufferBuilder &entityFbb)
+void DummyResource::createEvent(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb)
 {
-    auto eventBuffer = DummyCalendar::GetDummyEvent(data.data());
-
     //Map the source format to the buffer format (which happens to be an exact copy here)
-    auto summary = m_fbb.CreateString(eventBuffer->summary()->c_str());
+    auto summary = m_fbb.CreateString(data.value("summary").toString().toStdString());
     auto rid = m_fbb.CreateString(std::string(ridBuffer.constData(), ridBuffer.size()));
     auto description = m_fbb.CreateString(std::string(ridBuffer.constData(), ridBuffer.size()));
     static uint8_t rawData[100];
@@ -102,16 +100,14 @@ void DummyResource::createEvent(const QByteArray &ridBuffer, const QByteArray &d
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize(), 0, 0);
 }
 
-void DummyResource::createMail(const QByteArray &ridBuffer, const QByteArray &data, flatbuffers::FlatBufferBuilder &entityFbb)
+void DummyResource::createMail(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb)
 {
-    auto mailBuffer = Akonadi2::ApplicationDomain::Buffer::GetMail(data.data());
-
     //Map the source format to the buffer format (which happens to be an exact copy here)
-    auto subject = m_fbb.CreateString(mailBuffer->subject()->c_str());
+    auto subject = m_fbb.CreateString(data.value("subject").toString().toStdString());
     auto rid = m_fbb.CreateString(std::string(ridBuffer.constData(), ridBuffer.size()));
-    auto sender = m_fbb.CreateString(std::string("sender@example.org"));
-    auto senderName = m_fbb.CreateString(std::string("Sender Name"));
-    auto date = m_fbb.CreateString(std::string("2004"));
+    auto sender = m_fbb.CreateString(data.value("sender").toString().toStdString());
+    auto senderName = m_fbb.CreateString(data.value("senderName").toString().toStdString());
+    auto date = m_fbb.CreateString(data.value("date").toString().toStdString());
     auto folder = m_fbb.CreateString(std::string("inbox"));
 
     auto builder = Akonadi2::ApplicationDomain::Buffer::MailBuilder(m_fbb);
@@ -148,7 +144,7 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
                 m_fbb.Clear();
 
                 flatbuffers::FlatBufferBuilder entityFbb;
-                createEvent(it.key().toUtf8(), it.value().toUtf8(), entityFbb);
+                createEvent(it.key().toUtf8(), it.value(), entityFbb);
 
                 flatbuffers::FlatBufferBuilder fbb;
                 //This is the resource type and not the domain type
@@ -179,7 +175,7 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
                 m_fbb.Clear();
 
                 flatbuffers::FlatBufferBuilder entityFbb;
-                createMail(it.key().toUtf8(), it.value().toUtf8(), entityFbb);
+                createMail(it.key().toUtf8(), it.value(), entityFbb);
 
                 flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(entityFbb.GetBufferPointer()), entityFbb.GetSize());
                 if (!Akonadi2::ApplicationDomain::Buffer::VerifyMailBuffer(verifyer)) {
