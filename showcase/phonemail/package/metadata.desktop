@@ -1,2 +1,7 @@
 [Desktop Entry]
-Name=Phone Mail
+Name=KMail Mobile
+X-KDE-PluginInfo-Name=org.kde.phone.kmail
+Exec=kpackagelauncherqml -a org.kde.phone.kmail
+X-Plasma-MainScript=ui/main.qml
+X-KDE-ServiceTypes=KPackage/GenericQML
+Icon=kmail
