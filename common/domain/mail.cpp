@@ -62,30 +62,14 @@ void TypeImplementation<Mail>::index(const Mail &type, Akonadi2::Storage::Transa
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Mail>::Buffer> > TypeImplementation<Mail>::initializeReadPropertyMapper()
 {
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();
-    propertyMapper->addMapping("uid", [](Buffer const *buffer) -> QVariant {
-        return propertyToVariant<QString>(buffer->uid());
-    });
-    propertyMapper->addMapping("sender", [](Buffer const *buffer) -> QVariant {
-        return propertyToVariant<QString>(buffer->sender());
-    });
-    propertyMapper->addMapping("senderName", [](Buffer const *buffer) -> QVariant {
-        return propertyToVariant<QString>(buffer->senderName());
-    });
-    propertyMapper->addMapping("subject", [](Buffer const *buffer) -> QVariant {
-        return propertyToVariant<QString>(buffer->subject());
-    });
-    propertyMapper->addMapping("date", [](Buffer const *buffer) -> QVariant {
-        return propertyToVariant<QString>(buffer->date());
-    });
-    propertyMapper->addMapping("unread", [](Buffer const *buffer) -> QVariant {
-        return propertyToVariant<bool>(buffer->unread());
-    });
-    propertyMapper->addMapping("important", [](Buffer const *buffer) -> QVariant {
-        return propertyToVariant<bool>(buffer->important());
-    });
-    propertyMapper->addMapping("folder", [](Buffer const *buffer) -> QVariant {
-        return propertyToVariant<QString>(buffer->folder());
-    });
+    propertyMapper->addMapping<QString, Buffer>("uid", &Buffer::uid);
+    propertyMapper->addMapping<QString, Buffer>("sender", &Buffer::sender);
+    propertyMapper->addMapping<QString, Buffer>("senderName", &Buffer::senderName);
+    propertyMapper->addMapping<QString, Buffer>("subject", &Buffer::subject);
+    propertyMapper->addMapping<QString, Buffer>("date", &Buffer::date);
+    propertyMapper->addMapping<bool, Buffer>("unread", &Buffer::unread);
+    propertyMapper->addMapping<bool, Buffer>("important", &Buffer::important);
+    propertyMapper->addMapping<QString, Buffer>("folder", &Buffer::folder);
     return propertyMapper;
 }
 

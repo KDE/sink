@@ -62,12 +62,8 @@ void TypeImplementation<Event>::index(const Event &type, Akonadi2::Storage::Tran
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Event>::Buffer> > TypeImplementation<Event>::initializeReadPropertyMapper()
 {
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();
-    propertyMapper->addMapping("summary", [](Buffer const *buffer) -> QVariant {
-        return propertyToVariant<QString>(buffer->summary());
-    });
-    propertyMapper->addMapping("uid", [](Buffer const *buffer) -> QVariant {
-        return propertyToVariant<QString>(buffer->uid());
-    });
+    propertyMapper->addMapping<QString, Buffer>("summary", &Buffer::summary);
+    propertyMapper->addMapping<QString, Buffer>("uid", &Buffer::uid);
     return propertyMapper;
 }
 
