@@ -21,13 +21,40 @@
 #include <QLockFile>
 
 #include <signal.h>
+#include <execinfo.h>
 
 #include "listener.h"
 #include "log.h"
 
 void crashHandler(int sig) {
     std::fprintf(stderr, "Error: signal %d\n", sig);
-    std::system("exec xterm -e gdb -p \"$PPID\"");
+
+    QString s;
+    void *trace[256];
+    int n = backtrace( trace, 256 );
+    if ( n ) {
+        char **strings = backtrace_symbols( trace, n );
+
+        s = QLatin1String( "[\n" );
+
+        for ( int i = 0; i < n; ++i ) {
+            s += QString::number( i ) +
+                QLatin1String( ": " ) +
+                QLatin1String( strings[i] ) + QLatin1String( "\n" );
+        }
+        s += QLatin1String( "]\n" );
+        std::fprintf(stderr, "Backtrace: %s\n", s.toLatin1().data());
+
+        if ( strings ) {
+            free( strings );
+        }
+
+    }
+
+    std::system("exec gdb -p \"$PPID\" -ex \"thread apply all bt\"");
+    //This only works if we actually have xterm and X11 available
+    // std::system("exec xterm -e gdb -p \"$PPID\"");
+
     std::abort();
 }
 
