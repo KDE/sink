@@ -93,4 +93,15 @@ bool Storage::isInternalKey(const QByteArray &key)
     return key.startsWith(s_internalPrefix);
 }
 
+QByteArray Storage::assembleKey(const QByteArray &key, qint64 revision)
+{
+    Q_ASSERT(key.size() == 38);
+    return key + QByteArray::number(revision);
+}
+
+QByteArray Storage::uidFromKey(const QByteArray &key)
+{
+    return key.mid(0, 38);
+}
+
 } // namespace Akonadi2

@@ -317,6 +317,41 @@ private Q_SLOTS:
         QCOMPARE(numValues, 1);
     }
 
+    void testFindSubstringKeys()
+    {
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        auto db = transaction.openDatabase("test", nullptr, false);
+        db.write("sub","value1");
+        db.write("subsub","value2");
+        db.write("wubsub","value3");
+        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            return true;
+        }, nullptr, true);
+
+        QCOMPARE(numValues, 2);
+    }
+
+    void testKeySorting()
+    {
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        auto db = transaction.openDatabase("test", nullptr, false);
+        db.write("sub_2","value2");
+        db.write("sub_1","value1");
+        db.write("sub_3","value3");
+        QList<QByteArray> results;
+        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            results << value;
+            return true;
+        }, nullptr, true);
+
+        QCOMPARE(numValues, 3);
+        QCOMPARE(results.at(0), QByteArray("value1"));
+        QCOMPARE(results.at(1), QByteArray("value2"));
+        QCOMPARE(results.at(2), QByteArray("value3"));
+    }
+
     //Ensure we don't retrieve a key that is greater than the current key. We only want equal keys.
     void testKeyRange()
     {
@@ -329,6 +364,22 @@ private Q_SLOTS:
         });
 
         QCOMPARE(numValues, 0);
+    }
+
+    void testFindLatest()
+    {
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        auto db = transaction.openDatabase("test", nullptr, false);
+        db.write("sub1","value1");
+        db.write("sub2","value2");
+        db.write("wub3","value3");
+        QByteArray result;
+        db.findLatest("sub", [&](const QByteArray &key, const QByteArray &value) {
+            result = value;
+        });
+
+        QCOMPARE(result, QByteArray("value2"));
     }
 };
 

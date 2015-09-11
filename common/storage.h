@@ -76,9 +76,13 @@ public:
         *
         * @return The number of values retrieved.
         */
-        int scan(const QByteArray &k,
+        int scan(const QByteArray &key,
                     const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
+                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool findSubstringKeys = false) const;
+
+        void findLatest(const QByteArray &uid,
+                        const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
+                        const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
 
         NamedDatabase(NamedDatabase&& other) : d(other.d)
         {
@@ -169,6 +173,9 @@ public:
     static bool isInternalKey(const char *key);
     static bool isInternalKey(void *key, int keySize);
     static bool isInternalKey(const QByteArray &key);
+
+    static QByteArray assembleKey(const QByteArray &key, qint64 revision);
+    static QByteArray uidFromKey(const QByteArray &key);
 
 private:
     std::function<void(const Storage::Error &error)> mErrorHandler;

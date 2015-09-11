@@ -169,7 +169,8 @@ void Storage::NamedDatabase::remove(const QByteArray &k,
 
 int Storage::NamedDatabase::scan(const QByteArray &k,
                   const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-                  const std::function<void(const Storage::Error &error)> &errorHandler) const
+                  const std::function<void(const Storage::Error &error)> &errorHandler,
+                  bool findSubstringKeys) const
 {
     if (!d || !d->transaction) {
         //Not an error. We rely on this to read nothing from non-existing databases.
@@ -193,14 +194,25 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
 
     int numberOfRetrievedValues = 0;
 
-    if (k.isEmpty() || d->allowDuplicates) {
-        if ((rc = mdb_cursor_get(cursor, &key, &data, d->allowDuplicates ? MDB_SET : MDB_FIRST)) == 0) {
-            numberOfRetrievedValues++;
-            if (resultHandler(QByteArray::fromRawData((char*)key.mv_data, key.mv_size), QByteArray::fromRawData((char*)data.mv_data, data.mv_size))) {
-                while ((rc = mdb_cursor_get(cursor, &key, &data, d->allowDuplicates ? MDB_NEXT_DUP : MDB_NEXT)) == 0) {
-                    numberOfRetrievedValues++;
-                    if (!resultHandler(QByteArray::fromRawData((char*)key.mv_data, key.mv_size), QByteArray::fromRawData((char*)data.mv_data, data.mv_size))) {
-                        break;
+    if (k.isEmpty() || d->allowDuplicates || findSubstringKeys) {
+        MDB_cursor_op op = d->allowDuplicates ? MDB_SET : MDB_FIRST;
+        if (findSubstringKeys) {
+            op = MDB_SET_RANGE;
+        }
+        if ((rc = mdb_cursor_get(cursor, &key, &data, op)) == 0) {
+            //The first lookup will find a key that is equal or greather than our key
+            if (QByteArray::fromRawData((char*)key.mv_data, key.mv_size).startsWith(k)) {
+                numberOfRetrievedValues++;
+                if (resultHandler(QByteArray::fromRawData((char*)key.mv_data, key.mv_size), QByteArray::fromRawData((char*)data.mv_data, data.mv_size))) {
+                    MDB_cursor_op nextOp = d->allowDuplicates ? MDB_NEXT_DUP : MDB_NEXT;
+                    while ((rc = mdb_cursor_get(cursor, &key, &data, nextOp)) == 0) {
+                        //Every consequent lookup simply iterates through the list
+                        if (QByteArray::fromRawData((char*)key.mv_data, key.mv_size).startsWith(k)) {
+                            numberOfRetrievedValues++;
+                            if (!resultHandler(QByteArray::fromRawData((char*)key.mv_data, key.mv_size), QByteArray::fromRawData((char*)data.mv_data, data.mv_size))) {
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -225,6 +237,23 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
     }
 
     return numberOfRetrievedValues;
+}
+void Storage::NamedDatabase::findLatest(const QByteArray &uid,
+            const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
+            const std::function<void(const Storage::Error &error)> &errorHandler) const
+{
+    QByteArray latestKey;
+    scan(uid, [&](const QByteArray &key, const QByteArray &value) -> bool {
+        latestKey = key;
+        return true;
+    },
+    errorHandler, true);
+
+    scan(latestKey, [=](const QByteArray &key, const QByteArray &value) -> bool {
+        resultHandler(key, value);
+        return false;
+    },
+    errorHandler);
 }
 
 
