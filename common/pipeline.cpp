@@ -169,12 +169,12 @@ KAsync::Job<void> Pipeline::newEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), entity->resource()->Data(), entity->resource()->size(), entity->local()->Data(), entity->local()->size());
 
-    d->transaction.openDatabase(bufferType + ".main").write(key, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+    d->transaction.openDatabase(bufferType + ".main").write(Akonadi2::Storage::assembleKey(key, newRevision), QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
     Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
     Log() << "Pipeline: wrote entity: " << key << newRevision << bufferType;
 
     return KAsync::start<void>([this, key, bufferType, newRevision](KAsync::Future<void> &future) {
-        PipelineState state(this, NewPipeline, key, d->newPipeline[bufferType], newRevision, [&future]() {
+        PipelineState state(this, NewPipeline, Akonadi2::Storage::assembleKey(key, newRevision), d->newPipeline[bufferType], newRevision, [&future]() {
             future.setFinished();
         }, bufferType);
         d->activePipelines << state;
@@ -224,7 +224,8 @@ KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
     auto diff = adaptorFactory->createAdaptor(*diffEntity);
 
     QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> current;
-    storage().createTransaction(Akonadi2::Storage::ReadOnly).openDatabase(bufferType + ".main").scan(key, [&current, adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
+    //FIXME: read the revision that this modification is based on, not just the latest one
+    storage().createTransaction(Akonadi2::Storage::ReadOnly).openDatabase(bufferType + ".main").findLatest(key, [&current, adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
         Akonadi2::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         if (!buffer.isValid()) {
             Warning() << "Read invalid buffer from disk";
@@ -272,11 +273,11 @@ KAsync::Job<void> Pipeline::modifiedEntity(void const *command, size_t size)
     adaptorFactory->createBuffer(*newObject, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
     //TODO don't overwrite the old entry, but instead store a new revision
-    d->transaction.openDatabase(bufferType + ".main").write(key, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+    d->transaction.openDatabase(bufferType + ".main").write(Akonadi2::Storage::assembleKey(key, newRevision), QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
     Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
 
     return KAsync::start<void>([this, key, bufferType, newRevision](KAsync::Future<void> &future) {
-        PipelineState state(this, ModifiedPipeline, key, d->modifiedPipeline[bufferType], newRevision, [&future]() {
+        PipelineState state(this, ModifiedPipeline, Akonadi2::Storage::assembleKey(key, newRevision), d->modifiedPipeline[bufferType], newRevision, [&future]() {
             future.setFinished();
         }, bufferType);
         d->activePipelines << state;
@@ -303,6 +304,7 @@ KAsync::Job<void> Pipeline::deletedEntity(void const *command, size_t size)
     const QByteArray key = QByteArray(reinterpret_cast<char const*>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
 
     //TODO instead of deleting the entry, a new revision should be created that marks the entity as deleted
+    //TODO remove all revisions?
     d->transaction.openDatabase(bufferType + ".main").remove(key);
     Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
     Log() << "Pipeline: deleted entity: "<< newRevision;

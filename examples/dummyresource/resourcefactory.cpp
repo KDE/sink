@@ -55,7 +55,7 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
     const auto resourceIdentifier = mResourceInstanceIdentifier;
 
     auto eventIndexer = new Akonadi2::SimpleProcessor("eventIndexer", [eventFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity, Akonadi2::Storage::Transaction &transaction) {
-        Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, eventFactory->createAdaptor(entity));
+        Akonadi2::ApplicationDomain::Event event(resourceIdentifier, Akonadi2::Storage::uidFromKey(state.key()), -1, eventFactory->createAdaptor(entity));
         Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::index(event, transaction);
         index("event.index.rid", event.getProperty("remoteId"), event.identifier(), transaction);
     });
@@ -67,7 +67,7 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
     {
         auto mailFactory = QSharedPointer<DummyMailAdaptorFactory>::create();
         auto mailIndexer = new Akonadi2::SimpleProcessor("mailIndexer", [mailFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity, Akonadi2::Storage::Transaction &transaction) {
-            Akonadi2::ApplicationDomain::Mail mail(resourceIdentifier, state.key(), -1, mailFactory->createAdaptor(entity));
+            Akonadi2::ApplicationDomain::Mail mail(resourceIdentifier, Akonadi2::Storage::uidFromKey(state.key()), -1, mailFactory->createAdaptor(entity));
             Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Mail>::index(mail, transaction);
             index("mail.index.rid", mail.getProperty("remoteId"), mail.identifier(), transaction);
         });

@@ -21,12 +21,8 @@
 
 static void scan(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, std::function<bool(const QByteArray &key, const Akonadi2::Entity &entity)> callback, const QByteArray &bufferType)
 {
-    transaction.openDatabase(bufferType + ".main").scan(key, [=](const QByteArray &key, const QByteArray &value) -> bool {
-        //Skip internals
-        if (Akonadi2::Storage::isInternalKey(key)) {
-            return true;
-        }
 
+    transaction.openDatabase(bufferType + ".main").findLatest(key, [=](const QByteArray &key, const QByteArray &value) -> bool {
         //Extract buffers
         Akonadi2::EntityBuffer buffer(value.data(), value.size());
 
@@ -39,7 +35,9 @@ static void scan(const Akonadi2::Storage::Transaction &transaction, const QByteA
         //     qWarning() << "invalid buffer " << QByteArray::fromRawData(static_cast<char*>(keyValue), keySize);
         //     return true;
         // }
-        return callback(key, buffer.entity());
+        //
+        //We're cutting the revision off the key
+        return callback(Akonadi2::Storage::uidFromKey(key), buffer.entity());
     },
     [](const Akonadi2::Storage::Error &error) {
         qWarning() << "Error during query: " << error.message;
@@ -54,10 +52,11 @@ void EntityStorageBase::readValue(const Akonadi2::Storage::Transaction &transact
         //This only works for a 1:1 mapping of resource to domain types.
         //Not i.e. for tags that are stored as flags in each entity of an imap store.
         //additional properties that don't have a 1:1 mapping (such as separately stored tags),
-        //could be added to the adaptor
+        //could be added to the adaptor.
+
         auto domainObject = create(key, revision, mDomainTypeAdaptorFactory->createAdaptor(entity));
         resultCallback(domainObject);
-        return true;
+        return false;
     }, mBufferType);
 }
 
@@ -65,10 +64,18 @@ static ResultSet fullScan(const Akonadi2::Storage::Transaction &transaction, con
 {
     //TODO use a result set with an iterator, to read values on demand
     QVector<QByteArray> keys;
-    scan(transaction, QByteArray(), [=, &keys](const QByteArray &key, const Akonadi2::Entity &) {
-        keys << key;
+    transaction.openDatabase(bufferType + ".main").scan(QByteArray(), [&](const QByteArray &key, const QByteArray &value) -> bool {
+        //Skip internals
+        if (Akonadi2::Storage::isInternalKey(key)) {
+            return true;
+        }
+        keys << Akonadi2::Storage::uidFromKey(key);
         return true;
-    }, bufferType);
+    },
+    [](const Akonadi2::Storage::Error &error) {
+        qWarning() << "Error during query: " << error.message;
+    });
+
     Trace() << "Full scan found " << keys.size() << " results";
     return ResultSet(keys);
 }
