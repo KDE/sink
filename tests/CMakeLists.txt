@@ -44,6 +44,7 @@ auto_tests (
     genericresourcetest
     genericfacadetest
     resourcecommunicationtest
+    pipelinetest
 )
 
 target_link_libraries(dummyresourcetest akonadi2_resource_dummy)

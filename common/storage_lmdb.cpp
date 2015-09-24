@@ -114,7 +114,9 @@ bool Storage::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sVa
 {
     if (!d || !d->transaction) {
         Error error("", ErrorCodes::GenericError, "Not open");
-        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        if (d) {
+            errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        }
         return false;
     }
     const void *keyPtr = sKey.data();
@@ -149,7 +151,9 @@ void Storage::NamedDatabase::remove(const QByteArray &k,
 {
     if (!d || !d->transaction) {
         Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Not open");
-        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        if (d) {
+            errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        }
         return;
     }
 
