@@ -74,6 +74,48 @@ qint64 Storage::maxRevision(const Akonadi2::Storage::Transaction &transaction)
     return r;
 }
 
+QByteArray Storage::getUidFromRevision(const Akonadi2::Storage::Transaction &transaction, qint64 revision)
+{
+    QByteArray uid;
+    transaction.openDatabase("revisions").scan(QByteArray::number(revision), [&](const QByteArray &, const QByteArray &value) -> bool {
+        uid = value;
+        return false;
+    }, [](const Error &error){
+        if (error.code != ErrorCodes::NotFound) {
+            //FIXME
+            // defaultErrorHandler()(error);
+        }
+    });
+    return uid;
+}
+
+QByteArray Storage::getTypeFromRevision(const Akonadi2::Storage::Transaction &transaction, qint64 revision)
+{
+    QByteArray type;
+    transaction.openDatabase("revisionType").scan(QByteArray::number(revision), [&](const QByteArray &, const QByteArray &value) -> bool {
+        type = value;
+        return false;
+    }, [](const Error &error){
+        if (error.code != ErrorCodes::NotFound) {
+            //FIXME
+            // defaultErrorHandler()(error);
+        }
+    });
+    return type;
+}
+
+void Storage::recordRevision(Akonadi2::Storage::Transaction &transaction, qint64 revision, const QByteArray &uid, const QByteArray &type)
+{
+    //TODO use integerkeys
+    transaction.openDatabase("revisions").write(QByteArray::number(revision), uid);
+    transaction.openDatabase("revisionType").write(QByteArray::number(revision), type);
+}
+
+void Storage::removeRevision(Akonadi2::Storage::Transaction &transaction, qint64 revision)
+{
+    transaction.openDatabase("revisions").remove(QByteArray::number(revision));
+}
+
 bool Storage::isInternalKey(const char *key)
 {
     return key && strncmp(key, s_internalPrefix, s_internalPrefixSize) == 0;

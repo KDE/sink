@@ -60,7 +60,7 @@ private slots:
         }).exec();
     }
 
-    KAsync::Job<void> processQueuedCommand(const Akonadi2::QueuedCommand *queuedCommand)
+    KAsync::Job<qint64> processQueuedCommand(const Akonadi2::QueuedCommand *queuedCommand)
     {
         Log() << "Processing command: " << Akonadi2::Commands::name(queuedCommand->commandId());
         //Throw command into appropriate pipeline
@@ -72,25 +72,27 @@ private slots:
             case Akonadi2::Commands::CreateEntityCommand:
                 return mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
             default:
-                return KAsync::error<void>(-1, "Unhandled command");
+                return KAsync::error<qint64>(-1, "Unhandled command");
         }
-        return KAsync::null<void>();
+        return KAsync::null<qint64>();
     }
 
-    KAsync::Job<void> processQueuedCommand(const QByteArray &data)
+    KAsync::Job<qint64, qint64> processQueuedCommand(const QByteArray &data)
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(data.constData()), data.size());
         if (!Akonadi2::VerifyQueuedCommandBuffer(verifyer)) {
             Warning() << "invalid buffer";
-            return KAsync::error<void>(1, "Invalid Buffer");
+            // return KAsync::error<void, qint64>(1, "Invalid Buffer");
         }
         auto queuedCommand = Akonadi2::GetQueuedCommand(data.constData());
         const auto commandId = queuedCommand->commandId();
         Trace() << "Dequeued Command: " << Akonadi2::Commands::name(commandId);
-        return processQueuedCommand(queuedCommand).then<void>(
-            [commandId]() {
+        return processQueuedCommand(queuedCommand).then<qint64, qint64>(
+            [commandId](qint64 createdRevision) -> qint64 {
                 Trace() << "Command pipeline processed: " << Akonadi2::Commands::name(commandId);
-            },
+                return createdRevision;
+            }
+            ,
             [](int errorCode, QString errorMessage) {
                 //FIXME propagate error, we didn't handle it
                 Warning() << "Error while processing queue command: " << errorMessage;
@@ -106,8 +108,17 @@ private slots:
         }).then(KAsync::dowhile(
             [queue]() { return !queue->isEmpty(); },
             [this, queue](KAsync::Future<void> &future) {
-                queue->dequeueBatch(100, [this](const QByteArray &data) {
-                        return processQueuedCommand(data);
+                const int batchSize = 100;
+                queue->dequeueBatch(batchSize, [this](const QByteArray &data) {
+                        return KAsync::start<void>([this, data](KAsync::Future<void> &future) {
+                            processQueuedCommand(data).then<void, qint64>([&future, this](qint64 createdRevision) {
+                                Trace() << "Created revision " << createdRevision;
+                                //We don't have a writeback yet, so we cleanup revisions immediately
+                                //TODO: only cleanup once writeback is done
+                                mPipeline->cleanupRevision(createdRevision);
+                                future.setFinished();
+                            }).exec();
+                        });
                     }
                 ).then<void>([&future, queue](){
                     future.setFinished();

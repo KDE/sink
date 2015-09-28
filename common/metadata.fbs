@@ -1,9 +1,12 @@
 namespace Akonadi2;
 
+enum Operation : byte { Creation = 1, Modification, Removal }
+
 table Metadata {
     revision: ulong;
     processed: bool = true;
     processingProgress: [string];
+    operation: Operation = Modification;
 }
 
 root_type Metadata;

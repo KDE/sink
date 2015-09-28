@@ -210,6 +210,17 @@ private Q_SLOTS:
         Akonadi2::EntityBuffer entityBuffer(buffer.data(), buffer.size());
         auto adaptor = adaptorFactory->createAdaptor(entityBuffer.entity());
         QCOMPARE(adaptor->getProperty("summary").toString(), QString("summary2"));
+
+        //Both revisions are in the store at this point
+        QCOMPARE(getKeys("org.kde.pipelinetest.instance1", "event.main").size(), 2);
+
+        //Cleanup old revisions
+        pipeline.startTransaction();
+        pipeline.cleanupRevision(2);
+        pipeline.commit();
+
+        //And now only the latest revision is left
+        QCOMPARE(getKeys("org.kde.pipelinetest.instance1", "event.main").size(), 1);
     }
 
     void testDelete()
@@ -230,10 +241,18 @@ private Q_SLOTS:
         const auto uid = Akonadi2::Storage::uidFromKey(result.first());
 
         //Delete entity
-        auto deleteCommand = deleteEntityCommand(uid,1);
+        auto deleteCommand = deleteEntityCommand(uid, 1);
         pipeline.startTransaction();
         pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size());
         pipeline.commit();
+
+        //Cleanup old revisions
+        pipeline.startTransaction();
+        pipeline.cleanupRevision(2);
+        pipeline.commit();
+
+        //And all revisions are gone
+        QCOMPARE(getKeys("org.kde.pipelinetest.instance1", "event.main").size(), 0);
     }
 };
 

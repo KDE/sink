@@ -58,9 +58,15 @@ public:
     void null();
     void setAdaptorFactory(const QString &entityType, DomainTypeAdaptorFactoryInterface::Ptr factory);
 
-    KAsync::Job<void> newEntity(void const *command, size_t size);
-    KAsync::Job<void> modifiedEntity(void const *command, size_t size);
-    KAsync::Job<void> deletedEntity(void const *command, size_t size);
+    KAsync::Job<qint64> newEntity(void const *command, size_t size);
+    KAsync::Job<qint64> modifiedEntity(void const *command, size_t size);
+    KAsync::Job<qint64> deletedEntity(void const *command, size_t size);
+    /*
+     * Cleans up a single revision.
+     *
+     * This has to be called for every revision in consecutive order.
+     */
+    void cleanupRevision(qint64 revision);
 
 Q_SIGNALS:
     void revisionUpdated(qint64);
