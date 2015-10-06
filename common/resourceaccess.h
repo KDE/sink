@@ -49,7 +49,7 @@ public:
 
 Q_SIGNALS:
     void ready(bool isReady);
-    void revisionChanged(unsigned long long revision);
+    void revisionChanged(qint64 revision);
 
 public Q_SLOTS:
     virtual void open() = 0;

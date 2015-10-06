@@ -68,6 +68,11 @@ class GenericFacadeTest : public QObject
     Q_OBJECT
 private Q_SLOTS:
 
+    void init()
+    {
+        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
+    }
+
     void testLoad()
     {
         Akonadi2::Query query;

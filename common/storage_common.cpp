@@ -66,10 +66,7 @@ qint64 Storage::maxRevision(const Akonadi2::Storage::Transaction &transaction)
         r = revision.toLongLong();
         return false;
     }, [](const Error &error){
-        if (error.code != ErrorCodes::NotFound) {
-            //FIXME
-            // defaultErrorHandler()(error);
-        }
+        std::cout << "Coultn'd find uid for revision ";
     });
     return r;
 }
@@ -80,11 +77,8 @@ QByteArray Storage::getUidFromRevision(const Akonadi2::Storage::Transaction &tra
     transaction.openDatabase("revisions").scan(QByteArray::number(revision), [&](const QByteArray &, const QByteArray &value) -> bool {
         uid = value;
         return false;
-    }, [](const Error &error){
-        if (error.code != ErrorCodes::NotFound) {
-            //FIXME
-            // defaultErrorHandler()(error);
-        }
+    }, [revision](const Error &error){
+        std::cout << "Coultn'd find uid for revision " << revision;
     });
     return uid;
 }
@@ -95,11 +89,8 @@ QByteArray Storage::getTypeFromRevision(const Akonadi2::Storage::Transaction &tr
     transaction.openDatabase("revisionType").scan(QByteArray::number(revision), [&](const QByteArray &, const QByteArray &value) -> bool {
         type = value;
         return false;
-    }, [](const Error &error){
-        if (error.code != ErrorCodes::NotFound) {
-            //FIXME
-            // defaultErrorHandler()(error);
-        }
+    }, [revision](const Error &error){
+        std::cout << "Coultn'd find type for revision " << revision;
     });
     return type;
 }

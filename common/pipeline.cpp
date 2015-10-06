@@ -220,6 +220,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         }
     }
 
+    //TODO use only readPropertyMapper and writePropertyMapper
     auto adaptorFactory = d->adaptorFactory.value(bufferType);
     if (!adaptorFactory) {
         Warning() << "no adaptor factory for type " << bufferType;
@@ -255,6 +256,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     //Apply diff
     //FIXME only apply the properties that are available in the buffer
+    Trace() << "Applying changed properties: " << diff->availableProperties();
     for (const auto &property : diff->availableProperties()) {
         newObject->setProperty(property, diff->getProperty(property));
     }
@@ -277,7 +279,6 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder fbb;
     adaptorFactory->createBuffer(*newObject, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
-    //TODO don't overwrite the old entry, but instead store a new revision
     d->transaction.openDatabase(bufferType + ".main").write(Akonadi2::Storage::assembleKey(key, newRevision), QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
     Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
     Akonadi2::Storage::recordRevision(d->transaction, newRevision, key, bufferType);

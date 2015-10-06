@@ -56,8 +56,8 @@ public:
         if (mLatestRevision == newRevision && mLatestRevision > 0) {
             return KAsync::null<void>();
         }
-        return queryFunction(mLatestRevision + 1, newRevision).then<void, qint64>([this](qint64 revision) {
-            mLatestRevision = revision;
+        return queryFunction(mLatestRevision, newRevision).then<void, qint64>([this](qint64 revision) {
+            mLatestRevision = revision + 1;
         }).then<void>([](){});
     }
 

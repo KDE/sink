@@ -31,6 +31,8 @@
 
 /**
  * Wraps storage, entity adaptor factory and indexes into one.
+ * 
+ * TODO: customize with readEntity instead of adaptor factory
  */
 class EntityStorageBase
 {
@@ -46,14 +48,26 @@ protected:
     virtual Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr copy(const Akonadi2::ApplicationDomain::ApplicationDomainType &) = 0;
     virtual ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction) = 0;
 
-    void readValue(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> &resultCallback);
-    ResultSet filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision);
+    /**
+     * Loads a single entity by uid from storage.
+     * 
+     * TODO: Resources should be able to customize this for cases where an entity is not the same as a single buffer.
+     */
+    void readEntity(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback);
     ResultSet getResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision);
 
 protected:
     QByteArray mResourceInstanceIdentifier;
     QByteArray mBufferType;
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
+private:
+    /**
+     * Returns the initial result set that still needs to be filtered.
+     *
+     * To make this efficient indexes should be chosen that are as selective as possible.
+     */
+    ResultSet loadInitialResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters);
+    ResultSet filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::Transaction &transaction, bool isInitialQuery);
 };
 
 template<typename DomainType>
@@ -95,13 +109,25 @@ public:
         auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
 
         Log() << "Querying" << revisionRange.first << revisionRange.second;
+        //TODO fallback in case the old revision is no longer available to clear + redo complete initial scan
+        //
         auto resultSet = getResultSet(query, transaction, revisionRange.first, revisionRange.second);
-        while(resultSet.next([this, resultProvider](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value) -> bool {
-            auto cloned = copy(*value);
-            resultProvider->add(cloned.template staticCast<DomainType>());
+        while(resultSet.next([this, resultProvider](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
+            switch (operation) {
+            case Akonadi2::Operation_Creation:
+                Trace() << "Got creation";
+                resultProvider->add(copy(*value).template staticCast<DomainType>());
+                break;
+            case Akonadi2::Operation_Modification:
+                Trace() << "Got modification";
+                resultProvider->add(copy(*value).template staticCast<DomainType>());
+                break;
+            case Akonadi2::Operation_Removal:
+                Trace() << "Got removal";
+                break;
+            }
             return true;
         })){};
-        //TODO replay removals and modifications
     }
 
 };

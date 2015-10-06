@@ -2,10 +2,6 @@
 
 #include <QString>
 
-#include "event_generated.h"
-#include "entity_generated.h"
-#include "metadata_generated.h"
-#include "createentity_generated.h"
 #include "dummyresource/resourcefactory.h"
 #include "clientapi.h"
 #include "synclistresult.h"

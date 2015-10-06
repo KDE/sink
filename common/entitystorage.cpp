@@ -44,18 +44,21 @@ static void scan(const Akonadi2::Storage::Transaction &transaction, const QByteA
     });
 }
 
-void EntityStorageBase::readValue(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> &resultCallback)
+void EntityStorageBase::readEntity(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback)
 {
+    //This only works for a 1:1 mapping of resource to domain types.
+    //Not i.e. for tags that are stored as flags in each entity of an imap store.
+    //additional properties that don't have a 1:1 mapping (such as separately stored tags),
+    //could be added to the adaptor.
+    //TODO: resource implementations should be able to customize the retrieval function for non 1:1 entity-buffer mapping cases
     scan(transaction, key, [=](const QByteArray &key, const Akonadi2::Entity &entity) {
         const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
+        Q_ASSERT(metadataBuffer);
         qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-        //This only works for a 1:1 mapping of resource to domain types.
-        //Not i.e. for tags that are stored as flags in each entity of an imap store.
-        //additional properties that don't have a 1:1 mapping (such as separately stored tags),
-        //could be added to the adaptor.
+        auto operation = metadataBuffer->operation();
 
         auto domainObject = create(key, revision, mDomainTypeAdaptorFactory->createAdaptor(entity));
-        resultCallback(domainObject);
+        resultCallback(domainObject, operation);
         return false;
     }, mBufferType);
 }
@@ -80,16 +83,22 @@ static ResultSet fullScan(const Akonadi2::Storage::Transaction &transaction, con
     return ResultSet(keys);
 }
 
-ResultSet EntityStorageBase::filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision)
+ResultSet EntityStorageBase::filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::Transaction &transaction, bool initialQuery)
 {
     auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
 
     //Read through the source values and return whatever matches the filter
-    std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)>)> generator = [this, resultSetPtr, &transaction, filter](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &)> callback) -> bool {
+    std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)>)> generator = [this, resultSetPtr, &transaction, filter, initialQuery](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> callback) -> bool {
         while (resultSetPtr->next()) {
-            readValue(transaction, resultSetPtr->id(), [this, filter, callback](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) {
+            //TODO. every read value is actually a revision that contains one of three operations. Reflect that so the result set can be updated appropriately.
+            //TODO while getting the initial set everything is adding
+            readEntity(transaction, resultSetPtr->id(), [this, filter, callback, initialQuery](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Akonadi2::Operation operation) {
                 if (filter(domainObject)) {
-                    callback(domainObject);
+                    if (initialQuery) {
+                        callback(domainObject, Akonadi2::Operation_Creation);
+                    } else {
+                        callback(domainObject, operation);
+                    }
                 }
             });
         }
@@ -98,15 +107,51 @@ ResultSet EntityStorageBase::filteredSet(const ResultSet &resultSet, const std::
     return ResultSet(generator);
 }
 
-ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision)
+ResultSet EntityStorageBase::loadInitialResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)
 {
     QSet<QByteArray> appliedFilters;
-    ResultSet resultSet = queryIndexes(query, mResourceInstanceIdentifier, appliedFilters, transaction);
-    const auto remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
+    auto resultSet = queryIndexes(query, mResourceInstanceIdentifier, appliedFilters, transaction);
+    remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
 
     //We do a full scan if there were no indexes available to create the initial set.
     if (appliedFilters.isEmpty()) {
-        resultSet = fullScan(transaction, mBufferType);
+        //TODO this should be replaced by an index lookup as well
+        return fullScan(transaction, mBufferType);
+    }
+    return resultSet;
+}
+
+ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision)
+{
+    QSet<QByteArray> remainingFilters = query.propertyFilter.keys().toSet();
+    ResultSet resultSet;
+    const bool initialQuery = (baseRevision == 0);
+    if (initialQuery) {
+        Trace() << "Initial result set update";
+        resultSet = loadInitialResultSet(query, transaction, remainingFilters);
+    } else {
+        //TODO fallback in case the old revision is no longer available to clear + redo complete initial scan
+        Trace() << "Incremental result set update" << baseRevision << topRevision;
+        auto revisionCounter = QSharedPointer<qint64>::create(baseRevision);
+        resultSet = ResultSet([revisionCounter, topRevision, &transaction, this]() -> QByteArray {
+            //Spit out the revision keys one by one.
+            while (*revisionCounter <= topRevision) {
+                const auto uid = Akonadi2::Storage::getUidFromRevision(transaction, *revisionCounter);
+                const auto type = Akonadi2::Storage::getTypeFromRevision(transaction, *revisionCounter);
+                Trace() << "Revision" << *revisionCounter << type << uid;
+                if (type != mBufferType) {
+                    //Skip revision
+                    *revisionCounter += 1;
+                    continue;
+                }
+                const auto key = Akonadi2::Storage::assembleKey(uid, *revisionCounter);
+                *revisionCounter += 1;
+                return key;
+            }
+            //We're done
+            //FIXME make sure result set understands that this means we're done
+            return QByteArray();
+        });
     }
 
     auto filter = [remainingFilters, query, baseRevision, topRevision](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
@@ -125,5 +170,5 @@ ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, Akonadi2
         return true;
     };
 
-    return filteredSet(resultSet, filter, transaction, baseRevision, topRevision);
+    return filteredSet(resultSet, filter, transaction, initialQuery);
 }

@@ -204,10 +204,11 @@ void GenericResource::enqueueCommand(MessageQueue &mq, int commandId, const QByt
 void GenericResource::processCommand(int commandId, const QByteArray &data)
 {
     static int modifications = 0;
+    const int batchSize = 100;
     mUserQueue.startTransaction();
     enqueueCommand(mUserQueue, commandId, data);
     modifications++;
-    if (modifications >= 100) {
+    if (modifications >= batchSize) {
         mUserQueue.commit();
         modifications = 0;
         mCommitQueueTimer.stop();

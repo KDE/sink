@@ -381,6 +381,15 @@ private Q_SLOTS:
 
         QCOMPARE(result, QByteArray("value2"));
     }
+
+    void testRecordRevision()
+    {
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        Akonadi2::Storage::recordRevision(transaction, 1, "uid", "type");
+        QCOMPARE(Akonadi2::Storage::getTypeFromRevision(transaction, 1), QByteArray("type"));
+        QCOMPARE(Akonadi2::Storage::getUidFromRevision(transaction, 1), QByteArray("uid"));
+    }
 };
 
 QTEST_MAIN(StorageTest)

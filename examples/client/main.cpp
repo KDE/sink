@@ -128,6 +128,7 @@ int main(int argc, char *argv[])
     cliOptions.addPositionalArgument(QObject::tr("[resource]"),
                                      QObject::tr("A resource to connect to"));
     cliOptions.addOption(QCommandLineOption("clear"));
+    cliOptions.addOption(QCommandLineOption("debuglevel"));
     cliOptions.addHelpOption();
     cliOptions.process(app);
     QStringList resources = cliOptions.positionalArguments();
@@ -142,6 +143,9 @@ int main(int argc, char *argv[])
             store.removeFromDisk();
         }
         return 0;
+    }
+    if (cliOptions.isSet("debuglevel")) {
+        Akonadi2::Log::setDebugOutputLevel(static_cast<Akonadi2::Log::DebugLevel>(cliOptions.value("debuglevel").toInt()));
     }
 
     //Ensure resource is ready
