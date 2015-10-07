@@ -25,14 +25,16 @@ class TestEntityStorage : public EntityStorage<Akonadi2::ApplicationDomain::Even
 {
 public:
     using EntityStorage::EntityStorage;
-    virtual void read(const Akonadi2::Query &query, const QPair<qint64, qint64> &revisionRange, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider)  Q_DECL_OVERRIDE
+    virtual qint64 read(const Akonadi2::Query &query, qint64 oldRevision, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider)  Q_DECL_OVERRIDE
     {
         for (const auto &res : mResults) {
             resultProvider->add(res);
         }
+        return mLatestRevision;
     }
 
     QList<Akonadi2::ApplicationDomain::Event::Ptr> mResults;
+    qint64 mLatestRevision;
 };
 
 class TestResourceAccess : public Akonadi2::ResourceAccessInterface
@@ -117,6 +119,7 @@ private Q_SLOTS:
         //Enter a second result
         storage->mResults.clear();
         storage->mResults << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        storage->mLatestRevision = 2;
         resourceAccess->emit revisionChanged(2);
 
         //Hack to get event loop in synclistresult to abort again

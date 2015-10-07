@@ -44,7 +44,7 @@ class QueryRunner : public QObject
 {
     Q_OBJECT
 public:
-    typedef std::function<KAsync::Job<qint64>(qint64 oldRevision, qint64 newRevision)> QueryFunction;
+    typedef std::function<KAsync::Job<qint64>(qint64 oldRevision)> QueryFunction;
 
     QueryRunner(const Akonadi2::Query &query) : mLatestRevision(0) {};
     /**
@@ -53,10 +53,11 @@ public:
     KAsync::Job<void> run(qint64 newRevision = 0)
     {
         //TODO: JOBAPI: that last empty .then should not be necessary
+        //TODO: remove newRevision
         if (mLatestRevision == newRevision && mLatestRevision > 0) {
             return KAsync::null<void>();
         }
-        return queryFunction(mLatestRevision, newRevision).then<void, qint64>([this](qint64 revision) {
+        return queryFunction(mLatestRevision).then<void, qint64>([this](qint64 revision) {
             mLatestRevision = revision + 1;
         }).then<void>([](){});
     }
@@ -160,9 +161,9 @@ public:
     {
         auto runner = QSharedPointer<QueryRunner>::create(query);
         QWeakPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > weakResultProvider = resultProvider;
-        runner->setQuery([this, weakResultProvider, query] (qint64 oldRevision, qint64 newRevision) -> KAsync::Job<qint64> {
-            return KAsync::start<qint64>([this, weakResultProvider, query, oldRevision, newRevision](KAsync::Future<qint64> &future) {
-                Trace() << "Executing query " << oldRevision << newRevision;
+        runner->setQuery([this, weakResultProvider, query] (qint64 oldRevision) -> KAsync::Job<qint64> {
+            return KAsync::start<qint64>([this, weakResultProvider, query, oldRevision](KAsync::Future<qint64> &future) {
+                Trace() << "Executing query " << oldRevision;
                 auto resultProvider = weakResultProvider.toStrongRef();
                 if (!resultProvider) {
                     Warning() << "Tried executing query after result provider is already gone";
@@ -170,7 +171,7 @@ public:
                     future.setFinished();
                     return;
                 }
-                load(query, resultProvider, oldRevision, newRevision).template then<void, qint64>([&future](qint64 queriedRevision) {
+                load(query, resultProvider, oldRevision).template then<void, qint64>([&future](qint64 queriedRevision) {
                     //TODO set revision in result provider?
                     //TODO update all existing results with new revision
                     future.setValue(queriedRevision);
@@ -213,11 +214,10 @@ protected:
     }
 
 private:
-    virtual KAsync::Job<qint64> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider, qint64 oldRevision, qint64 newRevision)
+    virtual KAsync::Job<qint64> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider, qint64 oldRevision)
     {
         return KAsync::start<qint64>([=]() -> qint64 {
-            mStorage->read(query, qMakePair(oldRevision, newRevision), resultProvider);
-            return newRevision;
+            return mStorage->read(query, oldRevision, resultProvider);
         });
     }
 

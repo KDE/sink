@@ -54,7 +54,7 @@ protected:
      * TODO: Resources should be able to customize this for cases where an entity is not the same as a single buffer.
      */
     void readEntity(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback);
-    ResultSet getResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision);
+    ResultSet getResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, qint64 baseRevision);
 
 protected:
     QByteArray mResourceInstanceIdentifier;
@@ -99,7 +99,7 @@ protected:
 
 public:
 
-    virtual void read(const Akonadi2::Query &query, const QPair<qint64, qint64> &revisionRange, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider)
+    virtual qint64 read(const Akonadi2::Query &query, qint64 baseRevision, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider)
     {
         Akonadi2::Storage storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier);
         storage.setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
@@ -108,10 +108,10 @@ public:
 
         auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
 
-        Log() << "Querying" << revisionRange.first << revisionRange.second;
+        Log() << "Querying" << baseRevision;
         //TODO fallback in case the old revision is no longer available to clear + redo complete initial scan
         //
-        auto resultSet = getResultSet(query, transaction, revisionRange.first, revisionRange.second);
+        auto resultSet = getResultSet(query, transaction, baseRevision);
         while(resultSet.next([this, resultProvider](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
             switch (operation) {
             case Akonadi2::Operation_Creation:
@@ -128,6 +128,7 @@ public:
             }
             return true;
         })){};
+        return Akonadi2::Storage::maxRevision(transaction);
     }
 
 };

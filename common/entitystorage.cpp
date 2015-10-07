@@ -121,8 +121,9 @@ ResultSet EntityStorageBase::loadInitialResultSet(const Akonadi2::Query &query, 
     return resultSet;
 }
 
-ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, qint64 baseRevision, qint64 topRevision)
+ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, qint64 baseRevision)
 {
+    const qint64 topRevision = Akonadi2::Storage::maxRevision(transaction);
     QSet<QByteArray> remainingFilters = query.propertyFilter.keys().toSet();
     ResultSet resultSet;
     const bool initialQuery = (baseRevision == 0);
