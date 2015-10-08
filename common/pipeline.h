@@ -80,6 +80,7 @@ private:
     //Don't use a reference here (it would invalidate itself)
     void pipelineCompleted(PipelineState state);
     void scheduleStep();
+    void storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid);
 
     friend class PipelineState;
 

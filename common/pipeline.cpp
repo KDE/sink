@@ -124,14 +124,20 @@ void Pipeline::null()
     // state.step();
 }
 
+void Pipeline::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid)
+{
+    d->transaction.openDatabase(bufferType + ".main").write(Akonadi2::Storage::assembleKey(uid, newRevision), QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()),
+        [](const Akonadi2::Storage::Error &error) {
+            Warning() << "Failed to write entity";
+        }
+    );
+    Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
+    Akonadi2::Storage::recordRevision(d->transaction, newRevision, uid, bufferType);
+}
+
 KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 {
-    Log() << "Pipeline: New Entity";
-
-    //TODO toRFC4122 would probably be more efficient, but results in non-printable keys.
-    const auto key = QUuid::createUuid().toString().toUtf8();
-
-    const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
+    Trace() << "Pipeline: New Entity";
 
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
@@ -142,7 +148,6 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     }
     auto createEntity = Akonadi2::Commands::GetCreateEntity(command);
 
-    //TODO rename createEntitiy->domainType to bufferType
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const*>(createEntity->domainType()->Data()), createEntity->domainType()->size());
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(createEntity->delta()->Data()), createEntity->delta()->size());
@@ -157,6 +162,9 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
         return KAsync::error<qint64>(0);
     }
 
+    const auto key = QUuid::createUuid().toString().toUtf8();
+    const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
+
     //Add metadata buffer
     flatbuffers::FlatBufferBuilder metadataFbb;
     auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
@@ -164,18 +172,12 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     metadataBuilder.add_processed(false);
     auto metadataBuffer = metadataBuilder.Finish();
     Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
-    //TODO we should reserve some space in metadata for in-place updates
 
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), entity->resource()->Data(), entity->resource()->size(), entity->local()->Data(), entity->local()->size());
 
-    d->transaction.openDatabase(bufferType + ".main").write(Akonadi2::Storage::assembleKey(key, newRevision), QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()),
-        [](const Akonadi2::Storage::Error &error) {
-            Warning() << "Failed to write entity";
-        }
-    );
-    Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
-    Akonadi2::Storage::recordRevision(d->transaction, newRevision, key, bufferType);
+    storeNewRevision(newRevision, fbb, bufferType, key);
+
     Log() << "Pipeline: wrote entity: " << key << newRevision << bufferType;
 
     return KAsync::start<qint64>([this, key, bufferType, newRevision](KAsync::Future<qint64> &future) {
@@ -190,7 +192,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 
 KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 {
-    Log() << "Pipeline: Modified Entity";
+    Trace() << "Pipeline: Modified Entity";
 
     const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
 
@@ -279,9 +281,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder fbb;
     adaptorFactory->createBuffer(*newObject, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
-    d->transaction.openDatabase(bufferType + ".main").write(Akonadi2::Storage::assembleKey(key, newRevision), QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
-    Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
-    Akonadi2::Storage::recordRevision(d->transaction, newRevision, key, bufferType);
+    storeNewRevision(newRevision, fbb, bufferType, key);
     Log() << "Pipeline: modified entity: " << key << newRevision << bufferType;
 
     return KAsync::start<qint64>([this, key, bufferType, newRevision](KAsync::Future<qint64> &future) {
@@ -296,7 +296,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
 KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 {
-    Log() << "Pipeline: Deleted Entity";
+    Trace() << "Pipeline: Deleted Entity";
 
     const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
 
