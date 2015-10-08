@@ -100,10 +100,12 @@ void Pipeline::startTransaction()
 
 void Pipeline::commit()
 {
+    const auto revision = Akonadi2::Storage::maxRevision(d->transaction);
     if (d->transaction) {
         d->transaction.commit();
     }
     d->transaction = Storage::Transaction();
+    emit revisionUpdated(revision);
 }
 
 Storage::Transaction &Pipeline::transaction()
@@ -387,9 +389,6 @@ void Pipeline::pipelineCompleted(PipelineState state)
     }
     state.callback();
 
-    if (state.type() != NullPipeline) {
-        emit revisionUpdated(state.revision());
-    }
     scheduleStep();
     if (d->activePipelines.isEmpty()) {
         emit pipelinesDrained();
