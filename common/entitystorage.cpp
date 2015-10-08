@@ -90,8 +90,6 @@ ResultSet EntityStorageBase::filteredSet(const ResultSet &resultSet, const std::
     //Read through the source values and return whatever matches the filter
     std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)>)> generator = [this, resultSetPtr, &transaction, filter, initialQuery](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> callback) -> bool {
         while (resultSetPtr->next()) {
-            //TODO. every read value is actually a revision that contains one of three operations. Reflect that so the result set can be updated appropriately.
-            //TODO while getting the initial set everything is adding
             readEntity(transaction, resultSetPtr->id(), [this, filter, callback, initialQuery](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Akonadi2::Operation operation) {
                 if (filter(domainObject)) {
                     if (initialQuery) {

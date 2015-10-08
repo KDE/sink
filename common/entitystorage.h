@@ -109,8 +109,6 @@ public:
         auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
 
         Log() << "Querying" << baseRevision;
-        //TODO fallback in case the old revision is no longer available to clear + redo complete initial scan
-        //
         auto resultSet = getResultSet(query, transaction, baseRevision);
         while(resultSet.next([this, resultProvider](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
             switch (operation) {

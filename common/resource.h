@@ -24,7 +24,6 @@
 
 namespace Akonadi2
 {
-class Pipeline;
 class FacadeFactory;
 
 /**

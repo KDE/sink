@@ -29,6 +29,7 @@ class Processor;
 
 namespace Akonadi2
 {
+class Pipeline;
 
 /**
  * Generic Resource implementation.
