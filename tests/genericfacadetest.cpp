@@ -30,10 +30,18 @@ public:
         for (const auto &res : mResults) {
             resultProvider->add(res);
         }
+        for (const auto &res : mModifications) {
+            resultProvider->modify(res);
+        }
+        for (const auto &res : mRemovals) {
+            resultProvider->remove(res);
+        }
         return mLatestRevision;
     }
 
     QList<Akonadi2::ApplicationDomain::Event::Ptr> mResults;
+    QList<Akonadi2::ApplicationDomain::Event::Ptr> mModifications;
+    QList<Akonadi2::ApplicationDomain::Event::Ptr> mRemovals;
     qint64 mLatestRevision;
 };
 
@@ -126,8 +134,77 @@ private Q_SLOTS:
         resultSet->initialResultSetComplete();
         result.exec();
 
-        // QTRY_COMPARE(result.size(), 2);
         QCOMPARE(result.size(), 2);
+    }
+
+    void testLiveQueryModify()
+    {
+        Akonadi2::Query query;
+        query.liveQuery = true;
+
+        auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
+        auto storage = QSharedPointer<TestEntityStorage>::create("identifier", QSharedPointer<TestEventAdaptorFactory>::create(), "bufferType");
+        auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
+        auto entity = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        entity->setProperty("test", "test1");
+        storage->mResults << entity;
+        TestResourceFacade facade("identifier", storage, resourceAccess);
+
+        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
+
+        facade.load(query, resultSet).exec().waitForFinished();
+        resultSet->initialResultSetComplete();
+
+        result.exec();
+        QCOMPARE(result.size(), 1);
+
+        //Modify the entity again
+        storage->mResults.clear();
+        entity = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        entity->setProperty("test", "test2");
+        storage->mModifications << entity;
+        storage->mLatestRevision = 2;
+        resourceAccess->emit revisionChanged(2);
+
+        //Hack to get event loop in synclistresult to abort again
+        resultSet->initialResultSetComplete();
+        result.exec();
+
+        QCOMPARE(result.size(), 1);
+        QCOMPARE(result.first()->getProperty("test").toByteArray(), QByteArray("test2"));
+    }
+
+    void testLiveQueryRemove()
+    {
+        Akonadi2::Query query;
+        query.liveQuery = true;
+
+        auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
+        auto storage = QSharedPointer<TestEntityStorage>::create("identifier", QSharedPointer<TestEventAdaptorFactory>::create(), "bufferType");
+        auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
+        auto entity = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        storage->mResults << entity;
+        TestResourceFacade facade("identifier", storage, resourceAccess);
+
+        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
+
+        facade.load(query, resultSet).exec().waitForFinished();
+        resultSet->initialResultSetComplete();
+
+        result.exec();
+        QCOMPARE(result.size(), 1);
+
+        //Remove the entity again
+        storage->mResults.clear();
+        storage->mRemovals << entity;
+        storage->mLatestRevision = 2;
+        resourceAccess->emit revisionChanged(2);
+
+        //Hack to get event loop in synclistresult to abort again
+        resultSet->initialResultSetComplete();
+        result.exec();
+
+        QCOMPARE(result.size(), 0);
     }
 };
 

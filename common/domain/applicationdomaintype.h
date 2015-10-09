@@ -97,6 +97,15 @@ private:
     qint64 mRevision;
 };
 
+/*
+ * Should this be specific to the synclistresultset, in other cases we may want to take revision and resource into account.
+ */
+inline bool operator==(const ApplicationDomainType& lhs, const ApplicationDomainType& rhs)
+{
+    return lhs.identifier() == rhs.identifier()
+            && lhs.resourceInstanceIdentifier() == rhs.resourceInstanceIdentifier();
+}
+
 struct Event : public ApplicationDomainType {
     typedef QSharedPointer<Event> Ptr;
     using ApplicationDomainType::ApplicationDomainType;

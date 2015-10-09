@@ -118,10 +118,11 @@ public:
                 break;
             case Akonadi2::Operation_Modification:
                 Trace() << "Got modification";
-                resultProvider->add(copy(*value).template staticCast<DomainType>());
+                resultProvider->modify(copy(*value).template staticCast<DomainType>());
                 break;
             case Akonadi2::Operation_Removal:
                 Trace() << "Got removal";
+                resultProvider->remove(copy(*value).template staticCast<DomainType>());
                 break;
             }
             return true;

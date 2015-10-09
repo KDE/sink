@@ -81,6 +81,28 @@ public:
         });
     }
 
+    void modify(const T &value)
+    {
+        //Because I don't know how to use bind
+        auto weakEmitter = mResultEmitter;
+        callInMainThreadOnEmitter([weakEmitter, value](){
+            if (auto strongRef = weakEmitter.toStrongRef()) {
+                strongRef->modifyHandler(value);
+            }
+        });
+    }
+
+    void remove(const T &value)
+    {
+        //Because I don't know how to use bind
+        auto weakEmitter = mResultEmitter;
+        callInMainThreadOnEmitter([weakEmitter, value](){
+            if (auto strongRef = weakEmitter.toStrongRef()) {
+                strongRef->removeHandler(value);
+            }
+        });
+    }
+
     void initialResultSetComplete()
     {
         callInMainThreadOnEmitter(&ResultEmitter<T>::initialResultSetComplete);
@@ -176,15 +198,27 @@ public:
     {
         addHandler = handler;
     }
-    // void onRemoved(const std::function<void(const T&)> &handler);
+
+    void onModified(const std::function<void(const DomainType&)> &handler)
+    {
+        modifyHandler = handler;
+    }
+
+    void onRemoved(const std::function<void(const DomainType&)> &handler)
+    {
+        removeHandler = handler;
+    }
+
     void onInitialResultSetComplete(const std::function<void(void)> &handler)
     {
         initialResultSetCompleteHandler = handler;
     }
+
     void onComplete(const std::function<void(void)> &handler)
     {
         completeHandler = handler;
     }
+
     void onClear(const std::function<void(void)> &handler)
     {
         clearHandler = handler;
@@ -193,6 +227,16 @@ public:
     void add(const DomainType &value)
     {
         addHandler(value);
+    }
+
+    void modify(const DomainType &value)
+    {
+        modifyHandler(value);
+    }
+
+    void remove(const DomainType &value)
+    {
+        removeHandler(value);
     }
 
     void initialResultSetComplete()
@@ -214,7 +258,8 @@ private:
     friend class ResultProvider<DomainType>;
 
     std::function<void(const DomainType&)> addHandler;
-    // std::function<void(const T&)> removeHandler;
+    std::function<void(const DomainType&)> modifyHandler;
+    std::function<void(const DomainType&)> removeHandler;
     std::function<void(void)> initialResultSetCompleteHandler;
     std::function<void(void)> completeHandler;
     std::function<void(void)> clearHandler;

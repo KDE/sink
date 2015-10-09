@@ -4,6 +4,7 @@
 #include <functional>
 #include <QSharedPointer>
 #include <QEventLoop>
+#include <QDebug>
 #include "resultprovider.h"
 
 namespace async {
@@ -24,6 +25,23 @@ public:
     {
         emitter->onAdded([this](const T &value) {
             this->append(value);
+        });
+        emitter->onModified([this](const T &value) {
+            for (auto it = this->begin(); it != this->end(); it++) {
+                if (**it == *value) {
+                    it = this->erase(it);
+                    this->insert(it, value);
+                    break;
+                }
+            }
+        });
+        emitter->onRemoved([this](const T &value) {
+            for (auto it = this->begin(); it != this->end(); it++) {
+                if (**it == *value) {
+                    this->erase(it);
+                    break;
+                }
+            }
         });
         emitter->onInitialResultSetComplete([this]() {
             if (eventLoopAborter) {
