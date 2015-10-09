@@ -70,6 +70,9 @@ class ResultSet {
                 }
                 return mIt != mResultSet.constEnd();
             }
+            if (!mCurrentValue.isNull()) {
+                return true;
+            }
             return false;
         }
 

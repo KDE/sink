@@ -148,7 +148,6 @@ ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, Akonadi2
                 return key;
             }
             //We're done
-            //FIXME make sure result set understands that this means we're done
             return QByteArray();
         });
     }
