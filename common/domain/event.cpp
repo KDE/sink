@@ -38,7 +38,7 @@ ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, 
 {
     QVector<QByteArray> keys;
     if (query.propertyFilter.contains("uid")) {
-        Index uidIndex("index.uid", transaction);
+        Index uidIndex("event.index.uid", transaction);
         uidIndex.lookup(query.propertyFilter.value("uid").toByteArray(), [&](const QByteArray &value) {
             keys << value;
         },
@@ -54,8 +54,7 @@ void TypeImplementation<Event>::index(const Event &type, Akonadi2::Storage::Tran
 {
     const auto uid = type.getProperty("uid");
     if (uid.isValid()) {
-        Index uidIndex("index.uid", transaction);
-        uidIndex.add(uid.toByteArray(), type.identifier());
+        Index("event.index.uid", transaction).add(uid.toByteArray(), type.identifier());
     }
 }
 
