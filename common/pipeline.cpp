@@ -172,6 +172,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
     metadataBuilder.add_revision(newRevision);
     metadataBuilder.add_processed(false);
+    metadataBuilder.add_operation(Akonadi2::Operation_Creation);
     auto metadataBuffer = metadataBuilder.Finish();
     Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
@@ -277,6 +278,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
     metadataBuilder.add_revision(newRevision);
     metadataBuilder.add_processed(false);
+    metadataBuilder.add_operation(Akonadi2::Operation_Modification);
     auto metadataBuffer = metadataBuilder.Finish();
     Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
@@ -300,8 +302,6 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 {
     Trace() << "Pipeline: Deleted Entity";
 
-    const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
-
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
         if (!Akonadi2::Commands::VerifyDeleteEntityBuffer(verifyer)) {
@@ -315,11 +315,21 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     const QByteArray key = QByteArray(reinterpret_cast<char const*>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
     const qint64 baseRevision = deleteEntity->revision();
 
-    //TODO instead of deleting the entry, a new revision should be created that marks the entity as deleted
-    //TODO remove all revisions?
-    d->transaction.openDatabase(bufferType + ".main").remove(Akonadi2::Storage::assembleKey(key, baseRevision));
-    Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
-    Akonadi2::Storage::recordRevision(d->transaction, newRevision, key, bufferType);
+    const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
+
+    //Add metadata buffer
+    flatbuffers::FlatBufferBuilder metadataFbb;
+    auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
+    metadataBuilder.add_revision(newRevision);
+    metadataBuilder.add_processed(false);
+    metadataBuilder.add_operation(Akonadi2::Operation_Removal);
+    auto metadataBuffer = metadataBuilder.Finish();
+    Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
+
+    flatbuffers::FlatBufferBuilder fbb;
+    EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), 0, 0, 0, 0);
+
+    storeNewRevision(newRevision, fbb, bufferType, key);
     Log() << "Pipeline: deleted entity: "<< newRevision;
 
     return KAsync::start<qint64>([this, key, bufferType, newRevision](KAsync::Future<qint64> &future) {

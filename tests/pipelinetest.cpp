@@ -246,6 +246,9 @@ private Q_SLOTS:
         pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size());
         pipeline.commit();
 
+        //We have a new revision that indicates the deletion
+        QCOMPARE(getKeys("org.kde.pipelinetest.instance1", "event.main").size(), 2);
+
         //Cleanup old revisions
         pipeline.startTransaction();
         pipeline.cleanupRevision(2);
