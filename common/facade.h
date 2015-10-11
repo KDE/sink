@@ -54,11 +54,8 @@ public:
     {
         //TODO: JOBAPI: that last empty .then should not be necessary
         //TODO: remove newRevision
-        if (mLatestRevision == newRevision && mLatestRevision > 0) {
-            return KAsync::null<void>();
-        }
-        return queryFunction(mLatestRevision).then<void, qint64>([this](qint64 revision) {
-            mLatestRevision = revision + 1;
+        return queryFunction(mLatestRevision + 1).then<void, qint64>([this](qint64 revision) {
+            mLatestRevision = revision;
         }).then<void>([](){});
     }
 

@@ -29,7 +29,7 @@ private Q_SLOTS:
         removeFromDisk("org.kde.dummy.instance1");
         removeFromDisk("org.kde.dummy.instance1.userqueue");
         removeFromDisk("org.kde.dummy.instance1.synchronizerqueue");
-        removeFromDisk("org.kde.dummy.instance1.index.uid");
+        removeFromDisk("org.kde.dummy.instance1.event.index.uid");
         ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
     }
 
@@ -39,7 +39,7 @@ private Q_SLOTS:
         removeFromDisk("org.kde.dummy.instance1");
         removeFromDisk("org.kde.dummy.instance1.userqueue");
         removeFromDisk("org.kde.dummy.instance1.synchronizerqueue");
-        removeFromDisk("org.kde.dummy.instance1.index.uid");
+        removeFromDisk("org.kde.dummy.instance1.event.index.uid");
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
     }
@@ -213,6 +213,15 @@ private Q_SLOTS:
             auto value = result.first();
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
+        }
+
+        Akonadi2::Store::remove<Akonadi2::ApplicationDomain::Event>(event2, "org.kde.dummy.instance1").exec().waitForFinished();
+
+        //Test remove
+        {
+            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
+            result.exec();
+            QCOMPARE(result.size(), 0);
         }
     }
 

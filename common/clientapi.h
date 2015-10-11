@@ -175,9 +175,9 @@ public:
         //Potentially move to separate thread as well
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
         if (facade) {
-            facade->remove(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
+            return facade->remove(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
                 Warning() << "Failed to remove";
-            }).exec().waitForFinished();
+            });
         }
         return KAsync::error<void>(-1, "Failed to create a facade");
     }

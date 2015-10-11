@@ -58,7 +58,11 @@ void EntityStorageBase::readEntity(const Akonadi2::Storage::Transaction &transac
         auto operation = metadataBuffer->operation();
 
         auto domainObject = create(key, revision, mDomainTypeAdaptorFactory->createAdaptor(entity));
-        resultCallback(domainObject, operation);
+        if (operation == Akonadi2::Operation_Removal) {
+            resultCallback(create(key, revision, mDomainTypeAdaptorFactory->createAdaptor(entity)), operation);
+        } else {
+            resultCallback(create(key, revision, mDomainTypeAdaptorFactory->createAdaptor(entity)), operation);
+        }
         return false;
     }, mBufferType);
 }
@@ -124,7 +128,7 @@ ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, Akonadi2
     const qint64 topRevision = Akonadi2::Storage::maxRevision(transaction);
     QSet<QByteArray> remainingFilters = query.propertyFilter.keys().toSet();
     ResultSet resultSet;
-    const bool initialQuery = (baseRevision == 0);
+    const bool initialQuery = (baseRevision == 1);
     if (initialQuery) {
         Trace() << "Initial result set update";
         resultSet = loadInitialResultSet(query, transaction, remainingFilters);
