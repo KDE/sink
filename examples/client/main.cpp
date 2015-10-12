@@ -27,6 +27,7 @@
 #include "common/resource.h"
 #include "common/synclistresult.h"
 #include "common/storage.h"
+#include "common/domain/event.h"
 #include "console.h"
 
 #include <QWidget>
@@ -34,7 +35,13 @@
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QItemSelectionModel>
 
+enum Roles {
+    DomainObjectRole = Qt::UserRole + 1
+};
+
+template <typename T>
 class View : public QWidget
 {
 public:
@@ -60,6 +67,15 @@ public:
             Akonadi2::Store::synchronize("org.kde.dummy.instance1");
         });
 
+        auto removeButton = new QPushButton(this);
+        removeButton->setText("Remove");
+        QObject::connect(removeButton, &QPushButton::pressed, [listView]() {
+            for (auto index :listView->selectionModel()->selectedIndexes()) {
+                auto object = index.data(DomainObjectRole).value<typename T::Ptr>();
+                Akonadi2::Store::remove(*object, "org.kde.dummy.instance1").exec();
+            }
+        });
+
         topLayout->addWidget(titleLabel);
         topLayout->addWidget(syncButton);
         topLayout->addWidget(listView, 10);
@@ -75,14 +91,32 @@ class AkonadiListModel : public QAbstractListModel
 public:
     AkonadiListModel(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter, const QByteArray &property)
         :QAbstractListModel(),
-        mEmitter(emitter)
+        mEmitter(emitter),
+        mProperty(property)
     {
         emitter->onAdded([this, property](const T &value) {
-            // qDebug() << "VALUE ADDED";
-            Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr type(value);
-            beginInsertRows(QModelIndex(), mStringList.size(), mStringList.size());
-            mStringList << type->getProperty(property).toString();
+            const auto keys = mEntities.keys();
+            int index = 0;
+            for (; index < keys.size(); index++) {
+                if (value->identifier() < keys.at(index)) {
+                    break;
+                }
+            }
+            beginInsertRows(QModelIndex(), index, index);
+            mEntities.insert(value->identifier(), value);
             endInsertRows();
+        });
+        emitter->onModified([this, property](const T &value) {
+            mEntities.remove(value->identifier());
+            mEntities.insert(value->identifier(), value);
+            //FIXME
+            // emit dataChanged();
+        });
+        emitter->onRemoved([this, property](const T &value) {
+            auto index = mEntities.keys().indexOf(value->identifier());
+            beginRemoveRows(QModelIndex(), index, index);
+            mEntities.remove(value->identifier());
+            endRemoveRows();
         });
         emitter->onInitialResultSetComplete([this]() {
         });
@@ -93,31 +127,36 @@ public:
         emitter->onClear([this]() {
             // qDebug() << "CLEAR";
             beginResetModel();
-            mStringList.clear();
+            mEntities.clear();
             endResetModel();
         });
     }
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const
     {
-        return mStringList.size();
+        return mEntities.size();
     }
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
     {
-        if (index.row() >= mStringList.size()) {
+        if (index.row() >= mEntities.size()) {
             qWarning() << "Out of bounds access";
             return QVariant();
         }
         if (role == Qt::DisplayRole) {
-            return QVariant::fromValue(mStringList.at(index.row()));
+            auto entity = mEntities.value(mEntities.keys().at(index.row()));
+            return entity->getProperty(mProperty).toString() + entity->identifier();
+        }
+        if (role == DomainObjectRole) {
+            return QVariant::fromValue(mEntities.value(mEntities.keys().at(index.row())));
         }
         return QVariant();
     }
 
 private:
     QSharedPointer<Akonadi2::ResultEmitter<T> > mEmitter;
-    QStringList mStringList;
+    QMap<QByteArray, T> mEntities;
+    QByteArray mProperty;
 };
 
 int main(int argc, char *argv[])
@@ -163,7 +202,7 @@ int main(int argc, char *argv[])
     query.liveQuery = true;
 
     auto model = QSharedPointer<AkonadiListModel<Akonadi2::ApplicationDomain::Event::Ptr> >::create(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query), "summary");
-    auto view = QSharedPointer<View>::create(model.data());
+    auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Event> >::create(model.data());
 
     return app.exec();
 }

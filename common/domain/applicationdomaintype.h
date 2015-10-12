@@ -176,3 +176,6 @@ class TypeImplementation;
 
 }
 }
+
+Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::ApplicationDomainType)
+Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr)

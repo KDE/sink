@@ -63,3 +63,6 @@ public:
 
 }
 }
+
+Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Event)
+Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Event::Ptr)
