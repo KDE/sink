@@ -2,6 +2,8 @@
 
 #include <QString>
 
+#include "testimplementations.h"
+
 #include "event_generated.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
@@ -17,17 +19,6 @@
 #include "pipeline.h"
 #include "log.h"
 #include "domainadaptor.h"
-
-class TestEventAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Buffer::Event, Akonadi2::ApplicationDomain::Buffer::EventBuilder>
-{
-public:
-    TestEventAdaptorFactory()
-        : DomainTypeAdaptorFactory()
-    {
-    }
-
-    virtual ~TestEventAdaptorFactory() {};
-};
 
 static void removeFromDisk(const QString &name)
 {

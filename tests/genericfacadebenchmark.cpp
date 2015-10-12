@@ -2,6 +2,8 @@
 
 #include <QString>
 
+#include "testimplementations.h"
+
 #include <common/facade.h>
 #include <common/domainadaptor.h>
 #include <common/resultprovider.h>
@@ -9,44 +11,7 @@
 
 #include "event_generated.h"
 
-class TestEventAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Buffer::Event, Akonadi2::ApplicationDomain::Buffer::EventBuilder>
-{
-public:
-    TestEventAdaptorFactory()
-        : DomainTypeAdaptorFactory()
-    {
-    }
 
-    virtual ~TestEventAdaptorFactory() {};
-};
-
-class TestResourceAccess : public Akonadi2::ResourceAccessInterface
-{
-    Q_OBJECT
-public:
-    virtual ~TestResourceAccess() {};
-    KAsync::Job<void> sendCommand(int commandId) Q_DECL_OVERRIDE { return KAsync::null<void>(); }
-    KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE { return KAsync::null<void>(); }
-    KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) Q_DECL_OVERRIDE { return KAsync::null<void>(); }
-
-public Q_SLOTS:
-    void open() Q_DECL_OVERRIDE {}
-    void close() Q_DECL_OVERRIDE {}
-};
-
-class TestResourceFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>
-{
-public:
-    TestResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<EntityStorage<Akonadi2::ApplicationDomain::Event> > storage, const QSharedPointer<Akonadi2::ResourceAccessInterface> resourceAccess)
-        : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<TestEventAdaptorFactory>::create(), storage, resourceAccess)
-    {
-
-    }
-    virtual ~TestResourceFacade()
-    {
-
-    }
-};
 
 class GenericFacadeBenchmark : public QObject
 {

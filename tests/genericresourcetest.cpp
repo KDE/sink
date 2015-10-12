@@ -2,6 +2,8 @@
 
 #include <QString>
 
+#include "testimplementations.h"
+
 #include "event_generated.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
@@ -11,21 +13,6 @@
 #include "pipeline.h"
 #include "genericresource.h"
 #include "definitions.h"
-
-class TestResource : public Akonadi2::GenericResource
-{
-public:
-    TestResource(const QByteArray &instanceIdentifier, QSharedPointer<Akonadi2::Pipeline> pipeline)
-        : Akonadi2::GenericResource(instanceIdentifier, pipeline)
-    {
-    }
-
-    KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
-    {
-        return KAsync::null<void>();
-    }
-};
-
 
 static void removeFromDisk(const QString &name)
 {

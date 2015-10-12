@@ -2,6 +2,8 @@
 
 #include <QString>
 
+#include "testimplementations.h"
+
 #include "event_generated.h"
 #include "createentity_generated.h"
 #include "commands.h"
@@ -14,31 +16,6 @@
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
-
-class TestResource : public Akonadi2::GenericResource
-{
-public:
-    TestResource(const QByteArray &instanceIdentifier, QSharedPointer<Akonadi2::Pipeline> pipeline)
-        : Akonadi2::GenericResource(instanceIdentifier, pipeline)
-    {
-    }
-
-    KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
-    {
-        return KAsync::null<void>();
-    }
-};
-
-class TestEventAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Buffer::Event, Akonadi2::ApplicationDomain::Buffer::EventBuilder>
-{
-public:
-    TestEventAdaptorFactory()
-        : DomainTypeAdaptorFactory()
-    {
-    }
-
-    virtual ~TestEventAdaptorFactory() {};
-};
 
 
 static void removeFromDisk(const QString &name)
