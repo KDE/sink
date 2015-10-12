@@ -97,7 +97,10 @@ ResultSet EntityStorageBase::filteredSet(const ResultSet &resultSet, const std::
             readEntity(transaction, resultSetPtr->id(), [this, filter, callback, initialQuery](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Akonadi2::Operation operation) {
                 if (filter(domainObject)) {
                     if (initialQuery) {
-                        callback(domainObject, Akonadi2::Operation_Creation);
+                        //We're not interested in removals during the initial query
+                        if (operation != Akonadi2::Operation_Removal) {
+                            callback(domainObject, Akonadi2::Operation_Creation);
+                        }
                     } else {
                         callback(domainObject, operation);
                     }
