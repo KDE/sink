@@ -313,7 +313,6 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const*>(deleteEntity->domainType()->Data()), deleteEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const*>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
-    const qint64 baseRevision = deleteEntity->revision();
 
     const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
 
@@ -365,6 +364,12 @@ void Pipeline::cleanupRevision(qint64 revision)
     }, [](const Akonadi2::Storage::Error &error) {
         Warning() << "Error while reading: " << error.message;
     }, true);
+    Akonadi2::Storage::setCleanedUpRevision(d->transaction, revision);
+}
+
+qint64 Pipeline::cleanedUpRevision()
+{
+    return Akonadi2::Storage::cleanedUpRevision(d->transaction);
 }
 
 void Pipeline::pipelineStepped(const PipelineState &state)

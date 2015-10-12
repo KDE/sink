@@ -25,11 +25,22 @@ public:
         mCommandQueues(commandQueues),
         mProcessingLock(false)
     {
+        mPipeline->startTransaction();
+        //FIXME Should be initialized to the current value of the change replay queue
+        mLowerBoundRevision = Storage::maxRevision(mPipeline->transaction());
+        mPipeline->commit();
+
         for (auto queue : mCommandQueues) {
             const bool ret = connect(queue, &MessageQueue::messageReady, this, &Processor::process);
             Q_UNUSED(ret);
         }
     }
+
+    void setOldestUsedRevision(qint64 revision)
+    {
+        mLowerBoundRevision = revision;
+    }
+
 
 signals:
     void error(int errorCode, const QString &errorMessage);
@@ -113,9 +124,6 @@ private slots:
                         return KAsync::start<void>([this, data](KAsync::Future<void> &future) {
                             processQueuedCommand(data).then<void, qint64>([&future, this](qint64 createdRevision) {
                                 Trace() << "Created revision " << createdRevision;
-                                //We don't have a writeback yet, so we cleanup revisions immediately
-                                //TODO: only cleanup once writeback is done
-                                mPipeline->cleanupRevision(createdRevision);
                                 future.setFinished();
                             }).exec();
                         });
@@ -137,6 +145,12 @@ private slots:
 
     KAsync::Job<void> processPipeline()
     {
+        mPipeline->startTransaction();
+        for (qint64 revision = mPipeline->cleanedUpRevision() + 1; revision <= mLowerBoundRevision; revision++) {
+            mPipeline->cleanupRevision(revision);
+        }
+        mPipeline->commit();
+
         //Go through all message queues
         auto it = QSharedPointer<QListIterator<MessageQueue*> >::create(mCommandQueues);
         return KAsync::dowhile(
@@ -156,6 +170,8 @@ private:
     //Ordered by priority
     QList<MessageQueue*> mCommandQueues;
     bool mProcessingLock;
+    //The lowest revision we no longer need
+    qint64 mLowerBoundRevision;
 };
 
 
@@ -170,6 +186,23 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
     mProcessor = new Processor(mPipeline.data(), QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
     QObject::connect(mProcessor, &Processor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
+
+    //We simply drop revisions with 100ms delay until we have better information from clients and writeback
+    //FIXME On startup, read the latest revision that is replayed to initialize. Then bump revision when change-replay and
+    //all clients have advanced to a later revision.
+    QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, [this](qint64 revision) {
+        QTimer *dropRevisionTimer = new QTimer();
+        dropRevisionTimer->setInterval(100);
+        dropRevisionTimer->setSingleShot(true);
+        auto processor = QPointer<Processor>(mProcessor);
+        QObject::connect(dropRevisionTimer, &QTimer::timeout, dropRevisionTimer, [processor, revision, dropRevisionTimer]() {
+            if (processor) {
+                processor->setOldestUsedRevision(revision);
+            }
+            delete dropRevisionTimer;
+        });
+        dropRevisionTimer->start();
+    });
 
     mCommitQueueTimer.setInterval(100);
     mCommitQueueTimer.setSingleShot(true);

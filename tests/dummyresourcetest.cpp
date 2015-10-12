@@ -221,7 +221,7 @@ private Q_SLOTS:
         {
             async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
             result.exec();
-            QCOMPARE(result.size(), 0);
+            QTRY_COMPARE(result.size(), 0);
         }
     }
 

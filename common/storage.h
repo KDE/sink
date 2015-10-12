@@ -168,6 +168,9 @@ public:
     static qint64 maxRevision(const Akonadi2::Storage::Transaction &);
     static void setMaxRevision(Akonadi2::Storage::Transaction &, qint64 revision);
 
+    static qint64 cleanedUpRevision(const Akonadi2::Storage::Transaction &);
+    static void setCleanedUpRevision(Akonadi2::Storage::Transaction &, qint64 revision);
+
     static QByteArray getUidFromRevision(const Akonadi2::Storage::Transaction &, qint64 revision);
     static QByteArray getTypeFromRevision(const Akonadi2::Storage::Transaction &, qint64 revision);
     static void recordRevision(Akonadi2::Storage::Transaction &, qint64 revision, const QByteArray &uid, const QByteArray &type);

@@ -68,6 +68,11 @@ public:
      */
     void cleanupRevision(qint64 revision);
 
+    /*
+     * Returns the latest cleaned up revision.
+     */
+    qint64 cleanedUpRevision();
+
 Q_SIGNALS:
     void revisionUpdated(qint64);
     void pipelinesDrained();

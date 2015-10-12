@@ -73,6 +73,25 @@ qint64 Storage::maxRevision(const Akonadi2::Storage::Transaction &transaction)
     return r;
 }
 
+void Storage::setCleanedUpRevision(Akonadi2::Storage::Transaction &transaction, qint64 revision)
+{
+    transaction.openDatabase().write("__internal_cleanedUpRevision", QByteArray::number(revision));
+}
+
+qint64 Storage::cleanedUpRevision(const Akonadi2::Storage::Transaction &transaction)
+{
+    qint64 r = 0;
+    transaction.openDatabase().scan("__internal_cleanedUpRevision", [&](const QByteArray &, const QByteArray &revision) -> bool {
+        r = revision.toLongLong();
+        return false;
+    }, [](const Error &error){
+        if (error.code != Akonadi2::Storage::NotFound) {
+            std::cout << "Coultn'd find the maximum revision" << std::endl;
+        }
+    });
+    return r;
+}
+
 QByteArray Storage::getUidFromRevision(const Akonadi2::Storage::Transaction &transaction, qint64 revision)
 {
     QByteArray uid;
