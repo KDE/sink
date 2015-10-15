@@ -53,7 +53,7 @@ private Q_SLOTS:
         QBENCHMARK {
             auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
             auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
-            auto storage = QSharedPointer<EntityStorage<Akonadi2::ApplicationDomain::Event> >::create("identifier", domainTypeAdaptorFactory, "bufferType");
+            auto storage = QSharedPointer<EntityStorage<Akonadi2::ApplicationDomain::Event> >::create("identifier");
             TestResourceFacade facade(identifier, storage, resourceAccess);
 
             async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(resultSet->emitter());

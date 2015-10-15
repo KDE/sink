@@ -32,41 +32,44 @@
 /**
  * Wraps storage, entity adaptor factory and indexes into one.
  * 
- * TODO: customize with readEntity instead of adaptor factory
  */
 class EntityStorageBase
 {
-protected:
-    EntityStorageBase(const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory)
-        : mResourceInstanceIdentifier(instanceIdentifier),
-        mDomainTypeAdaptorFactory(adaptorFactory)
-    {
+public:
+    typedef std::function<ResultSet (const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)> InitialResultLoader;
+    typedef std::function<ResultSet (qint64 baseRevision, const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)> IncrementalResultLoader;
+    typedef std::function<void(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback)> EntityReader;
 
-    }
-
-    virtual Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr create(const QByteArray &key, qint64 revision, const QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> &adaptor) = 0;
-    virtual Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr copy(const Akonadi2::ApplicationDomain::ApplicationDomainType &) = 0;
-    virtual ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction) = 0;
-
-    /**
-     * Loads a single entity by uid from storage.
-     * 
-     * TODO: Resources should be able to customize this for cases where an entity is not the same as a single buffer.
-     */
-    void readEntity(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback);
-    ResultSet getResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, qint64 baseRevision);
-
-protected:
-    QByteArray mResourceInstanceIdentifier;
-    QByteArray mBufferType;
-    DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
-private:
     /**
      * Returns the initial result set that still needs to be filtered.
      *
      * To make this efficient indexes should be chosen that are as selective as possible.
      */
-    ResultSet loadInitialResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters);
+    InitialResultLoader loadInitialResultSet;
+    /**
+     * Returns the incremental result set that still needs to be filtered.
+     */
+    IncrementalResultLoader loadIncrementalResultSet;
+
+    /**
+     * Loads a single entity by uid from storage.
+     */
+    EntityReader readEntity;
+
+protected:
+    EntityStorageBase(const QByteArray &instanceIdentifier)
+        : mResourceInstanceIdentifier(instanceIdentifier)
+    {
+
+    }
+
+    virtual Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr copy(const Akonadi2::ApplicationDomain::ApplicationDomainType &) = 0;
+
+    ResultSet getResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, qint64 baseRevision);
+
+    QByteArray mResourceInstanceIdentifier;
+
+private:
     ResultSet filteredSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::Transaction &transaction, bool isInitialQuery);
 };
 
@@ -75,26 +78,16 @@ class EntityStorage : public EntityStorageBase
 {
 
 public:
-    EntityStorage(const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory, const QByteArray &bufferType)
-        : EntityStorageBase(instanceIdentifier, adaptorFactory)
+
+    EntityStorage(const QByteArray &instanceIdentifier)
+        : EntityStorageBase(instanceIdentifier)
     {
-        mBufferType = bufferType;
     }
 
 protected:
-    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr create(const QByteArray &key, qint64 revision, const QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> &adaptor) Q_DECL_OVERRIDE
-    {
-        return DomainType::Ptr::create(mResourceInstanceIdentifier, key, revision, adaptor);
-    }
-
     Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr copy(const Akonadi2::ApplicationDomain::ApplicationDomainType &object) Q_DECL_OVERRIDE
     {
         return Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(object);
-    }
-
-    ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        return Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::queryIndexes(query, resourceInstanceIdentifier, appliedFilters, transaction);
     }
 
 public:
@@ -108,7 +101,7 @@ public:
 
         auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
 
-        Log() << "Querying" << baseRevision;
+        Log() << "Querying" << baseRevision << Akonadi2::Storage::maxRevision(transaction);
         auto resultSet = getResultSet(query, transaction, baseRevision);
         while(resultSet.next([this, resultProvider](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
             switch (operation) {
