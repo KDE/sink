@@ -4,9 +4,9 @@ The resource consists of:
 * a plugin providing the client-api facade
 * a configuration setting up the filters
 
-# Syncronizer
+# Synchronizer
 * The synchronization can either:
-    * Generate a full diff directly on top of the db. The diffing process can work against a single revision, and could even stop writing other changes to disk while the process is ongoing (but doesn't have to due to the revision). It then generates a necessary changeset for the store.
+    * Generate a full diff directly on top of the db. The diffing process can work against a single revision/snapshot (using transactions). It then generates a necessary changeset for the store.
     * If the source supports incremental changes the changeset can directly be generated from that information.
 
 The changeset is then simply inserted in the regular modification queue and processed like all other modifications.

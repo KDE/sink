@@ -89,7 +89,7 @@ The change replay is based on the revisions in the store. Clients (and also the 
 * Shared domain types as common interface for client applications
     * `-` yet another abstraction layer that requires translation to other layers and maintenance
     * `+` decoupling of domain logic from data access
-    * `+` allows to evolve types according to needs (not coupled to specific applicatoins domain types)
+    * `+` allows to evolve types according to needs (not coupled to specific application domain types)
 
 # Risks
 * key-value store does not perform with large amounts of data
