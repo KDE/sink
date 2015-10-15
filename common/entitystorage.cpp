@@ -60,12 +60,6 @@ ResultSet EntityStorageBase::getResultSet(const Akonadi2::Query &query, Akonadi2
     }
 
     auto filter = [remainingFilters, query, baseRevision](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
-        // if (topRevision > 0) {
-        //     Trace() << "filtering by revision " << domainObject->revision();
-        //     if (domainObject->revision() < baseRevision) {
-        //         return false;
-        //     }
-        // }
         for (const auto &filterProperty : remainingFilters) {
             //TODO implement other comparison operators than equality
             if (domainObject->getProperty(filterProperty) != query.propertyFilter.value(filterProperty)) {
