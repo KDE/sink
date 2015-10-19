@@ -39,6 +39,7 @@ public:
     virtual void processCommand(int commandId, const QByteArray &data);
     virtual KAsync::Job<void> synchronizeWithSource();
     virtual KAsync::Job<void> processAllMessages();
+    virtual void setLowerBoundRevision(qint64 revision);
 
 Q_SIGNALS:
     void revisionUpdated(qint64);

@@ -51,6 +51,7 @@ generate_flatbuffers(
     commands/revisionupdate
     commands/synchronize
     commands/notification
+    commands/revisionreplayed
     domain/event
     domain/mail
     entity

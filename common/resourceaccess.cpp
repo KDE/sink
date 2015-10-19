@@ -29,6 +29,7 @@
 #include "common/createentity_generated.h"
 #include "common/modifyentity_generated.h"
 #include "common/deleteentity_generated.h"
+#include "common/revisionreplayed_generated.h"
 #include "common/entitybuffer.h"
 #include "log.h"
 
@@ -323,6 +324,15 @@ KAsync::Job<void> ResourceAccess::sendDeleteCommand(const QByteArray &uid, qint6
     Akonadi2::Commands::FinishDeleteEntityBuffer(fbb, location);
     open();
     return sendCommand(Akonadi2::Commands::DeleteEntityCommand, fbb);
+}
+
+KAsync::Job<void> ResourceAccess::sendRevisionReplayedCommand(qint64 revision)
+{
+    flatbuffers::FlatBufferBuilder fbb;
+    auto location = Akonadi2::Commands::CreateRevisionReplayed(fbb, revision);
+    Akonadi2::Commands::FinishRevisionReplayedBuffer(fbb, location);
+    open();
+    return sendCommand(Akonadi2::Commands::RevisionReplayedCommand, fbb);
 }
 
 void ResourceAccess::open()

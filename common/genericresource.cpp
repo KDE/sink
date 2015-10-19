@@ -187,23 +187,6 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
     QObject::connect(mProcessor, &Processor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
 
-    //We simply drop revisions with 100ms delay until we have better information from clients and writeback
-    //FIXME On startup, read the latest revision that is replayed to initialize. Then bump revision when change-replay and
-    //all clients have advanced to a later revision.
-    QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, [this](qint64 revision) {
-        QTimer *dropRevisionTimer = new QTimer();
-        dropRevisionTimer->setInterval(100);
-        dropRevisionTimer->setSingleShot(true);
-        auto processor = QPointer<Processor>(mProcessor);
-        QObject::connect(dropRevisionTimer, &QTimer::timeout, dropRevisionTimer, [processor, revision, dropRevisionTimer]() {
-            if (processor) {
-                processor->setOldestUsedRevision(revision);
-            }
-            delete dropRevisionTimer;
-        });
-        dropRevisionTimer->start();
-    });
-
     mCommitQueueTimer.setInterval(100);
     mCommitQueueTimer.setSingleShot(true);
     QObject::connect(&mCommitQueueTimer, &QTimer::timeout, &mUserQueue, &MessageQueue::commit);
@@ -281,6 +264,11 @@ KAsync::Job<void> GenericResource::processAllMessages()
     }).then<void>([this](KAsync::Future<void> &f) {
         waitForDrained(f, mUserQueue);
     });
+}
+
+void GenericResource::setLowerBoundRevision(qint64 revision)
+{
+    mProcessor->setOldestUsedRevision(revision);
 }
 
 #include "genericresource.moc"

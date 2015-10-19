@@ -1,0 +1,7 @@
+namespace Akonadi2.Commands;
+
+table RevisionReplayed {
+    revision: ulong;
+}
+
+root_type RevisionReplayed;

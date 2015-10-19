@@ -30,6 +30,7 @@
 #include "common/revisionupdate_generated.h"
 #include "common/synchronize_generated.h"
 #include "common/notification_generated.h"
+#include "common/revisionreplayed_generated.h"
 
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -250,6 +251,21 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         case Akonadi2::Commands::PingCommand:
             Log() << QString("\tReceived ping command from %1").arg(client.name);
             break;
+        case Akonadi2::Commands::RevisionReplayedCommand: {
+            Log() << QString("\tReceived revision replayed command from %1").arg(client.name);
+            flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
+            if (Akonadi2::Commands::VerifyRevisionReplayedBuffer(verifier)) {
+                auto buffer = Akonadi2::Commands::GetRevisionReplayed(commandBuffer.constData());
+                client.currentRevision = buffer->revision();
+            } else {
+                Warning() << "received invalid command";
+            }
+            loadResource();
+            if (m_resource) {
+                m_resource->setLowerBoundRevision(lowerBoundRevision());
+            }
+        }
+            break;
         default:
             if (commandId > Akonadi2::Commands::CustomCommand) {
                 Log() << QString("\tReceived custom command from %1: ").arg(client.name) << commandId;
@@ -258,12 +274,26 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                     m_resource->processCommand(commandId, commandBuffer);
                 }
             } else {
-                Warning() << QString("\tReceived invalid command from %1: ").arg(client.name) << commandId;
-                //TODO: handle error: we don't know wtf this command is
+                ErrorMsg() << QString("\tReceived invalid command from %1: ").arg(client.name) << commandId;
             }
             break;
     }
     callback();
+}
+
+qint64 Listener::lowerBoundRevision()
+{
+    qint64 lowerBound = 0;
+    for (const Client &c : m_connections) {
+        if (c.currentRevision > 0) {
+            if (lowerBound == 0) {
+                lowerBound = c.currentRevision;
+            } else {
+                lowerBound = qMin(c.currentRevision, lowerBound);
+            }
+        }
+    }
+    return lowerBound;
 }
 
 void Listener::quit()

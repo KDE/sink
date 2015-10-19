@@ -37,19 +37,22 @@ class Client
 {
 public:
     Client()
-        : socket(nullptr)
+        : socket(nullptr),
+        currentRevision(0)
     {
     }
 
     Client(const QString &n, QLocalSocket *s)
         : name(n),
-          socket(s)
+          socket(s),
+          currentRevision(0)
     {
     }
 
     QString name;
     QPointer<QLocalSocket> socket;
     QByteArray commandBuffer;
+    qint64 currentRevision;
 };
 
 class Listener : public QObject
@@ -82,6 +85,7 @@ private:
     void updateClientsWithRevision(qint64);
     void loadResource();
     void readFromSocket(QLocalSocket *socket);
+    qint64 lowerBoundRevision();
 
     QLocalServer *m_server;
     QVector<Client> m_connections;

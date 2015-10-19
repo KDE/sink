@@ -58,6 +58,11 @@ KAsync::Job<void> Resource::processAllMessages()
     return KAsync::null<void>();
 }
 
+void Resource::setLowerBoundRevision(qint64 revision)
+{
+    Q_UNUSED(revision)
+}
+
 class ResourceFactory::Private
 {
 public:

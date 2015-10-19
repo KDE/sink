@@ -251,9 +251,10 @@ public:
                     future.setFinished();
                     return;
                 }
-                load(query, resultProvider, oldRevision).template then<void, qint64>([&future](qint64 queriedRevision) {
+                load(query, resultProvider, oldRevision).template then<void, qint64>([&future, this](qint64 queriedRevision) {
                     //TODO set revision in result provider?
                     //TODO update all existing results with new revision
+                    mResourceAccess->sendRevisionReplayedCommand(queriedRevision);
                     future.setValue(queriedRevision);
                     future.setFinished();
                 }).exec();
