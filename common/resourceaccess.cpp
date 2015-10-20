@@ -89,12 +89,14 @@ public:
     QMultiMap<uint, std::function<void(int error, const QString &errorMessage)> > resultHandler;
     QSet<uint> completeCommands;
     uint messageId;
+    bool openingSocket;
 };
 
 ResourceAccess::Private::Private(const QByteArray &name, const QByteArray &instanceIdentifier, ResourceAccess *q)
     : resourceName(name),
       resourceInstanceIdentifier(instanceIdentifier),
-      messageId(0)
+      messageId(0),
+      openingSocket(false)
 {
 }
 
@@ -341,8 +343,13 @@ void ResourceAccess::open()
         log("Socket valid, so not opening again");
         return;
     }
+    if (d->openingSocket) {
+        return;
+    }
+    d->openingSocket = true;
     d->initializeSocket().then<void>([this]() {
         Trace() << "Socket is initialized";
+        d->openingSocket = false;
         QObject::connect(d->socket.data(), &QLocalSocket::disconnected,
                 this, &ResourceAccess::disconnected);
         QObject::connect(d->socket.data(), SIGNAL(error(QLocalSocket::LocalSocketError)),
@@ -351,7 +358,8 @@ void ResourceAccess::open()
                 this, &ResourceAccess::readResourceMessage);
         connected();
     },
-    [](int error, const QString &errorString) {
+    [this](int error, const QString &errorString) {
+        d->openingSocket = false;
         Warning() << "Failed to initialize socket " << errorString;
     }).exec();
 }
