@@ -400,7 +400,7 @@ void ResourceAccess::connected()
 
     {
         flatbuffers::FlatBufferBuilder fbb;
-        auto name = fbb.CreateString(QString::number(QCoreApplication::applicationPid()).toLatin1());
+        auto name = fbb.CreateString(QString("PID: %1 ResourceAccess: %2").arg(QCoreApplication::applicationPid()).arg(reinterpret_cast<qlonglong>(this)).toLatin1());
         auto command = Akonadi2::CreateHandshake(fbb, name);
         Akonadi2::FinishHandshakeBuffer(fbb, command);
         Commands::write(d->socket.data(), ++d->messageId, Commands::HandshakeCommand, fbb);
@@ -413,8 +413,8 @@ void ResourceAccess::connected()
 
 void ResourceAccess::disconnected()
 {
-    d->socket->close();
     log(QString("Disconnected from %1").arg(d->socket->fullServerName()));
+    d->socket->close();
     //TODO fail all existing jobs? or retry
     d->abortPendingOperations();
     emit ready(false);
