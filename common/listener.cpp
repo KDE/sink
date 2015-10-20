@@ -99,14 +99,14 @@ void Listener::closeAllConnections()
 
 void Listener::acceptConnection()
 {
-    Trace() << "Accepting connection";
+    Log() << "Accepting connection";
     QLocalSocket *socket = m_server->nextPendingConnection();
 
     if (!socket) {
+        Warning() << "Accepted connection but didn't get a socket for it";
         return;
     }
 
-    Log() << "Got a connection";
     m_connections << Client("Unknown Client", socket);
     connect(socket, &QIODevice::readyRead,
             this, &Listener::onDataAvailable);
@@ -116,10 +116,7 @@ void Listener::acceptConnection()
 
     //If this is the first client, set the lower limit for revision cleanup
     if (m_connections.size() == 1) {
-        loadResource();
-        if (m_resource) {
-            m_resource->setLowerBoundRevision(0);
-        }
+        loadResource()->setLowerBoundRevision(0);
     }
 
     if (socket->bytesAvailable()) {
@@ -156,10 +153,7 @@ void Listener::checkConnections()
 {
     //If this was the last client, disengage the lower limit for revision cleanup
     if (m_connections.isEmpty()) {
-        loadResource();
-        if (m_resource) {
-            m_resource->setLowerBoundRevision(std::numeric_limits<qint64>::max());
-        }
+        loadResource()->setLowerBoundRevision(std::numeric_limits<qint64>::max());
     }
     m_checkConnectionsTimer->start();
 }
@@ -226,17 +220,12 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             if (Akonadi2::VerifySynchronizeBuffer(verifier)) {
                 auto buffer = Akonadi2::GetSynchronize(commandBuffer.constData());
                 Log() << QString("\tSynchronize request (id %1) from %2").arg(messageId).arg(client.name);
-                loadResource();
-                if (!m_resource) {
-                    Warning() << "No resource loaded";
-                    break;
-                }
                 auto job = KAsync::null<void>();
                 if (buffer->sourceSync()) {
-                    job = m_resource->synchronizeWithSource();
+                    job = loadResource()->synchronizeWithSource();
                 }
                 if (buffer->localSync()) {
-                    job = job.then<void>(m_resource->processAllMessages());
+                    job = job.then<void>(loadResource()->processAllMessages());
                 }
                 job.then<void>([callback]() {
                     callback();
@@ -252,10 +241,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         case Akonadi2::Commands::ModifyEntityCommand:
         case Akonadi2::Commands::CreateEntityCommand:
             Log() << "\tCommand id  " << messageId << " of type \"" << Akonadi2::Commands::name(commandId) << "\" from " << client.name;
-            loadResource();
-            if (m_resource) {
-                m_resource->processCommand(commandId, commandBuffer);
-            }
+            loadResource()->processCommand(commandId, commandBuffer);
             break;
         case Akonadi2::Commands::ShutdownCommand:
             Log() << QString("\tReceived shutdown command from %1").arg(client.name);
@@ -275,19 +261,13 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             } else {
                 Warning() << "received invalid command";
             }
-            loadResource();
-            if (m_resource) {
-                m_resource->setLowerBoundRevision(lowerBoundRevision());
-            }
+            loadResource()->setLowerBoundRevision(lowerBoundRevision());
         }
             break;
         default:
             if (commandId > Akonadi2::Commands::CustomCommand) {
                 Log() << QString("\tReceived custom command from %1: ").arg(client.name) << commandId;
-                loadResource();
-                if (m_resource) {
-                    m_resource->processCommand(commandId, commandBuffer);
-                }
+                loadResource()->processCommand(commandId, commandBuffer);
             } else {
                 ErrorMsg() << QString("\tReceived invalid command from %1: ").arg(client.name) << commandId;
             }
@@ -391,28 +371,26 @@ void Listener::updateClientsWithRevision(qint64 revision)
             continue;
         }
 
+        Trace() << "Sending revision update for " << client.name << revision;
         Akonadi2::Commands::write(client.socket, ++m_messageId, Akonadi2::Commands::RevisionUpdateCommand, m_fbb);
     }
     m_fbb.Clear();
 }
 
-void Listener::loadResource()
+Akonadi2::Resource *Listener::loadResource()
 {
-    if (m_resource) {
-        return;
+    if (!m_resource) {
+        if (Akonadi2::ResourceFactory *resourceFactory = Akonadi2::ResourceFactory::load(m_resourceName)) {
+            m_resource = resourceFactory->createResource(m_resourceInstanceIdentifier);
+            Trace() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
+            Trace() << QString("\tResource: %1").arg((qlonglong)m_resource);
+            connect(m_resource, &Akonadi2::Resource::revisionUpdated,
+                this, &Listener::refreshRevision);
+        } else {
+            ErrorMsg() << "Failed to load resource " << m_resourceName;
+            m_resource = new Akonadi2::Resource;
+        }
     }
-
-    Akonadi2::ResourceFactory *resourceFactory = Akonadi2::ResourceFactory::load(m_resourceName);
-    if (resourceFactory) {
-        m_resource = resourceFactory->createResource(m_resourceInstanceIdentifier);
-        Trace() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
-        Trace() << QString("\tResource: %1").arg((qlonglong)m_resource);
-        connect(m_resource, &Akonadi2::Resource::revisionUpdated,
-            this, &Listener::refreshRevision);
-    } else {
-        ErrorMsg() << "Failed to load resource " << m_resourceName;
-    }
-    //TODO: on failure ... what?
-    //Enter broken state?
+    return m_resource;
 }
 

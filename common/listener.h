@@ -83,7 +83,7 @@ private:
     bool processClientBuffer(Client &client);
     void sendCommandCompleted(QLocalSocket *socket, uint messageId);
     void updateClientsWithRevision(qint64);
-    void loadResource();
+    Akonadi2::Resource *loadResource();
     void readFromSocket(QLocalSocket *socket);
     qint64 lowerBoundRevision();
 
