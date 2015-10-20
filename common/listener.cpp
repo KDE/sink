@@ -383,7 +383,6 @@ void Listener::refreshRevision(qint64 revision)
 
 void Listener::updateClientsWithRevision(qint64 revision)
 {
-    //FIXME don't send revision updates for revisions that are still being processed.
     auto command = Akonadi2::CreateRevisionUpdate(m_fbb, revision);
     Akonadi2::FinishRevisionUpdateBuffer(m_fbb, command);
 
@@ -406,8 +405,8 @@ void Listener::loadResource()
     Akonadi2::ResourceFactory *resourceFactory = Akonadi2::ResourceFactory::load(m_resourceName);
     if (resourceFactory) {
         m_resource = resourceFactory->createResource(m_resourceInstanceIdentifier);
-        Log() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
-        Log() << QString("\tResource: %1").arg((qlonglong)m_resource);
+        Trace() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
+        Trace() << QString("\tResource: %1").arg((qlonglong)m_resource);
         connect(m_resource, &Akonadi2::Resource::revisionUpdated,
             this, &Listener::refreshRevision);
     } else {
