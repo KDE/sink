@@ -168,6 +168,13 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
     });
 }
 
+void DummyResource::removeFromDisk(const QByteArray &instanceIdentifier)
+{
+    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier, Akonadi2::Storage::ReadWrite).removeFromDisk();
+    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".userqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
+    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronizerqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
+    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".event.index.uid", Akonadi2::Storage::ReadWrite).removeFromDisk();
+}
 
 DummyResourceFactory::DummyResourceFactory(QObject *parent)
     : Akonadi2::ResourceFactory(parent)

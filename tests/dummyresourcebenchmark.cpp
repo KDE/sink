@@ -18,12 +18,6 @@
 
 #include <iostream>
 
-static void removeFromDisk(const QString &name)
-{
-    Akonadi2::Storage store(Akonadi2::Store::storageLocation(), name, Akonadi2::Storage::ReadWrite);
-    store.removeFromDisk();
-}
-
 class DummyResourceBenchmark : public QObject
 {
     Q_OBJECT
@@ -33,18 +27,12 @@ private Q_SLOTS:
         Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Warning);
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
-        removeFromDisk("org.kde.dummy.instance1");
-        removeFromDisk("org.kde.dummy.instance1.userqueue");
-        removeFromDisk("org.kde.dummy.instance1.synchronizerqueue");
-        removeFromDisk("org.kde.dummy.instance1.index.uid");
+        DummyResource::removeFromDisk("org.kde.dummy.instance1");
     }
 
     void cleanup()
     {
-        removeFromDisk("org.kde.dummy.instance1");
-        removeFromDisk("org.kde.dummy.instance1.userqueue");
-        removeFromDisk("org.kde.dummy.instance1.synchronizerqueue");
-        removeFromDisk("org.kde.dummy.instance1.index.uid");
+        DummyResource::removeFromDisk("org.kde.dummy.instance1");
     }
 
     static KAsync::Job<void> waitForCompletion(QList<KAsync::Future<void> > &futures)

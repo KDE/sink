@@ -11,12 +11,6 @@
 #include "pipeline.h"
 #include "log.h"
 
-static void removeFromDisk(const QString &name)
-{
-    Akonadi2::Storage store(Akonadi2::Store::storageLocation(), name, Akonadi2::Storage::ReadWrite);
-    store.removeFromDisk();
-}
-
 class DummyResourceTest : public QObject
 {
     Q_OBJECT
@@ -26,20 +20,14 @@ private Q_SLOTS:
         Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
-        removeFromDisk("org.kde.dummy.instance1");
-        removeFromDisk("org.kde.dummy.instance1.userqueue");
-        removeFromDisk("org.kde.dummy.instance1.synchronizerqueue");
-        removeFromDisk("org.kde.dummy.instance1.event.index.uid");
+        DummyResource::removeFromDisk("org.kde.dummy.instance1");
         ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
     }
 
     void cleanup()
     {
         Akonadi2::Store::shutdown("org.kde.dummy.instance1");
-        removeFromDisk("org.kde.dummy.instance1");
-        removeFromDisk("org.kde.dummy.instance1.userqueue");
-        removeFromDisk("org.kde.dummy.instance1.synchronizerqueue");
-        removeFromDisk("org.kde.dummy.instance1.event.index.uid");
+        DummyResource::removeFromDisk("org.kde.dummy.instance1");
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
     }
