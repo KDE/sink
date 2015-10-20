@@ -27,7 +27,8 @@ ResultSet EntityStorageBase::filteredSet(const ResultSet &resultSet, const std::
     std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)>)> generator = [this, resultSetPtr, &transaction, filter, initialQuery](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> callback) -> bool {
         while (resultSetPtr->next()) {
             readEntity(transaction, resultSetPtr->id(), [this, filter, callback, initialQuery](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Akonadi2::Operation operation) {
-                if (filter(domainObject)) {
+                //Always remove removals, they probably don't match due to non-available properties
+                if (filter(domainObject) || operation == Akonadi2::Operation_Removal) {
                     if (initialQuery) {
                         //We're not interested in removals during the initial query
                         if (operation != Akonadi2::Operation_Removal) {
