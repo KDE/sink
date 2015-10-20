@@ -275,6 +275,9 @@ public:
             runner->run().then<void>([&future]() {
                 future.setFinished();
             }).exec();
+        },
+        [](int error, const QString &errorString) {
+            Warning() << "Error during sync " << error << errorString;
         });
     }
 
@@ -285,11 +288,7 @@ protected:
         //TODO Only sync what was requested
         //TODO timeout
         if (sync || processAll) {
-            return KAsync::start<void>([=](KAsync::Future<void> &future) {
-                mResourceAccess->synchronizeResource(sync, processAll).then<void>([&future]() {
-                    future.setFinished();
-                }).exec();
-            });
+            return mResourceAccess->synchronizeResource(sync, processAll);
         }
         return KAsync::null<void>();
     }
