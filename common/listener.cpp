@@ -114,6 +114,14 @@ void Listener::acceptConnection()
             this, &Listener::clientDropped);
     m_checkConnectionsTimer->stop();
 
+    //If this is the first client, set the lower limit for revision cleanup
+    if (m_connections.size() == 1) {
+        loadResource();
+        if (m_resource) {
+            m_resource->setLowerBoundRevision(0);
+        }
+    }
+
     if (socket->bytesAvailable()) {
         readFromSocket(socket);
     }
@@ -146,6 +154,13 @@ void Listener::clientDropped()
 
 void Listener::checkConnections()
 {
+    //If this was the last client, disengage the lower limit for revision cleanup
+    if (m_connections.isEmpty()) {
+        loadResource();
+        if (m_resource) {
+            m_resource->setLowerBoundRevision(std::numeric_limits<qint64>::max());
+        }
+    }
     m_checkConnectionsTimer->start();
 }
 

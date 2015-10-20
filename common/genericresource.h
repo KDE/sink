@@ -26,6 +26,7 @@
 #include <QTimer>
 
 class Processor;
+class ChangeReplay;
 
 namespace Akonadi2
 {
@@ -47,6 +48,9 @@ public:
 
     int error() const;
 
+private Q_SLOTS:
+    void updateLowerBoundRevision();
+
 protected:
     void onProcessorError(int errorCode, const QString &errorMessage);
     void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);
@@ -58,8 +62,10 @@ protected:
 
 private:
     Processor *mProcessor;
+    ChangeReplay *mSourceChangeReplay;
     int mError;
     QTimer mCommitQueueTimer;
+    qint64 mClientLowerBoundRevision;
 };
 
 }
