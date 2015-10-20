@@ -159,6 +159,7 @@ QDebug Akonadi2::Log::debugStream(DebugLevel debugLevel, int line, const char* f
             break;
         case DebugLevel::Log:
             prefix = "Log:    ";
+            prefixColorCode = ANSI_Colors::Green;
             break;
         case DebugLevel::Warning:
             prefix = "Warning:";
