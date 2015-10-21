@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
     query.processAll = false;
     query.liveQuery = true;
 
-    auto model = QSharedPointer<ListModelResult<Akonadi2::ApplicationDomain::Event::Ptr> >::create(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query), "summary");
+    auto model = QSharedPointer<ListModelResult<Akonadi2::ApplicationDomain::Event::Ptr> >::create(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query), QList<QByteArray>() << "summary" << "uid");
     auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Event> >::create(model.data());
 
     return app.exec();

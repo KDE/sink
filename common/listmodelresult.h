@@ -20,6 +20,7 @@
 
 #pragma once
 #include <QAbstractListModel>
+#include <QDebug>
 
 #include "common/resultprovider.h"
 
@@ -32,12 +33,12 @@ class ListModelResult : public QAbstractListModel
 {
 public:
 
-    ListModelResult(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter, const QByteArray &property)
+    ListModelResult(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter, const QList<QByteArray> &propertyColumns)
         :QAbstractListModel(),
         mEmitter(emitter),
-        mProperty(property)
+        mPropertyColumns(propertyColumns)
     {
-        emitter->onAdded([this, property](const T &value) {
+        emitter->onAdded([this](const T &value) {
             const auto keys = mEntities.keys();
             int index = 0;
             for (; index < keys.size(); index++) {
@@ -49,13 +50,14 @@ public:
             mEntities.insert(value->identifier(), value);
             endInsertRows();
         });
-        emitter->onModified([this, property](const T &value) {
+        emitter->onModified([this](const T &value) {
+            auto i = mEntities.keys().indexOf(value->identifier());
             mEntities.remove(value->identifier());
             mEntities.insert(value->identifier(), value);
-            //FIXME
-            // emit dataChanged();
+            auto idx = index(i, 0, QModelIndex());
+            emit dataChanged(idx, idx);
         });
-        emitter->onRemoved([this, property](const T &value) {
+        emitter->onRemoved([this](const T &value) {
             auto index = mEntities.keys().indexOf(value->identifier());
             beginRemoveRows(QModelIndex(), index, index);
             mEntities.remove(value->identifier());
@@ -64,11 +66,9 @@ public:
         emitter->onInitialResultSetComplete([this]() {
         });
         emitter->onComplete([this]() {
-            // qDebug() << "COMPLETE";
             mEmitter.clear();
         });
         emitter->onClear([this]() {
-            // qDebug() << "CLEAR";
             beginResetModel();
             mEntities.clear();
             endResetModel();
@@ -80,6 +80,11 @@ public:
         return mEntities.size();
     }
 
+    int columnCount(const QModelIndex &parent = QModelIndex()) const
+    {
+        return mPropertyColumns.size();
+    }
+
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
     {
         if (index.row() >= mEntities.size()) {
@@ -87,8 +92,10 @@ public:
             return QVariant();
         }
         if (role == Qt::DisplayRole) {
-            auto entity = mEntities.value(mEntities.keys().at(index.row()));
-            return entity->getProperty(mProperty).toString() + entity->identifier();
+            if (index.column() < mPropertyColumns.size()) {
+                auto entity = mEntities.value(mEntities.keys().at(index.row()));
+                return entity->getProperty(mPropertyColumns.at(index.column())).toString();
+            }
         }
         if (role == DomainObjectRole) {
             return QVariant::fromValue(mEntities.value(mEntities.keys().at(index.row())));
@@ -99,6 +106,6 @@ public:
 private:
     QSharedPointer<Akonadi2::ResultEmitter<T> > mEmitter;
     QMap<QByteArray, T> mEntities;
-    QByteArray mProperty;
+    QList<QByteArray> mPropertyColumns;
 };
 
