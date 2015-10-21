@@ -26,7 +26,7 @@ public:
 
     typedef std::function<KAsync::Job<void>(const QByteArray &type, const QByteArray &key, const QByteArray &value)> ReplayFunction;
 
-    ChangeReplay(const QString &resourceName, const ReplayFunction replayFunction)
+    ChangeReplay(const QString &resourceName, const ReplayFunction &replayFunction)
         : mStorage(storageLocation(), resourceName, Storage::ReadOnly),
         mChangeReplayStore(storageLocation(), resourceName + ".changereplay", Storage::ReadWrite),
         mReplayFunction(replayFunction)
@@ -224,6 +224,7 @@ private slots:
     KAsync::Job<void> processPipeline()
     {
         mPipeline->startTransaction();
+        Trace() << "Cleaning up from " << mPipeline->cleanedUpRevision() + 1 << " to " << mLowerBoundRevision;
         for (qint64 revision = mPipeline->cleanedUpRevision() + 1; revision <= mLowerBoundRevision; revision++) {
             mPipeline->cleanupRevision(revision);
         }

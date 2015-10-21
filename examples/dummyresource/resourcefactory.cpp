@@ -154,6 +154,7 @@ void DummyResource::synchronize(const QString &bufferType, const QMap<QString, Q
 
 KAsync::Job<void> DummyResource::synchronizeWithSource()
 {
+    Log() << " Synchronizing";
     return KAsync::start<void>([this](KAsync::Future<void> &f) {
         auto transaction = Akonadi2::Storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier, Akonadi2::Storage::ReadOnly).createTransaction(Akonadi2::Storage::ReadOnly);
 

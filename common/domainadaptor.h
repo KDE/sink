@@ -173,13 +173,13 @@ public:
     {
         flatbuffers::FlatBufferBuilder localFbb;
         if (mLocalWriteMapper) {
-            Trace() << "Creating local buffer part";
+            // Trace() << "Creating local buffer part";
             createBufferPartBuffer<LocalBuffer, LocalBuilder>(domainObject, localFbb, *mLocalWriteMapper);
         }
 
         flatbuffers::FlatBufferBuilder resFbb;
         if (mResourceWriteMapper) {
-            Trace() << "Creating resouce buffer part";
+            // Trace() << "Creating resouce buffer part";
             createBufferPartBuffer<ResourceBuffer, ResourceBuilder>(domainObject, resFbb, *mResourceWriteMapper);
         }
 

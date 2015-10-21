@@ -187,7 +187,7 @@ QDebug Akonadi2::Log::debugStream(DebugLevel debugLevel, int line, const char* f
     }
     if (showLocation) {
         output += QString(" %3").arg(function);
-        /*debug << file << ":" << line */
+        output += QString("%1:%2").arg(file).arg(line);
     }
     output += ":";
 

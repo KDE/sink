@@ -271,7 +271,7 @@ public:
         }
 
         //We have to capture the runner to keep it alive
-        return synchronizeResource(query.syncOnDemand, query.processAll).template then<void>([runner](KAsync::Future<void> &future) {
+        return synchronizeResource(query).template then<void>([runner](KAsync::Future<void> &future) {
             runner->run().then<void>([&future]() {
                 future.setFinished();
             }).exec();
@@ -281,19 +281,18 @@ public:
         });
     }
 
-protected:
-    KAsync::Job<void> synchronizeResource(bool sync, bool processAll)
+private:
+    KAsync::Job<void> synchronizeResource(const Akonadi2::Query &query)
     {
         //TODO check if a sync is necessary
         //TODO Only sync what was requested
         //TODO timeout
-        if (sync || processAll) {
-            return mResourceAccess->synchronizeResource(sync, processAll);
+        if (query.syncOnDemand || query.processAll) {
+            return mResourceAccess->synchronizeResource(query.syncOnDemand, query.processAll);
         }
         return KAsync::null<void>();
     }
 
-private:
     virtual KAsync::Job<qint64> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider, qint64 oldRevision)
     {
         return KAsync::start<qint64>([=]() -> qint64 {

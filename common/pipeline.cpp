@@ -518,7 +518,6 @@ void PipelineState::step()
 
 void PipelineState::processingCompleted(Preprocessor *filter)
 {
-    //TODO record processing progress
     if (d->pipeline && filter == d->filterIt.peekPrevious()) {
         d->idle = true;
         d->pipeline->pipelineStepped(*this);

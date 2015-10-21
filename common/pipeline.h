@@ -164,7 +164,7 @@ public:
         });
     }
 
-    QString id() const
+    QString id() const Q_DECL_OVERRIDE
     {
         return mId;
     }
