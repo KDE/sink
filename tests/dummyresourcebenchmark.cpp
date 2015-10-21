@@ -72,11 +72,11 @@ private Q_SLOTS:
         int num = 100;
         QList<KAsync::Future<void> > waitCondition;
         for (int i = 0; i < num; i++) {
-            Akonadi2::ApplicationDomain::Event event;
+            Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
             event.setProperty("uid", "testuid");
             QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
             event.setProperty("summary", "summaryValue");
-            waitCondition << Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec();
+            waitCondition << Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec();
         }
         waitForCompletion(waitCondition).exec().waitForFinished();
         auto appendTime = time.elapsed();

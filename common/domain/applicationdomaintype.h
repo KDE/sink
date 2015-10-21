@@ -45,6 +45,13 @@ public:
 
     }
 
+    ApplicationDomainType(const QByteArray &resourceInstanceIdentifier)
+        :mAdaptor(new MemoryBufferAdaptor()),
+        mResourceInstanceIdentifier(resourceInstanceIdentifier)
+    {
+
+    }
+
     ApplicationDomainType(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
         : mAdaptor(adaptor),
         mResourceInstanceIdentifier(resourceInstanceIdentifier),

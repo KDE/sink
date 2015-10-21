@@ -48,11 +48,11 @@ private Q_SLOTS:
 
     void testWriteToFacadeAndQueryByUid()
     {
-        Akonadi2::ApplicationDomain::Event event;
+        Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
@@ -69,14 +69,14 @@ private Q_SLOTS:
 
     void testWriteToFacadeAndQueryByUid2()
     {
-        Akonadi2::ApplicationDomain::Event event;
+        Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
         event.setProperty("summary", "summaryValue");
 
         event.setProperty("uid", "testuid");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
 
         event.setProperty("uid", "testuid2");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
@@ -94,15 +94,15 @@ private Q_SLOTS:
 
     void testWriteToFacadeAndQueryBySummary()
     {
-        Akonadi2::ApplicationDomain::Event event;
+        Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
 
         event.setProperty("uid", "testuid");
         event.setProperty("summary", "summaryValue1");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
 
         event.setProperty("uid", "testuid2");
         event.setProperty("summary", "summaryValue2");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
@@ -165,11 +165,11 @@ private Q_SLOTS:
 
     void testWriteModifyDelete()
     {
-        Akonadi2::ApplicationDomain::Event event;
+        Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
@@ -191,7 +191,7 @@ private Q_SLOTS:
 
         event2.setProperty("uid", "testuid");
         event2.setProperty("summary", "summaryValue2");
-        Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2, "org.kde.dummy.instance1").exec().waitForFinished();
+        Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Test modify
         {
@@ -203,7 +203,7 @@ private Q_SLOTS:
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
         }
 
-        Akonadi2::Store::remove<Akonadi2::ApplicationDomain::Event>(event2, "org.kde.dummy.instance1").exec().waitForFinished();
+        Akonadi2::Store::remove<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Test remove
         {
@@ -227,11 +227,11 @@ private Q_SLOTS:
         async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
         result.exec();
 
-        Akonadi2::ApplicationDomain::Event event;
+        Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event, "org.kde.dummy.instance1").exec().waitForFinished();
+        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
 
         //Test create
         Akonadi2::ApplicationDomain::Event event2;
@@ -245,7 +245,7 @@ private Q_SLOTS:
 
         event2.setProperty("uid", "testuid");
         event2.setProperty("summary", "summaryValue2");
-        Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2, "org.kde.dummy.instance1").exec().waitForFinished();
+        Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Test modify
         {
@@ -255,7 +255,7 @@ private Q_SLOTS:
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
         }
 
-        Akonadi2::Store::remove<Akonadi2::ApplicationDomain::Event>(event2, "org.kde.dummy.instance1").exec().waitForFinished();
+        Akonadi2::Store::remove<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Test remove
         {

@@ -48,4 +48,29 @@ public:
     virtual KAsync::Job<void> load(const Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider) = 0;
 };
 
+template<class DomainType>
+class NullFacade : public StoreFacade<DomainType> {
+public:
+    virtual ~NullFacade(){};
+    KAsync::Job<void> create(const DomainType &domainObject)
+    {
+        return KAsync::error<void>(-1, "Failed to create a facade");
+    }
+
+    KAsync::Job<void> modify(const DomainType &domainObject)
+    {
+        return KAsync::error<void>(-1, "Failed to create a facade");
+    }
+
+    KAsync::Job<void> remove(const DomainType &domainObject)
+    {
+        return KAsync::error<void>(-1, "Failed to create a facade");
+    }
+
+    KAsync::Job<void> load(const Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider)
+    {
+        return KAsync::error<void>(-1, "Failed to create a facade");
+    }
+};
+
 }

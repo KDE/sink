@@ -95,8 +95,7 @@ private Q_SLOTS:
         res.setProperty("identifier", "dummyresource.identifier1");
         res.setProperty("type", "dummyresource");
 
-        Akonadi2::Store::create(res, "resourceconfig").exec().waitForFinished();
-
+        Akonadi2::Store::create(res).exec().waitForFinished();
         {
             Akonadi2::Query query;
             query.resources << "resourceconfig";
@@ -106,7 +105,7 @@ private Q_SLOTS:
             QCOMPARE(result.size(), 1);
         }
 
-        Akonadi2::Store::remove(res, "resourceconfig").exec().waitForFinished();
+        Akonadi2::Store::remove(res).exec().waitForFinished();
         {
             Akonadi2::Query query;
             query.resources << "resourceconfig";

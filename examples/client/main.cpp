@@ -66,7 +66,7 @@ public:
         QObject::connect(removeButton, &QPushButton::pressed, [listView]() {
             for (auto index :listView->selectionModel()->selectedIndexes()) {
                 auto object = index.data(DomainObjectRole).value<typename T::Ptr>();
-                Akonadi2::Store::remove(*object, "org.kde.dummy.instance1").exec();
+                Akonadi2::Store::remove(*object).exec();
             }
         });
 

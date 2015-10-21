@@ -134,20 +134,25 @@ public:
     // {
 
     // }
+    template <class DomainType>
+    static std::shared_ptr<StoreFacade<DomainType> > getFacade(const QByteArray &resourceInstanceIdentifier)
+    {
+        if (auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceInstanceIdentifier), resourceInstanceIdentifier)) {
+            return facade;
+        }
+        return std::make_shared<NullFacade<DomainType> >();
+    }
 
     /**
      * Create a new entity.
      */
     template <class DomainType>
-    static KAsync::Job<void> create(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
+    static KAsync::Job<void> create(const DomainType &domainObject) {
         //Potentially move to separate thread as well
-        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
-        if (facade) {
-            return facade->create(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
-                Warning() << "Failed to create";
-            });
-        }
-        return KAsync::error<void>(-1, "Failed to create a facade");
+        auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
+        return facade->create(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
+            Warning() << "Failed to create";
+        });
     }
 
     /**
@@ -156,30 +161,24 @@ public:
      * This includes moving etc. since these are also simple settings on a property.
      */
     template <class DomainType>
-    static KAsync::Job<void> modify(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
+    static KAsync::Job<void> modify(const DomainType &domainObject) {
         //Potentially move to separate thread as well
-        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
-        if (facade) {
-            return facade->modify(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
-                Warning() << "Failed to modify";
-            });
-        }
-        return KAsync::error<void>(-1, "Failed to create a facade");
+        auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
+        return facade->modify(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
+            Warning() << "Failed to modify";
+        });
     }
 
     /**
      * Remove an entity.
      */
     template <class DomainType>
-    static KAsync::Job<void> remove(const DomainType &domainObject, const QByteArray &resourceIdentifier) {
+    static KAsync::Job<void> remove(const DomainType &domainObject) {
         //Potentially move to separate thread as well
-        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceIdentifier), resourceIdentifier);
-        if (facade) {
-            return facade->remove(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
-                Warning() << "Failed to remove";
-            });
-        }
-        return KAsync::error<void>(-1, "Failed to create a facade");
+        auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
+        return facade->remove(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
+            Warning() << "Failed to remove";
+        });
     }
 
     static void shutdown(const QByteArray &resourceIdentifier);
@@ -213,20 +212,20 @@ public:
         return ApplicationDomain::AkonadiResource::Ptr::create();
     }
 
-    static void setConfiguration(const ApplicationDomain::AkonadiResource &resource, const QByteArray &resourceIdentifier)
+    static void setConfiguration(const ApplicationDomain::AkonadiResource &resource)
     {
-        Store::modify<ApplicationDomain::AkonadiResource>(resource, resourceIdentifier);
+        Store::modify<ApplicationDomain::AkonadiResource>(resource);
     }
 
-    static void createResource(const ApplicationDomain::AkonadiResource &resource, const QByteArray &resourceIdentifier)
+    static void createResource(const ApplicationDomain::AkonadiResource &resource)
     {
-        Store::create<ApplicationDomain::AkonadiResource>(resource, resourceIdentifier);
+        Store::create<ApplicationDomain::AkonadiResource>(resource);
     }
 
     static void removeResource(const QByteArray &resourceIdentifier)
     {
-        ApplicationDomain::AkonadiResource resource;
-        Store::remove<ApplicationDomain::AkonadiResource>(resource, resourceIdentifier);
+        ApplicationDomain::AkonadiResource resource(resourceIdentifier);
+        Store::remove<ApplicationDomain::AkonadiResource>(resource);
     }
 };
 
