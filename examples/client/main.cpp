@@ -20,12 +20,10 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QCommandLineOption>
-#include <QAbstractListModel>
 
 #include "common/clientapi.h"
-#include "common/resultprovider.h"
 #include "common/resource.h"
-#include "common/synclistresult.h"
+#include "common/listmodelresult.h"
 #include "common/storage.h"
 #include "common/domain/event.h"
 #include "console.h"
@@ -36,10 +34,6 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QItemSelectionModel>
-
-enum Roles {
-    DomainObjectRole = Qt::UserRole + 1
-};
 
 template <typename T>
 class View : public QWidget
@@ -85,80 +79,6 @@ public:
 
 };
 
-template<class T>
-class AkonadiListModel : public QAbstractListModel
-{
-public:
-    AkonadiListModel(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter, const QByteArray &property)
-        :QAbstractListModel(),
-        mEmitter(emitter),
-        mProperty(property)
-    {
-        emitter->onAdded([this, property](const T &value) {
-            const auto keys = mEntities.keys();
-            int index = 0;
-            for (; index < keys.size(); index++) {
-                if (value->identifier() < keys.at(index)) {
-                    break;
-                }
-            }
-            beginInsertRows(QModelIndex(), index, index);
-            mEntities.insert(value->identifier(), value);
-            endInsertRows();
-        });
-        emitter->onModified([this, property](const T &value) {
-            mEntities.remove(value->identifier());
-            mEntities.insert(value->identifier(), value);
-            //FIXME
-            // emit dataChanged();
-        });
-        emitter->onRemoved([this, property](const T &value) {
-            auto index = mEntities.keys().indexOf(value->identifier());
-            beginRemoveRows(QModelIndex(), index, index);
-            mEntities.remove(value->identifier());
-            endRemoveRows();
-        });
-        emitter->onInitialResultSetComplete([this]() {
-        });
-        emitter->onComplete([this]() {
-            // qDebug() << "COMPLETE";
-            mEmitter.clear();
-        });
-        emitter->onClear([this]() {
-            // qDebug() << "CLEAR";
-            beginResetModel();
-            mEntities.clear();
-            endResetModel();
-        });
-    }
-
-    int rowCount(const QModelIndex &parent = QModelIndex()) const
-    {
-        return mEntities.size();
-    }
-
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
-    {
-        if (index.row() >= mEntities.size()) {
-            qWarning() << "Out of bounds access";
-            return QVariant();
-        }
-        if (role == Qt::DisplayRole) {
-            auto entity = mEntities.value(mEntities.keys().at(index.row()));
-            return entity->getProperty(mProperty).toString() + entity->identifier();
-        }
-        if (role == DomainObjectRole) {
-            return QVariant::fromValue(mEntities.value(mEntities.keys().at(index.row())));
-        }
-        return QVariant();
-    }
-
-private:
-    QSharedPointer<Akonadi2::ResultEmitter<T> > mEmitter;
-    QMap<QByteArray, T> mEntities;
-    QByteArray mProperty;
-};
-
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
@@ -201,7 +121,7 @@ int main(int argc, char *argv[])
     query.processAll = false;
     query.liveQuery = true;
 
-    auto model = QSharedPointer<AkonadiListModel<Akonadi2::ApplicationDomain::Event::Ptr> >::create(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query), "summary");
+    auto model = QSharedPointer<ListModelResult<Akonadi2::ApplicationDomain::Event::Ptr> >::create(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query), "summary");
     auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Event> >::create(model.data());
 
     return app.exec();
