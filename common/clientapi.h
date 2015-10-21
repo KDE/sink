@@ -62,14 +62,19 @@ public:
         return Akonadi2::resourceName(instanceIdentifier);
     }
 
-    static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter)
+    static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type)
     {
+        //Return the global resource (signified by an empty name) for types that don't eblong to a specific resource
+        if (type == "akonadiresource") {
+            return QList<QByteArray>() << "";
+        }
         QList<QByteArray> resources;
         const auto configuredResources = ResourceConfig::getResources();
         if (resourceFilter.isEmpty()) {
             for (const auto &res : configuredResources) {
-                //TODO filter by type
-                resources << res;
+                if (configuredResources.value(res) == type) {
+                    resources << res;
+                }
             }
         } else {
             for (const auto &res : resourceFilter) {
@@ -100,7 +105,7 @@ public:
                 eventLoop.quit();
             });
             // Query all resources and aggregate results
-            KAsync::iterate(getResources(query.resources))
+            KAsync::iterate(getResources(query.resources, ApplicationDomain::getTypeName<DomainType>()))
             .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, KAsync::Future<void> &future) {
                 auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
                 if (facade) {

@@ -89,7 +89,6 @@ private Q_SLOTS:
     {
         ResourceConfig::clear();
         Akonadi2::FacadeFactory::instance().registerStaticFacades();
-        ResourceConfig::addResource("resourceconfig", "resourceconfig");
 
         Akonadi2::ApplicationDomain::AkonadiResource res;
         res.setProperty("identifier", "dummyresource.identifier1");
@@ -98,7 +97,6 @@ private Q_SLOTS:
         Akonadi2::Store::create(res).exec().waitForFinished();
         {
             Akonadi2::Query query;
-            query.resources << "resourceconfig";
             query.propertyFilter.insert("type", "dummyresource");
             async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
             result.exec();
@@ -108,7 +106,6 @@ private Q_SLOTS:
         Akonadi2::Store::remove(res).exec().waitForFinished();
         {
             Akonadi2::Query query;
-            query.resources << "resourceconfig";
             query.propertyFilter.insert("type", "dummyresource");
             async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
             result.exec();

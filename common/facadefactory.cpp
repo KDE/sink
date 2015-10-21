@@ -54,7 +54,7 @@ void FacadeFactory::resetFactory()
 
 void FacadeFactory::registerStaticFacades()
 {
-    registerFacade<Akonadi2::ApplicationDomain::AkonadiResource, ResourceFacade>("resourceconfig");
+    registerFacade<Akonadi2::ApplicationDomain::AkonadiResource, ResourceFacade>(QByteArray());
 }
 
 std::shared_ptr<void> FacadeFactory::getFacade(const QByteArray &resource, const QByteArray &instanceIdentifier, const QByteArray &typeName)
