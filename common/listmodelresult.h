@@ -22,7 +22,7 @@
 #include <QAbstractListModel>
 #include <QDebug>
 
-#include "common/resultprovider.h"
+#include "resultprovider.h"
 
 enum Roles {
     DomainObjectRole = Qt::UserRole + 1
@@ -33,11 +33,24 @@ class ListModelResult : public QAbstractListModel
 {
 public:
 
-    ListModelResult(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter, const QList<QByteArray> &propertyColumns)
+    ListModelResult(const QList<QByteArray> &propertyColumns)
         :QAbstractListModel(),
-        mEmitter(emitter),
         mPropertyColumns(propertyColumns)
     {
+    }
+
+    ListModelResult(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter, const QList<QByteArray> &propertyColumns)
+        :QAbstractListModel(),
+        mPropertyColumns(propertyColumns)
+    {
+        setEmitter(emitter);
+    }
+
+    void setEmitter(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter)
+    {
+        beginResetModel();
+        mEntities.clear();
+        mEmitter = emitter;
         emitter->onAdded([this](const T &value) {
             const auto keys = mEntities.keys();
             int index = 0;
@@ -73,6 +86,7 @@ public:
             mEntities.clear();
             endResetModel();
         });
+        endResetModel();
     }
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const
@@ -85,7 +99,7 @@ public:
         return mPropertyColumns.size();
     }
 
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
+    virtual QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
     {
         if (index.row() >= mEntities.size()) {
             qWarning() << "Out of bounds access";
