@@ -29,13 +29,10 @@
 #include <Async/Async>
 
 #include "query.h"
-#include "threadboundary.h"
 #include "resultprovider.h"
-#include "domain/applicationdomaintype.h"
-#include "resourceconfig.h"
+#include "applicationdomaintype.h"
 #include "facadefactory.h"
 #include "log.h"
-#include "definitions.h"
 
 namespace async {
     //This should abstract if we execute from eventloop or in thread.
@@ -51,42 +48,12 @@ using namespace async;
  * Store interface used in the client API.
  */
 class Store {
+private:
+    static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type);
+
 public:
-    static QString storageLocation()
-    {
-        return Akonadi2::storageLocation();
-    }
-
-    static QByteArray resourceName(const QByteArray &instanceIdentifier)
-    {
-        return Akonadi2::resourceName(instanceIdentifier);
-    }
-
-    static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type)
-    {
-        //Return the global resource (signified by an empty name) for types that don't eblong to a specific resource
-        if (type == "akonadiresource") {
-            return QList<QByteArray>() << "";
-        }
-        QList<QByteArray> resources;
-        const auto configuredResources = ResourceConfig::getResources();
-        if (resourceFilter.isEmpty()) {
-            for (const auto &res : configuredResources) {
-                if (configuredResources.value(res) == type) {
-                    resources << res;
-                }
-            }
-        } else {
-            for (const auto &res : resourceFilter) {
-                if (configuredResources.contains(res)) {
-                    resources << res;
-                } else {
-                    qWarning() << "Resource is not existing: " << res;
-                }
-            }
-        }
-        return resources;
-    }
+    static QString storageLocation();
+    static QByteArray resourceName(const QByteArray &instanceIdentifier);
 
     /**
      * Asynchronusly load a dataset
@@ -192,47 +159,6 @@ public:
     static void synchronize(const QByteArray &resourceIdentifier);
 };
 
-/**
- * Configuration interface used in the client API.
- *
- * This interface provides convenience API for manipulating resources.
- * This interface uses internally the same interface that is part of the regular Store API.
- * 
- * Resources provide their configuration implementation by implementing a StoreFacade for the AkonadiResource type.
- */
-class Configuration {
-public:
-    static QWidget *getConfigurationWidget(const QByteArray &resourceIdentifier)
-    {
-        //TODO here we want to implement the code to create a configuration widget from the QML config interface provided by the resource
-        return nullptr;
-    }
-
-    static ApplicationDomain::AkonadiResource::Ptr getConfiguration(const QByteArray &resource)
-    {
-        Query query;
-        query.resources << resource;
-        // auto result = Store::load<ApplicationDomain::AkonadiResource>(query);
-        //FIXME retrieve result and return it
-        return ApplicationDomain::AkonadiResource::Ptr::create();
-    }
-
-    static void setConfiguration(const ApplicationDomain::AkonadiResource &resource)
-    {
-        Store::modify<ApplicationDomain::AkonadiResource>(resource);
-    }
-
-    static void createResource(const ApplicationDomain::AkonadiResource &resource)
-    {
-        Store::create<ApplicationDomain::AkonadiResource>(resource);
-    }
-
-    static void removeResource(const QByteArray &resourceIdentifier)
-    {
-        ApplicationDomain::AkonadiResource resource(resourceIdentifier);
-        Store::remove<ApplicationDomain::AkonadiResource>(resource);
-    }
-};
 
 }
 

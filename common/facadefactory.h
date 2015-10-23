@@ -27,7 +27,7 @@
 #include <memory>
 
 #include "facadeinterface.h"
-#include "domain/applicationdomaintype.h"
+#include "applicationdomaintype.h"
 #include "log.h"
 
 namespace Akonadi2 {

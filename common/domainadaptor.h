@@ -26,6 +26,7 @@
 #include "domain/applicationdomaintype.h"
 #include "domain/event.h"
 #include "domain/mail.h"
+#include "bufferadaptor.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
 #include "entitybuffer.h"

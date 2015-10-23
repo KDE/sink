@@ -1,4 +1,5 @@
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(domain)
 
 project(akonadi2common)
 
@@ -64,3 +65,17 @@ SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 qt5_use_modules(${PROJECT_NAME} Network)
 target_link_libraries(${PROJECT_NAME} ${storage_LIBS} KF5::Async)
 install(TARGETS ${PROJECT_NAME} ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
+
+install(FILES
+    clientapi.h
+    domain/applicationdomaintype.h
+    query.h
+    threadboundary.h
+    resultprovider.h
+    facadefactory.h
+    log.h
+    listmodelresult.h
+    bufferadaptor.h
+    facadeinterface.h
+    DESTINATION ${INCLUDE_INSTALL_DIR}/${PROJECT_NAME} COMPONENT Devel
+)

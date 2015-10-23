@@ -18,9 +18,55 @@
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "applicationdomaintype.h"
+#include "../bufferadaptor.h"
 
 namespace Akonadi2 {
 namespace ApplicationDomain {
+
+ApplicationDomainType::ApplicationDomainType()
+    :mAdaptor(new MemoryBufferAdaptor())
+{
+
+}
+
+ApplicationDomainType::ApplicationDomainType(const QByteArray &resourceInstanceIdentifier)
+    :mAdaptor(new MemoryBufferAdaptor()),
+    mResourceInstanceIdentifier(resourceInstanceIdentifier)
+{
+
+}
+
+ApplicationDomainType::ApplicationDomainType(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
+    : mAdaptor(adaptor),
+    mResourceInstanceIdentifier(resourceInstanceIdentifier),
+    mIdentifier(identifier),
+    mRevision(revision)
+{
+}
+
+ApplicationDomainType::ApplicationDomainType(const ApplicationDomainType &other)
+{
+    *this = other;
+}
+
+ApplicationDomainType& ApplicationDomainType::operator=(const ApplicationDomainType &other)
+{
+    mAdaptor = other.mAdaptor;
+    mChangeSet = other.mChangeSet;
+    mResourceInstanceIdentifier = other.mResourceInstanceIdentifier;
+    mIdentifier = other.mIdentifier;
+    mRevision = other.mRevision;
+    return *this;
+}
+
+ApplicationDomainType::~ApplicationDomainType() {}
+
+QVariant ApplicationDomainType::getProperty(const QByteArray &key) const { return mAdaptor->getProperty(key); }
+void ApplicationDomainType::setProperty(const QByteArray &key, const QVariant &value){ mChangeSet.insert(key, value); mAdaptor->setProperty(key, value); }
+QByteArrayList ApplicationDomainType::changedProperties() const { return mChangeSet.keys(); }
+qint64 ApplicationDomainType::revision() const { return mRevision; }
+QByteArray ApplicationDomainType::resourceInstanceIdentifier() const { return mResourceInstanceIdentifier; }
+QByteArray ApplicationDomainType::identifier() const { return mIdentifier; }
 
 template<>
 QByteArray getTypeName<Event>()

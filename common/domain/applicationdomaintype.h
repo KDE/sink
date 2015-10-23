@@ -22,7 +22,7 @@
 #include <QSharedPointer>
 #include <QVariant>
 #include <QByteArray>
-#include "../bufferadaptor.h"
+#include "bufferadaptor.h"
 
 namespace Akonadi2 {
 
@@ -39,41 +39,11 @@ class ApplicationDomainType {
 public:
     typedef QSharedPointer<ApplicationDomainType> Ptr;
 
-    ApplicationDomainType()
-        :mAdaptor(new MemoryBufferAdaptor())
-    {
-
-    }
-
-    ApplicationDomainType(const QByteArray &resourceInstanceIdentifier)
-        :mAdaptor(new MemoryBufferAdaptor()),
-        mResourceInstanceIdentifier(resourceInstanceIdentifier)
-    {
-
-    }
-
-    ApplicationDomainType(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
-        : mAdaptor(adaptor),
-        mResourceInstanceIdentifier(resourceInstanceIdentifier),
-        mIdentifier(identifier),
-        mRevision(revision)
-    {
-    }
-
-    ApplicationDomainType(const ApplicationDomainType &other)
-    {
-        *this = other;
-    }
-
-    ApplicationDomainType& operator=(const ApplicationDomainType &other)
-    {
-        mAdaptor = other.mAdaptor;
-        mChangeSet = other.mChangeSet;
-        mResourceInstanceIdentifier = other.mResourceInstanceIdentifier;
-        mIdentifier = other.mIdentifier;
-        mRevision = other.mRevision;
-        return *this;
-    }
+    ApplicationDomainType();
+    ApplicationDomainType(const QByteArray &resourceInstanceIdentifier);
+    ApplicationDomainType(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
+    ApplicationDomainType(const ApplicationDomainType &other);
+    ApplicationDomainType& operator=(const ApplicationDomainType &other);
 
     template <typename DomainType>
     static typename DomainType::Ptr getInMemoryRepresentation(const ApplicationDomainType &domainType)
@@ -84,14 +54,14 @@ public:
         return QSharedPointer<DomainType>::create(domainType.mResourceInstanceIdentifier, QByteArray(domainType.mIdentifier.constData(), domainType.mIdentifier.size()), domainType.mRevision, memoryAdaptor);
     }
 
-    virtual ~ApplicationDomainType() {}
+    virtual ~ApplicationDomainType();
 
-    virtual QVariant getProperty(const QByteArray &key) const { return mAdaptor->getProperty(key); }
-    virtual void setProperty(const QByteArray &key, const QVariant &value){ mChangeSet.insert(key, value); mAdaptor->setProperty(key, value); }
-    virtual QByteArrayList changedProperties() const { return mChangeSet.keys(); }
-    qint64 revision() const { return mRevision; }
-    QByteArray resourceInstanceIdentifier() const { return mResourceInstanceIdentifier; }
-    QByteArray identifier() const { return mIdentifier; }
+    virtual QVariant getProperty(const QByteArray &key) const;
+    virtual void setProperty(const QByteArray &key, const QVariant &value);
+    virtual QByteArrayList changedProperties() const;
+    qint64 revision() const;
+    QByteArray resourceInstanceIdentifier() const;
+    QByteArray identifier() const;
 
 private:
     QSharedPointer<BufferAdaptor> mAdaptor;
@@ -186,3 +156,5 @@ class TypeImplementation;
 
 Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::ApplicationDomainType)
 Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr)
+Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Event)
+Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Event::Ptr)

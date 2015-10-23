@@ -5,6 +5,7 @@
 #include "resourcefacade.h"
 #include "log.h"
 #include "definitions.h"
+#include "resourceconfig.h"
 #include <QtConcurrent/QtConcurrentRun>
 #include <QTimer>
 
@@ -30,6 +31,44 @@ namespace async
 
 namespace Akonadi2
 {
+
+QString Store::storageLocation()
+{
+    return Akonadi2::storageLocation();
+}
+
+QByteArray Store::resourceName(const QByteArray &instanceIdentifier)
+{
+    return Akonadi2::resourceName(instanceIdentifier);
+}
+
+QList<QByteArray> Store::getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type)
+{
+    //Return the global resource (signified by an empty name) for types that don't eblong to a specific resource
+    if (type == "akonadiresource") {
+        qWarning() << "Global resource";
+        return QList<QByteArray>() << "";
+    }
+    QList<QByteArray> resources;
+    const auto configuredResources = ResourceConfig::getResources();
+    if (resourceFilter.isEmpty()) {
+        for (const auto &res : configuredResources) {
+            if (configuredResources.value(res) == type) {
+                resources << res;
+            }
+        }
+    } else {
+        for (const auto &res : resourceFilter) {
+            if (configuredResources.contains(res)) {
+                resources << res;
+            } else {
+                qWarning() << "Resource is not existing: " << res;
+            }
+        }
+    }
+    qWarning() << "Found resources: " << resources;
+    return resources;
+}
 
 void Store::shutdown(const QByteArray &identifier)
 {

@@ -23,7 +23,7 @@
 #include <Async/Async>
 #include <QByteArray>
 #include <QSharedPointer>
-#include "domain/applicationdomaintype.h"
+#include "applicationdomaintype.h"
 #include "resultprovider.h"
 
 namespace Akonadi2 {
