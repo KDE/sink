@@ -63,7 +63,10 @@ std::shared_ptr<void> FacadeFactory::getFacade(const QByteArray &resource, const
 
     const QByteArray k = key(resource, typeName);
     if (!mFacadeRegistry.contains(k)) {
+        locker.unlock();
+        //This will call FacadeFactory::instace() internally
         Akonadi2::ResourceFactory::load(QString::fromLatin1(resource));
+        locker.relock();
     }
 
     if (auto factoryFunction = mFacadeRegistry.value(k)) {
