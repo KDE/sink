@@ -26,6 +26,7 @@
 #include "common/listmodelresult.h"
 #include "common/storage.h"
 #include "common/domain/event.h"
+#include "common/resourceconfig.h"
 #include "console.h"
 
 #include <QWidget>
