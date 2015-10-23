@@ -52,10 +52,9 @@ QList<QByteArray> Store::getResources(const QList<QByteArray> &resourceFilter, c
     QList<QByteArray> resources;
     const auto configuredResources = ResourceConfig::getResources();
     if (resourceFilter.isEmpty()) {
-        for (const auto &res : configuredResources) {
-            if (configuredResources.value(res) == type) {
-                resources << res;
-            }
+        for (const auto &res : configuredResources.keys()) {
+            //TODO filter by entity type
+            resources << res;
         }
     } else {
         for (const auto &res : resourceFilter) {
