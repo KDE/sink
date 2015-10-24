@@ -8,6 +8,9 @@
 #include "messagequeue.h"
 #include "log.h"
 
+/**
+ * Test of the messagequeue implementation.
+ */
 class MessageQueueTest : public QObject
 {
     Q_OBJECT

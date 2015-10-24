@@ -28,6 +28,11 @@ public:
     QWeakPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > capturedResultProvider;
 };
 
+/**
+ * Test of the client api implementation.
+ * 
+ * This test works with injected dummy facades and thus doesn't write to storage.
+ */
 class ClientAPITest : public QObject
 {
     Q_OBJECT
@@ -85,6 +90,7 @@ private Q_SLOTS:
         QTRY_VERIFY(!facade->capturedResultProvider);
     }
 
+    //TODO: This test doesn't belong to this testsuite
     void resourceManagement()
     {
         ResourceConfig::clear();

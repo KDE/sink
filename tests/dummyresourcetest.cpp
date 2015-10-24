@@ -11,6 +11,11 @@
 #include "pipeline.h"
 #include "log.h"
 
+/**
+ * Test of complete system using the dummy resource.
+ * 
+ * This test requires the dummy resource installed.
+ */
 class DummyResourceTest : public QObject
 {
     Q_OBJECT

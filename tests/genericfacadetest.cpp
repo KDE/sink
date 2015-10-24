@@ -13,6 +13,11 @@
 #include "event_generated.h"
 
 
+/**
+ * Test for the generic facade implementation.
+ *
+ * This test doesn't use the actual storage and thus only tests the update logic of the facade.
+ */
 class GenericFacadeTest : public QObject
 {
     Q_OBJECT

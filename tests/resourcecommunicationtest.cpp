@@ -5,6 +5,9 @@
 #include "commands.h"
 #include "handshake_generated.h"
 
+/**
+ * Test that resourceaccess and listener work together.
+ */
 class ResourceCommunicationTest : public QObject
 {
     Q_OBJECT

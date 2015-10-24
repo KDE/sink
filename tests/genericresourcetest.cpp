@@ -20,6 +20,11 @@ static void removeFromDisk(const QString &name)
     store.removeFromDisk();
 }
 
+/**
+ * Test of the generic resource implementation.
+ * 
+ * This test relies on a working pipeline implementation, and writes to storage.
+ */
 class GenericResourceTest : public QObject
 {
     Q_OBJECT
@@ -33,6 +38,7 @@ private Q_SLOTS:
         Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
     }
 
+    ///Ensure the resource can process messages
     void testProcessCommand()
     {
         flatbuffers::FlatBufferBuilder eventFbb;

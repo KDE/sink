@@ -8,11 +8,13 @@
 
 #include "common/storage.h"
 
+/**
+ * Test of the storage implementation to ensure it can do the low level operations as expected.
+ */
 class StorageTest : public QObject
 {
     Q_OBJECT
 private:
-    //This should point to a directory on disk and not a ramdisk (since we're measuring performance)
     QString testDataPath;
     QString dbName;
     const char *keyPrefix = "key";

@@ -7,6 +7,9 @@
 #include "storage.h"
 #include "index.h"
 
+/**
+ * Test of the index implementation
+ */
 class IndexTest : public QObject
 {
     Q_OBJECT

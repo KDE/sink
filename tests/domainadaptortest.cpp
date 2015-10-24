@@ -22,6 +22,9 @@ public:
     }
 };
 
+/**
+ * Test of domain adaptor, that it can read and write buffers.
+ */
 class DomainAdaptorTest : public QObject
 {
     Q_OBJECT

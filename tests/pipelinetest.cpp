@@ -139,6 +139,9 @@ QByteArray deleteEntityCommand(const QByteArray &uid, qint64 revision)
     return command;
 }
 
+/**
+ * Test of the pipeline implementation to ensure new revisions are created correctly in the database.
+ */
 class PipelineTest : public QObject
 {
     Q_OBJECT
