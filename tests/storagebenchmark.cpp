@@ -38,6 +38,9 @@ static QByteArray createEvent()
     return QByteArray::fromRawData(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
 
+/**
+ * Benchmark the storage implementation.
+ */
 class StorageBenchmark : public QObject
 {
     Q_OBJECT

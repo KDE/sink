@@ -60,6 +60,9 @@ static QByteArray createEntityBuffer()
     return QByteArray(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
 
+/**
+ * Benchmark write performance of generic resource implementation including queues and pipeline.
+ */
 class GenericResourceBenchmark : public QObject
 {
     Q_OBJECT

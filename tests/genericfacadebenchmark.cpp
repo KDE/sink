@@ -13,6 +13,9 @@
 
 
 
+/**
+ * Benchmark read performance of the generic facade implementation.
+ */
 class GenericFacadeBenchmark : public QObject
 {
     Q_OBJECT

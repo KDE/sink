@@ -18,6 +18,9 @@
 
 #include <iostream>
 
+/**
+ * Benchmark full system with the dummy resource implementation.
+ */
 class DummyResourceBenchmark : public QObject
 {
     Q_OBJECT
