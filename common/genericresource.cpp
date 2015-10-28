@@ -54,7 +54,7 @@ public Q_SLOTS:
     {
         auto mainStoreTransaction = mStorage.createTransaction(Storage::ReadOnly);
         auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadWrite);
-        qint64 lastReplayedRevision = 0;
+        qint64 lastReplayedRevision = 1;
         replayStoreTransaction.openDatabase().scan("lastReplayedRevision", [&lastReplayedRevision](const QByteArray &key, const QByteArray &value) -> bool {
             lastReplayedRevision = value.toLongLong();
             return false;
@@ -290,6 +290,7 @@ void GenericResource::removeFromDisk(const QByteArray &instanceIdentifier)
     Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier, Akonadi2::Storage::ReadWrite).removeFromDisk();
     Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".userqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
     Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronizerqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
+    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".changereplay", Akonadi2::Storage::ReadWrite).removeFromDisk();
 }
 
 void GenericResource::onProcessorError(int errorCode, const QString &errorMessage)
