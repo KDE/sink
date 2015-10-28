@@ -50,11 +50,11 @@ ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, 
     return ResultSet(keys);
 }
 
-void TypeImplementation<Event>::index(const Event &type, Akonadi2::Storage::Transaction &transaction)
+void TypeImplementation<Event>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
 {
-    const auto uid = type.getProperty("uid");
+    const auto uid = bufferAdaptor.getProperty("uid");
     if (uid.isValid()) {
-        Index("event.index.uid", transaction).add(uid.toByteArray(), type.identifier());
+        Index("event.index.uid", transaction).add(uid.toByteArray(), identifier);
     }
 }
 

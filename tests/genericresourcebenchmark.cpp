@@ -60,6 +60,25 @@ static QByteArray createEntityBuffer()
     return QByteArray(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
 
+class IndexUpdater : public Akonadi2::Preprocessor {
+public:
+    void newEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        for (int i = 0; i < 10; i++) {
+            Index ridIndex(QString("index.index%1").arg(i).toLatin1(), transaction);
+            ridIndex.add("foo", uid);
+        }
+    }
+
+    void modifiedEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+    }
+
+    void deletedEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+    }
+};
+
 /**
  * Benchmark write performance of generic resource implementation including queues and pipeline.
  */
@@ -124,19 +143,9 @@ private Q_SLOTS:
 
         auto eventFactory = QSharedPointer<TestEventAdaptorFactory>::create();
         const QByteArray resourceIdentifier = "org.kde.test.instance1";
-        auto eventIndexer = new Akonadi2::SimpleProcessor("eventIndexer", [eventFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity, Akonadi2::Storage::Transaction &transaction) {
-            auto adaptor = eventFactory->createAdaptor(entity);
-            Akonadi2::ApplicationDomain::Event event(resourceIdentifier, state.key(), -1, adaptor);
-            Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::index(event, transaction);
+        auto indexer = QSharedPointer<IndexUpdater>::create();
 
-            //Create a bunch of indexes
-            for (int i = 0; i < 10; i++) {
-                Index ridIndex(QString("index.index%1").arg(i).toLatin1(), transaction);
-                ridIndex.add("foo", event.identifier());
-            }
-        });
-
-        pipeline->setPreprocessors("event", Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
+        pipeline->setPreprocessors("event", QVector<Akonadi2::Preprocessor*>() << indexer.data());
         pipeline->setAdaptorFactory("event", eventFactory);
 
         TestResource resource("org.kde.test.instance1", pipeline);

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2014 Aaron Seigo <aseigo@kde.org>
+ * Copyright (C) 2015 Christian Mollekopf <mollekopf@kolabsys.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -41,19 +42,13 @@ class Pipeline::Private
 {
 public:
     Private(const QString &resourceName)
-        : storage(Akonadi2::storageLocation(), resourceName, Storage::ReadWrite),
-          stepScheduled(false)
+        : storage(Akonadi2::storageLocation(), resourceName, Storage::ReadWrite)
     {
     }
 
     Storage storage;
     Storage::Transaction transaction;
-    QHash<QString, QVector<Preprocessor *> > nullPipeline;
-    QHash<QString, QVector<Preprocessor *> > newPipeline;
-    QHash<QString, QVector<Preprocessor *> > modifiedPipeline;
-    QHash<QString, QVector<Preprocessor *> > deletedPipeline;
-    QVector<PipelineState> activePipelines;
-    bool stepScheduled;
+    QHash<QString, QVector<Preprocessor *> > processors;
     QHash<QString, DomainTypeAdaptorFactoryInterface::Ptr> adaptorFactory;
 };
 
@@ -68,21 +63,9 @@ Pipeline::~Pipeline()
     delete d;
 }
 
-void Pipeline::setPreprocessors(const QString &entityType, Type pipelineType, const QVector<Preprocessor *> &preprocessors)
+void Pipeline::setPreprocessors(const QString &entityType, const QVector<Preprocessor *> &processors)
 {
-    switch (pipelineType) {
-        case NewPipeline:
-            d->newPipeline[entityType] = preprocessors;
-            break;
-        case ModifiedPipeline:
-            d->modifiedPipeline[entityType] = preprocessors;
-            break;
-        case DeletedPipeline:
-            d->deletedPipeline[entityType] = preprocessors;
-            break;
-        default:
-            break;
-    };
+    d->processors[entityType] = processors;
 }
 
 void Pipeline::setAdaptorFactory(const QString &entityType, DomainTypeAdaptorFactoryInterface::Ptr factory)
@@ -92,6 +75,11 @@ void Pipeline::setAdaptorFactory(const QString &entityType, DomainTypeAdaptorFac
 
 void Pipeline::startTransaction()
 {
+    //TODO call for all types
+    //But avoid doing it during cleanup
+    // for (auto processor : d->processors[bufferType]) {
+    //     processor->startBatch();
+    // }
     if (d->transaction) {
         return;
     }
@@ -100,7 +88,13 @@ void Pipeline::startTransaction()
 
 void Pipeline::commit()
 {
+    //TODO call for all types
+    //But avoid doing it during cleanup
+    // for (auto processor : d->processors[bufferType]) {
+    //     processor->finalize();
+    // }
     const auto revision = Akonadi2::Storage::maxRevision(d->transaction);
+    Trace() << "Committing " << revision;
     if (d->transaction) {
         d->transaction.commit();
     }
@@ -116,14 +110,6 @@ Storage::Transaction &Pipeline::transaction()
 Storage &Pipeline::storage() const
 {
     return d->storage;
-}
-
-void Pipeline::null()
-{
-    //TODO: is there really any need for the null pipeline? if so, it should be doing something ;)
-    // PipelineState state(this, NullPipeline, QByteArray(), d->nullPipeline);
-    // d->activePipelines << state;
-    // state.step();
 }
 
 void Pipeline::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid)
@@ -181,15 +167,25 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 
     storeNewRevision(newRevision, fbb, bufferType, key);
 
-    Log() << "Pipeline: wrote entity: " << key << newRevision << bufferType;
+    auto adaptorFactory = d->adaptorFactory.value(bufferType);
+    if (!adaptorFactory) {
+        Warning() << "no adaptor factory for type " << bufferType;
+        return KAsync::error<qint64>(0);
+    }
 
-    return KAsync::start<qint64>([this, key, bufferType, newRevision](KAsync::Future<qint64> &future) {
-        PipelineState state(this, NewPipeline, Akonadi2::Storage::assembleKey(key, newRevision), d->newPipeline[bufferType], newRevision, [&future, newRevision]() {
-            future.setValue(newRevision);
-            future.setFinished();
-        }, bufferType);
-        d->activePipelines << state;
-        state.step();
+    Log() << "Pipeline: wrote entity: " << key << newRevision << bufferType;
+    d->transaction.openDatabase(bufferType + ".main").scan(Akonadi2::Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, key](const QByteArray &, const QByteArray &value) -> bool {
+        auto entity = Akonadi2::GetEntity(value);
+        auto adaptor = adaptorFactory->createAdaptor(*entity);
+        for (auto processor : d->processors[bufferType]) {
+            processor->newEntity(key, newRevision, *adaptor, d->transaction);
+        }
+        return false;
+    }, [this](const Akonadi2::Storage::Error &error) {
+        ErrorMsg() << "Failed to find value in pipeline: " << error.message;
+    });
+    return KAsync::start<qint64>([newRevision](){
+        return newRevision;
     });
 }
 
@@ -237,7 +233,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     auto diff = adaptorFactory->createAdaptor(*diffEntity);
 
     QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> current;
-    storage().createTransaction(Akonadi2::Storage::ReadOnly).openDatabase(bufferType + ".main").scan(Akonadi2::Storage::assembleKey(key, baseRevision), [&current, adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
+    d->transaction.openDatabase(bufferType + ".main").findLatest(key, [&current, adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
         Akonadi2::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         if (!buffer.isValid()) {
             Warning() << "Read invalid buffer from disk";
@@ -287,14 +283,18 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     storeNewRevision(newRevision, fbb, bufferType, key);
     Log() << "Pipeline: modified entity: " << key << newRevision << bufferType;
-
-    return KAsync::start<qint64>([this, key, bufferType, newRevision](KAsync::Future<qint64> &future) {
-        PipelineState state(this, ModifiedPipeline, Akonadi2::Storage::assembleKey(key, newRevision), d->modifiedPipeline[bufferType], newRevision, [&future, newRevision]() {
-            future.setValue(newRevision);
-            future.setFinished();
-        }, bufferType);
-        d->activePipelines << state;
-        state.step();
+    d->transaction.openDatabase(bufferType + ".main").scan(Akonadi2::Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, current, key](const QByteArray &, const QByteArray &value) -> bool {
+        auto entity = Akonadi2::GetEntity(value);
+        auto newEntity = adaptorFactory->createAdaptor(*entity);
+        for (auto processor : d->processors[bufferType]) {
+            processor->modifiedEntity(key, newRevision, *current, *newEntity, d->transaction);
+        }
+        return false;
+    }, [this](const Akonadi2::Storage::Error &error) {
+        ErrorMsg() << "Failed to find value in pipeline: " << error.message;
+    });
+    return KAsync::start<qint64>([newRevision](){
+        return newRevision;
     });
 }
 
@@ -328,16 +328,34 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), 0, 0, 0, 0);
 
+    auto adaptorFactory = d->adaptorFactory.value(bufferType);
+    if (!adaptorFactory) {
+        Warning() << "no adaptor factory for type " << bufferType;
+        return KAsync::error<qint64>(0);
+    }
+
+    QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> current;
+    d->transaction.openDatabase(bufferType + ".main").findLatest(key, [this, bufferType, newRevision, adaptorFactory, key, &current](const QByteArray &, const QByteArray &data) -> bool {
+        Akonadi2::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+        if (!buffer.isValid()) {
+            Warning() << "Read invalid buffer from disk";
+        } else {
+            current = adaptorFactory->createAdaptor(buffer.entity());
+        }
+        return false;
+    }, [this](const Akonadi2::Storage::Error &error) {
+        ErrorMsg() << "Failed to find value in pipeline: " << error.message;
+    });
+
     storeNewRevision(newRevision, fbb, bufferType, key);
     Log() << "Pipeline: deleted entity: "<< newRevision;
 
-    return KAsync::start<qint64>([this, key, bufferType, newRevision](KAsync::Future<qint64> &future) {
-        PipelineState state(this, DeletedPipeline, key, d->deletedPipeline[bufferType], newRevision, [&future, newRevision](){
-            future.setValue(newRevision);
-            future.setFinished();
-        }, bufferType);
-        d->activePipelines << state;
-        state.step();
+    for (auto processor : d->processors[bufferType]) {
+        processor->deletedEntity(key, newRevision, *current, d->transaction);
+    }
+
+    return KAsync::start<qint64>([newRevision](){
+        return newRevision;
     });
 }
 
@@ -372,164 +390,6 @@ qint64 Pipeline::cleanedUpRevision()
     return Akonadi2::Storage::cleanedUpRevision(d->transaction);
 }
 
-void Pipeline::pipelineStepped(const PipelineState &state)
-{
-    scheduleStep();
-}
-
-void Pipeline::scheduleStep()
-{
-    if (!d->stepScheduled) {
-        d->stepScheduled = true;
-        QMetaObject::invokeMethod(this, "stepPipelines", Qt::QueuedConnection);
-    }
-}
-
-void Pipeline::stepPipelines()
-{
-    d->stepScheduled = false;
-    for (PipelineState &state: d->activePipelines) {
-        if (state.isIdle()) {
-            state.step();
-        }
-    }
-}
-
-void Pipeline::pipelineCompleted(PipelineState state)
-{
-    //TODO finalize the datastore, inform clients of the new rev
-    const int index = d->activePipelines.indexOf(state);
-    if (index > -1) {
-        d->activePipelines.remove(index);
-    }
-    state.callback();
-
-    scheduleStep();
-    if (d->activePipelines.isEmpty()) {
-        emit pipelinesDrained();
-    }
-}
-
-
-class PipelineState::Private : public QSharedData
-{
-public:
-    Private(Pipeline *p, Pipeline::Type t, const QByteArray &k, QVector<Preprocessor *> filters, const std::function<void()> &c, qint64 r, const QByteArray &b)
-        : pipeline(p),
-          type(t),
-          key(k),
-          filterIt(filters),
-          idle(true),
-          callback(c),
-          revision(r),
-          bufferType(b)
-    {}
-
-    Private()
-        : pipeline(0),
-          filterIt(QVector<Preprocessor *>()),
-          idle(true),
-          revision(-1)
-    {}
-
-    Pipeline *pipeline;
-    Pipeline::Type type;
-    QByteArray key;
-    QVectorIterator<Preprocessor *> filterIt;
-    bool idle;
-    std::function<void()> callback;
-    qint64 revision;
-    QByteArray bufferType;
-};
-
-PipelineState::PipelineState()
-    : d(new Private())
-{
-
-}
-
-PipelineState::PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters, qint64 revision, const std::function<void()> &callback, const QByteArray &bufferType)
-    : d(new Private(pipeline, type, key, filters, callback, revision, bufferType))
-{
-}
-
-PipelineState::PipelineState(const PipelineState &other)
-    : d(other.d)
-{
-}
-
-PipelineState::~PipelineState()
-{
-}
-
-PipelineState &PipelineState::operator=(const PipelineState &rhs)
-{
-    d = rhs.d;
-    return *this;
-}
-
-bool PipelineState::operator==(const PipelineState &rhs)
-{
-    return d == rhs.d;
-}
-
-bool PipelineState::isIdle() const
-{
-    return d->idle;
-}
-
-QByteArray PipelineState::key() const
-{
-    return d->key;
-}
-
-Pipeline::Type PipelineState::type() const
-{
-    return d->type;
-}
-
-qint64 PipelineState::revision() const
-{
-    return d->revision;
-}
-
-QByteArray PipelineState::bufferType() const
-{
-    return d->bufferType;
-}
-
-void PipelineState::step()
-{
-    if (!d->pipeline) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    d->idle = false;
-    if (d->filterIt.hasNext()) {
-        //TODO skip step if already processed
-        auto preprocessor = d->filterIt.next();
-        preprocessor->process(*this, d->pipeline->transaction());
-    } else {
-        //This object becomes invalid after this call
-        d->pipeline->pipelineCompleted(*this);
-    }
-}
-
-void PipelineState::processingCompleted(Preprocessor *filter)
-{
-    if (d->pipeline && filter == d->filterIt.peekPrevious()) {
-        d->idle = true;
-        d->pipeline->pipelineStepped(*this);
-    }
-}
-
-void  PipelineState::callback()
-{
-    d->callback();
-}
-
-
 Preprocessor::Preprocessor()
     : d(0)
 {
@@ -539,19 +399,12 @@ Preprocessor::~Preprocessor()
 {
 }
 
-void Preprocessor::process(const PipelineState &state, Akonadi2::Storage::Transaction &transaction)
+void Preprocessor::startBatch()
 {
-    processingCompleted(state);
 }
 
-void Preprocessor::processingCompleted(PipelineState state)
+void Preprocessor::finalize()
 {
-    state.processingCompleted(this);
-}
-
-QString Preprocessor::id() const
-{
-    return QLatin1String("unknown processor");
 }
 
 } // namespace Akonadi2
