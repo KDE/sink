@@ -50,12 +50,11 @@ ResultSet TypeImplementation<Mail>::queryIndexes(const Akonadi2::Query &query, c
     return ResultSet(keys);
 }
 
-void TypeImplementation<Mail>::index(const Mail &type, Akonadi2::Storage::Transaction &transaction)
+void TypeImplementation<Mail>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
 {
-    const auto uid = type.getProperty("uid");
+    const auto uid = bufferAdaptor.getProperty("uid");
     if (uid.isValid()) {
-        Index uidIndex("mail.index.uid", transaction);
-        uidIndex.add(uid.toByteArray(), type.identifier());
+        Index("mail.index.uid", transaction).add(uid.toByteArray(), identifier);
     }
 }
 

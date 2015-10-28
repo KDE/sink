@@ -51,7 +51,7 @@ public:
      * An empty result set indicates that a full scan is required.
      */
     static ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction);
-    static void index(const Mail &type, Akonadi2::Storage::Transaction &transaction);
+    static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction);
     static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();
     static QSharedPointer<WritePropertyMapper<BufferBuilder> > initializeWritePropertyMapper();
 };

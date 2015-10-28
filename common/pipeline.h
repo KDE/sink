@@ -35,7 +35,6 @@
 namespace Akonadi2
 {
 
-class PipelineState;
 class Preprocessor;
 
 class AKONADI2COMMON_EXPORT Pipeline : public QObject
@@ -43,19 +42,16 @@ class AKONADI2COMMON_EXPORT Pipeline : public QObject
     Q_OBJECT
 
 public:
-    enum Type { NullPipeline, NewPipeline, ModifiedPipeline, DeletedPipeline };
-
     Pipeline(const QString &storagePath, QObject *parent = 0);
     ~Pipeline();
 
     Storage &storage() const;
 
-    void setPreprocessors(const QString &entityType, Type pipelineType, const QVector<Preprocessor *> &preprocessors);
+    void setPreprocessors(const QString &entityType, const QVector<Preprocessor *> &preprocessors);
     void startTransaction();
     void commit();
     Storage::Transaction &transaction();
 
-    void null();
     void setAdaptorFactory(const QString &entityType, DomainTypeAdaptorFactoryInterface::Ptr factory);
 
     KAsync::Job<qint64> newEntity(void const *command, size_t size);
@@ -75,49 +71,12 @@ public:
 
 Q_SIGNALS:
     void revisionUpdated(qint64);
-    void pipelinesDrained();
-
-private Q_SLOTS:
-    void stepPipelines();
 
 private:
-    void pipelineStepped(const PipelineState &state);
-    //Don't use a reference here (it would invalidate itself)
-    void pipelineCompleted(PipelineState state);
-    void scheduleStep();
     void storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid);
-
-    friend class PipelineState;
 
     class Private;
     Private * const d;
-};
-
-class AKONADI2COMMON_EXPORT PipelineState
-{
-public:
-    PipelineState();
-    PipelineState(Pipeline *pipeline, Pipeline::Type type, const QByteArray &key, const QVector<Preprocessor *> &filters, qint64 revision, const std::function<void()> &callback, const QByteArray &bufferType);
-    PipelineState(const PipelineState &other);
-    ~PipelineState();
-
-    PipelineState &operator=(const PipelineState &rhs);
-    bool operator==(const PipelineState &rhs);
-
-    bool isIdle() const;
-    QByteArray key() const;
-    Pipeline::Type type() const;
-    qint64 revision() const;
-    QByteArray bufferType() const;
-
-    void step();
-    void processingCompleted(Preprocessor *filter);
-
-    void callback();
-
-private:
-    class Private;
-    QExplicitlySharedDataPointer<Private> d;
 };
 
 class AKONADI2COMMON_EXPORT Preprocessor
@@ -126,52 +85,15 @@ public:
     Preprocessor();
     virtual ~Preprocessor();
 
-    virtual void process(const PipelineState &state, Akonadi2::Storage::Transaction &transaction);
-    //TODO to record progress
-    virtual QString id() const;
-
-protected:
-    void processingCompleted(PipelineState state);
+    virtual void startBatch();
+    virtual void newEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) = 0;
+    virtual void modifiedEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) = 0;
+    virtual void deletedEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) = 0;
+    virtual void finalize();
 
 private:
     class Private;
     Private * const d;
-};
-
-/**
- * A simple processor that takes a single function
- */
-class AKONADI2COMMON_EXPORT SimpleProcessor : public Akonadi2::Preprocessor
-{
-public:
-    SimpleProcessor(const QString &id, const std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e, Akonadi2::Storage::Transaction &transaction)> &f)
-        : Akonadi2::Preprocessor(),
-        mFunction(f),
-        mId(id)
-    {
-    }
-
-    void process(const PipelineState &state, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        transaction.openDatabase(state.bufferType() + ".main").scan(state.key(), [this, &state, &transaction](const QByteArray &key, const QByteArray &value) -> bool {
-            auto entity = Akonadi2::GetEntity(value);
-            mFunction(state, *entity, transaction);
-            processingCompleted(state);
-            return false;
-        }, [this, state](const Akonadi2::Storage::Error &error) {
-            ErrorMsg() << "Failed to find value in pipeline: " << error.message;
-            processingCompleted(state);
-        });
-    }
-
-    QString id() const Q_DECL_OVERRIDE
-    {
-        return mId;
-    }
-
-protected:
-    std::function<void(const Akonadi2::PipelineState &state, const Akonadi2::Entity &e, Akonadi2::Storage::Transaction &transaction)> mFunction;
-    QString mId;
 };
 
 } // namespace Akonadi2

@@ -285,10 +285,12 @@ GenericResource::~GenericResource()
     delete mSourceChangeReplay;
 }
 
-// void GenericResource::revisionChanged()
-// {
-//     //TODO replay revision
-// }
+void GenericResource::removeFromDisk(const QByteArray &instanceIdentifier)
+{
+    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier, Akonadi2::Storage::ReadWrite).removeFromDisk();
+    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".userqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
+    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronizerqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
+}
 
 void GenericResource::onProcessorError(int errorCode, const QString &errorMessage)
 {

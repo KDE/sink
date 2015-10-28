@@ -48,31 +48,76 @@ static void index(const QByteArray &index, const QVariant &value, const QByteArr
     }
 }
 
+/**
+ * Index types:
+ * * uid - property
+ * 
+ * * Property can be:
+ *     * fixed value like uid
+ *     * fixed value where we want to do smaller/greater-than comparisons. (like start date)
+ *     * range indexes like what date range an event affects.
+ *     * group indexes like tree hierarchies as nested sets
+ */
+template<typename DomainType>
+class IndexUpdater : public Akonadi2::Preprocessor {
+public:
+    IndexUpdater(const QByteArray &index, const QByteArray &type)
+        :mIndexIdentifier(index),
+        mBufferType(type)
+    {
+
+    }
+
+    void newEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
+        add(newEntity.getProperty("remoteId"), uid, transaction);
+    }
+
+    void modifiedEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+    }
+
+    void deletedEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+    }
+private:
+    void add(const QVariant &value, const QByteArray &uid, Akonadi2::Storage::Transaction &transaction)
+    {
+        if (value.isValid()) {
+            Index(mIndexIdentifier, transaction).add(value.toByteArray(), uid);
+        }
+    }
+
+    void remove(const QByteArray &uid, Akonadi2::Storage::Transaction &transaction)
+    {
+        //Knowning the indexed value would probably help removing the uid efficiently. Otherwise we have to execute a full scan.
+        // Index(mIndexIdentifier, transaction).remove(uid);
+    }
+
+    void modify(Akonadi2::Storage::Transaction &transaction)
+    {
+        //Knowning the indexed value would probably help removing the uid efficiently. Otherwise we have to execute a full scan.
+        // Index(mIndexIdentifier, transaction).remove(uid);
+    }
+
+    QByteArray mIndexIdentifier;
+    QByteArray mBufferType;
+};
+
 DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline)
     : Akonadi2::GenericResource(instanceIdentifier, pipeline)
 {
-    auto eventFactory = QSharedPointer<DummyEventAdaptorFactory>::create();
-    const auto resourceIdentifier = mResourceInstanceIdentifier;
-
-    auto eventIndexer = new Akonadi2::SimpleProcessor("eventIndexer", [eventFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity, Akonadi2::Storage::Transaction &transaction) {
-        Akonadi2::ApplicationDomain::Event event(resourceIdentifier, Akonadi2::Storage::uidFromKey(state.key()), -1, eventFactory->createAdaptor(entity));
-        Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Event>::index(event, transaction);
-        index("event.index.rid", event.getProperty("remoteId"), event.identifier(), transaction);
-    });
-
-    mPipeline->setPreprocessors(ENTITY_TYPE_EVENT, Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
-    mPipeline->setAdaptorFactory(ENTITY_TYPE_EVENT, eventFactory);
-    //TODO cleanup indexes during removal
-
+    {
+        auto eventFactory = QSharedPointer<DummyEventAdaptorFactory>::create();
+        auto eventIndexer = new IndexUpdater<Akonadi2::ApplicationDomain::Event>("event.index.rid", ENTITY_TYPE_EVENT);
+        mPipeline->setPreprocessors(ENTITY_TYPE_EVENT, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
+        mPipeline->setAdaptorFactory(ENTITY_TYPE_EVENT, eventFactory);
+    }
     {
         auto mailFactory = QSharedPointer<DummyMailAdaptorFactory>::create();
-        auto mailIndexer = new Akonadi2::SimpleProcessor("mailIndexer", [mailFactory, resourceIdentifier](const Akonadi2::PipelineState &state, const Akonadi2::Entity &entity, Akonadi2::Storage::Transaction &transaction) {
-            Akonadi2::ApplicationDomain::Mail mail(resourceIdentifier, Akonadi2::Storage::uidFromKey(state.key()), -1, mailFactory->createAdaptor(entity));
-            Akonadi2::ApplicationDomain::TypeImplementation<Akonadi2::ApplicationDomain::Mail>::index(mail, transaction);
-            index("mail.index.rid", mail.getProperty("remoteId"), mail.identifier(), transaction);
-        });
-
-        mPipeline->setPreprocessors(ENTITY_TYPE_MAIL, Akonadi2::Pipeline::NewPipeline, QVector<Akonadi2::Preprocessor*>() << mailIndexer);
+        auto mailIndexer = new IndexUpdater<Akonadi2::ApplicationDomain::Mail>("mail.index.rid", ENTITY_TYPE_MAIL);
+        mPipeline->setPreprocessors(ENTITY_TYPE_MAIL, QVector<Akonadi2::Preprocessor*>() << mailIndexer);
         mPipeline->setAdaptorFactory(ENTITY_TYPE_MAIL, mailFactory);
     }
 }
@@ -171,9 +216,7 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
 
 void DummyResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
-    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier, Akonadi2::Storage::ReadWrite).removeFromDisk();
-    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".userqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
-    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronizerqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
+    GenericResource::removeFromDisk(instanceIdentifier);
     Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".event.index.uid", Akonadi2::Storage::ReadWrite).removeFromDisk();
 }
 
