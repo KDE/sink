@@ -233,7 +233,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     auto diff = adaptorFactory->createAdaptor(*diffEntity);
 
     QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> current;
-    d->transaction.openDatabase(bufferType + ".main").scan(Akonadi2::Storage::assembleKey(key, baseRevision), [&current, adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
+    d->transaction.openDatabase(bufferType + ".main").findLatest(key, [&current, adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
         Akonadi2::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         if (!buffer.isValid()) {
             Warning() << "Read invalid buffer from disk";
@@ -328,25 +328,32 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), 0, 0, 0, 0);
 
-    storeNewRevision(newRevision, fbb, bufferType, key);
-    Log() << "Pipeline: deleted entity: "<< newRevision;
-
     auto adaptorFactory = d->adaptorFactory.value(bufferType);
     if (!adaptorFactory) {
         Warning() << "no adaptor factory for type " << bufferType;
         return KAsync::error<qint64>(0);
     }
 
-    // d->transaction.openDatabase(bufferType + ".main").scan(key, [this, bufferType, newRevision, adaptorFactory](const QByteArray &, const QByteArray &value) -> bool {
-    //     auto entity = Akonadi2::GetEntity(value);
-    //     auto newEntity = adaptorFactory->createAdaptor(*entity);
-        for (auto processor : d->processors[bufferType]) {
-            processor->deletedEntity(key, newRevision, Akonadi2::ApplicationDomain::BufferAdaptor(), d->transaction);
+    QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> current;
+    d->transaction.openDatabase(bufferType + ".main").findLatest(key, [this, bufferType, newRevision, adaptorFactory, key, &current](const QByteArray &, const QByteArray &data) -> bool {
+        Akonadi2::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+        if (!buffer.isValid()) {
+            Warning() << "Read invalid buffer from disk";
+        } else {
+            current = adaptorFactory->createAdaptor(buffer.entity());
         }
-    //     return false;
-    // }, [this](const Akonadi2::Storage::Error &error) {
-    //     ErrorMsg() << "Failed to find value in pipeline: " << error.message;
-    // });
+        return false;
+    }, [this](const Akonadi2::Storage::Error &error) {
+        ErrorMsg() << "Failed to find value in pipeline: " << error.message;
+    });
+
+    storeNewRevision(newRevision, fbb, bufferType, key);
+    Log() << "Pipeline: deleted entity: "<< newRevision;
+
+    for (auto processor : d->processors[bufferType]) {
+        processor->deletedEntity(key, newRevision, *current, d->transaction);
+    }
+
     return KAsync::start<qint64>([newRevision](){
         return newRevision;
     });

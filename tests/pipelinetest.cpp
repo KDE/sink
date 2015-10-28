@@ -157,6 +157,7 @@ public:
     {
         deletedUids << uid;
         deletedRevisions << revision;
+        deletedSummaries << oldEntity.getProperty("summary").toByteArray();
     }
 
     QList<QByteArray> newUids;
@@ -165,6 +166,7 @@ public:
     QList<qint64> modifiedRevisions;
     QList<QByteArray> deletedUids;
     QList<qint64> deletedRevisions;
+    QList<QByteArray> deletedSummaries;
 };
 
 /**
@@ -245,18 +247,63 @@ private Q_SLOTS:
         QCOMPARE(getKeys("org.kde.pipelinetest.instance1", "event.main").size(), 1);
     }
 
-    void testDelete()
+    void testModifyWithUnrelatedOperationInbetween()
     {
         flatbuffers::FlatBufferBuilder entityFbb;
         auto command = createEntityCommand(createEvent(entityFbb));
 
-        //Create the initial revision
         Akonadi2::Pipeline pipeline("org.kde.pipelinetest.instance1");
+
+        auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
+        pipeline.setAdaptorFactory("event", adaptorFactory);
+
+        //Create the initial revision
         pipeline.startTransaction();
         pipeline.newEntity(command.constData(), command.size());
         pipeline.commit();
 
-        // const auto uid = Akonadi2::Storage::uidFromKey(key);
+        //Get uid of written entity
+        auto keys = getKeys("org.kde.pipelinetest.instance1", "event.main");
+        QCOMPARE(keys.size(), 1);
+        const auto uid = Akonadi2::Storage::uidFromKey(keys.first());
+
+
+        //Create another operation inbetween
+        {
+            entityFbb.Clear();
+            auto command = createEntityCommand(createEvent(entityFbb));
+            pipeline.startTransaction();
+            pipeline.newEntity(command.constData(), command.size());
+            pipeline.commit();
+        }
+
+        //Execute the modification on revision 2
+        entityFbb.Clear();
+        auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summary2"), uid, 2);
+        pipeline.startTransaction();
+        pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
+        pipeline.commit();
+
+        //Ensure we've got the new revision with the modification
+        auto buffer = getEntity("org.kde.pipelinetest.instance1", "event.main", Akonadi2::Storage::assembleKey(uid, 3));
+        QVERIFY(!buffer.isEmpty());
+        Akonadi2::EntityBuffer entityBuffer(buffer.data(), buffer.size());
+        auto adaptor = adaptorFactory->createAdaptor(entityBuffer.entity());
+        QCOMPARE(adaptor->getProperty("summary").toString(), QString("summary2"));
+    }
+
+    void testDelete()
+    {
+        flatbuffers::FlatBufferBuilder entityFbb;
+        auto command = createEntityCommand(createEvent(entityFbb));
+        Akonadi2::Pipeline pipeline("org.kde.pipelinetest.instance1");
+        pipeline.setAdaptorFactory("event", QSharedPointer<TestEventAdaptorFactory>::create());
+
+        //Create the initial revision
+        pipeline.startTransaction();
+        pipeline.newEntity(command.constData(), command.size());
+        pipeline.commit();
+
         auto result = getKeys("org.kde.pipelinetest.instance1", "event.main");
         QCOMPARE(result.size(), 1);
 
@@ -322,8 +369,10 @@ private Q_SLOTS:
             pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size());
             QCOMPARE(testProcessor.deletedUids.size(), 1);
             QCOMPARE(testProcessor.deletedUids.size(), 1);
+            QCOMPARE(testProcessor.deletedSummaries.size(), 1);
             //Key doesn't contain revision and is just the uid
             QCOMPARE(testProcessor.deletedUids.at(0), Akonadi2::Storage::uidFromKey(testProcessor.deletedUids.at(0)));
+            QCOMPARE(testProcessor.deletedSummaries.at(0), QByteArray("summary2"));
         }
     }
 };
