@@ -19,6 +19,11 @@ void Index::add(const QByteArray &key, const QByteArray &value)
     mDb.write(key, value);
 }
 
+void Index::remove(const QByteArray &key, const QByteArray &value)
+{
+    mDb.remove(key, value);
+}
+
 void Index::lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler,
                                           const std::function<void(const Error &error)> &errorHandler)
 {

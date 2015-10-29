@@ -149,6 +149,12 @@ bool Storage::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sVa
 void Storage::NamedDatabase::remove(const QByteArray &k,
                      const std::function<void(const Storage::Error &error)> &errorHandler)
 {
+    remove(k, QByteArray(), errorHandler);
+}
+
+void Storage::NamedDatabase::remove(const QByteArray &k, const QByteArray &value,
+                     const std::function<void(const Storage::Error &error)> &errorHandler)
+{
     if (!d || !d->transaction) {
         Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Not open");
         if (d) {
@@ -161,14 +167,19 @@ void Storage::NamedDatabase::remove(const QByteArray &k,
     MDB_val key;
     key.mv_size = k.size();
     key.mv_data = const_cast<void*>(static_cast<const void*>(k.data()));
-    rc = mdb_del(d->transaction, d->dbi, &key, 0);
+    if (value.isEmpty()) {
+        rc = mdb_del(d->transaction, d->dbi, &key, 0);
+    } else {
+        MDB_val data;
+        data.mv_size = value.size();
+        data.mv_data = const_cast<void*>(static_cast<const void*>(value.data()));
+        rc = mdb_del(d->transaction, d->dbi, &key, &data);
+    }
 
     if (rc) {
         Error error(d->name.toLatin1(), ErrorCodes::GenericError, QString("Error on mdb_del: %1 %2").arg(rc).arg(mdb_strerror(rc)).toLatin1());
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     }
-
-    return;
 }
 
 int Storage::NamedDatabase::scan(const QByteArray &k,

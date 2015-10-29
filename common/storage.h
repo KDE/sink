@@ -63,10 +63,16 @@ public:
         bool write(const QByteArray &key, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
 
         /**
-         * Remove a value
+         * Remove a key
          */
         void remove(const QByteArray &key,
                     const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+        /**
+         * Remove a key-value pair
+         */
+        void remove(const QByteArray &key, const QByteArray &value,
+                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+
         /**
         * Read values with a given key.
         *

@@ -41,13 +41,6 @@
 #define ENTITY_TYPE_EVENT "event"
 #define ENTITY_TYPE_MAIL "mail"
 
-static void index(const QByteArray &index, const QVariant &value, const QByteArray &uid, Akonadi2::Storage::Transaction &transaction)
-{
-    if (value.isValid()) {
-        Index(index, transaction).add(value.toByteArray(), uid);
-    }
-}
-
 /**
  * Index types:
  * * uid - property
@@ -74,13 +67,20 @@ public:
         add(newEntity.getProperty("remoteId"), uid, transaction);
     }
 
-    void modifiedEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
+        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
+        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
+        remove(oldEntity.getProperty("remoteId"), uid, transaction);
+        add(newEntity.getProperty("remoteId"), uid, transaction);
     }
 
-    void deletedEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
+        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
+        remove(oldEntity.getProperty("remoteId"), uid, transaction);
     }
+
 private:
     void add(const QVariant &value, const QByteArray &uid, Akonadi2::Storage::Transaction &transaction)
     {
@@ -89,16 +89,9 @@ private:
         }
     }
 
-    void remove(const QByteArray &uid, Akonadi2::Storage::Transaction &transaction)
+    void remove(const QVariant &value, const QByteArray &uid, Akonadi2::Storage::Transaction &transaction)
     {
-        //Knowning the indexed value would probably help removing the uid efficiently. Otherwise we have to execute a full scan.
-        // Index(mIndexIdentifier, transaction).remove(uid);
-    }
-
-    void modify(Akonadi2::Storage::Transaction &transaction)
-    {
-        //Knowning the indexed value would probably help removing the uid efficiently. Otherwise we have to execute a full scan.
-        // Index(mIndexIdentifier, transaction).remove(uid);
+        Index(mIndexIdentifier, transaction).remove(value.toByteArray(), uid);
     }
 
     QByteArray mIndexIdentifier;

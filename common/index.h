@@ -29,7 +29,7 @@ public:
     Index(const QByteArray &name, Akonadi2::Storage::Transaction &);
 
     void add(const QByteArray &key, const QByteArray &value);
-    // void remove(const QByteArray &key, const QByteArray &value);
+    void remove(const QByteArray &key, const QByteArray &value);
 
     void lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler,
                                        const std::function<void(const Error &error)> &errorHandler);
