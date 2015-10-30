@@ -17,34 +17,10 @@ The client API consists of:
 A set of standardized domain types is defined. This is necessary to decouple applications from resources (so a calendar can access events from all resources), and to have a "language" for queries.
 
 The definition of the domain model directly affects:
-* granularity for data retrievel (email property, or individual subject, date, ...)
-* queriable properties (sender, id, ...)
-* properties used for sorting (10 latest email)
+* granularity for data retrieval (email property, or individual subject, date, ...)
+* queriable properties for filtering and sorting (sender, id, ...)
 
 The purpose of these domain types is strictly to be the interface and the types are not meant to be used by applications directly, or to be restricted by any other specifications (such as ical). By nature these types will be part of the evolving interface, and will need to be adjusted for every new property that an application must understand.
-
-### Application Domain Types
-This is a proposed set of types that we will need to evolve into what we actually require. Hierarchical types are required to be able to query for a result set of mixed types.
-
-* Entity
-    * Item
-        * Incidence
-            * Event
-            * Todo
-            * Journal
-            * Freebusy
-        * Note
-        * Mail
-        * Contact
-    * Collection
-        * Mail Folder
-        * Calendar
-        * Tasklist
-        * Journal
-        * Contact Group
-        * Address Book
-    * Relation
-        * Tag
 
 ## Store Facade
 The store is always accessed through a store specific facade, which hides:
@@ -72,7 +48,7 @@ The changeset can be recorded by the domain object adapter while the properties 
 Each modification is associated with a specific revision, which allows the synchronizer to do automatic conflict resolution.
 
 ### Conflict Resolution
-Conflicts can occur at two points in the client:
+Conflicts can occur at two points:
 
 * While i.e. an editor is open and we receive an update for the same entity
 * After a modification is sent to the synchronizer but before it's processed

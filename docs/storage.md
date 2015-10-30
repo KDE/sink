@@ -163,7 +163,7 @@ Other useful properties:
     * No updates since September 2013
 * http://unqlite.org
     * bad performance with large database (looks like O(n))
-    * like lmdb roughly 2*datasize
+    * like lmdb roughly 2\*datasize
     * includes a document store
     * mmapped ready access
     * reading about 30% the speed of lmdb
@@ -181,9 +181,9 @@ Since indexes always need to be updated they directly affect how fast we can wri
     * fast fulltext searching
     * No MVCC concurrency
     * Only supports one writer at a time
-    * If a reader is reading blocks that have now been changed by a writer, it throws a DatabaseModifiedException. This means most of the Xapian code needs to be in wihle (1) { try { .. } catch () } blocks and needs to be able to start from scratch.
+    * If a reader is reading blocks that have now been changed by a writer, it throws a DatabaseModifiedException. This means most of the Xapian code needs to be in `while (1) { try { .. } catch () }` blocks and needs to be able to start from scratch.
     * Wildcard searching (as of 2015-01) isn't ideal. It works by expanding the word into all other words in the query and that typically makes the query size huge. This huge query is then sent to the database. Baloo has had to configure this expanding of terms so that it consumes less memory.
-    * Non existent UTF support - It does not support text normalization and splitting the terms at custom characters such as '_'.
+    * Non existent UTF support - It does not support text normalization and splitting the terms at custom characters such as '\_'.
 * lmdb:
     * sorted keys
     * sorted duplicate keys
@@ -200,9 +200,9 @@ Since indexes always need to be updated they directly affect how fast we can wri
 
 ## Useful Resources
 * LMDB
-    * Wikipedia for a good overview: https://en.wikipedia.org/wiki/Lightning_Memory-Mapped_Database
-    * Benchmarks: http://symas.com/mdb/microbench/
-    * Tradeoffs: http://symas.com/is-lmdb-a-leveldb-killer/
-    * Disk space benchmark: http://symas.com/mdb/ondisk/
-    * LMDB instead of Kyoto Cabinet as redis backend: http://www.anchor.com.au/blog/2013/05/second-strike-with-lightning/
+    * Wikipedia for a good overview: <https://en.wikipedia.org/wiki/Lightning_Memory-Mapped_Database>
+    * Benchmarks: <http://symas.com/mdb/microbench/>
+    * Tradeoffs: <http://symas.com/is-lmdb-a-leveldb-killer/>
+    * Disk space benchmark: <http://symas.com/mdb/ondisk/>
+    * LMDB instead of Kyoto Cabinet as redis backend: <http://www.anchor.com.au/blog/2013/05/second-strike-with-lightning/>
 

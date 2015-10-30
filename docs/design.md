@@ -1,4 +1,4 @@
-# Goals
+# Design Goals
 ## Axioms
 1. Personal information is stored in multiple sources (address books, email stores, calendar files, ...)
 2. These sources may local, remote or a mix of local and remote
@@ -39,26 +39,17 @@ Implications of the above:
 
 # Overview
 
-# Types
-## Domain Type
+## Types
+### Domain Type
 The domain types exposed in the public interface.
 
-## Buffer Type
+### Buffer Type
 The individual buffer types as specified by the resource. The are internal types that don't necessarily have a 1:1 mapping to the domain types, although that is the default case that the default implementations expect.
 
-## Steps to add support for new types
-* Add new type to applicationdomaintypes.h and implement `getTypenName()`
-* Implement `TypeImplementation<>` for updating indexes etc.
-* Add a type.fbs default schema for the type
-
-## Steps for adding support for a type to a resource
-* Add a TypeAdaptorFactory, which can either register resource specific mappers, or stick to what the default implementation in TypeImplementation provides
-* Add a TypeFacade that injects the TypeAdaptorFactory in the GenericFacade
-* Register the facade in the resource
-* Add synchronization code that creates the relevant objects
-
-# Change Replay
+### Change Replay
 The change replay is based on the revisions in the store. Clients (and also the write-back mechanism), are informed that a new revision is available. Each client can then go through all new revisions (starting from the last seen revision), and thus update it's state to the latest revision.
+
+# Client API
 
 # Tradeoffs/Design Decisions
 * Key-Value store instead of relational
