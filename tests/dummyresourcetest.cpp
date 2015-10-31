@@ -31,7 +31,7 @@ private Q_SLOTS:
 
     void cleanup()
     {
-        Akonadi2::Store::shutdown("org.kde.dummy.instance1");
+        Akonadi2::Store::shutdown(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
         DummyResource::removeFromDisk("org.kde.dummy.instance1");
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);

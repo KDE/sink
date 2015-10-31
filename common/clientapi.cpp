@@ -69,10 +69,10 @@ QList<QByteArray> Store::getResources(const QList<QByteArray> &resourceFilter, c
     return resources;
 }
 
-void Store::shutdown(const QByteArray &identifier)
+KAsync::Job<void> Store::shutdown(const QByteArray &identifier)
 {
     Trace() << "shutdown";
-    ResourceAccess::connectToServer(identifier).then<void, QSharedPointer<QLocalSocket>>([identifier](const QSharedPointer<QLocalSocket> &socket, KAsync::Future<void> &future) {
+    return ResourceAccess::connectToServer(identifier).then<void, QSharedPointer<QLocalSocket>>([identifier](QSharedPointer<QLocalSocket> socket, KAsync::Future<void> &future) {
         //We can't currently reuse the socket
         socket->close();
         auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(identifier);
@@ -83,15 +83,24 @@ void Store::shutdown(const QByteArray &identifier)
     },
     [](int, const QString &) {
         //Resource isn't started, nothing to shutdown
-    }).exec().waitForFinished();
+    })
+    //FIXME JOBAPI this is only required because we don't care about the return value of connectToServer
+    .template then<void>([](){});
 }
 
-void Store::synchronize(const QByteArray &identifier)
+KAsync::Job<void> Store::synchronize(const Akonadi2::Query &query)
 {
     Trace() << "synchronize";
-    auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(identifier);
-    resourceAccess->open();
-    resourceAccess->synchronizeResource(true, false).exec().waitForFinished();
+    return  KAsync::iterate(query.resources)
+    .template each<void, QByteArray>([query](const QByteArray &resource, KAsync::Future<void> &future) {
+        auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resource);
+        resourceAccess->open();
+        resourceAccess->synchronizeResource(true, false).then<void>([&future]() {
+            future.setFinished();
+        }).exec();
+    })
+    //FIXME JOBAPI this is only required because we don't care about the return value of each (and each shouldn't even have a return value)
+    .template then<void>([](){});
 }
 
 } // namespace Akonadi2

@@ -59,7 +59,9 @@ public:
         auto syncButton = new QPushButton(this);
         syncButton->setText("Synchronize!");
         QObject::connect(syncButton, &QPushButton::pressed, []() {
-            Akonadi2::Store::synchronize("org.kde.dummy.instance1");
+            Akonadi2::Query query;
+            query.resources << "org.kde.dummy.instance1";
+            Akonadi2::Store::synchronize(query);
         });
 
         auto removeButton = new QPushButton(this);
