@@ -57,6 +57,7 @@ public:
      */
     static ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction);
     static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction);
+    static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction);
     static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();
     static QSharedPointer<WritePropertyMapper<BufferBuilder> > initializeWritePropertyMapper();
 };

@@ -58,6 +58,14 @@ void TypeImplementation<Event>::index(const QByteArray &identifier, const Buffer
     }
 }
 
+void TypeImplementation<Event>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
+{
+    const auto uid = bufferAdaptor.getProperty("uid");
+    if (uid.isValid()) {
+        Index("event.index.uid", transaction).remove(uid.toByteArray(), identifier);
+    }
+}
+
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Event>::Buffer> > TypeImplementation<Event>::initializeReadPropertyMapper()
 {
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();

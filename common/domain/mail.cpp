@@ -58,6 +58,14 @@ void TypeImplementation<Mail>::index(const QByteArray &identifier, const BufferA
     }
 }
 
+void TypeImplementation<Mail>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
+{
+    const auto uid = bufferAdaptor.getProperty("uid");
+    if (uid.isValid()) {
+        Index("mail.index.uid", transaction).remove(uid.toByteArray(), identifier);
+    }
+}
+
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Mail>::Buffer> > TypeImplementation<Mail>::initializeReadPropertyMapper()
 {
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();
