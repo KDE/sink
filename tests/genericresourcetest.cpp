@@ -14,12 +14,6 @@
 #include "genericresource.h"
 #include "definitions.h"
 
-static void removeFromDisk(const QString &name)
-{
-    Akonadi2::Storage store(Akonadi2::storageLocation(), name, Akonadi2::Storage::ReadWrite);
-    store.removeFromDisk();
-}
-
 /**
  * Test of the generic resource implementation.
  * 

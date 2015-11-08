@@ -230,4 +230,3 @@ void DummyResourceFactory::registerFacades(Akonadi2::FacadeFactory &factory)
     factory.registerFacade<Akonadi2::ApplicationDomain::Mail, DummyResourceMailFacade>(PLUGIN_NAME);
 }
 
-#include "resourcefactory.moc"

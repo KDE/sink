@@ -82,7 +82,7 @@ private:
     qint64 mLatestRevision;
 };
 
-static ResultSet fullScan(const Akonadi2::Storage::Transaction &transaction, const QByteArray &bufferType)
+static inline ResultSet fullScan(const Akonadi2::Storage::Transaction &transaction, const QByteArray &bufferType)
 {
     //TODO use a result set with an iterator, to read values on demand
     QVector<QByteArray> keys;
