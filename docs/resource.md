@@ -100,7 +100,7 @@ To avoid building all indexes initially, and assuming not all indexes are necess
 
 Building the index on-demand is a matter of replaying the relevant dataset and using the usual indexing methods. This should typically be a process that doesn't take too long, and that provides status information, since it will block the query.
 
-The indexes status information can be recorded using the latest revisoin the index has been updated with.
+The indexes status information can be recorded using the latest revision the index has been updated with.
 
 ## Generic Preprocessors
 Most preprocessors will likely be used by several resources, and are either completely generic, or domain specific (such as only for mail).
@@ -108,6 +108,11 @@ It is therefore desirable to have default implementations for common preprocesso
 
 The domain types provide a generic interface to access most properties of the entities, on top of which generic preprocessors can be implemented.
 It is that way trivial to i.e. implement a preprocessor that populates a hierarchy index of collections.
+
+## Preprocessors generating additional entities
+A preprocessor, such as an email threading preprocessors, might generate additional entities (A thread entity is a regular entity, just like the mail that spawned the thread).
+
+In such a case the preprocessor must invoke the complete pipeline for the new entity.
 
 # Pipeline
 A pipeline is an assembly of a set of preprocessors with a defined order. A modification is always persisted at the end of the pipeline once all preprocessors have been processed.
