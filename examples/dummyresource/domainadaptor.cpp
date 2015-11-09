@@ -51,3 +51,9 @@ DummyMailAdaptorFactory::DummyMailAdaptorFactory()
 
 }
 
+DummyFolderAdaptorFactory::DummyFolderAdaptorFactory()
+    : DomainTypeAdaptorFactory()
+{
+
+}
+

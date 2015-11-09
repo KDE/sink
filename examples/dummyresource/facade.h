@@ -36,13 +36,9 @@ public:
     virtual ~DummyResourceMailFacade();
 };
 
-class DummyResourceFolderFacade : public Akonadi2::StoreFacade<Akonadi2::ApplicationDomain::Folder>
+class DummyResourceFolderFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Folder>
 {
 public:
     DummyResourceFolderFacade(const QByteArray &instanceIdentifier);
     virtual ~DummyResourceFolderFacade();
-    virtual KAsync::Job<void> create(const Akonadi2::ApplicationDomain::Folder &domainObject) { return KAsync::null<void>(); };
-    virtual KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::Folder &domainObject) { return KAsync::null<void>(); };
-    virtual KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::Folder &domainObject) { return KAsync::null<void>(); };
-    virtual KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Folder::Ptr> > &resultProvider);
 };

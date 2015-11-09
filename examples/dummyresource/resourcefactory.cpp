@@ -40,6 +40,7 @@
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_EVENT "event"
 #define ENTITY_TYPE_MAIL "mail"
+#define ENTITY_TYPE_FOLDER "folder"
 
 /**
  * Index types:
@@ -228,5 +229,6 @@ void DummyResourceFactory::registerFacades(Akonadi2::FacadeFactory &factory)
 {
     factory.registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>(PLUGIN_NAME);
     factory.registerFacade<Akonadi2::ApplicationDomain::Mail, DummyResourceMailFacade>(PLUGIN_NAME);
+    factory.registerFacade<Akonadi2::ApplicationDomain::Folder, DummyResourceFolderFacade>(PLUGIN_NAME);
 }
 

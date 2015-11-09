@@ -1,0 +1,9 @@
+namespace Akonadi2.ApplicationDomain.Buffer;
+
+table Folder {
+  name:string;
+  parent:string;
+}
+
+root_type Folder;
+file_identifier "AKFB";

@@ -36,6 +36,7 @@ set(command_SRCS
     domain/applicationdomaintype.cpp
     domain/event.cpp
     domain/mail.cpp
+    domain/folder.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})
@@ -55,6 +56,8 @@ generate_flatbuffers(
     commands/revisionreplayed
     domain/event
     domain/mail
+    domain/folder
+    domain/dummy
     entity
     metadata
     queuedcommand
