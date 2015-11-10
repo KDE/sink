@@ -6,27 +6,44 @@
 #include "facade.h"
 #include "synclistresult.h"
 #include "resourceconfig.h"
+#include "modelresult.h"
+#include "resultprovider.h"
 
-class DummyResourceFacade : public Akonadi2::StoreFacade<Akonadi2::ApplicationDomain::Event>
+template <typename T>
+class DummyResourceFacade : public Akonadi2::StoreFacade<T>
 {
 public:
+    static std::shared_ptr<DummyResourceFacade<T> > registerFacade()
+    {
+        auto facade = std::make_shared<DummyResourceFacade<T> >();
+        Akonadi2::FacadeFactory::instance().registerFacade<T, DummyResourceFacade<T> >("dummyresource",
+            [facade](const QByteArray &instanceIdentifier) {
+                return facade;
+            }
+        );
+        return facade;
+    }
     ~DummyResourceFacade(){};
-    KAsync::Job<void> create(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
-    KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
-    KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
-    KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider) Q_DECL_OVERRIDE
+    KAsync::Job<void> create(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
+    KAsync::Job<void> modify(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
+    KAsync::Job<void> remove(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
+    KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename T::Ptr> > &resultProvider) Q_DECL_OVERRIDE
     {
         capturedResultProvider = resultProvider;
         return KAsync::start<void>([this, resultProvider, query]() {
             for (const auto &res : results) {
-                resultProvider->add(res);
+                qDebug() << "Parent filter " << query.propertyFilter.value("parent").toByteArray() << res->identifier();
+                if (!query.propertyFilter.contains("parent") || query.propertyFilter.value("parent").toByteArray() == res->getProperty("parent").toByteArray()) {
+                    resultProvider->add(res);
+                }
             }
         });
     }
 
-    QList<Akonadi2::ApplicationDomain::Event::Ptr> results;
-    QWeakPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > capturedResultProvider;
+    QList<typename T::Ptr> results;
+    QWeakPointer<Akonadi2::ResultProvider<typename T::Ptr> > capturedResultProvider;
 };
+
 
 /**
  * Test of the client api implementation.
@@ -38,17 +55,6 @@ class ClientAPITest : public QObject
     Q_OBJECT
 private Q_SLOTS:
 
-    static std::shared_ptr<DummyResourceFacade> registerDummyFacade()
-    {
-        auto facade = std::make_shared<DummyResourceFacade>();
-        Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
-            [facade](const QByteArray &instanceIdentifier) {
-                return facade;
-            }
-        );
-        return facade;
-    }
-
     void initTestCase()
     {
         Akonadi2::FacadeFactory::instance().resetFactory();
@@ -57,8 +63,8 @@ private Q_SLOTS:
 
     void testLoad()
     {
-        auto facade = registerDummyFacade();
-        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Event>::registerFacade();
+        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Akonadi2::Query query;
@@ -73,8 +79,8 @@ private Q_SLOTS:
     //The query provider is supposed to delete itself
     void testQueryLifetime()
     {
-        auto facade = registerDummyFacade();
-        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Event>::registerFacade();
+        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Akonadi2::Query query;
@@ -118,6 +124,71 @@ private Q_SLOTS:
             QCOMPARE(result.size(), 0);
         }
     }
+
+    void testModelSingle()
+    {
+        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Folder>::registerFacade();
+        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+
+        Akonadi2::Query query;
+        query.resources << "dummyresource.instance1";
+        query.liveQuery = false;
+
+        auto model = new ModelResult<Akonadi2::ApplicationDomain::Folder>(query, QList<QByteArray>() << "summary" << "uid");
+        model->fetchMore(QModelIndex());
+        QTRY_COMPARE(model->rowCount(), 1);
+    }
+
+    void testModelNested()
+    {
+        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Folder>::registerFacade();
+        auto folder =  QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        auto subfolder = QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        subfolder->setProperty("parent", "id");
+        facade->results << folder << subfolder;
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+
+        //Test
+        Akonadi2::Query query;
+        query.resources << "dummyresource.instance1";
+        query.liveQuery = false;
+
+        auto model = new ModelResult<Akonadi2::ApplicationDomain::Folder>(query, QList<QByteArray>() << "summary" << "uid");
+        model->fetchMore(QModelIndex());
+        QTRY_COMPARE(model->rowCount(), 1);
+        model->fetchMore(model->index(0, 0));
+        QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
+    }
+
+    // void testModelNestedLive()
+    // {
+    //     auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Folder>::registerFacade();
+    //     auto folder =  QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+    //     auto subfolder = QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+    //     subfolder->setProperty("parent", "id");
+    //     facade->results << folder << subfolder;
+    //     ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+    //
+    //     //Test
+    //     Akonadi2::Query query;
+    //     query.resources << "dummyresource.instance1";
+    //     query.liveQuery = true
+    //
+    //     auto model = new ModelResult<Akonadi2::ApplicationDomain::Folder>(query, QList<QByteArray>() << "summary" << "uid");
+    //     model->fetchMore(QModelIndex());
+    //     QTRY_COMPARE(model->rowCount(), 1);
+    //     model->fetchMore(model->index(0, 0));
+    //     QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
+    //
+    //     auto resultProvider = facade->capturedResultProvider.toStrongRef();
+    //
+    //     //A modification can also be a move
+    //     // resultProvider->modify();
+    //
+    //     // resultProvider->remove();
+    // }
+
 
 };
 
