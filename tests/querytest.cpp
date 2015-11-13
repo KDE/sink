@@ -55,8 +55,10 @@ private Q_SLOTS:
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.syncOnDemand = false;
-        query.processAll = true;
+        query.processAll = false;
+        query.liveQuery = true;
 
+        //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
         model->fetchMore(QModelIndex());
         QTRY_COMPARE(model->rowCount(), 1);
@@ -75,10 +77,14 @@ private Q_SLOTS:
         query.resources << "org.kde.dummy.instance1";
         query.syncOnDemand = false;
         query.processAll = true;
-        query.liveQuery = true;
+        query.liveQuery = false;
 
+        //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
-        QTest::qWait(200);
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
         model->fetchMore(QModelIndex());
         QVERIFY(model->rowCount() < 2);
         QTRY_COMPARE(model->rowCount(), 1);
