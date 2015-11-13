@@ -135,68 +135,6 @@ public:
         if (!mResourceAccess) {
             mResourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resourceIdentifier);
         }
-        if (!mStorage) {
-            mStorage = QSharedPointer<EntityStorage<DomainType> >::create(resourceIdentifier);
-            const auto bufferType = bufferTypeForDomainType();
-
-            mStorage->readEntity = [bufferType, this] (const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback)
-            {
-                //This only works for a 1:1 mapping of resource to domain types.
-                //Not i.e. for tags that are stored as flags in each entity of an imap store.
-                //additional properties that don't have a 1:1 mapping (such as separately stored tags),
-                //could be added to the adaptor.
-                transaction.openDatabase(bufferType + ".main").findLatest(key, [=](const QByteArray &key, const QByteArray &value) -> bool {
-                    Akonadi2::EntityBuffer buffer(value.data(), value.size());
-                    const Akonadi2::Entity &entity = buffer.entity();
-                    const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
-                    Q_ASSERT(metadataBuffer);
-                    const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-                    resultCallback(DomainType::Ptr::create(mResourceInstanceIdentifier, Akonadi2::Storage::uidFromKey(key), revision, mDomainTypeAdaptorFactory->createAdaptor(entity)), metadataBuffer->operation());
-                    return false;
-                },
-                [](const Akonadi2::Storage::Error &error) {
-                    qWarning() << "Error during query: " << error.message;
-                });
-            };
-
-            mStorage->loadInitialResultSet = [bufferType, this] (const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet
-            {
-                QSet<QByteArray> appliedFilters;
-                auto resultSet = Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::queryIndexes(query, mResourceInstanceIdentifier, appliedFilters, transaction);
-                remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
-
-                //We do a full scan if there were no indexes available to create the initial set.
-                if (appliedFilters.isEmpty()) {
-                    //TODO this should be replaced by an index lookup as well
-                    return fullScan(transaction, bufferType);
-                }
-                return resultSet;
-            };
-
-            mStorage->loadIncrementalResultSet = [bufferType, this] (qint64 baseRevision, const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet
-            {
-                auto revisionCounter = QSharedPointer<qint64>::create(baseRevision);
-                return ResultSet([bufferType, revisionCounter, &transaction, this]() -> QByteArray {
-                    const qint64 topRevision = Akonadi2::Storage::maxRevision(transaction);
-                    //Spit out the revision keys one by one.
-                    while (*revisionCounter <= topRevision) {
-                        const auto uid = Akonadi2::Storage::getUidFromRevision(transaction, *revisionCounter);
-                        const auto type = Akonadi2::Storage::getTypeFromRevision(transaction, *revisionCounter);
-                        Trace() << "Revision" << *revisionCounter << type << uid;
-                        if (type != bufferType) {
-                            //Skip revision
-                            *revisionCounter += 1;
-                            continue;
-                        }
-                        const auto key = Akonadi2::Storage::assembleKey(uid, *revisionCounter);
-                        *revisionCounter += 1;
-                        return key;
-                    }
-                    //We're done
-                    return QByteArray();
-                });
-            };
-        }
     }
 
     ~GenericFacade()
@@ -237,13 +175,56 @@ public:
     }
 
     //TODO JOBAPI return job from sync continuation to execute it as subjob?
-    KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider) Q_DECL_OVERRIDE
+    KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProviderInterface<typename DomainType::Ptr> > &resultProvider) Q_DECL_OVERRIDE
     {
+        {
+            QSet<QByteArray> remainingFilters;
+            auto filter = [remainingFilters, query](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
+                for (const auto &filterProperty : remainingFilters) {
+                    //TODO implement other comparison operators than equality
+                    if (domainObject->getProperty(filterProperty) != query.propertyFilter.value(filterProperty)) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            auto fetchEntities = [this, query, resultProvider, filter](const QByteArray &parent) {
+                Trace() << "Running fetchEntities" << parent;
+                Akonadi2::Storage storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier);
+                storage.setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
+                    Warning() << "Error during query: " << error.store << error.message;
+                });
+
+                auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
+
+                auto modifiedQuery = query;
+                modifiedQuery.propertyFilter.insert("parent", parent);
+                //TODO
+                QSet<QByteArray> appliedFilters;
+                auto resultSet = Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::queryIndexes(modifiedQuery, mResourceInstanceIdentifier, appliedFilters, transaction);
+                QSet<QByteArray> remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
+
+                //We do a full scan if there were no indexes available to create the initial set.
+                if (appliedFilters.isEmpty()) {
+                    //TODO this should be replaced by an index lookup as well
+                    resultSet = fullScan(transaction, bufferTypeForDomainType());
+                }
+                auto filteredSet = filterSet(resultSet, filter, transaction, true);
+                replaySet(filteredSet, resultProvider);
+                resultProvider->setRevision(Akonadi2::Storage::maxRevision(transaction));
+                qint64 newRevision = Akonadi2::Storage::maxRevision(transaction);
+                //TODO send newRevision to resource
+                // mResourceAccess->sendRevisionReplayedCommand(newRevision);
+            };
+            resultProvider->setFetcher(fetchEntities);
+        }
+
         auto runner = QSharedPointer<QueryRunner>::create(query);
-        QWeakPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > weakResultProvider = resultProvider;
-        runner->setQuery([this, weakResultProvider, query] (qint64 oldRevision) -> KAsync::Job<qint64> {
-            return KAsync::start<qint64>([this, weakResultProvider, query, oldRevision](KAsync::Future<qint64> &future) {
-                Trace() << "Executing query " << oldRevision;
+        QWeakPointer<Akonadi2::ResultProviderInterface<typename DomainType::Ptr> > weakResultProvider = resultProvider;
+        runner->setQuery([this, weakResultProvider, query] () -> KAsync::Job<void> {
+            return KAsync::start<void>([this, weakResultProvider, query](KAsync::Future<void> &future) {
+                Trace() << "Executing query ";
                 auto resultProvider = weakResultProvider.toStrongRef();
                 if (!resultProvider) {
                     Warning() << "Tried executing query after result provider is already gone";
@@ -251,11 +232,10 @@ public:
                     future.setFinished();
                     return;
                 }
-                load(query, resultProvider, oldRevision).template then<void, qint64>([&future, this](qint64 queriedRevision) {
+                executeQuery(query, resultProvider).template then<void, qint64>([&future, this](qint64 queriedRevision) {
                     //TODO set revision in result provider?
                     //TODO update all existing results with new revision
                     mResourceAccess->sendRevisionReplayedCommand(queriedRevision);
-                    future.setValue(queriedRevision);
                     future.setFinished();
                 }).exec();
             });
@@ -272,9 +252,7 @@ public:
 
         //We have to capture the runner to keep it alive
         return synchronizeResource(query).template then<void>([runner](KAsync::Future<void> &future) {
-            runner->run().then<void>([&future]() {
-                future.setFinished();
-            }).exec();
+            future.setFinished();
         },
         [](int error, const QString &errorString) {
             Warning() << "Error during sync " << error << errorString;
@@ -293,17 +271,152 @@ private:
         return KAsync::null<void>();
     }
 
-    virtual KAsync::Job<qint64> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > &resultProvider, qint64 oldRevision)
+    //TODO move into result provider?
+    void replaySet(ResultSet &resultSet, const QSharedPointer<Akonadi2::ResultProviderInterface<typename DomainType::Ptr> > &resultProvider)
     {
+        while (resultSet.next([this, resultProvider](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
+            switch (operation) {
+            case Akonadi2::Operation_Creation:
+                Trace() << "Got creation";
+                //TODO Only copy in result provider
+                resultProvider->add(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value).template staticCast<DomainType>());
+                // modelResult->add();
+                break;
+            case Akonadi2::Operation_Modification:
+                Trace() << "Got modification";
+                resultProvider->modify(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value).template staticCast<DomainType>());
+                // modelResult->modify();
+                break;
+            case Akonadi2::Operation_Removal:
+                Trace() << "Got removal";
+                resultProvider->remove(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value).template staticCast<DomainType>());
+                // modelResult->remove();
+                break;
+            }
+            return true;
+        })){};
+    }
+
+    void readEntity(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback)
+    {
+        const auto bufferType = bufferTypeForDomainType();
+        //This only works for a 1:1 mapping of resource to domain types.
+        //Not i.e. for tags that are stored as flags in each entity of an imap store.
+        //additional properties that don't have a 1:1 mapping (such as separately stored tags),
+        //could be added to the adaptor.
+        //
+        // Akonadi2::Storage::getLatest(transaction, bufferTye, key);
+        transaction.openDatabase(bufferType + ".main").findLatest(key, [=](const QByteArray &key, const QByteArray &value) -> bool {
+            Akonadi2::EntityBuffer buffer(value.data(), value.size());
+            const Akonadi2::Entity &entity = buffer.entity();
+            const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
+            Q_ASSERT(metadataBuffer);
+            const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
+            resultCallback(DomainType::Ptr::create(mResourceInstanceIdentifier, Akonadi2::Storage::uidFromKey(key), revision, mDomainTypeAdaptorFactory->createAdaptor(entity)), metadataBuffer->operation());
+            return false;
+        },
+        [](const Akonadi2::Storage::Error &error) {
+            qWarning() << "Error during query: " << error.message;
+        });
+    }
+
+    ResultSet loadIncrementalResultSet(qint64 baseRevision, const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)
+    {
+
+        const auto bufferType = bufferTypeForDomainType();
+        auto revisionCounter = QSharedPointer<qint64>::create(baseRevision);
+        //TODO apply filter from index
+        return ResultSet([bufferType, revisionCounter, &transaction, this]() -> QByteArray {
+            const qint64 topRevision = Akonadi2::Storage::maxRevision(transaction);
+            //Spit out the revision keys one by one.
+            while (*revisionCounter <= topRevision) {
+                const auto uid = Akonadi2::Storage::getUidFromRevision(transaction, *revisionCounter);
+                const auto type = Akonadi2::Storage::getTypeFromRevision(transaction, *revisionCounter);
+                Trace() << "Revision" << *revisionCounter << type << uid;
+                if (type != bufferType) {
+                    //Skip revision
+                    *revisionCounter += 1;
+                    continue;
+                }
+                const auto key = Akonadi2::Storage::assembleKey(uid, *revisionCounter);
+                *revisionCounter += 1;
+                return key;
+            }
+            //We're done
+            return QByteArray();
+        });
+    }
+
+    ResultSet filterSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::Transaction &transaction, bool initialQuery)
+    {
+        auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
+
+        //Read through the source values and return whatever matches the filter
+        std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)>)> generator = [this, resultSetPtr, &transaction, filter, initialQuery](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> callback) -> bool {
+            while (resultSetPtr->next()) {
+                //TODO only necessary if we actually want to filter or neew the operation type (but not a big deal if we do it always I guess)
+                readEntity(transaction, resultSetPtr->id(), [this, filter, callback, initialQuery](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Akonadi2::Operation operation) {
+                    //Always remove removals, they probably don't match due to non-available properties
+                    if (filter(domainObject) || operation == Akonadi2::Operation_Removal) {
+                        if (initialQuery) {
+                            //We're not interested in removals during the initial query
+                            if (operation != Akonadi2::Operation_Removal) {
+                                callback(domainObject, Akonadi2::Operation_Creation);
+                            }
+                        } else {
+                            callback(domainObject, operation);
+                        }
+                    }
+                });
+            }
+            return false;
+        };
+        return ResultSet(generator);
+    }
+
+    virtual KAsync::Job<qint64> executeQuery(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProviderInterface<typename DomainType::Ptr> > &resultProvider)
+    {
+        /*
+         * This method gets called initially, and after every revision change.
+         * * We delegate loading of initial data to the result provider, os it can decide for itself what it needs to load.
+         * * Incremental updates are loaded directly, leaving it up to the model to discard the changes if they are not interesting
+         */
+        const qint64 baseRevision = resultProvider->revision() + 1;
+        Trace() << "Running query " << baseRevision;
+        QSet<QByteArray> remainingFilters;
+        auto filter = [remainingFilters, query, baseRevision](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
+            for (const auto &filterProperty : remainingFilters) {
+                //TODO implement other comparison operators than equality
+                if (domainObject->getProperty(filterProperty) != query.propertyFilter.value(filterProperty)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        qint64 newRevision = 0;
+
+        Trace() << "Fetching updates";
+        Akonadi2::Storage storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier);
+        storage.setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
+            Warning() << "Error during query: " << error.store << error.message;
+        });
+
+        auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
+
+        auto resultSet = loadIncrementalResultSet(baseRevision, query, transaction, remainingFilters);
+        auto filteredSet = filterSet(resultSet, filter, transaction, false);
+        replaySet(filteredSet, resultProvider);
+        resultProvider->setRevision(Akonadi2::Storage::maxRevision(transaction));
+        newRevision = Akonadi2::Storage::maxRevision(transaction);
+
         return KAsync::start<qint64>([=]() -> qint64 {
-            return mStorage->read(query, oldRevision, resultProvider);
+            return newRevision;
         });
     }
 
 protected:
     //TODO use one resource access instance per application & per resource
     QSharedPointer<Akonadi2::ResourceAccessInterface> mResourceAccess;
-    QSharedPointer<EntityStorage<DomainType> > mStorage;
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
     QByteArray mResourceInstanceIdentifier;
 };

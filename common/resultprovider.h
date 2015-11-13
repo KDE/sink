@@ -34,11 +34,312 @@ namespace Akonadi2 {
 template<class T>
 class ResultEmitter;
 
+template<class T>
+class ResultProviderInterface
+{
+public:
+    ResultProviderInterface()
+        : mRevision(0)
+    {
+
+    }
+
+    virtual void add(const T &value) = 0;
+    virtual void modify(const T &value) = 0;
+    virtual void remove(const T &value) = 0;
+    virtual void initialResultSetComplete() = 0;
+    virtual void complete() = 0;
+    virtual void clear() = 0;
+    virtual void setFetcher(const std::function<void(const QByteArray &parent)> &fetcher)
+    {
+    }
+
+    virtual void setFacade(const std::shared_ptr<void> &facade) = 0;
+    virtual void setQueryRunner(const QSharedPointer<QObject> &runner) = 0;
+
+    void setRevision(qint64 revision)
+    {
+        mRevision = revision;
+    }
+
+    qint64 revision() const
+    {
+        return mRevision;
+    }
+
+private:
+    qint64 mRevision;
+};
+
+template<class T, class Ptr>
+class ModelResultProvider : public ResultProviderInterface<Ptr> {
+public:
+    ModelResultProvider(QWeakPointer<ModelResult<T, Ptr> > model)
+        : ResultProviderInterface<Ptr>(),
+        mModel(model)
+    {
+
+    }
+
+    void add(const Ptr &value)
+    {
+        if (auto model = mModel.toStrongRef()) {
+            model->add(value);
+        }
+    }
+
+    void modify(const Ptr &value)
+    {
+        if (auto model = mModel.toStrongRef()) {
+            model->modify(value);
+        }
+    }
+
+    void remove(const Ptr &value)
+    {
+        if (auto model = mModel.toStrongRef()) {
+            model->remove(value);
+        }
+    }
+
+    void initialResultSetComplete()
+    {
+        // mResultEmitter->initialResultSetComplete();
+    }
+
+    void complete()
+    {
+        // mResultEmitter->complete();
+    }
+
+    void clear()
+    {
+        // mResultEmitter->clear();
+    }
+
+    // QSharedPointer<ResultEmitter<T> > emitter()
+    // {
+    //     if (!mResultEmitter) {
+    //         //We have to go over a separate var and return that, otherwise we'd delete the emitter immediately again
+    //         auto sharedPtr = QSharedPointer<ResultEmitter<T> >(new ResultEmitter<T>, [this](ResultEmitter<T> *emitter){ done(); delete emitter; });
+    //         mResultEmitter = sharedPtr;
+    //         return sharedPtr;
+    //     }
+    //
+    //     return mResultEmitter.toStrongRef();
+    // }
+
+    /**
+     * For lifetimemanagement only.
+     * We keep the runner alive as long as the result provider exists.
+     */
+    void setFacade(const std::shared_ptr<void> &facade)
+    {
+        mFacade = facade;
+    }
+
+    void onDone(const std::function<void()> &callback)
+    {
+        mOnDoneCallback = callback;
+    }
+
+    bool isDone() const
+    {
+        //The existance of the emitter currently defines wether we're done or not.
+        // return mResultEmitter.toStrongRef().isNull();
+        return true;
+    }
+
+    void setFetcher(const std::function<void(const QByteArray &parent)> &fetcher)
+    {
+        if (auto model = mModel.toStrongRef()) {
+            model->setFetcher(fetcher);
+        }
+    }
+
+    void setQueryRunner(const QSharedPointer<QObject> &runner)
+    {
+        mQueryRunner = runner;
+    }
+
+    // qint64 fetch(const ResultSet &resultSet)
+    // {
+    //     //Fetch a bunch
+    //     //
+    //     // Akonadi2::Storage storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier);
+    //     // storage.setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
+    //     //     Warning() << "Error during query: " << error.store << error.message;
+    //     // });
+    //     //
+    //     // auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
+    //
+    //     // Log() << "Querying" << baseRevision << Akonadi2::Storage::maxRevision(transaction);
+    //     // auto resultSet = getResultSet(query, transaction, baseRevision);
+    //     while (resultSet.next([this](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
+    //         switch (operation) {
+    //         case Akonadi2::Operation_Creation:
+    //             Trace() << "Got creation";
+    //             //TODO Only copy in result provider
+    //             add(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<T>(*value).template staticCast<T>());
+    //             break;
+    //         case Akonadi2::Operation_Modification:
+    //             Trace() << "Got modification";
+    //             modify(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<T>(*value).template staticCast<T>());
+    //             break;
+    //         case Akonadi2::Operation_Removal:
+    //             Trace() << "Got removal";
+    //             remove(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<T>(*value).template staticCast<T>());
+    //             break;
+    //         }
+    //         return true;
+    //     })){};
+    //     // return Akonadi2::Storage::maxRevision(transaction);
+    // }
+
+private:
+    void done()
+    {
+        qWarning() << "done";
+        if (mOnDoneCallback) {
+            mOnDoneCallback();
+            mOnDoneCallback = std::function<void()>();
+        }
+    }
+
+    QWeakPointer<ModelResult<T, Ptr> > mModel;
+    QSharedPointer<QObject> mQueryRunner;
+    std::shared_ptr<void> mFacade;
+    std::function<void()> mOnDoneCallback;
+};
+
+
+
+
+
+
+template<class T>
+class SyncResultProvider : public ResultProviderInterface<T> {
+public:
+    void add(const T &value)
+    {
+        mResultEmitter->addHandler(value);
+    }
+
+    void modify(const T &value)
+    {
+        mResultEmitter->modifyHandler(value);
+    }
+
+    void remove(const T &value)
+    {
+        mResultEmitter->removeHandler(value);
+    }
+
+    void initialResultSetComplete()
+    {
+        mResultEmitter->initialResultSetComplete();
+    }
+
+    void complete()
+    {
+        mResultEmitter->complete();
+    }
+
+    void clear()
+    {
+        mResultEmitter->clear();
+    }
+
+    QSharedPointer<ResultEmitter<T> > emitter()
+    {
+        if (!mResultEmitter) {
+            //We have to go over a separate var and return that, otherwise we'd delete the emitter immediately again
+            auto sharedPtr = QSharedPointer<ResultEmitter<T> >(new ResultEmitter<T>, [this](ResultEmitter<T> *emitter){ done(); delete emitter; });
+            mResultEmitter = sharedPtr;
+            return sharedPtr;
+        }
+
+        return mResultEmitter.toStrongRef();
+    }
+
+    /**
+     * For lifetimemanagement only.
+     * We keep the runner alive as long as the result provider exists.
+     */
+    void setFacade(const std::shared_ptr<void> &facade)
+    {
+        mFacade = facade;
+    }
+
+    void onDone(const std::function<void()> &callback)
+    {
+        mOnDoneCallback = callback;
+    }
+
+    bool isDone() const
+    {
+        //The existance of the emitter currently defines wether we're done or not.
+        return mResultEmitter.toStrongRef().isNull();
+    }
+
+    // qint64 fetch(const ResultSet &resultSet)
+    // {
+    //     //Fetch a bunch
+    //     //
+    //     // Akonadi2::Storage storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier);
+    //     // storage.setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
+    //     //     Warning() << "Error during query: " << error.store << error.message;
+    //     // });
+    //     //
+    //     // auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
+    //
+    //     // Log() << "Querying" << baseRevision << Akonadi2::Storage::maxRevision(transaction);
+    //     // auto resultSet = getResultSet(query, transaction, baseRevision);
+    //     while (resultSet.next([this](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
+    //         switch (operation) {
+    //         case Akonadi2::Operation_Creation:
+    //             Trace() << "Got creation";
+    //             //TODO Only copy in result provider
+    //             add(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<T>(*value).template staticCast<T>());
+    //             break;
+    //         case Akonadi2::Operation_Modification:
+    //             Trace() << "Got modification";
+    //             modify(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<T>(*value).template staticCast<T>());
+    //             break;
+    //         case Akonadi2::Operation_Removal:
+    //             Trace() << "Got removal";
+    //             remove(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<T>(*value).template staticCast<T>());
+    //             break;
+    //         }
+    //         return true;
+    //     })){};
+    //     // return Akonadi2::Storage::maxRevision(transaction);
+    // }
+
+private:
+    void done()
+    {
+        qWarning() << "done";
+        if (mOnDoneCallback) {
+            mOnDoneCallback();
+            mOnDoneCallback = std::function<void()>();
+        }
+    }
+
+    QWeakPointer<ResultEmitter<T> > mResultEmitter;
+    std::shared_ptr<void> mFacade;
+    std::function<void()> mOnDoneCallback;
+    QSharedPointer<ThreadBoundary> mThreadBoundary;
+};
+
+
+
+
 /*
 * The promise side for the result emitter
 */
 template<class T>
-class ResultProvider {
+class ResultProvider : public ResultProviderInterface<T> {
 private:
     void callInMainThreadOnEmitter(void (ResultEmitter<T>::*f)())
     {

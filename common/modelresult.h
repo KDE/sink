@@ -24,11 +24,10 @@
 #include <QModelIndex>
 #include <QDebug>
 #include "query.h"
-#include "clientapi.h"
 
 #include "resultprovider.h"
 
-template<class T>
+template<class T, class Ptr>
 class ModelResult : public QAbstractItemModel
 {
 public:
@@ -79,13 +78,18 @@ public:
         return createIndex(row, column, childId);
     }
 
+    QModelIndex createIndexFromId(const qint64 &id) const
+    {
+        auto grandParentId = mParents.value(id, 0);
+        auto row = mTree.value(grandParentId).indexOf(id);
+        return createIndex(row, 0, id);
+    }
+
     QModelIndex parent(const QModelIndex &index) const
     {
         auto id = getIdentifier(index);
         auto parentId = mParents.value(id);
-        auto grandParentId = mParents.value(parentId, 0);
-        auto row = mTree.value(grandParentId).indexOf(parentId);
-        return createIndex(row, 0, parentId);
+        return createIndexFromId(parentId);
     }
 
     bool canFetchMore(const QModelIndex &parent) const
@@ -98,83 +102,92 @@ public:
         fetchEntities(parent);
     }
 
+    qint64 parentId(const Ptr &value)
+    {
+        return qHash(value->getProperty("parent").toByteArray());
+    }
+
+    void add(const Ptr &value)
+    {
+        auto childId = qHash(value->identifier());
+        auto id = parentId(value);
+        auto parent = createIndexFromId(id);
+        qDebug() << "Added entity " << childId;
+        const auto keys = mTree[id];
+        int index = 0;
+        for (; index < keys.size(); index++) {
+            if (childId < keys.at(index)) {
+                break;
+            }
+        }
+        beginInsertRows(parent, index, index);
+        mEntities.insert(childId, value);
+        mTree[id].insert(index, childId);
+        mParents.insert(childId, id);
+        endInsertRows();
+    }
+
+    void modify(const Ptr &value)
+    {
+        auto childId = qHash(value->identifier());
+        auto id = parentId(value);
+        auto parent = createIndexFromId(id);
+        qDebug() << "Modified entity" << childId;
+        auto i = mTree[id].indexOf(childId);
+        mEntities.remove(childId);
+        mEntities.insert(childId, value);
+        //TODO check for change of parents
+        auto idx = index(i, 0, parent);
+        emit dataChanged(idx, idx);
+    }
+
+    void remove(const Ptr &value)
+    {
+        auto childId = qHash(value->identifier());
+        auto id = parentId(value);
+        auto parent = createIndexFromId(id);
+        qDebug() << "Removed entity" << childId;
+        auto index = mTree[id].indexOf(qHash(value->identifier()));
+        beginRemoveRows(parent, index, index);
+        mEntities.remove(childId);
+        mTree[id].removeAll(childId);
+        mParents.remove(childId);
+        //TODO remove children
+        endRemoveRows();
+    }
+
     void fetchEntities(const QModelIndex &parent)
     {
         qDebug() << "Fetching entities";
         const auto id = getIdentifier(parent);
-        // beginResetModel();
-        // mEntities.remove(id);
         mEntityChildrenFetched[id] = true;
-        auto query = mQuery;
+        QByteArray parentIdentifier;
         if (!parent.isValid()) {
             qDebug() << "no parent";
-            query.propertyFilter.insert("parent", QByteArray());
         } else {
             qDebug() << "parent is valid";
-            auto object = parent.data(DomainObjectRole).template value<typename T::Ptr>();
+            auto object = parent.data(DomainObjectRole).template value<Ptr>();
             Q_ASSERT(object);
-            query.propertyFilter.insert("parent", object->identifier());
+            parentIdentifier = object->identifier();
         }
-        auto emitter = Akonadi2::Store::load<T>(query);
-        emitter->onAdded([this, id, parent](const typename T::Ptr &value) {
-            auto childId = qHash(value->identifier());
-            qDebug() << "Added entity " << childId;
-            const auto keys = mTree[id];
-            int index = 0;
-            for (; index < keys.size(); index++) {
-                if (childId < keys.at(index)) {
-                    break;
-                }
-            }
-            beginInsertRows(parent, index, index);
-            mEntities.insert(childId, value);
-            mTree[id].insert(index, childId);
-            mParents.insert(childId, id);
-            endInsertRows();
-        });
-        emitter->onModified([this, id, parent](const typename T::Ptr &value) {
-            auto childId = qHash(value->identifier());
-            qDebug() << "Modified entity" << childId;
-            auto i = mTree[id].indexOf(childId);
-            mEntities.remove(childId);
-            mEntities.insert(childId, value);
-            //TODO check for change of parents
-            auto idx = index(i, 0, parent);
-            emit dataChanged(idx, idx);
-        });
-        emitter->onRemoved([this, id, parent](const typename T::Ptr &value) {
-            auto childId = qHash(value->identifier());
-            qDebug() << "Removed entity" << childId;
-            auto index = mTree[id].indexOf(qHash(value->identifier()));
-            beginRemoveRows(parent, index, index);
-            mEntities.remove(childId);
-            mTree[id].removeAll(childId);
-            mParents.remove(childId);
-            //TODO remove children
-            endRemoveRows();
-        });
-        emitter->onInitialResultSetComplete([this]() {
-        });
-        emitter->onComplete([this, id]() {
-            mEmitter[id].clear();
-        });
-        emitter->onClear([this]() {
-            // beginResetModel();
-            // mEntities.clear();
-            // endResetModel();
-        });
-        mEmitter.insert(id, emitter);
-        // endResetModel();
+        Trace() << "Loading entities";
+        loadEntities(parentIdentifier);
+    }
+
+    void setFetcher(const std::function<void(const QByteArray &parent)> &fetcher)
+    {
+        Trace() << "Setting fetcher";
+        loadEntities = fetcher;
     }
 
 private:
-    QMap<qint64 /* parent entity id */, QSharedPointer<Akonadi2::ResultEmitter<typename T::Ptr> >> mEmitter;
     //TODO we should be able to directly use T as index, with an appropriate hash function, and thus have a QMap<T, T> and QList<T>
-    QMap<qint64 /* entity id */, typename T::Ptr> mEntities;
+    QMap<qint64 /* entity id */, Ptr> mEntities;
     QMap<qint64 /* parent entity id */, QList<qint64> /* child entity id*/> mTree;
     QMap<qint64 /* child entity id */, qint64 /* parent entity id*/> mParents;
     QMap<qint64 /* entity id */, bool> mEntityChildrenFetched;
     QList<QByteArray> mPropertyColumns;
     Akonadi2::Query mQuery;
+    std::function<void(const QByteArray &)> loadEntities;
 };
 

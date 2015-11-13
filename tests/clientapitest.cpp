@@ -27,7 +27,7 @@ public:
     KAsync::Job<void> create(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
     KAsync::Job<void> modify(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
     KAsync::Job<void> remove(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
-    KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename T::Ptr> > &resultProvider) Q_DECL_OVERRIDE
+    KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProviderInterface<typename T::Ptr> > &resultProvider) Q_DECL_OVERRIDE
     {
         capturedResultProvider = resultProvider;
         return KAsync::start<void>([this, resultProvider, query]() {
@@ -41,7 +41,7 @@ public:
     }
 
     QList<typename T::Ptr> results;
-    QWeakPointer<Akonadi2::ResultProvider<typename T::Ptr> > capturedResultProvider;
+    QWeakPointer<Akonadi2::ResultProviderInterface<typename T::Ptr> > capturedResultProvider;
 };
 
 

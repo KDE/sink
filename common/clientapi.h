@@ -23,6 +23,7 @@
 #include <QString>
 #include <QSharedPointer>
 #include <QEventLoop>
+#include <QAbstractItemModel>
 #include <functional>
 #include <memory>
 
@@ -101,11 +102,34 @@ public:
     /**
      * Asynchronusly load a dataset with tree structure information
      */
-    // template <class DomainType>
-    // static TreeSet<DomainType> loadTree(Query)
-    // {
+    template <class DomainType>
+    static QSharedPointer<QAbstractItemModel> loadModel(Query query)
+    {
+        auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr> >::create(query, QList<QByteArray>() << "summary" << "uid");
+        auto resultProvider = QSharedPointer<ModelResultProvider<DomainType, typename DomainType::Ptr> >::create(model);
 
-    // }
+        // Query all resources and aggregate results
+        KAsync::iterate(getResources(query.resources, ApplicationDomain::getTypeName<DomainType>()))
+        .template each<void, QByteArray>([query, resultProvider](const QByteArray &resource, KAsync::Future<void> &future) {
+            auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
+            if (facade) {
+                facade->load(query, resultProvider).template then<void>([&future](){future.setFinished();}).exec();
+                //Keep the facade alive for the lifetime of the resultSet.
+                resultProvider->setFacade(facade);
+            } else {
+                //Ignore the error and carry on
+                future.setFinished();
+            }
+        }).template then<void>([query, resultProvider]() {
+            resultProvider->initialResultSetComplete();
+            if (!query.liveQuery) {
+                resultProvider->complete();
+            }
+        }).exec();
+
+        return model;
+    }
+
     template <class DomainType>
     static std::shared_ptr<StoreFacade<DomainType> > getFacade(const QByteArray &resourceInstanceIdentifier)
     {
