@@ -85,8 +85,8 @@ public Q_SLOTS:
 class TestResourceFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>
 {
 public:
-    TestResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<EntityStorage<Akonadi2::ApplicationDomain::Event> > storage, const QSharedPointer<Akonadi2::ResourceAccessInterface> resourceAccess)
-        : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<TestEventAdaptorFactory>::create(), storage, resourceAccess)
+    TestResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::ResourceAccessInterface> resourceAccess)
+        : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<TestEventAdaptorFactory>::create(), resourceAccess)
     {
 
     }

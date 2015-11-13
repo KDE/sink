@@ -111,6 +111,10 @@ public:
     {
         auto childId = qHash(value->identifier());
         auto id = parentId(value);
+        //Ignore updates we get before the initial fetch is done
+        if (!mEntityChildrenFetched[id]) {
+            return;
+        }
         auto parent = createIndexFromId(id);
         qDebug() << "Added entity " << childId;
         const auto keys = mTree[id];
@@ -131,6 +135,10 @@ public:
     {
         auto childId = qHash(value->identifier());
         auto id = parentId(value);
+        //Ignore updates we get before the initial fetch is done
+        if (!mEntityChildrenFetched[id]) {
+            return;
+        }
         auto parent = createIndexFromId(id);
         qDebug() << "Modified entity" << childId;
         auto i = mTree[id].indexOf(childId);

@@ -95,7 +95,7 @@ KAsync::Job<void> Store::synchronize(const Akonadi2::Query &query)
     .template each<void, QByteArray>([query](const QByteArray &resource, KAsync::Future<void> &future) {
         auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resource);
         resourceAccess->open();
-        resourceAccess->synchronizeResource(true, false).then<void>([&future]() {
+        resourceAccess->synchronizeResource(query.syncOnDemand, query.processAll).then<void>([&future, resourceAccess]() {
             future.setFinished();
         }).exec();
     })

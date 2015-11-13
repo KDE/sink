@@ -57,8 +57,30 @@ private Q_SLOTS:
         query.syncOnDemand = false;
         query.processAll = true;
 
-        auto model = new ModelResult<Akonadi2::ApplicationDomain::Mail>(query, QList<QByteArray>() << "summary" << "uid");
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
         model->fetchMore(QModelIndex());
+        QTRY_COMPARE(model->rowCount(), 1);
+    }
+
+    void testSingleWithDelay()
+    {
+        //Setup
+        {
+            Akonadi2::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+        }
+
+        //Test
+        Akonadi2::Query query;
+        query.resources << "org.kde.dummy.instance1";
+        query.syncOnDemand = false;
+        query.processAll = true;
+        query.liveQuery = true;
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        QTest::qWait(200);
+        model->fetchMore(QModelIndex());
+        QVERIFY(model->rowCount() < 2);
         QTRY_COMPARE(model->rowCount(), 1);
     }
 

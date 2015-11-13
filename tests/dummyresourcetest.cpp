@@ -64,6 +64,9 @@ private Q_SLOTS:
         query.syncOnDemand = false;
         query.processAll = true;
 
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
         query.propertyFilter.insert("uid", "testuid");
         async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
         result.exec();
@@ -87,6 +90,9 @@ private Q_SLOTS:
         query.resources << "org.kde.dummy.instance1";
         query.syncOnDemand = false;
         query.processAll = true;
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
 
         query.propertyFilter.insert("uid", "testuid");
         async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
@@ -113,6 +119,9 @@ private Q_SLOTS:
         query.resources << "org.kde.dummy.instance1";
         query.syncOnDemand = false;
         query.processAll = true;
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
 
         query.propertyFilter.insert("summary", "summaryValue2");
         async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
@@ -145,6 +154,9 @@ private Q_SLOTS:
         query.syncOnDemand = true;
         query.processAll = true;
 
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
         async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
         result.exec();
         QVERIFY(!result.isEmpty());
@@ -159,6 +171,9 @@ private Q_SLOTS:
         query.resources << "org.kde.dummy.instance1";
         query.syncOnDemand = true;
         query.processAll = true;
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
 
         async::SyncListResult<Akonadi2::ApplicationDomain::Mail::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Mail>(query));
         result.exec();
@@ -182,6 +197,9 @@ private Q_SLOTS:
         query.processAll = true;
         query.propertyFilter.insert("uid", "testuid");
 
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
         //Test create
         Akonadi2::ApplicationDomain::Event event2;
         {
@@ -198,6 +216,9 @@ private Q_SLOTS:
         event2.setProperty("summary", "summaryValue2");
         Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
         //Test modify
         {
             async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
@@ -209,6 +230,9 @@ private Q_SLOTS:
         }
 
         Akonadi2::Store::remove<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
 
         //Test remove
         {
