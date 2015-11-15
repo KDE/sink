@@ -30,14 +30,15 @@ public:
     KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProviderInterface<typename T::Ptr> > &resultProvider) Q_DECL_OVERRIDE
     {
         capturedResultProvider = resultProvider;
-        return KAsync::start<void>([this, resultProvider, query]() {
-            for (const auto &res : results) {
+        resultProvider->setFetcher([query, resultProvider, this](const QByteArray &) {
+             for (const auto &res : results) {
                 qDebug() << "Parent filter " << query.propertyFilter.value("parent").toByteArray() << res->identifier();
                 if (!query.propertyFilter.contains("parent") || query.propertyFilter.value("parent").toByteArray() == res->getProperty("parent").toByteArray()) {
                     resultProvider->add(res);
                 }
             }
         });
+        return KAsync::null<void>();
     }
 
     QList<typename T::Ptr> results;
@@ -135,7 +136,7 @@ private Q_SLOTS:
         query.resources << "dummyresource.instance1";
         query.liveQuery = false;
 
-        auto model = new ModelResult<Akonadi2::ApplicationDomain::Folder>(query, QList<QByteArray>() << "summary" << "uid");
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
         model->fetchMore(QModelIndex());
         QTRY_COMPARE(model->rowCount(), 1);
     }
@@ -154,7 +155,7 @@ private Q_SLOTS:
         query.resources << "dummyresource.instance1";
         query.liveQuery = false;
 
-        auto model = new ModelResult<Akonadi2::ApplicationDomain::Folder>(query, QList<QByteArray>() << "summary" << "uid");
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
         model->fetchMore(QModelIndex());
         QTRY_COMPARE(model->rowCount(), 1);
         model->fetchMore(model->index(0, 0));
