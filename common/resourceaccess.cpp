@@ -340,7 +340,7 @@ KAsync::Job<void> ResourceAccess::sendRevisionReplayedCommand(qint64 revision)
 void ResourceAccess::open()
 {
     if (d->socket && d->socket->isValid()) {
-        log("Socket valid, so not opening again");
+        Trace() << "Socket valid, so not opening again";
         return;
     }
     if (d->openingSocket) {

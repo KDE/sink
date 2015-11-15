@@ -17,6 +17,7 @@
  * Test for the generic facade implementation.
  *
  * This test doesn't use the actual storage and thus only tests the update logic of the facade.
+ * //FIXME this now uses the actual storage
  */
 class GenericFacadeTest : public QObject
 {
@@ -34,10 +35,9 @@ private Q_SLOTS:
         query.liveQuery = false;
 
         auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
-        auto storage = QSharedPointer<TestEntityStorage>::create("identifier");
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
-        storage->mResults << Akonadi2::ApplicationDomain::Event::Ptr::create();
-        TestResourceFacade facade("identifier", storage, resourceAccess);
+        // storage->mResults << Akonadi2::ApplicationDomain::Event::Ptr::create();
+        TestResourceFacade facade("identifier", resourceAccess);
 
         async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
 
@@ -56,10 +56,9 @@ private Q_SLOTS:
         query.liveQuery = true;
 
         auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
-        auto storage = QSharedPointer<TestEntityStorage>::create("identifier");
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
-        storage->mResults << Akonadi2::ApplicationDomain::Event::Ptr::create();
-        TestResourceFacade facade("identifier", storage, resourceAccess);
+        // storage->mResults << Akonadi2::ApplicationDomain::Event::Ptr::create();
+        TestResourceFacade facade("identifier", resourceAccess);
 
         async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
 
@@ -70,9 +69,9 @@ private Q_SLOTS:
         QCOMPARE(result.size(), 1);
 
         //Enter a second result
-        storage->mResults.clear();
-        storage->mResults << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
-        storage->mLatestRevision = 2;
+        // storage->mResults.clear();
+        // storage->mResults << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        // storage->mLatestRevision = 2;
         resourceAccess->emit revisionChanged(2);
 
         //Hack to get event loop in synclistresult to abort again
@@ -88,12 +87,11 @@ private Q_SLOTS:
         query.liveQuery = true;
 
         auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
-        auto storage = QSharedPointer<TestEntityStorage>::create("identifier");
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         auto entity = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
         entity->setProperty("test", "test1");
-        storage->mResults << entity;
-        TestResourceFacade facade("identifier", storage, resourceAccess);
+        // storage->mResults << entity;
+        TestResourceFacade facade("identifier", resourceAccess);
 
         async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
 
@@ -104,11 +102,11 @@ private Q_SLOTS:
         QCOMPARE(result.size(), 1);
 
         //Modify the entity again
-        storage->mResults.clear();
+        // storage->mResults.clear();
         entity = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
         entity->setProperty("test", "test2");
-        storage->mModifications << entity;
-        storage->mLatestRevision = 2;
+        // storage->mModifications << entity;
+        // storage->mLatestRevision = 2;
         resourceAccess->emit revisionChanged(2);
 
         //Hack to get event loop in synclistresult to abort again
@@ -125,11 +123,10 @@ private Q_SLOTS:
         query.liveQuery = true;
 
         auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
-        auto storage = QSharedPointer<TestEntityStorage>::create("identifier");
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         auto entity = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
-        storage->mResults << entity;
-        TestResourceFacade facade("identifier", storage, resourceAccess);
+        // storage->mResults << entity;
+        TestResourceFacade facade("identifier", resourceAccess);
 
         async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
 
@@ -140,9 +137,9 @@ private Q_SLOTS:
         QCOMPARE(result.size(), 1);
 
         //Remove the entity again
-        storage->mResults.clear();
-        storage->mRemovals << entity;
-        storage->mLatestRevision = 2;
+        // storage->mResults.clear();
+        // storage->mRemovals << entity;
+        // storage->mLatestRevision = 2;
         resourceAccess->emit revisionChanged(2);
 
         //Hack to get event loop in synclistresult to abort again

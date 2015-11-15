@@ -15,7 +15,6 @@ set(command_SRCS
     definitions.cpp
     log.cpp
     entitybuffer.cpp
-    entitystorage.cpp
     clientapi.cpp
     facadefactory.cpp
     commands.cpp

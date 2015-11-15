@@ -29,7 +29,8 @@
 #include "domainadaptor.h"
 #include "log.h"
 #include "resultset.h"
-#include "entitystorage.h"
+#include "storage.h"
+#include "definitions.h"
 
 /**
  * A QueryRunner runs a query and updates the corresponding result set.
