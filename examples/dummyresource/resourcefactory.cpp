@@ -114,6 +114,12 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
         mPipeline->setPreprocessors(ENTITY_TYPE_MAIL, QVector<Akonadi2::Preprocessor*>() << mailIndexer);
         mPipeline->setAdaptorFactory(ENTITY_TYPE_MAIL, mailFactory);
     }
+    {
+        auto folderFactory = QSharedPointer<DummyFolderAdaptorFactory>::create();
+        auto folderIndexer = new IndexUpdater<Akonadi2::ApplicationDomain::Folder>("folder.index.rid", ENTITY_TYPE_FOLDER);
+        mPipeline->setPreprocessors(ENTITY_TYPE_FOLDER, QVector<Akonadi2::Preprocessor*>() << folderIndexer);
+        mPipeline->setAdaptorFactory(ENTITY_TYPE_FOLDER, folderFactory);
+    }
 }
 
 void DummyResource::createEvent(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb)

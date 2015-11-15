@@ -90,38 +90,72 @@ private Q_SLOTS:
         QTRY_COMPARE(model->rowCount(), 1);
     }
 
-    // void testTree()
-    // {
-    //     //Setup
-    //     {
-    //         Akonadi2::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
-    //         Akonadi2::Store::create<Akonadi2::ApplicationDomain::Folder>(folder).exec().waitForFinished();
-    //
-    //         Akonadi2::Query query;
-    //         query.resources << "org.kde.dummy.instance1";
-    //         query.syncOnDemand = false;
-    //         query.processAll = true;
-    //
-    //         auto model = new ModelResult<Akonadi2::ApplicationDomain::Folder>(query, QList<QByteArray>() << "summary" << "uid");
-    //         QTRY_COMPARE(model->rowCount(), 1);
-    //
-    //         auto folderEntity = model->index(0, 0).data(ModelResult<Akonadi2::ApplicationDomain::Folder>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder>();
-    //
-    //         Akonadi2::ApplicationDomain::Folder subfolder("org.kde.dummy.instance1");
-    //         subfolder.setProperty("parent", folderEntity.identifier());
-    //         Akonadi2::Store::create<Akonadi2::ApplicationDomain::Folder>(subfolder).exec().waitForFinished();
-    //     }
-    //
-    //     //Test
-    //     Akonadi2::Query query;
-    //     query.resources << "org.kde.dummy.instance1";
-    //     query.syncOnDemand = false;
-    //     query.processAll = true;
-    //
-    //     auto model = new ModelResult<Akonadi2::ApplicationDomain::Folder>(query, QList<QByteArray>() << "summary" << "uid");
-    //     QTRY_COMPARE(model->rowCount(), 1);
-    //     QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
-    // }
+    void testFolder()
+    {
+        //Setup
+        {
+            Akonadi2::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
+            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Folder>(folder).exec().waitForFinished();
+        }
+
+        //Test
+        Akonadi2::Query query;
+        query.resources << "org.kde.dummy.instance1";
+        query.syncOnDemand = false;
+        query.processAll = false;
+        query.liveQuery = true;
+
+        //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        model->fetchMore(QModelIndex());
+        QTRY_COMPARE(model->rowCount(), 1);
+        auto folderEntity = model->index(0, 0).data(ModelResult<Akonadi2::ApplicationDomain::Folder, Akonadi2::ApplicationDomain::Folder::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+        QVERIFY(!folderEntity->identifier().isEmpty());
+    }
+
+    void testFolderTree()
+    {
+        //Setup
+        {
+            Akonadi2::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
+            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Folder>(folder).exec().waitForFinished();
+
+            Akonadi2::Query query;
+            query.resources << "org.kde.dummy.instance1";
+            query.syncOnDemand = false;
+            query.processAll = true;
+
+            //Ensure all local data is processed
+            Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+            model->fetchMore(QModelIndex());
+            QTRY_COMPARE(model->rowCount(), 1);
+
+            auto folderEntity = model->index(0, 0).data(ModelResult<Akonadi2::ApplicationDomain::Folder, Akonadi2::ApplicationDomain::Folder::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+            QVERIFY(!folderEntity->identifier().isEmpty());
+
+            Akonadi2::ApplicationDomain::Folder subfolder("org.kde.dummy.instance1");
+            subfolder.setProperty("parent", folderEntity->identifier());
+            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Folder>(subfolder).exec().waitForFinished();
+        }
+
+        //Test
+        Akonadi2::Query query;
+        query.resources << "org.kde.dummy.instance1";
+        query.syncOnDemand = false;
+        query.processAll = true;
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        model->fetchMore(QModelIndex());
+        QTRY_COMPARE(model->rowCount(), 1);
+        model->fetchMore(model->index(0, 0));
+        QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
+    }
 };
 
 QTEST_MAIN(QueryTest)

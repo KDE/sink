@@ -116,7 +116,7 @@ public:
             return;
         }
         auto parent = createIndexFromId(id);
-        qDebug() << "Added entity " << childId;
+        qDebug() << "Added entity " << childId << value->identifier();
         const auto keys = mTree[id];
         int index = 0;
         for (; index < keys.size(); index++) {
@@ -166,7 +166,6 @@ public:
 
     void fetchEntities(const QModelIndex &parent)
     {
-        qDebug() << "Fetching entities";
         const auto id = getIdentifier(parent);
         mEntityChildrenFetched[id] = true;
         QByteArray parentIdentifier;
@@ -178,7 +177,7 @@ public:
             Q_ASSERT(object);
             parentIdentifier = object->identifier();
         }
-        Trace() << "Loading entities";
+        Trace() << "Loading child entities of: " << parentIdentifier;
         loadEntities(parentIdentifier);
     }
 
