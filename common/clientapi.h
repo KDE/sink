@@ -35,6 +35,8 @@
 #include "facadefactory.h"
 #include "log.h"
 
+Q_DECLARE_METATYPE(std::shared_ptr<void>);
+
 namespace async {
     //This should abstract if we execute from eventloop or in thread.
     //It supposed to allow the caller to finish the current method before executing the runner.
@@ -75,9 +77,8 @@ public:
             // Query all resources and aggregate results
             KAsync::iterate(getResources(query.resources, ApplicationDomain::getTypeName<DomainType>()))
             .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, KAsync::Future<void> &future) {
-                auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
-                if (facade) {
-                    facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
+                if (auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource)) {
+                    facade->load(query, *resultSet).template then<void>([&future](){future.setFinished();}).exec();
                     //Keep the facade alive for the lifetime of the resultSet.
                     resultSet->setFacade(facade);
                 } else {
@@ -106,15 +107,18 @@ public:
     static QSharedPointer<QAbstractItemModel> loadModel(Query query)
     {
         auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr> >::create(query, QList<QByteArray>() << "summary" << "uid");
-        auto resultProvider = QSharedPointer<ModelResultProvider<DomainType, typename DomainType::Ptr> >::create(model);
+        auto resultProvider = std::make_shared<ModelResultProvider<DomainType, typename DomainType::Ptr> >(model);
+        //Keep the resultprovider alive for as long as the model lives
+        model->setProperty("resultProvider", QVariant::fromValue(std::shared_ptr<void>(resultProvider)));
 
         // Query all resources and aggregate results
         KAsync::iterate(getResources(query.resources, ApplicationDomain::getTypeName<DomainType>()))
         .template each<void, QByteArray>([query, resultProvider](const QByteArray &resource, KAsync::Future<void> &future) {
             auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
             if (facade) {
-                facade->load(query, resultProvider).template then<void>([&future](){future.setFinished();}).exec();
+                facade->load(query, *resultProvider).template then<void>([&future](){future.setFinished();}).exec();
                 //Keep the facade alive for the lifetime of the resultSet.
+                //FIXME this would have to become a list
                 resultProvider->setFacade(facade);
             } else {
                 //Ignore the error and carry on

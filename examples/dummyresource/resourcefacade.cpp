@@ -65,20 +65,20 @@ KAsync::Job<void> DummyResourceConfigFacade::remove(const Akonadi2::ApplicationD
     return KAsync::null<void>();
 }
 
-KAsync::Job<void> DummyResourceConfigFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProviderInterface<typename Akonadi2::ApplicationDomain::AkonadiResource::Ptr> > &resultProvider)
+KAsync::Job<void> DummyResourceConfigFacade::load(const Akonadi2::Query &query, Akonadi2::ResultProviderInterface<typename Akonadi2::ApplicationDomain::AkonadiResource::Ptr> &resultProvider)
 {
     //Read configuration and list all available instances.
     //This includes runtime information about runing instances etc.
     //Part of this is generic, and part is accessing the resource specific configuration.
     //FIXME this currently does not support live queries (because we're not inheriting from GenericFacade)
     //FIXME only read what was requested in the query?
-    return KAsync::start<void>([resultProvider, this]() {
+    return KAsync::start<void>([&resultProvider, this]() {
         auto settings = getSettings();
         auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create();
         //TODO copy settings to adaptor
         //
         //TODO use correct instance identifier
         //TODO key == instance identifier ?
-        resultProvider->add(QSharedPointer<Akonadi2::ApplicationDomain::AkonadiResource>::create("org.kde.dummy.instance1", "org.kde.dummy.config", 0, memoryAdaptor));
+        resultProvider.add(QSharedPointer<Akonadi2::ApplicationDomain::AkonadiResource>::create("org.kde.dummy.instance1", "org.kde.dummy.config", 0, memoryAdaptor));
     });
 }
