@@ -246,10 +246,8 @@ private:
         });
     }
 
-    ResultSet loadInitialResultSet(const QByteArray &parent, const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)
+    ResultSet loadInitialResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)
     {
-        Trace() << "Fetching initial set for parent:" << parent;
-        //TODO
         QSet<QByteArray> appliedFilters;
         auto resultSet = Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::queryIndexes(query, mResourceInstanceIdentifier, appliedFilters, transaction);
         remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
@@ -264,7 +262,6 @@ private:
 
     ResultSet loadIncrementalResultSet(qint64 baseRevision, const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)
     {
-        Trace() << "Loading incremental result set starting from revision: " << baseRevision;
         const auto bufferType = bufferTypeForDomainType();
         auto revisionCounter = QSharedPointer<qint64>::create(baseRevision);
         remainingFilters = query.propertyFilter.keys().toSet();
@@ -368,7 +365,7 @@ private:
         auto modifiedQuery = query;
         modifiedQuery.propertyFilter.insert("parent", parent);
         return load(modifiedQuery, [&](Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
-            return loadInitialResultSet(parent, modifiedQuery, transaction, remainingFilters);
+            return loadInitialResultSet(modifiedQuery, transaction, remainingFilters);
         }, resultProvider);
     }
 
