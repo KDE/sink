@@ -12,6 +12,7 @@ else (STORAGE_unqlite)
 endif (STORAGE_unqlite)
 
 set(command_SRCS
+    modelresult.cpp
     definitions.cpp
     log.cpp
     entitybuffer.cpp
