@@ -23,9 +23,8 @@
 #include <QAbstractItemModel>
 #include <QModelIndex>
 #include <QDebug>
+#include <functional>
 #include "query.h"
-
-#include "resultprovider.h"
 
 template<class T, class Ptr>
 class ModelResult : public QAbstractItemModel
@@ -36,160 +35,28 @@ public:
         DomainObjectRole = Qt::UserRole + 1
     };
 
-    ModelResult(const Akonadi2::Query &query, const QList<QByteArray> &propertyColumns)
-        :QAbstractItemModel(),
-        mPropertyColumns(propertyColumns)
-    {
-    }
+    ModelResult(const Akonadi2::Query &query, const QList<QByteArray> &propertyColumns);
 
-    static qint64 getIdentifier(const QModelIndex &idx)
-    {
-        if (!idx.isValid()) {
-            return 0;
-        }
-        return idx.internalId();
-    }
+    int rowCount(const QModelIndex &parent = QModelIndex()) const;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
+    QModelIndex index(int row, int column, const QModelIndex & parent = QModelIndex()) const;
+    QModelIndex parent(const QModelIndex &index) const;
 
-    int rowCount(const QModelIndex &parent = QModelIndex()) const
-    {
-        return mTree[getIdentifier(parent)].size();
-    }
+    bool canFetchMore(const QModelIndex &parent) const;
+    void fetchMore(const QModelIndex &parent);
 
-    int columnCount(const QModelIndex &parent = QModelIndex()) const
-    {
-        return mPropertyColumns.size();
-    }
+    void add(const Ptr &value);
+    void modify(const Ptr &value);
+    void remove(const Ptr &value);
 
-    virtual QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
-    {
-        if (role == DomainObjectRole) {
-            Q_ASSERT(mEntities.contains(index.internalId()));
-            return QVariant::fromValue(mEntities.value(index.internalId()));
-        }
-        if (role == Qt::DisplayRole) {
-            if (index.column() < mPropertyColumns.size()) {
-                Q_ASSERT(mEntities.contains(index.internalId()));
-                auto entity = mEntities.value(index.internalId());
-                return entity->getProperty(mPropertyColumns.at(index.column())).toString();
-            } else {
-                return "No data available";
-            }
-        }
-        return QVariant();
-    }
-
-    QModelIndex index(int row, int column, const QModelIndex & parent = QModelIndex()) const
-    {
-        auto id = getIdentifier(parent);
-        auto childId = mTree.value(id).at(row);
-        return createIndex(row, column, childId);
-    }
-
-    QModelIndex createIndexFromId(const qint64 &id) const
-    {
-        auto grandParentId = mParents.value(id, 0);
-        auto row = mTree.value(grandParentId).indexOf(id);
-        return createIndex(row, 0, id);
-    }
-
-    QModelIndex parent(const QModelIndex &index) const
-    {
-        auto id = getIdentifier(index);
-        auto parentId = mParents.value(id);
-        return createIndexFromId(parentId);
-    }
-
-    bool canFetchMore(const QModelIndex &parent) const
-    {
-        return mEntityChildrenFetched.value(parent.internalId());
-    }
-
-    void fetchMore(const QModelIndex &parent)
-    {
-        fetchEntities(parent);
-    }
-
-    qint64 parentId(const Ptr &value)
-    {
-        return qHash(value->getProperty("parent").toByteArray());
-    }
-
-    void add(const Ptr &value)
-    {
-        auto childId = qHash(value->identifier());
-        auto id = parentId(value);
-        //Ignore updates we get before the initial fetch is done
-        if (!mEntityChildrenFetched[id]) {
-            return;
-        }
-        auto parent = createIndexFromId(id);
-        qDebug() << "Added entity " << childId << value->identifier();
-        const auto keys = mTree[id];
-        int index = 0;
-        for (; index < keys.size(); index++) {
-            if (childId < keys.at(index)) {
-                break;
-            }
-        }
-        if (mEntities.contains(childId)) {
-            qWarning() << "Entity already in model " << value->identifier();
-            return;
-        }
-        beginInsertRows(QModelIndex(), index, index);
-        mEntities.insert(childId, value);
-        mTree[id].insert(index, childId);
-        mParents.insert(childId, id);
-        endInsertRows();
-    }
-
-    void modify(const Ptr &value)
-    {
-        auto childId = qHash(value->identifier());
-        auto id = parentId(value);
-        //Ignore updates we get before the initial fetch is done
-        if (!mEntityChildrenFetched[id]) {
-            return;
-        }
-        auto parent = createIndexFromId(id);
-        qDebug() << "Modified entity" << childId;
-        auto i = mTree[id].indexOf(childId);
-        mEntities.remove(childId);
-        mEntities.insert(childId, value);
-        //TODO check for change of parents
-        auto idx = index(i, 0, parent);
-        emit dataChanged(idx, idx);
-    }
-
-    void remove(const Ptr &value)
-    {
-        auto childId = qHash(value->identifier());
-        auto id = parentId(value);
-        auto parent = createIndexFromId(id);
-        qDebug() << "Removed entity" << childId;
-        auto index = mTree[id].indexOf(qHash(value->identifier()));
-        beginRemoveRows(parent, index, index);
-        mEntities.remove(childId);
-        mTree[id].removeAll(childId);
-        mParents.remove(childId);
-        //TODO remove children
-        endRemoveRows();
-    }
-
-    void fetchEntities(const QModelIndex &parent)
-    {
-        const auto id = getIdentifier(parent);
-        mEntityChildrenFetched[id] = true;
-        Trace() << "Loading child entities";
-        loadEntities(parent.data(DomainObjectRole).template value<Ptr>());
-    }
-
-    void setFetcher(const std::function<void(const Ptr &parent)> &fetcher)
-    {
-        Trace() << "Setting fetcher";
-        loadEntities = fetcher;
-    }
+    void setFetcher(const std::function<void(const Ptr &parent)> &fetcher);
 
 private:
+    static qint64 parentId(const Ptr &value);
+    QModelIndex createIndexFromId(const qint64 &id) const;
+    void fetchEntities(const QModelIndex &parent);
+
     //TODO we should be able to directly use T as index, with an appropriate hash function, and thus have a QMap<T, T> and QList<T>
     QMap<qint64 /* entity id */, Ptr> mEntities;
     QMap<qint64 /* parent entity id */, QList<qint64> /* child entity id*/> mTree;

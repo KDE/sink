@@ -36,6 +36,13 @@ static QMap<QString, QVariant> createMail(int i)
     return mail;
 }
 
+static QMap<QString, QVariant> createFolder(int i)
+{
+    QMap<QString, QVariant> folder;
+    folder.insert("name", QString("folder%1").arg(i));
+    return folder;
+}
+
 QMap<QString, QMap<QString, QVariant> > populateEvents()
 {
     QMap<QString, QMap<QString, QVariant>> content;
@@ -54,8 +61,18 @@ QMap<QString, QMap<QString, QVariant> > populateMails()
     return content;
 }
 
+QMap<QString, QMap<QString, QVariant> > populateFolders()
+{
+    QMap<QString, QMap<QString, QVariant>> content;
+    for (int i = 0; i < 5000; i++) {
+        content.insert(QString("key%1").arg(i), createFolder(i));
+    }
+    return content;
+}
+
 static QMap<QString, QMap<QString, QVariant> > s_eventSource = populateEvents();
 static QMap<QString, QMap<QString, QVariant> > s_mailSource = populateMails();
+static QMap<QString, QMap<QString, QVariant> > s_folderSource = populateFolders();
 
 QMap<QString, QMap<QString, QVariant> > DummyStore::events() const
 {
@@ -65,4 +82,9 @@ QMap<QString, QMap<QString, QVariant> > DummyStore::events() const
 QMap<QString, QMap<QString, QVariant> > DummyStore::mails() const
 {
     return s_mailSource;
+}
+
+QMap<QString, QMap<QString, QVariant> > DummyStore::folders() const
+{
+    return s_folderSource;
 }
