@@ -110,7 +110,7 @@ public:
     template <class DomainType>
     static QSharedPointer<QAbstractItemModel> loadModel(Query query)
     {
-        auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr> >::create(query, QList<QByteArray>() << "summary" << "uid");
+        auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr> >::create(query, query.requestedProperties.toList());
         auto resultProvider = std::make_shared<ModelResultProvider<DomainType, typename DomainType::Ptr> >(model);
         //Keep the resultprovider alive for as long as the model lives
         model->setProperty("resultProvider", QVariant::fromValue(std::shared_ptr<void>(resultProvider)));

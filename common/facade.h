@@ -184,7 +184,6 @@ public:
             //Incremental updates are always loaded directly, leaving it up to the result to discard the changes if they are not interesting
             runner->setQuery([this, query, &resultProvider] () -> KAsync::Job<void> {
                 return KAsync::start<void>([this, query, &resultProvider](KAsync::Future<void> &future) {
-                    Trace() << "Executing query ";
                     const qint64 newRevision = executeIncrementalQuery(query, resultProvider);
                     mResourceAccess->sendRevisionReplayedCommand(newRevision);
                     future.setFinished();

@@ -25,6 +25,7 @@
 #include "common/resource.h"
 #include "common/storage.h"
 #include "common/domain/event.h"
+#include "common/domain/folder.h"
 #include "common/resourceconfig.h"
 #include "console.h"
 
@@ -124,10 +125,10 @@ int main(int argc, char *argv[])
     query.syncOnDemand = false;
     query.processAll = false;
     query.liveQuery = true;
-    query.requestedProperties << "summary" << "uid";
+    query.requestedProperties << "name";
 
-    auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
-    auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Event> >::create(model.data());
+    auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+    auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Folder> >::create(model.data());
 
     return app.exec();
 }

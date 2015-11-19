@@ -60,6 +60,7 @@ void TypeImplementation<Folder>::index(const QByteArray &identifier, const Buffe
     const auto parent = bufferAdaptor.getProperty("parent");
     Trace() << "indexing " << identifier << " with parent " << parent.toByteArray();
     if (parent.isValid()) {
+        Q_ASSERT(!parent.toByteArray().isEmpty());
         Index("folder.index.parent", transaction).add(parent.toByteArray(), identifier);
     } else {
         Index("folder.index.parent", transaction).add("toplevel", identifier);

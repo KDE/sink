@@ -163,6 +163,27 @@ void DummyResource::createMail(const QByteArray &ridBuffer, const QMap<QString, 
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
 }
 
+void DummyResource::createFolder(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb)
+{
+    //Map the source format to the buffer format (which happens to be an exact copy here)
+    auto name = m_fbb.CreateString(data.value("name").toString().toStdString());
+    flatbuffers::Offset<flatbuffers::String> parent;
+    bool hasParent = false;
+    if (!data.value("parent").toString().isEmpty()) {
+        hasParent = true;
+        parent = m_fbb.CreateString(data.value("parent").toString().toStdString());
+    }
+
+    auto builder = Akonadi2::ApplicationDomain::Buffer::FolderBuilder(m_fbb);
+    builder.add_name(name);
+    if (hasParent) {
+        builder.add_parent(parent);
+    }
+    auto buffer = builder.Finish();
+    Akonadi2::ApplicationDomain::Buffer::FinishFolderBuffer(m_fbb, buffer);
+    Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
+}
+
 void DummyResource::synchronize(const QString &bufferType, const QMap<QString, QMap<QString, QVariant> > &data, Akonadi2::Storage::Transaction &transaction, std::function<void(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb)> createEntity)
 {
     Index uidIndex("index.uid", transaction);
@@ -208,6 +229,9 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
         });
         synchronize(ENTITY_TYPE_MAIL, DummyStore::instance().mails(), transaction, [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb) {
             createMail(ridBuffer, data, entityFbb);
+        });
+        synchronize(ENTITY_TYPE_FOLDER, DummyStore::instance().folders(), transaction, [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb) {
+            createFolder(ridBuffer, data, entityFbb);
         });
 
         f.setFinished();

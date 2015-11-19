@@ -131,7 +131,11 @@ public:
                 break;
             }
         }
-        beginInsertRows(parent, index, index);
+        if (mEntities.contains(childId)) {
+            qWarning() << "Entity already in model " << value->identifier();
+            return;
+        }
+        beginInsertRows(QModelIndex(), index, index);
         mEntities.insert(childId, value);
         mTree[id].insert(index, childId);
         mParents.insert(childId, id);
