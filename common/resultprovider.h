@@ -53,7 +53,7 @@ public:
     virtual void initialResultSetComplete() = 0;
     virtual void complete() = 0;
     virtual void clear() = 0;
-    virtual void setFetcher(const std::function<void(const QByteArray &parent)> &fetcher)
+    virtual void setFetcher(const std::function<void(const T &parent)> &fetcher)
     {
     }
 
@@ -141,7 +141,7 @@ public:
         return true;
     }
 
-    void setFetcher(const std::function<void(const QByteArray &parent)> &fetcher)
+    void setFetcher(const std::function<void(const Ptr &parent)> &fetcher)
     {
         if (auto model = mModel.toStrongRef()) {
             model->setFetcher(fetcher);
@@ -297,9 +297,9 @@ public:
         return mResultEmitter.toStrongRef().isNull();
     }
 
-    void setFetcher(const std::function<void(const QByteArray &parent)> &fetcher)
+    void setFetcher(const std::function<void(const T &parent)> &fetcher)
     {
-        fetcher(QByteArray());
+        fetcher(T());
     }
 
 private:

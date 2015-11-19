@@ -172,7 +172,7 @@ public:
     KAsync::Job<void> load(const Akonadi2::Query &query, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider) Q_DECL_OVERRIDE
     {
         //We delegate loading of initial data to the result provider, os it can decide for itself what it needs to load.
-        resultProvider.setFetcher([this, query, &resultProvider](const QByteArray &parent) {
+        resultProvider.setFetcher([this, query, &resultProvider](const typename DomainType::Ptr &parent) {
             const qint64 newRevision = executeInitialQuery(query, parent, resultProvider);
             mResourceAccess->sendRevisionReplayedCommand(newRevision);
         });
@@ -358,11 +358,16 @@ private:
         }, resultProvider);
     }
 
-    qint64 executeInitialQuery(const Akonadi2::Query &query, const QByteArray &parent, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
+    qint64 executeInitialQuery(const Akonadi2::Query &query, const typename DomainType::Ptr &parent, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
     {
-        Trace() << "Running initial query for parent:" << parent;
         auto modifiedQuery = query;
-        modifiedQuery.propertyFilter.insert("parent", parent);
+        if (parent) {
+            Trace() << "Running initial query for parent:" << parent->identifier();
+            modifiedQuery.propertyFilter.insert("parent", parent->identifier());
+        } else {
+            Trace() << "Running initial query for toplevel";
+            modifiedQuery.propertyFilter.insert("parent", QVariant());
+        }
         return load(modifiedQuery, [&](Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
             return loadInitialResultSet(modifiedQuery, transaction, remainingFilters);
         }, resultProvider);

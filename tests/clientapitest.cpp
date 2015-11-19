@@ -30,7 +30,7 @@ public:
     KAsync::Job<void> load(const Akonadi2::Query &query, Akonadi2::ResultProviderInterface<typename T::Ptr> &resultProvider) Q_DECL_OVERRIDE
     {
         capturedResultProvider = &resultProvider;
-        resultProvider.setFetcher([query, &resultProvider, this](const QByteArray &) {
+        resultProvider.setFetcher([query, &resultProvider, this](const typename T::Ptr &) {
              for (const auto &res : results) {
                 qDebug() << "Parent filter " << query.propertyFilter.value("parent").toByteArray() << res->identifier();
                 if (!query.propertyFilter.contains("parent") || query.propertyFilter.value("parent").toByteArray() == res->getProperty("parent").toByteArray()) {

@@ -179,20 +179,11 @@ public:
     {
         const auto id = getIdentifier(parent);
         mEntityChildrenFetched[id] = true;
-        QByteArray parentIdentifier;
-        if (!parent.isValid()) {
-            qDebug() << "no parent";
-        } else {
-            qDebug() << "parent is valid";
-            auto object = parent.data(DomainObjectRole).template value<Ptr>();
-            Q_ASSERT(object);
-            parentIdentifier = object->identifier();
-        }
-        Trace() << "Loading child entities of: " << parentIdentifier;
-        loadEntities(parentIdentifier);
+        Trace() << "Loading child entities";
+        loadEntities(parent.data(DomainObjectRole).template value<Ptr>());
     }
 
-    void setFetcher(const std::function<void(const QByteArray &parent)> &fetcher)
+    void setFetcher(const std::function<void(const Ptr &parent)> &fetcher)
     {
         Trace() << "Setting fetcher";
         loadEntities = fetcher;
@@ -206,6 +197,6 @@ private:
     QMap<qint64 /* entity id */, bool> mEntityChildrenFetched;
     QList<QByteArray> mPropertyColumns;
     Akonadi2::Query mQuery;
-    std::function<void(const QByteArray &)> loadEntities;
+    std::function<void(const Ptr &)> loadEntities;
 };
 
