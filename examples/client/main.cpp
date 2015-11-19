@@ -23,14 +23,13 @@
 
 #include "common/clientapi.h"
 #include "common/resource.h"
-#include "common/listmodelresult.h"
 #include "common/storage.h"
 #include "common/domain/event.h"
 #include "common/resourceconfig.h"
 #include "console.h"
 
 #include <QWidget>
-#include <QListView>
+#include <QTreeView>
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -43,8 +42,8 @@ public:
     View(QAbstractItemModel *model)
         : QWidget()
     {
-        auto listView = new QListView(this);
-        listView->setModel(model);
+        auto modelView = new QTreeView(this);
+        modelView->setModel(model);
         resize(1000, 1500);
 
         auto topLayout = new QVBoxLayout(this);
@@ -61,21 +60,23 @@ public:
         QObject::connect(syncButton, &QPushButton::pressed, []() {
             Akonadi2::Query query;
             query.resources << "org.kde.dummy.instance1";
-            Akonadi2::Store::synchronize(query);
+            query.syncOnDemand = true;
+            Akonadi2::Store::synchronize(query).exec();
         });
 
         auto removeButton = new QPushButton(this);
         removeButton->setText("Remove");
-        QObject::connect(removeButton, &QPushButton::pressed, [listView]() {
-            for (auto index :listView->selectionModel()->selectedIndexes()) {
-                auto object = index.data(DomainObjectRole).value<typename T::Ptr>();
+        QObject::connect(removeButton, &QPushButton::pressed, [modelView]() {
+            for (auto index :modelView->selectionModel()->selectedIndexes()) {
+                auto object = index.data(Akonadi2::Store::DomainObjectRole).value<typename T::Ptr>();
                 Akonadi2::Store::remove(*object).exec();
             }
         });
 
         topLayout->addWidget(titleLabel);
         topLayout->addWidget(syncButton);
-        topLayout->addWidget(listView, 10);
+        topLayout->addWidget(modelView, 10);
+        model->fetchMore(QModelIndex());
 
         show();
     }
@@ -123,8 +124,9 @@ int main(int argc, char *argv[])
     query.syncOnDemand = false;
     query.processAll = false;
     query.liveQuery = true;
+    query.requestedProperties << "summary" << "uid";
 
-    auto model = QSharedPointer<ListModelResult<Akonadi2::ApplicationDomain::Event::Ptr> >::create(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query), QList<QByteArray>() << "summary" << "uid");
+    auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
     auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Event> >::create(model.data());
 
     return app.exec();

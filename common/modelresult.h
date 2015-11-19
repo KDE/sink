@@ -63,11 +63,18 @@ public:
     virtual QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const
     {
         if (role == DomainObjectRole) {
-            qWarning() << "trying to get entity " << index.internalId();
             Q_ASSERT(mEntities.contains(index.internalId()));
             return QVariant::fromValue(mEntities.value(index.internalId()));
         }
-        qDebug() << "Invalid role";
+        if (role == Qt::DisplayRole) {
+            if (index.column() < mPropertyColumns.size()) {
+                Q_ASSERT(mEntities.contains(index.internalId()));
+                auto entity = mEntities.value(index.internalId());
+                return entity->getProperty(mPropertyColumns.at(index.column())).toString();
+            } else {
+                return "No data available";
+            }
+        }
         return QVariant();
     }
 

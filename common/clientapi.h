@@ -100,6 +100,10 @@ public:
         return resultSet->emitter();
     }
 
+    enum Roles {
+        DomainObjectRole = Qt::UserRole + 1 //Must be the same as in ModelResult
+    };
+
     /**
      * Asynchronusly load a dataset with tree structure information
      */
