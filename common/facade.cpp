@@ -23,6 +23,7 @@
 #include "log.h"
 #include "storage.h"
 #include "definitions.h"
+#include "domainadaptor.h"
 
 using namespace Akonadi2;
 

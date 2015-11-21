@@ -26,9 +26,11 @@
 
 #include "resourceaccess.h"
 #include "resultset.h"
-#include "domainadaptor.h"
+#include "domaintypeadaptorfactoryinterface.h"
+#include "storage.h"
 
 namespace Akonadi2 {
+
 /**
  * Default facade implementation for resources that are implemented in a separate process using the ResourceAccess class.
  * 
