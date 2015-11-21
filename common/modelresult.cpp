@@ -104,7 +104,7 @@ template<class T, class Ptr>
 bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 {
     qDebug() << "Can fetch more: " << parent << mEntityChildrenFetched.value(parent.internalId());
-    return mEntityChildrenFetched.value(parent.internalId());
+    return !mEntityChildrenFetched.value(parent.internalId(), false);
 }
 
 template<class T, class Ptr>
@@ -133,7 +133,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
         }
     }
     if (mEntities.contains(childId)) {
-        qWarning() << "Entity already in model " << value->identifier();
+        Warning() << "Entity already in model " << value->identifier();
         return;
     }
     qDebug() << "Inserting rows " << index << parent;
