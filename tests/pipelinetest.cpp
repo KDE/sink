@@ -19,6 +19,7 @@
 #include "pipeline.h"
 #include "log.h"
 #include "domainadaptor.h"
+#include "definitions.h"
 
 static void removeFromDisk(const QString &name)
 {

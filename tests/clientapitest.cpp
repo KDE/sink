@@ -8,6 +8,7 @@
 #include "resourceconfig.h"
 #include "modelresult.h"
 #include "resultprovider.h"
+#include "facadefactory.h"
 
 template <typename T>
 class DummyResourceFacade : public Akonadi2::StoreFacade<T>

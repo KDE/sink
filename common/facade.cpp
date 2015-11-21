@@ -20,7 +20,6 @@
 #include "facade.h"
 
 #include "commands.h"
-#include "domainadaptor.h"
 #include "log.h"
 #include "storage.h"
 #include "definitions.h"

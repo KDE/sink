@@ -8,6 +8,7 @@
 #include <common/domainadaptor.h>
 #include <common/resultprovider.h>
 #include <common/synclistresult.h>
+#include <common/definitions.h>
 
 #include "event_generated.h"
 
