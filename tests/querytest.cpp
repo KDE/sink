@@ -145,6 +145,7 @@ private Q_SLOTS:
         query.resources << "org.kde.dummy.instance1";
         query.syncOnDemand = false;
         query.processAll = true;
+        query.parentProperty = "parent";
 
         //Ensure all local data is processed
         Akonadi2::Store::synchronize(query).exec().waitForFinished();

@@ -350,12 +350,12 @@ template<class DomainType>
 qint64 GenericFacade<DomainType>::executeInitialQuery(const Akonadi2::Query &query, const typename DomainType::Ptr &parent, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
 {
     auto modifiedQuery = query;
-    if (parent) {
+    if (parent && !query.parentProperty.isEmpty()) {
         Trace() << "Running initial query for parent:" << parent->identifier();
-        modifiedQuery.propertyFilter.insert("parent", parent->identifier());
+        modifiedQuery.propertyFilter.insert(query.parentProperty, parent->identifier());
     } else {
         Trace() << "Running initial query for toplevel";
-        modifiedQuery.propertyFilter.insert("parent", QVariant());
+        modifiedQuery.propertyFilter.insert(query.parentProperty, QVariant());
     }
     return load(modifiedQuery, [&](Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
         return loadInitialResultSet(modifiedQuery, transaction, remainingFilters);
@@ -365,6 +365,5 @@ qint64 GenericFacade<DomainType>::executeInitialQuery(const Akonadi2::Query &que
 template class Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Folder>;
 template class Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Mail>;
 template class Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>;
-// template class Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::AkonadiResource>;
 
 #include "facade.moc"

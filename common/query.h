@@ -53,6 +53,7 @@ public:
     QHash<QByteArray, QVariant> propertyFilter;
     //Properties to retrieve
     QSet<QByteArray> requestedProperties;
+    QByteArray parentProperty;
     bool syncOnDemand;
     bool processAll;
     //If live query is false, this query will not continuously be updated
