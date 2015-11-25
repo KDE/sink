@@ -186,15 +186,15 @@ void GenericFacade<DomainType>::replaySet(ResultSet &resultSet, Akonadi2::Result
     while (resultSet.next([&resultProvider](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
         switch (operation) {
         case Akonadi2::Operation_Creation:
-            Trace() << "Got creation";
+            // Trace() << "Got creation";
             resultProvider.add(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value).template staticCast<DomainType>());
             break;
         case Akonadi2::Operation_Modification:
-            Trace() << "Got modification";
+            // Trace() << "Got modification";
             resultProvider.modify(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value).template staticCast<DomainType>());
             break;
         case Akonadi2::Operation_Removal:
-            Trace() << "Got removal";
+            // Trace() << "Got removal";
             resultProvider.remove(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value).template staticCast<DomainType>());
             break;
         }

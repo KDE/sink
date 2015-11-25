@@ -124,7 +124,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
         return;
     }
     auto parent = createIndexFromId(id);
-    qDebug() << "Added entity " << childId << value->identifier() << id;
+    // qDebug() << "Added entity " << childId << value->identifier() << id;
     const auto keys = mTree[id];
     int index = 0;
     for (; index < keys.size(); index++) {
@@ -136,13 +136,13 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
         Warning() << "Entity already in model " << value->identifier();
         return;
     }
-    qDebug() << "Inserting rows " << index << parent;
+    // qDebug() << "Inserting rows " << index << parent;
     beginInsertRows(QModelIndex(), index, index);
     mEntities.insert(childId, value);
     mTree[id].insert(index, childId);
     mParents.insert(childId, id);
     endInsertRows();
-    qDebug() << "Inserted rows " << mTree[id].size();
+    // qDebug() << "Inserted rows " << mTree[id].size();
 }
 
 
