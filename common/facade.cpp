@@ -329,7 +329,7 @@ qint64 GenericFacade<DomainType>::load(const Akonadi2::Query &query, const std::
 
     QSet<QByteArray> remainingFilters;
     auto resultSet = baseSetRetriever(transaction, remainingFilters);
-    auto filteredSet = filterSet(resultSet, getFilter(remainingFilters, query), transaction, false);
+    auto filteredSet = filterSet(resultSet, getFilter(remainingFilters, query), transaction, initialQuery);
     replaySet(filteredSet, resultProvider);
     resultProvider.setRevision(Akonadi2::Storage::maxRevision(transaction));
     return Akonadi2::Storage::maxRevision(transaction);
@@ -343,7 +343,7 @@ qint64 GenericFacade<DomainType>::executeIncrementalQuery(const Akonadi2::Query 
     Trace() << "Running incremental query " << baseRevision;
     return load(query, [&](Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
         return loadIncrementalResultSet(baseRevision, query, transaction, remainingFilters);
-    }, resultProvider);
+    }, resultProvider, false);
 }
 
 template<class DomainType>
@@ -361,7 +361,7 @@ qint64 GenericFacade<DomainType>::executeInitialQuery(const Akonadi2::Query &que
     }
     return load(modifiedQuery, [&](Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
         return loadInitialResultSet(modifiedQuery, transaction, remainingFilters);
-    }, resultProvider);
+    }, resultProvider, true);
 }
 
 template class Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Folder>;
