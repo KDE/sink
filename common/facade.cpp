@@ -350,12 +350,14 @@ template<class DomainType>
 qint64 GenericFacade<DomainType>::executeInitialQuery(const Akonadi2::Query &query, const typename DomainType::Ptr &parent, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
 {
     auto modifiedQuery = query;
-    if (parent && !query.parentProperty.isEmpty()) {
-        Trace() << "Running initial query for parent:" << parent->identifier();
-        modifiedQuery.propertyFilter.insert(query.parentProperty, parent->identifier());
-    } else {
-        Trace() << "Running initial query for toplevel";
-        modifiedQuery.propertyFilter.insert(query.parentProperty, QVariant());
+    if (!query.parentProperty.isEmpty()) {
+        if (parent) {
+            Trace() << "Running initial query for parent:" << parent->identifier();
+            modifiedQuery.propertyFilter.insert(query.parentProperty, parent->identifier());
+        } else {
+            Trace() << "Running initial query for toplevel";
+            modifiedQuery.propertyFilter.insert(query.parentProperty, QVariant());
+        }
     }
     return load(modifiedQuery, [&](Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
         return loadInitialResultSet(modifiedQuery, transaction, remainingFilters);

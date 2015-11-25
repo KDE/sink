@@ -53,7 +53,7 @@ public:
     void setFetcher(const std::function<void(const Ptr &parent)> &fetcher);
 
 private:
-    static qint64 parentId(const Ptr &value);
+    qint64 parentId(const Ptr &value);
     QModelIndex createIndexFromId(const qint64 &id) const;
     void fetchEntities(const QModelIndex &parent);
 

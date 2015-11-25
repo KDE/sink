@@ -27,7 +27,8 @@
 template<class T, class Ptr>
 ModelResult<T, Ptr>::ModelResult(const Akonadi2::Query &query, const QList<QByteArray> &propertyColumns)
     :QAbstractItemModel(),
-    mPropertyColumns(propertyColumns)
+    mPropertyColumns(propertyColumns),
+    mQuery(query)
 {
 }
 
@@ -42,7 +43,10 @@ static qint64 getIdentifier(const QModelIndex &idx)
 template<class T, class Ptr>
 qint64 ModelResult<T, Ptr>::parentId(const Ptr &value)
 {
-    return qHash(value->getProperty("parent").toByteArray());
+    if (!mQuery.parentProperty.isEmpty()) {
+        return qHash(value->getProperty(mQuery.parentProperty).toByteArray());
+    }
+    return qHash(QByteArray());
 }
 
 template<class T, class Ptr>
