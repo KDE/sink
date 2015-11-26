@@ -10,6 +10,7 @@
 #include "synclistresult.h"
 #include "pipeline.h"
 #include "log.h"
+#include "resourceconfig.h"
 
 #include "event_generated.h"
 #include "entity_generated.h"
@@ -24,18 +25,20 @@
 class DummyResourceBenchmark : public QObject
 {
     Q_OBJECT
+private:
+    int num;
 private Q_SLOTS:
     void initTestCase()
     {
         Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Warning);
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
+        ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
+        num = 5000;
     }
 
     void cleanup()
     {
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
     }
 
     static KAsync::Job<void> waitForCompletion(QList<KAsync::Future<void> > &futures)
@@ -68,11 +71,12 @@ private Q_SLOTS:
         });
     }
 
-    void testWriteToFacadeAndQueryByUid()
+    void testWriteToFacade()
     {
+        DummyResource::removeFromDisk("org.kde.dummy.instance1");
+
         QTime time;
         time.start();
-        int num = 100;
         QList<KAsync::Future<void> > waitCondition;
         for (int i = 0; i < num; i++) {
             Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
@@ -90,13 +94,17 @@ private Q_SLOTS:
             query.resources << "org.kde.dummy.instance1";
             query.syncOnDemand = false;
             query.processAll = true;
-
-            query.propertyFilter.insert("uid", "nonexistantuid");
-            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-            result.exec();
+            Akonadi2::Store::synchronize(query).exec().waitForFinished();
         }
         auto allProcessedTime = time.elapsed();
+        qDebug() << "Append to messagequeue " << appendTime;
+        qDebug() << "All processed: " << allProcessedTime << "/sec " << num*1000/allProcessedTime;
+    }
 
+    void testQueryByUid()
+    {
+        QTime time;
+        time.start();
         //Measure query
         {
             time.start();
@@ -106,20 +114,18 @@ private Q_SLOTS:
             query.processAll = false;
 
             query.propertyFilter.insert("uid", "testuid");
-            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-            result.exec();
-            QCOMPARE(result.size(), num);
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+            model->fetchMore(QModelIndex());
+            QTRY_COMPARE(model->rowCount(QModelIndex()), num);
         }
-        qDebug() << "Append to messagequeue " << appendTime;
-        qDebug() << "All processed: " << allProcessedTime << "/sec " << num*1000/allProcessedTime;
         qDebug() << "Query Time: " << time.elapsed() << "/sec " << num*1000/time.elapsed();
     }
 
     void testWriteInProcess()
     {
+        DummyResource::removeFromDisk("org.kde.dummy.instance1");
         QTime time;
         time.start();
-        int num = 100;
 
         auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.dummy.instance1");
         DummyResource resource("org.kde.dummy.instance1", pipeline);
@@ -190,6 +196,12 @@ private Q_SLOTS:
             auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
             Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
         }
+    }
+
+    //This allows to run individual parts without doing a cleanup, but still cleaning up normally
+    void testCleanupForCompleteTest()
+    {
+        DummyResource::removeFromDisk("org.kde.dummy.instance1");
     }
 };
 
