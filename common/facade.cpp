@@ -203,16 +203,15 @@ void GenericFacade<DomainType>::replaySet(ResultSet &resultSet, Akonadi2::Result
 }
 
 template<class DomainType>
-void GenericFacade<DomainType>::readEntity(const Akonadi2::Storage::Transaction &transaction, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback)
+void GenericFacade<DomainType>::readEntity(const Akonadi2::Storage::NamedDatabase &db, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback)
 {
-    const auto bufferType = bufferTypeForDomainType();
     //This only works for a 1:1 mapping of resource to domain types.
     //Not i.e. for tags that are stored as flags in each entity of an imap store.
     //additional properties that don't have a 1:1 mapping (such as separately stored tags),
     //could be added to the adaptor.
     //
     // Akonadi2::Storage::getLatest(transaction, bufferTye, key);
-    transaction.openDatabase(bufferType + ".main").findLatest(key, [=](const QByteArray &key, const QByteArray &value) -> bool {
+    db.findLatest(key, [=](const QByteArray &key, const QByteArray &value) -> bool {
         Akonadi2::EntityBuffer buffer(value.data(), value.size());
         const Akonadi2::Entity &entity = buffer.entity();
         const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
@@ -270,15 +269,15 @@ ResultSet GenericFacade<DomainType>::loadIncrementalResultSet(qint64 baseRevisio
 }
 
 template<class DomainType>
-ResultSet GenericFacade<DomainType>::filterSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::Transaction &transaction, bool initialQuery)
+ResultSet GenericFacade<DomainType>::filterSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::NamedDatabase &db, bool initialQuery)
 {
     auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
 
     //Read through the source values and return whatever matches the filter
-    std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)>)> generator = [this, resultSetPtr, &transaction, filter, initialQuery](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> callback) -> bool {
+    std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)>)> generator = [this, resultSetPtr, &db, filter, initialQuery](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> callback) -> bool {
         while (resultSetPtr->next()) {
             //readEntity is only necessary if we actually want to filter or know the operation type (but not a big deal if we do it always I guess)
-            readEntity(transaction, resultSetPtr->id(), [this, filter, callback, initialQuery](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Akonadi2::Operation operation) {
+            readEntity(db, resultSetPtr->id(), [this, filter, callback, initialQuery](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Akonadi2::Operation operation) {
                 //Always remove removals, they probably don't match due to non-available properties
                 if (filter(domainObject) || operation == Akonadi2::Operation_Removal) {
                     if (initialQuery) {
@@ -319,17 +318,18 @@ std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr
 }
 
 template<class DomainType>
-qint64 GenericFacade<DomainType>::load(const Akonadi2::Query &query, const std::function<ResultSet(Akonadi2::Storage::Transaction &, QSet<QByteArray> &)> &baseSetRetriever, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
+qint64 GenericFacade<DomainType>::load(const Akonadi2::Query &query, const std::function<ResultSet(Akonadi2::Storage::Transaction &, QSet<QByteArray> &)> &baseSetRetriever, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery)
 {
     Akonadi2::Storage storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier);
     storage.setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
         Warning() << "Error during query: " << error.store << error.message;
     });
     auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
+    auto db = transaction.openDatabase(bufferTypeForDomainType() + ".main");
 
     QSet<QByteArray> remainingFilters;
     auto resultSet = baseSetRetriever(transaction, remainingFilters);
-    auto filteredSet = filterSet(resultSet, getFilter(remainingFilters, query), transaction, initialQuery);
+    auto filteredSet = filterSet(resultSet, getFilter(remainingFilters, query), db, initialQuery);
     replaySet(filteredSet, resultProvider);
     resultProvider.setRevision(Akonadi2::Storage::maxRevision(transaction));
     return Akonadi2::Storage::maxRevision(transaction);
