@@ -23,6 +23,7 @@
 #include <Async/Async>
 #include <QByteArray>
 #include <QSharedPointer>
+#include <QPair>
 #include "applicationdomaintype.h"
 #include "resultprovider.h"
 
@@ -42,10 +43,32 @@ class StoreFacade {
 public:
     virtual ~StoreFacade(){};
     QByteArray type() const { return ApplicationDomain::getTypeName<DomainType>(); }
+
+    /**
+     * Create an entity in the store.
+     *
+     * The job returns succefully once the task has been successfully placed in the queue
+     */
     virtual KAsync::Job<void> create(const DomainType &domainObject) = 0;
+
+    /**
+     * Modify an entity in the store.
+     *
+     * The job returns succefully once the task has been successfully placed in the queue
+     */
     virtual KAsync::Job<void> modify(const DomainType &domainObject) = 0;
+
+    /**
+     * Remove an entity from the store.
+     *
+     * The job returns succefully once the task has been successfully placed in the queue
+     */
     virtual KAsync::Job<void> remove(const DomainType &domainObject) = 0;
-    virtual KAsync::Job<void> load(const Query &query, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider) = 0;
+
+    /**
+     * Load entities from the store.
+     */
+    virtual QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr > load(const Query &query) = 0;
 };
 
 template<class DomainType>
@@ -67,9 +90,9 @@ public:
         return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
-    KAsync::Job<void> load(const Query &query, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
+    QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr > load(const Query &query)
     {
-        return KAsync::error<void>(-1, "Failed to create a facade");
+        return qMakePair(KAsync::null<void>(), typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr());
     }
 };
 

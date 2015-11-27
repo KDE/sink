@@ -34,6 +34,7 @@
 #include "definitions.h"
 #include "resourceconfig.h"
 #include "facadefactory.h"
+#include "modelresult.h"
 #include "log.h"
 
 #define ASYNCINTHREAD
@@ -100,38 +101,8 @@ template <class DomainType>
 QSharedPointer<ResultEmitter<typename DomainType::Ptr> > Store::load(Query query)
 {
     auto resultSet = QSharedPointer<ResultProvider<typename DomainType::Ptr> >::create();
-
-    //Execute the search in a thread.
-    //We must guarantee that the emitter is returned before the first result is emitted.
-    //The result provider must be threadsafe.
-    async::run([query, resultSet](){
-        QEventLoop eventLoop;
-        resultSet->onDone([&eventLoop](){
-            eventLoop.quit();
-        });
-        // Query all resources and aggregate results
-        KAsync::iterate(getResources(query.resources, ApplicationDomain::getTypeName<DomainType>()))
-        .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, KAsync::Future<void> &future) {
-            if (auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource)) {
-                facade->load(query, *resultSet).template then<void>([&future](){future.setFinished();}).exec();
-                //Keep the facade alive for the lifetime of the resultSet.
-                resultSet->setFacade(facade);
-            } else {
-                //Ignore the error and carry on
-                future.setFinished();
-            }
-        }).template then<void>([query, resultSet]() {
-            resultSet->initialResultSetComplete();
-            if (!query.liveQuery) {
-                resultSet->complete();
-            }
-        }).exec();
-
-        //Keep the thread alive until the result is ready
-        if (!resultSet->isDone()) {
-            eventLoop.exec();
-        }
-    });
+    qWarning() << "Main thread " << QThread::currentThreadId();
+    //FIXME remove
     return resultSet->emitter();
 }
 
@@ -139,27 +110,28 @@ template <class DomainType>
 QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 {
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr> >::create(query, query.requestedProperties.toList());
-    auto resultProvider = std::make_shared<ModelResultProvider<DomainType, typename DomainType::Ptr> >(model);
-    //Keep the resultprovider alive for as long as the model lives
-    model->setProperty("resultProvider", QVariant::fromValue(std::shared_ptr<void>(resultProvider)));
+
+    //* Client defines lifetime of model
+    //* The model lifetime defines the duration of live-queries
+    //* The facade needs to life for the duration of any calls being made (assuming we get rid of any internal callbacks
+    //* The emitter needs to live or the duration of query (respectively, the model)
+    //* The result provider needs to live for as long as results are provided (until the last thread exits).
 
     // Query all resources and aggregate results
     KAsync::iterate(getResources(query.resources, ApplicationDomain::getTypeName<DomainType>()))
-    .template each<void, QByteArray>([query, resultProvider](const QByteArray &resource, KAsync::Future<void> &future) {
+    .template each<void, QByteArray>([query, model](const QByteArray &resource, KAsync::Future<void> &future) {
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
         if (facade) {
-            facade->load(query, *resultProvider).template then<void>([&future](){future.setFinished();}).exec();
-            //Keep the facade alive for the lifetime of the resultSet.
-            //FIXME this would have to become a list
-            resultProvider->setFacade(facade);
+            Trace() << "Trying to fetch from resource";
+            auto result = facade->load(query);
+            auto emitter = result.second;
+            //TODO use aggregating emitter instead
+            model->setEmitter(emitter);
+            model->fetchMore(QModelIndex());
+            result.first.template then<void>([&future](){future.setFinished();}).exec();
         } else {
             //Ignore the error and carry on
             future.setFinished();
-        }
-    }).template then<void>([query, resultProvider]() {
-        resultProvider->initialResultSetComplete();
-        if (!query.liveQuery) {
-            resultProvider->complete();
         }
     }).exec();
 

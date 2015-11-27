@@ -20,12 +20,12 @@
 
 #pragma once
 
+#include <QThread>
 #include <functional>
 #include <memory>
 #include "threadboundary.h"
 #include "resultset.h"
 #include "log.h"
-#include "modelresult.h"
 
 using namespace async;
 
@@ -53,12 +53,7 @@ public:
     virtual void initialResultSetComplete() = 0;
     virtual void complete() = 0;
     virtual void clear() = 0;
-    virtual void setFetcher(const std::function<void(const T &parent)> &fetcher)
-    {
-    }
-
-    virtual void setFacade(const std::shared_ptr<void> &facade) = 0;
-    virtual void setQueryRunner(const QSharedPointer<QObject> &runner) = 0;
+    virtual void setFetcher(const std::function<void(const T &parent)> &fetcher) = 0;
 
     void setRevision(qint64 revision)
     {
@@ -72,101 +67,6 @@ public:
 
 private:
     qint64 mRevision;
-};
-
-template<class T, class Ptr>
-class ModelResultProvider : public ResultProviderInterface<Ptr> {
-public:
-    ModelResultProvider(QWeakPointer<ModelResult<T, Ptr> > model)
-        : ResultProviderInterface<Ptr>(),
-        mModel(model)
-    {
-
-    }
-
-    void add(const Ptr &value)
-    {
-        if (auto model = mModel.toStrongRef()) {
-            model->add(value);
-        }
-    }
-
-    void modify(const Ptr &value)
-    {
-        if (auto model = mModel.toStrongRef()) {
-            model->modify(value);
-        }
-    }
-
-    void remove(const Ptr &value)
-    {
-        if (auto model = mModel.toStrongRef()) {
-            model->remove(value);
-        }
-    }
-
-    void initialResultSetComplete()
-    {
-        // mResultEmitter->initialResultSetComplete();
-    }
-
-    void complete()
-    {
-        // mResultEmitter->complete();
-    }
-
-    void clear()
-    {
-        // mResultEmitter->clear();
-    }
-
-    /**
-     * For lifetimemanagement only.
-     * We keep the runner alive as long as the result provider exists.
-     */
-    void setFacade(const std::shared_ptr<void> &facade)
-    {
-        mFacade = facade;
-    }
-
-    void onDone(const std::function<void()> &callback)
-    {
-        mOnDoneCallback = callback;
-    }
-
-    bool isDone() const
-    {
-        //The existance of the emitter currently defines wether we're done or not.
-        // return mResultEmitter.toStrongRef().isNull();
-        return true;
-    }
-
-    void setFetcher(const std::function<void(const Ptr &parent)> &fetcher)
-    {
-        if (auto model = mModel.toStrongRef()) {
-            model->setFetcher(fetcher);
-        }
-    }
-
-    void setQueryRunner(const QSharedPointer<QObject> &runner)
-    {
-        mQueryRunner = runner;
-    }
-
-private:
-    void done()
-    {
-        qWarning() << "done";
-        if (mOnDoneCallback) {
-            mOnDoneCallback();
-            mOnDoneCallback = std::function<void()>();
-        }
-    }
-
-    QWeakPointer<ModelResult<T, Ptr> > mModel;
-    QSharedPointer<QObject> mQueryRunner;
-    std::shared_ptr<void> mFacade;
-    std::function<void()> mOnDoneCallback;
 };
 
 /*
@@ -204,6 +104,12 @@ private:
     }
 
 public:
+    typedef QSharedPointer<ResultProvider<T> > Ptr;
+
+    ~ResultProvider()
+    {
+    }
+
     //Called from worker thread
     void add(const T &value)
     {
@@ -261,28 +167,14 @@ public:
             //We have to go over a separate var and return that, otherwise we'd delete the emitter immediately again
             auto sharedPtr = QSharedPointer<ResultEmitter<T> >(new ResultEmitter<T>, [this](ResultEmitter<T> *emitter){ mThreadBoundary->callInMainThread([this]() {done();}); delete emitter; });
             mResultEmitter = sharedPtr;
+            sharedPtr->setFetcher([this](const T &parent) {
+                Q_ASSERT(mFetcher);
+                mFetcher(parent);
+            });
             return sharedPtr;
         }
 
         return mResultEmitter.toStrongRef();
-    }
-
-    /**
-     * For lifetimemanagement only.
-     * We keep the runner alive as long as the result provider exists.
-     */
-    void setQueryRunner(const QSharedPointer<QObject> &runner)
-    {
-        mQueryRunner = runner;
-    }
-
-    /**
-     * For lifetimemanagement only.
-     * We keep the runner alive as long as the result provider exists.
-     */
-    void setFacade(const std::shared_ptr<void> &facade)
-    {
-        mFacade = facade;
     }
 
     void onDone(const std::function<void()> &callback)
@@ -299,7 +191,7 @@ public:
 
     void setFetcher(const std::function<void(const T &parent)> &fetcher)
     {
-        fetcher(T());
+        mFetcher = fetcher;
     }
 
 private:
@@ -307,16 +199,17 @@ private:
     {
         qWarning() << "done";
         if (mOnDoneCallback) {
-            mOnDoneCallback();
+            auto callback = mOnDoneCallback;
             mOnDoneCallback = std::function<void()>();
+            //This may delete this object
+            callback();
         }
     }
 
     QWeakPointer<ResultEmitter<T> > mResultEmitter;
-    QSharedPointer<QObject> mQueryRunner;
-    std::shared_ptr<void> mFacade;
     std::function<void()> mOnDoneCallback;
     QSharedPointer<ThreadBoundary> mThreadBoundary;
+    std::function<void(const T &parent)> mFetcher;
 };
 
 /*
@@ -334,6 +227,8 @@ private:
 template<class DomainType>
 class ResultEmitter {
 public:
+    typedef QSharedPointer<ResultEmitter<DomainType> > Ptr;
+
     void onAdded(const std::function<void(const DomainType&)> &handler)
     {
         addHandler = handler;
@@ -393,6 +288,13 @@ public:
     {
         clearHandler();
     }
+
+    void setFetcher(const std::function<void(const DomainType &parent)> &fetcher)
+    {
+        mFetcher = fetcher;
+    }
+
+    std::function<void(const DomainType &parent)> mFetcher;
 
 private:
     friend class ResultProvider<DomainType>;

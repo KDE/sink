@@ -7,7 +7,6 @@
 #include "clientapi.h"
 #include "commands.h"
 #include "entitybuffer.h"
-#include "synclistresult.h"
 #include "pipeline.h"
 #include "log.h"
 #include "resourceconfig.h"
@@ -115,7 +114,6 @@ private Q_SLOTS:
 
             query.propertyFilter.insert("uid", "testuid");
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
-            model->fetchMore(QModelIndex());
             QTRY_COMPARE(model->rowCount(QModelIndex()), num);
         }
         qDebug() << "Query Time: " << time.elapsed() << "/sec " << num*1000/time.elapsed();

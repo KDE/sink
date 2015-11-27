@@ -4,7 +4,6 @@
 
 #include "clientapi.h"
 #include "facade.h"
-#include "synclistresult.h"
 #include "resourceconfig.h"
 #include "modelresult.h"
 #include "resultprovider.h"
@@ -28,22 +27,35 @@ public:
     KAsync::Job<void> create(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
     KAsync::Job<void> modify(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
     KAsync::Job<void> remove(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
-    KAsync::Job<void> load(const Akonadi2::Query &query, Akonadi2::ResultProviderInterface<typename T::Ptr> &resultProvider) Q_DECL_OVERRIDE
+    QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<typename T::Ptr>::Ptr > load(const Akonadi2::Query &query) Q_DECL_OVERRIDE
     {
-        capturedResultProvider = &resultProvider;
-        resultProvider.setFetcher([query, &resultProvider, this](const typename T::Ptr &) {
-             for (const auto &res : results) {
+        // capturedResultProvider = &resultProvider;
+        Trace() << "lkjsdflkjsdfljsdfljsdlfj";
+
+        auto resultProvider = new Akonadi2::ResultProvider<typename T::Ptr>();
+        resultProvider->onDone([resultProvider]() {
+            Trace() << "Result provider is done";
+            delete resultProvider;
+        });
+        //We have to do it this way, otherwise we're not setting the fetcher right
+        auto emitter = resultProvider->emitter();
+
+        resultProvider->setFetcher([query, resultProvider, this](const typename T::Ptr &) {
+            Trace() << "Running the fetcher";
+            for (const auto &res : results) {
                 qDebug() << "Parent filter " << query.propertyFilter.value("parent").toByteArray() << res->identifier();
                 if (!query.propertyFilter.contains("parent") || query.propertyFilter.value("parent").toByteArray() == res->getProperty("parent").toByteArray()) {
-                    resultProvider.add(res);
+                    resultProvider->add(res);
                 }
             }
         });
-        return KAsync::null<void>();
+        auto job = KAsync::start<void>([query, resultProvider]() {
+        });
+        return qMakePair(job, emitter);
     }
 
     QList<typename T::Ptr> results;
-    Akonadi2::ResultProviderInterface<typename T::Ptr> *capturedResultProvider;
+    // Akonadi2::ResultProviderInterface<typename T::Ptr> *capturedResultProvider;
 };
 
 
@@ -61,24 +73,25 @@ private Q_SLOTS:
     {
         Akonadi2::FacadeFactory::instance().resetFactory();
         ResourceConfig::clear();
+        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
     }
 
-    void testLoad()
-    {
-        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Event>::registerFacade();
-        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
-
-        Akonadi2::Query query;
-        query.resources << "dummyresource.instance1";
-        query.liveQuery = false;
-
-        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-        result.exec();
-        QCOMPARE(result.size(), 1);
-    }
-
-    //The query provider is supposed to delete itself
+    // void testLoad()
+    // {
+    //     auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Event>::registerFacade();
+    //     facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+    //     ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+    //
+    //     Akonadi2::Query query;
+    //     query.resources << "dummyresource.instance1";
+    //     query.liveQuery = false;
+    //
+    //     async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
+    //     result.exec();
+    //     QCOMPARE(result.size(), 1);
+    // }
+    //
+    // //The query provider is supposed to delete itself
     void testQueryLifetime()
     {
         auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Event>::registerFacade();
@@ -90,12 +103,12 @@ private Q_SLOTS:
         query.liveQuery = true;
 
         {
-            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-            result.exec();
-            QCOMPARE(result.size(), 1);
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         }
         //It's running in a separate thread, so we have to wait for a moment until the query provider deletes itself.
         // QTRY_VERIFY(!facade->capturedResultProvider);
+        QTest::qWait(300);
     }
 
     //TODO: This test doesn't belong to this testsuite
@@ -112,18 +125,22 @@ private Q_SLOTS:
         {
             Akonadi2::Query query;
             query.propertyFilter.insert("type", "dummyresource");
-            async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
-            result.exec();
-            QCOMPARE(result.size(), 1);
+            // async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::AkonadiResource>(query);
+            // result.exec();
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         }
 
         Akonadi2::Store::remove(res).exec().waitForFinished();
         {
             Akonadi2::Query query;
             query.propertyFilter.insert("type", "dummyresource");
-            async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
-            result.exec();
-            QCOMPARE(result.size(), 0);
+            // async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::AkonadiResource>(query);
+            // result.exec();
+            // QCOMPARE(result.size(), 0);
+            // QTRY_COMPARE(result.size(), 0);
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
         }
     }
 
@@ -138,7 +155,6 @@ private Q_SLOTS:
         query.liveQuery = false;
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-        model->fetchMore(QModelIndex());
         QTRY_COMPARE(model->rowCount(), 1);
     }
 
@@ -155,9 +171,9 @@ private Q_SLOTS:
         Akonadi2::Query query;
         query.resources << "dummyresource.instance1";
         query.liveQuery = false;
+        query.parentProperty = "parent";
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-        model->fetchMore(QModelIndex());
         QTRY_COMPARE(model->rowCount(), 1);
         model->fetchMore(model->index(0, 0));
         QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);

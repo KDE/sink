@@ -183,6 +183,28 @@ void ModelResult<T, Ptr>::setFetcher(const std::function<void(const Ptr &parent)
 }
 
 template<class T, class Ptr>
+void ModelResult<T, Ptr>::setEmitter(const typename Akonadi2::ResultEmitter<Ptr>::Ptr &emitter)
+{
+    setFetcher(emitter->mFetcher);
+    emitter->onAdded([this](const Ptr &value) {
+        this->add(value);
+    });
+    emitter->onModified([this](const Ptr &value) {
+        this->modify(value);
+    });
+    emitter->onRemoved([this](const Ptr &value) {
+        this->remove(value);
+    });
+    emitter->onInitialResultSetComplete([this]() {
+    });
+    emitter->onComplete([this]() {
+    });
+    emitter->onClear([this]() {
+    });
+    mEmitter = emitter;
+}
+
+template<class T, class Ptr>
 void ModelResult<T, Ptr>::modify(const Ptr &value)
 {
     auto childId = qHash(value->identifier());

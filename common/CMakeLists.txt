@@ -26,6 +26,7 @@ set(command_SRCS
     resource.cpp
     genericresource.cpp
     resourceaccess.cpp
+    queryrunner.cpp
     listener.cpp
     storage_common.cpp
     threadboundary.cpp

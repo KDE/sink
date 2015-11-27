@@ -37,6 +37,8 @@ class ResourceAccessInterface : public QObject
 {
     Q_OBJECT
 public:
+    typedef QSharedPointer<ResourceAccessInterface> Ptr;
+
     ResourceAccessInterface() {}
     virtual ~ResourceAccessInterface() {}
     virtual KAsync::Job<void> sendCommand(int commandId) = 0;

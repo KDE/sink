@@ -23,19 +23,22 @@
 #include <QAbstractItemModel>
 #include <QModelIndex>
 #include <QDebug>
+#include <QSharedPointer>
 #include <functional>
 #include "query.h"
+#include "resultprovider.h"
 
 template<class T, class Ptr>
 class ModelResult : public QAbstractItemModel
 {
 public:
-
     enum Roles {
         DomainObjectRole = Qt::UserRole + 1
     };
 
     ModelResult(const Akonadi2::Query &query, const QList<QByteArray> &propertyColumns);
+
+    void setEmitter(const typename Akonadi2::ResultEmitter<Ptr>::Ptr &);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
@@ -65,5 +68,6 @@ private:
     QList<QByteArray> mPropertyColumns;
     Akonadi2::Query mQuery;
     std::function<void(const Ptr &)> loadEntities;
+    typename Akonadi2::ResultEmitter<Ptr>::Ptr mEmitter;
 };
 
