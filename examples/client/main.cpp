@@ -68,7 +68,7 @@ public:
         auto removeButton = new QPushButton(this);
         removeButton->setText("Remove");
         QObject::connect(removeButton, &QPushButton::pressed, [modelView]() {
-            for (auto index :modelView->selectionModel()->selectedIndexes()) {
+            for (auto index : modelView->selectionModel()->selectedIndexes()) {
                 auto object = index.data(Akonadi2::Store::DomainObjectRole).value<typename T::Ptr>();
                 Akonadi2::Store::remove(*object).exec();
             }
@@ -93,6 +93,8 @@ int main(int argc, char *argv[])
                                      QObject::tr("A resource to connect to"));
     cliOptions.addOption(QCommandLineOption("clear"));
     cliOptions.addOption(QCommandLineOption("debuglevel"));
+    cliOptions.addOption(QCommandLineOption("list"));
+    cliOptions.addOption(QCommandLineOption("count"));
     cliOptions.addHelpOption();
     cliOptions.process(app);
     QStringList resources = cliOptions.positionalArguments();
@@ -124,11 +126,27 @@ int main(int argc, char *argv[])
     }
     query.syncOnDemand = false;
     query.processAll = false;
-    query.liveQuery = true;
     query.requestedProperties << "name";
 
     auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-    auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Folder> >::create(model.data());
-
-    return app.exec();
+    if (cliOptions.isSet("list")) {
+        query.liveQuery = false;
+        qDebug() << "Listing";
+        QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
+            for (int i = start; i <= end; i++) {
+                qDebug() << model->data(model->index(i, 0, index)).toString();
+            }
+        });
+        model->fetchMore(QModelIndex());
+        return app.exec();
+    } else if (cliOptions.isSet("count")) {
+        query.liveQuery = false;
+        model->fetchMore(QModelIndex());
+        qDebug() << "Counted results " << model->rowCount(QModelIndex());
+    } else {
+        query.liveQuery = true;
+        auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Folder> >::create(model.data());
+        return app.exec();
+    }
+    return 0;
 }
