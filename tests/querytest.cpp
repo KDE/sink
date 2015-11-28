@@ -4,7 +4,6 @@
 
 #include "dummyresource/resourcefactory.h"
 #include "clientapi.h"
-#include "synclistresult.h"
 #include "commands.h"
 #include "resourceconfig.h"
 #include "log.h"
@@ -129,7 +128,6 @@ private Q_SLOTS:
             Akonadi2::Store::synchronize(query).exec().waitForFinished();
 
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-            model->fetchMore(QModelIndex());
             QTRY_COMPARE(model->rowCount(), 1);
 
             auto folderEntity = model->index(0, 0).data(ModelResult<Akonadi2::ApplicationDomain::Folder, Akonadi2::ApplicationDomain::Folder::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();

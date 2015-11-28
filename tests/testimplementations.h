@@ -23,7 +23,6 @@
 
 #include <common/domainadaptor.h>
 #include <common/resultprovider.h>
-#include <common/synclistresult.h>
 #include <common/resourceaccess.h>
 #include <common/facade.h>
 #include <common/genericresource.h>

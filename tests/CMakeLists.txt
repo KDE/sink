@@ -37,7 +37,7 @@ manual_tests (
 auto_tests (
     clientapitest
     storagetest
-    # dummyresourcetest
+    dummyresourcetest
     domainadaptortest
     messagequeuetest
     indextest
@@ -48,7 +48,7 @@ auto_tests (
     querytest
 )
 
-# target_link_libraries(dummyresourcetest akonadi2_resource_dummy)
+target_link_libraries(dummyresourcetest akonadi2_resource_dummy)
 target_link_libraries(dummyresourcebenchmark akonadi2_resource_dummy)
 target_link_libraries(querytest akonadi2_resource_dummy)
 
