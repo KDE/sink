@@ -77,7 +77,6 @@ public:
         topLayout->addWidget(titleLabel);
         topLayout->addWidget(syncButton);
         topLayout->addWidget(modelView, 10);
-        model->fetchMore(QModelIndex());
 
         show();
     }
@@ -127,6 +126,7 @@ int main(int argc, char *argv[])
     query.syncOnDemand = false;
     query.processAll = false;
     query.requestedProperties << "name";
+    query.liveQuery = true;
 
     auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
     if (cliOptions.isSet("list")) {
@@ -137,11 +137,9 @@ int main(int argc, char *argv[])
                 qDebug() << model->data(model->index(i, 0, index)).toString();
             }
         });
-        model->fetchMore(QModelIndex());
         return app.exec();
     } else if (cliOptions.isSet("count")) {
         query.liveQuery = false;
-        model->fetchMore(QModelIndex());
         qDebug() << "Counted results " << model->rowCount(QModelIndex());
     } else {
         query.liveQuery = true;

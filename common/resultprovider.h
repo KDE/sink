@@ -106,7 +106,7 @@ private:
 public:
     typedef QSharedPointer<ResultProvider<T> > Ptr;
 
-    ~ResultProvider()
+    virtual ~ResultProvider()
     {
     }
 

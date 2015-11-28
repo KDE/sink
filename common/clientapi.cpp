@@ -41,7 +41,7 @@
 
 namespace async
 {
-    void run(const std::function<void()> &runner) {
+    static void run(const std::function<void()> &runner) {
         auto timer = new QTimer();
         timer->setSingleShot(true);
         QObject::connect(timer, &QTimer::timeout, [runner, timer]() {
@@ -95,15 +95,6 @@ QList<QByteArray> Store::getResources(const QList<QByteArray> &resourceFilter, c
     }
     qWarning() << "Found resources: " << resources;
     return resources;
-}
-
-template <class DomainType>
-QSharedPointer<ResultEmitter<typename DomainType::Ptr> > Store::load(Query query)
-{
-    auto resultSet = QSharedPointer<ResultProvider<typename DomainType::Ptr> >::create();
-    qWarning() << "Main thread " << QThread::currentThreadId();
-    //FIXME remove
-    return resultSet->emitter();
 }
 
 template <class DomainType>
@@ -213,7 +204,6 @@ KAsync::Job<void> Store::synchronize(const Akonadi2::Query &query)
 #define REGISTER_TYPE(T) template KAsync::Job<void> Store::remove<T>(const T &domainObject); \
     template KAsync::Job<void> Store::create<T>(const T &domainObject); \
     template KAsync::Job<void> Store::modify<T>(const T &domainObject); \
-    template QSharedPointer<ResultEmitter<typename T::Ptr> > Store::load<T>(Query query); \
     template QSharedPointer<QAbstractItemModel> Store::loadModel<T>(Query query); \
 
 REGISTER_TYPE(ApplicationDomain::Event);

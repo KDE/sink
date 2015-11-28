@@ -21,6 +21,7 @@
 #include <QtConcurrent/QtConcurrentRun>
 #include <QFuture>
 #include <QFutureWatcher>
+#include <QTime>
 #include "commands.h"
 #include "log.h"
 #include "storage.h"
@@ -45,7 +46,7 @@ static inline ResultSet fullScan(const Akonadi2::Storage::Transaction &transacti
         qWarning() << "Error during query: " << error.message;
     });
 
-    Trace() << "Full scan found " << keys.size() << " results";
+    Trace() << "Full scan on " << bufferType << " found " << keys.size() << " results";
     return ResultSet(keys);
 }
 
@@ -94,6 +95,12 @@ QueryRunner<DomainType>::QueryRunner(const Akonadi2::Query &query, const Akonadi
         mResourceAccess->open();
         QObject::connect(mResourceAccess.data(), &Akonadi2::ResourceAccess::revisionChanged, this, &QueryRunner::revisionChanged);
     }
+}
+
+template<class DomainType>
+QueryRunner<DomainType>::~QueryRunner()
+{
+    Trace() << "Stopped query";
 }
 
 template<class DomainType>
@@ -202,7 +209,6 @@ ResultSet QueryRunner<DomainType>::filterSet(const ResultSet &resultSet, const s
             readEntity(db, resultSetPtr->id(), [this, filter, callback, initialQuery](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Akonadi2::Operation operation) {
                 //Always remove removals, they probably don't match due to non-available properties
                 if (filter(domainObject) || operation == Akonadi2::Operation_Removal) {
-                    Trace() << "entity is not filtered" << initialQuery;
                     if (initialQuery) {
                         //We're not interested in removals during the initial query
                         if (operation != Akonadi2::Operation_Removal) {
@@ -262,16 +268,24 @@ qint64 QueryRunner<DomainType>::load(const Akonadi2::Query &query, const std::fu
 template<class DomainType>
 qint64 QueryRunner<DomainType>::executeIncrementalQuery(const Akonadi2::Query &query, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
 {
+    QTime time;
+    time.start();
+
     const qint64 baseRevision = resultProvider.revision() + 1;
     Trace() << "Running incremental query " << baseRevision;
-    return load(query, [&](Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
+    auto revision = load(query, [&](Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
         return loadIncrementalResultSet(baseRevision, query, transaction, remainingFilters);
     }, resultProvider, false);
+    Trace() << "Incremental query took: " << time.elapsed() << " ms";
+    return revision;
 }
 
 template<class DomainType>
 qint64 QueryRunner<DomainType>::executeInitialQuery(const Akonadi2::Query &query, const typename DomainType::Ptr &parent, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
 {
+    QTime time;
+    time.start();
+
     auto modifiedQuery = query;
     if (!query.parentProperty.isEmpty()) {
         if (parent) {
@@ -282,9 +296,11 @@ qint64 QueryRunner<DomainType>::executeInitialQuery(const Akonadi2::Query &query
             modifiedQuery.propertyFilter.insert(query.parentProperty, QVariant());
         }
     }
-    return load(modifiedQuery, [&](Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
+    auto revision = load(modifiedQuery, [&](Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
         return loadInitialResultSet(modifiedQuery, transaction, remainingFilters);
     }, resultProvider, true);
+    Trace() << "Initial query took: " << time.elapsed() << " ms";
+    return revision;
 }
 
 template class QueryRunner<Akonadi2::ApplicationDomain::Folder>;

@@ -141,7 +141,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
         return;
     }
     // qDebug() << "Inserting rows " << index << parent;
-    beginInsertRows(QModelIndex(), index, index);
+    beginInsertRows(parent, index, index);
     mEntities.insert(childId, value);
     mTree[id].insert(index, childId);
     mParents.insert(childId, id);

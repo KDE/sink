@@ -33,12 +33,6 @@ Q_DECLARE_METATYPE(std::shared_ptr<void>);
 
 class QAbstractItemModel;
 
-namespace async {
-    //This should abstract if we execute from eventloop or in thread.
-    //It supposed to allow the caller to finish the current method before executing the runner.
-    void run(const std::function<void()> &runner);
-}
-
 namespace Akonadi2 {
 
 using namespace async;
@@ -53,12 +47,6 @@ private:
 public:
     static QString storageLocation();
     static QByteArray resourceName(const QByteArray &instanceIdentifier);
-
-    /**
-     * Asynchronusly load a dataset
-     */
-    template <class DomainType>
-    static QSharedPointer<ResultEmitter<typename DomainType::Ptr> > load(Query query);
 
     enum Roles {
         DomainObjectRole = Qt::UserRole + 1 //Must be the same as in ModelResult

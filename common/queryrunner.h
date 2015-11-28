@@ -79,6 +79,7 @@ class QueryRunner : public QueryRunnerBase
 {
 public:
     QueryRunner(const Akonadi2::Query &query, const Akonadi2::ResourceAccessInterface::Ptr &, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &, const QByteArray &bufferType);
+    virtual ~QueryRunner();
 
     typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
 
