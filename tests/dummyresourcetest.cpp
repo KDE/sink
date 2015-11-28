@@ -70,7 +70,7 @@ private Q_SLOTS:
         query.propertyFilter.insert("uid", "testuid");
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-        auto value = model->index(0, 0, QModelIndex()).data(ModelResult<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Event::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
     }
 
@@ -97,7 +97,7 @@ private Q_SLOTS:
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-        auto value = model->index(0, 0, QModelIndex()).data(ModelResult<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Event::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
 
         qDebug() << value->getProperty("uid").toByteArray();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
@@ -127,7 +127,7 @@ private Q_SLOTS:
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-        auto value = model->index(0, 0, QModelIndex()).data(ModelResult<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Event::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
 
         qDebug() << value->getProperty("uid").toByteArray();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid2"));
@@ -160,7 +160,7 @@ private Q_SLOTS:
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
-        auto value = model->index(0, 0, QModelIndex()).data(ModelResult<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Event::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
 
         QVERIFY(!value->getProperty("summary").toString().isEmpty());
         qDebug() << value->getProperty("summary").toString();
@@ -178,7 +178,7 @@ private Q_SLOTS:
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
-        auto value = model->index(0, 0, QModelIndex()).data(ModelResult<Akonadi2::ApplicationDomain::Mail, Akonadi2::ApplicationDomain::Mail::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Mail::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Mail::Ptr>();
 
         QVERIFY(!value->getProperty("subject").toString().isEmpty());
         qDebug() << value->getProperty("subject").toString();
@@ -206,7 +206,7 @@ private Q_SLOTS:
         {
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(ModelResult<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Event::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
 
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue"));
@@ -224,7 +224,7 @@ private Q_SLOTS:
         {
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(ModelResult<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Event::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
 
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
@@ -266,7 +266,7 @@ private Q_SLOTS:
         Akonadi2::ApplicationDomain::Event event2;
         {
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(ModelResult<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Event::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue"));
             event2 = *value;
@@ -280,7 +280,7 @@ private Q_SLOTS:
         {
             //TODO wait for a change signal
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(ModelResult<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Event::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
         }

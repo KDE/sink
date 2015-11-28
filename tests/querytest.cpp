@@ -108,7 +108,7 @@ private Q_SLOTS:
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
         model->fetchMore(QModelIndex());
         QTRY_COMPARE(model->rowCount(), 1);
-        auto folderEntity = model->index(0, 0).data(ModelResult<Akonadi2::ApplicationDomain::Folder, Akonadi2::ApplicationDomain::Folder::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+        auto folderEntity = model->index(0, 0).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
         QVERIFY(!folderEntity->identifier().isEmpty());
     }
 
@@ -130,7 +130,7 @@ private Q_SLOTS:
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
             QTRY_COMPARE(model->rowCount(), 1);
 
-            auto folderEntity = model->index(0, 0).data(ModelResult<Akonadi2::ApplicationDomain::Folder, Akonadi2::ApplicationDomain::Folder::Ptr>::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+            auto folderEntity = model->index(0, 0).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
             QVERIFY(!folderEntity->identifier().isEmpty());
 
             Akonadi2::ApplicationDomain::Folder subfolder("org.kde.dummy.instance1");

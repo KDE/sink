@@ -26,16 +26,11 @@
 #include <Async/Async>
 
 #include "query.h"
-#include "resultprovider.h"
 #include "applicationdomaintype.h"
-
-Q_DECLARE_METATYPE(std::shared_ptr<void>);
 
 class QAbstractItemModel;
 
 namespace Akonadi2 {
-
-using namespace async;
 
 /**
  * Store interface used in the client API.

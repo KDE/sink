@@ -27,6 +27,7 @@
 #include "common/domain/event.h"
 #include "common/domain/folder.h"
 #include "common/resourceconfig.h"
+#include "common/log.h"
 #include "console.h"
 
 #include <QWidget>
