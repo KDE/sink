@@ -100,6 +100,9 @@ QModelIndex ModelResult<T, Ptr>::index(int row, int column, const QModelIndex &p
 template<class T, class Ptr>
 QModelIndex ModelResult<T, Ptr>::createIndexFromId(const qint64 &id) const
 {
+    if (id == 0) {
+        return QModelIndex();
+    }
     auto grandParentId = mParents.value(id, 0);
     auto row = mTree.value(grandParentId).indexOf(id);
     return createIndex(row, 0, id);
