@@ -44,26 +44,32 @@ template<class T, class Ptr>
 qint64 ModelResult<T, Ptr>::parentId(const Ptr &value)
 {
     if (!mQuery.parentProperty.isEmpty()) {
-        return qHash(value->getProperty(mQuery.parentProperty).toByteArray());
+        const auto property = value->getProperty(mQuery.parentProperty).toByteArray();
+        if (!property.isEmpty()) {
+            return qHash(property);
+        }
     }
-    return qHash(QByteArray());
+    return 0;
 }
 
 template<class T, class Ptr>
 int ModelResult<T, Ptr>::rowCount(const QModelIndex &parent) const
 {
+    qDebug() << "row count " << mTree[getIdentifier(parent)].size();
     return mTree[getIdentifier(parent)].size();
 }
 
 template<class T, class Ptr>
 int ModelResult<T, Ptr>::columnCount(const QModelIndex &parent) const
 {
+    qDebug() << "porperty count " << mPropertyColumns.size();
     return mPropertyColumns.size();
 }
 
 template<class T, class Ptr>
 QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
 {
+    qDebug() << index;
     if (role == DomainObjectRole) {
         Q_ASSERT(mEntities.contains(index.internalId()));
         return QVariant::fromValue(mEntities.value(index.internalId()));
@@ -83,8 +89,8 @@ QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
 template<class T, class Ptr>
 QModelIndex ModelResult<T, Ptr>::index(int row, int column, const QModelIndex &parent) const
 {
-    auto id = getIdentifier(parent);
-    auto childId = mTree.value(id).at(row);
+    const auto id = getIdentifier(parent);
+    const auto childId = mTree.value(id).at(row);
     return createIndex(row, column, childId);
 }
 
@@ -105,6 +111,15 @@ QModelIndex ModelResult<T, Ptr>::parent(const QModelIndex &index) const
 }
 
 template<class T, class Ptr>
+bool ModelResult<T, Ptr>::hasChildren(const QModelIndex &parent) const
+{
+    if (mQuery.parentProperty.isEmpty() && parent.isValid()) {
+        return false;
+    }
+    return QAbstractItemModel::hasChildren(parent);
+}
+
+template<class T, class Ptr>
 bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 {
     qDebug() << "Can fetch more: " << parent << mEntityChildrenFetched.value(parent.internalId());
@@ -121,8 +136,8 @@ void ModelResult<T, Ptr>::fetchMore(const QModelIndex &parent)
 template<class T, class Ptr>
 void ModelResult<T, Ptr>::add(const Ptr &value)
 {
-    auto childId = qHash(value->identifier());
-    auto id = parentId(value);
+    const auto childId = qHash(value->identifier());
+    const auto id = parentId(value);
     //Ignore updates we get before the initial fetch is done
     if (!mEntityChildrenFetched[id]) {
         return;
