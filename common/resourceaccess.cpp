@@ -282,6 +282,7 @@ KAsync::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatB
 
 KAsync::Job<void> ResourceAccess::synchronizeResource(bool sourceSync, bool localSync)
 {
+    Trace() << "Sending synchronize command: " << sourceSync << localSync;
     flatbuffers::FlatBufferBuilder fbb;
     auto command = Akonadi2::CreateSynchronize(fbb, sourceSync, localSync);
     Akonadi2::FinishSynchronizeBuffer(fbb, command);

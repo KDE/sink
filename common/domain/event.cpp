@@ -47,6 +47,7 @@ ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, 
         });
         appliedFilters << "uid";
     }
+    Trace() << "Index lookup found " << keys.size() << " keys.";
     return ResultSet(keys);
 }
 

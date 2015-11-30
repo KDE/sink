@@ -114,7 +114,9 @@ template<class DomainType>
 void QueryRunner<DomainType>::replaySet(ResultSet &resultSet, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
 {
     // Trace() << "Replay set";
-    while (resultSet.next([&resultProvider](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
+    int counter = 0;
+    while (resultSet.next([&resultProvider, &counter](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
+        counter++;
         switch (operation) {
         case Akonadi2::Operation_Creation:
             // Trace() << "Got creation";
@@ -131,6 +133,7 @@ void QueryRunner<DomainType>::replaySet(ResultSet &resultSet, Akonadi2::ResultPr
         }
         return true;
     })){};
+    Trace() << "Replayed " << counter << " results";
 }
 
 template<class DomainType>
