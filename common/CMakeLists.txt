@@ -74,12 +74,6 @@ install(FILES
     clientapi.h
     domain/applicationdomaintype.h
     query.h
-    threadboundary.h
-    resultprovider.h
-    facadefactory.h
-    log.h
-    listmodelresult.h
     bufferadaptor.h
-    facadeinterface.h
     DESTINATION ${INCLUDE_INSTALL_DIR}/${PROJECT_NAME} COMPONENT Devel
 )
