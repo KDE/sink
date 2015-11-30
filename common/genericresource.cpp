@@ -85,8 +85,8 @@ public Q_SLOTS:
     }
 
 private:
-    Akonadi2::Storage mChangeReplayStore;
     Akonadi2::Storage mStorage;
+    Akonadi2::Storage mChangeReplayStore;
     ReplayFunction mReplayFunction;
 };
 

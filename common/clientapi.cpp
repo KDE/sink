@@ -37,26 +37,6 @@
 #include "modelresult.h"
 #include "log.h"
 
-#define ASYNCINTHREAD
-
-namespace async
-{
-    static void run(const std::function<void()> &runner) {
-        auto timer = new QTimer();
-        timer->setSingleShot(true);
-        QObject::connect(timer, &QTimer::timeout, [runner, timer]() {
-            delete timer;
-#ifndef ASYNCINTHREAD
-            runner();
-#else
-            QtConcurrent::run(runner);
-#endif
-        });
-        timer->start(0);
-    };
-} // namespace async
-
-
 namespace Akonadi2
 {
 

@@ -53,27 +53,17 @@ static inline ResultSet fullScan(const Akonadi2::Storage::Transaction &transacti
 template<class DomainType>
 QueryRunner<DomainType>::QueryRunner(const Akonadi2::Query &query, const Akonadi2::ResourceAccessInterface::Ptr &resourceAccess, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &factory, const QByteArray &bufferType)
     : QueryRunnerBase(),
-    mResourceAccess(resourceAccess),
     mResultProvider(new ResultProvider<typename DomainType::Ptr>),
+    mResourceAccess(resourceAccess),
     mDomainTypeAdaptorFactory(factory),
-    mQuery(query),
     mResourceInstanceIdentifier(instanceIdentifier),
-    mBufferType(bufferType)
+    mBufferType(bufferType),
+    mQuery(query)
 {
     Trace() << "Starting query";
     //We delegate loading of initial data to the result provider, os it can decide for itself what it needs to load.
     mResultProvider->setFetcher([this, query](const typename DomainType::Ptr &parent) {
         Trace() << "Running fetcher";
-
-        // auto watcher = new QFutureWatcher<qint64>;
-        // QObject::connect(watcher, &QFutureWatcher::finished, [](qint64 newRevision) {
-        //     mResourceAccess->sendRevisionReplayedCommand(newRevision);
-        // });
-        // auto future = QtConcurrent::run([&resultProvider]() -> qint64 {
-        //     const qint64 newRevision = executeInitialQuery(query, parent, resultProvider);
-        //     return newRevision;
-        // });
-        // watcher->setFuture(future);
         const qint64 newRevision = executeInitialQuery(query, parent, *mResultProvider);
         mResourceAccess->sendRevisionReplayedCommand(newRevision);
     });
@@ -109,11 +99,9 @@ typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr QueryRunner<Doma
     return mResultProvider->emitter();
 }
 
-//TODO move into result provider?
 template<class DomainType>
 void QueryRunner<DomainType>::replaySet(ResultSet &resultSet, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
 {
-    // Trace() << "Replay set";
     int counter = 0;
     while (resultSet.next([&resultProvider, &counter](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
         counter++;
