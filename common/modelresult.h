@@ -33,7 +33,8 @@ class ModelResult : public QAbstractItemModel
 {
 public:
     enum Roles {
-        DomainObjectRole = Qt::UserRole + 1
+        DomainObjectRole = Qt::UserRole + 1,
+        ChildrenFetchedRole
     };
 
     ModelResult(const Akonadi2::Query &query, const QList<QByteArray> &propertyColumns);
@@ -56,6 +57,8 @@ public:
 
     void setFetcher(const std::function<void(const Ptr &parent)> &fetcher);
 
+    bool childrenFetched(const QModelIndex &) const;
+
 private:
     qint64 parentId(const Ptr &value);
     QModelIndex createIndexFromId(const qint64 &id) const;
@@ -65,7 +68,8 @@ private:
     QMap<qint64 /* entity id */, Ptr> mEntities;
     QMap<qint64 /* parent entity id */, QList<qint64> /* child entity id*/> mTree;
     QMap<qint64 /* child entity id */, qint64 /* parent entity id*/> mParents;
-    QMap<qint64 /* entity id */, bool> mEntityChildrenFetched;
+    QSet<qint64 /* entity id */> mEntityChildrenFetched;
+    QSet<qint64 /* entity id */> mEntityChildrenFetchComplete;
     QList<QByteArray> mPropertyColumns;
     Akonadi2::Query mQuery;
     std::function<void(const Ptr &)> loadEntities;

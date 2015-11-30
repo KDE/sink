@@ -74,7 +74,7 @@ QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<Akonadi2::ApplicationD
             }
         }
         //TODO initialResultSetComplete should be implicit
-        resultProvider->initialResultSetComplete();
+        resultProvider->initialResultSetComplete(Akonadi2::ApplicationDomain::AkonadiResource::Ptr());
         resultProvider->complete();
     });
     return qMakePair(job, emitter);

@@ -50,7 +50,7 @@ public:
     virtual void add(const T &value) = 0;
     virtual void modify(const T &value) = 0;
     virtual void remove(const T &value) = 0;
-    virtual void initialResultSetComplete() = 0;
+    virtual void initialResultSetComplete(const T &parent) = 0;
     virtual void complete() = 0;
     virtual void clear() = 0;
     virtual void setFetcher(const std::function<void(const T &parent)> &fetcher) = 0;
@@ -144,9 +144,15 @@ public:
         });
     }
 
-    void initialResultSetComplete()
+    void initialResultSetComplete(const T &parent)
     {
-        callInMainThreadOnEmitter(&ResultEmitter<T>::initialResultSetComplete);
+        //Because I don't know how to use bind
+        auto weakEmitter = mResultEmitter;
+        callInMainThreadOnEmitter([weakEmitter, parent](){
+            if (auto strongRef = weakEmitter.toStrongRef()) {
+                strongRef->initialResultSetComplete(parent);
+            }
+        });
     }
 
     //Called from worker thread
@@ -244,7 +250,7 @@ public:
         removeHandler = handler;
     }
 
-    void onInitialResultSetComplete(const std::function<void(void)> &handler)
+    void onInitialResultSetComplete(const std::function<void(const DomainType&)> &handler)
     {
         initialResultSetCompleteHandler = handler;
     }
@@ -274,19 +280,25 @@ public:
         removeHandler(value);
     }
 
-    void initialResultSetComplete()
+    void initialResultSetComplete(const DomainType &parent)
     {
-        initialResultSetCompleteHandler();
+        if (initialResultSetCompleteHandler) {
+            initialResultSetCompleteHandler(parent);
+        }
     }
 
     void complete()
     {
-        completeHandler();
+        if (completeHandler) {
+            completeHandler();
+        }
     }
 
     void clear()
     {
-        clearHandler();
+        if (clearHandler) {
+            clearHandler();
+        }
     }
 
     void setFetcher(const std::function<void(const DomainType &parent)> &fetcher)
@@ -302,7 +314,7 @@ private:
     std::function<void(const DomainType&)> addHandler;
     std::function<void(const DomainType&)> modifyHandler;
     std::function<void(const DomainType&)> removeHandler;
-    std::function<void(void)> initialResultSetCompleteHandler;
+    std::function<void(const DomainType&)> initialResultSetCompleteHandler;
     std::function<void(void)> completeHandler;
     std::function<void(void)> clearHandler;
     ThreadBoundary mThreadBoundary;

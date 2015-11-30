@@ -74,6 +74,9 @@ QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
         Q_ASSERT(mEntities.contains(index.internalId()));
         return QVariant::fromValue(mEntities.value(index.internalId()));
     }
+    if (role == ChildrenFetchedRole) {
+        return childrenFetched(index);
+    }
     if (role == Qt::DisplayRole) {
         if (index.column() < mPropertyColumns.size()) {
             Q_ASSERT(mEntities.contains(index.internalId()));
@@ -122,8 +125,8 @@ bool ModelResult<T, Ptr>::hasChildren(const QModelIndex &parent) const
 template<class T, class Ptr>
 bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 {
-    qDebug() << "Can fetch more: " << parent << mEntityChildrenFetched.value(parent.internalId());
-    return !mEntityChildrenFetched.value(parent.internalId(), false);
+    qDebug() << "Can fetch more: " << parent << mEntityChildrenFetched.contains(parent.internalId());
+    return !mEntityChildrenFetched.contains(parent.internalId());
 }
 
 template<class T, class Ptr>
@@ -139,7 +142,8 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
     const auto childId = qHash(value->identifier());
     const auto id = parentId(value);
     //Ignore updates we get before the initial fetch is done
-    if (!mEntityChildrenFetched[id]) {
+    if (!mEntityChildrenFetched.contains(id)) {
+        qDebug() << "Children not yet fetched";
         return;
     }
     auto parent = createIndexFromId(id);
@@ -185,7 +189,7 @@ template<class T, class Ptr>
 void ModelResult<T, Ptr>::fetchEntities(const QModelIndex &parent)
 {
     const auto id = getIdentifier(parent);
-    mEntityChildrenFetched[id] = true;
+    mEntityChildrenFetched.insert(id);
     Trace() << "Loading child entities";
     loadEntities(parent.data(DomainObjectRole).template value<Ptr>());
 }
@@ -210,13 +214,19 @@ void ModelResult<T, Ptr>::setEmitter(const typename Akonadi2::ResultEmitter<Ptr>
     emitter->onRemoved([this](const Ptr &value) {
         this->remove(value);
     });
-    emitter->onInitialResultSetComplete([this]() {
-    });
-    emitter->onComplete([this]() {
-    });
-    emitter->onClear([this]() {
+    emitter->onInitialResultSetComplete([this](const Ptr &parent) {
+        qint64 parentId = parent ? qHash(parent->identifier()) : 0;
+        const auto parentIndex = createIndexFromId(parentId);
+        mEntityChildrenFetchComplete.insert(parentId);
+        emit dataChanged(parentIndex, parentIndex, QVector<int>() << ChildrenFetchedRole);
     });
     mEmitter = emitter;
+}
+
+template<class T, class Ptr>
+bool ModelResult<T, Ptr>::childrenFetched(const QModelIndex &index) const
+{
+    return mEntityChildrenFetchComplete.contains(getIdentifier(index));
 }
 
 template<class T, class Ptr>
@@ -225,7 +235,7 @@ void ModelResult<T, Ptr>::modify(const Ptr &value)
     auto childId = qHash(value->identifier());
     auto id = parentId(value);
     //Ignore updates we get before the initial fetch is done
-    if (!mEntityChildrenFetched[id]) {
+    if (!mEntityChildrenFetched.contains(id)) {
         return;
     }
     auto parent = createIndexFromId(id);

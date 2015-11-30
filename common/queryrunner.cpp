@@ -303,6 +303,7 @@ qint64 QueryRunner<DomainType>::executeInitialQuery(const Akonadi2::Query &query
         return loadInitialResultSet(modifiedQuery, transaction, remainingFilters);
     }, resultProvider, true);
     Trace() << "Initial query took: " << time.elapsed() << " ms";
+    resultProvider.initialResultSetComplete(parent);
     return revision;
 }
 
