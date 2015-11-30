@@ -55,21 +55,18 @@ qint64 ModelResult<T, Ptr>::parentId(const Ptr &value)
 template<class T, class Ptr>
 int ModelResult<T, Ptr>::rowCount(const QModelIndex &parent) const
 {
-    qDebug() << "row count " << mTree[getIdentifier(parent)].size();
     return mTree[getIdentifier(parent)].size();
 }
 
 template<class T, class Ptr>
 int ModelResult<T, Ptr>::columnCount(const QModelIndex &parent) const
 {
-    qDebug() << "porperty count " << mPropertyColumns.size();
     return mPropertyColumns.size();
 }
 
 template<class T, class Ptr>
 QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
 {
-    qDebug() << index;
     if (role == DomainObjectRole) {
         Q_ASSERT(mEntities.contains(index.internalId()));
         return QVariant::fromValue(mEntities.value(index.internalId()));
@@ -128,14 +125,12 @@ bool ModelResult<T, Ptr>::hasChildren(const QModelIndex &parent) const
 template<class T, class Ptr>
 bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 {
-    qDebug() << "Can fetch more: " << parent << mEntityChildrenFetched.contains(parent.internalId());
     return !mEntityChildrenFetched.contains(parent.internalId());
 }
 
 template<class T, class Ptr>
 void ModelResult<T, Ptr>::fetchMore(const QModelIndex &parent)
 {
-    qDebug() << "Fetch more: " << parent;
     fetchEntities(parent);
 }
 
@@ -146,7 +141,6 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
     const auto id = parentId(value);
     //Ignore updates we get before the initial fetch is done
     if (!mEntityChildrenFetched.contains(id)) {
-        qDebug() << "Children not yet fetched";
         return;
     }
     auto parent = createIndexFromId(id);
@@ -178,7 +172,7 @@ void ModelResult<T, Ptr>::remove(const Ptr &value)
     auto childId = qHash(value->identifier());
     auto id = parentId(value);
     auto parent = createIndexFromId(id);
-    qDebug() << "Removed entity" << childId;
+    // qDebug() << "Removed entity" << childId;
     auto index = mTree[id].indexOf(qHash(value->identifier()));
     beginRemoveRows(parent, index, index);
     mEntities.remove(childId);
@@ -218,7 +212,7 @@ void ModelResult<T, Ptr>::setEmitter(const typename Akonadi2::ResultEmitter<Ptr>
         this->remove(value);
     });
     emitter->onInitialResultSetComplete([this](const Ptr &parent) {
-        qint64 parentId = parent ? qHash(parent->identifier()) : 0;
+        const qint64 parentId = parent ? qHash(parent->identifier()) : 0;
         const auto parentIndex = createIndexFromId(parentId);
         mEntityChildrenFetchComplete.insert(parentId);
         emit dataChanged(parentIndex, parentIndex, QVector<int>() << ChildrenFetchedRole);
@@ -242,7 +236,7 @@ void ModelResult<T, Ptr>::modify(const Ptr &value)
         return;
     }
     auto parent = createIndexFromId(id);
-    qDebug() << "Modified entity" << childId;
+    // qDebug() << "Modified entity" << childId;
     auto i = mTree[id].indexOf(childId);
     mEntities.remove(childId);
     mEntities.insert(childId, value);
