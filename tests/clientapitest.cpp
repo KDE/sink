@@ -29,8 +29,6 @@ public:
     KAsync::Job<void> remove(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
     QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<typename T::Ptr>::Ptr > load(const Akonadi2::Query &query) Q_DECL_OVERRIDE
     {
-        // capturedResultProvider = &resultProvider;
-
         auto resultProvider = new Akonadi2::ResultProvider<typename T::Ptr>();
         resultProvider->onDone([resultProvider]() {
             Trace() << "Result provider is done";
@@ -51,11 +49,12 @@ public:
         });
         auto job = KAsync::start<void>([query, resultProvider]() {
         });
+        mResultProvider = resultProvider;
         return qMakePair(job, emitter);
     }
 
     QList<typename T::Ptr> results;
-    // Akonadi2::ResultProviderInterface<typename T::Ptr> *capturedResultProvider;
+    Akonadi2::ResultProviderInterface<typename T::Ptr> *mResultProvider;
 };
 
 
@@ -91,26 +90,6 @@ private Q_SLOTS:
         QCOMPARE(model->rowCount(QModelIndex()), 1);
     }
 
-    // //The query provider is supposed to delete itself
-    void testQueryLifetime()
-    {
-        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Event>::registerFacade();
-        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
-
-        Akonadi2::Query query;
-        query.resources << "dummyresource.instance1";
-        query.liveQuery = true;
-
-        {
-            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
-            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-        }
-        //It's running in a separate thread, so we have to wait for a moment until the query provider deletes itself.
-        // QTRY_VERIFY(!facade->capturedResultProvider);
-        QTest::qWait(300);
-    }
-
     //TODO: This test doesn't belong to this testsuite
     void resourceManagement()
     {
@@ -134,8 +113,8 @@ private Q_SLOTS:
             Akonadi2::Query query;
             query.propertyFilter.insert("type", "dummyresource");
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::AkonadiResource>(query);
-            //TODO ensure the initial query completed
-            QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
+            QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(QModelIndex()), 0);
         }
     }
 
@@ -218,12 +197,37 @@ private Q_SLOTS:
         model->fetchMore(model->index(0, 0));
         QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
 
-        // auto resultProvider = facade->capturedResultProvider.toStrongRef();
+        auto resultProvider = facade->mResultProvider;
 
-        //A modification can also be a move
-        // resultProvider->modify();
+        //Test new toplevel folder
+        {
+            QSignalSpy rowsInsertedSpy(model.data(), SIGNAL(rowsInserted(const QModelIndex &, int, int)));
+            auto folder2 = QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+            resultProvider->add(folder2);
+            QTRY_COMPARE(model->rowCount(), 2);
+            QTRY_COMPARE(rowsInsertedSpy.count(), 1);
+            QCOMPARE(rowsInsertedSpy.at(0).at(0).value<QModelIndex>(), QModelIndex());
+        }
 
-        // resultProvider->remove();
+        //Test changed name
+        {
+            QSignalSpy dataChanged(model.data(), SIGNAL(dataChanged(const QModelIndex &, const QModelIndex &, const QVector<int> &)));
+            folder->setProperty("subject", "modifiedSubject");
+            resultProvider->modify(folder);
+            QTRY_COMPARE(model->rowCount(), 2);
+            QTRY_COMPARE(dataChanged.count(), 1);
+        }
+
+        //Test removal
+        {
+            QSignalSpy rowsRemovedSpy(model.data(), SIGNAL(rowsRemoved(const QModelIndex &, int, int)));
+            folder->setProperty("subject", "modifiedSubject");
+            resultProvider->remove(subfolder);
+            QTRY_COMPARE(model->rowCount(model->index(0, 0)), 0);
+            QTRY_COMPARE(rowsRemovedSpy.count(), 1);
+        }
+
+        //TODO: A modification can also be a move
     }
 
 
