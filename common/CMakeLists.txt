@@ -12,10 +12,10 @@ else (STORAGE_unqlite)
 endif (STORAGE_unqlite)
 
 set(command_SRCS
+    modelresult.cpp
     definitions.cpp
     log.cpp
     entitybuffer.cpp
-    entitystorage.cpp
     clientapi.cpp
     facadefactory.cpp
     commands.cpp
@@ -26,6 +26,7 @@ set(command_SRCS
     resource.cpp
     genericresource.cpp
     resourceaccess.cpp
+    queryrunner.cpp
     listener.cpp
     storage_common.cpp
     threadboundary.cpp
@@ -36,6 +37,7 @@ set(command_SRCS
     domain/applicationdomaintype.cpp
     domain/event.cpp
     domain/mail.cpp
+    domain/folder.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})
@@ -55,6 +57,8 @@ generate_flatbuffers(
     commands/revisionreplayed
     domain/event
     domain/mail
+    domain/folder
+    domain/dummy
     entity
     metadata
     queuedcommand
@@ -70,12 +74,6 @@ install(FILES
     clientapi.h
     domain/applicationdomaintype.h
     query.h
-    threadboundary.h
-    resultprovider.h
-    facadefactory.h
-    log.h
-    listmodelresult.h
     bufferadaptor.h
-    facadeinterface.h
     DESTINATION ${INCLUDE_INSTALL_DIR}/${PROJECT_NAME} COMPONENT Devel
 )

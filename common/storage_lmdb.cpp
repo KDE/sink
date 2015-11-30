@@ -253,22 +253,69 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
 
     return numberOfRetrievedValues;
 }
-void Storage::NamedDatabase::findLatest(const QByteArray &uid,
+
+void Storage::NamedDatabase::findLatest(const QByteArray &k,
             const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
             const std::function<void(const Storage::Error &error)> &errorHandler) const
 {
-    QByteArray latestKey;
-    scan(uid, [&](const QByteArray &key, const QByteArray &value) -> bool {
-        latestKey = key;
-        return true;
-    },
-    errorHandler, true);
+    if (!d || !d->transaction) {
+        //Not an error. We rely on this to read nothing from non-existing databases.
+        return;
+    }
 
-    scan(latestKey, [=](const QByteArray &key, const QByteArray &value) -> bool {
-        resultHandler(key, value);
-        return false;
-    },
-    errorHandler);
+    int rc;
+    MDB_val key;
+    MDB_val data;
+    MDB_cursor *cursor;
+
+    key.mv_data = (void*)k.constData();
+    key.mv_size = k.size();
+
+    rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
+    if (rc) {
+        Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Error during mdb_cursor open: ") + QByteArray(mdb_strerror(rc)));
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        return;
+    }
+
+    MDB_cursor_op op = MDB_SET_RANGE;
+    if ((rc = mdb_cursor_get(cursor, &key, &data, op)) == 0) {
+        //The first lookup will find a key that is equal or greather than our key
+        if (QByteArray::fromRawData((char*)key.mv_data, key.mv_size).startsWith(k)) {
+            bool advanced = false;
+            while (QByteArray::fromRawData((char*)key.mv_data, key.mv_size).startsWith(k)) {
+                advanced = true;
+                MDB_cursor_op nextOp = MDB_NEXT;
+                rc = mdb_cursor_get(cursor, &key, &data, nextOp);
+                if (rc) {
+                    break;
+                }
+            }
+            if (advanced) {
+                MDB_cursor_op prefOp = MDB_PREV;
+                //We read past the end above, just take the last value
+                if (rc == MDB_NOTFOUND) {
+                    prefOp = MDB_LAST;
+                }
+                rc = mdb_cursor_get(cursor, &key, &data, prefOp);
+                resultHandler(QByteArray::fromRawData((char*)key.mv_data, key.mv_size), QByteArray::fromRawData((char*)data.mv_data, data.mv_size));
+            }
+        }
+    }
+
+    //We never find the last value
+    if (rc == MDB_NOTFOUND) {
+        rc = 0;
+    }
+
+    mdb_cursor_close(cursor);
+
+    if (rc) {
+        Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Key: ") + k + " : " + QByteArray(mdb_strerror(rc)));
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+    }
+
+    return;
 }
 
 

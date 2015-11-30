@@ -4,10 +4,10 @@
 
 #include "dummyresource/resourcefactory.h"
 #include "clientapi.h"
-#include "synclistresult.h"
 #include "commands.h"
 #include "entitybuffer.h"
 #include "resourceconfig.h"
+#include "modelresult.h"
 #include "pipeline.h"
 #include "log.h"
 
@@ -64,11 +64,13 @@ private Q_SLOTS:
         query.syncOnDemand = false;
         query.processAll = true;
 
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
         query.propertyFilter.insert("uid", "testuid");
-        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-        result.exec();
-        QCOMPARE(result.size(), 1);
-        auto value = result.first();
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
     }
 
@@ -88,11 +90,15 @@ private Q_SLOTS:
         query.syncOnDemand = false;
         query.processAll = true;
 
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
         query.propertyFilter.insert("uid", "testuid");
-        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-        result.exec();
-        QCOMPARE(result.size(), 1);
-        auto value = result.first();
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+
         qDebug() << value->getProperty("uid").toByteArray();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
     }
@@ -114,11 +120,15 @@ private Q_SLOTS:
         query.syncOnDemand = false;
         query.processAll = true;
 
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
         query.propertyFilter.insert("summary", "summaryValue2");
-        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-        result.exec();
-        QCOMPARE(result.size(), 1);
-        auto value = result.first();
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+
         qDebug() << value->getProperty("uid").toByteArray();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid2"));
     }
@@ -145,10 +155,13 @@ private Q_SLOTS:
         query.syncOnDemand = true;
         query.processAll = true;
 
-        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-        result.exec();
-        QVERIFY(!result.isEmpty());
-        auto value = result.first();
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
+        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+
         QVERIFY(!value->getProperty("summary").toString().isEmpty());
         qDebug() << value->getProperty("summary").toString();
     }
@@ -160,10 +173,13 @@ private Q_SLOTS:
         query.syncOnDemand = true;
         query.processAll = true;
 
-        async::SyncListResult<Akonadi2::ApplicationDomain::Mail::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Mail>(query));
-        result.exec();
-        QVERIFY(!result.isEmpty());
-        auto value = result.first();
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
+        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Mail::Ptr>();
+
         QVERIFY(!value->getProperty("subject").toString().isEmpty());
         qDebug() << value->getProperty("subject").toString();
     }
@@ -182,13 +198,16 @@ private Q_SLOTS:
         query.processAll = true;
         query.propertyFilter.insert("uid", "testuid");
 
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
         //Test create
         Akonadi2::ApplicationDomain::Event event2;
         {
-            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-            result.exec();
-            QCOMPARE(result.size(), 1);
-            auto value = result.first();
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue"));
             event2 = *value;
@@ -198,23 +217,29 @@ private Q_SLOTS:
         event2.setProperty("summary", "summaryValue2");
         Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
         //Test modify
         {
-            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-            result.exec();
-            QCOMPARE(result.size(), 1);
-            auto value = result.first();
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
         }
 
         Akonadi2::Store::remove<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
         //Test remove
         {
-            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-            result.exec();
-            QTRY_COMPARE(result.size(), 0);
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+            //TODO ensure the initial query is done
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
         }
     }
 
@@ -228,9 +253,8 @@ private Q_SLOTS:
         query.liveQuery = true;
         query.propertyFilter.insert("uid", "testuid");
 
-
-        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-        result.exec();
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        //TODO ensure the initial query is done
 
         Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
         event.setProperty("uid", "testuid");
@@ -241,8 +265,8 @@ private Q_SLOTS:
         //Test create
         Akonadi2::ApplicationDomain::Event event2;
         {
-            QTRY_COMPARE(result.size(), 1);
-            auto value = result.first();
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue"));
             event2 = *value;
@@ -254,8 +278,9 @@ private Q_SLOTS:
 
         //Test modify
         {
-            QTRY_COMPARE(result.size(), 1);
-            auto value = result.first();
+            //TODO wait for a change signal
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
         }
@@ -264,7 +289,7 @@ private Q_SLOTS:
 
         //Test remove
         {
-            QTRY_COMPARE(result.size(), 0);
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
         }
     }
 

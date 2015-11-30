@@ -1,0 +1,7 @@
+namespace Akonadi2.ApplicationDomain.Buffer;
+
+table Dummy {
+}
+
+root_type Dummy;
+file_identifier "AKFB";

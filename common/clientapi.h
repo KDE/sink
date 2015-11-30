@@ -22,27 +22,15 @@
 
 #include <QString>
 #include <QSharedPointer>
-#include <QEventLoop>
-#include <functional>
-#include <memory>
 
 #include <Async/Async>
 
 #include "query.h"
-#include "resultprovider.h"
 #include "applicationdomaintype.h"
-#include "facadefactory.h"
-#include "log.h"
 
-namespace async {
-    //This should abstract if we execute from eventloop or in thread.
-    //It supposed to allow the caller to finish the current method before executing the runner.
-    void run(const std::function<void()> &runner);
-}
+class QAbstractItemModel;
 
 namespace Akonadi2 {
-
-using namespace async;
 
 /**
  * Store interface used in the client API.
@@ -55,77 +43,22 @@ public:
     static QString storageLocation();
     static QByteArray resourceName(const QByteArray &instanceIdentifier);
 
-    /**
-     * Asynchronusly load a dataset
-     */
-    template <class DomainType>
-    static QSharedPointer<ResultEmitter<typename DomainType::Ptr> > load(Query query)
-    {
-        auto resultSet = QSharedPointer<ResultProvider<typename DomainType::Ptr> >::create();
-
-        //Execute the search in a thread.
-        //We must guarantee that the emitter is returned before the first result is emitted.
-        //The result provider must be threadsafe.
-        async::run([query, resultSet](){
-            QEventLoop eventLoop;
-            resultSet->onDone([&eventLoop](){
-                eventLoop.quit();
-            });
-            // Query all resources and aggregate results
-            KAsync::iterate(getResources(query.resources, ApplicationDomain::getTypeName<DomainType>()))
-            .template each<void, QByteArray>([query, resultSet](const QByteArray &resource, KAsync::Future<void> &future) {
-                auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
-                if (facade) {
-                    facade->load(query, resultSet).template then<void>([&future](){future.setFinished();}).exec();
-                    //Keep the facade alive for the lifetime of the resultSet.
-                    resultSet->setFacade(facade);
-                } else {
-                    //Ignore the error and carry on
-                    future.setFinished();
-                }
-            }).template then<void>([query, resultSet]() {
-                resultSet->initialResultSetComplete();
-                if (!query.liveQuery) {
-                    resultSet->complete();
-                }
-            }).exec();
-
-            //Keep the thread alive until the result is ready
-            if (!resultSet->isDone()) {
-                eventLoop.exec();
-            }
-        });
-        return resultSet->emitter();
-    }
+    enum Roles {
+        DomainObjectRole = Qt::UserRole + 1, //Must be the same as in ModelResult
+        ChildrenFetchedRole
+    };
 
     /**
      * Asynchronusly load a dataset with tree structure information
      */
-    // template <class DomainType>
-    // static TreeSet<DomainType> loadTree(Query)
-    // {
-
-    // }
     template <class DomainType>
-    static std::shared_ptr<StoreFacade<DomainType> > getFacade(const QByteArray &resourceInstanceIdentifier)
-    {
-        if (auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceInstanceIdentifier), resourceInstanceIdentifier)) {
-            return facade;
-        }
-        return std::make_shared<NullFacade<DomainType> >();
-    }
+    static QSharedPointer<QAbstractItemModel> loadModel(Query query);
 
     /**
      * Create a new entity.
      */
     template <class DomainType>
-    static KAsync::Job<void> create(const DomainType &domainObject) {
-        //Potentially move to separate thread as well
-        auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-        return facade->create(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
-            Warning() << "Failed to create";
-        });
-    }
+    static KAsync::Job<void> create(const DomainType &domainObject);
 
     /**
      * Modify an entity.
@@ -133,25 +66,13 @@ public:
      * This includes moving etc. since these are also simple settings on a property.
      */
     template <class DomainType>
-    static KAsync::Job<void> modify(const DomainType &domainObject) {
-        //Potentially move to separate thread as well
-        auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-        return facade->modify(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
-            Warning() << "Failed to modify";
-        });
-    }
+    static KAsync::Job<void> modify(const DomainType &domainObject);
 
     /**
      * Remove an entity.
      */
     template <class DomainType>
-    static KAsync::Job<void> remove(const DomainType &domainObject) {
-        //Potentially move to separate thread as well
-        auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-        return facade->remove(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
-            Warning() << "Failed to remove";
-        });
-    }
+    static KAsync::Job<void> remove(const DomainType &domainObject);
 
     /**
      * Shutdown resource.

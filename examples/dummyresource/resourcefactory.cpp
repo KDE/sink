@@ -40,6 +40,7 @@
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_EVENT "event"
 #define ENTITY_TYPE_MAIL "mail"
+#define ENTITY_TYPE_FOLDER "folder"
 
 /**
  * Index types:
@@ -51,7 +52,6 @@
  *     * range indexes like what date range an event affects.
  *     * group indexes like tree hierarchies as nested sets
  */
-template<typename DomainType>
 class IndexUpdater : public Akonadi2::Preprocessor {
 public:
     IndexUpdater(const QByteArray &index, const QByteArray &type)
@@ -63,21 +63,17 @@ public:
 
     void newEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
         add(newEntity.getProperty("remoteId"), uid, transaction);
     }
 
     void modifiedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
-        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
         remove(oldEntity.getProperty("remoteId"), uid, transaction);
         add(newEntity.getProperty("remoteId"), uid, transaction);
     }
 
     void deletedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
         remove(oldEntity.getProperty("remoteId"), uid, transaction);
     }
 
@@ -91,6 +87,7 @@ private:
 
     void remove(const QVariant &value, const QByteArray &uid, Akonadi2::Storage::Transaction &transaction)
     {
+        //TODO hide notfound error
         Index(mIndexIdentifier, transaction).remove(value.toByteArray(), uid);
     }
 
@@ -98,20 +95,49 @@ private:
     QByteArray mBufferType;
 };
 
+template<typename DomainType>
+class DefaultIndexUpdater : public Akonadi2::Preprocessor {
+public:
+    void newEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
+    }
+
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
+        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
+    }
+
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
+    }
+};
+
 DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline)
     : Akonadi2::GenericResource(instanceIdentifier, pipeline)
 {
     {
-        auto eventFactory = QSharedPointer<DummyEventAdaptorFactory>::create();
-        auto eventIndexer = new IndexUpdater<Akonadi2::ApplicationDomain::Event>("event.index.rid", ENTITY_TYPE_EVENT);
-        mPipeline->setPreprocessors(ENTITY_TYPE_EVENT, QVector<Akonadi2::Preprocessor*>() << eventIndexer);
-        mPipeline->setAdaptorFactory(ENTITY_TYPE_EVENT, eventFactory);
+        QVector<Akonadi2::Preprocessor*> eventPreprocessors;
+        eventPreprocessors << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Event>;
+        eventPreprocessors << new IndexUpdater("event.index.rid", ENTITY_TYPE_EVENT);
+        mPipeline->setPreprocessors(ENTITY_TYPE_EVENT, eventPreprocessors);
+        mPipeline->setAdaptorFactory(ENTITY_TYPE_EVENT, QSharedPointer<DummyEventAdaptorFactory>::create());
     }
     {
-        auto mailFactory = QSharedPointer<DummyMailAdaptorFactory>::create();
-        auto mailIndexer = new IndexUpdater<Akonadi2::ApplicationDomain::Mail>("mail.index.rid", ENTITY_TYPE_MAIL);
-        mPipeline->setPreprocessors(ENTITY_TYPE_MAIL, QVector<Akonadi2::Preprocessor*>() << mailIndexer);
-        mPipeline->setAdaptorFactory(ENTITY_TYPE_MAIL, mailFactory);
+        QVector<Akonadi2::Preprocessor*> mailPreprocessors;
+        mailPreprocessors << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Mail>;
+        mailPreprocessors << new IndexUpdater("mail.index.rid", ENTITY_TYPE_MAIL);
+        mPipeline->setPreprocessors(ENTITY_TYPE_MAIL, mailPreprocessors);
+        mPipeline->setAdaptorFactory(ENTITY_TYPE_MAIL, QSharedPointer<DummyMailAdaptorFactory>::create());
+    }
+    {
+        QVector<Akonadi2::Preprocessor*> folderPreprocessors;
+        folderPreprocessors << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Folder>;
+        folderPreprocessors << new IndexUpdater("folder.index.rid", ENTITY_TYPE_FOLDER);
+        mPipeline->setPreprocessors(ENTITY_TYPE_FOLDER, folderPreprocessors);
+        mPipeline->setAdaptorFactory(ENTITY_TYPE_FOLDER, QSharedPointer<DummyFolderAdaptorFactory>::create());
     }
 }
 
@@ -153,6 +179,27 @@ void DummyResource::createMail(const QByteArray &ridBuffer, const QMap<QString, 
     builder.add_folder(folder);
     auto buffer = builder.Finish();
     Akonadi2::ApplicationDomain::Buffer::FinishMailBuffer(m_fbb, buffer);
+    Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
+}
+
+void DummyResource::createFolder(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb)
+{
+    //Map the source format to the buffer format (which happens to be an exact copy here)
+    auto name = m_fbb.CreateString(data.value("name").toString().toStdString());
+    flatbuffers::Offset<flatbuffers::String> parent;
+    bool hasParent = false;
+    if (!data.value("parent").toString().isEmpty()) {
+        hasParent = true;
+        parent = m_fbb.CreateString(data.value("parent").toString().toStdString());
+    }
+
+    auto builder = Akonadi2::ApplicationDomain::Buffer::FolderBuilder(m_fbb);
+    builder.add_name(name);
+    if (hasParent) {
+        builder.add_parent(parent);
+    }
+    auto buffer = builder.Finish();
+    Akonadi2::ApplicationDomain::Buffer::FinishFolderBuffer(m_fbb, buffer);
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
 }
 
@@ -202,6 +249,9 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
         synchronize(ENTITY_TYPE_MAIL, DummyStore::instance().mails(), transaction, [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb) {
             createMail(ridBuffer, data, entityFbb);
         });
+        synchronize(ENTITY_TYPE_FOLDER, DummyStore::instance().folders(), transaction, [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb) {
+            createFolder(ridBuffer, data, entityFbb);
+        });
 
         f.setFinished();
     });
@@ -228,5 +278,6 @@ void DummyResourceFactory::registerFacades(Akonadi2::FacadeFactory &factory)
 {
     factory.registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>(PLUGIN_NAME);
     factory.registerFacade<Akonadi2::ApplicationDomain::Mail, DummyResourceMailFacade>(PLUGIN_NAME);
+    factory.registerFacade<Akonadi2::ApplicationDomain::Folder, DummyResourceFolderFacade>(PLUGIN_NAME);
 }
 

@@ -12,13 +12,13 @@
 #include "deleteentity_generated.h"
 #include "dummyresource/resourcefactory.h"
 #include "clientapi.h"
-#include "synclistresult.h"
 #include "commands.h"
 #include "entitybuffer.h"
 #include "resourceconfig.h"
 #include "pipeline.h"
 #include "log.h"
 #include "domainadaptor.h"
+#include "definitions.h"
 
 static void removeFromDisk(const QString &name)
 {

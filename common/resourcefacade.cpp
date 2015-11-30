@@ -54,9 +54,15 @@ KAsync::Job<void> ResourceFacade::remove(const Akonadi2::ApplicationDomain::Akon
     });
 }
 
-KAsync::Job<void> ResourceFacade::load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<typename Akonadi2::ApplicationDomain::AkonadiResource::Ptr> > &resultProvider)
+QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<Akonadi2::ApplicationDomain::AkonadiResource::Ptr>::Ptr > ResourceFacade::load(const Akonadi2::Query &query)
 {
-    return KAsync::start<void>([query, resultProvider]() {
+    auto resultProvider = new Akonadi2::ResultProvider<typename Akonadi2::ApplicationDomain::AkonadiResource::Ptr>();
+    auto emitter = resultProvider->emitter();
+    resultProvider->setFetcher([](const QSharedPointer<Akonadi2::ApplicationDomain::AkonadiResource> &) {});
+    resultProvider->onDone([resultProvider]() {
+        delete resultProvider;
+    });
+    auto job = KAsync::start<void>([query, resultProvider]() {
         const auto configuredResources = ResourceConfig::getResources();
         for (const auto &res : configuredResources.keys()) {
             const auto type = configuredResources.value(res);
@@ -68,8 +74,9 @@ KAsync::Job<void> ResourceFacade::load(const Akonadi2::Query &query, const QShar
             }
         }
         //TODO initialResultSetComplete should be implicit
-        resultProvider->initialResultSetComplete();
+        resultProvider->initialResultSetComplete(Akonadi2::ApplicationDomain::AkonadiResource::Ptr());
         resultProvider->complete();
     });
+    return qMakePair(job, emitter);
 }
 

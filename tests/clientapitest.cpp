@@ -4,29 +4,59 @@
 
 #include "clientapi.h"
 #include "facade.h"
-#include "synclistresult.h"
 #include "resourceconfig.h"
+#include "modelresult.h"
+#include "resultprovider.h"
+#include "facadefactory.h"
 
-class DummyResourceFacade : public Akonadi2::StoreFacade<Akonadi2::ApplicationDomain::Event>
+template <typename T>
+class DummyResourceFacade : public Akonadi2::StoreFacade<T>
 {
 public:
-    ~DummyResourceFacade(){};
-    KAsync::Job<void> create(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
-    KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
-    KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::Event &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
-    KAsync::Job<void> load(const Akonadi2::Query &query, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider) Q_DECL_OVERRIDE
+    static std::shared_ptr<DummyResourceFacade<T> > registerFacade()
     {
-        capturedResultProvider = resultProvider;
-        return KAsync::start<void>([this, resultProvider, query]() {
-            for (const auto &res : results) {
-                resultProvider->add(res);
+        auto facade = std::make_shared<DummyResourceFacade<T> >();
+        Akonadi2::FacadeFactory::instance().registerFacade<T, DummyResourceFacade<T> >("dummyresource",
+            [facade](const QByteArray &instanceIdentifier) {
+                return facade;
             }
+        );
+        return facade;
+    }
+    ~DummyResourceFacade(){};
+    KAsync::Job<void> create(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
+    KAsync::Job<void> modify(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
+    KAsync::Job<void> remove(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
+    QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<typename T::Ptr>::Ptr > load(const Akonadi2::Query &query) Q_DECL_OVERRIDE
+    {
+        auto resultProvider = new Akonadi2::ResultProvider<typename T::Ptr>();
+        resultProvider->onDone([resultProvider]() {
+            Trace() << "Result provider is done";
+            delete resultProvider;
         });
+        //We have to do it this way, otherwise we're not setting the fetcher right
+        auto emitter = resultProvider->emitter();
+
+        resultProvider->setFetcher([query, resultProvider, this](const typename T::Ptr &parent) {
+            Trace() << "Running the fetcher";
+            for (const auto &res : results) {
+                qDebug() << "Parent filter " << query.propertyFilter.value("parent").toByteArray() << res->identifier();
+                if (!query.propertyFilter.contains("parent") || query.propertyFilter.value("parent").toByteArray() == res->getProperty("parent").toByteArray()) {
+                    resultProvider->add(res);
+                }
+            }
+            resultProvider->initialResultSetComplete(parent);
+        });
+        auto job = KAsync::start<void>([query, resultProvider]() {
+        });
+        mResultProvider = resultProvider;
+        return qMakePair(job, emitter);
     }
 
-    QList<Akonadi2::ApplicationDomain::Event::Ptr> results;
-    QWeakPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > capturedResultProvider;
+    QList<typename T::Ptr> results;
+    Akonadi2::ResultProviderInterface<typename T::Ptr> *mResultProvider;
 };
+
 
 /**
  * Test of the client api implementation.
@@ -38,56 +68,26 @@ class ClientAPITest : public QObject
     Q_OBJECT
 private Q_SLOTS:
 
-    static std::shared_ptr<DummyResourceFacade> registerDummyFacade()
-    {
-        auto facade = std::make_shared<DummyResourceFacade>();
-        Akonadi2::FacadeFactory::instance().registerFacade<Akonadi2::ApplicationDomain::Event, DummyResourceFacade>("dummyresource",
-            [facade](const QByteArray &instanceIdentifier) {
-                return facade;
-            }
-        );
-        return facade;
-    }
-
     void initTestCase()
     {
         Akonadi2::FacadeFactory::instance().resetFactory();
         ResourceConfig::clear();
+        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
     }
 
     void testLoad()
     {
-        auto facade = registerDummyFacade();
-        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Event>::registerFacade();
+        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Akonadi2::Query query;
         query.resources << "dummyresource.instance1";
         query.liveQuery = false;
 
-        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-        result.exec();
-        QCOMPARE(result.size(), 1);
-    }
-
-    //The query provider is supposed to delete itself
-    void testQueryLifetime()
-    {
-        auto facade = registerDummyFacade();
-        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
-
-        Akonadi2::Query query;
-        query.resources << "dummyresource.instance1";
-        query.liveQuery = true;
-
-        {
-            async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query));
-            result.exec();
-            QCOMPARE(result.size(), 1);
-        }
-        //It's running in a separate thread, so we have to wait for a moment until the query provider deletes itself.
-        QTRY_VERIFY(!facade->capturedResultProvider);
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(QModelIndex()), 1);
     }
 
     //TODO: This test doesn't belong to this testsuite
@@ -104,20 +104,132 @@ private Q_SLOTS:
         {
             Akonadi2::Query query;
             query.propertyFilter.insert("type", "dummyresource");
-            async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
-            result.exec();
-            QCOMPARE(result.size(), 1);
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::AkonadiResource>(query);
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         }
 
         Akonadi2::Store::remove(res).exec().waitForFinished();
         {
             Akonadi2::Query query;
             query.propertyFilter.insert("type", "dummyresource");
-            async::SyncListResult<Akonadi2::ApplicationDomain::AkonadiResource::Ptr> result(Akonadi2::Store::load<Akonadi2::ApplicationDomain::AkonadiResource>(query));
-            result.exec();
-            QCOMPARE(result.size(), 0);
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::AkonadiResource>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(QModelIndex()), 0);
         }
     }
+
+    void testModelSingle()
+    {
+        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Folder>::registerFacade();
+        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+
+        Akonadi2::Query query;
+        query.resources << "dummyresource.instance1";
+        query.liveQuery = false;
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+    }
+
+    void testModelNested()
+    {
+        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Folder>::registerFacade();
+        auto folder =  QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        auto subfolder = QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        subfolder->setProperty("parent", "id");
+        facade->results << folder << subfolder;
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+
+        //Test
+        Akonadi2::Query query;
+        query.resources << "dummyresource.instance1";
+        query.liveQuery = false;
+        query.parentProperty = "parent";
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
+        model->fetchMore(model->index(0, 0));
+        QTRY_VERIFY(model->data(model->index(0, 0), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(model->index(0, 0)), 1);
+    }
+
+    void testModelSignals()
+    {
+        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Folder>::registerFacade();
+        auto folder =  QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        auto subfolder = QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        subfolder->setProperty("parent", "id");
+        facade->results << folder << subfolder;
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+
+        //Test
+        Akonadi2::Query query;
+        query.resources << "dummyresource.instance1";
+        query.liveQuery = false;
+        query.parentProperty = "parent";
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        QSignalSpy spy(model.data(), SIGNAL(rowsInserted(const QModelIndex &, int, int)));
+        QVERIFY(spy.isValid());
+        model->fetchMore(model->index(0, 0));
+        QTRY_VERIFY(spy.count() >= 1);
+    }
+
+    void testModelNestedLive()
+    {
+        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Folder>::registerFacade();
+        auto folder =  QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        auto subfolder = QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        subfolder->setProperty("parent", "id");
+        facade->results << folder << subfolder;
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+
+        //Test
+        Akonadi2::Query query;
+        query.resources << "dummyresource.instance1";
+        query.liveQuery = true;
+        query.parentProperty = "parent";
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+        model->fetchMore(model->index(0, 0));
+        QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
+
+        auto resultProvider = facade->mResultProvider;
+
+        //Test new toplevel folder
+        {
+            QSignalSpy rowsInsertedSpy(model.data(), SIGNAL(rowsInserted(const QModelIndex &, int, int)));
+            auto folder2 = QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+            resultProvider->add(folder2);
+            QTRY_COMPARE(model->rowCount(), 2);
+            QTRY_COMPARE(rowsInsertedSpy.count(), 1);
+            QCOMPARE(rowsInsertedSpy.at(0).at(0).value<QModelIndex>(), QModelIndex());
+        }
+
+        //Test changed name
+        {
+            QSignalSpy dataChanged(model.data(), SIGNAL(dataChanged(const QModelIndex &, const QModelIndex &, const QVector<int> &)));
+            folder->setProperty("subject", "modifiedSubject");
+            resultProvider->modify(folder);
+            QTRY_COMPARE(model->rowCount(), 2);
+            QTRY_COMPARE(dataChanged.count(), 1);
+        }
+
+        //Test removal
+        {
+            QSignalSpy rowsRemovedSpy(model.data(), SIGNAL(rowsRemoved(const QModelIndex &, int, int)));
+            folder->setProperty("subject", "modifiedSubject");
+            resultProvider->remove(subfolder);
+            QTRY_COMPARE(model->rowCount(model->index(0, 0)), 0);
+            QTRY_COMPARE(rowsRemovedSpy.count(), 1);
+        }
+
+        //TODO: A modification can also be a move
+    }
+
 
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Christian Mollekopf <chrigi_1@fastmail.fm>
+ *   Copyright (C) 2014 Christian Mollekopf <chrigi_1@fastmail.fm>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -16,29 +16,27 @@
  *   Free Software Foundation, Inc.,
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-
 #pragma once
 
-#include "common/facade.h"
-#include "common/domain/event.h"
+#include <QSharedPointer>
 
-class DummyResourceFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>
+namespace Akonadi2 {
+    namespace ApplicationDomain {
+        class BufferAdaptor;
+        class ApplicationDomainType;
+    }
+    struct Entity;
+}
+
+namespace flatbuffers {
+    class FlatBufferBuilder;
+}
+
+class DomainTypeAdaptorFactoryInterface
 {
 public:
-    DummyResourceFacade(const QByteArray &instanceIdentifier);
-    virtual ~DummyResourceFacade();
-};
-
-class DummyResourceMailFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Mail>
-{
-public:
-    DummyResourceMailFacade(const QByteArray &instanceIdentifier);
-    virtual ~DummyResourceMailFacade();
-};
-
-class DummyResourceFolderFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Folder>
-{
-public:
-    DummyResourceFolderFacade(const QByteArray &instanceIdentifier);
-    virtual ~DummyResourceFolderFacade();
+    typedef QSharedPointer<DomainTypeAdaptorFactoryInterface> Ptr;
+    virtual ~DomainTypeAdaptorFactoryInterface() {};
+    virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity) = 0;
+    virtual void createBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainType, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) = 0;
 };

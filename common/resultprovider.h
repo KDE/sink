@@ -20,9 +20,12 @@
 
 #pragma once
 
+#include <QThread>
 #include <functional>
 #include <memory>
 #include "threadboundary.h"
+#include "resultset.h"
+#include "log.h"
 
 using namespace async;
 
@@ -34,11 +37,43 @@ namespace Akonadi2 {
 template<class T>
 class ResultEmitter;
 
+template<class T>
+class ResultProviderInterface
+{
+public:
+    ResultProviderInterface()
+        : mRevision(0)
+    {
+
+    }
+
+    virtual void add(const T &value) = 0;
+    virtual void modify(const T &value) = 0;
+    virtual void remove(const T &value) = 0;
+    virtual void initialResultSetComplete(const T &parent) = 0;
+    virtual void complete() = 0;
+    virtual void clear() = 0;
+    virtual void setFetcher(const std::function<void(const T &parent)> &fetcher) = 0;
+
+    void setRevision(qint64 revision)
+    {
+        mRevision = revision;
+    }
+
+    qint64 revision() const
+    {
+        return mRevision;
+    }
+
+private:
+    qint64 mRevision;
+};
+
 /*
 * The promise side for the result emitter
 */
 template<class T>
-class ResultProvider {
+class ResultProvider : public ResultProviderInterface<T> {
 private:
     void callInMainThreadOnEmitter(void (ResultEmitter<T>::*f)())
     {
@@ -69,6 +104,12 @@ private:
     }
 
 public:
+    typedef QSharedPointer<ResultProvider<T> > Ptr;
+
+    virtual ~ResultProvider()
+    {
+    }
+
     //Called from worker thread
     void add(const T &value)
     {
@@ -103,9 +144,15 @@ public:
         });
     }
 
-    void initialResultSetComplete()
+    void initialResultSetComplete(const T &parent)
     {
-        callInMainThreadOnEmitter(&ResultEmitter<T>::initialResultSetComplete);
+        //Because I don't know how to use bind
+        auto weakEmitter = mResultEmitter;
+        callInMainThreadOnEmitter([weakEmitter, parent](){
+            if (auto strongRef = weakEmitter.toStrongRef()) {
+                strongRef->initialResultSetComplete(parent);
+            }
+        });
     }
 
     //Called from worker thread
@@ -126,28 +173,14 @@ public:
             //We have to go over a separate var and return that, otherwise we'd delete the emitter immediately again
             auto sharedPtr = QSharedPointer<ResultEmitter<T> >(new ResultEmitter<T>, [this](ResultEmitter<T> *emitter){ mThreadBoundary->callInMainThread([this]() {done();}); delete emitter; });
             mResultEmitter = sharedPtr;
+            sharedPtr->setFetcher([this](const T &parent) {
+                Q_ASSERT(mFetcher);
+                mFetcher(parent);
+            });
             return sharedPtr;
         }
 
         return mResultEmitter.toStrongRef();
-    }
-
-    /**
-        * For lifetimemanagement only.
-        * We keep the runner alive as long as the result provider exists.
-        */
-    void setQueryRunner(const QSharedPointer<QObject> &runner)
-    {
-        mQueryRunner = runner;
-    }
-
-    /**
-        * For lifetimemanagement only.
-        * We keep the runner alive as long as the result provider exists.
-        */
-    void setFacade(const std::shared_ptr<void> &facade)
-    {
-        mFacade = facade;
     }
 
     void onDone(const std::function<void()> &callback)
@@ -162,21 +195,27 @@ public:
         return mResultEmitter.toStrongRef().isNull();
     }
 
+    void setFetcher(const std::function<void(const T &parent)> &fetcher)
+    {
+        mFetcher = fetcher;
+    }
+
 private:
     void done()
     {
         qWarning() << "done";
         if (mOnDoneCallback) {
-            mOnDoneCallback();
+            auto callback = mOnDoneCallback;
             mOnDoneCallback = std::function<void()>();
+            //This may delete this object
+            callback();
         }
     }
 
     QWeakPointer<ResultEmitter<T> > mResultEmitter;
-    QSharedPointer<QObject> mQueryRunner;
-    std::shared_ptr<void> mFacade;
     std::function<void()> mOnDoneCallback;
     QSharedPointer<ThreadBoundary> mThreadBoundary;
+    std::function<void(const T &parent)> mFetcher;
 };
 
 /*
@@ -194,6 +233,8 @@ private:
 template<class DomainType>
 class ResultEmitter {
 public:
+    typedef QSharedPointer<ResultEmitter<DomainType> > Ptr;
+
     void onAdded(const std::function<void(const DomainType&)> &handler)
     {
         addHandler = handler;
@@ -209,7 +250,7 @@ public:
         removeHandler = handler;
     }
 
-    void onInitialResultSetComplete(const std::function<void(void)> &handler)
+    void onInitialResultSetComplete(const std::function<void(const DomainType&)> &handler)
     {
         initialResultSetCompleteHandler = handler;
     }
@@ -239,20 +280,33 @@ public:
         removeHandler(value);
     }
 
-    void initialResultSetComplete()
+    void initialResultSetComplete(const DomainType &parent)
     {
-        initialResultSetCompleteHandler();
+        if (initialResultSetCompleteHandler) {
+            initialResultSetCompleteHandler(parent);
+        }
     }
 
     void complete()
     {
-        completeHandler();
+        if (completeHandler) {
+            completeHandler();
+        }
     }
 
     void clear()
     {
-        clearHandler();
+        if (clearHandler) {
+            clearHandler();
+        }
     }
+
+    void setFetcher(const std::function<void(const DomainType &parent)> &fetcher)
+    {
+        mFetcher = fetcher;
+    }
+
+    std::function<void(const DomainType &parent)> mFetcher;
 
 private:
     friend class ResultProvider<DomainType>;
@@ -260,7 +314,7 @@ private:
     std::function<void(const DomainType&)> addHandler;
     std::function<void(const DomainType&)> modifyHandler;
     std::function<void(const DomainType&)> removeHandler;
-    std::function<void(void)> initialResultSetCompleteHandler;
+    std::function<void(const DomainType&)> initialResultSetCompleteHandler;
     std::function<void(void)> completeHandler;
     std::function<void(void)> clearHandler;
     ThreadBoundary mThreadBoundary;

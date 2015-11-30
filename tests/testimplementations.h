@@ -21,13 +21,10 @@
 
 #include <Async/Async>
 
-#include <common/entitystorage.h>
 #include <common/domainadaptor.h>
 #include <common/resultprovider.h>
-#include <common/synclistresult.h>
 #include <common/resourceaccess.h>
 #include <common/facade.h>
-#include <common/entitystorage.h>
 #include <common/genericresource.h>
 
 //Replace with something different
@@ -42,30 +39,6 @@ public:
     }
 
     virtual ~TestEventAdaptorFactory() {};
-};
-
-class TestEntityStorage : public EntityStorage<Akonadi2::ApplicationDomain::Event>
-{
-public:
-    using EntityStorage::EntityStorage;
-    virtual qint64 read(const Akonadi2::Query &query, qint64 oldRevision, const QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> > &resultProvider)  Q_DECL_OVERRIDE
-    {
-        for (const auto &res : mResults) {
-            resultProvider->add(res);
-        }
-        for (const auto &res : mModifications) {
-            resultProvider->modify(res);
-        }
-        for (const auto &res : mRemovals) {
-            resultProvider->remove(res);
-        }
-        return mLatestRevision;
-    }
-
-    QList<Akonadi2::ApplicationDomain::Event::Ptr> mResults;
-    QList<Akonadi2::ApplicationDomain::Event::Ptr> mModifications;
-    QList<Akonadi2::ApplicationDomain::Event::Ptr> mRemovals;
-    qint64 mLatestRevision;
 };
 
 class TestResourceAccess : public Akonadi2::ResourceAccessInterface
@@ -85,8 +58,8 @@ public Q_SLOTS:
 class TestResourceFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>
 {
 public:
-    TestResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<EntityStorage<Akonadi2::ApplicationDomain::Event> > storage, const QSharedPointer<Akonadi2::ResourceAccessInterface> resourceAccess)
-        : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<TestEventAdaptorFactory>::create(), storage, resourceAccess)
+    TestResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::ResourceAccessInterface> resourceAccess)
+        : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<TestEventAdaptorFactory>::create(), resourceAccess)
     {
 
     }

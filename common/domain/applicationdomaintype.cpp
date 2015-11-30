@@ -60,10 +60,13 @@ ApplicationDomainType& ApplicationDomainType::operator=(const ApplicationDomainT
     return *this;
 }
 
-ApplicationDomainType::~ApplicationDomainType() {}
+ApplicationDomainType::~ApplicationDomainType()
+{
+}
 
 QVariant ApplicationDomainType::getProperty(const QByteArray &key) const
 {
+    Q_ASSERT(mAdaptor);
     if (!mAdaptor->availableProperties().contains(key)) {
         Warning() << "No such property available " << key;
     }
@@ -72,7 +75,9 @@ QVariant ApplicationDomainType::getProperty(const QByteArray &key) const
 
 void ApplicationDomainType::setProperty(const QByteArray &key, const QVariant &value)
 {
-    mChangeSet.insert(key, value); mAdaptor->setProperty(key, value);
+    Q_ASSERT(mAdaptor);
+    mChangeSet.insert(key, value);
+    mAdaptor->setProperty(key, value);
 }
 
 QByteArrayList ApplicationDomainType::changedProperties() const

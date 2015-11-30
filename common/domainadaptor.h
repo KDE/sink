@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Christian Mollekopf <chrigi_1@fastmail.fm>
+ *   Copyright (C) 2014 Christian Mollekopf <chrigi_1@fastmail.fm>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -23,9 +23,11 @@
 #include <QByteArray>
 #include <functional>
 
+#include "domaintypeadaptorfactoryinterface.h"
 #include "domain/applicationdomaintype.h"
 #include "domain/event.h"
 #include "domain/mail.h"
+#include "domain/folder.h"
 #include "bufferadaptor.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
@@ -121,15 +123,6 @@ public:
     ResourceBuffer const *mResourceBuffer;
     QSharedPointer<ReadPropertyMapper<LocalBuffer> > mLocalMapper;
     QSharedPointer<ReadPropertyMapper<ResourceBuffer> > mResourceMapper;
-};
-
-class DomainTypeAdaptorFactoryInterface
-{
-public:
-    typedef QSharedPointer<DomainTypeAdaptorFactoryInterface> Ptr;
-    virtual ~DomainTypeAdaptorFactoryInterface() {};
-    virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity) = 0;
-    virtual void createBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainType, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) = 0;
 };
 
 /**

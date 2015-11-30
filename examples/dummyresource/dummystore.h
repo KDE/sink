@@ -23,7 +23,6 @@
 class DummyStore
 {
 public:
-    //TODO proper singleton
     static DummyStore &instance()
     {
         static DummyStore instance;
@@ -32,4 +31,5 @@ public:
 
     QMap<QString, QMap<QString, QVariant> > events() const;
     QMap<QString, QMap<QString, QVariant> > mails() const;
+    QMap<QString, QMap<QString, QVariant> > folders() const;
 };

@@ -376,12 +376,42 @@ private Q_SLOTS:
         db.write("sub1","value1");
         db.write("sub2","value2");
         db.write("wub3","value3");
+        db.write("wub4","value4");
         QByteArray result;
         db.findLatest("sub", [&](const QByteArray &key, const QByteArray &value) {
             result = value;
         });
 
         QCOMPARE(result, QByteArray("value2"));
+    }
+
+    void testFindLatestInSingle()
+    {
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        auto db = transaction.openDatabase("test", nullptr, false);
+        db.write("sub2","value2");
+        QByteArray result;
+        db.findLatest("sub", [&](const QByteArray &key, const QByteArray &value) {
+            result = value;
+        });
+
+        QCOMPARE(result, QByteArray("value2"));
+    }
+
+    void testFindLast()
+    {
+        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        auto db = transaction.openDatabase("test", nullptr, false);
+        db.write("sub2","value2");
+        db.write("wub3","value3");
+        QByteArray result;
+        db.findLatest("wub", [&](const QByteArray &key, const QByteArray &value) {
+            result = value;
+        });
+
+        QCOMPARE(result, QByteArray("value3"));
     }
 
     void testRecordRevision()

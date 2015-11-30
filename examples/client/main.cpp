@@ -20,21 +20,24 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QCommandLineOption>
+#include <QElapsedTimer>
 
 #include "common/clientapi.h"
 #include "common/resource.h"
-#include "common/listmodelresult.h"
 #include "common/storage.h"
 #include "common/domain/event.h"
+#include "common/domain/folder.h"
 #include "common/resourceconfig.h"
+#include "common/log.h"
 #include "console.h"
 
 #include <QWidget>
-#include <QListView>
+#include <QTreeView>
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QItemSelectionModel>
+#include <iostream>
 
 template <typename T>
 class View : public QWidget
@@ -43,8 +46,8 @@ public:
     View(QAbstractItemModel *model)
         : QWidget()
     {
-        auto listView = new QListView(this);
-        listView->setModel(model);
+        auto modelView = new QTreeView(this);
+        modelView->setModel(model);
         resize(1000, 1500);
 
         auto topLayout = new QVBoxLayout(this);
@@ -61,36 +64,59 @@ public:
         QObject::connect(syncButton, &QPushButton::pressed, []() {
             Akonadi2::Query query;
             query.resources << "org.kde.dummy.instance1";
-            Akonadi2::Store::synchronize(query);
+            query.syncOnDemand = true;
+            Akonadi2::Store::synchronize(query).exec();
         });
 
         auto removeButton = new QPushButton(this);
         removeButton->setText("Remove");
-        QObject::connect(removeButton, &QPushButton::pressed, [listView]() {
-            for (auto index :listView->selectionModel()->selectedIndexes()) {
-                auto object = index.data(DomainObjectRole).value<typename T::Ptr>();
+        QObject::connect(removeButton, &QPushButton::pressed, [modelView]() {
+            for (auto index : modelView->selectionModel()->selectedIndexes()) {
+                auto object = index.data(Akonadi2::Store::DomainObjectRole).value<typename T::Ptr>();
                 Akonadi2::Store::remove(*object).exec();
             }
         });
 
         topLayout->addWidget(titleLabel);
         topLayout->addWidget(syncButton);
-        topLayout->addWidget(listView, 10);
+        topLayout->addWidget(modelView, 10);
 
         show();
     }
 
 };
 
+
+class MyApplication : public QApplication
+{
+    QElapsedTimer t;
+public:
+    MyApplication(int& argc, char ** argv) : QApplication(argc, argv) { }
+    virtual ~MyApplication() { }
+
+    virtual bool notify(QObject* receiver, QEvent* event)
+    {
+        t.start();
+        bool ret = QApplication::notify(receiver, event);
+        if(t.elapsed() > 3)
+            qDebug("processing event type %d for object %s took %dms",
+                (int)event->type(), receiver->objectName().toLocal8Bit().data(),
+                (int)t.elapsed());
+        return ret;
+    }
+};
+
 int main(int argc, char *argv[])
 {
-    QApplication app(argc, argv);
+    MyApplication app(argc, argv);
 
     QCommandLineParser cliOptions;
     cliOptions.addPositionalArgument(QObject::tr("[resource]"),
                                      QObject::tr("A resource to connect to"));
     cliOptions.addOption(QCommandLineOption("clear"));
     cliOptions.addOption(QCommandLineOption("debuglevel"));
+    cliOptions.addOption(QCommandLineOption("list"));
+    cliOptions.addOption(QCommandLineOption("count"));
     cliOptions.addHelpOption();
     cliOptions.process(app);
     QStringList resources = cliOptions.positionalArguments();
@@ -122,10 +148,43 @@ int main(int argc, char *argv[])
     }
     query.syncOnDemand = false;
     query.processAll = false;
+    query.requestedProperties << "name";
     query.liveQuery = true;
 
-    auto model = QSharedPointer<ListModelResult<Akonadi2::ApplicationDomain::Event::Ptr> >::create(Akonadi2::Store::load<Akonadi2::ApplicationDomain::Event>(query), QList<QByteArray>() << "summary" << "uid");
-    auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Event> >::create(model.data());
+    QTime time;
+    time.start();
+    auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+    qDebug() << "Loaded model in " << time.elapsed() << " ms";
 
-    return app.exec();
+    if (cliOptions.isSet("list")) {
+        query.liveQuery = false;
+        qDebug() << "Listing";
+        QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
+            for (int i = start; i <= end; i++) {
+                std::cout << "\tRow " << model->rowCount() << ": " << model->data(model->index(i, 0, index)).toString().toStdString() << std::endl;
+            }
+        });
+        QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, &app](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
+            if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
+                app.quit();
+            }
+        });
+        if (!model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool()) {
+            return app.exec();
+        }
+    } else if (cliOptions.isSet("count")) {
+        query.liveQuery = false;
+        QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, &app](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
+            if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
+                std::cout << "\tCounted results " << model->rowCount(QModelIndex());
+                app.quit();
+            }
+        });
+        return app.exec();
+    } else {
+        query.liveQuery = true;
+        auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Folder> >::create(model.data());
+        return app.exec();
+    }
+    return 0;
 }

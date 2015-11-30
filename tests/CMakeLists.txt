@@ -30,8 +30,8 @@ endmacro(auto_tests)
 manual_tests (
     storagebenchmark
     dummyresourcebenchmark
-    genericresourcebenchmark
-    genericfacadebenchmark
+#     genericresourcebenchmark
+#     genericfacadebenchmark
 )
 
 auto_tests (
@@ -41,12 +41,14 @@ auto_tests (
     domainadaptortest
     messagequeuetest
     indextest
-    genericresourcetest
-    genericfacadetest
+    # genericresourcetest
+    # genericfacadetest
     resourcecommunicationtest
     pipelinetest
+    querytest
 )
 
 target_link_libraries(dummyresourcetest akonadi2_resource_dummy)
 target_link_libraries(dummyresourcebenchmark akonadi2_resource_dummy)
+target_link_libraries(querytest akonadi2_resource_dummy)
 
