@@ -30,7 +30,6 @@ public:
     QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<typename T::Ptr>::Ptr > load(const Akonadi2::Query &query) Q_DECL_OVERRIDE
     {
         // capturedResultProvider = &resultProvider;
-        Trace() << "lkjsdflkjsdfljsdfljsdlfj";
 
         auto resultProvider = new Akonadi2::ResultProvider<typename T::Ptr>();
         resultProvider->onDone([resultProvider]() {
@@ -40,7 +39,7 @@ public:
         //We have to do it this way, otherwise we're not setting the fetcher right
         auto emitter = resultProvider->emitter();
 
-        resultProvider->setFetcher([query, resultProvider, this](const typename T::Ptr &) {
+        resultProvider->setFetcher([query, resultProvider, this](const typename T::Ptr &parent) {
             Trace() << "Running the fetcher";
             for (const auto &res : results) {
                 qDebug() << "Parent filter " << query.propertyFilter.value("parent").toByteArray() << res->identifier();
@@ -48,6 +47,7 @@ public:
                     resultProvider->add(res);
                 }
             }
+            resultProvider->initialResultSetComplete(parent);
         });
         auto job = KAsync::start<void>([query, resultProvider]() {
         });
@@ -87,7 +87,8 @@ private Q_SLOTS:
         query.liveQuery = false;
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
-        QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(QModelIndex()), 1);
     }
 
     // //The query provider is supposed to delete itself
@@ -168,9 +169,11 @@ private Q_SLOTS:
         query.parentProperty = "parent";
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-        QTRY_COMPARE(model->rowCount(), 1);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
         model->fetchMore(model->index(0, 0));
-        QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
+        QTRY_VERIFY(model->data(model->index(0, 0), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(model->index(0, 0)), 1);
     }
 
     void testModelSignals()
