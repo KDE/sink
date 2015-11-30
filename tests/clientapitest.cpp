@@ -173,6 +173,28 @@ private Q_SLOTS:
         QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
     }
 
+    void testModelSignals()
+    {
+        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Folder>::registerFacade();
+        auto folder =  QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        auto subfolder = QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        subfolder->setProperty("parent", "id");
+        facade->results << folder << subfolder;
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+
+        //Test
+        Akonadi2::Query query;
+        query.resources << "dummyresource.instance1";
+        query.liveQuery = false;
+        query.parentProperty = "parent";
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        QSignalSpy spy(model.data(), SIGNAL(rowsInserted(const QModelIndex &, int, int)));
+        QVERIFY(spy.isValid());
+        model->fetchMore(model->index(0, 0));
+        QTRY_VERIFY(spy.count() >= 1);
+    }
+
     void testModelNestedLive()
     {
         auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Folder>::registerFacade();
