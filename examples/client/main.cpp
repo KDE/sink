@@ -20,6 +20,7 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QCommandLineOption>
+#include <QElapsedTimer>
 
 #include "common/clientapi.h"
 #include "common/resource.h"
@@ -36,6 +37,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QItemSelectionModel>
+#include <iostream>
 
 template <typename T>
 class View : public QWidget
@@ -84,9 +86,29 @@ public:
 
 };
 
+
+class MyApplication : public QApplication
+{
+    QElapsedTimer t;
+public:
+    MyApplication(int& argc, char ** argv) : QApplication(argc, argv) { }
+    virtual ~MyApplication() { }
+
+    virtual bool notify(QObject* receiver, QEvent* event)
+    {
+        t.start();
+        bool ret = QApplication::notify(receiver, event);
+        if(t.elapsed() > 3)
+            qDebug("processing event type %d for object %s took %dms",
+                (int)event->type(), receiver->objectName().toLocal8Bit().data(),
+                (int)t.elapsed());
+        return ret;
+    }
+};
+
 int main(int argc, char *argv[])
 {
-    QApplication app(argc, argv);
+    MyApplication app(argc, argv);
 
     QCommandLineParser cliOptions;
     cliOptions.addPositionalArgument(QObject::tr("[resource]"),
@@ -129,19 +151,36 @@ int main(int argc, char *argv[])
     query.requestedProperties << "name";
     query.liveQuery = true;
 
+    QTime time;
+    time.start();
     auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+    qDebug() << "Loaded model in " << time.elapsed() << " ms";
+
     if (cliOptions.isSet("list")) {
         query.liveQuery = false;
         qDebug() << "Listing";
         QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
             for (int i = start; i <= end; i++) {
-                qDebug() << model->data(model->index(i, 0, index)).toString();
+                std::cout << "\tRow " << model->rowCount() << ": " << model->data(model->index(i, 0, index)).toString().toStdString() << std::endl;
+            }
+        });
+        QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, &app](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
+            if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
+                app.quit();
+            }
+        });
+        if (!model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool()) {
+            return app.exec();
+        }
+    } else if (cliOptions.isSet("count")) {
+        query.liveQuery = false;
+        QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, &app](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
+            if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
+                std::cout << "\tCounted results " << model->rowCount(QModelIndex());
+                app.quit();
             }
         });
         return app.exec();
-    } else if (cliOptions.isSet("count")) {
-        query.liveQuery = false;
-        qDebug() << "Counted results " << model->rowCount(QModelIndex());
     } else {
         query.liveQuery = true;
         auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Folder> >::create(model.data());
