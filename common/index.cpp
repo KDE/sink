@@ -38,3 +38,16 @@ void Index::lookup(const QByteArray &key, const std::function<void(const QByteAr
     );
 }
 
+QByteArray Index::lookup(const QByteArray &key)
+{
+    QByteArray result;
+    lookup(key,
+    [&result](const QByteArray &value) {
+        result = value;
+    },
+    [](const Index::Error &error) {
+        qDebug() << "Error while retrieving value" << error.message;
+    });
+    return result;
+}
+

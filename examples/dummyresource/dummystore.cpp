@@ -64,9 +64,14 @@ QMap<QString, QMap<QString, QVariant> > populateMails()
 QMap<QString, QMap<QString, QVariant> > populateFolders()
 {
     QMap<QString, QMap<QString, QVariant>> content;
-    for (int i = 0; i < 5; i++) {
+    int i = 0;
+    for (i = 0; i < 5; i++) {
         content.insert(QString("key%1").arg(i), createFolder(i));
     }
+    i++;
+    auto folder = createFolder(i);
+    folder.insert("parent", "key0");
+    content.insert(QString("key%1").arg(i), folder);
     return content;
 }
 

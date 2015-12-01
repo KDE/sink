@@ -296,7 +296,7 @@ KAsync::Job<void> ResourceAccess::sendCreateCommand(const QByteArray &resourceBu
     //This is the resource buffer type and not the domain type
     auto type = fbb.CreateString(resourceBufferType.constData());
     auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
-    auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
+    auto location = Akonadi2::Commands::CreateCreateEntity(fbb, 0, type, delta);
     Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
     open();
     return sendCommand(Akonadi2::Commands::CreateEntityCommand, fbb);

@@ -1,6 +1,7 @@
 namespace Akonadi2.Commands;
 
 table CreateEntity {
+    entityId: string;
     domainType: string;
     delta: [ubyte];
 }

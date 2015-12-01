@@ -36,6 +36,7 @@
 #include "definitions.h"
 #include "facadefactory.h"
 #include <QDate>
+#include <QUuid>
 
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_EVENT "event"
@@ -182,6 +183,19 @@ void DummyResource::createMail(const QByteArray &ridBuffer, const QMap<QString, 
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
 }
 
+QString DummyResource::resolveRemoteId(const QString &remoteId)
+{
+    //Lookup local id for remote id, or insert a new pair otherwise
+    Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
+    auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+    QByteArray akonadiId = Index("rid.mapping", transaction).lookup(remoteId.toLatin1());
+    if (akonadiId.isEmpty()) {
+        akonadiId = QUuid::createUuid().toString().toUtf8();
+        Index("rid.mapping", transaction).add(remoteId.toLatin1(), akonadiId);
+    }
+    return akonadiId;
+}
+
 void DummyResource::createFolder(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb)
 {
     //Map the source format to the buffer format (which happens to be an exact copy here)
@@ -190,7 +204,8 @@ void DummyResource::createFolder(const QByteArray &ridBuffer, const QMap<QString
     bool hasParent = false;
     if (!data.value("parent").toString().isEmpty()) {
         hasParent = true;
-        parent = m_fbb.CreateString(data.value("parent").toString().toStdString());
+        auto akonadiId = resolveRemoteId(data.value("parent").toString());
+        parent = m_fbb.CreateString(akonadiId.toStdString());
     }
 
     auto builder = Akonadi2::ApplicationDomain::Buffer::FolderBuilder(m_fbb);
@@ -222,11 +237,14 @@ void DummyResource::synchronize(const QString &bufferType, const QMap<QString, Q
             flatbuffers::FlatBufferBuilder entityFbb;
             createEntity(it.key().toUtf8(), it.value(), entityFbb);
 
+            auto akonadiId = resolveRemoteId(it.key());
+
             flatbuffers::FlatBufferBuilder fbb;
             //This is the resource type and not the domain type
+            auto entityId = fbb.CreateString(akonadiId.toStdString());
             auto type = fbb.CreateString(bufferType.toStdString());
             auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
-            auto location = Akonadi2::Commands::CreateCreateEntity(fbb, type, delta);
+            auto location = Akonadi2::Commands::CreateCreateEntity(fbb, entityId, type, delta);
             Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
 
             enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));

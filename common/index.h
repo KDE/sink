@@ -33,6 +33,7 @@ public:
 
     void lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler,
                                        const std::function<void(const Error &error)> &errorHandler);
+    QByteArray lookup(const QByteArray &key);
 
 private:
     Q_DISABLE_COPY(Index);

@@ -150,7 +150,14 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
         return KAsync::error<qint64>(0);
     }
 
-    const auto key = QUuid::createUuid().toString().toUtf8();
+    QByteArray key;
+    if (createEntity->entityId()) {
+        key = QByteArray(reinterpret_cast<char const*>(createEntity->entityId()->Data()), createEntity->entityId()->size());
+    }
+    if (key.isEmpty()) {
+        key = QUuid::createUuid().toString().toUtf8();
+    }
+    Q_ASSERT(!key.isEmpty());
     const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
 
     //Add metadata buffer
