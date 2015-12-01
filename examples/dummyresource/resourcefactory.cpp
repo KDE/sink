@@ -141,7 +141,7 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
     }
 }
 
-void DummyResource::createEvent(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb)
+void DummyResource::createEvent(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &transaction)
 {
     //Map the source format to the buffer format (which happens to be an exact copy here)
     auto summary = m_fbb.CreateString(data.value("summary").toString().toStdString());
@@ -160,7 +160,7 @@ void DummyResource::createEvent(const QByteArray &ridBuffer, const QMap<QString,
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize(), 0, 0);
 }
 
-void DummyResource::createMail(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb)
+void DummyResource::createMail(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &transaction)
 {
     //Map the source format to the buffer format (which happens to be an exact copy here)
     auto subject = m_fbb.CreateString(data.value("subject").toString().toStdString());
@@ -182,11 +182,9 @@ void DummyResource::createMail(const QByteArray &ridBuffer, const QMap<QString, 
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
 }
 
-QString DummyResource::resolveRemoteId(const QString &remoteId)
+QString DummyResource::resolveRemoteId(const QString &remoteId, Akonadi2::Storage::Transaction &transaction)
 {
     //Lookup local id for remote id, or insert a new pair otherwise
-    Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
-    auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
     QByteArray akonadiId = Index("rid.mapping", transaction).lookup(remoteId.toLatin1());
     if (akonadiId.isEmpty()) {
         akonadiId = QUuid::createUuid().toString().toUtf8();
@@ -195,7 +193,7 @@ QString DummyResource::resolveRemoteId(const QString &remoteId)
     return akonadiId;
 }
 
-void DummyResource::createFolder(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb)
+void DummyResource::createFolder(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &transaction)
 {
     //Map the source format to the buffer format (which happens to be an exact copy here)
     auto name = m_fbb.CreateString(data.value("name").toString().toStdString());
@@ -203,7 +201,7 @@ void DummyResource::createFolder(const QByteArray &ridBuffer, const QMap<QString
     bool hasParent = false;
     if (!data.value("parent").toString().isEmpty()) {
         hasParent = true;
-        auto akonadiId = resolveRemoteId(data.value("parent").toString());
+        auto akonadiId = resolveRemoteId(data.value("parent").toString(), transaction);
         parent = m_fbb.CreateString(akonadiId.toStdString());
     }
 
@@ -217,26 +215,27 @@ void DummyResource::createFolder(const QByteArray &ridBuffer, const QMap<QString
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
 }
 
-void DummyResource::synchronize(const QString &bufferType, const QMap<QString, QMap<QString, QVariant> > &data, Akonadi2::Storage::Transaction &transaction, std::function<void(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb)> createEntity)
+void DummyResource::synchronize(const QString &bufferType, const QMap<QString, QMap<QString, QVariant> > &data, Akonadi2::Storage::Transaction &transaction, std::function<void(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &)> createEntity)
 {
-    Index uidIndex("index.uid", transaction);
+    Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
+    auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+    Index ridMapping("rid.mapping", synchronizationTransaction);
     for (auto it = data.constBegin(); it != data.constEnd(); it++) {
-        bool isNew = true;
-        uidIndex.lookup(it.key().toLatin1(), [&](const QByteArray &value) {
-            isNew = false;
-        },
-        [](const Index::Error &error) {
-            if (error.code != Index::IndexNotAvailable) {
-                Warning() << "Error in uid index: " <<  error.message;
-            }
-        });
-        if (isNew) {
+        const auto remoteId = it.key().toUtf8();
+        auto akonadiId = resolveRemoteId(remoteId, synchronizationTransaction);
+
+        bool found = false;
+        transaction.openDatabase(bufferType.toUtf8() + ".main").scan(akonadiId.toUtf8(), [&found](const QByteArray &, const QByteArray &) -> bool {
+            found = true;
+            return false;
+        }, [this](const Akonadi2::Storage::Error &error) {
+        }, true);
+
+        if (!found) { //A new entity
             m_fbb.Clear();
 
             flatbuffers::FlatBufferBuilder entityFbb;
-            createEntity(it.key().toUtf8(), it.value(), entityFbb);
-
-            auto akonadiId = resolveRemoteId(it.key());
+            createEntity(remoteId, it.value(), entityFbb, synchronizationTransaction);
 
             flatbuffers::FlatBufferBuilder fbb;
             //This is the resource type and not the domain type
@@ -246,8 +245,10 @@ void DummyResource::synchronize(const QString &bufferType, const QMap<QString, Q
             auto location = Akonadi2::Commands::CreateCreateEntity(fbb, entityId, type, delta);
             Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
 
+            Trace() << "Found a new entity: " << remoteId;
             enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
         } else { //modification
+            Trace() << "Found a modified entity: " << remoteId;
             //TODO diff and create modification if necessary
         }
     }
@@ -260,14 +261,14 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
     return KAsync::start<void>([this](KAsync::Future<void> &f) {
         auto transaction = Akonadi2::Storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier, Akonadi2::Storage::ReadOnly).createTransaction(Akonadi2::Storage::ReadOnly);
 
-        synchronize(ENTITY_TYPE_EVENT, DummyStore::instance().events(), transaction, [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb) {
-            createEvent(ridBuffer, data, entityFbb);
+        synchronize(ENTITY_TYPE_EVENT, DummyStore::instance().events(), transaction, [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &synchronizationTransaction) {
+            createEvent(ridBuffer, data, entityFbb, synchronizationTransaction);
         });
-        synchronize(ENTITY_TYPE_MAIL, DummyStore::instance().mails(), transaction, [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb) {
-            createMail(ridBuffer, data, entityFbb);
+        synchronize(ENTITY_TYPE_MAIL, DummyStore::instance().mails(), transaction, [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &synchronizationTransaction) {
+            createMail(ridBuffer, data, entityFbb, synchronizationTransaction);
         });
-        synchronize(ENTITY_TYPE_FOLDER, DummyStore::instance().folders(), transaction, [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb) {
-            createFolder(ridBuffer, data, entityFbb);
+        synchronize(ENTITY_TYPE_FOLDER, DummyStore::instance().folders(), transaction, [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &synchronizationTransaction) {
+            createFolder(ridBuffer, data, entityFbb, synchronizationTransaction);
         });
 
         f.setFinished();
@@ -277,7 +278,7 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
 void DummyResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
     GenericResource::removeFromDisk(instanceIdentifier);
-    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".event.index.uid", Akonadi2::Storage::ReadWrite).removeFromDisk();
+    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite).removeFromDisk();
 }
 
 DummyResourceFactory::DummyResourceFactory(QObject *parent)
