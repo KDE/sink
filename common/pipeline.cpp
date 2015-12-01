@@ -42,7 +42,8 @@ class Pipeline::Private
 {
 public:
     Private(const QString &resourceName)
-        : storage(Akonadi2::storageLocation(), resourceName, Storage::ReadWrite)
+        : storage(Akonadi2::storageLocation(), resourceName, Storage::ReadWrite),
+        revisionChanged(false)
     {
     }
 
@@ -50,6 +51,7 @@ public:
     Storage::Transaction transaction;
     QHash<QString, QVector<Preprocessor *> > processors;
     QHash<QString, DomainTypeAdaptorFactoryInterface::Ptr> adaptorFactory;
+    bool revisionChanged;
 };
 
 Pipeline::Pipeline(const QString &resourceName, QObject *parent)
@@ -99,7 +101,10 @@ void Pipeline::commit()
         d->transaction.commit();
     }
     d->transaction = Storage::Transaction();
-    emit revisionUpdated(revision);
+    if (d->revisionChanged) {
+        d->revisionChanged = false;
+        emit revisionUpdated(revision);
+    }
 }
 
 Storage::Transaction &Pipeline::transaction()
@@ -119,6 +124,7 @@ void Pipeline::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBuffe
             Warning() << "Failed to write entity";
         }
     );
+    d->revisionChanged = true;
     Akonadi2::Storage::setMaxRevision(d->transaction, newRevision);
     Akonadi2::Storage::recordRevision(d->transaction, newRevision, uid, bufferType);
 }
