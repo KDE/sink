@@ -1,0 +1,8 @@
+{
+    "name": "Dummy read performance",
+    "description": "Measures performance of the query system by reading by uid",
+    "columns": [
+        { "name": "rows", "type": "int" },
+        { "name": "read", "type": "float", "unit": "ops/ms" }
+    ]
+}

@@ -11,12 +11,13 @@
 #include "log.h"
 #include "resourceconfig.h"
 
+#include "hawd/dataset.h"
+#include "hawd/formatter.h"
+
 #include "event_generated.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
 #include "createentity_generated.h"
-
-#include <iostream>
 
 /**
  * Benchmark full system with the dummy resource implementation.
@@ -96,8 +97,15 @@ private Q_SLOTS:
             Akonadi2::Store::synchronize(query).exec().waitForFinished();
         }
         auto allProcessedTime = time.elapsed();
-        qDebug() << "Append to messagequeue " << appendTime;
-        qDebug() << "All processed: " << allProcessedTime << "/sec " << num*1000/allProcessedTime;
+
+        HAWD::Dataset dataset("dummy_write_to_facade", m_hawdState);
+        HAWD::Dataset::Row row = dataset.row();
+
+        row.setValue("rows", num);
+        row.setValue("append", (qreal)num/appendTime);
+        row.setValue("total", (qreal)num/allProcessedTime);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
     }
 
     void testQueryByUid()
@@ -116,7 +124,14 @@ private Q_SLOTS:
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), num);
         }
-        qDebug() << "Query Time: " << time.elapsed() << "/sec " << num*1000/time.elapsed();
+        auto queryTime = time.elapsed();
+
+        HAWD::Dataset dataset("dummy_query_by_uid", m_hawdState);
+        HAWD::Dataset::Row row = dataset.row();
+        row.setValue("rows", num);
+        row.setValue("read", (qreal)num/queryTime);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
     }
 
     void testWriteInProcess()
@@ -171,8 +186,14 @@ private Q_SLOTS:
 
         auto allProcessedTime = time.elapsed();
 
-        std::cout << "Append to messagequeue " << appendTime << " /sec " << num*1000/appendTime << std::endl;
-        std::cout << "All processed: " << allProcessedTime << " /sec " << num*1000/allProcessedTime << std::endl;
+        HAWD::Dataset dataset("dummy_write_in_process", m_hawdState);
+        HAWD::Dataset::Row row = dataset.row();
+
+        row.setValue("rows", num);
+        row.setValue("append", (qreal)num/appendTime);
+        row.setValue("total", (qreal)num/allProcessedTime);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
     }
 
     void testCreateCommand()
@@ -202,6 +223,9 @@ private Q_SLOTS:
     {
         DummyResource::removeFromDisk("org.kde.dummy.instance1");
     }
+
+private:
+    HAWD::State m_hawdState;
 };
 
 QTEST_MAIN(DummyResourceBenchmark)
