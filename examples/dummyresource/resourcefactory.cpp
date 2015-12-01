@@ -55,27 +55,28 @@
  */
 class IndexUpdater : public Akonadi2::Preprocessor {
 public:
-    IndexUpdater(const QByteArray &index, const QByteArray &type)
+    IndexUpdater(const QByteArray &index, const QByteArray &type, const QByteArray &property)
         :mIndexIdentifier(index),
-        mBufferType(type)
+        mBufferType(type),
+        mProperty(property)
     {
 
     }
 
     void newEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        add(newEntity.getProperty("remoteId"), uid, transaction);
+        add(newEntity.getProperty(mProperty), uid, transaction);
     }
 
     void modifiedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        remove(oldEntity.getProperty("remoteId"), uid, transaction);
-        add(newEntity.getProperty("remoteId"), uid, transaction);
+        remove(oldEntity.getProperty(mProperty), uid, transaction);
+        add(newEntity.getProperty(mProperty), uid, transaction);
     }
 
     void deletedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        remove(oldEntity.getProperty("remoteId"), uid, transaction);
+        remove(oldEntity.getProperty(mProperty), uid, transaction);
     }
 
 private:
@@ -94,6 +95,7 @@ private:
 
     QByteArray mIndexIdentifier;
     QByteArray mBufferType;
+    QByteArray mProperty;
 };
 
 template<typename DomainType>
@@ -122,21 +124,18 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
     {
         QVector<Akonadi2::Preprocessor*> eventPreprocessors;
         eventPreprocessors << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Event>;
-        eventPreprocessors << new IndexUpdater("event.index.rid", ENTITY_TYPE_EVENT);
         mPipeline->setPreprocessors(ENTITY_TYPE_EVENT, eventPreprocessors);
         mPipeline->setAdaptorFactory(ENTITY_TYPE_EVENT, QSharedPointer<DummyEventAdaptorFactory>::create());
     }
     {
         QVector<Akonadi2::Preprocessor*> mailPreprocessors;
         mailPreprocessors << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Mail>;
-        mailPreprocessors << new IndexUpdater("mail.index.rid", ENTITY_TYPE_MAIL);
         mPipeline->setPreprocessors(ENTITY_TYPE_MAIL, mailPreprocessors);
         mPipeline->setAdaptorFactory(ENTITY_TYPE_MAIL, QSharedPointer<DummyMailAdaptorFactory>::create());
     }
     {
         QVector<Akonadi2::Preprocessor*> folderPreprocessors;
         folderPreprocessors << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Folder>;
-        folderPreprocessors << new IndexUpdater("folder.index.rid", ENTITY_TYPE_FOLDER);
         mPipeline->setPreprocessors(ENTITY_TYPE_FOLDER, folderPreprocessors);
         mPipeline->setAdaptorFactory(ENTITY_TYPE_FOLDER, QSharedPointer<DummyFolderAdaptorFactory>::create());
     }
