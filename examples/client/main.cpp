@@ -40,6 +40,18 @@
 #include <iostream>
 
 template <typename T>
+QString format(const T &object)
+{
+    QString output;
+    output.append(object->identifier());
+    output.append(QStringLiteral("\t"));
+    output.append(object->getProperty("name").toString());
+    output.append(QStringLiteral("\t"));
+    output.append(object->getProperty("parent").toString());
+    return output;
+}
+
+template <typename T>
 class View : public QWidget
 {
 public:
@@ -117,6 +129,7 @@ int main(int argc, char *argv[])
     cliOptions.addOption(QCommandLineOption("debuglevel"));
     cliOptions.addOption(QCommandLineOption("list"));
     cliOptions.addOption(QCommandLineOption("count"));
+    cliOptions.addOption(QCommandLineOption("synchronize"));
     cliOptions.addHelpOption();
     cliOptions.process(app);
     QStringList resources = cliOptions.positionalArguments();
@@ -153,15 +166,16 @@ int main(int argc, char *argv[])
 
     QTime time;
     time.start();
-    auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-    qDebug() << "Loaded model in " << time.elapsed() << " ms";
 
     if (cliOptions.isSet("list")) {
         query.liveQuery = false;
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        qDebug() << "Loaded model in " << time.elapsed() << " ms";
         qDebug() << "Listing";
         QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
             for (int i = start; i <= end; i++) {
-                std::cout << "\tRow " << model->rowCount() << ": " << model->data(model->index(i, 0, index)).toString().toStdString() << std::endl;
+                QString output = format<Akonadi2::ApplicationDomain::Folder::Ptr>(model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>());
+                std::cout << "\tRow " << model->rowCount() << ": " << output.toStdString() << std::endl;
             }
         });
         QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, &app](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
@@ -174,6 +188,8 @@ int main(int argc, char *argv[])
         }
     } else if (cliOptions.isSet("count")) {
         query.liveQuery = false;
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        qDebug() << "Loaded model in " << time.elapsed() << " ms";
         QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, &app](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
             if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
                 std::cout << "\tCounted results " << model->rowCount(QModelIndex());
@@ -181,8 +197,23 @@ int main(int argc, char *argv[])
             }
         });
         return app.exec();
+    } else if (cliOptions.isSet("synchronize")) {
+        query.syncOnDemand = true;
+        query.processAll = true;
+        Akonadi2::Store::synchronize(query).then<void>([&app]() {
+            app.quit();
+        }).exec();
+        app.exec();
     } else {
+        query.parentProperty = "parent";
         query.liveQuery = true;
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        qDebug() << "Loaded model in " << time.elapsed() << " ms";
+        QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
+            for (int i = start; i <= end; i++) {
+                model->fetchMore(model->index(i, 0, index));
+            }
+        });
         auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Folder> >::create(model.data());
         return app.exec();
     }
