@@ -25,6 +25,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 
 #include <iostream>
 
@@ -119,11 +120,11 @@ DatasetDefinition::DatasetDefinition(const QString &path)
             }
 
             m_description = json.value("description").toString();
-            QJsonObject cols = json.value("columns").toObject();
-            for (const QString &key: cols.keys()) {
-                QJsonObject def = cols.value(key).toObject();
+            auto cols = json.value("columns").toArray();
+            for (const auto &entry: cols) {
+                QJsonObject def = entry.toObject();
                 if (!def.isEmpty()) {
-                    m_columns.insert(key, DataDefinition(def));
+                    m_columns << qMakePair(def.value("name").toString(), DataDefinition(def));
                 }
             }
         }
@@ -152,7 +153,7 @@ QString DatasetDefinition::description() const
     return m_description;
 }
 
-QHash<QString, DataDefinition> DatasetDefinition::columns() const
+QList<QPair<QString, DataDefinition> > DatasetDefinition::columns() const
 {
     return m_columns;
 }

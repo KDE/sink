@@ -60,7 +60,7 @@ public:
             void fromBinary(QByteArray binary);
 
             qint64 m_key;
-            QHash<QString, DataDefinition> m_columns;
+            QList<QPair<QString, DataDefinition> > m_columns;
             QHash<QString, QVariant> m_data;
             QString m_annotation;
             QString m_commitHash;

@@ -49,10 +49,8 @@ Dataset::Row::Row(const Dataset &dataset, qint64 key)
       m_dataset(&dataset)
 {
     // TODO: pre-populate m_data, or do that on buffer creation?
-    QHashIterator<QString, DataDefinition> it(dataset.definition().columns());
-    while (it.hasNext()) {
-        it.next();
-        m_data.insert(it.key(), QVariant());
+    for (const auto &colum : dataset.definition().columns()) {
+        m_data.insert(colum.first, QVariant());
     }
 }
 
@@ -67,13 +65,16 @@ Dataset::Row &Dataset::Row::operator=(const Row &rhs)
     return *this;
 }
 
-void Dataset::Row::setValue(const QString &column, const QVariant &value)
+void Dataset::Row::setValue(const QString &col, const QVariant &value)
 {
-    if (!m_columns.contains(column) || !value.canConvert(m_columns[column].type())) {
-        return;
+    for (const auto &column : m_columns) {
+        if (column.first == col) {
+            if (value.canConvert(column.second.type())) {
+                m_data[col] = value;
+            }
+            return;
+        }
     }
-
-    m_data[column] = value;
 }
 
 void Dataset::Row::annotate(const QString &note)
@@ -158,13 +159,11 @@ QString Dataset::tableHeaders(const QStringList &cols, int standardCols, const Q
         strings << QObject::tr("Commit").leftJustified(s_fieldWidth, ' ');
     }
 
-    QHashIterator<QString, DataDefinition> it(m_definition.columns());
-    while (it.hasNext()) {
-        it.next();
-        QString header = it.key();
+    for (const auto &column : m_definition.columns()) {
+        QString header = column.first;
         if (cols.isEmpty() || cols.contains(header)) {
-            if (!it.value().unit().isEmpty()) {
-                header.append(" (").append(it.value().unit()).append(")");
+            if (!column.second.unit().isEmpty()) {
+                header.append(" (").append(column.second.unit()).append(")");
             }
             strings << header.leftJustified(s_fieldWidth, ' ');
         }
@@ -195,14 +194,14 @@ QString Dataset::Row::toString(const QStringList &cols, int standardCols, const 
         strings << m_commitHash.leftJustified(s_fieldWidth, ' ');
     }
 
-    QHashIterator<QString, QVariant> it(m_data);
-    while (it.hasNext()) {
-        it.next();
-        if (cols.isEmpty() || cols.contains(it.key())) {
-            if (it.value().canConvert<double>()) {
-                strings << QString("%1").arg(it.value().toDouble(), s_fieldWidth, 'f', 3);
+    for (const auto &column : m_columns) {
+        const auto key = column.first;
+        if (cols.isEmpty() || cols.contains(key)) {
+            const auto value = m_data.value(key);
+            if (value.canConvert<double>()) {
+                strings << QString("%1").arg(value.toDouble(), s_fieldWidth, 'f', 3);
             } else {
-                strings << it.value().toString().leftJustified(s_fieldWidth, ' ');
+                strings << value.toString().leftJustified(s_fieldWidth, ' ');
             }
         }
     }

@@ -1,9 +1,9 @@
 {
     "name": "Buffer Creation",
     "description": "Tests how fast buffer creation is",
-    "columns": {
-        "numBuffers": { "type": "int" },
-        "time": { "type": "int", "unit": "ms", "min": 0, "max": 100 },
-        "ops": { "type": "float", "unit": "ops/ms" }
-    }
+    "columns": [
+        { "name: "numBuffers", "type": "int" },
+        { "name: "time", "type": "int", "unit": "ms", "min": 0, "max": 100 },
+        { "name: "ops", "type": "float", "unit": "ops/ms" }
+    ]
 }

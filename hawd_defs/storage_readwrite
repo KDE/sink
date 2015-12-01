@@ -1,10 +1,10 @@
 {
     "name": "Storage Read/Write Performance",
     "description": "Measures performance of the storage class by writing and reading non-trivial datasets",
-    "columns": {
-        "rows": { "type": "int" },
-        "dbWrite": { "type": "float", "unit": "ops/ms" },
-        "fileWrite": { "type": "float", "unit": "ops/ms" },
-        "dbRead": { "type": "float", "unit": "ops/ms" }
-    }
+    "columns": [
+        { "name": "rows", "type": "int" },
+        { "name": "dbWrite", "type": "float", "unit": "ops/ms" },
+        { "name": "fileWrite", "type": "float", "unit": "ops/ms" },
+        { "name": "dbRead", "type": "float", "unit": "ops/ms" }
+    ]
 }

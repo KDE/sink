@@ -60,10 +60,8 @@ bool List::list(const QStringList &commands, State &state)
             if (dataset.isValid()) {
                 DatasetDefinition dataset(project.absoluteFilePath(file));
                 std::cout << '\t' << QObject::tr("Dataset: %1").arg(dataset.name()).toStdString() << std::endl;
-                QHashIterator<QString, DataDefinition> it(dataset.columns());
-                while (it.hasNext()) {
-                    it.next();
-                    std::cout << "\t\t" << it.value().typeString().toStdString() << ' ' << it.key().toStdString() << std::endl;
+                for (const auto &column : dataset.columns()) {
+                    std::cout << "\t\t" << column.second.typeString().toStdString() << ' ' << column.first.toStdString() << std::endl;
                 }
             } else {
                 std::cout << QObject::tr("Problem with dataset %1. Check with 'check' command.").arg(file).toStdString() << std::endl;

@@ -60,14 +60,14 @@ public:
     QString lastError() const;
     QString name() const;
     QString description() const;
-    QHash<QString, DataDefinition> columns() const;
+    QList<QPair<QString, DataDefinition> > columns() const;
 
 private:
     bool m_valid;
     QString m_name;
     QString m_description;
     QString m_lastError;
-    QHash<QString, DataDefinition> m_columns;
+    QList<QPair<QString, DataDefinition> > m_columns;
 };
 
 } // namespace HAWD
