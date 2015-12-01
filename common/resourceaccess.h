@@ -63,6 +63,8 @@ class ResourceAccess : public ResourceAccessInterface
 {
     Q_OBJECT
 public:
+    typedef QSharedPointer<ResourceAccess> Ptr;
+
     ResourceAccess(const QByteArray &resourceName);
     ~ResourceAccess();
 

@@ -28,6 +28,27 @@
 
 using namespace Akonadi2;
 
+class ResourceAccessFactory {
+public:
+    static ResourceAccessFactory &instance()
+    {
+        static ResourceAccessFactory *instance = 0;
+        if (!instance) {
+            instance = new ResourceAccessFactory;
+        }
+        return *instance;
+    }
+
+    Akonadi2::ResourceAccess::Ptr getAccess(const QByteArray &instanceIdentifier)
+    {
+        if (!mCache.contains(instanceIdentifier)) {
+            mCache.insert(instanceIdentifier, Akonadi2::ResourceAccess::Ptr::create(instanceIdentifier));
+        }
+        return mCache.value(instanceIdentifier);
+    }
+
+    QHash<QByteArray, Akonadi2::ResourceAccess::Ptr> mCache;
+};
 
 template<class DomainType>
 GenericFacade<DomainType>::GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory , const QSharedPointer<Akonadi2::ResourceAccessInterface> resourceAccess)
@@ -37,7 +58,7 @@ GenericFacade<DomainType>::GenericFacade(const QByteArray &resourceIdentifier, c
     mResourceInstanceIdentifier(resourceIdentifier)
 {
     if (!mResourceAccess) {
-        mResourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resourceIdentifier);
+        mResourceAccess = ResourceAccessFactory::instance().getAccess(resourceIdentifier);
     }
 }
 
