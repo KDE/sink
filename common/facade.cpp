@@ -42,12 +42,42 @@ public:
     Akonadi2::ResourceAccess::Ptr getAccess(const QByteArray &instanceIdentifier)
     {
         if (!mCache.contains(instanceIdentifier)) {
-            mCache.insert(instanceIdentifier, Akonadi2::ResourceAccess::Ptr::create(instanceIdentifier));
+            //Reuse the pointer if something else kept the resourceaccess alive
+            if (mWeakCache.contains(instanceIdentifier)) {
+                auto sharedPointer = mWeakCache.value(instanceIdentifier).toStrongRef();
+                if (sharedPointer) {
+                    mCache.insert(instanceIdentifier, sharedPointer);
+                }
+            }
+            if (!mCache.contains(instanceIdentifier)) {
+                //Create a new instance if necessary
+                auto sharedPointer = Akonadi2::ResourceAccess::Ptr::create(instanceIdentifier);
+                QObject::connect(sharedPointer.data(), &Akonadi2::ResourceAccess::ready, sharedPointer.data(), [this, instanceIdentifier](bool ready) {
+                    if (!ready) {
+                        mCache.remove(instanceIdentifier);
+                    }
+                });
+                mCache.insert(instanceIdentifier, sharedPointer);
+                mWeakCache.insert(instanceIdentifier, sharedPointer);
+            }
         }
+        if (!mTimer.contains(instanceIdentifier)) {
+            auto timer = new QTimer;
+            //Drop connection after 3 seconds (which is a random value)
+            QObject::connect(timer, &QTimer::timeout, timer, [this, instanceIdentifier]() {
+                mCache.remove(instanceIdentifier);
+            });
+            timer->setInterval(3000);
+            mTimer.insert(instanceIdentifier, timer);
+        }
+        auto timer = mTimer.value(instanceIdentifier);
+        timer->start();
         return mCache.value(instanceIdentifier);
     }
 
+    QHash<QByteArray, QWeakPointer<Akonadi2::ResourceAccess> > mWeakCache;
     QHash<QByteArray, Akonadi2::ResourceAccess::Ptr> mCache;
+    QHash<QByteArray, QTimer*> mTimer;
 };
 
 template<class DomainType>

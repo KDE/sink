@@ -80,6 +80,15 @@ public:
     static KAsync::Job<void> shutdown(const QByteArray &resourceIdentifier);
 
     /**
+     * Start resource.
+     * 
+     * The resource is ready for operation once this command completes.
+     * This command is only necessary if a resource was shutdown previously,
+     * otherwise the resource process will automatically start as necessary.
+     */
+    static KAsync::Job<void> start(const QByteArray &resourceIdentifier);
+
+    /**
      * Synchronize data to local cache.
      */
     static KAsync::Job<void> synchronize(const Akonadi2::Query &query);

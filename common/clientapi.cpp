@@ -149,21 +149,33 @@ KAsync::Job<void> Store::remove(const DomainType &domainObject)
 
 KAsync::Job<void> Store::shutdown(const QByteArray &identifier)
 {
-    Trace() << "shutdown";
+    Trace() << "shutdown " << identifier;
     return ResourceAccess::connectToServer(identifier).then<void, QSharedPointer<QLocalSocket>>([identifier](QSharedPointer<QLocalSocket> socket, KAsync::Future<void> &future) {
         //We can't currently reuse the socket
         socket->close();
         auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(identifier);
         resourceAccess->open();
         resourceAccess->sendCommand(Akonadi2::Commands::ShutdownCommand).then<void>([&future, resourceAccess]() {
+            Trace() << "Shutdown complete";
             future.setFinished();
         }).exec();
     },
     [](int, const QString &) {
+        Trace() << "Resource is already closed.";
         //Resource isn't started, nothing to shutdown
     })
     //FIXME JOBAPI this is only required because we don't care about the return value of connectToServer
     .template then<void>([](){});
+}
+
+KAsync::Job<void> Store::start(const QByteArray &identifier)
+{
+    Trace() << "start " << identifier;
+    auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(identifier);
+    resourceAccess->open();
+    return resourceAccess->sendCommand(Akonadi2::Commands::PingCommand).then<void>([resourceAccess]() {
+        Trace() << "Start complete";
+    });
 }
 
 KAsync::Job<void> Store::synchronize(const Akonadi2::Query &query)

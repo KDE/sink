@@ -368,6 +368,8 @@ void ResourceAccess::open()
 void ResourceAccess::close()
 {
     log(QString("Closing %1").arg(d->socket->fullServerName()));
+    Trace() << "Pending commands: " << d->pendingCommands.size();
+    Trace() << "Queued commands: " << d->commandQueue.size();
     d->socket->close();
 }
 
@@ -393,10 +395,22 @@ void ResourceAccess::processCommandQueue()
 {
     //TODO: serialize instead of blast them all through the socket?
     Trace() << "We have " << d->commandQueue.size() << " queued commands";
+    Trace() << "Pending commands: " << d->pendingCommands.size();
     for (auto command: d->commandQueue) {
         sendCommand(command);
     }
     d->commandQueue.clear();
+}
+
+void ResourceAccess::processPendingCommandQueue()
+{
+    Trace() << "We have " << d->pendingCommands.size() << " pending commands";
+    for (auto command: d->pendingCommands) {
+        Trace() << "Reenquing command " << command->commandId;
+        d->commandQueue << command;
+    }
+    d->pendingCommands.clear();
+    processCommandQueue();
 }
 
 void ResourceAccess::connected()
@@ -415,6 +429,9 @@ void ResourceAccess::connected()
         Commands::write(d->socket.data(), ++d->messageId, Commands::HandshakeCommand, fbb);
     }
 
+    //Reenqueue pending commands, we failed to send them
+    processPendingCommandQueue();
+    //Send queued commands
     processCommandQueue();
 
     emit ready(true);
@@ -424,8 +441,6 @@ void ResourceAccess::disconnected()
 {
     log(QString("Disconnected from %1").arg(d->socket->fullServerName()));
     d->socket->close();
-    //TODO fail all existing jobs? or retry
-    d->abortPendingOperations();
     emit ready(false);
 }
 
@@ -433,12 +448,14 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
 {
     if (error == QLocalSocket::PeerClosedError) {
         Log(d->resourceInstanceIdentifier) << "The resource closed the connection.";
+        d->abortPendingOperations();
     } else {
         Warning() << QString("Connection error: %1 : %2").arg(error).arg(d->socket->errorString());
+        if (d->pendingCommands.size()) {
+            Trace() << "Reconnecting due to pending operations: " << d->pendingCommands.size();
+            open();
+        }
     }
-
-    //TODO We could first try to reconnect and resend the message if necessary.
-    d->abortPendingOperations();
 }
 
 void ResourceAccess::readResourceMessage()
