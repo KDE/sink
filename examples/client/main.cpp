@@ -40,18 +40,6 @@
 #include <iostream>
 
 template <typename T>
-QString format(const T &object)
-{
-    QString output;
-    output.append(object->identifier());
-    output.append(QStringLiteral("\t"));
-    output.append(object->getProperty("name").toString());
-    output.append(QStringLiteral("\t"));
-    output.append(object->getProperty("parent").toString());
-    return output;
-}
-
-template <typename T>
 class View : public QWidget
 {
 public:
@@ -98,7 +86,6 @@ public:
 
 };
 
-
 class MyApplication : public QApplication
 {
     QElapsedTimer t;
@@ -118,6 +105,27 @@ public:
     }
 };
 
+static QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Akonadi2::Query query)
+{
+    QTime time;
+    time.start();
+
+    QSharedPointer<QAbstractItemModel> model;
+    if (type == "folder") {
+        query.requestedProperties << "name" << "parent";
+        model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+    } else if (type == "mail") {
+        query.requestedProperties << "subject" << "folder";
+        model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+    } else if (type == "event") {
+        query.requestedProperties << "summary";
+        model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+    }
+    qDebug() << "Folder type " << type;
+    qDebug() << "Loaded model in " << time.elapsed() << " ms";
+    return model;
+}
+
 int main(int argc, char *argv[])
 {
     MyApplication app(argc, argv);
@@ -127,6 +135,7 @@ int main(int argc, char *argv[])
                                      QObject::tr("A resource to connect to"));
     cliOptions.addOption(QCommandLineOption("clear"));
     cliOptions.addOption(QCommandLineOption("debuglevel"));
+    cliOptions.addOption(QCommandLineOption("type", "type to list", "type"));
     cliOptions.addOption(QCommandLineOption("list"));
     cliOptions.addOption(QCommandLineOption("count"));
     cliOptions.addOption(QCommandLineOption("synchronize"));
@@ -161,21 +170,26 @@ int main(int argc, char *argv[])
     }
     query.syncOnDemand = false;
     query.processAll = false;
-    query.requestedProperties << "name";
     query.liveQuery = true;
 
-    QTime time;
-    time.start();
+    const auto type = cliOptions.value("type");
+    qDebug() << "Type: " << type;
 
     if (cliOptions.isSet("list")) {
         query.liveQuery = false;
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-        qDebug() << "Loaded model in " << time.elapsed() << " ms";
+        auto model = loadModel(type, query);
         qDebug() << "Listing";
+        std::cout << "\tColumn\t ";
+        for (int i = 0; i < model->columnCount(QModelIndex()); i++) {
+            std::cout << "\t" << model->headerData(i, Qt::Horizontal).toString().toStdString() << std::endl;
+        }
         QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
             for (int i = start; i <= end; i++) {
-                QString output = format<Akonadi2::ApplicationDomain::Folder::Ptr>(model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>());
-                std::cout << "\tRow " << model->rowCount() << ": " << output.toStdString() << std::endl;
+                std::cout << "\tRow " << model->rowCount() << ":\t ";
+                for (int col = 0; col < model->columnCount(QModelIndex()); col++) {
+                    std::cout << "\t" << model->data(model->index(i, col, index)).toString().toStdString();
+                }
+                std::cout << std::endl;
             }
         });
         QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, &app](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
@@ -188,8 +202,7 @@ int main(int argc, char *argv[])
         }
     } else if (cliOptions.isSet("count")) {
         query.liveQuery = false;
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-        qDebug() << "Loaded model in " << time.elapsed() << " ms";
+        auto model = loadModel(type, query);
         QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, &app](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
             if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
                 std::cout << "\tCounted results " << model->rowCount(QModelIndex());
@@ -207,15 +220,22 @@ int main(int argc, char *argv[])
     } else {
         query.parentProperty = "parent";
         query.liveQuery = true;
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-        qDebug() << "Loaded model in " << time.elapsed() << " ms";
+        auto model = loadModel(type, query);
         QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
             for (int i = start; i <= end; i++) {
                 model->fetchMore(model->index(i, 0, index));
             }
         });
-        auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Folder> >::create(model.data());
-        return app.exec();
+        if (type == "folder") {
+            auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Folder> >::create(model.data());
+            app.exec();
+        } else if (type == "mail") {
+            auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Mail> >::create(model.data());
+            app.exec();
+        } else if (type == "event") {
+            auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Event> >::create(model.data());
+            app.exec();
+        }
     }
     return 0;
 }

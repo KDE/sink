@@ -65,6 +65,17 @@ int ModelResult<T, Ptr>::columnCount(const QModelIndex &parent) const
 }
 
 template<class T, class Ptr>
+QVariant ModelResult<T, Ptr>::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    if (role == Qt::DisplayRole) {
+        if (section < mPropertyColumns.size()) {
+            return mPropertyColumns.at(section);
+        }
+    }
+    return QVariant();
+}
+
+template<class T, class Ptr>
 QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
 {
     if (role == DomainObjectRole) {
