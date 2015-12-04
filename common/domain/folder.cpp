@@ -80,8 +80,9 @@ void TypeImplementation<Folder>::removeIndex(const QByteArray &identifier, const
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Folder>::Buffer> > TypeImplementation<Folder>::initializeReadPropertyMapper()
 {
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();
-    propertyMapper->addMapping<QString, Buffer>("parent", &Buffer::parent);
+    propertyMapper->addMapping<QByteArray, Buffer>("parent", &Buffer::parent);
     propertyMapper->addMapping<QString, Buffer>("name", &Buffer::name);
+    propertyMapper->addMapping<QByteArray, Buffer>("icon", &Buffer::icon);
     return propertyMapper;
 }
 
@@ -89,12 +90,16 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Folder>::BufferBuilder> > 
 {
     auto propertyMapper = QSharedPointer<WritePropertyMapper<BufferBuilder> >::create();
     propertyMapper->addMapping("parent", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-        auto offset = variantToProperty<QString>(value, fbb);
+        auto offset = variantToProperty<QByteArray>(value, fbb);
         return [offset](BufferBuilder &builder) { builder.add_parent(offset); };
     });
     propertyMapper->addMapping("name", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
         auto offset = variantToProperty<QString>(value, fbb);
         return [offset](BufferBuilder &builder) { builder.add_name(offset); };
+    });
+    propertyMapper->addMapping("icon", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+        auto offset = variantToProperty<QByteArray>(value, fbb);
+        return [offset](BufferBuilder &builder) { builder.add_icon(offset); };
     });
     return propertyMapper;
 }

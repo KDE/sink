@@ -19,6 +19,7 @@
 #include "dummystore.h"
 
 #include <QString>
+#include <QDateTime>
 
 static QMap<QString, QVariant> createEvent(int i)
 {
@@ -29,21 +30,7 @@ static QMap<QString, QVariant> createEvent(int i)
     return event;
 }
 
-static QMap<QString, QVariant> createMail(int i)
-{
-    QMap<QString, QVariant> mail;
-    mail.insert("subject", QString("subject%1").arg(i));
-    return mail;
-}
-
-static QMap<QString, QVariant> createFolder(int i)
-{
-    QMap<QString, QVariant> folder;
-    folder.insert("name", QString("folder%1").arg(i));
-    return folder;
-}
-
-QMap<QString, QMap<QString, QVariant> > populateEvents()
+QMap<QString, QMap<QString, QVariant> > DummyStore::populateEvents()
 {
     QMap<QString, QMap<QString, QVariant>> content;
     for (int i = 0; i < 2; i++) {
@@ -52,44 +39,82 @@ QMap<QString, QMap<QString, QVariant> > populateEvents()
     return content;
 }
 
-QMap<QString, QMap<QString, QVariant> > populateMails()
+static QByteArray addMail(QMap <QString, QMap<QString, QVariant> > &content, const QString &subject, const QDateTime &date, const QString &senderName, const QString &senderEmail, bool isUnread, bool isImportant, const QByteArray &parentFolder)
+{
+    static int id = 0;
+    id++;
+    const auto uid = QString("key%1").arg(id);
+    QMap<QString, QVariant> mail;
+    mail.insert("subject", subject);
+    mail.insert("date", date);
+    mail.insert("senderName", senderName);
+    mail.insert("senderEmail", senderEmail);
+    mail.insert("unread", isUnread);
+    mail.insert("important", isImportant);
+    mail.insert("parentFolder", parentFolder);
+    content.insert(uid, mail);
+    return uid.toUtf8();
+}
+
+QMap<QString, QMap<QString, QVariant> > DummyStore::populateMails()
 {
     QMap<QString, QMap<QString, QVariant>> content;
-    for (int i = 0; i < 2; i++) {
-        content.insert(QString("key%1").arg(i), createMail(i));
+    for (const auto &parentFolder : mFolders.keys()) {
+        addMail(content, "Hello World!", QDateTime::currentDateTimeUtc(), "John Doe", "doe@example.com", true, false, parentFolder.toUtf8());
     }
     return content;
 }
 
-QMap<QString, QMap<QString, QVariant> > populateFolders()
+static QByteArray addFolder(QMap <QString, QMap<QString, QVariant> > &content, const QString &name, const QByteArray &icon, const QByteArray &parent = QByteArray())
+{
+    static int id = 0;
+    id++;
+    const auto uid = QString("key%1").arg(id);
+    QMap<QString, QVariant> folder;
+    folder.insert("name", name);
+    if (!parent.isEmpty()) {
+        folder.insert("parent", parent);
+    }
+    folder.insert("icon", icon);
+    content.insert(uid, folder);
+    return uid.toUtf8();
+}
+
+QMap<QString, QMap<QString, QVariant> > DummyStore::populateFolders()
 {
     QMap<QString, QMap<QString, QVariant>> content;
-    int i = 0;
-    for (i = 0; i < 5; i++) {
-        content.insert(QString("key%1").arg(i), createFolder(i));
+    addFolder(content, "Inbox", "mail-folder-inbox");
+    auto data = addFolder(content, "Data", "folder");
+    addFolder(content, "Sent", "mail-folder-sent");
+    addFolder(content, "Trash", "user-trash");
+    addFolder(content, "Drafts", "document-edit");
+    addFolder(content, "Stuff", "folder", data);
+    auto bulk = addFolder(content, "Bulk", "folder", data);
+    for (int i = 0; i < 5; i++) {
+        addFolder(content, QString("Folder %1").arg(i), "folder", bulk);
     }
-    i++;
-    auto folder = createFolder(i);
-    folder.insert("parent", "key0");
-    content.insert(QString("key%1").arg(i), folder);
     return content;
 }
 
-static QMap<QString, QMap<QString, QVariant> > s_eventSource = populateEvents();
-static QMap<QString, QMap<QString, QVariant> > s_mailSource = populateMails();
-static QMap<QString, QMap<QString, QVariant> > s_folderSource = populateFolders();
-
-QMap<QString, QMap<QString, QVariant> > DummyStore::events() const
+DummyStore::DummyStore()
 {
-    return s_eventSource;
+    mFolders = populateFolders();
+    mMails = populateMails();
+    mEvents = populateEvents();
+
 }
 
-QMap<QString, QMap<QString, QVariant> > DummyStore::mails() const
+QMap<QString, QMap<QString, QVariant> > &DummyStore::events()
 {
-    return s_mailSource;
+    return mEvents;
 }
 
-QMap<QString, QMap<QString, QVariant> > DummyStore::folders() const
+QMap<QString, QMap<QString, QVariant> > &DummyStore::mails()
 {
-    return s_folderSource;
+    return mMails;
+}
+
+QMap<QString, QMap<QString, QVariant> > &DummyStore::folders()
+{
+    return mFolders;
 }

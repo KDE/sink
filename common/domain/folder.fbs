@@ -3,6 +3,7 @@ namespace Akonadi2.ApplicationDomain.Buffer;
 table Folder {
   name:string;
   parent:string;
+  icon:string;
 }
 
 root_type Folder;

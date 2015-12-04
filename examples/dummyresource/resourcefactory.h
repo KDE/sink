@@ -36,7 +36,7 @@ public:
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE;
     static void removeFromDisk(const QByteArray &instanceIdentifier);
 private:
-    QString resolveRemoteId(const QString &remoteId, Akonadi2::Storage::Transaction &transaction);
+    QString resolveRemoteId(const QByteArray &type, const QString &remoteId, Akonadi2::Storage::Transaction &transaction);
     void createEvent(const QByteArray &rid, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &);
     void createMail(const QByteArray &rid, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &);
     void createFolder(const QByteArray &rid, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &);

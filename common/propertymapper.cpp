@@ -29,6 +29,15 @@ flatbuffers::uoffset_t variantToProperty<QString>(const QVariant &property, flat
 }
 
 template <>
+flatbuffers::uoffset_t variantToProperty<QByteArray>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
+{
+    if (property.isValid()) {
+        return fbb.CreateString(property.toByteArray().toStdString()).o;
+    }
+    return 0;
+}
+
+template <>
 QVariant propertyToVariant<QString>(const flatbuffers::String *property)
 {
     if (property) {
@@ -39,8 +48,17 @@ QVariant propertyToVariant<QString>(const flatbuffers::String *property)
 }
 
 template <>
+QVariant propertyToVariant<QByteArray>(const flatbuffers::String *property)
+{
+    if (property) {
+        //We have to copy the memory, otherwise it would become eventually invalid
+        return QString::fromStdString(property->c_str()).toUtf8();
+    }
+    return QVariant();
+}
+
+template <>
 QVariant propertyToVariant<bool>(uint8_t property)
 {
     return static_cast<bool>(property);
 }
-

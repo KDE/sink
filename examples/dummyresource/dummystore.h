@@ -29,7 +29,18 @@ public:
         return instance;
     }
 
-    QMap<QString, QMap<QString, QVariant> > events() const;
-    QMap<QString, QMap<QString, QVariant> > mails() const;
-    QMap<QString, QMap<QString, QVariant> > folders() const;
+    QMap<QString, QMap<QString, QVariant> > &events();
+    QMap<QString, QMap<QString, QVariant> > &mails();
+    QMap<QString, QMap<QString, QVariant> > &folders();
+
+private:
+    DummyStore();
+
+    QMap<QString, QMap<QString, QVariant> > populateEvents();
+    QMap<QString, QMap<QString, QVariant> > populateMails();
+    QMap<QString, QMap<QString, QVariant> > populateFolders();
+
+    QMap<QString, QMap<QString, QVariant> > mEvents;
+    QMap<QString, QMap<QString, QVariant> > mMails;
+    QMap<QString, QMap<QString, QVariant> > mFolders;
 };

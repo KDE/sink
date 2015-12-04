@@ -160,14 +160,27 @@ void DummyResource::createEvent(const QByteArray &ridBuffer, const QMap<QString,
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize(), 0, 0);
 }
 
+QString DummyResource::resolveRemoteId(const QByteArray &bufferType, const QString &remoteId, Akonadi2::Storage::Transaction &transaction)
+{
+    //Lookup local id for remote id, or insert a new pair otherwise
+    auto remoteIdWithType = bufferType + remoteId.toUtf8();
+    QByteArray akonadiId = Index("rid.mapping", transaction).lookup(remoteIdWithType);
+    if (akonadiId.isEmpty()) {
+        akonadiId = QUuid::createUuid().toString().toUtf8();
+        Index("rid.mapping", transaction).add(remoteIdWithType, akonadiId);
+    }
+    return akonadiId;
+}
+
+
 void DummyResource::createMail(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &transaction)
 {
-    //Map the source format to the buffer format (which happens to be an exact copy here)
+    //Map the source format to the buffer format (which happens to be an almost exact copy here)
     auto subject = m_fbb.CreateString(data.value("subject").toString().toStdString());
-    auto sender = m_fbb.CreateString(data.value("sender").toString().toStdString());
+    auto sender = m_fbb.CreateString(data.value("senderEmail").toString().toStdString());
     auto senderName = m_fbb.CreateString(data.value("senderName").toString().toStdString());
     auto date = m_fbb.CreateString(data.value("date").toDate().toString().toStdString());
-    auto folder = m_fbb.CreateString(std::string("inbox"));
+    auto folder = m_fbb.CreateString(resolveRemoteId(ENTITY_TYPE_MAIL, data.value("parentFolder").toString(), transaction).toStdString());
 
     auto builder = Akonadi2::ApplicationDomain::Buffer::MailBuilder(m_fbb);
     builder.add_subject(subject);
@@ -182,26 +195,16 @@ void DummyResource::createMail(const QByteArray &ridBuffer, const QMap<QString, 
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
 }
 
-QString DummyResource::resolveRemoteId(const QString &remoteId, Akonadi2::Storage::Transaction &transaction)
-{
-    //Lookup local id for remote id, or insert a new pair otherwise
-    QByteArray akonadiId = Index("rid.mapping", transaction).lookup(remoteId.toLatin1());
-    if (akonadiId.isEmpty()) {
-        akonadiId = QUuid::createUuid().toString().toUtf8();
-        Index("rid.mapping", transaction).add(remoteId.toLatin1(), akonadiId);
-    }
-    return akonadiId;
-}
-
 void DummyResource::createFolder(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &transaction)
 {
     //Map the source format to the buffer format (which happens to be an exact copy here)
     auto name = m_fbb.CreateString(data.value("name").toString().toStdString());
+    auto icon = m_fbb.CreateString(data.value("icon").toString().toStdString());
     flatbuffers::Offset<flatbuffers::String> parent;
     bool hasParent = false;
     if (!data.value("parent").toString().isEmpty()) {
         hasParent = true;
-        auto akonadiId = resolveRemoteId(data.value("parent").toString(), transaction);
+        auto akonadiId = resolveRemoteId(ENTITY_TYPE_FOLDER, data.value("parent").toString(), transaction);
         parent = m_fbb.CreateString(akonadiId.toStdString());
     }
 
@@ -210,6 +213,7 @@ void DummyResource::createFolder(const QByteArray &ridBuffer, const QMap<QString
     if (hasParent) {
         builder.add_parent(parent);
     }
+    builder.add_icon(icon);
     auto buffer = builder.Finish();
     Akonadi2::ApplicationDomain::Buffer::FinishFolderBuffer(m_fbb, buffer);
     Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
@@ -222,7 +226,7 @@ void DummyResource::synchronize(const QString &bufferType, const QMap<QString, Q
     Index ridMapping("rid.mapping", synchronizationTransaction);
     for (auto it = data.constBegin(); it != data.constEnd(); it++) {
         const auto remoteId = it.key().toUtf8();
-        auto akonadiId = resolveRemoteId(remoteId, synchronizationTransaction);
+        auto akonadiId = resolveRemoteId(bufferType.toUtf8(), remoteId, synchronizationTransaction);
 
         bool found = false;
         transaction.openDatabase(bufferType.toUtf8() + ".main").scan(akonadiId.toUtf8(), [&found](const QByteArray &, const QByteArray &) -> bool {
