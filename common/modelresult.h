@@ -34,7 +34,8 @@ class ModelResult : public QAbstractItemModel
 public:
     enum Roles {
         DomainObjectRole = Qt::UserRole + 1,
-        ChildrenFetchedRole
+        ChildrenFetchedRole,
+        DomainObjectBaseRole
     };
 
     ModelResult(const Akonadi2::Query &query, const QList<QByteArray> &propertyColumns);

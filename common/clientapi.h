@@ -45,7 +45,8 @@ public:
 
     enum Roles {
         DomainObjectRole = Qt::UserRole + 1, //Must be the same as in ModelResult
-        ChildrenFetchedRole
+        ChildrenFetchedRole,
+        DomainObjectBaseRole
     };
 
     /**

@@ -71,6 +71,10 @@ QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
         Q_ASSERT(mEntities.contains(index.internalId()));
         return QVariant::fromValue(mEntities.value(index.internalId()));
     }
+    if (role == DomainObjectBaseRole) {
+        Q_ASSERT(mEntities.contains(index.internalId()));
+        return QVariant::fromValue(mEntities.value(index.internalId()). template staticCast<Akonadi2::ApplicationDomain::ApplicationDomainType>());
+    }
     if (role == ChildrenFetchedRole) {
         return childrenFetched(index);
     }
