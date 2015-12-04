@@ -115,7 +115,7 @@ static QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Akonadi
         query.requestedProperties << "name" << "parent";
         model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
     } else if (type == "mail") {
-        query.requestedProperties << "subject" << "folder";
+        query.requestedProperties << "subject" << "folder" << "date";
         model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
     } else if (type == "event") {
         query.requestedProperties << "summary";
@@ -133,15 +133,19 @@ int main(int argc, char *argv[])
     QCommandLineParser cliOptions;
     cliOptions.addPositionalArgument(QObject::tr("[resource]"),
                                      QObject::tr("A resource to connect to"));
+    cliOptions.addPositionalArgument(QObject::tr("[type]"),
+                                     QObject::tr("A type to work with"));
     cliOptions.addOption(QCommandLineOption("clear"));
     cliOptions.addOption(QCommandLineOption("debuglevel"));
-    cliOptions.addOption(QCommandLineOption("type", "type to list", "type"));
+    // cliOptions.addOption(QCommandLineOption("type", "type to list", "type"));
     cliOptions.addOption(QCommandLineOption("list"));
     cliOptions.addOption(QCommandLineOption("count"));
     cliOptions.addOption(QCommandLineOption("synchronize"));
     cliOptions.addHelpOption();
     cliOptions.process(app);
-    QStringList resources = cliOptions.positionalArguments();
+    QStringList args = cliOptions.positionalArguments();
+    auto type = args.takeLast();
+    auto resources = args;
     if (resources.isEmpty()) {
         resources << "org.kde.dummy.instance1";
     }
@@ -172,7 +176,6 @@ int main(int argc, char *argv[])
     query.processAll = false;
     query.liveQuery = true;
 
-    const auto type = cliOptions.value("type");
     qDebug() << "Type: " << type;
 
     if (cliOptions.isSet("list")) {
@@ -181,8 +184,9 @@ int main(int argc, char *argv[])
         qDebug() << "Listing";
         std::cout << "\tColumn\t ";
         for (int i = 0; i < model->columnCount(QModelIndex()); i++) {
-            std::cout << "\t" << model->headerData(i, Qt::Horizontal).toString().toStdString() << std::endl;
+            std::cout << "\t" << model->headerData(i, Qt::Horizontal).toString().toStdString();
         }
+        std::cout << std::endl;
         QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
             for (int i = start; i <= end; i++) {
                 std::cout << "\tRow " << model->rowCount() << ":\t ";

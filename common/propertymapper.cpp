@@ -18,6 +18,7 @@
  */
 
 #include "propertymapper.h"
+#include <QDateTime>
 
 template <>
 flatbuffers::uoffset_t variantToProperty<QString>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
@@ -33,6 +34,15 @@ flatbuffers::uoffset_t variantToProperty<QByteArray>(const QVariant &property, f
 {
     if (property.isValid()) {
         return fbb.CreateString(property.toByteArray().toStdString()).o;
+    }
+    return 0;
+}
+
+template <>
+flatbuffers::uoffset_t variantToProperty<QDateTime>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
+{
+    if (property.isValid()) {
+        return fbb.CreateString(property.toDateTime().toString().toStdString()).o;
     }
     return 0;
 }
@@ -61,4 +71,14 @@ template <>
 QVariant propertyToVariant<bool>(uint8_t property)
 {
     return static_cast<bool>(property);
+}
+
+template <>
+QVariant propertyToVariant<QDateTime>(const flatbuffers::String *property)
+{
+    if (property) {
+        //We have to copy the memory, otherwise it would become eventually invalid
+        return QDateTime::fromString(QString::fromStdString(property->c_str()));
+    }
+    return QVariant();
 }

@@ -100,6 +100,16 @@ public:
     }
 
     template <typename T>
+    void addMapping(const QByteArray &name, void (BufferBuilder::*f)(uint8_t))
+    {
+        addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+            return [value, f](BufferBuilder &builder) {
+                (builder.*f)(value.value<T>());
+            };
+        });
+    }
+
+    template <typename T>
     void addMapping(const QByteArray &name, void (BufferBuilder::*f)(flatbuffers::Offset<flatbuffers::String>))
     {
         addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {

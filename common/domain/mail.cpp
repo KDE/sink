@@ -73,10 +73,10 @@ QSharedPointer<ReadPropertyMapper<TypeImplementation<Mail>::Buffer> > TypeImplem
     propertyMapper->addMapping<QString, Buffer>("sender", &Buffer::sender);
     propertyMapper->addMapping<QString, Buffer>("senderName", &Buffer::senderName);
     propertyMapper->addMapping<QString, Buffer>("subject", &Buffer::subject);
-    propertyMapper->addMapping<QString, Buffer>("date", &Buffer::date);
+    propertyMapper->addMapping<QDateTime, Buffer>("date", &Buffer::date);
     propertyMapper->addMapping<bool, Buffer>("unread", &Buffer::unread);
     propertyMapper->addMapping<bool, Buffer>("important", &Buffer::important);
-    propertyMapper->addMapping<QString, Buffer>("folder", &Buffer::folder);
+    propertyMapper->addMapping<QByteArray, Buffer>("folder", &Buffer::folder);
     return propertyMapper;
 }
 
@@ -87,9 +87,9 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Mail>::BufferBuilder> > Ty
     propertyMapper->addMapping<QString>("sender", &BufferBuilder::add_sender);
     propertyMapper->addMapping<QString>("senderName", &BufferBuilder::add_senderName);
     propertyMapper->addMapping<QString>("subject", &BufferBuilder::add_subject);
-    propertyMapper->addMapping<QString>("date", &BufferBuilder::add_date);
-    // propertyMapper->addMapping<bool>("unread", &BufferBuilder::add_unread);
-    // propertyMapper->addMapping<bool>("important", &BufferBuilder::add_important);
+    propertyMapper->addMapping<QDateTime>("date", &BufferBuilder::add_date);
+    propertyMapper->addMapping<bool>("unread", &BufferBuilder::add_unread);
+    propertyMapper->addMapping<bool>("important", &BufferBuilder::add_important);
     propertyMapper->addMapping<QString>("folder", &BufferBuilder::add_folder);
     return propertyMapper;
 }

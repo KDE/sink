@@ -179,7 +179,7 @@ void DummyResource::createMail(const QByteArray &ridBuffer, const QMap<QString, 
     auto subject = m_fbb.CreateString(data.value("subject").toString().toStdString());
     auto sender = m_fbb.CreateString(data.value("senderEmail").toString().toStdString());
     auto senderName = m_fbb.CreateString(data.value("senderName").toString().toStdString());
-    auto date = m_fbb.CreateString(data.value("date").toDate().toString().toStdString());
+    auto date = m_fbb.CreateString(data.value("date").toDateTime().toString().toStdString());
     auto folder = m_fbb.CreateString(resolveRemoteId(ENTITY_TYPE_MAIL, data.value("parentFolder").toString(), transaction).toStdString());
 
     auto builder = Akonadi2::ApplicationDomain::Buffer::MailBuilder(m_fbb);
