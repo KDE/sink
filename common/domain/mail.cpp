@@ -83,13 +83,13 @@ QSharedPointer<ReadPropertyMapper<TypeImplementation<Mail>::Buffer> > TypeImplem
 QSharedPointer<WritePropertyMapper<TypeImplementation<Mail>::BufferBuilder> > TypeImplementation<Mail>::initializeWritePropertyMapper()
 {
     auto propertyMapper = QSharedPointer<WritePropertyMapper<BufferBuilder> >::create();
-    // propertyMapper->addMapping("summary", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-    //     auto offset = variantToProperty<QString>(value, fbb);
-    //     return [offset](BufferBuilder &builder) { builder.add_summary(offset); };
-    // });
-    propertyMapper->addMapping("uid", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-        auto offset = variantToProperty<QString>(value, fbb);
-        return [offset](BufferBuilder &builder) { builder.add_uid(offset); };
-    });
+    propertyMapper->addMapping<QString>("uid", &BufferBuilder::add_uid);
+    propertyMapper->addMapping<QString>("sender", &BufferBuilder::add_sender);
+    propertyMapper->addMapping<QString>("senderName", &BufferBuilder::add_senderName);
+    propertyMapper->addMapping<QString>("subject", &BufferBuilder::add_subject);
+    propertyMapper->addMapping<QString>("date", &BufferBuilder::add_date);
+    // propertyMapper->addMapping<bool>("unread", &BufferBuilder::add_unread);
+    // propertyMapper->addMapping<bool>("important", &BufferBuilder::add_important);
+    propertyMapper->addMapping<QString>("folder", &BufferBuilder::add_folder);
     return propertyMapper;
 }

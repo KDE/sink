@@ -78,13 +78,7 @@ QSharedPointer<ReadPropertyMapper<TypeImplementation<Event>::Buffer> > TypeImple
 QSharedPointer<WritePropertyMapper<TypeImplementation<Event>::BufferBuilder> > TypeImplementation<Event>::initializeWritePropertyMapper()
 {
     auto propertyMapper = QSharedPointer<WritePropertyMapper<BufferBuilder> >::create();
-    propertyMapper->addMapping("summary", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-        auto offset = variantToProperty<QString>(value, fbb);
-        return [offset](BufferBuilder &builder) { builder.add_summary(offset); };
-    });
-    propertyMapper->addMapping("uid", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-        auto offset = variantToProperty<QString>(value, fbb);
-        return [offset](BufferBuilder &builder) { builder.add_uid(offset); };
-    });
+    propertyMapper->addMapping<QString>("summary", &BufferBuilder::add_summary);
+    propertyMapper->addMapping<QString>("uid", &BufferBuilder::add_uid);
     return propertyMapper;
 }

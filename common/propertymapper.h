@@ -98,6 +98,17 @@ public:
     void addMapping(const QByteArray &property, const std::function<std::function<void(BufferBuilder &)>(const QVariant &, flatbuffers::FlatBufferBuilder &)> &mapping) {
         mWriteAccessors.insert(property, mapping);
     }
+
+    template <typename T>
+    void addMapping(const QByteArray &name, void (BufferBuilder::*f)(flatbuffers::Offset<flatbuffers::String>))
+    {
+        addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+            auto offset = variantToProperty<T>(value, fbb);
+            return [offset, f](BufferBuilder &builder) {
+                (builder.*f)(offset);
+            };
+        });
+    }
 private:
     QHash<QByteArray, std::function<std::function<void(BufferBuilder &)>(const QVariant &, flatbuffers::FlatBufferBuilder &)> > mWriteAccessors;
 };
