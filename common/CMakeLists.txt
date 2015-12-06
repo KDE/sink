@@ -32,6 +32,7 @@ set(command_SRCS
     threadboundary.cpp
     messagequeue.cpp
     index.cpp
+    typeindex.cpp
     resourcefacade.cpp
     resourceconfig.cpp
     domain/applicationdomaintype.cpp

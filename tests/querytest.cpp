@@ -154,6 +154,31 @@ private Q_SLOTS:
         QTRY_COMPARE(model->rowCount(), 1);
         model->fetchMore(model->index(0, 0));
         QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
+    void testMailByUid()
+    {
+        //Setup
+        {
+            Akonadi2::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            mail.setProperty("uid", "test1");
+            mail.setProperty("sender", "doe@example.org");
+            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+        }
+
+        //Test
+        Akonadi2::Query query;
+        query.resources << "org.kde.dummy.instance1";
+        query.syncOnDemand = false;
+        query.processAll = true;
+        query.liveQuery = false;
+        query.propertyFilter.insert("uid", "test1");
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
     }
 };
 

@@ -29,41 +29,40 @@
 #include "../propertymapper.h"
 #include "../query.h"
 #include "../definitions.h"
+#include "../typeindex.h"
 
 #include "mail_generated.h"
 
 using namespace Akonadi2::ApplicationDomain;
 
+static TypeIndex &getIndex()
+{
+    static TypeIndex *index = 0;
+    if (!index) {
+        index = new TypeIndex("mail");
+        index->addProperty<QByteArray>("uid");
+        index->addProperty<QByteArray>("sender");
+        index->addProperty<QByteArray>("senderName");
+        index->addProperty<QString>("subject");
+        index->addProperty<QDateTime>("date");
+    }
+    return *index;
+}
+
 ResultSet TypeImplementation<Mail>::queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction)
 {
-    QVector<QByteArray> keys;
-    if (query.propertyFilter.contains("uid")) {
-        Index uidIndex("mail.index.uid", transaction);
-        uidIndex.lookup(query.propertyFilter.value("uid").toByteArray(), [&](const QByteArray &value) {
-            keys << value;
-        },
-        [](const Index::Error &error) {
-            Warning() << "Error in uid index: " <<  error.message;
-        });
-        appliedFilters << "uid";
-    }
-    return ResultSet(keys);
+    return getIndex().query(query, appliedFilters, transaction);
 }
 
 void TypeImplementation<Mail>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
 {
-    const auto uid = bufferAdaptor.getProperty("uid");
-    if (uid.isValid()) {
-        Index("mail.index.uid", transaction).add(uid.toByteArray(), identifier);
-    }
+    Trace() << "Indexing " << identifier;
+    getIndex().add(identifier, bufferAdaptor, transaction);
 }
 
 void TypeImplementation<Mail>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
 {
-    const auto uid = bufferAdaptor.getProperty("uid");
-    if (uid.isValid()) {
-        Index("mail.index.uid", transaction).remove(uid.toByteArray(), identifier);
-    }
+    getIndex().remove(identifier, bufferAdaptor, transaction);
 }
 
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Mail>::Buffer> > TypeImplementation<Mail>::initializeReadPropertyMapper()
