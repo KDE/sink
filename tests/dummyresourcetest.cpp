@@ -239,7 +239,7 @@ private Q_SLOTS:
         //Test remove
         {
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
-            //TODO ensure the initial query is done
+            QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
             QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
         }
     }
@@ -255,7 +255,7 @@ private Q_SLOTS:
         query.propertyFilter.insert("uid", "testuid");
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
-        //TODO ensure the initial query is done
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
 
         Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
         event.setProperty("uid", "testuid");

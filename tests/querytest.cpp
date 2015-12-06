@@ -33,6 +33,7 @@ private Q_SLOTS:
         DummyResource::removeFromDisk("org.kde.dummy.instance1");
         auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
+        Akonadi2::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
     }
 
     void init()
@@ -78,15 +79,15 @@ private Q_SLOTS:
         query.processAll = true;
         query.liveQuery = false;
 
-        //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
-
         //Ensure all local data is processed
         Akonadi2::Store::synchronize(query).exec().waitForFinished();
 
+        //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+
         model->fetchMore(QModelIndex());
-        QVERIFY(model->rowCount() < 2);
-        QTRY_COMPARE(model->rowCount(), 1);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
     }
 
     void testFolder()
@@ -128,7 +129,8 @@ private Q_SLOTS:
             Akonadi2::Store::synchronize(query).exec().waitForFinished();
 
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-            QTRY_COMPARE(model->rowCount(), 1);
+            QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
 
             auto folderEntity = model->index(0, 0).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
             QVERIFY(!folderEntity->identifier().isEmpty());
@@ -151,9 +153,13 @@ private Q_SLOTS:
         //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
         model->fetchMore(QModelIndex());
-        QTRY_COMPARE(model->rowCount(), 1);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
         model->fetchMore(model->index(0, 0));
-        QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
+        QTRY_VERIFY(model->data(model->index(0, 0), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(model->index(0, 0)), 1);
+    }
+
     void testMailByUid()
     {
         //Setup
