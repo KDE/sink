@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
         auto model = loadModel(type, query);
         QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, &app](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
             if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
-                std::cout << "\tCounted results " << model->rowCount(QModelIndex());
+                std::cout << "\tCounted results " << model->rowCount(QModelIndex()) << std::endl;
                 app.quit();
             }
         });
@@ -222,15 +222,17 @@ int main(int argc, char *argv[])
         }).exec();
         app.exec();
     } else {
-        query.parentProperty = "parent";
         query.liveQuery = true;
-        auto model = loadModel(type, query);
-        QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
-            for (int i = start; i <= end; i++) {
-                model->fetchMore(model->index(i, 0, index));
-            }
-        });
         if (type == "folder") {
+            query.parentProperty = "parent";
+        }
+        auto model = loadModel(type, query);
+        if (type == "folder") {
+            QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
+                for (int i = start; i <= end; i++) {
+                    model->fetchMore(model->index(i, 0, index));
+                }
+            });
             auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Folder> >::create(model.data());
             app.exec();
         } else if (type == "mail") {
