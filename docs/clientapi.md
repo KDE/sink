@@ -20,7 +20,7 @@ The definition of the domain model directly affects:
 * granularity for data retrieval (email property, or individual subject, date, ...)
 * queriable properties for filtering and sorting (sender, id, ...)
 
-The purpose of these domain types is strictly to be the interface and the types are not meant to be used by applications directly, or to be restricted by any other specifications (such as ical). By nature these types will be part of the evolving interface, and will need to be adjusted for every new property that an application must understand.
+The purpose of these domain types is strictly to be the interface and the types are not necessarily meant to be used by applications directly, or to be restricted by any other specifications (such as ical). By nature these types will be part of the evolving interface, and will need to be adjusted for every new property that an application must understand.
 
 ## Store Facade
 The store is always accessed through a store specific facade, which hides:
@@ -30,20 +30,20 @@ The store is always accessed through a store specific facade, which hides:
 * synchronizer communication
 * notifications
 
-This abstraction layer allows each resource to separately define how data is stored and retrieved. Therefore tradeoffs can be defined to suit the expected access patters or structure of source data. Further it allows individual resources to choose different technologies as suitable. Logic can still be shared among resources, while keeping the maintenance effort reasonable, by providing default implementations that are suitable for most workloads.
+This abstraction layer allows each resource to separately define how data is stored and retrieved. Therefore tradeoffs can be defined to suit the expected access patterns or structure of source data. Further it allows individual resources to choose different technologies as suitable. Logic can still be shared among resources while keeping the maintenance effort reasonable, by providing default implementations that are suitable for most workloads.
 
-Because the facade also implements querying of indexes, a resource my use server-side searching to fullfill the query, and fallback to local searches when the server is not available.
+Because the facade also implements querying of indexes, a resource my use server-side searching to fullfill the query, and fall back to local searches when the server is not available.
 
 ## Modifications
-Modifications are stored by the client sending modification commands to the synchronizer. The synchronizer is responsible for ensuring that modification are not lost and eventually persistet. A small window exists therefore where a modification is transferred to the synchronizer where a modifications can get lost.
+Modifications are executed by the client sending modification commands to the synchronizer. The synchronizer is responsible for ensuring that modification are not lost and eventually persisted. A small window exists therefore, while a modification is transferred to the synchronizer, where a modification can get lost.
 
 The API consists of the following calls:
 
-* create(domainObject, resource)
-* modify(domainObject, resource)
-* remove(domainObject, resource)
+* create(domainObject)
+* modify(domainObject)
+* remove(domainObject)
 
-The changeset can be recorded by the domain object adapter while the properties are set, and are then sent to the synchronizer once modify is called.
+The changeset are recorded by the domain object when properties are set, and are then sent to the synchronizer once modify is called.
 
 Each modification is associated with a specific revision, which allows the synchronizer to do automatic conflict resolution.
 
@@ -59,26 +59,35 @@ A small window exists where the client has already started the modification (i.e
 This design allows the synchronizer to be in control of the revisions, and keeps it from having to wait for all clients to update until it can drop revisions.
 
 ## Query System
-The query system should allow for efficient retrieval for just the amount of data required by the client. Efficient querying will be supported by the indexes provided by the resources.
+The query system should allow for efficient retrieval for just the amount of data required by the client. Efficient querying is supported by the indexes provided by the resources.
 
 The query always retrieves a set of entities matching the query, while not necessarily all properties of the entity need to be populated.
 
-Queries should be declarative to keep the specification simple and to allow the implementation to choose the most efficient execution.
+Queries should are declarative to keep the specification simple and to allow the implementation to choose the most efficient execution.
 
-Queries can be kept open to receive updates as the store changes, and modified to adjust the result set.
+Queries can be kept open (live) to receive updates as the store changes.
 
 ### Query
 The query consists of:
-* a declarative set of filters to match the wanted entities
+* a set of filters to match the wanted entities
 * the set of properties to retrieve for each entity
-* a limit for the amount of entities to retrieve
-* an offset to retrieve more entities
 
 Queryable properties are defined by the [[Domain Types]] above.
 
-Other Requirements:
-* modifiable: to facilitate adjustments, such as a date-range while scrolling in the mail view.
-* serializable: to persist queries, i.e. to store a "smart folder" query to a config file.
+### Query Result
+The result is returned directly after running the query in form of a QAbstractItemModel. Each row in the model represents a matching entity.
+
+The model allows to access the domain object directly, or to access individual properties directly via the rows columns.
+
+The model is always populated asynchronously. It is therefore initially empty and will then populate itself gradually, through the regular update mechanisms (rowsInserted).
+
+Tree Queries allow the application to query for i.e. a folder hierarchy in a single query. This is necessary for performance reasons to avoid recursive querying in large hierarchies. To avoid on the other hand loading large hierchies directly into memory, the model only populates the toplevel rows automatically, all other rows need to be populated by calling `QAbstractItemModel::fetchMore(QModelIndex);`. This way the resource can deal efficiently with the query (i.e. by avoiding the many roundtrips that would be necessary with recursive queries), while keeping the amount of data in memory to a minimum (i.e. if the majority of the folder tree is collapsed in the view anyways). A tree result set can therefore be seen as a set of sets, where every subset corresponds to the children of one parent.
+
+If the query is live, the model updates itself if the update applies to one of the already loaded subsets (otherwise it's currently irrelevant and will load once the subset is loaded).
+
+#### Enhancements
+* Asynchronous loading of entities/properties can be achieved by returning an invalid QVariant initially, and emitting dataChanged once the value is loaded.
+* To avoid loading a large list when not all data is necessary, a batch size could be defined to guarantee for instance that there is sufficient data to fill the screen, and the fetchMore mechanism can be used to gradually load more data as required when scrolling in the application.
 
 #### Filter
 A filter consists of:
