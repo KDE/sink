@@ -29,42 +29,35 @@
 #include "../propertymapper.h"
 #include "../query.h"
 #include "../definitions.h"
+#include "../typeindex.h"
 
 #include "event_generated.h"
 
 using namespace Akonadi2::ApplicationDomain;
 
+static TypeIndex &getIndex()
+{
+    static TypeIndex *index = 0;
+    if (!index) {
+        index = new TypeIndex("event");
+        index->addProperty<QByteArray>("uid");
+    }
+    return *index;
+}
+
 ResultSet TypeImplementation<Event>::queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction)
 {
-    QVector<QByteArray> keys;
-    if (query.propertyFilter.contains("uid")) {
-        Index uidIndex("event.index.uid", transaction);
-        uidIndex.lookup(query.propertyFilter.value("uid").toByteArray(), [&](const QByteArray &value) {
-            keys << value;
-        },
-        [](const Index::Error &error) {
-            Warning() << "Error in uid index: " <<  error.message;
-        });
-        appliedFilters << "uid";
-    }
-    Trace() << "Index lookup found " << keys.size() << " keys.";
-    return ResultSet(keys);
+    return getIndex().query(query, appliedFilters, transaction);
 }
 
 void TypeImplementation<Event>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
 {
-    const auto uid = bufferAdaptor.getProperty("uid");
-    if (uid.isValid()) {
-        Index("event.index.uid", transaction).add(uid.toByteArray(), identifier);
-    }
+    return getIndex().add(identifier, bufferAdaptor, transaction);
 }
 
 void TypeImplementation<Event>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
 {
-    const auto uid = bufferAdaptor.getProperty("uid");
-    if (uid.isValid()) {
-        Index("event.index.uid", transaction).remove(uid.toByteArray(), identifier);
-    }
+    return getIndex().remove(identifier, bufferAdaptor, transaction);
 }
 
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Event>::Buffer> > TypeImplementation<Event>::initializeReadPropertyMapper()

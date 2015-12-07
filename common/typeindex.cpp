@@ -32,7 +32,11 @@ void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Akonadi2::Storage::Transaction &transaction) {
         // Trace() << "Indexing " << mType + ".index." + property << value.toByteArray();
-        Index(mType + ".index." + property, transaction).add(value.toByteArray(), identifier);
+        if (value.isValid()) {
+            Index(mType + ".index." + property, transaction).add(value.toByteArray(), identifier);
+        } else {
+            Index(mType + ".index." + property, transaction).add("toplevel", identifier);
+        }
     };
     mIndexer.insert(property, indexer);
     mProperties << property;
@@ -43,7 +47,11 @@ void TypeIndex::addProperty<QString>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Akonadi2::Storage::Transaction &transaction) {
         // Trace() << "Indexing " << mType + ".index." + property << value.toByteArray();
-        Index(mType + ".index." + property, transaction).add(value.toByteArray(), identifier);
+        if (value.isValid()) {
+            Index(mType + ".index." + property, transaction).add(value.toByteArray(), identifier);
+        } else {
+            Index(mType + ".index." + property, transaction).add("toplevel", identifier);
+        }
     };
     mIndexer.insert(property, indexer);
     mProperties << property;
@@ -64,10 +72,8 @@ void TypeIndex::add(const QByteArray &identifier, const Akonadi2::ApplicationDom
 {
     for (const auto &property : mProperties) {
         const auto value = bufferAdaptor.getProperty(property);
-        if (value.isValid()) {
-            auto indexer = mIndexer.value(property);
-            indexer(identifier, value, transaction);
-        }
+        auto indexer = mIndexer.value(property);
+        indexer(identifier, value, transaction);
     }
 }
 
@@ -78,6 +84,8 @@ void TypeIndex::remove(const QByteArray &identifier, const Akonadi2::Application
         if (value.isValid()) {
             //FIXME don't always convert to byte array
             Index(mType + ".index." + property, transaction).remove(value.toByteArray(), identifier);
+        } else {
+            Index(mType + ".index." + property, transaction).remove("toplevel", identifier);
         }
     }
 }
@@ -88,7 +96,11 @@ ResultSet TypeIndex::query(const Akonadi2::Query &query, QSet<QByteArray> &appli
     for (const auto &property : mProperties) {
         if (query.propertyFilter.contains(property)) {
             Index index(mType + ".index." + property, transaction);
-            index.lookup(query.propertyFilter.value(property).toByteArray(), [&](const QByteArray &value) {
+            auto lookupKey = query.propertyFilter.value(property).toByteArray();
+            if (lookupKey.isEmpty()) {
+                lookupKey = "toplevel";
+            }
+            index.lookup(lookupKey, [&](const QByteArray &value) {
                 keys << value;
             },
             [property](const Index::Error &error) {
@@ -96,7 +108,7 @@ ResultSet TypeIndex::query(const Akonadi2::Query &query, QSet<QByteArray> &appli
             });
             appliedFilters << property;
         }
-        Trace() << "Index lookup found keys: " << keys.size();
+        Trace() << "Index lookup on " << property << " found " << keys.size() << " keys.";
         return ResultSet(keys);
     }
     Trace() << "No matching index";
