@@ -52,7 +52,7 @@ public:
     //Filters to apply
     QHash<QByteArray, QVariant> propertyFilter;
     //Properties to retrieve
-    QSet<QByteArray> requestedProperties;
+    QByteArrayList requestedProperties;
     QByteArray parentProperty;
     bool syncOnDemand;
     bool processAll;

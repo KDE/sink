@@ -80,7 +80,7 @@ QList<QByteArray> Store::getResources(const QList<QByteArray> &resourceFilter, c
 template <class DomainType>
 QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 {
-    auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr> >::create(query, query.requestedProperties.toList());
+    auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr> >::create(query, query.requestedProperties);
 
     //* Client defines lifetime of model
     //* The model lifetime defines the duration of live-queries
