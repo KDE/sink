@@ -339,6 +339,34 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const*>(deleteEntity->domainType()->Data()), deleteEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const*>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
 
+    bool found = false;
+    bool alreadyRemoved = false;
+    d->transaction.openDatabase(bufferType + ".main").findLatest(key, [&found, &alreadyRemoved](const QByteArray &key, const QByteArray &data) -> bool {
+        Akonadi2::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+        auto entity = Akonadi2::GetEntity(data.data());
+        if (entity && entity->metadata()) {
+            auto metadata = Akonadi2::GetMetadata(entity->metadata()->Data());
+            found = true;
+            if (metadata->operation() == Akonadi2::Operation_Removal) {
+                alreadyRemoved = true;
+            }
+
+        }
+        return false;
+    },
+    [](const Storage::Error &error) {
+        Warning() << "Failed to read old revision from storage: " << error.message;
+    });
+
+    if (!found) {
+        Warning() << "Failed to find entity " << key;
+        return KAsync::error<qint64>(0);
+    }
+    if (alreadyRemoved) {
+        Warning() << "Entity is already removed " << key;
+        return KAsync::error<qint64>(0);
+    }
+
     const qint64 newRevision = Akonadi2::Storage::maxRevision(d->transaction) + 1;
 
     //Add metadata buffer
