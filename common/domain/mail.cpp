@@ -45,6 +45,7 @@ static TypeIndex &getIndex()
         index->addProperty<QByteArray>("senderName");
         index->addProperty<QString>("subject");
         index->addProperty<QDateTime>("date");
+        index->addProperty<QByteArray>("folder");
     }
     return *index;
 }
@@ -89,6 +90,6 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Mail>::BufferBuilder> > Ty
     propertyMapper->addMapping<QDateTime>("date", &BufferBuilder::add_date);
     propertyMapper->addMapping<bool>("unread", &BufferBuilder::add_unread);
     propertyMapper->addMapping<bool>("important", &BufferBuilder::add_important);
-    propertyMapper->addMapping<QString>("folder", &BufferBuilder::add_folder);
+    propertyMapper->addMapping<QByteArray>("folder", &BufferBuilder::add_folder);
     return propertyMapper;
 }
