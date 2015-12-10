@@ -266,8 +266,8 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
     mProcessor = new Processor(mPipeline.data(), QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
     QObject::connect(mProcessor, &Processor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
-    mSourceChangeReplay = new ChangeReplay(resourceInstanceIdentifier, [](const QByteArray &type, const QByteArray &key, const QByteArray &value) {
-        return KAsync::null<void>();
+    mSourceChangeReplay = new ChangeReplay(resourceInstanceIdentifier, [this](const QByteArray &type, const QByteArray &key, const QByteArray &value) {
+        return this->replay(type, key, value);
     });
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mSourceChangeReplay, &ChangeReplay::revisionChanged);
     QObject::connect(mSourceChangeReplay, &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
@@ -283,6 +283,11 @@ GenericResource::~GenericResource()
 {
     delete mProcessor;
     delete mSourceChangeReplay;
+}
+
+KAsync::Job<void> GenericResource::replay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
+{
+    return KAsync::null<void>();
 }
 
 void GenericResource::removeFromDisk(const QByteArray &instanceIdentifier)

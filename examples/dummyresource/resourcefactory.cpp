@@ -279,6 +279,12 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
     });
 }
 
+KAsync::Job<void> DummyResource::replay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
+{
+    Trace() << "Replaying " << key;
+    return KAsync::null<void>();
+}
+
 void DummyResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
     GenericResource::removeFromDisk(instanceIdentifier);
