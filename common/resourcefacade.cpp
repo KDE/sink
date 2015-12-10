@@ -67,7 +67,7 @@ QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<Akonadi2::ApplicationD
         for (const auto &res : configuredResources.keys()) {
             const auto type = configuredResources.value(res);
             if (!query.propertyFilter.contains("type") || query.propertyFilter.value("type").toByteArray() == type) {
-                auto resource = Akonadi2::ApplicationDomain::AkonadiResource::Ptr::create();
+                auto resource = Akonadi2::ApplicationDomain::AkonadiResource::Ptr::create("", res, 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
                 resource->setProperty("identifier", res);
                 resource->setProperty("type", type);
                 resultProvider->add(resource);
