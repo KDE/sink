@@ -20,6 +20,7 @@
 
 #include <QString>
 #include <QDateTime>
+#include <QUuid>
 
 static QMap<QString, QVariant> createEvent(int i)
 {
@@ -60,7 +61,7 @@ QMap<QString, QMap<QString, QVariant> > DummyStore::populateMails()
 {
     QMap<QString, QMap<QString, QVariant>> content;
     for (const auto &parentFolder : mFolders.keys()) {
-        addMail(content, "Hello World!", QDateTime::currentDateTimeUtc(), "John Doe", "doe@example.com", true, false, parentFolder.toUtf8());
+        addMail(content, "Hello World! " + QUuid::createUuid().toByteArray(), QDateTime::currentDateTimeUtc(), "John Doe", "doe@example.com", true, false, parentFolder.toUtf8());
     }
     return content;
 }
