@@ -43,6 +43,22 @@ private Q_SLOTS:
         qDebug();
     }
 
+    void testNoResources()
+    {
+        //Test
+        Akonadi2::Query query;
+        query.resources << "foobar";
+        query.syncOnDemand = false;
+        query.processAll = false;
+        query.liveQuery = true;
+
+        //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 0);
+    }
+
+
     void testSingle()
     {
         //Setup

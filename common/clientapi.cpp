@@ -90,7 +90,15 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     //* The result provider needs to live for as long as results are provided (until the last thread exits).
 
     // Query all resources and aggregate results
-    KAsync::iterate(getResources(query.resources, ApplicationDomain::getTypeName<DomainType>()))
+    auto resources = getResources(query.resources, ApplicationDomain::getTypeName<DomainType>());
+    if (resources.isEmpty()) {
+        Warning() << "No resources available.";
+        auto resultProvider = Akonadi2::ResultProvider<typename DomainType::Ptr>::Ptr::create();
+        model->setEmitter(resultProvider->emitter());
+        resultProvider->initialResultSetComplete(typename DomainType::Ptr());
+        return model;
+    }
+    KAsync::iterate(resources)
     .template each<void, QByteArray>([query, model](const QByteArray &resource, KAsync::Future<void> &future) {
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
         if (facade) {

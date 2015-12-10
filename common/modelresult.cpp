@@ -203,7 +203,11 @@ void ModelResult<T, Ptr>::fetchEntities(const QModelIndex &parent)
     const auto id = getIdentifier(parent);
     mEntityChildrenFetched.insert(id);
     Trace() << "Loading child entities";
-    loadEntities(parent.data(DomainObjectRole).template value<Ptr>());
+    if (loadEntities) {
+        loadEntities(parent.data(DomainObjectRole).template value<Ptr>());
+    } else {
+        Warning() << "No way to fetch entities";
+    }
 }
 
 template<class T, class Ptr>
