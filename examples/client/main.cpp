@@ -81,6 +81,7 @@ public:
 
         topLayout->addWidget(titleLabel);
         topLayout->addWidget(syncButton);
+        topLayout->addWidget(removeButton);
         topLayout->addWidget(modelView, 10);
 
         show();
