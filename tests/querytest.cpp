@@ -202,6 +202,52 @@ private Q_SLOTS:
         QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
     }
+
+    void testMailByFolder()
+    {
+        //Setup
+        Akonadi2::ApplicationDomain::Folder::Ptr folderEntity;
+        {
+            Akonadi2::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
+            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Folder>(folder).exec().waitForFinished();
+
+            Akonadi2::Query query;
+            query.resources << "org.kde.dummy.instance1";
+            query.syncOnDemand = false;
+            query.processAll = true;
+
+            //Ensure all local data is processed
+            Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+
+            folderEntity = model->index(0, 0).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+            QVERIFY(!folderEntity->identifier().isEmpty());
+
+            Akonadi2::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            mail.setProperty("uid", "test1");
+            mail.setProperty("folder", folderEntity->identifier());
+            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+        }
+
+        //Test
+        Akonadi2::Query query;
+        query.resources << "org.kde.dummy.instance1";
+        query.syncOnDemand = false;
+        query.processAll = true;
+        query.liveQuery = false;
+        query.propertyFilter.insert("folder", folderEntity->identifier());
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
+    }
 };
 
 QTEST_MAIN(QueryTest)
