@@ -49,6 +49,7 @@ public:
     int error() const;
 
     static void removeFromDisk(const QByteArray &instanceIdentifier);
+    static qint64 diskUsage(const QByteArray &instanceIdentifier);
 private Q_SLOTS:
     void updateLowerBoundRevision();
 

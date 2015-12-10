@@ -292,10 +292,20 @@ KAsync::Job<void> GenericResource::replay(const QByteArray &type, const QByteArr
 
 void GenericResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
+    Warning() << "Removing from generic resource";
     Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier, Akonadi2::Storage::ReadWrite).removeFromDisk();
     Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".userqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
     Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronizerqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
     Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".changereplay", Akonadi2::Storage::ReadWrite).removeFromDisk();
+}
+
+qint64 GenericResource::diskUsage(const QByteArray &instanceIdentifier)
+{
+    auto size = Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier, Akonadi2::Storage::ReadOnly).diskUsage();
+    size += Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".userqueue", Akonadi2::Storage::ReadOnly).diskUsage();
+    size += Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronizerqueue", Akonadi2::Storage::ReadOnly).diskUsage();
+    size += Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".changereplay", Akonadi2::Storage::ReadOnly).diskUsage();
+    return size;
 }
 
 void GenericResource::onProcessorError(int errorCode, const QString &errorMessage)

@@ -106,6 +106,9 @@ private Q_SLOTS:
         row.setValue("total", (qreal)num/allProcessedTime);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
+
+        auto diskUsage = DummyResource::diskUsage("org.kde.dummy.instance1");
+        qDebug() << "Database size [kb]: " << diskUsage/1024;
     }
 
     void testQueryByUid()
