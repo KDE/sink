@@ -29,6 +29,8 @@
 #include "common/domain/folder.h"
 #include "common/resourceconfig.h"
 #include "common/log.h"
+#include "common/storage.h"
+#include "common/definitions.h"
 #include "console.h"
 
 #include <QWidget>
@@ -153,8 +155,7 @@ int main(int argc, char *argv[])
     if (cliOptions.isSet("clear")) {
         qDebug() << "Clearing";
         for (const auto &resource : resources) {
-            Akonadi2::Storage store(Akonadi2::Store::storageLocation(), resource, Akonadi2::Storage::ReadWrite);
-            store.removeFromDisk();
+            Akonadi2::Store::removeFromDisk(resource.toLatin1());
         }
         return 0;
     }

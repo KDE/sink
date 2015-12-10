@@ -93,6 +93,11 @@ public:
      * Synchronize data to local cache.
      */
     static KAsync::Job<void> synchronize(const Akonadi2::Query &query);
+
+    /**
+     * Removes a resource from disk.
+     */
+    static void removeFromDisk(const QByteArray &resourceIdentifier);
 };
 
 

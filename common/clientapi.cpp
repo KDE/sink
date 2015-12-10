@@ -24,17 +24,18 @@
 #include <QTimer>
 #include <QEventLoop>
 #include <QAbstractItemModel>
+#include <QDir>
 #include <functional>
 #include <memory>
 
 #include "resourceaccess.h"
 #include "commands.h"
 #include "resourcefacade.h"
-#include "log.h"
 #include "definitions.h"
 #include "resourceconfig.h"
 #include "facadefactory.h"
 #include "modelresult.h"
+#include "storage.h"
 #include "log.h"
 
 namespace Akonadi2
@@ -176,6 +177,16 @@ KAsync::Job<void> Store::start(const QByteArray &identifier)
     return resourceAccess->sendCommand(Akonadi2::Commands::PingCommand).then<void>([resourceAccess]() {
         Trace() << "Start complete";
     });
+}
+
+void Store::removeFromDisk(const QByteArray &identifier)
+{
+    //TODO By calling the resource executable with a --remove option instead
+    //we can ensure that no other resource process is running at the same time
+    QDir dir(Akonadi2::storageLocation());
+    for (const auto &folder : dir.entryList(QStringList() << identifier + "*")) {
+        Akonadi2::Storage(Akonadi2::storageLocation(), folder, Akonadi2::Storage::ReadWrite).removeFromDisk();
+    }
 }
 
 KAsync::Job<void> Store::synchronize(const Akonadi2::Query &query)
