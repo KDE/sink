@@ -13,12 +13,18 @@ template <typename T>
 class DummyResourceFacade : public Akonadi2::StoreFacade<T>
 {
 public:
-    static std::shared_ptr<DummyResourceFacade<T> > registerFacade()
+    static std::shared_ptr<DummyResourceFacade<T> > registerFacade(const QByteArray &instanceIdentifier = QByteArray())
     {
+        static QMap<QByteArray, std::shared_ptr<DummyResourceFacade<T> > > map;
         auto facade = std::make_shared<DummyResourceFacade<T> >();
+        map.insert(instanceIdentifier, facade);
+        bool alwaysReturnFacade = instanceIdentifier.isEmpty();
         Akonadi2::FacadeFactory::instance().registerFacade<T, DummyResourceFacade<T> >("dummyresource",
-            [facade](const QByteArray &instanceIdentifier) {
-                return facade;
+            [alwaysReturnFacade](const QByteArray &instanceIdentifier) {
+                if (alwaysReturnFacade) {
+                    return map.value(QByteArray());
+                }
+                return map.value(instanceIdentifier);
             }
         );
         return facade;
@@ -38,10 +44,17 @@ public:
         auto emitter = resultProvider->emitter();
 
         resultProvider->setFetcher([query, resultProvider, this](const typename T::Ptr &parent) {
-            Trace() << "Running the fetcher";
+            if (parent) {
+                Trace() << "Running the fetcher " << parent->identifier();
+            } else {
+                Trace() << "Running the fetcher.";
+            }
+            Trace() << "-------------------------.";
             for (const auto &res : results) {
-                qDebug() << "Parent filter " << query.propertyFilter.value("parent").toByteArray() << res->identifier();
-                if (!query.propertyFilter.contains("parent") || query.propertyFilter.value("parent").toByteArray() == res->getProperty("parent").toByteArray()) {
+                qDebug() << "Parent filter " << query.propertyFilter.value("parent").toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
+                auto parentProperty = res->getProperty("parent").toByteArray();
+                if ((!parent && parentProperty.isEmpty()) || (parent && parentProperty == parent->identifier()) || query.parentProperty.isEmpty()) {
+                    qDebug() << "Found a hit" << res->identifier();
                     resultProvider->add(res);
                 }
             }
@@ -180,8 +193,8 @@ private Q_SLOTS:
     void testModelNestedLive()
     {
         auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Folder>::registerFacade();
-        auto folder =  QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
-        auto subfolder = QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        auto folder =  QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("dummyresource.instance1", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        auto subfolder = QSharedPointer<Akonadi2::ApplicationDomain::Folder>::create("dummyresource.instance1", "subId", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
         subfolder->setProperty("parent", "id");
         facade->results << folder << subfolder;
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
@@ -228,6 +241,23 @@ private Q_SLOTS:
         }
 
         //TODO: A modification can also be a move
+    }
+
+    void testLoadMultiResource()
+    {
+        auto facade1 = DummyResourceFacade<Akonadi2::ApplicationDomain::Event>::registerFacade("dummyresource.instance1");
+        facade1->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource1", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        auto facade2 = DummyResourceFacade<Akonadi2::ApplicationDomain::Event>::registerFacade("dummyresource.instance2");
+        facade2->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource2", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+        ResourceConfig::addResource("dummyresource.instance2", "dummyresource");
+
+        Akonadi2::Query query;
+        query.liveQuery = false;
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(QModelIndex()), 2);
     }
 
 

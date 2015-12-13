@@ -24,6 +24,13 @@
 #include "domain/folder.h"
 #include "log.h"
 
+static  uint qHash(const Akonadi2::ApplicationDomain::ApplicationDomainType &type)
+{
+    Q_ASSERT(!type.resourceInstanceIdentifier().isEmpty());
+    Q_ASSERT(!type.identifier().isEmpty());
+    return qHash(type.resourceInstanceIdentifier() + type.identifier());
+}
+
 template<class T, class Ptr>
 ModelResult<T, Ptr>::ModelResult(const Akonadi2::Query &query, const QList<QByteArray> &propertyColumns)
     :QAbstractItemModel(),
@@ -44,9 +51,9 @@ template<class T, class Ptr>
 qint64 ModelResult<T, Ptr>::parentId(const Ptr &value)
 {
     if (!mQuery.parentProperty.isEmpty()) {
-        const auto property = value->getProperty(mQuery.parentProperty).toByteArray();
-        if (!property.isEmpty()) {
-            return qHash(property);
+        const auto identifier = value->getProperty(mQuery.parentProperty).toByteArray();
+        if (!identifier.isEmpty()) {
+            return qHash(T(value->resourceInstanceIdentifier(), identifier, 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>()));
         }
     }
     return 0;
@@ -152,7 +159,7 @@ void ModelResult<T, Ptr>::fetchMore(const QModelIndex &parent)
 template<class T, class Ptr>
 void ModelResult<T, Ptr>::add(const Ptr &value)
 {
-    const auto childId = qHash(value->identifier());
+    const auto childId = qHash(*value);
     const auto id = parentId(value);
     //Ignore updates we get before the initial fetch is done
     if (!mEntityChildrenFetched.contains(id)) {
@@ -184,11 +191,11 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
 template<class T, class Ptr>
 void ModelResult<T, Ptr>::remove(const Ptr &value)
 {
-    auto childId = qHash(value->identifier());
+    auto childId = qHash(*value);
     auto id = parentId(value);
     auto parent = createIndexFromId(id);
     // qDebug() << "Removed entity" << childId;
-    auto index = mTree[id].indexOf(qHash(value->identifier()));
+    auto index = mTree[id].indexOf(childId);
     beginRemoveRows(parent, index, index);
     mEntities.remove(childId);
     mTree[id].removeAll(childId);
@@ -202,7 +209,7 @@ void ModelResult<T, Ptr>::fetchEntities(const QModelIndex &parent)
 {
     const auto id = getIdentifier(parent);
     mEntityChildrenFetched.insert(id);
-    Trace() << "Loading child entities";
+    Trace() << "Loading child entities of parent " << id;
     if (loadEntities) {
         loadEntities(parent.data(DomainObjectRole).template value<Ptr>());
     } else {
@@ -220,7 +227,7 @@ void ModelResult<T, Ptr>::setFetcher(const std::function<void(const Ptr &parent)
 template<class T, class Ptr>
 void ModelResult<T, Ptr>::setEmitter(const typename Akonadi2::ResultEmitter<Ptr>::Ptr &emitter)
 {
-    setFetcher(emitter->mFetcher);
+    setFetcher([this](const Ptr &parent) {mEmitter->fetch(parent);});
     emitter->onAdded([this](const Ptr &value) {
         this->add(value);
     });
@@ -231,7 +238,7 @@ void ModelResult<T, Ptr>::setEmitter(const typename Akonadi2::ResultEmitter<Ptr>
         this->remove(value);
     });
     emitter->onInitialResultSetComplete([this](const Ptr &parent) {
-        const qint64 parentId = parent ? qHash(parent->identifier()) : 0;
+        const qint64 parentId = parent ? qHash(*parent) : 0;
         const auto parentIndex = createIndexFromId(parentId);
         mEntityChildrenFetchComplete.insert(parentId);
         emit dataChanged(parentIndex, parentIndex, QVector<int>() << ChildrenFetchedRole);
@@ -248,7 +255,7 @@ bool ModelResult<T, Ptr>::childrenFetched(const QModelIndex &index) const
 template<class T, class Ptr>
 void ModelResult<T, Ptr>::modify(const Ptr &value)
 {
-    auto childId = qHash(value->identifier());
+    auto childId = qHash(*value);
     auto id = parentId(value);
     //Ignore updates we get before the initial fetch is done
     if (!mEntityChildrenFetched.contains(id)) {

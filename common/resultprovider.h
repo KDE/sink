@@ -235,6 +235,11 @@ class ResultEmitter {
 public:
     typedef QSharedPointer<ResultEmitter<DomainType> > Ptr;
 
+    virtual ~ResultEmitter()
+    {
+
+    }
+
     void onAdded(const std::function<void(const DomainType&)> &handler)
     {
         addHandler = handler;
@@ -306,7 +311,12 @@ public:
         mFetcher = fetcher;
     }
 
-    std::function<void(const DomainType &parent)> mFetcher;
+    virtual void fetch(const DomainType &parent)
+    {
+        if (mFetcher) {
+            mFetcher(parent);
+        }
+    }
 
 private:
     friend class ResultProvider<DomainType>;
@@ -317,8 +327,51 @@ private:
     std::function<void(const DomainType&)> initialResultSetCompleteHandler;
     std::function<void(void)> completeHandler;
     std::function<void(void)> clearHandler;
+
+    std::function<void(const DomainType &parent)> mFetcher;
     ThreadBoundary mThreadBoundary;
 };
+
+template<class DomainType>
+class AggregatingResultEmitter : public ResultEmitter<DomainType> {
+public:
+    typedef QSharedPointer<AggregatingResultEmitter<DomainType> > Ptr;
+
+    void addEmitter(const typename ResultEmitter<DomainType>::Ptr &emitter)
+    {
+        emitter->onAdded([this](const DomainType &value) {
+            this->add(value);
+        });
+        emitter->onModified([this](const DomainType &value) {
+            this->modify(value);
+        });
+        emitter->onRemoved([this](const DomainType &value) {
+            this->remove(value);
+        });
+        emitter->onInitialResultSetComplete([this](const DomainType &value) {
+            this->initialResultSetComplete(value);
+        });
+        emitter->onComplete([this]() {
+            this->complete();
+        });
+        emitter->onClear([this]() {
+            this->clear();
+        });
+        mEmitter << emitter;
+    }
+
+    void fetch(const DomainType &parent) Q_DECL_OVERRIDE
+    {
+        for (const auto &emitter : mEmitter) {
+            emitter->fetch(parent);
+        }
+    }
+
+private:
+    QList<typename ResultEmitter<DomainType>::Ptr> mEmitter;
+};
+
+
 
 }
 

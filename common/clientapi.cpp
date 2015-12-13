@@ -98,22 +98,24 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
         resultProvider->initialResultSetComplete(typename DomainType::Ptr());
         return model;
     }
+    auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
+    model->setEmitter(aggregatingEmitter);
     KAsync::iterate(resources)
-    .template each<void, QByteArray>([query, model](const QByteArray &resource, KAsync::Future<void> &future) {
+    .template each<void, QByteArray>([query, aggregatingEmitter](const QByteArray &resource, KAsync::Future<void> &future) {
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
         if (facade) {
-            Trace() << "Trying to fetch from resource";
+            Trace() << "Trying to fetch from resource " << resource;
             auto result = facade->load(query);
-            auto emitter = result.second;
-            //TODO use aggregating emitter instead
-            model->setEmitter(emitter);
-            model->fetchMore(QModelIndex());
+            aggregatingEmitter->addEmitter(result.second);
             result.first.template then<void>([&future](){future.setFinished();}).exec();
         } else {
+            Trace() << "Couldn' find a facade for " << resource;
             //Ignore the error and carry on
             future.setFinished();
         }
     }).exec();
+    //TODO if the aggregatingEmitter is still empty we're done
+    model->fetchMore(QModelIndex());
 
     return model;
 }
