@@ -362,8 +362,12 @@ public:
 
     void fetch(const DomainType &parent) Q_DECL_OVERRIDE
     {
-        for (const auto &emitter : mEmitter) {
-            emitter->fetch(parent);
+        if (mEmitter.isEmpty()) {
+            this->initialResultSetComplete(parent);
+        } else {
+            for (const auto &emitter : mEmitter) {
+                emitter->fetch(parent);
+            }
         }
     }
 

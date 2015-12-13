@@ -91,13 +91,6 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 
     // Query all resources and aggregate results
     auto resources = getResources(query.resources, ApplicationDomain::getTypeName<DomainType>());
-    if (resources.isEmpty()) {
-        Warning() << "No resources available.";
-        auto resultProvider = Akonadi2::ResultProvider<typename DomainType::Ptr>::Ptr::create();
-        model->setEmitter(resultProvider->emitter());
-        resultProvider->initialResultSetComplete(typename DomainType::Ptr());
-        return model;
-    }
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     model->setEmitter(aggregatingEmitter);
     KAsync::iterate(resources)
@@ -114,7 +107,6 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
             future.setFinished();
         }
     }).exec();
-    //TODO if the aggregatingEmitter is still empty we're done
     model->fetchMore(QModelIndex());
 
     return model;

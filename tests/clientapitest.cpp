@@ -103,6 +103,16 @@ private Q_SLOTS:
         QCOMPARE(model->rowCount(QModelIndex()), 1);
     }
 
+    void testLoadWithoutResource()
+    {
+        Akonadi2::Query query;
+        query.resources << "nonexisting.resource";
+        query.liveQuery = false;
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+    }
+
     //TODO: This test doesn't belong to this testsuite
     void resourceManagement()
     {
