@@ -79,6 +79,14 @@ public:
             return propertyToVariant<T>((buffer->*f)());
         });
     }
+
+    template <typename T, typename Buffer>
+    void addMapping(const QByteArray &name, bool (Buffer::*f)() const)
+    {
+        addMapping(name, [f](Buffer const *buffer) -> QVariant {
+            return propertyToVariant<T>((buffer->*f)());
+        });
+    }
 private:
     QHash<QByteArray, std::function<QVariant(BufferType const *)> > mReadAccessors;
 };
@@ -101,6 +109,16 @@ public:
 
     template <typename T>
     void addMapping(const QByteArray &name, void (BufferBuilder::*f)(uint8_t))
+    {
+        addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+            return [value, f](BufferBuilder &builder) {
+                (builder.*f)(value.value<T>());
+            };
+        });
+    }
+
+    template <typename T>
+    void addMapping(const QByteArray &name, void (BufferBuilder::*f)(bool))
     {
         addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
             return [value, f](BufferBuilder &builder) {
