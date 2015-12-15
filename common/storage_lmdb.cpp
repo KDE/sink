@@ -318,6 +318,27 @@ void Storage::NamedDatabase::findLatest(const QByteArray &k,
     return;
 }
 
+qint64 Storage::NamedDatabase::getSize()
+{
+    if (!d || !d->transaction) {
+        return -1;
+    }
+
+    int rc;
+    MDB_stat stat;
+    rc = mdb_stat(d->transaction, d->dbi, &stat);
+    if (rc) {
+        qWarning() << "Something went wrong " << rc;
+    }
+    // std::cout << "overflow_pages: " << stat.ms_overflow_pages << std::endl;
+    // std::cout << "page size: " << stat.ms_psize << std::endl;
+    // std::cout << "branch_pages: " << stat.ms_branch_pages << std::endl;
+    // std::cout << "leaf_pages: " << stat.ms_leaf_pages << std::endl;
+    // std::cout << "depth: " << stat.ms_depth << std::endl;
+    // std::cout << "entries: " << stat.ms_entries << std::endl;
+    return stat.ms_psize * (stat.ms_leaf_pages + stat.ms_branch_pages + stat.ms_overflow_pages);
+}
+
 
 
 
@@ -428,9 +449,34 @@ Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, 
     return Storage::NamedDatabase(p);
 }
 
+QList<QByteArray> Storage::Transaction::getDatabaseNames() const
+{
+    if (!d) {
+        qWarning() << "Invalid transaction";
+        return QList<QByteArray>();
+    }
 
+    int rc;
+    QList<QByteArray> list;
+    if ((rc = mdb_dbi_open(d->transaction, nullptr, 0, &d->dbi) == 0)) {
+        MDB_val key;
+        MDB_val data;
+        MDB_cursor *cursor;
 
-
+        rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
+        if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST)) == 0) {
+            list << QByteArray::fromRawData((char*)key.mv_data, key.mv_size);
+            while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+                list << QByteArray::fromRawData((char*)key.mv_data, key.mv_size);
+            }
+        } else {
+            qWarning() << "Failed to get a value" << rc;
+        }
+    } else {
+        qWarning() << "Failed to open db" << rc << QByteArray(mdb_strerror(rc));
+    }
+    return list;
+}
 
 
 

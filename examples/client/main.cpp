@@ -144,14 +144,11 @@ int main(int argc, char *argv[])
                                      QObject::tr("A type to work with"));
     cliOptions.addPositionalArgument(QObject::tr("[resource]"),
                                      QObject::tr("A resource to connect to"));
-    cliOptions.addOption(QCommandLineOption("clear"));
-    cliOptions.addOption(QCommandLineOption("debuglevel"));
+    cliOptions.addOption(QCommandLineOption("debuglevel", "A debuglevel from 0-6", "debuglevel"));
     cliOptions.addHelpOption();
     cliOptions.process(app);
     QStringList args = cliOptions.positionalArguments();
     auto command = args.takeFirst();
-    auto type = !args.isEmpty() ? args.takeFirst() : QByteArray();
-    auto resources = args;
 
     if (cliOptions.isSet("debuglevel")) {
         Akonadi2::Log::setDebugOutputLevel(static_cast<Akonadi2::Log::DebugLevel>(cliOptions.value("debuglevel").toInt()));
@@ -163,31 +160,31 @@ int main(int argc, char *argv[])
     //     ResourceConfig::addResource(resource.toLatin1(), Akonadi2::Store::resourceName(resource.toLatin1()));
     // }
 
-    Akonadi2::Query query;
-    for (const auto &res : resources) {
-        query.resources << res.toLatin1();
-    }
-    query.syncOnDemand = false;
-    query.processAll = false;
-    query.liveQuery = true;
-
-    qDebug() << "Type: " << type;
-
     if (command == "list") {
+        auto type = !args.isEmpty() ? args.takeFirst() : QByteArray();
+        auto resources = args;
+
+        Akonadi2::Query query;
+        for (const auto &res : resources) {
+            query.resources << res.toLatin1();
+        }
+        query.syncOnDemand = false;
+        query.processAll = false;
         query.liveQuery = false;
+
         auto model = loadModel(type, query);
         qDebug() << "Listing";
-        std::cout << "\tColumn\t ";
+        std::cout << "\tColumn\t\t Identifier\t\t\t\t";
         for (int i = 0; i < model->columnCount(QModelIndex()); i++) {
-            std::cout << "\t" << model->headerData(i, Qt::Horizontal).toString().toStdString();
+            std::cout << "\t|" << model->headerData(i, Qt::Horizontal).toString().toStdString();
         }
         std::cout << std::endl;
         QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
             for (int i = start; i <= end; i++) {
                 std::cout << "\tRow " << model->rowCount() << ":\t ";
-                std::cout << "\t" << model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectBaseRole).value<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr>()->identifier().toStdString();
+                std::cout << "\t" << model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectBaseRole).value<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr>()->identifier().toStdString() << "\t";
                 for (int col = 0; col < model->columnCount(QModelIndex()); col++) {
-                    std::cout << "\t" << model->data(model->index(i, col, index)).toString().toStdString();
+                    std::cout << "\t|" << model->data(model->index(i, col, index)).toString().toStdString();
                 }
                 std::cout << std::endl;
             }
@@ -201,6 +198,15 @@ int main(int argc, char *argv[])
             return app.exec();
         }
     } else if (command == "count") {
+        auto type = !args.isEmpty() ? args.takeFirst() : QByteArray();
+        auto resources = args;
+
+        Akonadi2::Query query;
+        for (const auto &res : resources) {
+            query.resources << res.toLatin1();
+        }
+        query.syncOnDemand = false;
+        query.processAll = false;
         query.liveQuery = false;
         auto model = loadModel(type, query);
         QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, &app](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
@@ -211,6 +217,11 @@ int main(int argc, char *argv[])
         });
         return app.exec();
     } else if (command == "synchronize") {
+        auto resources = args;
+        Akonadi2::Query query;
+        for (const auto &res : resources) {
+            query.resources << res.toLatin1();
+        }
         query.syncOnDemand = true;
         query.processAll = true;
         Akonadi2::Store::synchronize(query).then<void>([&app]() {
@@ -218,6 +229,15 @@ int main(int argc, char *argv[])
         }).exec();
         app.exec();
     } else if (command == "show") {
+        auto type = !args.isEmpty() ? args.takeFirst() : QByteArray();
+        auto resources = args;
+
+        Akonadi2::Query query;
+        for (const auto &res : resources) {
+            query.resources << res.toLatin1();
+        }
+        query.syncOnDemand = false;
+        query.processAll = false;
         query.liveQuery = true;
         if (type == "folder") {
             query.parentProperty = "parent";
@@ -239,17 +259,45 @@ int main(int argc, char *argv[])
             app.exec();
         }
     } else if (command == "clear") {
+        auto resources = args;
+
         qDebug() << "Clearing";
         for (const auto &resource : resources) {
             Akonadi2::Store::removeFromDisk(resource.toLatin1());
         }
     } else if (command == "create") {
+        auto type = !args.isEmpty() ? args.takeFirst() : QByteArray();
         if (type == "resource") {
             Akonadi2::ApplicationDomain::AkonadiResource resource;
-            resource.setProperty("identifier", resources.at(0));
-            resource.setProperty("type", resources.at(1));
+            resource.setProperty("identifier", args.at(0));
+            resource.setProperty("type", args.at(1));
             Akonadi2::Store::create<Akonadi2::ApplicationDomain::AkonadiResource>(resource).exec().waitForFinished();
-            qDebug() << "Created resource " << resources;
+            qDebug() << "Created resource " << args;
+        }
+    } else if (command == "remove") {
+        auto type = !args.isEmpty() ? args.takeFirst() : QByteArray();
+        if (type == "resource") {
+            Akonadi2::ApplicationDomain::AkonadiResource resource;
+            resource.setProperty("identifier", args.at(0));
+            Akonadi2::Store::remove<Akonadi2::ApplicationDomain::AkonadiResource>(resource).exec().waitForFinished();
+            qDebug() << "Created resource " << args;
+        }
+    } else if (command == "stat") {
+        auto resources = args;
+        for (const auto &resource : resources) {
+            Akonadi2::Storage::Storage storage(Akonadi2::storageLocation(), resource, Akonadi2::Storage::ReadOnly);
+            auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
+
+            QList<QByteArray> databases = transaction.getDatabaseNames();
+            qint64 total = 0;
+            for (const auto &databaseName : databases) {
+                std::cout << "Database: " << databaseName.toStdString() << std::endl;
+                auto db = transaction.openDatabase(databaseName);
+                auto size = db.getSize();
+                std::cout << "\tSize [kb]: " << size / 1024 << std::endl;
+                total += size;
+            }
+            std::cout << "Total [kb]: " << total / 1024 << std::endl;
         }
     } else {
         qWarning() << "Unknown command " << command;

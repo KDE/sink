@@ -106,6 +106,8 @@ public:
             return (d != nullptr);
         }
 
+        qint64 getSize();
+
     private:
         friend Transaction;
         NamedDatabase(NamedDatabase& other);
@@ -122,6 +124,8 @@ public:
         ~Transaction();
         bool commit(const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
         void abort();
+
+        QList<QByteArray> getDatabaseNames() const;
 
         NamedDatabase openDatabase(const QByteArray &name = QByteArray("default"), const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool allowDuplicates = false) const;
 
