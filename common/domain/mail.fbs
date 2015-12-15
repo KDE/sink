@@ -9,6 +9,7 @@ table Mail {
   date:string;
   unread:bool = false;
   important:bool = false;
+  mimeMessage:string;
 }
 
 root_type Mail;

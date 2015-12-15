@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8.12)
 
+option(BUILD_MAILDIR "BUILD_MAILDIR" ON)
 
 # ECM setup
 find_package(ECM 0.0.10 REQUIRED NO_MODULE)

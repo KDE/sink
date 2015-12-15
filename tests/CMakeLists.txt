@@ -47,8 +47,13 @@ auto_tests (
     pipelinetest
     querytest
 )
-
 target_link_libraries(dummyresourcetest akonadi2_resource_dummy)
 target_link_libraries(dummyresourcebenchmark akonadi2_resource_dummy)
 target_link_libraries(querytest akonadi2_resource_dummy)
 
+if (BUILD_MAILDIR)
+    auto_tests (
+        maildirresourcetest
+    )
+    target_link_libraries(maildirresourcetest akonadi2_resource_maildir)
+endif()
