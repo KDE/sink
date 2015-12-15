@@ -285,6 +285,12 @@ GenericResource::~GenericResource()
     delete mSourceChangeReplay;
 }
 
+void GenericResource::addType(const QByteArray &type, DomainTypeAdaptorFactoryInterface::Ptr factory, const QVector<Akonadi2::Preprocessor*> &preprocessors)
+{
+    mPipeline->setPreprocessors(type, preprocessors);
+    mPipeline->setAdaptorFactory(type, factory);
+}
+
 KAsync::Job<void> GenericResource::replay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
 {
     return KAsync::null<void>();
