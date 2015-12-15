@@ -38,12 +38,40 @@ KAsync::Job<void> ResourceFacade::create(const Akonadi2::ApplicationDomain::Akon
         const QByteArray identifier = resource.getProperty("identifier").toByteArray();
         const QByteArray type = resource.getProperty("type").toByteArray();
         ResourceConfig::addResource(identifier, type);
+        auto changedProperties = resource.changedProperties();
+        changedProperties.removeOne("identifier");
+        changedProperties.removeOne("type");
+        if (!changedProperties.isEmpty()) {
+            //We have some configuration values
+            QMap<QByteArray, QVariant> configurationValues;
+            for (const auto &property : changedProperties) {
+                configurationValues.insert(property, resource.getProperty(property));
+            }
+            ResourceConfig::configureResource(identifier, configurationValues);
+        }
     });
 }
 
 KAsync::Job<void> ResourceFacade::modify(const Akonadi2::ApplicationDomain::AkonadiResource &resource)
 {
-    return KAsync::null<void>();
+    return KAsync::start<void>([resource, this]() {
+        const QByteArray identifier = resource.getProperty("identifier").toByteArray();
+        if (identifier.isEmpty()) {
+            Warning() << "We need an \"identifier\" property to identify the resource to configure";
+            return;
+        }
+        auto changedProperties = resource.changedProperties();
+        changedProperties.removeOne("identifier");
+        changedProperties.removeOne("type");
+        if (!changedProperties.isEmpty()) {
+            //We have some configuration values
+            QMap<QByteArray, QVariant> configurationValues;
+            for (const auto &property : changedProperties) {
+                configurationValues.insert(property, resource.getProperty(property));
+            }
+            ResourceConfig::configureResource(identifier, configurationValues);
+        }
+    });
 }
 
 KAsync::Job<void> ResourceFacade::remove(const Akonadi2::ApplicationDomain::AkonadiResource &resource)

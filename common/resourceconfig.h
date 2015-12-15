@@ -21,6 +21,7 @@
 
 #include <QList>
 #include <QByteArray>
+#include <QVariant>
 #include <QMap>
 
 class ResourceConfig
@@ -30,4 +31,6 @@ public:
     static void addResource(const QByteArray &identifier, const QByteArray &type);
     static void removeResource(const QByteArray &identifier);
     static void clear();
+    static void configureResource(const QByteArray &identifier, const QMap<QByteArray, QVariant> &configuration);
+    static QMap<QByteArray, QVariant> getConfiguration(const QByteArray &identifier);
 };

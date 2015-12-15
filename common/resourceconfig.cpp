@@ -21,11 +21,18 @@
 #include <QSettings>
 #include <QSharedPointer>
 #include <QStandardPaths>
+#include <QFile>
 
 static QSharedPointer<QSettings> getSettings()
 {
     return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/resources.ini", QSettings::IniFormat);
 }
+
+static QSharedPointer<QSettings> getResourceConfig(const QByteArray &identifier)
+{
+    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/" + identifier, QSettings::IniFormat);
+}
+
 
 void ResourceConfig::addResource(const QByteArray &identifier, const QByteArray &type)
 {
@@ -44,6 +51,7 @@ void ResourceConfig::removeResource(const QByteArray &identifier)
     settings->remove("");
     settings->endGroup();
     settings->sync();
+    QFile::remove(getResourceConfig(identifier)->fileName());
 }
 
 QMap<QByteArray, QByteArray> ResourceConfig::getResources()
@@ -65,3 +73,24 @@ void ResourceConfig::clear()
     settings->clear();
     settings->sync();
 }
+
+void ResourceConfig::configureResource(const QByteArray &identifier, const QMap<QByteArray, QVariant> &configuration)
+{
+    auto config = getResourceConfig(identifier);
+    config->clear();
+    for (const auto &key : configuration.keys()) {
+        config->setValue(key, configuration.value(key));
+    }
+    config->sync();
+}
+
+QMap<QByteArray, QVariant> ResourceConfig::getConfiguration(const QByteArray &identifier)
+{
+    QMap<QByteArray, QVariant> configuration;
+    auto config = getResourceConfig(identifier);
+    for (const auto &key : config->allKeys()) {
+        configuration.insert(key.toLatin1(), config->value(key));
+    }
+    return configuration;
+}
+
