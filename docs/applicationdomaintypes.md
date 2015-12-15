@@ -31,6 +31,7 @@ This is a proposed set of types that we will need to evolve into what we actuall
             * Tag
             * Contact Group
             * Thread
+        * Akonadi Resource
 
 #### Properties
 ```no-highlight
@@ -48,6 +49,22 @@ Event:
     summary: A string containing a short summary of the event.
     startDate: The start date of the event.
     startTime: The start time of the event. Optional.
+```
+```no-highlight
+Mail:
+    uid: The message id.
+    subject: The subject of the email.
+    folder: The identifier of the parent folder.
+    date: The date of the email.
+    mimeMessage: A string containing the path to the mime message
+```
+```no-highlight
+Akonadi Resource:
+    type: The type of the resource.
+```
+```no-highlight
+Maildir Resource:
+    path: The path to the maildir.
 ```
 
 ### References/Hierachies
