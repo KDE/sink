@@ -8,6 +8,8 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/../examples/
     )
 
+add_definitions(-DTESTDATAPATH="${CMAKE_CURRENT_SOURCE_DIR}/data")
+
 macro(manual_tests)
     foreach(_testname ${ARGN})
         add_executable(${_testname} ${_testname}.cpp testimplementations.cpp)

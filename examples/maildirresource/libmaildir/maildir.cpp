@@ -402,11 +402,14 @@ Maildir Maildir::parent() const
     return Maildir();
   QDir dir(d->path);
   dir.cdUp();
-  if (!dir.dirName().startsWith(QLatin1Char('.')) || !dir.dirName().endsWith(QLatin1String(".directory")))
-    return Maildir();
-  const QString parentName = dir.dirName().mid(1, dir.dirName().size() - 11);
-  dir.cdUp();
-  dir.cd(parentName);
+  //FIXME Figure out how this is acutally supposed to work
+  //There seem to be a bunch of conflicting standards, and nesting folders is apparently not what we're supposed to be doing,
+  //but it works for the time being.
+  // if (!dir.dirName().startsWith(QLatin1Char('.')) || !dir.dirName().endsWith(QLatin1String(".directory")))
+  //   return Maildir();
+  // const QString parentName = dir.dirName().mid(1, dir.dirName().size() - 11);
+  // dir.cdUp();
+  // dir.cd(parentName);
   return Maildir (dir.path());
 }
 

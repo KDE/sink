@@ -48,7 +48,7 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
 {
     addType(ENTITY_TYPE_MAIL, QSharedPointer<MaildirMailAdaptorFactory>::create(),
             QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Mail>);
-    addType(ENTITY_TYPE_MAIL, QSharedPointer<MaildirMailAdaptorFactory>::create(),
+    addType(ENTITY_TYPE_FOLDER, QSharedPointer<MaildirFolderAdaptorFactory>::create(),
             QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Folder>);
     auto config = ResourceConfig::getConfiguration(instanceIdentifier);
     mMaildirPath = config.value("path").toString();
@@ -101,7 +101,6 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
 
     Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
     auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
-    Index ridMapping("rid.mapping", synchronizationTransaction);
     for (const auto folder : folderList) {
         const auto remoteId = folder.toUtf8();
         auto akonadiId = resolveRemoteId(bufferType.toUtf8(), remoteId, synchronizationTransaction);
@@ -116,7 +115,7 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
         if (!found) { //A new entity
             m_fbb.Clear();
 
-            KPIM::Maildir md(folder);
+            KPIM::Maildir md(folder, folder == mMaildirPath);
 
             flatbuffers::FlatBufferBuilder entityFbb;
             auto name = m_fbb.CreateString(md.name().toStdString());
@@ -124,7 +123,7 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
             flatbuffers::Offset<flatbuffers::String> parent;
 
             if (!md.isRoot()) {
-                auto akonadiId = resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path(), transaction);
+                auto akonadiId = resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path(), synchronizationTransaction);
                 parent = m_fbb.CreateString(akonadiId.toStdString());
             }
 
@@ -169,13 +168,12 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
 
     auto listingPath = maildir.pathToCurrent();
     auto entryIterator = QSharedPointer<QDirIterator>::create(listingPath, QDir::Files);
-    Trace() << "Looking into " << maildir.pathToNew();
+    Trace() << "Looking into " << listingPath;
 
     QFileInfo entryInfo;
 
     Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
     auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
-    Index ridMapping("rid.mapping", synchronizationTransaction);
 
     while (entryIterator->hasNext()) {
         QString filePath = entryIterator->next();
@@ -207,7 +205,7 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
             auto sender = m_fbb.CreateString(msg->from(true)->asUnicodeString().toStdString());
             auto senderName = m_fbb.CreateString(msg->from(true)->asUnicodeString().toStdString());
             auto date = m_fbb.CreateString(msg->date(true)->dateTime().toString().toStdString());
-            auto folder = m_fbb.CreateString(resolveRemoteId(ENTITY_TYPE_FOLDER, path, transaction).toStdString());
+            auto folder = m_fbb.CreateString(resolveRemoteId(ENTITY_TYPE_FOLDER, path, synchronizationTransaction).toStdString());
             auto mimeMessage = m_fbb.CreateString(filepath.toStdString());
 
             auto builder = Akonadi2::ApplicationDomain::Buffer::MailBuilder(m_fbb);

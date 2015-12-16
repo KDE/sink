@@ -11,6 +11,32 @@
 #include "pipeline.h"
 #include "log.h"
 
+static bool copyRecursively(const QString &srcFilePath,
+                            const QString &tgtFilePath)
+{
+    QFileInfo srcFileInfo(srcFilePath);
+    if (srcFileInfo.isDir()) {
+        QDir targetDir(tgtFilePath);
+        targetDir.cdUp();
+        if (!targetDir.mkdir(QFileInfo(tgtFilePath).fileName()))
+            return false;
+        QDir sourceDir(srcFilePath);
+        QStringList fileNames = sourceDir.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
+        foreach (const QString &fileName, fileNames) {
+            const QString newSrcFilePath
+                    = srcFilePath + QLatin1Char('/') + fileName;
+            const QString newTgtFilePath
+                    = tgtFilePath + QLatin1Char('/') + fileName;
+            if (!copyRecursively(newSrcFilePath, newTgtFilePath))
+                return false;
+        }
+    } else {
+        if (!QFile::copy(srcFilePath, tgtFilePath))
+            return false;
+    }
+    return true;
+}
+
 /**
  * Test of complete system using the maildir resource.
  * 
@@ -22,6 +48,12 @@ class MaildirResourceTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
+        auto targetPath = QDir::tempPath() + QDir::separator() + "maildirresourcetest" + QDir::separator() + "maildir1";
+        QDir dir(targetPath);
+        dir.removeRecursively();
+
+        copyRecursively(TESTDATAPATH "/maildir1", targetPath);
+
         Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
         auto factory = Akonadi2::ResourceFactory::load("org.kde.maildir");
         QVERIFY(factory);
@@ -29,7 +61,7 @@ private Q_SLOTS:
         Akonadi2::ApplicationDomain::AkonadiResource resource;
         resource.setProperty("identifier", "org.kde.maildir.instance1");
         resource.setProperty("type", "org.kde.maildir");
-        resource.setProperty("path", "/work/build/local-mail");
+        resource.setProperty("path", targetPath);
         Akonadi2::Store::create(resource).exec().waitForFinished();
     }
 
@@ -57,7 +89,60 @@ private Q_SLOTS:
         Akonadi2::Store::synchronize(query).exec().waitForFinished();
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-        QTRY_VERIFY(model->rowCount(QModelIndex()) > 1);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QVERIFY(model->rowCount(QModelIndex()) > 1);
+    }
+
+    void testListFolderTree()
+    {
+        Akonadi2::Query query;
+        query.resources << "org.kde.maildir.instance1";
+        query.syncOnDemand = true;
+        query.processAll = true;
+        query.parentProperty = "parent";
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(QModelIndex()), 1);
+        auto parentIndex = model->index(0, 0, QModelIndex());
+        model->fetchMore(parentIndex);
+        QTRY_VERIFY(model->data(parentIndex, Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(parentIndex), 1);
+    }
+
+    void testListMailsOfFolder()
+    {
+        {
+            Akonadi2::Query query;
+            query.resources << "org.kde.maildir.instance1";
+            query.syncOnDemand = true;
+            query.processAll = true;
+
+            //Ensure all local data is processed
+            Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        }
+        QByteArray folderIdentifier;
+        {
+            Akonadi2::Query query;
+            query.resources << "org.kde.maildir.instance1";
+            query.requestedProperties << "folder" << "name";
+
+            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+            QVERIFY(model->rowCount(QModelIndex()) > 1);
+            folderIdentifier = model->index(1, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>()->identifier();
+        }
+
+        Akonadi2::Query query;
+        query.resources << "org.kde.maildir.instance1";
+        query.requestedProperties << "folder" << "summary";
+        query.propertyFilter.insert("folder", folderIdentifier);
+        auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QVERIFY(mailModel->rowCount(QModelIndex()) >= 1);
     }
 
 };
