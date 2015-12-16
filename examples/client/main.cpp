@@ -271,6 +271,10 @@ int main(int argc, char *argv[])
             Akonadi2::ApplicationDomain::AkonadiResource resource;
             resource.setProperty("identifier", args.at(0));
             resource.setProperty("type", args.at(1));
+            //TODO turn this into a bunch of json
+            if (args.size() >= 4) {
+                resource.setProperty(args.at(2).toLatin1(), args.at(3));
+            }
             Akonadi2::Store::create<Akonadi2::ApplicationDomain::AkonadiResource>(resource).exec().waitForFinished();
             qDebug() << "Created resource " << args;
         }
