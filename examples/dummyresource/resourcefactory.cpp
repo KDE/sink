@@ -44,33 +44,28 @@
 #define ENTITY_TYPE_FOLDER "folder"
 
 DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline)
-    : Akonadi2::GenericResource(instanceIdentifier, pipeline)
+    : Akonadi2::GenericResource(instanceIdentifier, pipeline),
+    mEventAdaptorFactory(QSharedPointer<DummyEventAdaptorFactory>::create()),
+    mMailAdaptorFactory(QSharedPointer<DummyMailAdaptorFactory>::create()),
+    mFolderAdaptorFactory(QSharedPointer<DummyFolderAdaptorFactory>::create())
 {
-    addType(ENTITY_TYPE_MAIL, QSharedPointer<DummyMailAdaptorFactory>::create(),
+    addType(ENTITY_TYPE_MAIL, mMailAdaptorFactory,
             QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Mail>);
-    addType(ENTITY_TYPE_FOLDER, QSharedPointer<DummyFolderAdaptorFactory>::create(),
+    addType(ENTITY_TYPE_FOLDER, mFolderAdaptorFactory,
             QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Folder>);
-    addType(ENTITY_TYPE_EVENT, QSharedPointer<DummyEventAdaptorFactory>::create(),
+    addType(ENTITY_TYPE_EVENT, mEventAdaptorFactory,
             QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Event>);
 }
 
 void DummyResource::createEvent(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &transaction)
 {
-    //Map the source format to the buffer format (which happens to be an exact copy here)
-    auto summary = m_fbb.CreateString(data.value("summary").toString().toStdString());
-    auto rid = m_fbb.CreateString(std::string(ridBuffer.constData(), ridBuffer.size()));
-    auto description = m_fbb.CreateString(std::string(ridBuffer.constData(), ridBuffer.size()));
     static uint8_t rawData[100];
-    auto attachment = Akonadi2::EntityBuffer::appendAsVector(m_fbb, rawData, 100);
-
-    auto builder = DummyCalendar::DummyEventBuilder(m_fbb);
-    builder.add_summary(summary);
-    builder.add_remoteId(rid);
-    builder.add_description(description);
-    builder.add_attachment(attachment);
-    auto buffer = builder.Finish();
-    DummyCalendar::FinishDummyEventBuffer(m_fbb, buffer);
-    Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize(), 0, 0);
+    Akonadi2::ApplicationDomain::Event event;
+    event.setProperty("summary", data.value("summary").toString());
+    event.setProperty("remoteId", ridBuffer);
+    event.setProperty("description", data.value("description").toString());
+    event.setProperty("attachment", QByteArray::fromRawData(reinterpret_cast<const char*>(rawData), 100));
+    mEventAdaptorFactory->createBuffer(event, entityFbb);
 }
 
 QString DummyResource::resolveRemoteId(const QByteArray &bufferType, const QString &remoteId, Akonadi2::Storage::Transaction &transaction)
@@ -88,48 +83,27 @@ QString DummyResource::resolveRemoteId(const QByteArray &bufferType, const QStri
 
 void DummyResource::createMail(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &transaction)
 {
-    //Map the source format to the buffer format (which happens to be an almost exact copy here)
-    auto subject = m_fbb.CreateString(data.value("subject").toString().toStdString());
-    auto sender = m_fbb.CreateString(data.value("senderEmail").toString().toStdString());
-    auto senderName = m_fbb.CreateString(data.value("senderName").toString().toStdString());
-    auto date = m_fbb.CreateString(data.value("date").toDateTime().toString().toStdString());
-    auto folder = m_fbb.CreateString(resolveRemoteId(ENTITY_TYPE_FOLDER, data.value("parentFolder").toString(), transaction).toStdString());
-
-    auto builder = Akonadi2::ApplicationDomain::Buffer::MailBuilder(m_fbb);
-    builder.add_subject(subject);
-    builder.add_sender(sender);
-    builder.add_senderName(senderName);
-    builder.add_unread(data.value("unread").toBool());
-    builder.add_important(data.value("important").toBool());
-    builder.add_date(date);
-    builder.add_folder(folder);
-    auto buffer = builder.Finish();
-    Akonadi2::ApplicationDomain::Buffer::FinishMailBuffer(m_fbb, buffer);
-    Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
+    Akonadi2::ApplicationDomain::Mail mail;
+    mail.setProperty("subject", data.value("subject").toString());
+    mail.setProperty("senderEmail", data.value("senderEmail").toString());
+    mail.setProperty("senderName", data.value("senderName").toString());
+    mail.setProperty("date", data.value("date").toString());
+    mail.setProperty("folder", resolveRemoteId(ENTITY_TYPE_FOLDER, data.value("parentFolder").toString(), transaction));
+    mail.setProperty("unread", data.value("unread").toBool());
+    mail.setProperty("important", data.value("important").toBool());
+    mMailAdaptorFactory->createBuffer(mail, entityFbb);
 }
 
 void DummyResource::createFolder(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &transaction)
 {
-    //Map the source format to the buffer format (which happens to be an exact copy here)
-    auto name = m_fbb.CreateString(data.value("name").toString().toStdString());
-    auto icon = m_fbb.CreateString(data.value("icon").toString().toStdString());
-    flatbuffers::Offset<flatbuffers::String> parent;
-    bool hasParent = false;
+    Akonadi2::ApplicationDomain::Folder folder;
+    folder.setProperty("name", data.value("name").toString());
+    folder.setProperty("icon", data.value("icon").toString());
     if (!data.value("parent").toString().isEmpty()) {
-        hasParent = true;
         auto akonadiId = resolveRemoteId(ENTITY_TYPE_FOLDER, data.value("parent").toString(), transaction);
-        parent = m_fbb.CreateString(akonadiId.toStdString());
+        folder.setProperty("parent", akonadiId);
     }
-
-    auto builder = Akonadi2::ApplicationDomain::Buffer::FolderBuilder(m_fbb);
-    builder.add_name(name);
-    if (hasParent) {
-        builder.add_parent(parent);
-    }
-    builder.add_icon(icon);
-    auto buffer = builder.Finish();
-    Akonadi2::ApplicationDomain::Buffer::FinishFolderBuffer(m_fbb, buffer);
-    Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
+    mFolderAdaptorFactory->createBuffer(folder, entityFbb);
 }
 
 void DummyResource::synchronize(const QString &bufferType, const QMap<QString, QMap<QString, QVariant> > &data, Akonadi2::Storage::Transaction &transaction, std::function<void(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &)> createEntity)

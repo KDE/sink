@@ -29,6 +29,10 @@
 //TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
 #define PLUGIN_NAME "org.kde.dummy"
 
+class DummyEventAdaptorFactory;
+class DummyMailAdaptorFactory;
+class DummyFolderAdaptorFactory;
+
 class DummyResource : public Akonadi2::GenericResource
 {
 public:
@@ -42,6 +46,10 @@ private:
     void createMail(const QByteArray &rid, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &);
     void createFolder(const QByteArray &rid, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &);
     void synchronize(const QString &bufferType, const QMap<QString, QMap<QString, QVariant> > &data, Akonadi2::Storage::Transaction &transaction, std::function<void(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &)> createEntity);
+
+    QSharedPointer<DummyEventAdaptorFactory> mEventAdaptorFactory;
+    QSharedPointer<DummyMailAdaptorFactory> mMailAdaptorFactory;
+    QSharedPointer<DummyFolderAdaptorFactory> mFolderAdaptorFactory;
 };
 
 class DummyResourceFactory : public Akonadi2::ResourceFactory
