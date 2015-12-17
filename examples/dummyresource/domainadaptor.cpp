@@ -28,21 +28,10 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
     : DomainTypeAdaptorFactory()
 {
     //TODO turn this into initializeReadPropertyMapper as well?
-    mResourceMapper->addMapping("summary", [](DummyEvent const *buffer) -> QVariant {
-        return propertyToVariant<QString>(buffer->summary());
-    });
-    mResourceMapper->addMapping("remoteId", [](DummyEvent const *buffer) -> QVariant {
-        return propertyToVariant<QString>(buffer->remoteId());
-    });
-
-    mResourceWriteMapper->addMapping("summary", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(DummyEventBuilder &)> {
-        auto offset = variantToProperty<QString>(value, fbb);
-        return [offset](DummyEventBuilder &builder) { builder.add_summary(offset); };
-    });
-    mResourceWriteMapper->addMapping("remoteId", [](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(DummyEventBuilder &)> {
-        auto offset = variantToProperty<QString>(value, fbb);
-        return [offset](DummyEventBuilder &builder) { builder.add_remoteId(offset); };
-    });
+    mResourceMapper->addMapping<QString, DummyEvent>("summary", &DummyEvent::summary);
+    mResourceMapper->addMapping<QString, DummyEvent>("remoteId", &DummyEvent::remoteId);
+    mResourceWriteMapper->addMapping<QString>("summary", &DummyEventBuilder::add_summary);
+    mResourceWriteMapper->addMapping<QString>("remoteId", &DummyEventBuilder::add_remoteId);
 }
 
 DummyMailAdaptorFactory::DummyMailAdaptorFactory()
