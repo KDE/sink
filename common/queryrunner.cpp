@@ -221,6 +221,11 @@ template<class DomainType>
 std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> QueryRunner<DomainType>::getFilter(const QSet<QByteArray> remainingFilters, const Akonadi2::Query &query)
 {
     return [remainingFilters, query](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
+        if (!query.ids.isEmpty()) {
+            if (!query.ids.contains(domainObject->identifier())) {
+                return false;
+            }
+        }
         for (const auto &filterProperty : remainingFilters) {
             const auto property = domainObject->getProperty(filterProperty);
             if (property.isValid()) {
