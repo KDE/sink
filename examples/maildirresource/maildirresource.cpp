@@ -207,8 +207,8 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
             mail.setProperty("date", msg->date(true)->dateTime().toString());
             mail.setProperty("folder", resolveRemoteId(ENTITY_TYPE_FOLDER, path, synchronizationTransaction));
             mail.setProperty("mimeMessage", filepath);
-            mail.setProperty("unread", !(flags & KPIM::Maildir::Seen));
-            mail.setProperty("important", (flags.testFlag(KPIM::Maildir::Flagged)));
+            mail.setProperty("unread", !flags.testFlag(KPIM::Maildir::Seen));
+            mail.setProperty("important", flags.testFlag(KPIM::Maildir::Flagged));
 
             flatbuffers::FlatBufferBuilder entityFbb;
             mMailAdaptorFactory->createBuffer(mail, entityFbb);
