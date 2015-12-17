@@ -100,9 +100,23 @@ QStringList MaildirResource::listAvailableFolders()
     return folderList;
 }
 
+static void createEntity(const QByteArray &akonadiId, const QByteArray &bufferType, Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
+{
+    flatbuffers::FlatBufferBuilder entityFbb;
+    adaptorFactory.createBuffer(domainObject, entityFbb);
+    flatbuffers::FlatBufferBuilder fbb;
+    //This is the resource type and not the domain type
+    auto entityId = fbb.CreateString(akonadiId.toStdString());
+    auto type = fbb.CreateString(bufferType.toStdString());
+    auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
+    auto location = Akonadi2::Commands::CreateCreateEntity(fbb, entityId, type, delta);
+    Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+    callback(QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+}
+
 void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transaction)
 {
-    const QString bufferType = ENTITY_TYPE_FOLDER;
+    const QByteArray bufferType = ENTITY_TYPE_FOLDER;
     QStringList folderList = listAvailableFolders();
     Trace() << "Found folders " << folderList;
 
@@ -111,10 +125,10 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
     for (const auto folder : folderList) {
         const auto remoteId = folder.toUtf8();
         Trace() << "Processing folder " << remoteId;
-        auto akonadiId = resolveRemoteId(bufferType.toUtf8(), remoteId, synchronizationTransaction);
+        auto akonadiId = resolveRemoteId(bufferType, remoteId, synchronizationTransaction);
 
         bool found = false;
-        transaction.openDatabase(bufferType.toUtf8() + ".main").scan(akonadiId.toUtf8(), [&found](const QByteArray &, const QByteArray &) -> bool {
+        transaction.openDatabase(bufferType + ".main").scan(akonadiId.toUtf8(), [&found](const QByteArray &, const QByteArray &) -> bool {
             found = true;
             return false;
         }, [this](const Akonadi2::Storage::Error &error) {
@@ -127,23 +141,16 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
             folder.setProperty("name", md.name());
             folder.setProperty("icon", "folder");
             if (!md.isRoot()) {
+                Trace() << "subfolder parent: " << md.parent().path();
                 auto akonadiId = resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path(), synchronizationTransaction);
                 folder.setProperty("parent", akonadiId);
             }
 
-            flatbuffers::FlatBufferBuilder entityFbb;
-            mFolderAdaptorFactory->createBuffer(folder, entityFbb);
-
-            flatbuffers::FlatBufferBuilder fbb;
-            //This is the resource type and not the domain type
-            auto entityId = fbb.CreateString(akonadiId.toStdString());
-            auto type = fbb.CreateString(bufferType.toStdString());
-            auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
-            auto location = Akonadi2::Commands::CreateCreateEntity(fbb, entityId, type, delta);
-            Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
-
             Trace() << "Found a new entity: " << remoteId;
-            enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+            createEntity(akonadiId.toLatin1(), bufferType, folder, *mFolderAdaptorFactory, [this](const QByteArray &buffer) {
+                enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, buffer);
+            });
+
         } else { //modification
             Trace() << "Found a modified entity: " << remoteId;
             //TODO diff and create modification if necessary
@@ -155,7 +162,7 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
 void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transaction, const QString &path)
 {
     Trace() << "Synchronizing mails" << path;
-    const QString bufferType = ENTITY_TYPE_MAIL;
+    const QByteArray bufferType = ENTITY_TYPE_MAIL;
 
     KPIM::Maildir maildir(path, true);
     if (!maildir.isValid()) {
@@ -177,10 +184,10 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
         QString fileName = entryIterator->fileName();
 
         const auto remoteId = fileName.toUtf8();
-        auto akonadiId = resolveRemoteId(bufferType.toUtf8(), remoteId, synchronizationTransaction);
+        auto akonadiId = resolveRemoteId(bufferType, remoteId, synchronizationTransaction);
 
         bool found = false;
-        transaction.openDatabase(bufferType.toUtf8() + ".main").scan(akonadiId.toUtf8(), [&found](const QByteArray &, const QByteArray &) -> bool {
+        transaction.openDatabase(bufferType + ".main").scan(akonadiId.toUtf8(), [&found](const QByteArray &, const QByteArray &) -> bool {
             found = true;
             return false;
         }, [this](const Akonadi2::Storage::Error &error) {
@@ -209,16 +216,10 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
             flatbuffers::FlatBufferBuilder entityFbb;
             mMailAdaptorFactory->createBuffer(mail, entityFbb);
 
-            flatbuffers::FlatBufferBuilder fbb;
-            //This is the resource type and not the domain type
-            auto entityId = fbb.CreateString(akonadiId.toStdString());
-            auto type = fbb.CreateString(bufferType.toStdString());
-            auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
-            auto location = Akonadi2::Commands::CreateCreateEntity(fbb, entityId, type, delta);
-            Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
-
             Trace() << "Found a new entity: " << remoteId;
-            enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+            createEntity(akonadiId.toLatin1(), bufferType, mail, *mMailAdaptorFactory, [this](const QByteArray &buffer) {
+                enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, buffer);
+            });
         } else { //modification
             Trace() << "Found a modified entity: " << remoteId;
             //TODO diff and create modification if necessary
