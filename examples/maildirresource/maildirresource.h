@@ -28,6 +28,9 @@
 //TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
 #define PLUGIN_NAME "org.kde.maildir"
 
+class MaildirMailAdaptorFactory;
+class MaildirFolderAdaptorFactory;
+
 class MaildirResource : public Akonadi2::GenericResource
 {
 public:
@@ -44,6 +47,8 @@ private:
     void synchronizeMails(Akonadi2::Storage::Transaction &transaction, const QString &folder);
     QStringList listAvailableFolders();
     QString mMaildirPath;
+    QSharedPointer<MaildirMailAdaptorFactory> mMailAdaptorFactory;
+    QSharedPointer<MaildirFolderAdaptorFactory> mFolderAdaptorFactory;
 };
 
 class MaildirResourceFactory : public Akonadi2::ResourceFactory

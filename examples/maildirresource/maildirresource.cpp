@@ -44,11 +44,13 @@
 #define ENTITY_TYPE_FOLDER "folder"
 
 MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline)
-    : Akonadi2::GenericResource(instanceIdentifier, pipeline)
+    : Akonadi2::GenericResource(instanceIdentifier, pipeline),
+    mMailAdaptorFactory(QSharedPointer<MaildirMailAdaptorFactory>::create()),
+    mFolderAdaptorFactory(QSharedPointer<MaildirFolderAdaptorFactory>::create())
 {
-    addType(ENTITY_TYPE_MAIL, QSharedPointer<MaildirMailAdaptorFactory>::create(),
+    addType(ENTITY_TYPE_MAIL, mMailAdaptorFactory,
             QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Mail>);
-    addType(ENTITY_TYPE_FOLDER, QSharedPointer<MaildirFolderAdaptorFactory>::create(),
+    addType(ENTITY_TYPE_FOLDER, mFolderAdaptorFactory,
             QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Folder>);
     auto config = ResourceConfig::getConfiguration(instanceIdentifier);
     mMaildirPath = config.value("path").toString();
@@ -123,25 +125,16 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
 
             KPIM::Maildir md(folder, folder == mMaildirPath);
 
-            flatbuffers::FlatBufferBuilder entityFbb;
-            auto name = m_fbb.CreateString(md.name().toStdString());
-            auto icon = m_fbb.CreateString("folder");
-            flatbuffers::Offset<flatbuffers::String> parent;
-
+            Akonadi2::ApplicationDomain::Folder folder;
+            folder.setProperty("name", md.name());
+            folder.setProperty("icon", "folder");
             if (!md.isRoot()) {
                 auto akonadiId = resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path(), synchronizationTransaction);
-                parent = m_fbb.CreateString(akonadiId.toStdString());
+                folder.setProperty("parent", akonadiId);
             }
 
-            auto builder = Akonadi2::ApplicationDomain::Buffer::FolderBuilder(m_fbb);
-            builder.add_name(name);
-            if (!md.isRoot()) {
-                builder.add_parent(parent);
-            }
-            builder.add_icon(icon);
-            auto buffer = builder.Finish();
-            Akonadi2::ApplicationDomain::Buffer::FinishFolderBuffer(m_fbb, buffer);
-            Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
+            flatbuffers::FlatBufferBuilder entityFbb;
+            mFolderAdaptorFactory->createBuffer(folder, entityFbb);
 
             flatbuffers::FlatBufferBuilder fbb;
             //This is the resource type and not the domain type
@@ -206,26 +199,19 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
             const auto flags = maildir.readEntryFlags(fileName);
 
             Trace() << "Found a mail " << filePath << fileName << msg->subject(true)->asUnicodeString();
-            flatbuffers::FlatBufferBuilder entityFbb;
-            auto subject = m_fbb.CreateString(msg->subject(true)->asUnicodeString().toStdString());
-            auto sender = m_fbb.CreateString(msg->from(true)->asUnicodeString().toStdString());
-            auto senderName = m_fbb.CreateString(msg->from(true)->asUnicodeString().toStdString());
-            auto date = m_fbb.CreateString(msg->date(true)->dateTime().toString().toStdString());
-            auto folder = m_fbb.CreateString(resolveRemoteId(ENTITY_TYPE_FOLDER, path, synchronizationTransaction).toStdString());
-            auto mimeMessage = m_fbb.CreateString(filepath.toStdString());
 
-            auto builder = Akonadi2::ApplicationDomain::Buffer::MailBuilder(m_fbb);
-            builder.add_subject(subject);
-            builder.add_sender(sender);
-            builder.add_senderName(senderName);
-            builder.add_unread(!(flags & KPIM::Maildir::Seen));
-            builder.add_important(flags & KPIM::Maildir::Flagged);
-            builder.add_date(date);
-            builder.add_folder(folder);
-            builder.add_mimeMessage(mimeMessage);
-            auto buffer = builder.Finish();
-            Akonadi2::ApplicationDomain::Buffer::FinishMailBuffer(m_fbb, buffer);
-            Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, m_fbb.GetBufferPointer(), m_fbb.GetSize());
+            Akonadi2::ApplicationDomain::Mail mail;
+            mail.setProperty("subject", msg->subject(true)->asUnicodeString());
+            mail.setProperty("sender", msg->from(true)->asUnicodeString());
+            mail.setProperty("senderName", msg->from(true)->asUnicodeString());
+            mail.setProperty("date", msg->date(true)->dateTime().toString());
+            mail.setProperty("folder", resolveRemoteId(ENTITY_TYPE_FOLDER, path, synchronizationTransaction));
+            mail.setProperty("mimeMessage", filepath);
+            mail.setProperty("unread", !(flags & KPIM::Maildir::Seen));
+            mail.setProperty("important", (flags.testFlag(KPIM::Maildir::Flagged)));
+
+            flatbuffers::FlatBufferBuilder entityFbb;
+            mMailAdaptorFactory->createBuffer(mail, entityFbb);
 
             flatbuffers::FlatBufferBuilder fbb;
             //This is the resource type and not the domain type
