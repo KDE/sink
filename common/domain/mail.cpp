@@ -77,6 +77,7 @@ QSharedPointer<ReadPropertyMapper<TypeImplementation<Mail>::Buffer> > TypeImplem
     propertyMapper->addMapping<bool, Buffer>("unread", &Buffer::unread);
     propertyMapper->addMapping<bool, Buffer>("important", &Buffer::important);
     propertyMapper->addMapping<QByteArray, Buffer>("folder", &Buffer::folder);
+    propertyMapper->addMapping<QString, Buffer>("mimeMessage", &Buffer::mimeMessage);
     return propertyMapper;
 }
 
@@ -91,5 +92,6 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Mail>::BufferBuilder> > Ty
     propertyMapper->addMapping<bool>("unread", &BufferBuilder::add_unread);
     propertyMapper->addMapping<bool>("important", &BufferBuilder::add_important);
     propertyMapper->addMapping<QByteArray>("folder", &BufferBuilder::add_folder);
+    propertyMapper->addMapping<QString>("mimeMessage", &BufferBuilder::add_mimeMessage);
     return propertyMapper;
 }
