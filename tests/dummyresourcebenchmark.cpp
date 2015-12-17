@@ -109,6 +109,9 @@ private Q_SLOTS:
 
         auto diskUsage = DummyResource::diskUsage("org.kde.dummy.instance1");
         qDebug() << "Database size [kb]: " << diskUsage/1024;
+
+        // Print memory layout, RSS is what is in memory
+        // std::system("exec pmap -x \"$PPID\"");
     }
 
     void testQueryByUid()
@@ -197,6 +200,9 @@ private Q_SLOTS:
         row.setValue("total", (qreal)num/allProcessedTime);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
+
+        // Print memory layout, RSS is what is in memory
+        // std::system("exec pmap -x \"$PPID\"");
     }
 
     void testCreateCommand()
