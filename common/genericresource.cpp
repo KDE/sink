@@ -327,12 +327,11 @@ int GenericResource::error() const
 
 void GenericResource::enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data)
 {
-    //TODO get rid of m_fbb member variable
-    m_fbb.Clear();
-    auto commandData = Akonadi2::EntityBuffer::appendAsVector(m_fbb, data.constData(), data.size());
-    auto buffer = Akonadi2::CreateQueuedCommand(m_fbb, commandId, commandData);
-    Akonadi2::FinishQueuedCommandBuffer(m_fbb, buffer);
-    mq.enqueue(m_fbb.GetBufferPointer(), m_fbb.GetSize());
+    flatbuffers::FlatBufferBuilder fbb;
+    auto commandData = Akonadi2::EntityBuffer::appendAsVector(fbb, data.constData(), data.size());
+    auto buffer = Akonadi2::CreateQueuedCommand(fbb, commandId, commandData);
+    Akonadi2::FinishQueuedCommandBuffer(fbb, buffer);
+    mq.enqueue(fbb.GetBufferPointer(), fbb.GetSize());
 }
 
 void GenericResource::processCommand(int commandId, const QByteArray &data)

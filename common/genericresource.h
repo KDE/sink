@@ -60,7 +60,6 @@ protected:
     virtual KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value);
     void onProcessorError(int errorCode, const QString &errorMessage);
     void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);
-    flatbuffers::FlatBufferBuilder m_fbb;
     MessageQueue mUserQueue;
     MessageQueue mSynchronizerQueue;
     QByteArray mResourceInstanceIdentifier;

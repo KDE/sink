@@ -121,8 +121,6 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
         }, true);
 
         if (!found) { //A new entity
-            m_fbb.Clear();
-
             KPIM::Maildir md(folder, folder == mMaildirPath);
 
             Akonadi2::ApplicationDomain::Folder folder;
@@ -189,8 +187,6 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
         }, true);
 
         if (!found) { //A new entity
-            m_fbb.Clear();
-
             KMime::Message *msg = new KMime::Message;
             auto filepath = listingPath + QDir::separator() + fileName;
             msg->setHead(KMime::CRLFtoLF(maildir.readEntryHeadersFromFile(filepath)));

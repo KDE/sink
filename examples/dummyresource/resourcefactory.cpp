@@ -123,8 +123,6 @@ void DummyResource::synchronize(const QString &bufferType, const QMap<QString, Q
         }, true);
 
         if (!found) { //A new entity
-            m_fbb.Clear();
-
             flatbuffers::FlatBufferBuilder entityFbb;
             createEntity(remoteId, it.value(), entityFbb, synchronizationTransaction);
 
