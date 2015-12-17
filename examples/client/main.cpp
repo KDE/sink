@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
     } else if (command == "stat") {
         auto resources = args;
         for (const auto &resource : resources) {
-            Akonadi2::Storage::Storage storage(Akonadi2::storageLocation(), resource, Akonadi2::Storage::ReadOnly);
+            Akonadi2::Storage storage(Akonadi2::storageLocation(), resource, Akonadi2::Storage::ReadOnly);
             auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
 
             QList<QByteArray> databases = transaction.getDatabaseNames();
