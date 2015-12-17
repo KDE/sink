@@ -148,6 +148,9 @@ void QueryRunner<DomainType>::readEntity(const Akonadi2::Storage::NamedDatabase 
 template<class DomainType>
 ResultSet QueryRunner<DomainType>::loadInitialResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)
 {
+    if (!query.ids.isEmpty()) {
+        return ResultSet(query.ids.toVector());
+    }
     QSet<QByteArray> appliedFilters;
     auto resultSet = Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::queryIndexes(query, mResourceInstanceIdentifier, appliedFilters, transaction);
     remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
