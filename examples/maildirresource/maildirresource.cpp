@@ -52,6 +52,10 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
             QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Folder>);
     auto config = ResourceConfig::getConfiguration(instanceIdentifier);
     mMaildirPath = config.value("path").toString();
+    //Chop a trailing slash if necessary
+    if (mMaildirPath.endsWith(QDir::separator())) {
+        mMaildirPath.chop(1);
+    }
     Trace() << "Started maildir resource for maildir: " << mMaildirPath;
 }
 

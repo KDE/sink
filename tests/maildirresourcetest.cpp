@@ -18,8 +18,10 @@ static bool copyRecursively(const QString &srcFilePath,
     if (srcFileInfo.isDir()) {
         QDir targetDir(tgtFilePath);
         targetDir.cdUp();
-        if (!targetDir.mkdir(QFileInfo(tgtFilePath).fileName()))
+        if (!targetDir.mkdir(QFileInfo(srcFilePath).fileName())) {
+            qWarning() << "Failed to create directory " << tgtFilePath;
             return false;
+        }
         QDir sourceDir(srcFilePath);
         QStringList fileNames = sourceDir.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
         foreach (const QString &fileName, fileNames) {
@@ -31,8 +33,10 @@ static bool copyRecursively(const QString &srcFilePath,
                 return false;
         }
     } else {
-        if (!QFile::copy(srcFilePath, tgtFilePath))
+        if (!QFile::copy(srcFilePath, tgtFilePath)) {
+            qWarning() << "Failed to copy file " << tgtFilePath;
             return false;
+        }
     }
     return true;
 }
@@ -45,13 +49,13 @@ static bool copyRecursively(const QString &srcFilePath,
 class MaildirResourceTest : public QObject
 {
     Q_OBJECT
+
+    QTemporaryDir tempDir;
 private Q_SLOTS:
     void initTestCase()
     {
-        auto targetPath = QDir::tempPath() + QDir::separator() + "maildirresourcetest" + QDir::separator() + "maildir1";
-        QDir dir(targetPath);
-        dir.removeRecursively();
-
+        QVERIFY(tempDir.isValid());
+        auto targetPath = tempDir.path() + QDir::separator() + "maildir1/";
         copyRecursively(TESTDATAPATH "/maildir1", targetPath);
 
         Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
