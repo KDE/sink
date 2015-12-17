@@ -52,6 +52,7 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
             QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Folder>);
     auto config = ResourceConfig::getConfiguration(instanceIdentifier);
     mMaildirPath = config.value("path").toString();
+    Trace() << "Started maildir resource for maildir: " << mMaildirPath;
 }
 
 QString MaildirResource::resolveRemoteId(const QByteArray &bufferType, const QString &remoteId, Akonadi2::Storage::Transaction &transaction)
@@ -103,6 +104,7 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
     auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
     for (const auto folder : folderList) {
         const auto remoteId = folder.toUtf8();
+        Trace() << "Processing folder " << remoteId;
         auto akonadiId = resolveRemoteId(bufferType.toUtf8(), remoteId, synchronizationTransaction);
 
         bool found = false;

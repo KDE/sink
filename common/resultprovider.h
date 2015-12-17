@@ -363,6 +363,7 @@ public:
     void fetch(const DomainType &parent) Q_DECL_OVERRIDE
     {
         if (mEmitter.isEmpty()) {
+            Trace() << "No child emitters, the result is complete";
             this->initialResultSetComplete(parent);
         } else {
             for (const auto &emitter : mEmitter) {

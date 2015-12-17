@@ -603,6 +603,7 @@ void Storage::removeFromDisk() const
     const QString fullPath(d->storageRoot + '/' + d->name);
     QMutexLocker locker(&d->sMutex);
     QDir dir(fullPath);
+    std::cout << "Removing database from disk: " << fullPath.toStdString() << std::endl;
     if (!dir.removeRecursively()) {
         Error error(d->name.toLatin1(), ErrorCodes::GenericError, QString("Failed to remove directory %1 %2").arg(d->storageRoot).arg(d->name).toLatin1());
         defaultErrorHandler()(error);

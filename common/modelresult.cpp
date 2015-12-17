@@ -163,6 +163,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
     const auto id = parentId(value);
     //Ignore updates we get before the initial fetch is done
     if (!mEntityChildrenFetched.contains(id)) {
+        Trace() << "Too early" << id;
         return;
     }
     auto parent = createIndexFromId(id);

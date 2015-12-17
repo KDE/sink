@@ -81,6 +81,11 @@ QList<QByteArray> Store::getResources(const QList<QByteArray> &resourceFilter, c
 template <class DomainType>
 QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 {
+    Trace() << "Requested: " << query.requestedProperties;
+    Trace() << "Filter: " << query.propertyFilter;
+    Trace() << "Parent: " << query.parentProperty;
+    Trace() << "Ids: " << query.ids;
+    Trace() << "IsLive: " << query.liveQuery;
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr> >::create(query, query.requestedProperties);
 
     //* Client defines lifetime of model
@@ -193,9 +198,10 @@ void Store::removeFromDisk(const QByteArray &identifier)
 
 KAsync::Job<void> Store::synchronize(const Akonadi2::Query &query)
 {
-    Trace() << "synchronize";
-    return  KAsync::iterate(query.resources)
+    Trace() << "synchronize" << query.resources;
+    return KAsync::iterate(query.resources)
     .template each<void, QByteArray>([query](const QByteArray &resource, KAsync::Future<void> &future) {
+        Trace() << "Synchronizing " << resource;
         auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resource);
         resourceAccess->open();
         resourceAccess->synchronizeResource(query.syncOnDemand, query.processAll).then<void>([&future, resourceAccess]() {

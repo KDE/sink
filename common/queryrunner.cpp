@@ -226,7 +226,7 @@ std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr
             if (property.isValid()) {
                 //TODO implement other comparison operators than equality
                 if (property != query.propertyFilter.value(filterProperty)) {
-                    Trace() << "Filtering entity due to property mismatch: " << domainObject->getProperty(filterProperty);
+                    Trace() << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << query.propertyFilter.value(filterProperty);
                     return false;
                 }
             } else {
