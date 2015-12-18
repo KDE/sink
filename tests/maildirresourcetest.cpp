@@ -149,6 +149,30 @@ private Q_SLOTS:
         QVERIFY(mailModel->rowCount(QModelIndex()) >= 1);
     }
 
+    void testSyncFolderMove()
+    {
+        Akonadi2::Query query;
+        query.resources << "org.kde.maildir.instance1";
+        query.syncOnDemand = true;
+        query.processAll = true;
+        query.requestedProperties << "name";
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto targetPath = tempDir.path() + QDir::separator() + "maildir1/";
+        QDir dir(targetPath);
+        QVERIFY(dir.rename("inbox", "newbox"));
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(QModelIndex()), 2);
+        QCOMPARE(model->match(model->index(0, 0, QModelIndex()), Qt::DisplayRole, QStringLiteral("newbox"), 1).size(), 1);
+    }
+
 };
 
 QTEST_MAIN(MaildirResourceTest)

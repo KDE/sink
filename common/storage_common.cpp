@@ -158,4 +158,15 @@ QByteArray Storage::uidFromKey(const QByteArray &key)
     return key.mid(0, 38);
 }
 
+bool Storage::NamedDatabase::contains(const QByteArray &uid)
+{
+    bool found = false;
+    scan(uid, [&found](const QByteArray &, const QByteArray &) -> bool {
+        found = true;
+        return false;
+    }, [this](const Akonadi2::Storage::Error &error) {
+    }, true);
+    return found;
+}
+
 } // namespace Akonadi2

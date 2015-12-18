@@ -90,6 +90,11 @@ public:
                         const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
                         const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
 
+        /**
+         * Returns true if the database contains the substring key.
+         */
+        bool contains(const QByteArray &uid);
+
         NamedDatabase(NamedDatabase&& other) : d(other.d)
         {
             d = other.d;
