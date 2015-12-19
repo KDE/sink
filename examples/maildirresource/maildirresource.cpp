@@ -114,7 +114,7 @@ QStringList MaildirResource::listAvailableFolders()
     return folderList;
 }
 
-static void createEntity(const QByteArray &akonadiId, const QByteArray &bufferType, Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
+static void createEntity(const QByteArray &akonadiId, const QByteArray &bufferType, const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
 {
     flatbuffers::FlatBufferBuilder entityFbb;
     adaptorFactory.createBuffer(domainObject, entityFbb);
@@ -128,7 +128,7 @@ static void createEntity(const QByteArray &akonadiId, const QByteArray &bufferTy
     callback(QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
 }
 
-static void modifyEntity(const QByteArray &akonadiId, qint64 revision, const QByteArray &bufferType, Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
+static void modifyEntity(const QByteArray &akonadiId, qint64 revision, const QByteArray &bufferType, const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
 {
     flatbuffers::FlatBufferBuilder entityFbb;
     adaptorFactory.createBuffer(domainObject, entityFbb);
@@ -172,6 +172,63 @@ static QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> getLatest(cons
     return current;
 }
 
+void MaildirResource::scanForRemovals(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, const QByteArray &bufferType, std::function<bool(const QByteArray &remoteId)> exists)
+{
+    auto mainDatabase = transaction.openDatabase(bufferType + ".main");
+    //TODO Instead of iterating over all entries in the database, which can also pick up the same item multiple times,
+    //we should rather iterate over an index that contains every uid exactly once. The remoteId index would be such an index,
+    //but we currently fail to iterate over all entries in an index it seems.
+    // auto remoteIds = synchronizationTransaction.openDatabase("rid.mapping." + bufferType, std::function<void(const Akonadi2::Storage::Error &)>(), true);
+    mainDatabase.scan("", [this, &transaction, bufferType, &synchronizationTransaction, &exists](const QByteArray &key, const QByteArray &) {
+        auto akonadiId = Akonadi2::Storage::uidFromKey(key);
+        Trace() << "Checking for removal " << key;
+        const auto remoteId = resolveLocalId(bufferType, akonadiId, synchronizationTransaction);
+        if (!remoteId.isEmpty()) {
+            if (!exists(remoteId.toLatin1())) {
+                Trace() << "Found a removed entity: " << akonadiId;
+                deleteEntity(akonadiId, Akonadi2::Storage::maxRevision(transaction), bufferType, [this](const QByteArray &buffer) {
+                    enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::DeleteEntityCommand, buffer);
+                });
+            }
+        }
+        return true;
+    },
+    [](const Akonadi2::Storage::Error &error) {
+    });
+
+}
+
+void MaildirResource::createOrModify(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory, const QByteArray &bufferType, const QByteArray &remoteId, const Akonadi2::ApplicationDomain::ApplicationDomainType &entity)
+{
+    auto mainDatabase = transaction.openDatabase(bufferType + ".main");
+    const auto akonadiId = resolveRemoteId(bufferType, remoteId, synchronizationTransaction).toLatin1();
+    const auto found = mainDatabase.contains(akonadiId);
+    if (!found) {
+        Trace() << "Found a new entity: " << remoteId;
+        createEntity(akonadiId, bufferType, entity, adaptorFactory, [this](const QByteArray &buffer) {
+            enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, buffer);
+        });
+    } else { //modification
+        if (auto current = getLatest(mainDatabase, akonadiId, adaptorFactory)) {
+            bool changed = false;
+            for (const auto &property : entity.changedProperties()) {
+                if (entity.getProperty(property) != current->getProperty(property)) {
+                    Trace() << "Property changed " << akonadiId << property;
+                    changed = true;
+                }
+            }
+            if (changed) {
+                Trace() << "Found a modified entity: " << remoteId;
+                modifyEntity(akonadiId, Akonadi2::Storage::maxRevision(transaction), bufferType, entity, adaptorFactory, [this](const QByteArray &buffer) {
+                    enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::ModifyEntityCommand, buffer);
+                });
+            }
+        } else {
+            Warning() << "Failed to get current entity";
+        }
+    }
+}
+
 void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transaction)
 {
     const QByteArray bufferType = ENTITY_TYPE_FOLDER;
@@ -181,31 +238,13 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
     Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
     auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
     auto mainDatabase = transaction.openDatabase(bufferType + ".main");
-
-    //TODO Instead of iterating over all entries in the database, which can also pick up the same item multiple times,
-    //we should rather iterate over an index that contains every uid exactly once. The remoteId index would be such an index,
-    //but we currently fail to iterate over all entries in an index it seems.
-    // auto remoteIds = synchronizationTransaction.openDatabase("rid.mapping." + bufferType, std::function<void(const Akonadi2::Storage::Error &)>(), true);
-    mainDatabase.scan("", [&folderList, this, &transaction, bufferType, &synchronizationTransaction](const QByteArray &key, const QByteArray &) {
-        auto akonadiId = Akonadi2::Storage::uidFromKey(key);
-        const auto remoteId = resolveLocalId(bufferType, akonadiId, synchronizationTransaction);
-        if (!folderList.contains(remoteId)) {
-            Trace() << "Found a removed entity: " << akonadiId;
-            deleteEntity(akonadiId, Akonadi2::Storage::maxRevision(transaction), bufferType, [this](const QByteArray &buffer) {
-                enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::DeleteEntityCommand, buffer);
-            });
-        }
-        return true;
-    },
-    [](const Akonadi2::Storage::Error &error) {
+    scanForRemovals(transaction, synchronizationTransaction, bufferType, [&folderList](const QByteArray &remoteId) -> bool {
+        return folderList.contains(remoteId);
     });
 
     for (const auto folderPath : folderList) {
         const auto remoteId = folderPath.toUtf8();
         Trace() << "Processing folder " << remoteId;
-        const auto akonadiId = resolveRemoteId(bufferType, remoteId, synchronizationTransaction).toLatin1();
-        const auto found = mainDatabase.contains(akonadiId);
-
         KPIM::Maildir md(folderPath, folderPath == mMaildirPath);
 
         Akonadi2::ApplicationDomain::Folder folder;
@@ -214,31 +253,7 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
         if (!md.isRoot()) {
             folder.setProperty("parent", resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path(), synchronizationTransaction).toLatin1());
         }
-
-        if (!found) {
-            Trace() << "Found a new entity: " << remoteId;
-            createEntity(akonadiId, bufferType, folder, *mFolderAdaptorFactory, [this](const QByteArray &buffer) {
-                enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, buffer);
-            });
-        } else { //modification
-            if (auto current = getLatest(mainDatabase, akonadiId, *mFolderAdaptorFactory)) {
-                bool changed = false;
-                for (const auto &property : folder.changedProperties()) {
-                    if (folder.getProperty(property) != current->getProperty(property)) {
-                        Trace() << "Property changed " << akonadiId << property;
-                        changed = true;
-                    }
-                }
-                if (changed) {
-                    Trace() << "Found a modified entity: " << remoteId;
-                    modifyEntity(akonadiId, Akonadi2::Storage::maxRevision(transaction), bufferType, folder, *mFolderAdaptorFactory, [this](const QByteArray &buffer) {
-                        enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::ModifyEntityCommand, buffer);
-                    });
-                }
-            } else {
-                Warning() << "Failed to get current entity";
-            }
-        }
+        createOrModify(transaction, synchronizationTransaction, *mFolderAdaptorFactory, bufferType, remoteId, folder);
     }
 }
 
@@ -262,53 +277,36 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
     Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
     auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
 
+    scanForRemovals(transaction, synchronizationTransaction, bufferType, [&listingPath](const QByteArray &remoteId) -> bool {
+        return QFile(listingPath + QDir::separator() + remoteId).exists();
+    });
+
     while (entryIterator->hasNext()) {
         QString filePath = entryIterator->next();
         QString fileName = entryIterator->fileName();
-
         const auto remoteId = fileName.toUtf8();
-        auto akonadiId = resolveRemoteId(bufferType, remoteId, synchronizationTransaction);
 
-        bool found = false;
-        transaction.openDatabase(bufferType + ".main").scan(akonadiId.toUtf8(), [&found](const QByteArray &, const QByteArray &) -> bool {
-            found = true;
-            return false;
-        }, [this](const Akonadi2::Storage::Error &error) {
-        }, true);
+        KMime::Message *msg = new KMime::Message;
+        auto filepath = listingPath + QDir::separator() + fileName;
+        msg->setHead(KMime::CRLFtoLF(maildir.readEntryHeadersFromFile(filepath)));
+        msg->parse();
 
-        if (!found) { //A new entity
-            KMime::Message *msg = new KMime::Message;
-            auto filepath = listingPath + QDir::separator() + fileName;
-            msg->setHead(KMime::CRLFtoLF(maildir.readEntryHeadersFromFile(filepath)));
-            msg->parse();
+        const auto flags = maildir.readEntryFlags(fileName);
 
-            const auto flags = maildir.readEntryFlags(fileName);
+        Trace() << "Found a mail " << filePath << fileName << msg->subject(true)->asUnicodeString();
 
-            Trace() << "Found a mail " << filePath << fileName << msg->subject(true)->asUnicodeString();
+        Akonadi2::ApplicationDomain::Mail mail;
+        mail.setProperty("subject", msg->subject(true)->asUnicodeString());
+        mail.setProperty("sender", msg->from(true)->asUnicodeString());
+        mail.setProperty("senderName", msg->from(true)->asUnicodeString());
+        mail.setProperty("date", msg->date(true)->dateTime().toString());
+        mail.setProperty("folder", resolveRemoteId(ENTITY_TYPE_FOLDER, path, synchronizationTransaction));
+        mail.setProperty("mimeMessage", filepath);
+        mail.setProperty("unread", !flags.testFlag(KPIM::Maildir::Seen));
+        mail.setProperty("important", flags.testFlag(KPIM::Maildir::Flagged));
 
-            Akonadi2::ApplicationDomain::Mail mail;
-            mail.setProperty("subject", msg->subject(true)->asUnicodeString());
-            mail.setProperty("sender", msg->from(true)->asUnicodeString());
-            mail.setProperty("senderName", msg->from(true)->asUnicodeString());
-            mail.setProperty("date", msg->date(true)->dateTime().toString());
-            mail.setProperty("folder", resolveRemoteId(ENTITY_TYPE_FOLDER, path, synchronizationTransaction));
-            mail.setProperty("mimeMessage", filepath);
-            mail.setProperty("unread", !flags.testFlag(KPIM::Maildir::Seen));
-            mail.setProperty("important", flags.testFlag(KPIM::Maildir::Flagged));
-
-            flatbuffers::FlatBufferBuilder entityFbb;
-            mMailAdaptorFactory->createBuffer(mail, entityFbb);
-
-            Trace() << "Found a new entity: " << remoteId;
-            createEntity(akonadiId.toLatin1(), bufferType, mail, *mMailAdaptorFactory, [this](const QByteArray &buffer) {
-                enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, buffer);
-            });
-        } else { //modification
-            Trace() << "Found a modified entity: " << remoteId;
-            //TODO diff and create modification if necessary
-        }
+        createOrModify(transaction, synchronizationTransaction, *mMailAdaptorFactory, bufferType, remoteId, mail);
     }
-    //TODO find items to remove
 }
 
 KAsync::Job<void> MaildirResource::synchronizeWithSource()

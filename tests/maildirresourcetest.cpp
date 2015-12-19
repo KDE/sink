@@ -149,6 +149,26 @@ private Q_SLOTS:
         QVERIFY(mailModel->rowCount(QModelIndex()) >= 1);
     }
 
+    void testMailContent()
+    {
+        Akonadi2::Query query;
+        query.resources << "org.kde.maildir.instance1";
+        query.requestedProperties << "folder" << "subject" << "mimeMessage";
+        query.syncOnDemand = true;
+        query.processAll = true;
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QVERIFY(mailModel->rowCount(QModelIndex()) >= 1);
+        auto mail = mailModel->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Mail::Ptr>();
+        QVERIFY(!mail->getProperty("subject").toString().isEmpty());
+        QVERIFY(!mail->getProperty("mimeMessage").toString().isEmpty());
+    }
+
+
     void testSyncFolderMove()
     {
         Akonadi2::Query query;
@@ -171,6 +191,29 @@ private Q_SLOTS:
         QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(QModelIndex()), 2);
         QCOMPARE(model->match(model->index(0, 0, QModelIndex()), Qt::DisplayRole, QStringLiteral("newbox"), 1).size(), 1);
+    }
+
+    void testSyncMailMove()
+    {
+        Akonadi2::Query query;
+        query.resources << "org.kde.maildir.instance1";
+        query.syncOnDemand = true;
+        query.processAll = true;
+        query.requestedProperties << "folder" << "summary";
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto targetPath = tempDir.path() + QDir::separator() + "maildir1/cur/1365777830.R28.localhost.localdomain:2,S";
+        QFile file(targetPath);
+        QVERIFY(file.remove());
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(mailModel->rowCount(QModelIndex()), 1);
     }
 
 };

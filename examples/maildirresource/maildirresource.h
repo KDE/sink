@@ -39,8 +39,36 @@ public:
     static void removeFromDisk(const QByteArray &instanceIdentifier);
 private:
     KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
+
+    /**
+     * Tries to find a local id for the remote id, and creates a new local id otherwise.
+     * 
+     * The new local id is recorded in the local to remote id mapping.
+     */
     QString resolveRemoteId(const QByteArray &type, const QString &remoteId, Akonadi2::Storage::Transaction &transaction);
+
+    /**
+     * Tries to find a remote id for a local id.
+     * 
+     * This can fail if the entity hasn't been written back to the server yet.
+     */
     QString resolveLocalId(const QByteArray &bufferType, const QByteArray &localId, Akonadi2::Storage::Transaction &transaction);
+
+    /**
+    * An algorithm to remove entities that are no longer existing.
+    * 
+    * This algorithm calls @param exists for every entity of type @param type, with its remoteId. For every entity where @param exists returns false,
+    * an entity delete command is enqueued.
+    */
+    void scanForRemovals(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, const QByteArray &bufferType, std::function<bool(const QByteArray &remoteId)> exists);
+
+    /**
+     * An algorithm to create or modify the entity.
+     *
+     * Depending on whether the entity is locally available, or has changed.
+     */
+    void createOrModify(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory, const QByteArray &bufferType, const QByteArray &remoteId, const Akonadi2::ApplicationDomain::ApplicationDomainType &entity);
+
     void synchronizeFolders(Akonadi2::Storage::Transaction &transaction);
     void synchronizeMails(Akonadi2::Storage::Transaction &transaction, const QString &folder);
     QStringList listAvailableFolders();
