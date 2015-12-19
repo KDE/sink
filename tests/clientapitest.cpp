@@ -119,7 +119,7 @@ private Q_SLOTS:
         ResourceConfig::clear();
         Akonadi2::FacadeFactory::instance().registerStaticFacades();
 
-        Akonadi2::ApplicationDomain::AkonadiResource res;
+        Akonadi2::ApplicationDomain::AkonadiResource res("", "dummyresource.identifier1", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
         res.setProperty("identifier", "dummyresource.identifier1");
         res.setProperty("type", "dummyresource");
 
