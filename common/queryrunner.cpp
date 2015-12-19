@@ -65,7 +65,10 @@ QueryRunner<DomainType>::QueryRunner(const Akonadi2::Query &query, const Akonadi
     mResultProvider->setFetcher([this, query](const typename DomainType::Ptr &parent) {
         Trace() << "Running fetcher";
         const qint64 newRevision = executeInitialQuery(query, parent, *mResultProvider);
-        mResourceAccess->sendRevisionReplayedCommand(newRevision);
+        //Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
+        if (query.liveQuery) {
+            mResourceAccess->sendRevisionReplayedCommand(newRevision);
+        }
     });
 
 
