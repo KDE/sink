@@ -41,6 +41,68 @@
 #include <QItemSelectionModel>
 #include <iostream>
 
+/**
+ * A small abstraction layer to use the akonadi store with the type available as string.
+ */
+class StoreBase {
+public:
+    virtual Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr getObject() = 0;
+    virtual Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr getObject(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier = QByteArray()) = 0;
+    virtual KAsync::Job<void> create(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) = 0;
+    virtual KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) = 0;
+    virtual KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) = 0;
+    virtual QSharedPointer<QAbstractItemModel> loadModel(const Akonadi2::Query &query) = 0;
+};
+
+template <typename T>
+class Store : public StoreBase {
+public:
+    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr getObject() Q_DECL_OVERRIDE {
+        return T::Ptr::create();
+    }
+
+    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr getObject(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier = QByteArray()) Q_DECL_OVERRIDE {
+        return T::Ptr::create(resourceInstanceIdentifier, identifier, 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+    }
+
+    KAsync::Job<void> create(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
+        return Akonadi2::Store::create<T>(*static_cast<const T*>(&type));
+    }
+
+    KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
+        return Akonadi2::Store::modify<T>(*static_cast<const T*>(&type));
+    }
+
+    KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
+        return Akonadi2::Store::remove<T>(*static_cast<const T*>(&type));
+    }
+
+    QSharedPointer<QAbstractItemModel> loadModel(const Akonadi2::Query &query) Q_DECL_OVERRIDE {
+        return Akonadi2::Store::loadModel<T>(query);
+    }
+};
+
+StoreBase& getStore(const QString &type)
+{
+    if (type == "folder") {
+        static Store<Akonadi2::ApplicationDomain::Folder> store;
+        return store;
+    } else if (type == "mail") {
+        static Store<Akonadi2::ApplicationDomain::Mail> store;
+        return store;
+    } else if (type == "event") {
+        static Store<Akonadi2::ApplicationDomain::Event> store;
+        return store;
+    } else if (type == "resource") {
+        static Store<Akonadi2::ApplicationDomain::AkonadiResource> store;
+        return store;
+    }
+    Q_ASSERT(false);
+    qWarning() << "Trying to get a store that doesn't exist, falling back to event";
+    static Store<Akonadi2::ApplicationDomain::Event> store;
+    return store;
+}
+
 template <typename T>
 class View : public QWidget
 {
@@ -108,29 +170,35 @@ public:
     }
 };
 
+
 static QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Akonadi2::Query query)
 {
     QTime time;
     time.start();
-
-    QSharedPointer<QAbstractItemModel> model;
     if (type == "folder") {
         query.requestedProperties << "name" << "parent";
-        model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
     } else if (type == "mail") {
         query.requestedProperties << "subject" << "folder" << "date";
-        model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
     } else if (type == "event") {
         query.requestedProperties << "summary";
-        model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
     } else if (type == "resource") {
-        query.requestedProperties << "identifier" << "type";
-        model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::AkonadiResource>(query);
+        query.requestedProperties << "type";
     }
+    auto model = getStore(type).loadModel(query);
     qDebug() << "Folder type " << type;
     qDebug() << "Loaded model in " << time.elapsed() << " ms";
     Q_ASSERT(model);
     return model;
+}
+
+QMap<QString, QString> consumeMap(QList<QString> &list)
+{
+    QMap<QString, QString> map;
+    while(list.size() >= 2) {
+        map.insert(list.at(0), list.at(1));
+        list = list.mid(2);
+    }
+    return map;
 }
 
 int main(int argc, char *argv[])
@@ -154,12 +222,6 @@ int main(int argc, char *argv[])
         Akonadi2::Log::setDebugOutputLevel(static_cast<Akonadi2::Log::DebugLevel>(cliOptions.value("debuglevel").toInt()));
     }
 
-    //Ensure resource is ready
-    // for (const auto &resource : resources) {
-    //     Akonadi2::ResourceFactory::load(Akonadi2::Store::resourceName(resource.toLatin1()));
-    //     ResourceConfig::addResource(resource.toLatin1(), Akonadi2::Store::resourceName(resource.toLatin1()));
-    // }
-
     if (command == "list") {
         auto type = !args.isEmpty() ? args.takeFirst() : QByteArray();
         auto resources = args;
@@ -174,17 +236,22 @@ int main(int argc, char *argv[])
 
         auto model = loadModel(type, query);
         qDebug() << "Listing";
-        std::cout << "\tColumn\t\t Identifier\t\t\t\t";
+        int colSize = 38; //Necessary to display a complete UUID
+        std::cout << "  Column   ";
+        std::cout << QString("Resource").leftJustified(colSize, ' ', true).toStdString();
+        std::cout << QString("Identifier").leftJustified(colSize, ' ', true).toStdString();
         for (int i = 0; i < model->columnCount(QModelIndex()); i++) {
-            std::cout << "\t|" << model->headerData(i, Qt::Horizontal).toString().toStdString();
+            std::cout << " | " << model->headerData(i, Qt::Horizontal).toString().leftJustified(colSize, ' ', true).toStdString();
         }
         std::cout << std::endl;
-        QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) {
+        QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, colSize](const QModelIndex &index, int start, int end) {
             for (int i = start; i <= end; i++) {
-                std::cout << "\tRow " << model->rowCount() << ":\t ";
-                std::cout << "\t" << model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectBaseRole).value<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr>()->identifier().toStdString() << "\t";
+                std::cout << "  Row " << model->rowCount() << ": ";
+                auto object = model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectBaseRole).value<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr>();
+                std::cout << "  " << object->resourceInstanceIdentifier().leftJustified(colSize, ' ', true).toStdString();
+                std::cout << object->identifier().leftJustified(colSize, ' ', true).toStdString();
                 for (int col = 0; col < model->columnCount(QModelIndex()); col++) {
-                    std::cout << "\t|" << model->data(model->index(i, col, index)).toString().toStdString();
+                    std::cout << " | " << model->data(model->index(i, col, index)).toString().leftJustified(colSize, ' ', true).toStdString();
                 }
                 std::cout << std::endl;
             }
@@ -266,25 +333,44 @@ int main(int argc, char *argv[])
             Akonadi2::Store::removeFromDisk(resource.toLatin1());
         }
     } else if (command == "create") {
-        auto type = !args.isEmpty() ? args.takeFirst() : QByteArray();
-        if (type == "resource") {
-            Akonadi2::ApplicationDomain::AkonadiResource resource;
-            resource.setProperty("identifier", args.at(0));
-            resource.setProperty("type", args.at(1));
-            //TODO turn this into a bunch of json
-            if (args.size() >= 4) {
-                resource.setProperty(args.at(2).toLatin1(), args.at(3));
-            }
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::AkonadiResource>(resource).exec().waitForFinished();
-            qDebug() << "Created resource " << args;
+        auto type = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+        auto &store = getStore(type);
+        auto resource = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+        auto object = store.getObject(resource);
+        auto map = consumeMap(args);
+        for (auto i = map.begin(); i != map.end(); ++i) {
+            object->setProperty(i.key().toLatin1(), i.value());
+        }
+        auto result = store.create(*object).exec();
+        result.waitForFinished();
+        if (result.errorCode()) {
+            std::cout << "An error occurred while creating the entity: " << result.errorMessage().toStdString();
+        }
+    } else if (command == "modify") {
+        auto type = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+        auto &store = getStore(type);
+        auto resource = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+        auto identifier = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+        auto object = store.getObject(resource, identifier);
+        auto map = consumeMap(args);
+        for (auto i = map.begin(); i != map.end(); ++i) {
+            object->setProperty(i.key().toLatin1(), i.value());
+        }
+        auto result = store.modify(*object).exec();
+        result.waitForFinished();
+        if (result.errorCode()) {
+            std::cout << "An error occurred while modifying the entity: " << result.errorMessage().toStdString();
         }
     } else if (command == "remove") {
-        auto type = !args.isEmpty() ? args.takeFirst() : QByteArray();
-        if (type == "resource") {
-            Akonadi2::ApplicationDomain::AkonadiResource resource;
-            resource.setProperty("identifier", args.at(0));
-            Akonadi2::Store::remove<Akonadi2::ApplicationDomain::AkonadiResource>(resource).exec().waitForFinished();
-            qDebug() << "Created resource " << args;
+        auto type = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+        auto &store = getStore(type);
+        auto resource = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+        auto identifier = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+        auto object = store.getObject(resource, identifier);
+        auto result = store.remove(*object).exec();
+        result.waitForFinished();
+        if (result.errorCode()) {
+            std::cout << "An error occurred while removing the entity: " << result.errorMessage().toStdString();
         }
     } else if (command == "stat") {
         auto resources = args;

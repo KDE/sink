@@ -55,7 +55,7 @@ KAsync::Job<void> ResourceFacade::create(const Akonadi2::ApplicationDomain::Akon
 KAsync::Job<void> ResourceFacade::modify(const Akonadi2::ApplicationDomain::AkonadiResource &resource)
 {
     return KAsync::start<void>([resource, this]() {
-        const QByteArray identifier = resource.getProperty("identifier").toByteArray();
+        const QByteArray identifier = resource.identifier();
         if (identifier.isEmpty()) {
             Warning() << "We need an \"identifier\" property to identify the resource to configure";
             return;
@@ -77,7 +77,11 @@ KAsync::Job<void> ResourceFacade::modify(const Akonadi2::ApplicationDomain::Akon
 KAsync::Job<void> ResourceFacade::remove(const Akonadi2::ApplicationDomain::AkonadiResource &resource)
 {
     return KAsync::start<void>([resource, this]() {
-        const QByteArray identifier = resource.getProperty("identifier").toByteArray();
+        const QByteArray identifier = resource.identifier();
+        if (identifier.isEmpty()) {
+            Warning() << "We need an \"identifier\" property to identify the resource to configure";
+            return;
+        }
         ResourceConfig::removeResource(identifier);
     });
 }
@@ -96,7 +100,6 @@ QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<Akonadi2::ApplicationD
             const auto type = configuredResources.value(res);
             if (!query.propertyFilter.contains("type") || query.propertyFilter.value("type").toByteArray() == type) {
                 auto resource = Akonadi2::ApplicationDomain::AkonadiResource::Ptr::create("", res, 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
-                resource->setProperty("identifier", res);
                 resource->setProperty("type", type);
                 resultProvider->add(resource);
             }
