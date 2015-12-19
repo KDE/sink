@@ -51,11 +51,10 @@ QByteArray Store::resourceName(const QByteArray &instanceIdentifier)
     return Akonadi2::resourceName(instanceIdentifier);
 }
 
-QList<QByteArray> Store::getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type)
+static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type)
 {
     //Return the global resource (signified by an empty name) for types that don't eblong to a specific resource
     if (type == "akonadiresource") {
-        qWarning() << "Global resource";
         return QList<QByteArray>() << "";
     }
     QList<QByteArray> resources;
@@ -74,7 +73,7 @@ QList<QByteArray> Store::getResources(const QList<QByteArray> &resourceFilter, c
             }
         }
     }
-    qWarning() << "Found resources: " << resources;
+    Trace() << "Found resources: " << resources;
     return resources;
 }
 

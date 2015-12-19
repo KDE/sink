@@ -39,7 +39,6 @@ void ResourceConfig::addResource(const QByteArray &identifier, const QByteArray 
     auto settings = getSettings();
     settings->beginGroup(QString::fromLatin1(identifier));
     settings->setValue("type", type);
-    settings->setValue("enabled", true);
     settings->endGroup();
     settings->sync();
 }

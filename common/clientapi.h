@@ -36,9 +36,6 @@ namespace Akonadi2 {
  * Store interface used in the client API.
  */
 class Store {
-private:
-    static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type);
-
 public:
     static QString storageLocation();
     static QByteArray resourceName(const QByteArray &instanceIdentifier);
