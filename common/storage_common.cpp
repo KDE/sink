@@ -21,7 +21,7 @@
 
 #include "storage.h"
 
-#include <iostream>
+#include "log.h"
 
 namespace Akonadi2
 {
@@ -31,9 +31,7 @@ static const int s_internalPrefixSize = strlen(s_internalPrefix);
 
 void errorHandler(const Storage::Error &error)
 {
-    //TODO: allow this to be turned on / off globally
-    //TODO: log $SOMEWHERE $SOMEHOW rather than just spit to stderr
-    std::cout << "Read error in " << error.store.toStdString() << ", code " << error.code << ", message: " << error.message.toStdString() << std::endl;
+    Warning() << "Database error in " << error.store << ", code " << error.code << ", message: " << error.message;
 }
 
 std::function<void(const Storage::Error &error)> Storage::basicErrorHandler()
@@ -67,7 +65,7 @@ qint64 Storage::maxRevision(const Akonadi2::Storage::Transaction &transaction)
         return false;
     }, [](const Error &error){
         if (error.code != Akonadi2::Storage::NotFound) {
-            std::cout << "Coultn'd find the maximum revision" << std::endl;
+            Warning() << "Coultn'd find the maximum revision.";
         }
     });
     return r;
@@ -86,7 +84,7 @@ qint64 Storage::cleanedUpRevision(const Akonadi2::Storage::Transaction &transact
         return false;
     }, [](const Error &error){
         if (error.code != Akonadi2::Storage::NotFound) {
-            std::cout << "Coultn'd find the maximum revision" << std::endl;
+            Warning() << "Coultn'd find the maximum revision.";
         }
     });
     return r;
@@ -99,7 +97,7 @@ QByteArray Storage::getUidFromRevision(const Akonadi2::Storage::Transaction &tra
         uid = value;
         return false;
     }, [revision](const Error &error){
-        std::cout << "Coultn'd find uid for revision " << revision << std::endl;
+        Warning() << "Coultn'd find uid for revision " << revision;
     });
     return uid;
 }
@@ -111,7 +109,7 @@ QByteArray Storage::getTypeFromRevision(const Akonadi2::Storage::Transaction &tr
         type = value;
         return false;
     }, [revision](const Error &error){
-        std::cout << "Coultn'd find type for revision " << revision << std::endl;
+        Warning() << "Coultn'd find type for revision " << revision;
     });
     return type;
 }
