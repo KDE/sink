@@ -201,7 +201,7 @@ ResultSet QueryRunner<DomainType>::filterSet(const ResultSet &resultSet, const s
 
     //Read through the source values and return whatever matches the filter
     std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)>)> generator = [this, resultSetPtr, &db, filter, initialQuery](std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> callback) -> bool {
-        while (resultSetPtr->next()) {
+        if (resultSetPtr->next()) {
             //readEntity is only necessary if we actually want to filter or know the operation type (but not a big deal if we do it always I guess)
             readEntity(db, resultSetPtr->id(), [this, filter, callback, initialQuery](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Akonadi2::Operation operation) {
                 //Always remove removals, they probably don't match due to non-available properties
@@ -216,8 +216,10 @@ ResultSet QueryRunner<DomainType>::filterSet(const ResultSet &resultSet, const s
                     }
                 }
             });
+            return true;
+        } else {
+            return false;
         }
-        return false;
     };
     return ResultSet(generator);
 }
