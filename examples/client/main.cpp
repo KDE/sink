@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
         auto model = loadModel(type, query);
         qDebug() << "Listing";
         int colSize = 38; //Necessary to display a complete UUID
-        std::cout << "  Column   ";
+        std::cout << "  Column      ";
         std::cout << QString("Resource").leftJustified(colSize, ' ', true).toStdString();
         std::cout << QString("Identifier").leftJustified(colSize, ' ', true).toStdString();
         for (int i = 0; i < model->columnCount(QModelIndex()); i++) {
@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
         std::cout << std::endl;
         QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, colSize](const QModelIndex &index, int start, int end) {
             for (int i = start; i <= end; i++) {
-                std::cout << "  Row " << model->rowCount() << ": ";
+                std::cout << "  Row " << QString::number(model->rowCount()).rightJustified(4, ' ').toStdString() << ": ";
                 auto object = model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectBaseRole).value<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr>();
                 std::cout << "  " << object->resourceInstanceIdentifier().leftJustified(colSize, ' ', true).toStdString();
                 std::cout << object->identifier().leftJustified(colSize, ' ', true).toStdString();
