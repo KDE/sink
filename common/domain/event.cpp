@@ -65,6 +65,7 @@ QSharedPointer<ReadPropertyMapper<TypeImplementation<Event>::Buffer> > TypeImple
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();
     propertyMapper->addMapping<QString, Buffer>("summary", &Buffer::summary);
     propertyMapper->addMapping<QString, Buffer>("uid", &Buffer::uid);
+    propertyMapper->addMapping<QByteArray, Buffer>("attachment", &Buffer::attachment);
     return propertyMapper;
 }
 
@@ -73,5 +74,6 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Event>::BufferBuilder> > T
     auto propertyMapper = QSharedPointer<WritePropertyMapper<BufferBuilder> >::create();
     propertyMapper->addMapping<QString>("summary", &BufferBuilder::add_summary);
     propertyMapper->addMapping<QString>("uid", &BufferBuilder::add_uid);
+    propertyMapper->addMapping<QByteArray>("attachment", &BufferBuilder::add_attachment);
     return propertyMapper;
 }

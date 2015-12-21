@@ -68,6 +68,16 @@ QVariant propertyToVariant<QByteArray>(const flatbuffers::String *property)
 }
 
 template <>
+QVariant propertyToVariant<QByteArray>(const flatbuffers::Vector<uint8_t> *property)
+{
+    if (property) {
+        //We have to copy the memory, otherwise it would become eventually invalid
+        return QByteArray(reinterpret_cast<const char *>(property->Data()), property->Length());
+    }
+    return QVariant();
+}
+
+template <>
 QVariant propertyToVariant<bool>(uint8_t property)
 {
     return static_cast<bool>(property);
