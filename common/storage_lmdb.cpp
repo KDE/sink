@@ -595,6 +595,9 @@ Storage::Transaction Storage::createTransaction(AccessMode type, const std::func
 qint64 Storage::diskUsage() const
 {
     QFileInfo info(d->storageRoot + '/' + d->name + "/data.mdb");
+    if (!info.exists()) {
+        qWarning() << "Tried to get filesize for non-existant file: " << info.path();
+    }
     return info.size();
 }
 
