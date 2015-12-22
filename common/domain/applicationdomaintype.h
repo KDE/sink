@@ -46,10 +46,9 @@ public:
     ApplicationDomainType& operator=(const ApplicationDomainType &other);
 
     template <typename DomainType>
-    static typename DomainType::Ptr getInMemoryRepresentation(const ApplicationDomainType &domainType)
+    static typename DomainType::Ptr getInMemoryRepresentation(const ApplicationDomainType &domainType, const QList<QByteArray> properties = QList<QByteArray>())
     {
-        //TODO only copy requested properties
-        auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create(*(domainType.mAdaptor));
+        auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create(*(domainType.mAdaptor), properties);
         //The identifier still internal refers to the memory-mapped pointer, we need to copy the memory or it will become invalid
         return QSharedPointer<DomainType>::create(domainType.mResourceInstanceIdentifier, QByteArray(domainType.mIdentifier.constData(), domainType.mIdentifier.size()), domainType.mRevision, memoryAdaptor);
     }

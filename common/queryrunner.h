@@ -84,7 +84,7 @@ public:
     typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
 
 private:
-    static void replaySet(ResultSet &resultSet, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
+    static void replaySet(ResultSet &resultSet, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const QList<QByteArray> &properties);
 
     void readEntity(const Akonadi2::Storage::NamedDatabase &db, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback);
 

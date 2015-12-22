@@ -103,23 +103,23 @@ typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr QueryRunner<Doma
 }
 
 template<class DomainType>
-void QueryRunner<DomainType>::replaySet(ResultSet &resultSet, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
+void QueryRunner<DomainType>::replaySet(ResultSet &resultSet, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const QList<QByteArray> &properties)
 {
     int counter = 0;
-    while (resultSet.next([&resultProvider, &counter](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
+    while (resultSet.next([&resultProvider, &counter, &properties](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
         counter++;
         switch (operation) {
         case Akonadi2::Operation_Creation:
             // Trace() << "Got creation";
-            resultProvider.add(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value).template staticCast<DomainType>());
+            resultProvider.add(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value, properties).template staticCast<DomainType>());
             break;
         case Akonadi2::Operation_Modification:
             // Trace() << "Got modification";
-            resultProvider.modify(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value).template staticCast<DomainType>());
+            resultProvider.modify(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value, properties).template staticCast<DomainType>());
             break;
         case Akonadi2::Operation_Removal:
             // Trace() << "Got removal";
-            resultProvider.remove(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value).template staticCast<DomainType>());
+            resultProvider.remove(Akonadi2::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value, properties).template staticCast<DomainType>());
             break;
         }
         return true;
@@ -263,7 +263,7 @@ qint64 QueryRunner<DomainType>::load(const Akonadi2::Query &query, const std::fu
     QSet<QByteArray> remainingFilters;
     auto resultSet = baseSetRetriever(transaction, remainingFilters);
     auto filteredSet = filterSet(resultSet, getFilter(remainingFilters, query), db, initialQuery);
-    replaySet(filteredSet, resultProvider);
+    replaySet(filteredSet, resultProvider, query.requestedProperties);
     resultProvider.setRevision(Akonadi2::Storage::maxRevision(transaction));
     return Akonadi2::Storage::maxRevision(transaction);
 }
