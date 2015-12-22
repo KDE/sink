@@ -12,7 +12,7 @@ add_definitions(-DTESTDATAPATH="${CMAKE_CURRENT_SOURCE_DIR}/data")
 
 macro(manual_tests)
     foreach(_testname ${ARGN})
-        add_executable(${_testname} ${_testname}.cpp testimplementations.cpp)
+        add_executable(${_testname} ${_testname}.cpp testimplementations.cpp getrssusage.cpp)
         generate_flatbuffers(${_testname} calendar)
         qt5_use_modules(${_testname} Core Test Concurrent)
         target_link_libraries(${_testname} akonadi2common libhawd)
@@ -21,7 +21,7 @@ endmacro(manual_tests)
 
 macro(auto_tests)
     foreach(_testname ${ARGN})
-        add_executable(${_testname} ${_testname}.cpp testimplementations.cpp)
+        add_executable(${_testname} ${_testname}.cpp testimplementations.cpp getrssusage.cpp)
         generate_flatbuffers(${_testname} calendar)
         add_test(${_testname} ${_testname})
         qt5_use_modules(${_testname} Core Test Concurrent)
@@ -48,9 +48,12 @@ auto_tests (
     resourcecommunicationtest
     pipelinetest
     querytest
+    databasepopulationandfacadequerybenchmark
+    dummyresourcewritebenchmark
 )
 target_link_libraries(dummyresourcetest akonadi2_resource_dummy)
 target_link_libraries(dummyresourcebenchmark akonadi2_resource_dummy)
+target_link_libraries(dummyresourcewritebenchmark akonadi2_resource_dummy)
 target_link_libraries(querytest akonadi2_resource_dummy)
 
 if (BUILD_MAILDIR)
