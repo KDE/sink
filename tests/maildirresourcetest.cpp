@@ -94,7 +94,7 @@ private Q_SLOTS:
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
-        QVERIFY(model->rowCount(QModelIndex()) > 1);
+        QCOMPARE(model->rowCount(QModelIndex()), 2);
     }
 
     void testListFolderTree()
