@@ -153,7 +153,7 @@ private Q_SLOTS:
     {
         Akonadi2::Query query;
         query.resources << "org.kde.maildir.instance1";
-        query.requestedProperties << "folder" << "subject" << "mimeMessage";
+        query.requestedProperties << "folder" << "subject" << "mimeMessage" << "date";
         query.syncOnDemand = true;
         query.processAll = true;
 
@@ -166,6 +166,7 @@ private Q_SLOTS:
         auto mail = mailModel->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Mail::Ptr>();
         QVERIFY(!mail->getProperty("subject").toString().isEmpty());
         QVERIFY(!mail->getProperty("mimeMessage").toString().isEmpty());
+        QVERIFY(mail->getProperty("date").toDateTime().isValid());
     }
 
 

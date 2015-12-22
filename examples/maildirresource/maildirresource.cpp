@@ -299,7 +299,7 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
         mail.setProperty("subject", msg->subject(true)->asUnicodeString());
         mail.setProperty("sender", msg->from(true)->asUnicodeString());
         mail.setProperty("senderName", msg->from(true)->asUnicodeString());
-        mail.setProperty("date", msg->date(true)->dateTime().toString());
+        mail.setProperty("date", msg->date(true)->dateTime());
         mail.setProperty("folder", resolveRemoteId(ENTITY_TYPE_FOLDER, path, synchronizationTransaction));
         mail.setProperty("mimeMessage", filepath);
         mail.setProperty("unread", !flags.testFlag(KPIM::Maildir::Seen));
