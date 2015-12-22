@@ -23,9 +23,29 @@
 Q_DECLARE_METATYPE(std::function<void()>);
 
 namespace async {
-ThreadBoundary::ThreadBoundary(): QObject() { qRegisterMetaType<std::function<void()> >("std::function<void()>"); }
+ThreadBoundary::ThreadBoundary()
+    : QObject()
+{
+    qRegisterMetaType<std::function<void()> >("std::function<void()>");
+}
+
 ThreadBoundary:: ~ThreadBoundary()
 {
+}
+
+void ThreadBoundary::callInMainThread(std::function<void()> f)
+{
+    /*
+     * This implementation causes lambdas to pile up if the target thread is the same as the caller thread, or the caller thread calls faster
+     * than the target thread is able to execute the function calls. In that case any captures will equally pile up, resulting
+     * in significant memory usage i.e. due to Emitter::addHandler calls that each capture a domain object.
+     */
+    QMetaObject::invokeMethod(this, "runInMainThread", Qt::QueuedConnection, QGenericReturnArgument(), Q_ARG(std::function<void()>, f));
+}
+
+void ThreadBoundary::runInMainThread(std::function<void()> f)
+{
+    f();
 }
 
 }

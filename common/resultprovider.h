@@ -97,9 +97,7 @@ private:
         //That way the result emitter implementation doesn't have to care about threadsafety at all.
         //The alternative would be to make all handlers of the emitter threadsafe.
         if (auto emitter = mResultEmitter.toStrongRef()) {
-            emitter->mThreadBoundary.callInMainThread([f]() {
-                f();
-            });
+            emitter->mThreadBoundary.callInMainThread(f);
         }
     }
 
