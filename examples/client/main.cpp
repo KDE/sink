@@ -335,8 +335,15 @@ int main(int argc, char *argv[])
     } else if (command == "create") {
         auto type = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
         auto &store = getStore(type);
-        auto resource = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
-        auto object = store.getObject(resource);
+        Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object;
+        if (type == "resource") {
+            auto resourceType = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+            object = store.getObject("");
+            object->setProperty("type", resourceType);
+        } else {
+            auto resource = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+            object = store.getObject(resource);
+        }
         auto map = consumeMap(args);
         for (auto i = map.begin(); i != map.end(); ++i) {
             object->setProperty(i.key().toLatin1(), i.value());
@@ -349,9 +356,15 @@ int main(int argc, char *argv[])
     } else if (command == "modify") {
         auto type = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
         auto &store = getStore(type);
-        auto resource = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
-        auto identifier = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
-        auto object = store.getObject(resource, identifier);
+        Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object;
+        if (type == "resource") {
+            auto identifier = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+            object = store.getObject("", identifier);
+        } else {
+            auto resource = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+            auto identifier = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+            object = store.getObject(resource, identifier);
+        }
         auto map = consumeMap(args);
         for (auto i = map.begin(); i != map.end(); ++i) {
             object->setProperty(i.key().toLatin1(), i.value());
@@ -364,9 +377,15 @@ int main(int argc, char *argv[])
     } else if (command == "remove") {
         auto type = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
         auto &store = getStore(type);
-        auto resource = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
-        auto identifier = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
-        auto object = store.getObject(resource, identifier);
+        Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object;
+        if (type == "resource") {
+            auto identifier = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+            object = store.getObject("", identifier);
+        } else {
+            auto resource = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+            auto identifier = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
+            object = store.getObject(resource, identifier);
+        }
         auto result = store.remove(*object).exec();
         result.waitForFinished();
         if (result.errorCode()) {

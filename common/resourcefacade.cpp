@@ -20,6 +20,9 @@
 
 #include "resourceconfig.h"
 #include "query.h"
+#include "definitions.h"
+#include "storage.h"
+#include <QDir>
 
 ResourceFacade::ResourceFacade(const QByteArray &)
     : Akonadi2::StoreFacade<Akonadi2::ApplicationDomain::AkonadiResource>()
@@ -35,8 +38,9 @@ ResourceFacade::~ResourceFacade()
 KAsync::Job<void> ResourceFacade::create(const Akonadi2::ApplicationDomain::AkonadiResource &resource)
 {
     return KAsync::start<void>([resource, this]() {
-        const QByteArray identifier = resource.getProperty("identifier").toByteArray();
         const QByteArray type = resource.getProperty("type").toByteArray();
+        //It is currently a requirement that the resource starts with the type
+        const QByteArray identifier = ResourceConfig::newIdentifier(type);
         ResourceConfig::addResource(identifier, type);
         auto changedProperties = resource.changedProperties();
         changedProperties.removeOne("identifier");
@@ -57,7 +61,7 @@ KAsync::Job<void> ResourceFacade::modify(const Akonadi2::ApplicationDomain::Akon
     return KAsync::start<void>([resource, this]() {
         const QByteArray identifier = resource.identifier();
         if (identifier.isEmpty()) {
-            Warning() << "We need an \"identifier\" property to identify the resource to configure";
+            Warning() << "We need an \"identifier\" property to identify the resource to configure.";
             return;
         }
         auto changedProperties = resource.changedProperties();

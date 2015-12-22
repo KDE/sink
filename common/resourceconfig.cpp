@@ -33,6 +33,15 @@ static QSharedPointer<QSettings> getResourceConfig(const QByteArray &identifier)
     return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/" + identifier, QSettings::IniFormat);
 }
 
+QByteArray ResourceConfig::newIdentifier(const QByteArray &type)
+{
+    auto settings = getSettings();
+    const auto counter = settings->value("instanceCounter", 0).toInt() + 1;
+    const QByteArray identifier = type + ".instance" + QByteArray::number(counter);
+    settings->setValue("instanceCounter", counter);
+    settings->sync();
+    return identifier;
+}
 
 void ResourceConfig::addResource(const QByteArray &identifier, const QByteArray &type)
 {
