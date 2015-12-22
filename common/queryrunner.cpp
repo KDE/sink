@@ -140,7 +140,8 @@ void QueryRunner<DomainType>::readEntity(const Akonadi2::Storage::NamedDatabase 
         const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
         Q_ASSERT(metadataBuffer);
         const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-        resultCallback(DomainType::Ptr::create(mResourceInstanceIdentifier, Akonadi2::Storage::uidFromKey(key), revision, mDomainTypeAdaptorFactory->createAdaptor(entity)), metadataBuffer->operation());
+        const auto operation = metadataBuffer ? metadataBuffer->operation() : Akonadi2::Operation_Creation;
+        resultCallback(DomainType::Ptr::create(mResourceInstanceIdentifier, Akonadi2::Storage::uidFromKey(key), revision, mDomainTypeAdaptorFactory->createAdaptor(entity)), operation);
         return false;
     },
     [](const Akonadi2::Storage::Error &error) {
