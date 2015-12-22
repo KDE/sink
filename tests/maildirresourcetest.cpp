@@ -142,7 +142,7 @@ private Q_SLOTS:
 
         Akonadi2::Query query;
         query.resources << "org.kde.maildir.instance1";
-        query.requestedProperties << "folder" << "summary";
+        query.requestedProperties << "folder" << "subject";
         query.propertyFilter.insert("folder", folderIdentifier);
         auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
@@ -194,18 +194,37 @@ private Q_SLOTS:
         QCOMPARE(model->match(model->index(0, 0, QModelIndex()), Qt::DisplayRole, QStringLiteral("newbox"), 1).size(), 1);
     }
 
-    void testSyncMailMove()
+    void testReSyncMail()
     {
         Akonadi2::Query query;
         query.resources << "org.kde.maildir.instance1";
         query.syncOnDemand = true;
         query.processAll = true;
-        query.requestedProperties << "folder" << "summary";
+        query.requestedProperties << "folder" << "subject";
 
         //Ensure all local data is processed
         Akonadi2::Store::synchronize(query).exec().waitForFinished();
 
-        auto targetPath = tempDir.path() + QDir::separator() + "maildir1/cur/1365777830.R28.localhost.localdomain:2,S";
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(mailModel->rowCount(QModelIndex()), 2);
+    }
+
+    void testSyncMailRemoval()
+    {
+        Akonadi2::Query query;
+        query.resources << "org.kde.maildir.instance1";
+        query.syncOnDemand = true;
+        query.processAll = true;
+        query.requestedProperties << "folder" << "subject";
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto targetPath = tempDir.path() + "/maildir1/cur/1365777830.R28.localhost.localdomain:2,S";
         QFile file(targetPath);
         QVERIFY(file.remove());
 

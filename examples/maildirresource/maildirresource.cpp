@@ -277,8 +277,27 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
     Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
     auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
 
-    scanForRemovals(transaction, synchronizationTransaction, bufferType, [&listingPath](const QByteArray &remoteId) -> bool {
-        return QFile(listingPath + QDir::separator() + remoteId).exists();
+    const auto folderLocalId = resolveRemoteId(ENTITY_TYPE_FOLDER, path, synchronizationTransaction);
+
+    auto exists = [&listingPath](const QByteArray &remoteId) -> bool {
+        return QFile(listingPath + "/" + remoteId).exists();
+    };
+
+    auto property = "folder";
+    Index index(bufferType + ".index." + property, transaction);
+    index.lookup(folderLocalId.toLatin1(), [&](const QByteArray &akonadiId) {
+        const auto remoteId = resolveLocalId(bufferType, akonadiId, synchronizationTransaction);
+        if (!remoteId.isEmpty()) {
+            if (!exists(remoteId.toLatin1())) {
+                Trace() << "Found a removed entity: " << akonadiId;
+                deleteEntity(akonadiId, Akonadi2::Storage::maxRevision(transaction), bufferType, [this](const QByteArray &buffer) {
+                    enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::DeleteEntityCommand, buffer);
+                });
+            }
+        }
+    },
+    [property](const Index::Error &error) {
+        Warning() << "Error in index: " <<  error.message << property;
     });
 
     while (entryIterator->hasNext()) {
@@ -300,7 +319,7 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
         mail.setProperty("sender", msg->from(true)->asUnicodeString());
         mail.setProperty("senderName", msg->from(true)->asUnicodeString());
         mail.setProperty("date", msg->date(true)->dateTime());
-        mail.setProperty("folder", resolveRemoteId(ENTITY_TYPE_FOLDER, path, synchronizationTransaction));
+        mail.setProperty("folder", folderLocalId);
         mail.setProperty("mimeMessage", filepath);
         mail.setProperty("unread", !flags.testFlag(KPIM::Maildir::Seen));
         mail.setProperty("important", flags.testFlag(KPIM::Maildir::Flagged));
