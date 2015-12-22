@@ -39,8 +39,9 @@ KAsync::Job<void> ResourceFacade::create(const Akonadi2::ApplicationDomain::Akon
 {
     return KAsync::start<void>([resource, this]() {
         const QByteArray type = resource.getProperty("type").toByteArray();
+        const QByteArray providedIdentifier = resource.getProperty("identifier").toByteArray();
         //It is currently a requirement that the resource starts with the type
-        const QByteArray identifier = ResourceConfig::newIdentifier(type);
+        const QByteArray identifier = providedIdentifier.isEmpty() ? ResourceConfig::newIdentifier(type) : providedIdentifier;
         ResourceConfig::addResource(identifier, type);
         auto changedProperties = resource.changedProperties();
         changedProperties.removeOne("identifier");
