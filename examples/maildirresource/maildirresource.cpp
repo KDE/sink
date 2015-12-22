@@ -55,9 +55,9 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
     addType(ENTITY_TYPE_FOLDER, mFolderAdaptorFactory,
             QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Folder>);
     auto config = ResourceConfig::getConfiguration(instanceIdentifier);
-    mMaildirPath = config.value("path").toString();
+    mMaildirPath = QDir::cleanPath(QDir::fromNativeSeparators(config.value("path").toString()));
     //Chop a trailing slash if necessary
-    if (mMaildirPath.endsWith(QDir::separator())) {
+    if (mMaildirPath.endsWith("/")) {
         mMaildirPath.chop(1);
     }
     Trace() << "Started maildir resource for maildir: " << mMaildirPath;
@@ -95,7 +95,7 @@ static QStringList listRecursive( const QString &root, const KPIM::Maildir &dir 
         if (!md.isValid()) {
             continue;
         }
-        QString path = root + QDir::separator() + sub;
+        QString path = root + "/" + sub;
         list << path;
         list += listRecursive(path, md );
     }
@@ -287,7 +287,7 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
         const auto remoteId = fileName.toUtf8();
 
         KMime::Message *msg = new KMime::Message;
-        auto filepath = listingPath + QDir::separator() + fileName;
+        auto filepath = listingPath + "/" + fileName;
         msg->setHead(KMime::CRLFtoLF(maildir.readEntryHeadersFromFile(filepath)));
         msg->parse();
 

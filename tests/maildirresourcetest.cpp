@@ -55,7 +55,7 @@ private Q_SLOTS:
     void initTestCase()
     {
         QVERIFY(tempDir.isValid());
-        auto targetPath = tempDir.path() + QDir::separator() + "maildir1/";
+        auto targetPath = tempDir.path() + "/maildir1/";
         copyRecursively(TESTDATAPATH "/maildir1", targetPath);
 
         Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
@@ -181,7 +181,7 @@ private Q_SLOTS:
         //Ensure all local data is processed
         Akonadi2::Store::synchronize(query).exec().waitForFinished();
 
-        auto targetPath = tempDir.path() + QDir::separator() + "maildir1/";
+        auto targetPath = tempDir.path() + "/maildir1/";
         QDir dir(targetPath);
         QVERIFY(dir.rename("inbox", "newbox"));
 
