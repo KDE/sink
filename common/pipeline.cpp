@@ -159,14 +159,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     QByteArray key;
     if (createEntity->entityId()) {
         key = QByteArray(reinterpret_cast<char const*>(createEntity->entityId()->Data()), createEntity->entityId()->size());
-
-        bool found = false;
-        d->transaction.openDatabase(bufferType + ".main").scan(key, [&found](const QByteArray &, const QByteArray &value) -> bool {
-            found = true;
-            return false;
-        }, [this](const Akonadi2::Storage::Error &error) {
-        }, true);
-        if (found) {
+        if (d->transaction.openDatabase(bufferType + ".main").contains(key)) {
             ErrorMsg() << "An entity with this id already exists: " << key;
             return KAsync::error<qint64>(0);
         }
