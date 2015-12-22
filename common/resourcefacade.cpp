@@ -87,6 +87,11 @@ KAsync::Job<void> ResourceFacade::remove(const Akonadi2::ApplicationDomain::Akon
             return;
         }
         ResourceConfig::removeResource(identifier);
+        //TODO shutdown resource, or use the resource process with a --remove option to cleanup (so we can take advantage of the file locking)
+        QDir dir(Akonadi2::storageLocation());
+        for (const auto &folder : dir.entryList(QStringList() << identifier + "*")) {
+            Akonadi2::Storage(Akonadi2::storageLocation(), folder, Akonadi2::Storage::ReadWrite).removeFromDisk();
+        }
     });
 }
 
