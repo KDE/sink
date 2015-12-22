@@ -125,7 +125,7 @@ bool Storage::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sVa
     const size_t valueSize = sValue.size();
 
     if (!keyPtr || keySize == 0) {
-        Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Tried to write empty key.");
+        Error error(d->name.toLatin1() + d->db, ErrorCodes::GenericError, "Tried to write empty key.");
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
         return false;
     }
@@ -139,7 +139,7 @@ bool Storage::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sVa
     rc = mdb_put(d->transaction, d->dbi, &key, &data, 0);
 
     if (rc) {
-        Error error(d->name.toLatin1(), ErrorCodes::GenericError, "mdb_put: " + QByteArray(mdb_strerror(rc)));
+        Error error(d->name.toLatin1() + d->db, ErrorCodes::GenericError, "mdb_put: " + QByteArray(mdb_strerror(rc)));
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     }
 
@@ -156,7 +156,7 @@ void Storage::NamedDatabase::remove(const QByteArray &k, const QByteArray &value
                      const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d || !d->transaction) {
-        Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Not open");
+        Error error(d->name.toLatin1() + d->db, ErrorCodes::GenericError, "Not open");
         if (d) {
             errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
         }
@@ -177,7 +177,7 @@ void Storage::NamedDatabase::remove(const QByteArray &k, const QByteArray &value
     }
 
     if (rc) {
-        Error error(d->name.toLatin1(), ErrorCodes::GenericError, QString("Error on mdb_del: %1 %2").arg(rc).arg(mdb_strerror(rc)).toLatin1());
+        Error error(d->name.toLatin1() + d->db, ErrorCodes::GenericError, QString("Error on mdb_del: %1 %2").arg(rc).arg(mdb_strerror(rc)).toLatin1());
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     }
 }
@@ -202,7 +202,7 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
 
     rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
     if (rc) {
-        Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Error during mdb_cursor open: ") + QByteArray(mdb_strerror(rc)));
+        Error error(d->name.toLatin1() + d->db, getErrorCode(rc), QByteArray("Error during mdb_cursor open: ") + QByteArray(mdb_strerror(rc)));
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
         return 0;
     }
@@ -247,7 +247,7 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
     mdb_cursor_close(cursor);
 
     if (rc) {
-        Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Key: ") + k + " : " + QByteArray(mdb_strerror(rc)));
+        Error error(d->name.toLatin1() + d->db, getErrorCode(rc), QByteArray("Key: ") + k + " : " + QByteArray(mdb_strerror(rc)));
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     }
 
@@ -273,7 +273,7 @@ void Storage::NamedDatabase::findLatest(const QByteArray &k,
 
     rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
     if (rc) {
-        Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Error during mdb_cursor open: ") + QByteArray(mdb_strerror(rc)));
+        Error error(d->name.toLatin1() + d->db, getErrorCode(rc), QByteArray("Error during mdb_cursor open: ") + QByteArray(mdb_strerror(rc)));
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
         return;
     }
