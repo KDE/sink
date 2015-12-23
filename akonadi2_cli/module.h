@@ -59,6 +59,8 @@ public:
 
     bool run(const QStringList &commands);
 
+    static QStringList tokenize(const QString &text);
+
 private:
     Module();
     Command matches(const QStringList &commands) const;

@@ -157,4 +157,9 @@ Module::SyntaxList Module::nearestSyntax(const QStringList &words, const QString
     return matches;
 }
 
+QStringList Module::tokenize(const QString &text)
+{
+    //TODO: properly tokenize (e.g. "foo bar" should not become ['"foo', 'bar"']
+    return text.split(" ");
+}
 
