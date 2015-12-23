@@ -21,6 +21,7 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QTextStream>
 
 #include "syntaxtree.h"
 // #include "jsonlistener.h"
@@ -60,9 +61,20 @@ int main(int argc, char *argv[])
         }
 
         return app.exec();
-    }
+    } else if (!interactive) {
+        QTextStream inputStream(stdin);
+        while (true) {
+            const QString input = inputStream.readLine();
+            if (input.isEmpty()) {
+                ::exit(0);
+            }
 
-    QStringList commands = app.arguments();
-    commands.removeFirst();
-    return SyntaxTree::self()->run(commands);
+            const QStringList commands = SyntaxTree::tokenize(input);
+            SyntaxTree::self()->run(commands);
+        }
+    } else {
+        QStringList commands = app.arguments();
+        commands.removeFirst();
+        return SyntaxTree::self()->run(commands);
+    }
 }
