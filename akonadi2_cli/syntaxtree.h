@@ -27,6 +27,8 @@
 class Syntax
 {
 public:
+    typedef QVector<Syntax> List;
+
     enum Interactivity {
         NotInteractive = 0,
         EventDriven
@@ -51,13 +53,12 @@ class SyntaxTree
 public:
 
     typedef std::pair<const Syntax *, QStringList> Command;
-    typedef QVector<Syntax> SyntaxList;
 
     static SyntaxTree *self();
 
-    SyntaxList syntax() const;
+    Syntax::List syntax() const;
     Command match(const QStringList &commands) const;
-    SyntaxList nearestSyntax(const QStringList &words, const QString &fragment) const;
+    Syntax::List nearestSyntax(const QStringList &words, const QString &fragment) const;
 
     bool run(const QStringList &commands);
 
@@ -67,7 +68,7 @@ private:
     SyntaxTree();
     Command matches(const QStringList &commands) const;
 
-    SyntaxList m_syntax;
+    Syntax::List m_syntax;
     State m_state;
     static SyntaxTree *s_module;
 };

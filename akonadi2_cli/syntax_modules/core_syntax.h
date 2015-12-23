@@ -23,7 +23,7 @@
 
 namespace CoreSyntax
 {
-    SyntaxTree::SyntaxList syntax();
+    Syntax::List syntax();
     bool exit(const QStringList &commands, State &state);
     bool showHelp(const QStringList &commands, State &state);
     bool setDebugLevel(const QStringList &commands, State &state);

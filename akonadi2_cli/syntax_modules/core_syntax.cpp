@@ -27,9 +27,9 @@
 namespace CoreSyntax
 {
 
-SyntaxTree::SyntaxList syntax()
+Syntax::List syntax()
 {
-    SyntaxTree::SyntaxList syntax;
+    Syntax::List syntax;
     syntax << Syntax("exit", QObject::tr("Exits the application. Ctrl-d also works!"), &CoreSyntax::exit);
     syntax << Syntax(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
 

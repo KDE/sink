@@ -43,7 +43,7 @@ Syntax::Syntax(const QString &k, const QString &helpText, std::function<bool(con
 
 SyntaxTree::SyntaxTree()
 {
-    QVector<std::function<SyntaxList()> > syntaxSyntaxTrees;
+    QVector<std::function<Syntax::List()> > syntaxSyntaxTrees;
     syntaxSyntaxTrees << &CoreSyntax::syntax
                       << &AkonadiList::syntax
                       ;
@@ -61,7 +61,7 @@ SyntaxTree *SyntaxTree::self()
     return s_module;
 }
 
-SyntaxTree::SyntaxList SyntaxTree::syntax() const
+Syntax::List SyntaxTree::syntax() const
 {
     return m_syntax;
 }
@@ -115,9 +115,9 @@ SyntaxTree::Command SyntaxTree::match(const QStringList &commandLine) const
     return Command();
 }
 
-SyntaxTree::SyntaxList SyntaxTree::nearestSyntax(const QStringList &words, const QString &fragment) const
+Syntax::List SyntaxTree::nearestSyntax(const QStringList &words, const QString &fragment) const
 {
-    SyntaxList matches;
+    Syntax::List matches;
 
     //qDebug() << "words are" << words;
     if (words.isEmpty()) {

@@ -23,7 +23,7 @@
 
 namespace AkonadiList
 {
-    SyntaxTree::SyntaxList syntax();
+    Syntax::List syntax();
     bool list(const QStringList &commands, State &state);
 }
 

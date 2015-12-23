@@ -39,9 +39,9 @@
 namespace AkonadiList
 {
 
-SyntaxTree::SyntaxList syntax()
+Syntax::List syntax()
 {
-    SyntaxTree::SyntaxList syntax;
+    Syntax::List syntax;
     syntax << Syntax("list", QObject::tr("List all resources, or the contents of one or more resources"), &AkonadiList::list, Syntax::EventDriven);
 
     return syntax;
