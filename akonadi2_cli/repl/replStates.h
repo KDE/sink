@@ -66,7 +66,9 @@ protected:
     void onEntry(QEvent *event);
 
 private:
-    bool m_complete;
+    void complete();
+
+    QString m_partial;
 };
 
 class PrintState : public QState

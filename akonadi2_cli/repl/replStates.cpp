@@ -81,8 +81,7 @@ const char *UnfinishedReadState::prompt() const
 }
 
 EvalState::EvalState(QState *parent)
-    : QState(parent),
-      m_complete(false)
+    : QState(parent)
 {
 }
 
@@ -90,27 +89,34 @@ void EvalState::onEntry(QEvent *event)
 {
     QStateMachine::SignalEvent *e = dynamic_cast<QStateMachine::SignalEvent*>(event);
 
-    if (!e || e->arguments().isEmpty()) {
-        if (m_complete) {
-            emit completed();
-        } else {
-            emit continueInput();
-        }
+    const QString command = e ? e->arguments()[0].toString() : QString();
+
+    if (command.isEmpty()) {
+        complete();
         return;
     }
 
-    //TODO: properly tokenize (e.g. "foo bar" should not become ['"foo', 'bar"']
-    const QString command = e->arguments()[0].toString();
-
-    if (!command.isEmpty()) {
-        m_complete = command.right(1) != "\\";
-        if (m_complete) {
-            //emit output("Processing ... " + command);
-            const QStringList commands = command.split(" ");
-            Module::self()->run(commands);
-            emit completed();
-        }
+    if (command.right(1) == "\\") {
+        m_partial += " " + command.left(command.size() - 1);
+        continueInput();
+    } else {
+        m_partial += " " + command;
+        complete();
     }
+}
+
+void EvalState::complete()
+{
+    m_partial = m_partial.simplified();
+
+    if (!m_partial.isEmpty()) {
+        //emit output("Processing ... " + command);
+        const QStringList commands = Module::tokenize(m_partial);
+        Module::self()->run(commands);
+        m_partial.clear();
+    }
+
+    emit completed();
 }
 
 PrintState::PrintState(QState *parent)
