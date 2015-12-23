@@ -27,17 +27,23 @@ State::State()
 {
 }
 
-void State::print(const QString &message)
+void State::print(const QString &message, unsigned int indentationLevel)
 {
+    for (unsigned int i = 0; i < indentationLevel; ++i) {
+        m_outStream << "\t";
+    }
+
     m_outStream << message;
 }
 
-void State::printLine(const QString &message)
+void State::printLine(const QString &message, unsigned int indentationLevel)
 {
-    m_outStream << message << "\n";
+    print(message, indentationLevel);
+    m_outStream << "\n";
+    m_outStream.flush();
 }
 
-void State::printError(const QString &error, int code)
+void State::printError(const QString &errorMessage, const QString &errorCode)
 {
-    m_outStream << "ERROR " << code << ": " << error << "\n";
+    printLine("ERROR" + (errorCode.isEmpty() ? "" : " " + errorCode) + ": " + errorMessage);
 }

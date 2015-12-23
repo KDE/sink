@@ -26,9 +26,9 @@ class State
 public:
     State();
 
-    void print(const QString &string);
-    void printLine(const QString &string);
-    void printError(const QString &string, int errorCode = 0);
+    void print(const QString &message, unsigned int indentationLevel = 0);
+    void printLine(const QString &message = QString(), unsigned int indentationLevel = 0);
+    void printError(const QString &errorMessage, const QString &errorCode = QString());
 
 private:
     QTextStream m_outStream;

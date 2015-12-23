@@ -40,44 +40,45 @@ bool exit(const QStringList &, State &)
     return true;
 }
 
-bool showHelp(const QStringList &commands, State &)
+bool showHelp(const QStringList &commands, State &state)
 {
     Module::Command command = Module::self()->match(commands);
-    QTextStream stream(stdout);
     if (commands.isEmpty()) {
-        stream << QObject::tr("Welcome to the Akonadi2 command line tool!") << "\n";
-        stream << QObject::tr("Top-level commands:") << "\n";
+        state.printLine(QObject::tr("Welcome to the Akonadi2 command line tool!"));
+        state.printLine(QObject::tr("Top-level commands:"));
+
         QSet<QString> sorted;
         for (auto syntax: Module::self()->syntax()) {
             sorted.insert(syntax.keyword);
         }
 
         for (auto keyword: sorted) {
-            stream << "\t" << keyword << "\n";
+            state.printLine(keyword, 1);
         }
     } else if (const Module::Syntax *syntax = command.first) {
         //TODO: get parent!
-        stream << QObject::tr("Command `%1`").arg(syntax->keyword);
+        state.print(QObject::tr("Command `%1`").arg(syntax->keyword));
 
         if (!syntax->help.isEmpty()) {
-            stream << ": " << syntax->help;
+            state.print(": " + syntax->help);
         }
-        stream << "\n";
+        state.printLine();
 
         if (!syntax->children.isEmpty()) {
-            stream << "\tSub-commands:\n";
+            state.printLine("Sub-commands:", 1);
             QSet<QString> sorted;
             for (auto childSyntax: syntax->children) {
                 sorted.insert(childSyntax.keyword);
             }
 
             for (auto keyword: sorted) {
-                stream << "\t" << keyword << "\n";
+                state.printLine(keyword, 1);
             }
         }
     } else {
-        stream << "Unknown command: " << commands.join(" ") << "\n";
+        state.printError("Unknown command: " + commands.join(" "));
     }
+
     return true;
 }
 
