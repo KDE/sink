@@ -86,7 +86,7 @@ Storage is split up in multiple named databases that reside in the same database
 ```
 
 The resource can be effectively removed from disk (besides configuration),
-by deleting the `$RESOURCE_IDENTIFIER` directory and everything it contains.
+by deleting the directories matching `$RESOURCE_IDENTIFIER*` and everything they contain.
 
 #### Design Considerations
 * The stores are split by buffertype, so a full scan (which is done by type), doesn't require filtering by type first. The downside is that an additional lookup is required to get from revision to the data.
@@ -95,9 +95,43 @@ by deleting the `$RESOURCE_IDENTIFIER` directory and everything it contains.
 Every operation (create/delete/modify), leads to a new revision. The revision is an ever increasing number for the complete store.
 
 #### Design Considerations
-By having one revision for the complete store instead of one per type, the change replay always works across all types. This is especially important in the write-back
-mechanism that replays the changes to the source.
+By having one revision for the complete store instead of one per type, the change replay always works across all types. This is especially important in the write-back mechanism that replays the changes to the source.
 
+### BLOB properties
+Files are used to handle opaque large properties that should not end up in memory. BLOB properties are in their nature never queriable (extract parts of it to other properties if indexes are required).
+
+For reading:
+
+Resources...
+* store the file in ~/akonadi2/storage/$RESOURCE_IDENTIFIER_files/
+* store the filename in the blob property.
+* delete the file when the corresponding entity is deleted.
+
+Queries...
+* Copy the requested property to /tmp/akonadi2/client_files/ and provide the path in the property
+* The file is guaranteed to exist for the lifetime of the query result.
+
+Clients..
+* Load the file from disk and use it as they wish (moving is fine too)
+
+For writing:
+
+Clients..
+* Request a path from akonadi2 and store the file there.
+* Store the path of the written file in the property.
+
+Resources..
+* move the file to ~/akonadi2/storage/$RESOURCE_IDENTIFIER_files/
+* store the new path in the entity
+
+#### Design Considerations
+Using regular files as the interface has the advantages:
+* Existing mechanisms can be used to stream data directly to disk.
+* The necessary file operations can be efficiently handled depending on OS and filesystem.
+* We avoid reinventing the wheel.
+
+The copy is necessary to guarantee that the file remains for the client/resource even if the resource removes the file on it's side as part of a sync.
+The copy could be optimized by using hardlinks, which is not a portable solution though. For some next-gen copy-on-write filesystems copying is a very cheap operation.
 
 ### Database choice
 By design we're interested in key-value stores or perhaps document databases. This is because a fixed schema is not useful for this design, which makes

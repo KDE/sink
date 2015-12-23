@@ -31,18 +31,19 @@ This is a proposed set of types that we will need to evolve into what we actuall
             * Tag
             * Contact Group
             * Thread
-        * Akonadi Resource
+    * Akonadi Resource
+        * Maildir Resource
 
 #### Properties
 ```no-highlight
 Entity: The smallest unit in the akonadi universe
     id: unique identifier in the akonadi storage. Not persistant over db recreations and can therefore only be referenced from within the akonadi database.
-    revision: revision of the entity
-    resource: reference to AkonadiResource:id
 ```
 ```no-highlight
 Domain Object:
     uid: unique identifier of the domain object.
+    revision: revision of the entity
+    resource: reference to AkonadiResource:id of the parent resource.
 ```
 ```no-highlight
 Event:
@@ -61,6 +62,7 @@ Mail:
 ```no-highlight
 Akonadi Resource:
     type: The type of the resource.
+    name: The name of the resource.
 ```
 ```no-highlight
 Maildir Resource:
