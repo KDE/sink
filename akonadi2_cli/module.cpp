@@ -100,7 +100,6 @@ Module::Command Module::match(const QStringList &commandLine) const
         }
 
         if (!syntaxIt.hasNext()) {
-            tailCommands << word;
             break;
         }
     }
