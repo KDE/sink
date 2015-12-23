@@ -44,6 +44,7 @@ public:
     QString help;
     Interactivity interactivity;
     std::function<bool(const QStringList &, State &)> lambda;
+    std::function<QStringList(const QStringList &, const QString &)> completer;
 
     QVector<Syntax> children;
 };
@@ -66,7 +67,6 @@ public:
 
 private:
     SyntaxTree();
-    Command matches(const QStringList &commands) const;
 
     Syntax::List m_syntax;
     State m_state;
