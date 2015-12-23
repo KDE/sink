@@ -149,9 +149,19 @@ static char **akonadi2_cli_tab_completion(const char *text, int start, int end)
 
 static char *akonadi2_cli_next_tab_complete_match(const char *text, int state)
 {
-    Syntax::List nearest = SyntaxTree::self()->nearestSyntax(tab_completion_full_state, QString(text));
+    const QString fragment(text);
+    Syntax::List nearest = SyntaxTree::self()->nearestSyntax(tab_completion_full_state, fragment);
+    //for (auto syntax: nearest) { qDebug() << "Nearest: " << syntax.keyword; }
 
-    if (nearest.size() > state) {
+    if (nearest.isEmpty()) {
+        SyntaxTree::Command command = SyntaxTree::self()->match(tab_completion_full_state);
+        if (command.first && command.first->completer) {
+            QStringList commandCompletions = command.first->completer(tab_completion_full_state, fragment);
+            if (commandCompletions.size() > state) {
+                return qstrdup(commandCompletions[state].toUtf8());
+            }
+        }
+    } else if (nearest.size() > state) {
         return qstrdup(nearest[state].keyword.toUtf8());
     }
 
