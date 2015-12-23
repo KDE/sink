@@ -26,6 +26,7 @@
 //       almost certainly overkill, but this is not the way either
 #include "syntax_modules/core_syntax.h"
 #include "syntax_modules/akonadi_list.h"
+#include "syntax_modules/akonadi_count.h"
 
 SyntaxTree *SyntaxTree::s_module = 0;
 
@@ -46,6 +47,7 @@ SyntaxTree::SyntaxTree()
     QVector<std::function<Syntax::List()> > syntaxSyntaxTrees;
     syntaxSyntaxTrees << &CoreSyntax::syntax
                       << &AkonadiList::syntax
+                      << &AkonadiCount::syntax
                       ;
     for (auto syntaxSyntaxTree: syntaxSyntaxTrees) {
         m_syntax += syntaxSyntaxTree();

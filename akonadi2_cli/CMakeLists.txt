@@ -1,4 +1,4 @@
-project(akonadi2_cli)
+project(akonadish)
 
 find_package(Readline REQUIRED)
 
@@ -8,6 +8,7 @@ set(akonadi2_cli_SRCS
     syntaxtree.cpp
     syntax_modules/core_syntax.cpp
     syntax_modules/akonadi_list.cpp
+    syntax_modules/akonadi_count.cpp
     akonadish_utils.cpp
     repl/repl.cpp
     repl/replStates.cpp
