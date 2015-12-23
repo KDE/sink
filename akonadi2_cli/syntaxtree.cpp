@@ -17,22 +17,22 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include "module.h"
+#include "syntaxtree.h"
 
 #include <QCoreApplication>
 #include <QDebug>
 
 // TODO: needs a proper registry; making "core" modules plugins is
 //       almost certainly overkill, but this is not the way either
-#include "modules/core_syntax.h"
+#include "syntax_modules/core_syntax.h"
 
-Module *Module::s_module = 0;
+SyntaxTree *SyntaxTree::s_module = 0;
 
-Module::Syntax::Syntax()
+SyntaxTree::Syntax::Syntax()
 {
 }
 
-Module::Syntax::Syntax(const QString &k, const QString &helpText, std::function<bool(const QStringList &, State &)> l, Interactivity inter)
+SyntaxTree::Syntax::Syntax(const QString &k, const QString &helpText, std::function<bool(const QStringList &, State &)> l, Interactivity inter)
     : keyword(k),
       help(helpText),
       interactivity(inter),
@@ -40,30 +40,30 @@ Module::Syntax::Syntax(const QString &k, const QString &helpText, std::function<
 {
 }
 
-Module::Module()
+SyntaxTree::SyntaxTree()
 {
-    QVector<std::function<SyntaxList()> > syntaxModules;
-    syntaxModules << &CoreSyntax::syntax;
-    for (auto syntaxModule: syntaxModules) {
-        m_syntax += syntaxModule();
+    QVector<std::function<SyntaxList()> > syntaxSyntaxTrees;
+    syntaxSyntaxTrees << &CoreSyntax::syntax;
+    for (auto syntaxSyntaxTree: syntaxSyntaxTrees) {
+        m_syntax += syntaxSyntaxTree();
     }
 }
 
-Module *Module::self()
+SyntaxTree *SyntaxTree::self()
 {
     if (!s_module) {
-        s_module = new Module;
+        s_module = new SyntaxTree;
     }
 
     return s_module;
 }
 
-Module::SyntaxList Module::syntax() const
+SyntaxTree::SyntaxList SyntaxTree::syntax() const
 {
     return m_syntax;
 }
 
-bool Module::run(const QStringList &commands)
+bool SyntaxTree::run(const QStringList &commands)
 {
     Command command = match(commands);
     if (command.first && command.first->lambda) {
@@ -78,7 +78,7 @@ bool Module::run(const QStringList &commands)
     return false;
 }
 
-Module::Command Module::match(const QStringList &commandLine) const
+SyntaxTree::Command SyntaxTree::match(const QStringList &commandLine) const
 {
     if (commandLine.isEmpty()) {
         return Command();
@@ -115,7 +115,7 @@ Module::Command Module::match(const QStringList &commandLine) const
     return Command();
 }
 
-Module::SyntaxList Module::nearestSyntax(const QStringList &words, const QString &fragment) const
+SyntaxTree::SyntaxList SyntaxTree::nearestSyntax(const QStringList &words, const QString &fragment) const
 {
     SyntaxList matches;
 
@@ -157,7 +157,7 @@ Module::SyntaxList Module::nearestSyntax(const QStringList &words, const QString
     return matches;
 }
 
-QStringList Module::tokenize(const QString &text)
+QStringList SyntaxTree::tokenize(const QString &text)
 {
     //TODO: properly tokenize (e.g. "foo bar" should not become ['"foo', 'bar"']
     return text.split(" ");

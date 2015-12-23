@@ -19,11 +19,11 @@
 
 #pragma once
 
-#include "module.h"
+#include "syntaxtree.h"
 
 namespace CoreSyntax
 {
-    Module::SyntaxList syntax();
+    SyntaxTree::SyntaxList syntax();
     bool exit(const QStringList &commands, State &state);
     bool showHelp(const QStringList &commands, State &);
 }

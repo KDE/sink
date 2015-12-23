@@ -29,7 +29,7 @@
 #include <QEvent>
 #include <QStateMachine>
 
-#include "module.h"
+#include "syntaxtree.h"
 
 static char *akonadi2_cli_next_tab_complete_match(const char *text, int state);
 static char ** akonadi2_cli_tab_completion(const char *text, int start, int end);
@@ -111,8 +111,8 @@ void EvalState::complete()
 
     if (!m_partial.isEmpty()) {
         //emit output("Processing ... " + command);
-        const QStringList commands = Module::tokenize(m_partial);
-        Module::self()->run(commands);
+        const QStringList commands = SyntaxTree::tokenize(m_partial);
+        SyntaxTree::self()->run(commands);
         m_partial.clear();
     }
 
@@ -149,7 +149,7 @@ static char **akonadi2_cli_tab_completion(const char *text, int start, int end)
 
 static char *akonadi2_cli_next_tab_complete_match(const char *text, int state)
 {
-    QVector<Module::Syntax> nearest = Module::self()->nearestSyntax(tab_completion_full_state, QString(text));
+    QVector<SyntaxTree::Syntax> nearest = SyntaxTree::self()->nearestSyntax(tab_completion_full_state, QString(text));
 
     if (nearest.size() > state) {
         return qstrdup(nearest[state].keyword.toUtf8());

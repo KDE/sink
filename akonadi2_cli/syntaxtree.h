@@ -24,7 +24,7 @@
 #include <QStringList>
 #include <QVector>
 
-class Module
+class SyntaxTree
 {
 public:
     struct Syntax
@@ -49,9 +49,9 @@ public:
     };
 
     typedef std::pair<const Syntax *, QStringList> Command;
-    typedef QVector<Module::Syntax> SyntaxList;
+    typedef QVector<SyntaxTree::Syntax> SyntaxList;
 
-    static Module *self();
+    static SyntaxTree *self();
 
     SyntaxList syntax() const;
     Command match(const QStringList &commands) const;
@@ -62,11 +62,11 @@ public:
     static QStringList tokenize(const QString &text);
 
 private:
-    Module();
+    SyntaxTree();
     Command matches(const QStringList &commands) const;
 
     SyntaxList m_syntax;
     State m_state;
-    static Module *s_module;
+    static SyntaxTree *s_module;
 };
 

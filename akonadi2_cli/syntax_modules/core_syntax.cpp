@@ -26,11 +26,11 @@
 namespace CoreSyntax
 {
 
-Module::SyntaxList syntax()
+SyntaxTree::SyntaxList syntax()
 {
-    Module::SyntaxList syntax;
-    syntax << Module::Syntax("exit", QObject::tr("Exits the application. Ctrl-d also works!"), &CoreSyntax::exit);
-    syntax << Module::Syntax(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
+    SyntaxTree::SyntaxList syntax;
+    syntax << SyntaxTree::Syntax("exit", QObject::tr("Exits the application. Ctrl-d also works!"), &CoreSyntax::exit);
+    syntax << SyntaxTree::Syntax(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
     return syntax;
 }
 
@@ -42,20 +42,20 @@ bool exit(const QStringList &, State &)
 
 bool showHelp(const QStringList &commands, State &state)
 {
-    Module::Command command = Module::self()->match(commands);
+    SyntaxTree::Command command = SyntaxTree::self()->match(commands);
     if (commands.isEmpty()) {
         state.printLine(QObject::tr("Welcome to the Akonadi2 command line tool!"));
         state.printLine(QObject::tr("Top-level commands:"));
 
         QSet<QString> sorted;
-        for (auto syntax: Module::self()->syntax()) {
+        for (auto syntax: SyntaxTree::self()->syntax()) {
             sorted.insert(syntax.keyword);
         }
 
         for (auto keyword: sorted) {
             state.printLine(keyword, 1);
         }
-    } else if (const Module::Syntax *syntax = command.first) {
+    } else if (const SyntaxTree::Syntax *syntax = command.first) {
         //TODO: get parent!
         state.print(QObject::tr("Command `%1`").arg(syntax->keyword));
 

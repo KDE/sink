@@ -22,7 +22,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 
-#include "module.h"
+#include "syntaxtree.h"
 // #include "jsonlistener.h"
 #include "repl/repl.h"
 
@@ -64,5 +64,5 @@ int main(int argc, char *argv[])
 
     QStringList commands = app.arguments();
     commands.removeFirst();
-    return Module::self()->run(commands);
+    return SyntaxTree::self()->run(commands);
 }

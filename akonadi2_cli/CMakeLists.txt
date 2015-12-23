@@ -5,8 +5,8 @@ find_package(Readline REQUIRED)
 
 set(akonadi2_cli_SRCS
     main.cpp
-    module.cpp
-    modules/core_syntax.cpp
+    syntaxtree.cpp
+    syntax_modules/core_syntax.cpp
     repl/repl.cpp
     repl/replStates.cpp
     state.cpp)
