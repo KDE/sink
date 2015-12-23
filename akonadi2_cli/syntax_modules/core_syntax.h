@@ -26,6 +26,7 @@ namespace CoreSyntax
     Syntax::List syntax();
     bool exit(const QStringList &commands, State &state);
     bool showHelp(const QStringList &commands, State &state);
+    QStringList showHelpCompleter(const QStringList &commands, const QString &fragment);
     bool setDebugLevel(const QStringList &commands, State &state);
     bool printDebugLevel(const QStringList &commands, State &state);
 }

@@ -31,7 +31,10 @@ Syntax::List syntax()
 {
     Syntax::List syntax;
     syntax << Syntax("exit", QObject::tr("Exits the application. Ctrl-d also works!"), &CoreSyntax::exit);
-    syntax << Syntax(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
+
+    Syntax help(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
+    help.completer = &CoreSyntax::showHelpCompleter;
+    syntax << help;
 
     Syntax set(QObject::tr("set"), QObject::tr("Sets settings for the session"));
     set.children << Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::setDebugLevel);
@@ -90,6 +93,20 @@ bool showHelp(const QStringList &commands, State &state)
     }
 
     return true;
+}
+
+QStringList showHelpCompleter(const QStringList &commands, const QString &fragment)
+{
+    QStringList items;
+
+    for (auto syntax: SyntaxTree::self()->syntax()) {
+        if (fragment.isEmpty() || syntax.keyword.startsWith(fragment)) {
+            items << syntax.keyword;
+        }
+    }
+
+    qSort(items);
+    return items;
 }
 
 bool setDebugLevel(const QStringList &commands, State &state)
