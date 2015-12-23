@@ -36,9 +36,6 @@
 
 int main(int argc, char *argv[])
 {
-    // load all modules
-    Module::loadModules();
-
     const bool interactive = isatty(fileno(stdin));
     const bool startRepl = (argc == 1) && interactive;
     //TODO: make a json command parse cause that would be awesomesauce
@@ -67,5 +64,5 @@ int main(int argc, char *argv[])
 
     QStringList commands = app.arguments();
     commands.removeFirst();
-    return Module::run(commands);
+    return Module::self()->run(commands);
 }

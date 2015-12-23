@@ -21,17 +21,10 @@
 
 #include "module.h"
 
-namespace CLI
+namespace CoreSyntax
 {
-
-class Exit : public Module
-{
-public:
-    Exit();
-
-private:
-    static bool exit(const QStringList &commands, State &state);
-};
-
-} // namespace CLI
+    Module::SyntaxList syntax();
+    bool exit(const QStringList &commands, State &state);
+    bool showHelp(const QStringList &commands, State &);
+}
 

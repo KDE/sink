@@ -29,33 +29,42 @@ class Module
 public:
     struct Syntax
     {
+        enum Interactivity {
+            NotInteractive = 0,
+            EventDriven
+        };
+
         Syntax();
-        Syntax(const QString &keyword, std::function<bool(const QStringList &, State &)> lambda = std::function<bool(const QStringList &, State &)>(), const QString &helpText = QString(), bool eventDriven = false);
+        Syntax(const QString &keyword,
+               const QString &helpText = QString(),
+               std::function<bool(const QStringList &, State &)> lambda = std::function<bool(const QStringList &, State &)>(),
+               Interactivity interactivity = NotInteractive);
+
         QString keyword;
-        std::function<bool(const QStringList &, State &)> lambda;
-        QList<Syntax> children;
         QString help;
-        bool eventDriven;
+        Interactivity interactivity;
+        std::function<bool(const QStringList &, State &)> lambda;
+
+        QVector<Syntax> children;
     };
 
     typedef std::pair<const Syntax *, QStringList> Command;
+    typedef QVector<Module::Syntax> SyntaxList;
 
-    static void addModule(const Module &module);
-    static QList<Module> modules();
-    static Command match(const QStringList &commands);
-    static bool run(const QStringList &commands);
-    static void loadModules();
-    static QVector<Syntax>nearestSyntax(const QStringList &words, const QString &fragment);
+    static Module *self();
 
-    Module();
-    Module::Syntax syntax() const;
-    void setSyntax(const Syntax &syntax);
+    SyntaxList syntax() const;
+    Command match(const QStringList &commands) const;
+    SyntaxList nearestSyntax(const QStringList &words, const QString &fragment) const;
+
+    bool run(const QStringList &commands);
 
 private:
+    Module();
     Command matches(const QStringList &commands) const;
 
-    Syntax m_syntax;
-    static QList<Module> s_modules;
-    static State s_state;
+    SyntaxList m_syntax;
+    State m_state;
+    static Module *s_module;
 };
 

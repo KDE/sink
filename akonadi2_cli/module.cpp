@@ -24,83 +24,61 @@
 
 // TODO: needs a proper registry; making "core" modules plugins is
 //       almost certainly overkill, but this is not the way either
-#include "modules/exit/exit.h"
-#include "modules/help/help.h"
+#include "modules/core_syntax.h"
 
-QList<Module> Module::s_modules;
-State Module::s_state;
+Module *Module::s_module = 0;
 
 Module::Syntax::Syntax()
 {
 }
 
-Module::Syntax::Syntax(const QString &k, std::function<bool(const QStringList &, State &)> l, const QString &helpText, bool e)
+Module::Syntax::Syntax(const QString &k, const QString &helpText, std::function<bool(const QStringList &, State &)> l, Interactivity inter)
     : keyword(k),
-      lambda(l),
       help(helpText),
-      eventDriven(e)
+      interactivity(inter),
+      lambda(l)
 {
 }
 
 Module::Module()
 {
+    QVector<std::function<SyntaxList()> > syntaxModules;
+    syntaxModules << &CoreSyntax::syntax;
+    for (auto syntaxModule: syntaxModules) {
+        m_syntax += syntaxModule();
+    }
 }
 
-void Module::loadModules()
+Module *Module::self()
 {
-    addModule(CLI::Exit());
-    addModule(CLI::Help());
-}
-
-void Module::addModule(const Module &module)
-{
-    s_modules.append(module);
-}
-
-QList<Module> Module::modules()
-{
-    return s_modules;
-}
-
-Module::Command Module::match(const QStringList &commands)
-{
-    Command command;
-    for (const Module &module: s_modules) {
-        command = module.matches(commands);
-        if (command.first) {
-            break;
-        }
+    if (!s_module) {
+        s_module = new Module;
     }
 
-    return command;
+    return s_module;
 }
 
-Module::Syntax Module::syntax() const
+Module::SyntaxList Module::syntax() const
 {
     return m_syntax;
-}
-
-void Module::setSyntax(const Syntax &syntax)
-{
-    m_syntax = syntax;
 }
 
 bool Module::run(const QStringList &commands)
 {
     Command command = match(commands);
     if (command.first && command.first->lambda) {
-        bool rv = command.first->lambda(command.second, s_state);
-        if (rv && command.first->eventDriven) {
+        command.first->lambda(command.second, m_state);
+        if (command.first->interactivity == Syntax::EventDriven) {
             return QCoreApplication::instance()->exec();
         }
 
-        return rv;
+        return true;
     }
 
     return false;
 }
 
-Module::Command Module::matches(const QStringList &commandLine) const
+Module::Command Module::match(const QStringList &commandLine) const
 {
     if (commandLine.isEmpty()) {
         return Command();
@@ -108,20 +86,16 @@ Module::Command Module::matches(const QStringList &commandLine) const
 
     QStringListIterator commandLineIt(commandLine);
 
-    if (commandLineIt.next() != m_syntax.keyword) {
-        return Command();
-    }
-
-    QListIterator<Syntax> syntaxIt(m_syntax.children);
-    const Syntax *syntax = &m_syntax;
+    QVectorIterator<Syntax> syntaxIt(m_syntax);
+    const Syntax *lastFullSyntax = 0;
     QStringList tailCommands;
     while (commandLineIt.hasNext() && syntaxIt.hasNext()) {
         const QString word = commandLineIt.next();
         while (syntaxIt.hasNext()) {
-            const Syntax &child = syntaxIt.next();
-            if (word == child.keyword) {
-                syntax = &child;
-                syntaxIt = child.children;
+            const Syntax &syntax = syntaxIt.next();
+            if (word == syntax.keyword) {
+                lastFullSyntax = &syntax;
+                syntaxIt = syntax.children;
             }
         }
 
@@ -131,55 +105,47 @@ Module::Command Module::matches(const QStringList &commandLine) const
         }
     }
 
-    if (syntax && syntax->lambda) {
+    if (lastFullSyntax && lastFullSyntax->lambda) {
         while (commandLineIt.hasNext()) {
             tailCommands << commandLineIt.next();
         }
 
-        return std::make_pair(syntax, tailCommands);
+        return std::make_pair(lastFullSyntax, tailCommands);
     }
 
     return Command();
 }
 
-QVector<Module::Syntax> Module::nearestSyntax(const QStringList &words, const QString &fragment)
+Module::SyntaxList Module::nearestSyntax(const QStringList &words, const QString &fragment) const
 {
-    QVector<Module::Syntax> matches;
+    SyntaxList matches;
 
     //qDebug() << "words are" << words;
     if (words.isEmpty()) {
-        for (const Module &module: s_modules) {
-            if (module.syntax().keyword.startsWith(fragment)) {
-                matches.push_back(module.syntax());
+        for (const Syntax &syntax: m_syntax) {
+            if (syntax.keyword.startsWith(fragment)) {
+                matches.push_back(syntax);
             }
         }
     } else {
         QStringListIterator wordIt(words);
-        QString word = wordIt.next();
+        QVectorIterator<Syntax> syntaxIt(m_syntax);
         Syntax lastFullSyntax;
 
-        for (const Module &module: s_modules) {
-            if (module.syntax().keyword == word) {
-                lastFullSyntax = module.syntax();
-                QListIterator<Syntax> syntaxIt(module.syntax().children);
-                while (wordIt.hasNext()) {
-                    word = wordIt.next();
-                    while (syntaxIt.hasNext()) {
-                        const Syntax &child = syntaxIt.next();
-                        if (word == child.keyword) {
-                            lastFullSyntax = child;
-                            syntaxIt = child.children;
-                        }
-                    }
+        while (wordIt.hasNext()) {
+            QString word = wordIt.next();
+            while (syntaxIt.hasNext()) {
+                const Syntax &syntax = syntaxIt.next();
+                if (word == syntax.keyword) {
+                    lastFullSyntax = syntax;
+                    syntaxIt = syntax.children;
                 }
-
-                break;
             }
         }
 
         //qDebug() << "exiting with" << lastFullSyntax.keyword << words.last();
         if (lastFullSyntax.keyword == words.last()) {
-            QListIterator<Syntax> syntaxIt(lastFullSyntax.children);
+            syntaxIt = lastFullSyntax.children;
             while (syntaxIt.hasNext()) {
                 Syntax syntax = syntaxIt.next();
                 if (fragment.isEmpty() || syntax.keyword.startsWith(fragment)) {

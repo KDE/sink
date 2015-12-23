@@ -17,39 +17,45 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include "help.h"
+#include "core_syntax.h"
 
-#include <QObject>
+#include <QObject> // tr()
 #include <QSet>
 #include <QTextStream>
 
-#include "module.h"
-
-namespace CLI
+namespace CoreSyntax
 {
 
-Help::Help()
+Module::SyntaxList syntax()
 {
-    Syntax topLevel = Syntax(QObject::tr("help"), &Help::showHelp, QObject::tr("Print command information: help [command]"));
-    setSyntax(topLevel);
+    Module::SyntaxList syntax;
+    syntax << Module::Syntax("exit", QObject::tr("Exits the application. Ctrl-d also works!"), &CoreSyntax::exit);
+    syntax << Module::Syntax(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
+    return syntax;
 }
 
-bool Help::showHelp(const QStringList &commands, State &)
+bool exit(const QStringList &, State &)
 {
-    Module::Command command = Module::match(commands);
+    ::exit(0);
+    return true;
+}
+
+bool showHelp(const QStringList &commands, State &)
+{
+    Module::Command command = Module::self()->match(commands);
     QTextStream stream(stdout);
     if (commands.isEmpty()) {
         stream << QObject::tr("Welcome to the Akonadi2 command line tool!") << "\n";
         stream << QObject::tr("Top-level commands:") << "\n";
         QSet<QString> sorted;
-        for (auto module: Module::modules()) {
-            sorted.insert(module.syntax().keyword);
+        for (auto syntax: Module::self()->syntax()) {
+            sorted.insert(syntax.keyword);
         }
 
         for (auto keyword: sorted) {
             stream << "\t" << keyword << "\n";
         }
-    } else if (const Syntax *syntax = command.first) {
+    } else if (const Module::Syntax *syntax = command.first) {
         //TODO: get parent!
         stream << QObject::tr("Command `%1`").arg(syntax->keyword);
 
@@ -72,9 +78,8 @@ bool Help::showHelp(const QStringList &commands, State &)
     } else {
         stream << "Unknown command: " << commands.join(" ") << "\n";
     }
-
     return true;
 }
 
-} // namespace CLI
+} // namespace CoreSyntax
 
