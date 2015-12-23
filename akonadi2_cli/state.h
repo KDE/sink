@@ -19,11 +19,18 @@
 
 #pragma once
 
-#include <QStringList>
+#include <QTextStream>
 
 class State
 {
 public:
     State();
+
+    void print(const QString &string);
+    void printLine(const QString &string);
+    void printError(const QString &string, int errorCode = 0);
+
+private:
+    QTextStream m_outStream;
 };
 

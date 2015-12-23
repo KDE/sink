@@ -20,9 +20,24 @@
 #include "state.h"
 
 #include <QDebug>
-#include <QDir>
+#include <QTextStream>
 
 State::State()
+    : m_outStream(stdout)
 {
 }
 
+void State::print(const QString &message)
+{
+    m_outStream << message;
+}
+
+void State::printLine(const QString &message)
+{
+    m_outStream << message << "\n";
+}
+
+void State::printError(const QString &error, int code)
+{
+    m_outStream << "ERROR " << code << ": " << error << "\n";
+}
