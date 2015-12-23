@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     //TODO: make a json command parse cause that would be awesomesauce
     const bool startJsonListener = !startRepl &&
                                    (argc == 2 && qstrcmp(argv[1], "-") == 0);
-    qDebug() << "state at startup is" << interactive << startRepl << startJsonListener;
+    //qDebug() << "state at startup is" << interactive << startRepl << startJsonListener;
 
     QCoreApplication app(argc, argv);
     app.setApplicationName("funq");
