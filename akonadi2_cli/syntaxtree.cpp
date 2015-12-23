@@ -67,12 +67,12 @@ bool SyntaxTree::run(const QStringList &commands)
 {
     Command command = match(commands);
     if (command.first && command.first->lambda) {
-        command.first->lambda(command.second, m_state);
-        if (command.first->interactivity == Syntax::EventDriven) {
-            return QCoreApplication::instance()->exec();
+        bool rv = command.first->lambda(command.second, m_state);
+        if (rv && command.first->interactivity == Syntax::EventDriven) {
+            return m_state.commandStarted();
         }
 
-        return true;
+        return rv;
     }
 
     return false;
