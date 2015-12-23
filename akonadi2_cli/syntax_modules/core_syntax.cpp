@@ -19,6 +19,7 @@
 
 #include "core_syntax.h"
 
+#include <QDebug>
 #include <QObject> // tr()
 #include <QSet>
 #include <QTextStream>
@@ -31,6 +32,15 @@ SyntaxTree::SyntaxList syntax()
     SyntaxTree::SyntaxList syntax;
     syntax << SyntaxTree::Syntax("exit", QObject::tr("Exits the application. Ctrl-d also works!"), &CoreSyntax::exit);
     syntax << SyntaxTree::Syntax(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
+
+    SyntaxTree::Syntax set(QObject::tr("set"), QObject::tr("Sets settings for the session"));
+    set.children << SyntaxTree::Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::setDebugLevel);
+    syntax << set;
+
+    SyntaxTree::Syntax get(QObject::tr("get"), QObject::tr("Gets settings for the session"));
+    get.children << SyntaxTree::Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::printDebugLevel);
+    syntax << get;
+
     return syntax;
 }
 
@@ -79,6 +89,31 @@ bool showHelp(const QStringList &commands, State &state)
         state.printError("Unknown command: " + commands.join(" "));
     }
 
+    return true;
+}
+
+bool setDebugLevel(const QStringList &commands, State &state)
+{
+    if (commands.count() != 1) {
+        state.printError(QObject::tr("Wrong number of arguments; expected 1 got %1").arg(commands.count()));
+        return false;
+    }
+
+    bool ok = false;
+    int level = commands[0].toUInt(&ok);
+
+    if (!ok) {
+        state.printError(QObject::tr("Expected a number between 0 and 6, got %1").arg(commands[0]));
+        return false;
+    }
+
+    state.setDebugLevel(level);
+    return true;
+}
+
+bool printDebugLevel(const QStringList &commands, State &state)
+{
+    state.printLine(QString::number(state.debugLevel()));
     return true;
 }
 
