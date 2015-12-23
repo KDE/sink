@@ -77,7 +77,6 @@ unsigned int State::debugLevel() const
 int State::commandStarted() const
 {
     if (!d->eventLoop.isRunning()) {
-        //qDebug() << "RUNNING THE EVENT LOOP!";
         return d->eventLoop.exec();
     }
 
