@@ -26,15 +26,18 @@ class State
 public:
     State();
 
-    void print(const QString &message, unsigned int indentationLevel = 0);
-    void printLine(const QString &message = QString(), unsigned int indentationLevel = 0);
-    void printError(const QString &errorMessage, const QString &errorCode = QString());
+    void print(const QString &message, unsigned int indentationLevel = 0) const;
+    void printLine(const QString &message = QString(), unsigned int indentationLevel = 0) const;
+    void printError(const QString &errorMessage, const QString &errorCode = QString()) const;
 
     void setDebugLevel(unsigned int level);
     unsigned int debugLevel() const;
 
+    int commandStarted() const;
+    void commandFinished(int returnCode = 0) const;
+
 private:
-    int m_debugLevel = 0;
-    QTextStream m_outStream;
+    class Private;
+    Private * const d;
 };
 

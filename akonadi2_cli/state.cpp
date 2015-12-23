@@ -20,30 +20,44 @@
 #include "state.h"
 
 #include <QDebug>
+#include <QEventLoop>
 #include <QTextStream>
 
-State::State()
-    : m_outStream(stdout)
+class State::Private
 {
-}
-
-void State::print(const QString &message, unsigned int indentationLevel)
-{
-    for (unsigned int i = 0; i < indentationLevel; ++i) {
-        m_outStream << "\t";
+public:
+    Private()
+        : outStream(stdout)
+    {
     }
 
-    m_outStream << message;
+    int debugLevel = 0;
+    QEventLoop eventLoop;
+    QTextStream outStream;
+};
+
+State::State()
+    : d(new Private)
+{
 }
 
-void State::printLine(const QString &message, unsigned int indentationLevel)
+void State::print(const QString &message, unsigned int indentationLevel) const
+{
+    for (unsigned int i = 0; i < indentationLevel; ++i) {
+        d->outStream << "\t";
+    }
+
+    d->outStream << message;
+}
+
+void State::printLine(const QString &message, unsigned int indentationLevel) const
 {
     print(message, indentationLevel);
-    m_outStream << "\n";
-    m_outStream.flush();
+    d->outStream << "\n";
+    d->outStream.flush();
 }
 
-void State::printError(const QString &errorMessage, const QString &errorCode)
+void State::printError(const QString &errorMessage, const QString &errorCode) const
 {
     printLine("ERROR" + (errorCode.isEmpty() ? "" : " " + errorCode) + ": " + errorMessage);
 }
@@ -51,12 +65,27 @@ void State::printError(const QString &errorMessage, const QString &errorCode)
 void State::setDebugLevel(unsigned int level)
 {
     if (level < 7) {
-        m_debugLevel = level;
+        d->debugLevel = level;
     }
 }
 
 unsigned int State::debugLevel() const
 {
-    return m_debugLevel;
+    return d->debugLevel;
+}
+
+int State::commandStarted() const
+{
+    if (!d->eventLoop.isRunning()) {
+        qDebug() << "RUNNING THE EVENT LOOP!";
+        return d->eventLoop.exec();
+    }
+
+    return 0;
+}
+
+void State::commandFinished(int returnCode) const
+{
+    d->eventLoop.exit(returnCode);
 }
 
