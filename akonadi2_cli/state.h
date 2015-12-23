@@ -30,7 +30,11 @@ public:
     void printLine(const QString &message = QString(), unsigned int indentationLevel = 0);
     void printError(const QString &errorMessage, const QString &errorCode = QString());
 
+    void setDebugLevel(unsigned int level);
+    unsigned int debugLevel() const;
+
 private:
+    int m_debugLevel = 0;
     QTextStream m_outStream;
 };
 

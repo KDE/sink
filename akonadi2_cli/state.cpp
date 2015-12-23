@@ -47,3 +47,16 @@ void State::printError(const QString &errorMessage, const QString &errorCode)
 {
     printLine("ERROR" + (errorCode.isEmpty() ? "" : " " + errorCode) + ": " + errorMessage);
 }
+
+void State::setDebugLevel(unsigned int level)
+{
+    if (level < 7) {
+        m_debugLevel = level;
+    }
+}
+
+unsigned int State::debugLevel() const
+{
+    return m_debugLevel;
+}
+
