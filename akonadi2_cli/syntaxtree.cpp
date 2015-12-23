@@ -104,7 +104,7 @@ SyntaxTree::Command SyntaxTree::match(const QStringList &commandLine) const
         }
     }
 
-    if (lastFullSyntax && lastFullSyntax->lambda) {
+    if (lastFullSyntax) {
         while (commandLineIt.hasNext()) {
             tailCommands << commandLineIt.next();
         }
