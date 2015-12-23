@@ -96,11 +96,8 @@ SyntaxTree::Command SyntaxTree::match(const QStringList &commandLine) const
             if (word == syntax.keyword) {
                 lastFullSyntax = &syntax;
                 syntaxIt = syntax.children;
+                break;
             }
-        }
-
-        if (!syntaxIt.hasNext()) {
-            break;
         }
     }
 
