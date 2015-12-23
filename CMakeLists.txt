@@ -57,4 +57,7 @@ add_subdirectory(examples)
 # some tests
 add_subdirectory(tests)
 
+# cli
+add_subdirectory(akonadi2_cli)
+
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
