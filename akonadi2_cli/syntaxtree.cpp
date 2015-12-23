@@ -25,6 +25,7 @@
 // TODO: needs a proper registry; making "core" modules plugins is
 //       almost certainly overkill, but this is not the way either
 #include "syntax_modules/core_syntax.h"
+#include "syntax_modules/akonadi_list.h"
 
 SyntaxTree *SyntaxTree::s_module = 0;
 
@@ -43,7 +44,9 @@ SyntaxTree::Syntax::Syntax(const QString &k, const QString &helpText, std::funct
 SyntaxTree::SyntaxTree()
 {
     QVector<std::function<SyntaxList()> > syntaxSyntaxTrees;
-    syntaxSyntaxTrees << &CoreSyntax::syntax;
+    syntaxSyntaxTrees << &CoreSyntax::syntax
+                      << &AkonadiList::syntax
+                      ;
     for (auto syntaxSyntaxTree: syntaxSyntaxTrees) {
         m_syntax += syntaxSyntaxTree();
     }
