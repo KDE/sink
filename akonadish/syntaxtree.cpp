@@ -27,6 +27,7 @@
 #include "syntax_modules/core_syntax.h"
 #include "syntax_modules/akonadi_list.h"
 #include "syntax_modules/akonadi_count.h"
+#include "syntax_modules/akonadi_sync.h"
 
 SyntaxTree *SyntaxTree::s_module = 0;
 
@@ -48,6 +49,7 @@ SyntaxTree::SyntaxTree()
     syntaxSyntaxTrees << &CoreSyntax::syntax
                       << &AkonadiList::syntax
                       << &AkonadiCount::syntax
+                      << &AkonadiSync::syntax
                       ;
     for (auto syntaxSyntaxTree: syntaxSyntaxTrees) {
         m_syntax += syntaxSyntaxTree();

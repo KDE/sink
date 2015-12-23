@@ -9,6 +9,7 @@ set(akonadi2_cli_SRCS
     syntax_modules/core_syntax.cpp
     syntax_modules/akonadi_list.cpp
     syntax_modules/akonadi_count.cpp
+    syntax_modules/akonadi_sync.cpp
     akonadish_utils.cpp
     repl/repl.cpp
     repl/replStates.cpp
