@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     //qDebug() << "state at startup is" << interactive << startRepl << startJsonListener;
 
     QCoreApplication app(argc, argv);
-    app.setApplicationName("funq");
+    app.setApplicationName(argv[0]);
 
     if (startRepl || startJsonListener) {
         if (startRepl) {
