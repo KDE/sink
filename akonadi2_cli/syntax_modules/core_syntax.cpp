@@ -100,7 +100,8 @@ QStringList showHelpCompleter(const QStringList &commands, const QString &fragme
     QStringList items;
 
     for (auto syntax: SyntaxTree::self()->syntax()) {
-        if (fragment.isEmpty() || syntax.keyword.startsWith(fragment)) {
+        if (syntax.keyword != QObject::tr("help") &&
+            (fragment.isEmpty() || syntax.keyword.startsWith(fragment))) {
             items << syntax.keyword;
         }
     }
