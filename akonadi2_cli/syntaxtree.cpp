@@ -29,11 +29,11 @@
 
 SyntaxTree *SyntaxTree::s_module = 0;
 
-SyntaxTree::Syntax::Syntax()
+Syntax::Syntax()
 {
 }
 
-SyntaxTree::Syntax::Syntax(const QString &k, const QString &helpText, std::function<bool(const QStringList &, State &)> l, Interactivity inter)
+Syntax::Syntax(const QString &k, const QString &helpText, std::function<bool(const QStringList &, State &)> l, Interactivity inter)
     : keyword(k),
       help(helpText),
       interactivity(inter),

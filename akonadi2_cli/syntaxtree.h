@@ -24,32 +24,34 @@
 #include <QStringList>
 #include <QVector>
 
+class Syntax
+{
+public:
+    enum Interactivity {
+        NotInteractive = 0,
+        EventDriven
+    };
+
+    Syntax();
+    Syntax(const QString &keyword,
+            const QString &helpText = QString(),
+            std::function<bool(const QStringList &, State &)> lambda = std::function<bool(const QStringList &, State &)>(),
+            Interactivity interactivity = NotInteractive);
+
+    QString keyword;
+    QString help;
+    Interactivity interactivity;
+    std::function<bool(const QStringList &, State &)> lambda;
+
+    QVector<Syntax> children;
+};
+
 class SyntaxTree
 {
 public:
-    struct Syntax
-    {
-        enum Interactivity {
-            NotInteractive = 0,
-            EventDriven
-        };
-
-        Syntax();
-        Syntax(const QString &keyword,
-               const QString &helpText = QString(),
-               std::function<bool(const QStringList &, State &)> lambda = std::function<bool(const QStringList &, State &)>(),
-               Interactivity interactivity = NotInteractive);
-
-        QString keyword;
-        QString help;
-        Interactivity interactivity;
-        std::function<bool(const QStringList &, State &)> lambda;
-
-        QVector<Syntax> children;
-    };
 
     typedef std::pair<const Syntax *, QStringList> Command;
-    typedef QVector<SyntaxTree::Syntax> SyntaxList;
+    typedef QVector<Syntax> SyntaxList;
 
     static SyntaxTree *self();
 

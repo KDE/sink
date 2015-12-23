@@ -42,7 +42,7 @@ namespace AkonadiList
 SyntaxTree::SyntaxList syntax()
 {
     SyntaxTree::SyntaxList syntax;
-    syntax << SyntaxTree::Syntax("list", QObject::tr("List all resources, or the contents of one or more resources"), &AkonadiList::list, SyntaxTree::Syntax::EventDriven);
+    syntax << Syntax("list", QObject::tr("List all resources, or the contents of one or more resources"), &AkonadiList::list, Syntax::EventDriven);
 
     return syntax;
 }

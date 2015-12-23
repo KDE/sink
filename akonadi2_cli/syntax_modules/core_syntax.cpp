@@ -30,15 +30,15 @@ namespace CoreSyntax
 SyntaxTree::SyntaxList syntax()
 {
     SyntaxTree::SyntaxList syntax;
-    syntax << SyntaxTree::Syntax("exit", QObject::tr("Exits the application. Ctrl-d also works!"), &CoreSyntax::exit);
-    syntax << SyntaxTree::Syntax(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
+    syntax << Syntax("exit", QObject::tr("Exits the application. Ctrl-d also works!"), &CoreSyntax::exit);
+    syntax << Syntax(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
 
-    SyntaxTree::Syntax set(QObject::tr("set"), QObject::tr("Sets settings for the session"));
-    set.children << SyntaxTree::Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::setDebugLevel);
+    Syntax set(QObject::tr("set"), QObject::tr("Sets settings for the session"));
+    set.children << Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::setDebugLevel);
     syntax << set;
 
-    SyntaxTree::Syntax get(QObject::tr("get"), QObject::tr("Gets settings for the session"));
-    get.children << SyntaxTree::Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::printDebugLevel);
+    Syntax get(QObject::tr("get"), QObject::tr("Gets settings for the session"));
+    get.children << Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::printDebugLevel);
     syntax << get;
 
     return syntax;
@@ -65,7 +65,7 @@ bool showHelp(const QStringList &commands, State &state)
         for (auto keyword: sorted) {
             state.printLine(keyword, 1);
         }
-    } else if (const SyntaxTree::Syntax *syntax = command.first) {
+    } else if (const Syntax *syntax = command.first) {
         //TODO: get parent!
         state.print(QObject::tr("Command `%1`").arg(syntax->keyword));
 
