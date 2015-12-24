@@ -17,8 +17,6 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include "akonadi_list.h"
-
 #include <QCoreApplication>
 #include <QDebug>
 #include <QObject> // tr()
@@ -35,19 +33,11 @@
 #include "common/definitions.h"
 
 #include "akonadish_utils.h"
+#include "state.h"
+#include "syntaxtree.h"
 
 namespace AkonadiList
 {
-
-REGISTER_SYNTAX(AkonadiList)
-
-Syntax::List syntax()
-{
-    Syntax::List syntax;
-    syntax << Syntax("list", QObject::tr("List all resources, or the contents of one or more resources"), &AkonadiList::list, Syntax::EventDriven);
-
-    return syntax;
-}
 
 bool list(const QStringList &args, State &state)
 {
@@ -110,5 +100,15 @@ bool list(const QStringList &args, State &state)
 
     return false;
 }
+
+Syntax::List syntax()
+{
+    Syntax::List syntax;
+    syntax << Syntax("list", QObject::tr("List all resources, or the contents of one or more resources"), &AkonadiList::list, Syntax::EventDriven);
+
+    return syntax;
+}
+
+REGISTER_SYNTAX(AkonadiList)
 
 }

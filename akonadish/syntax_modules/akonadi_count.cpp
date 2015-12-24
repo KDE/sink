@@ -17,8 +17,6 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include "akonadi_count.h"
-
 #include <QCoreApplication>
 #include <QDebug>
 #include <QObject> // tr()
@@ -35,19 +33,11 @@
 #include "common/definitions.h"
 
 #include "akonadish_utils.h"
+#include "state.h"
+#include "syntaxtree.h"
 
 namespace AkonadiCount
 {
-
-REGISTER_SYNTAX(AkonadiCount)
-
-Syntax::List syntax()
-{
-    Syntax::List syntax;
-    syntax << Syntax("count", QObject::tr("Returns the number of items of a given type in a resource. Usage: count <type> <resource>"), &AkonadiCount::count, Syntax::EventDriven);
-
-    return syntax;
-}
 
 bool count(const QStringList &args, State &state)
 {
@@ -77,5 +67,15 @@ bool count(const QStringList &args, State &state)
 
     return true;
 }
+
+Syntax::List syntax()
+{
+    Syntax::List syntax;
+    syntax << Syntax("count", QObject::tr("Returns the number of items of a given type in a resource. Usage: count <type> <resource>"), &AkonadiCount::count, Syntax::EventDriven);
+
+    return syntax;
+}
+
+REGISTER_SYNTAX(AkonadiCount)
 
 }

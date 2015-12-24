@@ -22,13 +22,6 @@
 #include <QCoreApplication>
 #include <QDebug>
 
-// TODO: needs a proper registry; making "core" modules plugins is
-//       almost certainly overkill, but this is not the way either
-#include "syntax_modules/core_syntax.h"
-#include "syntax_modules/akonadi_list.h"
-#include "syntax_modules/akonadi_count.h"
-#include "syntax_modules/akonadi_sync.h"
-
 SyntaxTree *SyntaxTree::s_module = 0;
 
 Syntax::Syntax()

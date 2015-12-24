@@ -17,37 +17,16 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include "core_syntax.h"
-
 #include <QDebug>
 #include <QObject> // tr()
 #include <QSet>
 #include <QTextStream>
 
+#include "state.h"
+#include "syntaxtree.h"
+
 namespace CoreSyntax
 {
-
-REGISTER_SYNTAX(CoreSyntax)
-
-Syntax::List syntax()
-{
-    Syntax::List syntax;
-    syntax << Syntax("exit", QObject::tr("Exits the application. Ctrl-d also works!"), &CoreSyntax::exit);
-
-    Syntax help(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
-    help.completer = &CoreSyntax::showHelpCompleter;
-    syntax << help;
-
-    Syntax set(QObject::tr("set"), QObject::tr("Sets settings for the session"));
-    set.children << Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::setDebugLevel);
-    syntax << set;
-
-    Syntax get(QObject::tr("get"), QObject::tr("Gets settings for the session"));
-    get.children << Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::printDebugLevel);
-    syntax << get;
-
-    return syntax;
-}
 
 bool exit(const QStringList &, State &)
 {
@@ -136,6 +115,28 @@ bool printDebugLevel(const QStringList &commands, State &state)
     state.printLine(QString::number(state.debugLevel()));
     return true;
 }
+
+Syntax::List syntax()
+{
+    Syntax::List syntax;
+    syntax << Syntax("exit", QObject::tr("Exits the application. Ctrl-d also works!"), &CoreSyntax::exit);
+
+    Syntax help(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
+    help.completer = &CoreSyntax::showHelpCompleter;
+    syntax << help;
+
+    Syntax set(QObject::tr("set"), QObject::tr("Sets settings for the session"));
+    set.children << Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::setDebugLevel);
+    syntax << set;
+
+    Syntax get(QObject::tr("get"), QObject::tr("Gets settings for the session"));
+    get.children << Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::printDebugLevel);
+    syntax << get;
+
+    return syntax;
+}
+
+REGISTER_SYNTAX(CoreSyntax)
 
 } // namespace CoreSyntax
 

@@ -17,8 +17,6 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include "akonadi_sync.h"
-
 #include <QDebug>
 #include <QObject> // tr()
 #include <QTimer>
@@ -33,19 +31,11 @@
 #include "common/definitions.h"
 
 #include "akonadish_utils.h"
+#include "state.h"
+#include "syntaxtree.h"
 
 namespace AkonadiSync
 {
-
-REGISTER_SYNTAX(AkonadiSync)
-
-Syntax::List syntax()
-{
-    Syntax::List syntax;
-    syntax << Syntax("sync", QObject::tr("Syncronizes all resources that are listed; and empty list triggers a syncronizaton on all resources"), &AkonadiSync::sync, Syntax::EventDriven );
-
-    return syntax;
-}
 
 bool sync(const QStringList &args, State &state)
 {
@@ -65,5 +55,15 @@ bool sync(const QStringList &args, State &state)
 
     return true;
 }
+
+Syntax::List syntax()
+{
+    Syntax::List syntax;
+    syntax << Syntax("sync", QObject::tr("Syncronizes all resources that are listed; and empty list triggers a syncronizaton on all resources"), &AkonadiSync::sync, Syntax::EventDriven );
+
+    return syntax;
+}
+
+REGISTER_SYNTAX(AkonadiSync)
 
 }
