@@ -27,6 +27,8 @@
 namespace CoreSyntax
 {
 
+REGISTER_SYNTAX(CoreSyntax)
+
 Syntax::List syntax()
 {
     Syntax::List syntax;

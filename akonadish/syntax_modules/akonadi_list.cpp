@@ -39,6 +39,8 @@
 namespace AkonadiList
 {
 
+REGISTER_SYNTAX(AkonadiList)
+
 Syntax::List syntax()
 {
     Syntax::List syntax;

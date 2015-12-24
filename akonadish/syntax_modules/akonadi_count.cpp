@@ -39,6 +39,8 @@
 namespace AkonadiCount
 {
 
+REGISTER_SYNTAX(AkonadiCount)
+
 Syntax::List syntax()
 {
     Syntax::List syntax;

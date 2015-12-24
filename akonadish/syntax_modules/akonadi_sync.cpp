@@ -37,6 +37,8 @@
 namespace AkonadiSync
 {
 
+REGISTER_SYNTAX(AkonadiSync)
+
 Syntax::List syntax()
 {
     Syntax::List syntax;

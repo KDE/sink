@@ -57,6 +57,7 @@ public:
 
     static SyntaxTree *self();
 
+    int registerSyntax(std::function<Syntax::List()> f);
     Syntax::List syntax() const;
     Command match(const QStringList &commands) const;
     Syntax::List nearestSyntax(const QStringList &words, const QString &fragment) const;
@@ -73,3 +74,4 @@ private:
     static SyntaxTree *s_module;
 };
 
+#define REGISTER_SYNTAX(name) static const int theTrickFor##name = SyntaxTree::self()->registerSyntax(&name::syntax);

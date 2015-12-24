@@ -45,15 +45,12 @@ Syntax::Syntax(const QString &k, const QString &helpText, std::function<bool(con
 
 SyntaxTree::SyntaxTree()
 {
-    QVector<std::function<Syntax::List()> > syntaxSyntaxTrees;
-    syntaxSyntaxTrees << &CoreSyntax::syntax
-                      << &AkonadiList::syntax
-                      << &AkonadiCount::syntax
-                      << &AkonadiSync::syntax
-                      ;
-    for (auto syntaxSyntaxTree: syntaxSyntaxTrees) {
-        m_syntax += syntaxSyntaxTree();
-    }
+}
+
+int SyntaxTree::registerSyntax(std::function<Syntax::List()> f)
+{
+    m_syntax += f();
+    return m_syntax.size();
 }
 
 SyntaxTree *SyntaxTree::self()
