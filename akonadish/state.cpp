@@ -19,9 +19,12 @@
 
 #include "state.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QEventLoop>
 #include <QTextStream>
+
+static bool s_hasEventLoop = false;
 
 class State::Private
 {
@@ -31,8 +34,17 @@ public:
     {
     }
 
+    QEventLoop *eventLoop()
+    {
+        if (!event) {
+            event = new QEventLoop;
+        }
+
+        return event;
+    }
+
     int debugLevel = 0;
-    QEventLoop eventLoop;
+    QEventLoop *event = 0;
     QTextStream outStream;
 };
 
@@ -76,8 +88,10 @@ unsigned int State::debugLevel() const
 
 int State::commandStarted() const
 {
-    if (!d->eventLoop.isRunning()) {
-        return d->eventLoop.exec();
+    if (!s_hasEventLoop) {
+        return QCoreApplication::exec();
+    } else if (!d->eventLoop()->isRunning()) {
+        return d->eventLoop()->exec();
     }
 
     return 0;
@@ -85,6 +99,15 @@ int State::commandStarted() const
 
 void State::commandFinished(int returnCode) const
 {
-    d->eventLoop.exit(returnCode);
+    if (!s_hasEventLoop) {
+        QCoreApplication::exit(returnCode);
+    } else {
+        d->eventLoop()->exit(returnCode);
+    }
+}
+
+void State::setHasEventLoop(bool evented)
+{
+    s_hasEventLoop = evented;
 }
 

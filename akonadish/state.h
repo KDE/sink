@@ -36,6 +36,8 @@ public:
     int commandStarted() const;
     void commandFinished(int returnCode = 0) const;
 
+    static void setHasEventLoop(bool evented);
+
 private:
     class Private;
     Private * const d;

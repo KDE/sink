@@ -60,6 +60,7 @@ int main(int argc, char *argv[])
 //        JsonListener listener(syntax);
         }
 
+        State::setHasEventLoop(true);
         return app.exec();
     } else if (!interactive) {
         QTextStream inputStream(stdin);
