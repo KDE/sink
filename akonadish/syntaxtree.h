@@ -52,7 +52,6 @@ public:
 class SyntaxTree
 {
 public:
-
     typedef std::pair<const Syntax *, QStringList> Command;
 
     static SyntaxTree *self();
