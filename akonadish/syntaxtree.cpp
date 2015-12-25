@@ -132,6 +132,7 @@ Syntax::List SyntaxTree::nearestSyntax(const QStringList &words, const QString &
                 if (word == syntax.keyword) {
                     lastFullSyntax = syntax;
                     syntaxIt = syntax.children;
+                    break;
                 }
             }
         }
