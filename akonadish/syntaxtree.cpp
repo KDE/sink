@@ -126,7 +126,7 @@ Syntax::List SyntaxTree::nearestSyntax(const QStringList &words, const QString &
         Syntax lastFullSyntax;
 
         while (wordIt.hasNext()) {
-            QString word = wordIt.next();
+            const QString &word = wordIt.next();
             while (syntaxIt.hasNext()) {
                 const Syntax &syntax = syntaxIt.next();
                 if (word == syntax.keyword) {
