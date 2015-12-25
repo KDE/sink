@@ -33,6 +33,9 @@ public:
     void setDebugLevel(unsigned int level);
     unsigned int debugLevel() const;
 
+    void setCommandTiming(bool);
+    bool commandTiming() const;
+
     int commandStarted() const;
     void commandFinished(int returnCode = 0) const;
 

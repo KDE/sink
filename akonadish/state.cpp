@@ -45,6 +45,7 @@ public:
 
     int debugLevel = 0;
     QEventLoop *event = 0;
+    bool timing = false;
     QTextStream outStream;
 };
 
@@ -110,4 +111,15 @@ void State::setHasEventLoop(bool evented)
 {
     s_hasEventLoop = evented;
 }
+
+void State::setCommandTiming(bool time)
+{
+    d->timing = time;
+}
+
+bool State::commandTiming() const
+{
+    return d->timing;
+}
+
 
