@@ -1,7 +1,5 @@
 * commands
-    * create (non-resource types)
     * modify
-    * remove (non-resource types)
 * provide a setting to turn on/off user interaction during commands (e.g. deletion confirmations)
     * add a "ask the user a question" helper in State
 * key/value syntax objects
