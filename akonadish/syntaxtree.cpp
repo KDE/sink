@@ -170,7 +170,47 @@ Syntax::List SyntaxTree::nearestSyntax(const QStringList &words, const QString &
 
 QStringList SyntaxTree::tokenize(const QString &text)
 {
-    //TODO: properly tokenize (e.g. "foo bar" should not become ['"foo', 'bar"']
-    return text.split(" ");
+    //TODO: properly tokenize (e.g. "foo bar" should not become ['"foo', 'bar"']a
+    static const QVector<QChar> quoters = QVector<QChar>() << '"' << '\'';
+    QStringList tokens;
+    QString acc;
+    QChar closer;
+    for (int i = 0; i < text.size(); ++i) {
+        const QChar c = text.at(i);
+        if (c == '\\') {
+            ++i;
+            if (i < text.size()) {
+                acc.append(text.at(i));
+            }
+        } else if (!closer.isNull()) {
+            if (c == closer) {
+                acc = acc.trimmed();
+                if (!acc.isEmpty()) {
+                    tokens << acc;
+                }
+                acc.clear();
+                closer = QChar();
+            } else {
+                acc.append(c);
+            }
+        } else if (c.isSpace()) {
+            acc = acc.trimmed();
+            if (!acc.isEmpty()) {
+                tokens << acc;
+            }
+            acc.clear();
+        } else if (quoters.contains(c)) {
+            closer = c;
+        } else {
+            acc.append(c);
+        }
+    }
+
+    acc = acc.trimmed();
+    if (!acc.isEmpty()) {
+        tokens << acc;
+    }
+
+    return tokens;
 }
 
