@@ -22,6 +22,7 @@
 #include "state.h"
 
 #include <QStringList>
+#include <QTime>
 #include <QVector>
 
 class Syntax
@@ -70,6 +71,7 @@ private:
 
     Syntax::List m_syntax;
     State m_state;
+    QTime m_timeElapsed;
     static SyntaxTree *s_module;
 };
 

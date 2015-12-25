@@ -62,16 +62,19 @@ Syntax::List SyntaxTree::syntax() const
 
 bool SyntaxTree::run(const QStringList &commands)
 {
+    bool success = false;
+    m_timeElapsed.start();
     Command command = match(commands);
     if (command.first && command.first->lambda) {
-        bool rv = command.first->lambda(command.second, m_state);
-        if (rv && command.first->interactivity == Syntax::EventDriven) {
-            return m_state.commandStarted();
+        success = command.first->lambda(command.second, m_state);
+        if (success && command.first->interactivity == Syntax::EventDriven) {
+            success = m_state.commandStarted();
         }
-
-        return rv;
     }
 
+    if (m_state.commandTiming()) {
+        m_state.printLine(QObject::tr("Time elapsed: %1").arg(m_timeElapsed.elapsed()));
+    }
     return false;
 }
 
