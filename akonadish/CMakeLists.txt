@@ -8,6 +8,7 @@ set(akonadi2_cli_SRCS
     syntaxtree.cpp
     syntax_modules/core_syntax.cpp
     syntax_modules/akonadi_list.cpp
+    syntax_modules/akonadi_clear.cpp
     syntax_modules/akonadi_count.cpp
     syntax_modules/akonadi_sync.cpp
     akonadish_utils.cpp
