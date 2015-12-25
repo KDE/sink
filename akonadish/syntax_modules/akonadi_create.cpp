@@ -39,34 +39,45 @@
 namespace AkonadiCreate
 {
 
-    /*
+bool create(const QStringList &allArgs, State &state)
 {
-    auto type = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
-    auto &store = getStore(type);
-    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object;
-    if (type == "resource") {
-        auto resourceType = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
-        object = store.getObject("");
-        object->setProperty("type", resourceType);
-    } else {
-        auto resource = !args.isEmpty() ? args.takeFirst().toLatin1() : QByteArray();
-        object = store.getObject(resource);
+    if (allArgs.isEmpty()) {
+        state.printError(QObject::tr("A type is required"), "akonadicreate/02");
+        return false;
     }
-    auto map = consumeMap(args);
+
+    if (allArgs.count() < 2) {
+        state.printError(QObject::tr("A resource ID is required to create items"), "akonadicreate/03");
+        return false;
+    }
+
+    auto args = allArgs;
+    auto type = args.takeFirst();
+    auto &store = AkonadishUtils::getStore(type);
+    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object;
+    auto resource = args.takeFirst().toLatin1();
+    object = store.getObject(resource);
+
+    auto map = AkonadishUtils::keyValueMapFromArgs(args);
     for (auto i = map.begin(); i != map.end(); ++i) {
         object->setProperty(i.key().toLatin1(), i.value());
     }
+
     auto result = store.create(*object).exec();
     result.waitForFinished();
     if (result.errorCode()) {
-        std::cout << "An error occurred while creating the entity: " << result.errorMessage().toStdString();
+        state.printError(QObject::tr("An error occurred while creating the entity: %1").arg(result.errorMessage()),
+                         "akonaid_create_e" + QString::number(result.errorCode()));
     }
+
+    return true;
 }
-*/
+
 bool resource(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
         state.printError(QObject::tr("A resource can not be created without a type"), "akonadicreate/01");
+        return false;
     }
 
     auto &store = AkonadishUtils::getStore("resource");
@@ -84,7 +95,7 @@ bool resource(const QStringList &args, State &state)
     result.waitForFinished();
     if (result.errorCode()) {
         state.printError(QObject::tr("An error occurred while creating the entity: %1").arg(result.errorMessage()),
-                         "akonaid_create_" + QString::number(result.errorCode()));
+                         "akonaid_create_e" + QString::number(result.errorCode()));
     }
 
     return true;
@@ -95,8 +106,8 @@ Syntax::List syntax()
 {
     Syntax::List syntax;
 
-    Syntax create("create");//, QString(), &AkonadiCreate::resource, Syntax::EventDriven);
-    create.children << Syntax("resource", QObject::tr("Creates a new resource"), &AkonadiCreate::resource);//, Syntax::EventDriven);
+    Syntax create("create", QObject::tr("Create items in a resource"), &AkonadiCreate::create);
+    create.children << Syntax("resource", QObject::tr("Creates a new resource"), &AkonadiCreate::resource);
 
     syntax << create;
     return syntax;
