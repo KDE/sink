@@ -42,17 +42,17 @@ namespace AkonadiRemove
 bool remove(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("A type is required"), "akonadicreate/02");
+        state.printError(QObject::tr("A type is required"), "akonadi_remove/02");
         return false;
     }
 
     if (args.count() < 2) {
-        state.printError(QObject::tr("A resource ID is required to remove items"), "akonadicreate/03");
+        state.printError(QObject::tr("A resource ID is required to remove items"), "akonadi_remove/03");
         return false;
     }
 
     if (args.count() < 3) {
-        state.printError(QObject::tr("An object ID is required to remove items"), "akonadicreate/03");
+        state.printError(QObject::tr("An object ID is required to remove items"), "akonadi_remove/03");
         return false;
     }
 
@@ -67,7 +67,7 @@ bool remove(const QStringList &args, State &state)
     result.waitForFinished();
     if (result.errorCode()) {
         state.printError(QObject::tr("An error occurred while removing %1 from %1: %2").arg(identifier).arg(resourceId).arg(result.errorMessage()),
-                         "akonaid_create_" + QString::number(result.errorCode()));
+                         "akonaid_remove_e" + QString::number(result.errorCode()));
     }
 
     return true;
@@ -88,7 +88,7 @@ bool resource(const QStringList &args, State &state)
     result.waitForFinished();
     if (result.errorCode()) {
         state.printError(QObject::tr("An error occurred while removing the resource %1: %2").arg(resourceId).arg(result.errorMessage()),
-                         "akonaid_create_" + QString::number(result.errorCode()));
+                         "akonaid_remove_e" + QString::number(result.errorCode()));
     }
 
     return true;
@@ -99,10 +99,10 @@ Syntax::List syntax()
 {
     Syntax::List syntax;
 
-    Syntax create("remove");
-    create.children << Syntax("resource", QObject::tr("Removes a resource"), &AkonadiRemove::resource);//, Syntax::EventDriven);
+    Syntax remove("remove", QObject::tr("Remove items in a resource"), &AkonadiRemove::remove);
+    remove.children << Syntax("resource", QObject::tr("Removes a resource"), &AkonadiRemove::resource);//, Syntax::EventDriven);
 
-    syntax << create;
+    syntax << remove;
     return syntax;
 }
 
