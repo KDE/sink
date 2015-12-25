@@ -110,9 +110,15 @@ bool setDebugLevel(const QStringList &commands, State &state)
     return true;
 }
 
-bool printDebugLevel(const QStringList &commands, State &state)
+bool printDebugLevel(const QStringList &, State &state)
 {
     state.printLine(QString::number(state.debugLevel()));
+    return true;
+}
+
+bool printCommandTiming(const QStringList &, State &state)
+{
+    state.printLine(state.commandTiming() ? QObject::tr("on") : QObject::tr("off"));
     return true;
 }
 
@@ -127,10 +133,15 @@ Syntax::List syntax()
 
     Syntax set(QObject::tr("set"), QObject::tr("Sets settings for the session"));
     set.children << Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::setDebugLevel);
+    Syntax setTiming = Syntax(QObject::tr("timing"), QObject::tr("Whether or not to print the time commands take to complete"));
+    setTiming.children << Syntax(QObject::tr("on"), QString(), [](const QStringList &, State &state) -> bool { state.setCommandTiming(true); return true; });
+    setTiming.children << Syntax(QObject::tr("off"), QString(), [](const QStringList &, State &state) -> bool { state.setCommandTiming(false); return true; });
+    set.children << setTiming;
     syntax << set;
 
     Syntax get(QObject::tr("get"), QObject::tr("Gets settings for the session"));
-    get.children << Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::printDebugLevel);
+    get.children << Syntax(QObject::tr("debug"), QObject::tr("The current debug level from 0 to 6"), &CoreSyntax::printDebugLevel);
+    get.children << Syntax(QObject::tr("timing"), QObject::tr("Whether or not to print the time commands take to complete"), &CoreSyntax::printCommandTiming);
     syntax << get;
 
     return syntax;
