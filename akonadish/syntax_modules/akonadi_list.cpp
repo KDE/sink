@@ -41,6 +41,11 @@ namespace AkonadiList
 
 bool list(const QStringList &args, State &state)
 {
+    if (args.isEmpty()) {
+        state.printError(QObject::tr("Please provide at least one type to list (e.g. resource, .."));
+        return false;
+    }
+
     auto resources = args;
     auto type = !resources.isEmpty() ? resources.takeFirst() : QString();
 
