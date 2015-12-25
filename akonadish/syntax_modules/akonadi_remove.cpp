@@ -50,11 +50,6 @@ bool resource(const QStringList &args, State &state)
     auto resourceId = args.at(0);
     Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", resourceId.toLatin1());
 
-    auto map = AkonadishUtils::keyValueMapFromArgs(args);
-    for (auto i = map.begin(); i != map.end(); ++i) {
-        object->setProperty(i.key().toLatin1(), i.value());
-    }
-
     auto result = store.remove(*object).exec();
     result.waitForFinished();
     if (result.errorCode()) {
