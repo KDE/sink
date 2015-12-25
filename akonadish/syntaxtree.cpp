@@ -65,11 +65,24 @@ bool SyntaxTree::run(const QStringList &commands)
     bool success = false;
     m_timeElapsed.start();
     Command command = match(commands);
-    if (command.first && command.first->lambda) {
-        success = command.first->lambda(command.second, m_state);
-        if (success && command.first->interactivity == Syntax::EventDriven) {
-            success = m_state.commandStarted();
+    if (command.first) {
+        if (command.first->lambda) {
+            success = command.first->lambda(command.second, m_state);
+            if (success && command.first->interactivity == Syntax::EventDriven) {
+                success = m_state.commandStarted();
+            }
+        } else if (command.first->children.isEmpty()) {
+            m_state.printError(QObject::tr("Broken command... sorry :("), "st_broken");
+        } else {
+            QStringList keywordList;
+            for (auto syntax: command.first->children) {
+                keywordList << syntax.keyword;
+            }
+            const QString keywords = keywordList.join(" " );
+            m_state.printError(QObject::tr("Command requires additional arguments, one of: %1").arg(keywords));
         }
+    } else {
+        m_state.printError(QObject::tr("Unknown command"), "st_unknown");
     }
 
     if (m_state.commandTiming()) {
