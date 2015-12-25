@@ -70,5 +70,17 @@ QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Akonadi2::Quer
     return model;
 }
 
+QMap<QString, QString> keyValueMapFromArgs(const QStringList &args)
+{
+    //TODO: this is not the most clever of algorithms. preserved during the port of commands
+    // from akonadi2_client ... we can probably do better, however ;)
+    QMap<QString, QString> map;
+    for (int i = 0; i + 2 <= args.size(); i += 2) {
+        map.insert(args.at(i), args.at(i + 1));
+    }
+
+    return map;
+}
+
 }
 

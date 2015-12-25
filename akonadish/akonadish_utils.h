@@ -34,6 +34,7 @@ class StoreBase;
 bool isValidStoreType(const QString &type);
 StoreBase &getStore(const QString &type);
 QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Akonadi2::Query query);
+QMap<QString, QString> keyValueMapFromArgs(const QStringList &args);
 
 /**
  * A small abstraction layer to use the akonadi store with the type available as string.
