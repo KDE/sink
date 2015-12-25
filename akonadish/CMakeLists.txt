@@ -10,6 +10,7 @@ set(akonadi2_cli_SRCS
     syntax_modules/akonadi_list.cpp
     syntax_modules/akonadi_clear.cpp
     syntax_modules/akonadi_count.cpp
+    syntax_modules/akonadi_create.cpp
     syntax_modules/akonadi_sync.cpp
     akonadish_utils.cpp
     repl/repl.cpp
