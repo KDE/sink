@@ -30,5 +30,6 @@ public:
     ~Repl();
 
 private:
+    static void printWelcomeBanner();
     static QString commandHistoryPath();
 };

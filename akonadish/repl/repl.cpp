@@ -25,8 +25,10 @@
 #include <QFile>
 #include <QFinalState>
 #include <QStandardPaths>
+#include <QTextStream>
 
 #include "replStates.h"
+#include "syntaxtree.h"
 
 Repl::Repl(QObject *parent)
     : QStateMachine(parent)
@@ -56,6 +58,7 @@ Repl::Repl(QObject *parent)
     print->addTransition(print, SIGNAL(completed()), eval);
 
     setInitialState(read);
+    printWelcomeBanner();
     start();
 }
 
@@ -65,13 +68,23 @@ Repl::~Repl()
     write_history(commandHistoryPath().toLocal8Bit());
 }
 
+void Repl::printWelcomeBanner()
+{
+    QTextStream out(stdout);
+    out << QObject::tr("Welcome to the Akonadi2 interative shell!\n");
+    out << QObject::tr("Type `help` for information on the available commands.\n");
+    out.flush();
+}
+
 QString Repl::commandHistoryPath()
 {
     const QString path = QStandardPaths::writableLocation(QStandardPaths::DataLocation);
+
     if (!QFile::exists(path)) {
         QDir dir;
         dir.mkpath(path);
     }
+
     return  path + "/repl_history";
 }
 
