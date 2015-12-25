@@ -122,6 +122,29 @@ bool printCommandTiming(const QStringList &, State &state)
     return true;
 }
 
+void printSyntaxBranch(State &state, const Syntax::List &list, int depth)
+{
+    if (list.isEmpty()) {
+        return;
+    }
+
+    if (depth > 0) {
+        state.printLine("\\", depth);
+    }
+
+    for (auto syntax: list) {
+        state.print("|-", depth);
+        state.printLine(syntax.keyword);
+        printSyntaxBranch(state, syntax.children, depth + 1);
+    }
+}
+
+bool printSyntaxTree(const QStringList &, State &state)
+{
+    printSyntaxBranch(state, SyntaxTree::self()->syntax(), 0);
+    return true;
+}
+
 Syntax::List syntax()
 {
     Syntax::List syntax;
@@ -130,6 +153,8 @@ Syntax::List syntax()
     Syntax help(QObject::tr("help"), QObject::tr("Print command information: help [command]"), &CoreSyntax::showHelp);
     help.completer = &CoreSyntax::showHelpCompleter;
     syntax << help;
+
+    syntax << Syntax("syntaxtree", QString(), &printSyntaxTree);
 
     Syntax set(QObject::tr("set"), QObject::tr("Sets settings for the session"));
     set.children << Syntax(QObject::tr("debug"), QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::setDebugLevel);
