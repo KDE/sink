@@ -39,6 +39,40 @@
 namespace AkonadiRemove
 {
 
+bool remove(const QStringList &args, State &state)
+{
+    if (args.isEmpty()) {
+        state.printError(QObject::tr("A type is required"), "akonadicreate/02");
+        return false;
+    }
+
+    if (args.count() < 2) {
+        state.printError(QObject::tr("A resource ID is required to remove items"), "akonadicreate/03");
+        return false;
+    }
+
+    if (args.count() < 3) {
+        state.printError(QObject::tr("An object ID is required to remove items"), "akonadicreate/03");
+        return false;
+    }
+
+    auto type = args[0];
+    auto resourceId = args[1];
+    auto identifier = args[2];
+
+    auto &store = AkonadishUtils::getStore(type);
+    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject(resourceId.toUtf8(), identifier.toUtf8());
+
+    auto result = store.remove(*object).exec();
+    result.waitForFinished();
+    if (result.errorCode()) {
+        state.printError(QObject::tr("An error occurred while removing %1 from %1: %2").arg(identifier).arg(resourceId).arg(result.errorMessage()),
+                         "akonaid_create_" + QString::number(result.errorCode()));
+    }
+
+    return true;
+}
+
 bool resource(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
