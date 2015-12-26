@@ -73,6 +73,10 @@ int main(int argc, char *argv[])
 
         QString line = f.readLine();
         while (!line.isEmpty()) {
+            if (line.startsWith('#')) {
+                line = f.readLine();
+                continue;
+            }
             SyntaxTree::self()->run(SyntaxTree::tokenize(line));
             line = f.readLine();
         }
