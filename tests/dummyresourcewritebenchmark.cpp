@@ -213,6 +213,11 @@ private Q_SLOTS:
         QVERIFY(timeStandardDeviation < 1);
     }
 
+    void getFreePages()
+    {
+        std::system(QString("mdb_stat %1/%2 -ff").arg(Akonadi2::storageLocation()).arg("org.kde.dummy.instance1").toLatin1().constData());
+    }
+
     //This allows to run individual parts without doing a cleanup, but still cleaning up normally
     void testCleanupForCompleteTest()
     {
