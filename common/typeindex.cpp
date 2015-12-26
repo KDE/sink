@@ -62,7 +62,9 @@ void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Akonadi2::Storage::Transaction &transaction) {
         // Trace() << "Indexing " << mType + ".index." + property << value.toByteArray();
-        Index(mType + ".index." + property, transaction).add(value.toByteArray(), identifier);
+        if (value.isValid()) {
+            Index(mType + ".index." + property, transaction).add(value.toByteArray(), identifier);
+        }
     };
     mIndexer.insert(property, indexer);
     mProperties << property;
