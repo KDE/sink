@@ -65,6 +65,10 @@ bool count(const QStringList &args, State &state)
         }
     });
 
+    if (!model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool()) {
+        return true;
+    }
+
     return true;
 }
 
