@@ -71,14 +71,14 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        QString line = f.readLine();
+        QString line = f.readLine().trimmed();
         while (!line.isEmpty()) {
-            if (line.startsWith('#')) {
-                line = f.readLine();
+            if (line.isEmpty() || line.startsWith('#')) {
+                line = f.readLine().trimmed();
                 continue;
             }
             SyntaxTree::self()->run(SyntaxTree::tokenize(line));
-            line = f.readLine();
+            line = f.readLine().trimmed();
         }
         exit(0);
     } else if (!interactive) {
