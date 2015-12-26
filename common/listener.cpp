@@ -35,6 +35,7 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QTimer>
+#include <QTime>
 
 Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent)
     : QObject(parent),
@@ -220,6 +221,8 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             if (Akonadi2::VerifySynchronizeBuffer(verifier)) {
                 auto buffer = Akonadi2::GetSynchronize(commandBuffer.constData());
                 Log() << QString("\tSynchronize request (id %1) from %2").arg(messageId).arg(client.name);
+                auto timer = QSharedPointer<QTime>::create();
+                timer->start();
                 auto job = KAsync::null<void>();
                 if (buffer->sourceSync()) {
                     job = loadResource()->synchronizeWithSource();
@@ -227,7 +230,8 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 if (buffer->localSync()) {
                     job = job.then<void>(loadResource()->processAllMessages());
                 }
-                job.then<void>([callback]() {
+                job.then<void>([callback, timer]() {
+                    Trace() << "Sync took " << timer->elapsed();
                     callback();
                 }).exec();
                 return;
