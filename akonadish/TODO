@@ -1,0 +1,9 @@
+* commands
+    * improve modify/remove/create to dynamically add syntax items for each type
+    * improve modify/remove/create to autocomplete resource names
+* provide a setting to turn on/off user interaction during commands (e.g. deletion confirmations)
+    * add a "ask the user a question" helper in State
+* key/value syntax objects
+* json objects! (set json on; ...)
+* make the shell generic and have it load a plugin matching the name of argv[0] for syntax
+
