@@ -21,6 +21,7 @@
 #include <QCommandLineParser>
 #include <QCommandLineOption>
 #include <QElapsedTimer>
+#include <QDir>
 
 #include "common/clientapi.h"
 #include "common/resource.h"
@@ -407,6 +408,12 @@ int main(int argc, char *argv[])
                 total += size;
             }
             std::cout << "Total [kb]: " << total / 1024 << std::endl;
+            int diskUsage = 0;
+            QDir dir(Akonadi2::storageLocation());
+            for (const auto &folder : dir.entryList(QStringList() << resource + "*")) {
+                diskUsage += Akonadi2::Storage(Akonadi2::storageLocation(), folder, Akonadi2::Storage::ReadOnly).diskUsage();
+            }
+            std::cout << "Disk usage [kb]: " << diskUsage / 1024 << std::endl;
         }
     } else {
         qWarning() << "Unknown command " << command;
