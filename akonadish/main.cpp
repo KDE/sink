@@ -21,6 +21,7 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QFile>
 #include <QTextStream>
 
 #include "syntaxtree.h"
@@ -42,6 +43,8 @@ int main(int argc, char *argv[])
     //TODO: make a json command parse cause that would be awesomesauce
     const bool startJsonListener = !startRepl &&
                                    (argc == 2 && qstrcmp(argv[1], "-") == 0);
+    const bool fromScript = !startRepl && QFile::exists(argv[1]);
+
     //qDebug() << "state at startup is" << interactive << startRepl << startJsonListener;
 
     QCoreApplication app(argc, argv);
@@ -62,6 +65,18 @@ int main(int argc, char *argv[])
 
         State::setHasEventLoop(true);
         return app.exec();
+    } else if (fromScript) {
+        QFile f(argv[1]);
+        if (!f.open(QIODevice::ReadOnly)) { 
+            return 1;
+        }
+
+        QString line = f.readLine();
+        while (!line.isEmpty()) {
+            SyntaxTree::self()->run(SyntaxTree::tokenize(line));
+            line = f.readLine();
+        }
+        exit(0);
     } else if (!interactive) {
         QTextStream inputStream(stdin);
         while (true) {
