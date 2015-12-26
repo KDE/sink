@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
                                    (argc == 2 && qstrcmp(argv[1], "-") == 0);
     const bool fromScript = !startRepl && QFile::exists(argv[1]);
 
-    //qDebug() << "state at startup is" << interactive << startRepl << startJsonListener;
+    //qDebug() << "state at startup is" << interactive << startRepl << startJsonListener << fromScript;
 
     QCoreApplication app(argc, argv);
     app.setApplicationName(argv[0]);
