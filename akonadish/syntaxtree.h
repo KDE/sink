@@ -25,6 +25,8 @@
 #include <QTime>
 #include <QVector>
 
+#include <functional>
+
 class Syntax
 {
 public:
