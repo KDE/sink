@@ -20,6 +20,7 @@
 #include <QDebug>
 #include <QObject> // tr()
 #include <QTimer>
+#include <QDir>
 
 #include "common/resource.h"
 #include "common/storage.h"
@@ -52,6 +53,14 @@ void statResources(const QStringList &resources, const State &state)
             state.printLine(QObject::tr("Size [kb]: %1").arg(size), 1);
             total += size;
         }
+        int diskUsage = 0;
+
+        QDir dir(Akonadi2::storageLocation());
+        for (const auto &folder : dir.entryList(QStringList() << resource + "*")) {
+            diskUsage += Akonadi2::Storage(Akonadi2::storageLocation(), folder, Akonadi2::Storage::ReadOnly).diskUsage();
+        }
+        auto size = diskUsage / 1024;
+        state.printLine(QObject::tr("Disk usage [kb]: %1").arg(size), 1);
     }
 
     state.printLine(QObject::tr("Total [kb]: %1").arg(total));
