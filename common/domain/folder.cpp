@@ -21,6 +21,8 @@
 #include <QVector>
 #include <QByteArray>
 #include <QString>
+#include <QMutex>
+#include <QMutexLocker>
 
 #include "../resultset.h"
 #include "../index.h"
@@ -33,10 +35,13 @@
 
 #include "folder_generated.h"
 
+static QMutex sMutex;
+
 using namespace Akonadi2::ApplicationDomain;
 
 static TypeIndex &getIndex()
 {
+    QMutexLocker locker(&sMutex);
     static TypeIndex *index = 0;
     if (!index) {
         index = new TypeIndex("folder");
