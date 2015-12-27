@@ -20,6 +20,7 @@
 
 #include "log.h"
 #include "index.h"
+#include <QDateTime>
 
 TypeIndex::TypeIndex(const QByteArray &type)
     : mType(type)
@@ -61,9 +62,10 @@ template<>
 void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Akonadi2::Storage::Transaction &transaction) {
-        // Trace() << "Indexing " << mType + ".index." + property << value.toByteArray();
-        if (value.isValid()) {
-            Index(mType + ".index." + property, transaction).add(value.toByteArray(), identifier);
+        const auto date = value.toDateTime();
+        // Trace() << "Indexing " << mType + ".index." + property << date.toString();
+        if (date.isValid()) {
+            Index(mType + ".index." + property, transaction).add(date.toString().toLatin1(), identifier);
         }
     };
     mIndexer.insert(property, indexer);
