@@ -20,7 +20,6 @@
 #pragma once
 
 #include <QObject>
-#include "facadeinterface.h"
 #include "resourceaccess.h"
 #include "resultprovider.h"
 #include "domaintypeadaptorfactoryinterface.h"
@@ -28,15 +27,8 @@
 #include "query.h"
 
 /**
- * A QueryRunner runs a query and updates the corresponding result set.
- * 
- * The lifetime of the QueryRunner is defined by the resut set (otherwise it's doing useless work),
- * and by how long a result set must be updated. If the query is one off the runner dies after the execution,
- * otherwise it lives on the react to changes and updates the corresponding result set.
- * 
- * QueryRunner has to keep ResourceAccess alive in order to keep getting updates.
+ * Base clase because you can't have the Q_OBJECT macro in template classes
  */
-
 class QueryRunnerBase : public QObject
 {
     Q_OBJECT
@@ -74,6 +66,15 @@ private:
     QueryFunction queryFunction;
 };
 
+/**
+ * A QueryRunner runs a query and updates the corresponding result set.
+ * 
+ * The lifetime of the QueryRunner is defined by the resut set (otherwise it's doing useless work),
+ * and by how long a result set must be updated. If the query is one off the runner dies after the execution,
+ * otherwise it lives on the react to changes and updates the corresponding result set.
+ * 
+ * QueryRunner has to keep ResourceAccess alive in order to keep getting updates.
+ */
 template<typename DomainType>
 class QueryRunner : public QueryRunnerBase
 {
@@ -84,25 +85,7 @@ public:
     typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
 
 private:
-    static void replaySet(ResultSet &resultSet, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const QList<QByteArray> &properties);
-
-    void readEntity(const Akonadi2::Storage::NamedDatabase &db, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback);
-
-    ResultSet loadInitialResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters);
-    ResultSet loadIncrementalResultSet(qint64 baseRevision, const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters);
-
-    ResultSet filterSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::NamedDatabase &db, bool initialQuery);
-    std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> getFilter(const QSet<QByteArray> remainingFilters, const Akonadi2::Query &query);
-    qint64 load(const Akonadi2::Query &query, const std::function<ResultSet(Akonadi2::Storage::Transaction &, QSet<QByteArray> &)> &baseSetRetriever, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery);
-    qint64 executeIncrementalQuery(const Akonadi2::Query &query, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
-    qint64 executeInitialQuery(const Akonadi2::Query &query, const typename DomainType::Ptr &parent, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
-
-private:
-    QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > mResultProvider;
     QSharedPointer<Akonadi2::ResourceAccessInterface> mResourceAccess;
-    DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
-    QByteArray mResourceInstanceIdentifier;
-    QByteArray mBufferType;
-    Akonadi2::Query mQuery;
+    QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > mResultProvider;
 };
 

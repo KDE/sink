@@ -30,57 +30,89 @@
 
 using namespace Akonadi2;
 
-static inline ResultSet fullScan(const Akonadi2::Storage::Transaction &transaction, const QByteArray &bufferType)
+/*
+ * This class wraps the actual query implementation.
+ *
+ * This is a worker object that can be moved to a thread to execute the query.
+ * The only interaction point is the ResultProvider, which handles the threadsafe reporting of the result.
+ */
+template<typename DomainType>
+class QueryWorker : public QObject
 {
-    //TODO use a result set with an iterator, to read values on demand
-    QVector<QByteArray> keys;
-    transaction.openDatabase(bufferType + ".main").scan(QByteArray(), [&](const QByteArray &key, const QByteArray &value) -> bool {
-        //Skip internals
-        if (Akonadi2::Storage::isInternalKey(key)) {
-            return true;
-        }
-        keys << Akonadi2::Storage::uidFromKey(key);
-        return true;
-    },
-    [](const Akonadi2::Storage::Error &error) {
-        qWarning() << "Error during query: " << error.message;
-    });
+public:
+    QueryWorker(const Akonadi2::Query &query, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &, const QByteArray &bufferType);
+    virtual ~QueryWorker();
 
-    Trace() << "Full scan on " << bufferType << " found " << keys.size() << " results";
-    return ResultSet(keys);
-}
+    qint64 executeIncrementalQuery(const Akonadi2::Query &query, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
+    qint64 executeInitialQuery(const Akonadi2::Query &query, const typename DomainType::Ptr &parent, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
+
+private:
+    static void replaySet(ResultSet &resultSet, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const QList<QByteArray> &properties);
+
+    void readEntity(const Akonadi2::Storage::NamedDatabase &db, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback);
+
+    ResultSet loadInitialResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters);
+    ResultSet loadIncrementalResultSet(qint64 baseRevision, const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters);
+
+    ResultSet filterSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::NamedDatabase &db, bool initialQuery);
+    std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> getFilter(const QSet<QByteArray> remainingFilters, const Akonadi2::Query &query);
+    qint64 load(const Akonadi2::Query &query, const std::function<ResultSet(Akonadi2::Storage::Transaction &, QSet<QByteArray> &)> &baseSetRetriever, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery);
+
+private:
+    DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
+    QByteArray mResourceInstanceIdentifier;
+    QByteArray mBufferType;
+    Akonadi2::Query mQuery;
+};
+
 
 template<class DomainType>
 QueryRunner<DomainType>::QueryRunner(const Akonadi2::Query &query, const Akonadi2::ResourceAccessInterface::Ptr &resourceAccess, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &factory, const QByteArray &bufferType)
     : QueryRunnerBase(),
-    mResultProvider(new ResultProvider<typename DomainType::Ptr>),
     mResourceAccess(resourceAccess),
-    mDomainTypeAdaptorFactory(factory),
-    mResourceInstanceIdentifier(instanceIdentifier),
-    mBufferType(bufferType),
-    mQuery(query)
+    mResultProvider(new ResultProvider<typename DomainType::Ptr>)
 {
     Trace() << "Starting query";
     //We delegate loading of initial data to the result provider, os it can decide for itself what it needs to load.
-    mResultProvider->setFetcher([this, query](const typename DomainType::Ptr &parent) {
-        Trace() << "Running fetcher";
-        const qint64 newRevision = executeInitialQuery(query, parent, *mResultProvider);
-        //Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
-        if (query.liveQuery) {
-            mResourceAccess->sendRevisionReplayedCommand(newRevision);
-        }
+    mResultProvider->setFetcher([this, query, instanceIdentifier, factory, bufferType](const typename DomainType::Ptr &parent) {
+            Trace() << "Running fetcher";
+            auto resultProvider = mResultProvider;
+            auto result = QtConcurrent::run([query, instanceIdentifier, factory, bufferType, parent, resultProvider]() -> qint64 {
+                QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType);
+                const qint64 newRevision = worker.executeInitialQuery(query, parent, *resultProvider);
+                return newRevision;
+            });
+            //Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
+            if (query.liveQuery) {
+                auto watcher = new QFutureWatcher<qint64>;
+                watcher->setFuture(result);
+                QObject::connect(watcher, &QFutureWatcher<qint64>::finished, watcher, [this, watcher]() {
+                    const auto newRevision = watcher->future().result();
+                    mResourceAccess->sendRevisionReplayedCommand(newRevision);
+                    delete watcher;
+                });
+            }
     });
 
-
-    //In case of a live query we keep the runner for as long alive as the result provider exists
+    // In case of a live query we keep the runner for as long alive as the result provider exists
     if (query.liveQuery) {
         //Incremental updates are always loaded directly, leaving it up to the result to discard the changes if they are not interesting
-        setQuery([this, query] () -> KAsync::Job<void> {
-            return KAsync::start<void>([this, query](KAsync::Future<void> &future) {
-                //TODO execute in thread
-                const qint64 newRevision = executeIncrementalQuery(query, *mResultProvider);
-                mResourceAccess->sendRevisionReplayedCommand(newRevision);
-                future.setFinished();
+        setQuery([this, query, instanceIdentifier, factory, bufferType] () -> KAsync::Job<void> {
+            return KAsync::start<void>([this, query, instanceIdentifier, factory, bufferType](KAsync::Future<void> &future) {
+                auto resultProvider = mResultProvider;
+                auto result = QtConcurrent::run([query, instanceIdentifier, factory, bufferType, resultProvider]() -> qint64 {
+                    QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType);
+                    const qint64 newRevision = worker.executeIncrementalQuery(query, *resultProvider);
+                    return newRevision;
+                });
+                auto watcher = new QFutureWatcher<qint64>;
+                watcher->setFuture(result);
+                QObject::connect(watcher, &QFutureWatcher<qint64>::finished, watcher, [this, &future, watcher]() {
+                    const auto newRevision = watcher->future().result();
+                    mResourceAccess->sendRevisionReplayedCommand(newRevision);
+                    future.setFinished();
+                    delete watcher;
+                });
             });
         });
         //Ensure the connection is open, if it wasn't already opened
@@ -102,8 +134,48 @@ typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr QueryRunner<Doma
     return mResultProvider->emitter();
 }
 
+
+
+static inline ResultSet fullScan(const Akonadi2::Storage::Transaction &transaction, const QByteArray &bufferType)
+{
+    //TODO use a result set with an iterator, to read values on demand
+    QVector<QByteArray> keys;
+    transaction.openDatabase(bufferType + ".main").scan(QByteArray(), [&](const QByteArray &key, const QByteArray &value) -> bool {
+        //Skip internals
+        if (Akonadi2::Storage::isInternalKey(key)) {
+            return true;
+        }
+        keys << Akonadi2::Storage::uidFromKey(key);
+        return true;
+    },
+    [](const Akonadi2::Storage::Error &error) {
+        qWarning() << "Error during query: " << error.message;
+    });
+
+    Trace() << "Full scan on " << bufferType << " found " << keys.size() << " results";
+    return ResultSet(keys);
+}
+
+
 template<class DomainType>
-void QueryRunner<DomainType>::replaySet(ResultSet &resultSet, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const QList<QByteArray> &properties)
+QueryWorker<DomainType>::QueryWorker(const Akonadi2::Query &query, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &factory, const QByteArray &bufferType)
+    : QObject(),
+    mDomainTypeAdaptorFactory(factory),
+    mResourceInstanceIdentifier(instanceIdentifier),
+    mBufferType(bufferType),
+    mQuery(query)
+{
+    Trace() << "Starting query worker";
+}
+
+template<class DomainType>
+QueryWorker<DomainType>::~QueryWorker()
+{
+    Trace() << "Stopped query worker";
+}
+
+template<class DomainType>
+void QueryWorker<DomainType>::replaySet(ResultSet &resultSet, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const QList<QByteArray> &properties)
 {
     int counter = 0;
     while (resultSet.next([&resultProvider, &counter, &properties](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation operation) -> bool {
@@ -128,7 +200,7 @@ void QueryRunner<DomainType>::replaySet(ResultSet &resultSet, Akonadi2::ResultPr
 }
 
 template<class DomainType>
-void QueryRunner<DomainType>::readEntity(const Akonadi2::Storage::NamedDatabase &db, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback)
+void QueryWorker<DomainType>::readEntity(const Akonadi2::Storage::NamedDatabase &db, const QByteArray &key, const std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)> &resultCallback)
 {
     //This only works for a 1:1 mapping of resource to domain types.
     //Not i.e. for tags that are stored as flags in each entity of an imap store.
@@ -150,7 +222,7 @@ void QueryRunner<DomainType>::readEntity(const Akonadi2::Storage::NamedDatabase 
 }
 
 template<class DomainType>
-ResultSet QueryRunner<DomainType>::loadInitialResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)
+ResultSet QueryWorker<DomainType>::loadInitialResultSet(const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)
 {
     if (!query.ids.isEmpty()) {
         return ResultSet(query.ids.toVector());
@@ -168,7 +240,7 @@ ResultSet QueryRunner<DomainType>::loadInitialResultSet(const Akonadi2::Query &q
 }
 
 template<class DomainType>
-ResultSet QueryRunner<DomainType>::loadIncrementalResultSet(qint64 baseRevision, const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)
+ResultSet QueryWorker<DomainType>::loadIncrementalResultSet(qint64 baseRevision, const Akonadi2::Query &query, Akonadi2::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)
 {
     const auto bufferType = mBufferType;
     auto revisionCounter = QSharedPointer<qint64>::create(baseRevision);
@@ -196,7 +268,7 @@ ResultSet QueryRunner<DomainType>::loadIncrementalResultSet(qint64 baseRevision,
 }
 
 template<class DomainType>
-ResultSet QueryRunner<DomainType>::filterSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::NamedDatabase &db, bool initialQuery)
+ResultSet QueryWorker<DomainType>::filterSet(const ResultSet &resultSet, const std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Akonadi2::Storage::NamedDatabase &db, bool initialQuery)
 {
     auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
 
@@ -225,9 +297,8 @@ ResultSet QueryRunner<DomainType>::filterSet(const ResultSet &resultSet, const s
     return ResultSet(generator);
 }
 
-
 template<class DomainType>
-std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> QueryRunner<DomainType>::getFilter(const QSet<QByteArray> remainingFilters, const Akonadi2::Query &query)
+std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> QueryWorker<DomainType>::getFilter(const QSet<QByteArray> remainingFilters, const Akonadi2::Query &query)
 {
     return [remainingFilters, query](const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
         if (!query.ids.isEmpty()) {
@@ -252,7 +323,7 @@ std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr
 }
 
 template<class DomainType>
-qint64 QueryRunner<DomainType>::load(const Akonadi2::Query &query, const std::function<ResultSet(Akonadi2::Storage::Transaction &, QSet<QByteArray> &)> &baseSetRetriever, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery)
+qint64 QueryWorker<DomainType>::load(const Akonadi2::Query &query, const std::function<ResultSet(Akonadi2::Storage::Transaction &, QSet<QByteArray> &)> &baseSetRetriever, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery)
 {
     Akonadi2::Storage storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier);
     storage.setDefaultErrorHandler([](const Akonadi2::Storage::Error &error) {
@@ -269,9 +340,8 @@ qint64 QueryRunner<DomainType>::load(const Akonadi2::Query &query, const std::fu
     return Akonadi2::Storage::maxRevision(transaction);
 }
 
-
 template<class DomainType>
-qint64 QueryRunner<DomainType>::executeIncrementalQuery(const Akonadi2::Query &query, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
+qint64 QueryWorker<DomainType>::executeIncrementalQuery(const Akonadi2::Query &query, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
 {
     QTime time;
     time.start();
@@ -286,7 +356,7 @@ qint64 QueryRunner<DomainType>::executeIncrementalQuery(const Akonadi2::Query &q
 }
 
 template<class DomainType>
-qint64 QueryRunner<DomainType>::executeInitialQuery(const Akonadi2::Query &query, const typename DomainType::Ptr &parent, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
+qint64 QueryWorker<DomainType>::executeInitialQuery(const Akonadi2::Query &query, const typename DomainType::Ptr &parent, Akonadi2::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
 {
     QTime time;
     time.start();
@@ -312,3 +382,6 @@ qint64 QueryRunner<DomainType>::executeInitialQuery(const Akonadi2::Query &query
 template class QueryRunner<Akonadi2::ApplicationDomain::Folder>;
 template class QueryRunner<Akonadi2::ApplicationDomain::Mail>;
 template class QueryRunner<Akonadi2::ApplicationDomain::Event>;
+template class QueryWorker<Akonadi2::ApplicationDomain::Folder>;
+template class QueryWorker<Akonadi2::ApplicationDomain::Mail>;
+template class QueryWorker<Akonadi2::ApplicationDomain::Event>;
