@@ -18,15 +18,13 @@
 */
 #include "queryrunner.h"
 
-#include <QtConcurrent/QtConcurrentRun>
-#include <QFuture>
-#include <QFutureWatcher>
 #include <QTime>
 #include "commands.h"
 #include "log.h"
 #include "storage.h"
 #include "definitions.h"
 #include "domainadaptor.h"
+#include "asyncutils.h"
 
 using namespace Akonadi2;
 
@@ -75,45 +73,36 @@ QueryRunner<DomainType>::QueryRunner(const Akonadi2::Query &query, const Akonadi
     Trace() << "Starting query";
     //We delegate loading of initial data to the result provider, os it can decide for itself what it needs to load.
     mResultProvider->setFetcher([this, query, instanceIdentifier, factory, bufferType](const typename DomainType::Ptr &parent) {
-            Trace() << "Running fetcher";
-            auto resultProvider = mResultProvider;
-            auto result = QtConcurrent::run([query, instanceIdentifier, factory, bufferType, parent, resultProvider]() -> qint64 {
+        Trace() << "Running fetcher";
+        auto resultProvider = mResultProvider;
+        async::run<qint64>([query, instanceIdentifier, factory, bufferType, parent, resultProvider]() -> qint64 {
                 QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType);
                 const qint64 newRevision = worker.executeInitialQuery(query, parent, *resultProvider);
                 return newRevision;
-            });
-            //Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
-            if (query.liveQuery) {
-                auto watcher = new QFutureWatcher<qint64>;
-                watcher->setFuture(result);
-                QObject::connect(watcher, &QFutureWatcher<qint64>::finished, watcher, [this, watcher]() {
-                    const auto newRevision = watcher->future().result();
+            })
+            .template then<void, qint64>([query, this](qint64 newRevision) {
+                //Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
+                if (query.liveQuery) {
                     mResourceAccess->sendRevisionReplayedCommand(newRevision);
-                    delete watcher;
-                });
-            }
+                }
+            }).exec();
     });
 
     // In case of a live query we keep the runner for as long alive as the result provider exists
     if (query.liveQuery) {
         //Incremental updates are always loaded directly, leaving it up to the result to discard the changes if they are not interesting
         setQuery([this, query, instanceIdentifier, factory, bufferType] () -> KAsync::Job<void> {
-            return KAsync::start<void>([this, query, instanceIdentifier, factory, bufferType](KAsync::Future<void> &future) {
-                auto resultProvider = mResultProvider;
-                auto result = QtConcurrent::run([query, instanceIdentifier, factory, bufferType, resultProvider]() -> qint64 {
+            auto resultProvider = mResultProvider;
+            return async::run<qint64>([query, instanceIdentifier, factory, bufferType, resultProvider]() -> qint64 {
                     QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType);
                     const qint64 newRevision = worker.executeIncrementalQuery(query, *resultProvider);
                     return newRevision;
-                });
-                auto watcher = new QFutureWatcher<qint64>;
-                watcher->setFuture(result);
-                QObject::connect(watcher, &QFutureWatcher<qint64>::finished, watcher, [this, &future, watcher]() {
-                    const auto newRevision = watcher->future().result();
+                })
+                .template then<void, qint64>([query, this](qint64 newRevision) {
+                    //Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
                     mResourceAccess->sendRevisionReplayedCommand(newRevision);
-                    future.setFinished();
-                    delete watcher;
-                });
-            });
+                })
+                .template then<void>([](){});
         });
         //Ensure the connection is open, if it wasn't already opened
         //TODO If we are not connected already, we have to check for the latest revision once connected, otherwise we could miss some updates
