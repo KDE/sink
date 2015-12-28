@@ -56,6 +56,7 @@ private Q_SLOTS:
     void updateLowerBoundRevision();
 
 protected:
+    void enableChangeReplay(bool);
     void addType(const QByteArray &type, DomainTypeAdaptorFactoryInterface::Ptr factory, const QVector<Akonadi2::Preprocessor*> &preprocessors);
     virtual KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value);
     void onProcessorError(int errorCode, const QString &errorMessage);

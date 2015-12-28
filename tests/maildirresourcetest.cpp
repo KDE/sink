@@ -59,8 +59,6 @@ private Q_SLOTS:
         copyRecursively(TESTDATAPATH "/maildir1", targetPath);
 
         Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
-        auto factory = Akonadi2::ResourceFactory::load("org.kde.maildir");
-        QVERIFY(factory);
         MaildirResource::removeFromDisk("org.kde.maildir.instance1");
         Akonadi2::ApplicationDomain::AkonadiResource resource;
         resource.setProperty("identifier", "org.kde.maildir.instance1");
@@ -73,6 +71,7 @@ private Q_SLOTS:
     {
         Akonadi2::Store::shutdown(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
         MaildirResource::removeFromDisk("org.kde.maildir.instance1");
+        Akonadi2::Store::start(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
     }
 
     void init()
@@ -234,6 +233,58 @@ private Q_SLOTS:
         auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(mailModel->rowCount(QModelIndex()), 1);
+    }
+
+    void testCreateFolder()
+    {
+        Akonadi2::Query query;
+        query.resources << "org.kde.maildir.instance1";
+        query.syncOnDemand = false;
+        query.processAll = true;
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        Akonadi2::ApplicationDomain::Folder folder("org.kde.maildir.instance1");
+        folder.setProperty("name", "testCreateFolder");
+
+        Akonadi2::Store::create(folder).exec().waitForFinished();
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto targetPath = tempDir.path() + "/maildir1/testCreateFolder";
+        QFileInfo file(targetPath);
+        QTRY_VERIFY(file.exists());
+        QVERIFY(file.isDir());
+    }
+
+    void testRemoveFolder()
+    {
+        Akonadi2::Query query;
+        query.resources << "org.kde.maildir.instance1";
+        query.syncOnDemand = false;
+        query.processAll = true;
+
+        auto targetPath = tempDir.path() + "/maildir1/testCreateFolder";
+
+        Akonadi2::ApplicationDomain::Folder folder("org.kde.maildir.instance1");
+        folder.setProperty("name", "testCreateFolder");
+        Akonadi2::Store::create(folder).exec().waitForFinished();
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        QTRY_VERIFY(QFileInfo(targetPath).exists());
+
+        Akonadi2::Query folderQuery;
+        folderQuery.resources << "org.kde.maildir.instance1";
+        folderQuery.propertyFilter.insert("name", "testCreateFolder");
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(folderQuery);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(QModelIndex()), 1);
+        auto createdFolder = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+
+        Akonadi2::Store::remove(*createdFolder).exec().waitForFinished();
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        QTRY_VERIFY(!QFileInfo(targetPath).exists());
     }
 
 };

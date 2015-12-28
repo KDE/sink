@@ -46,6 +46,13 @@ public:
         return lastReplayedRevision;
     }
 
+    bool allChangesReplayed()
+    {
+        const qint64 topRevision = Storage::maxRevision(mStorage.createTransaction(Storage::ReadOnly));
+        const qint64 lastReplayedRevision = getLastReplayedRevision();
+        return (lastReplayedRevision >= topRevision);
+    }
+
 Q_SIGNALS:
     void changesReplayed();
 
@@ -62,7 +69,8 @@ public Q_SLOTS:
         });
         const qint64 topRevision = Storage::maxRevision(mainStoreTransaction);
 
-        if (lastReplayedRevision < topRevision) {
+        Trace() << "Changereplay from " << lastReplayedRevision << " to " << topRevision;
+        if (lastReplayedRevision <= topRevision) {
             qint64 revision = lastReplayedRevision;
             for (;revision <= topRevision; revision++) {
                 const auto uid = Storage::getUidFromRevision(mainStoreTransaction, revision);
@@ -82,6 +90,7 @@ public Q_SLOTS:
             replayStoreTransaction.commit();
             Trace() << "Replayed until " << revision;
         }
+        emit changesReplayed();
     }
 
 private:
@@ -269,8 +278,7 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
     mSourceChangeReplay = new ChangeReplay(resourceInstanceIdentifier, [this](const QByteArray &type, const QByteArray &key, const QByteArray &value) {
         return this->replay(type, key, value);
     });
-    QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mSourceChangeReplay, &ChangeReplay::revisionChanged);
-    QObject::connect(mSourceChangeReplay, &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
+    enableChangeReplay(true);
     mClientLowerBoundRevision = mPipeline->cleanedUpRevision();
     mProcessor->setOldestUsedRevision(mSourceChangeReplay->getLastReplayedRevision());
 
@@ -283,6 +291,18 @@ GenericResource::~GenericResource()
 {
     delete mProcessor;
     delete mSourceChangeReplay;
+}
+
+void GenericResource::enableChangeReplay(bool enable)
+{
+    if (enable) {
+        QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mSourceChangeReplay, &ChangeReplay::revisionChanged);
+        QObject::connect(mSourceChangeReplay, &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
+        mSourceChangeReplay->revisionChanged();
+    } else {
+        QObject::disconnect(mPipeline.data(), &Pipeline::revisionUpdated, mSourceChangeReplay, &ChangeReplay::revisionChanged);
+        QObject::disconnect(mSourceChangeReplay, &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
+    }
 }
 
 void GenericResource::addType(const QByteArray &type, DomainTypeAdaptorFactoryInterface::Ptr factory, const QVector<Akonadi2::Preprocessor*> &preprocessors)
@@ -380,6 +400,16 @@ KAsync::Job<void> GenericResource::processAllMessages()
         waitForDrained(f, mSynchronizerQueue);
     }).then<void>([this](KAsync::Future<void> &f) {
         waitForDrained(f, mUserQueue);
+    }).then<void>([this](KAsync::Future<void> &f) {
+        if (mSourceChangeReplay->allChangesReplayed()) {
+            f.setFinished();
+        } else {
+            auto context = new QObject;
+            QObject::connect(mSourceChangeReplay, &ChangeReplay::changesReplayed, context, [&f, context]() {
+                delete context;
+                f.setFinished();
+            });
+        }
     });
 }
 

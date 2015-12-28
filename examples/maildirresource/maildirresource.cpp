@@ -63,6 +63,22 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
     Trace() << "Started maildir resource for maildir: " << mMaildirPath;
 }
 
+void MaildirResource::recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Akonadi2::Storage::Transaction &transaction)
+{
+    Index index("rid.mapping." + bufferType, transaction);
+    Index localIndex("localid.mapping." + bufferType, transaction);
+    index.add(remoteId, localId);
+    localIndex.add(localId, remoteId);
+}
+
+void MaildirResource::removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Akonadi2::Storage::Transaction &transaction)
+{
+    Index index("rid.mapping." + bufferType, transaction);
+    Index localIndex("localid.mapping." + bufferType, transaction);
+    index.remove(remoteId, localId);
+    localIndex.remove(localId, remoteId);
+}
+
 QString MaildirResource::resolveRemoteId(const QByteArray &bufferType, const QString &remoteId, Akonadi2::Storage::Transaction &transaction)
 {
     //Lookup local id for remote id, or insert a new pair otherwise
@@ -332,17 +348,62 @@ KAsync::Job<void> MaildirResource::synchronizeWithSource()
 {
     Log() << " Synchronizing";
     return KAsync::start<void>([this]() {
+        //Changereplay would deadlock otherwise when trying to open the synchronization store
+        enableChangeReplay(false);
         auto transaction = Akonadi2::Storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier, Akonadi2::Storage::ReadOnly).createTransaction(Akonadi2::Storage::ReadOnly);
         synchronizeFolders(transaction);
         for (const auto &folder : listAvailableFolders()) {
             synchronizeMails(transaction, folder);
         }
+        Log() << "Done Synchronizing";
+        enableChangeReplay(true);
     });
 }
 
 KAsync::Job<void> MaildirResource::replay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
 {
-    Trace() << "Replaying " << key;
+    //This results in a deadlock during sync
+    Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
+    auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+    const auto uid = Akonadi2::Storage::uidFromKey(key);
+    const auto remoteId = resolveLocalId(type, uid, synchronizationTransaction);
+
+    Trace() << "Replaying " << key << type;
+    if (type == ENTITY_TYPE_FOLDER) {
+        Akonadi2::EntityBuffer buffer(value.data(), value.size());
+        const Akonadi2::Entity &entity = buffer.entity();
+        const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
+        const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
+        const auto operation = metadataBuffer ? metadataBuffer->operation() : Akonadi2::Operation_Creation;
+        if (operation == Akonadi2::Operation_Creation) {
+            //FIXME: This check only works for new entities
+            //Figure out wether we have replayed that revision already to the source
+            if (!remoteId.isEmpty()) {
+                Trace() << "Change is coming from the source";
+                return KAsync::null<void>();
+            }
+            const Akonadi2::ApplicationDomain::Folder folder(mResourceInstanceIdentifier, Akonadi2::Storage::uidFromKey(key), revision, mFolderAdaptorFactory->createAdaptor(entity));
+            auto folderName = folder.getProperty("name").toString();
+            //TODO handle non toplevel folders
+            auto path = mMaildirPath + "/" + folderName;
+            Trace() << "Creating a new folder: " << path;
+            KPIM::Maildir maildir(path, false);
+            maildir.create();
+            recordRemoteId(ENTITY_TYPE_FOLDER, folder.identifier(), path.toUtf8(), synchronizationTransaction);
+        } else if (operation == Akonadi2::Operation_Removal) {
+            const auto uid = Akonadi2::Storage::uidFromKey(key);
+            const auto remoteId = resolveLocalId(ENTITY_TYPE_FOLDER, uid, synchronizationTransaction);
+            const auto path = remoteId;
+            Trace() << "Removing a folder: " << path;
+            KPIM::Maildir maildir(path, false);
+            maildir.remove();
+            removeRemoteId(ENTITY_TYPE_FOLDER, uid, remoteId.toUtf8(), synchronizationTransaction);
+        } else if (operation == Akonadi2::Operation_Modification) {
+            Warning() << "Folder modifications are not implemented";
+        } else {
+            Warning() << "Unkown operation" << operation;
+        }
+    }
     return KAsync::null<void>();
 }
 

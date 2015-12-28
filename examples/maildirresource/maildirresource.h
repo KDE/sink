@@ -41,6 +41,12 @@ private:
     KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
 
     /**
+     * Records a localId to remoteId mapping
+     */
+    void recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Akonadi2::Storage::Transaction &transaction);
+    void removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Akonadi2::Storage::Transaction &transaction);
+
+    /**
      * Tries to find a local id for the remote id, and creates a new local id otherwise.
      * 
      * The new local id is recorded in the local to remote id mapping.

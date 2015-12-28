@@ -71,6 +71,11 @@ public:
     bool create();
 
     /**
+     * Remove the maildir and everything it contains.
+     */
+    bool remove();
+
+    /**
      * Returns the path of this maildir.
      */
     QString path() const;

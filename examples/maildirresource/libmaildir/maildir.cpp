@@ -332,6 +332,13 @@ bool Maildir::create()
     return true;
 }
 
+bool Maildir::remove()
+{
+    QDir dir(d->path);
+    dir.removeRecursively();
+    return true;
+}
+
 QString Maildir::path() const
 {
     return d->path;
