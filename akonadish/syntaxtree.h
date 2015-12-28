@@ -63,7 +63,7 @@ public:
     Syntax::List syntax() const;
     Command match(const QStringList &commands) const;
     Syntax::List nearestSyntax(const QStringList &words, const QString &fragment) const;
-
+    State &state();
     bool run(const QStringList &commands);
 
     static QStringList tokenize(const QString &text);
