@@ -156,7 +156,7 @@ static char *akonadi2_cli_next_tab_complete_match(const char *text, int state)
     if (nearest.isEmpty()) {
         SyntaxTree::Command command = SyntaxTree::self()->match(tab_completion_full_state);
         if (command.first && command.first->completer) {
-            QStringList commandCompletions = command.first->completer(tab_completion_full_state, fragment);
+            QStringList commandCompletions = command.first->completer(tab_completion_full_state, fragment, SyntaxTree::self()->state());
             if (commandCompletions.size() > state) {
                 return qstrdup(commandCompletions[state].toUtf8());
             }

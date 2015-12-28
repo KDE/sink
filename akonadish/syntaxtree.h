@@ -47,7 +47,7 @@ public:
     QString help;
     Interactivity interactivity;
     std::function<bool(const QStringList &, State &)> lambda;
-    std::function<QStringList(const QStringList &, const QString &)> completer;
+    std::function<QStringList(const QStringList &, const QString &, State &state)> completer;
 
     QVector<Syntax> children;
 };

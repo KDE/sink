@@ -76,7 +76,7 @@ bool showHelp(const QStringList &commands, State &state)
     return true;
 }
 
-QStringList showHelpCompleter(const QStringList &commands, const QString &fragment)
+QStringList showHelpCompleter(const QStringList &commands, const QString &fragment, State &)
 {
     QStringList items;
 
