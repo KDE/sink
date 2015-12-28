@@ -168,6 +168,11 @@ Syntax::List SyntaxTree::nearestSyntax(const QStringList &words, const QString &
     return matches;
 }
 
+State &SyntaxTree::state()
+{
+    return m_state;
+}
+
 QStringList SyntaxTree::tokenize(const QString &text)
 {
     //TODO: properly tokenize (e.g. "foo bar" should not become ['"foo', 'bar"']a

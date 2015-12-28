@@ -58,10 +58,10 @@ bool sync(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax::List syntax;
-    syntax << Syntax("sync", QObject::tr("Syncronizes all resources that are listed; and empty list triggers a syncronizaton on all resources"), &AkonadiSync::sync, Syntax::EventDriven );
+    Syntax sync("sync", QObject::tr("Syncronizes all resources that are listed; and empty list triggers a syncronizaton on all resources"), &AkonadiSync::sync, Syntax::EventDriven );
+    sync.completer = &AkonadishUtils::resourceCompleter;
 
-    return syntax;
+    return Syntax::List() << sync;
 }
 
 REGISTER_SYNTAX(AkonadiSync)

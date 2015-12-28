@@ -48,7 +48,8 @@ int main(int argc, char *argv[])
     //qDebug() << "state at startup is" << interactive << startRepl << startJsonListener << fromScript;
 
     QCoreApplication app(argc, argv);
-    app.setApplicationName(argv[0]);
+    app.setApplicationName(fromScript ? "interactive-app-shell" : argv[0]);
+    //app.setApplicationName(argv[0]);
 
     if (startRepl || startJsonListener) {
         if (startRepl) {
@@ -71,26 +72,29 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        QString line = f.readLine().trimmed();
+        QString line = f.readLine();
         while (!line.isEmpty()) {
-            if (line.isEmpty() || line.startsWith('#')) {
-                line = f.readLine().trimmed();
-                continue;
+            line = line.trimmed();
+
+            if (!line.isEmpty() && !line.startsWith('#')) {
+                SyntaxTree::self()->run(SyntaxTree::tokenize(line));
             }
-            SyntaxTree::self()->run(SyntaxTree::tokenize(line));
-            line = f.readLine().trimmed();
+
+            line = f.readLine();
         }
         exit(0);
     } else if (!interactive) {
         QTextStream inputStream(stdin);
-        while (true) {
-            const QString input = inputStream.readLine();
-            if (input.isEmpty()) {
-                ::exit(0);
+
+        QString line = inputStream.readLine();
+        while (!line.isEmpty()) {
+            line = line.trimmed();
+
+            if (!line.isEmpty() && !line.startsWith('#')) {
+                SyntaxTree::self()->run(SyntaxTree::tokenize(line));
             }
 
-            const QStringList commands = SyntaxTree::tokenize(input);
-            SyntaxTree::self()->run(commands);
+            line = inputStream.readLine();
         }
     } else {
         QStringList commands = app.arguments();

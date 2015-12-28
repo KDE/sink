@@ -50,10 +50,10 @@ bool clear(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax::List syntax;
-    syntax << Syntax("clear", QObject::tr("Clears the local cache of one or more resources (be careful!)"), &AkonadiClear::clear);
+    Syntax clear("clear", QObject::tr("Clears the local cache of one or more resources (be careful!)"), &AkonadiClear::clear);
+    clear.completer = &AkonadishUtils::resourceCompleter;
 
-    return syntax;
+    return Syntax::List() << clear;
 }
 
 REGISTER_SYNTAX(AkonadiClear)

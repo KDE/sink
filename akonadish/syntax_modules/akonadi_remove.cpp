@@ -97,13 +97,12 @@ bool resource(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax::List syntax;
-
     Syntax remove("remove", QObject::tr("Remove items in a resource"), &AkonadiRemove::remove);
-    remove.children << Syntax("resource", QObject::tr("Removes a resource"), &AkonadiRemove::resource);//, Syntax::EventDriven);
+    Syntax resource("resource", QObject::tr("Removes a resource"), &AkonadiRemove::resource);//, Syntax::EventDriven);
+    resource.completer = &AkonadishUtils::resourceCompleter;
+    remove.children << resource;
 
-    syntax << remove;
-    return syntax;
+    return Syntax::List() << remove;
 }
 
 REGISTER_SYNTAX(AkonadiRemove)

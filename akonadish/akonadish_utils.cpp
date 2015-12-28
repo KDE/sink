@@ -25,10 +25,11 @@
 namespace AkonadishUtils
 {
 
+static QStringList s_types = QStringList() << "resource" << "folder" << "mail" << "event";
+
 bool isValidStoreType(const QString &type)
 {
-    static const QSet<QString> types = QSet<QString>() << "folder" << "mail" << "event" << "resource";
-    return types.contains(type);
+    return s_types.contains(type);
 }
 
 StoreBase &getStore(const QString &type)
@@ -68,6 +69,69 @@ QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Akonadi2::Quer
     auto model = getStore(type).loadModel(query);
     Q_ASSERT(model);
     return model;
+}
+
+QStringList resourceIds(State &state)
+{
+    QStringList resources;
+    Akonadi2::Query query;
+    query.syncOnDemand = false;
+    query.processAll = false;
+    query.liveQuery = false;
+    auto model = AkonadishUtils::loadModel("resource", query);
+
+    QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, &resources] (const QModelIndex &index, int start, int end) mutable {
+        for (int i = start; i <= end; i++) {
+            auto object = model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectBaseRole).value<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr>();
+            resources << object->identifier();
+        }
+    });
+
+    QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
+        if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
+            state.commandFinished();
+        }
+    });
+
+    state.commandStarted();
+
+    return resources;
+}
+
+QStringList filtered(const QStringList &list, const QString &fragment)
+{
+    if (fragment.isEmpty()) {
+        return list;
+    }
+
+    QStringList filtered;
+    for (auto item: list) {
+        if (item.startsWith(fragment)) {
+            filtered << item;
+        }
+    }
+
+    return filtered;
+}
+
+QStringList resourceCompleter(const QStringList &, const QString &fragment, State &state)
+{
+    return filtered(resourceIds(state), fragment);
+}
+
+QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &fragment, State &state)
+{
+    static QStringList types = QStringList() << "resource" << "folder" << "mail" << "event";
+    if (commands.count() == 1) {
+        return filtered(s_types, fragment);
+    }
+
+    return filtered(resourceIds(state), fragment);
+}
+
+QStringList typeCompleter(const QStringList &commands, const QString &fragment, State &state)
+{
+    return filtered(s_types, fragment);
 }
 
 QMap<QString, QString> keyValueMapFromArgs(const QStringList &args)

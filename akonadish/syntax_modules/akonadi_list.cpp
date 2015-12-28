@@ -72,7 +72,6 @@ bool list(const QStringList &args, State &state)
 
     //qDebug() << "Listing";
     int colSize = 38; //Necessary to display a complete UUID
-    state.print("  " + QObject::tr("Column") + "     ");
     state.print(QObject::tr("Resource").leftJustified(colSize, ' ', true) +
                 QObject::tr("Identifier").leftJustified(colSize, ' ', true));
     for (int i = 0; i < model->columnCount(QModelIndex()); i++) {
@@ -82,9 +81,8 @@ bool list(const QStringList &args, State &state)
 
     QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, colSize, state](const QModelIndex &index, int start, int end) {
         for (int i = start; i <= end; i++) {
-            state.print("  " + QObject::tr("Row %1").arg(QString::number(model->rowCount())).rightJustified(4, ' ') + ": ");
             auto object = model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectBaseRole).value<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr>();
-            state.print("  " + object->resourceInstanceIdentifier().leftJustified(colSize, ' ', true));
+            state.print(object->resourceInstanceIdentifier().leftJustified(colSize, ' ', true));
             state.print(object->identifier().leftJustified(colSize, ' ', true));
             for (int col = 0; col < model->columnCount(QModelIndex()); col++) {
                 state.print(" | " + model->data(model->index(i, col, index)).toString().leftJustified(colSize, ' ', true));
@@ -108,10 +106,9 @@ bool list(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax::List syntax;
-    syntax << Syntax("list", QObject::tr("List all resources, or the contents of one or more resources"), &AkonadiList::list, Syntax::EventDriven);
-
-    return syntax;
+    Syntax list("list", QObject::tr("List all resources, or the contents of one or more resources"), &AkonadiList::list, Syntax::EventDriven);
+    list.completer = &AkonadishUtils::resourceOrTypeCompleter;
+    return Syntax::List() << list;
 }
 
 REGISTER_SYNTAX(AkonadiList)
