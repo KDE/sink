@@ -106,10 +106,9 @@ bool list(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax::List syntax;
-    syntax << Syntax("list", QObject::tr("List all resources, or the contents of one or more resources"), &AkonadiList::list, Syntax::EventDriven);
-
-    return syntax;
+    Syntax list("list", QObject::tr("List all resources, or the contents of one or more resources"), &AkonadiList::list, Syntax::EventDriven);
+    list.completer = &AkonadishUtils::resourceOrTypeCompleter;
+    return Syntax::List() << list;
 }
 
 REGISTER_SYNTAX(AkonadiList)

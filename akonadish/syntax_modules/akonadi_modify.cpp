@@ -109,7 +109,7 @@ Syntax::List syntax()
 {
     Syntax modify("modify", QObject::tr("Modify items in a resource"), &AkonadiModify::modify);
     Syntax resource("resource", QObject::tr("Modify a resource"), &AkonadiModify::resource);//, Syntax::EventDriven);
-    resource.completer = &AkonadishUtils::resourceCompleter;
+    resource.completer = &AkonadishUtils::resourceOrTypeCompleter;
     modify.children << resource;
 
     return Syntax::List() << modify;

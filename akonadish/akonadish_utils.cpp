@@ -25,10 +25,11 @@
 namespace AkonadishUtils
 {
 
+static QStringList s_types = QStringList() << "resource" << "folder" << "mail" << "event";
+
 bool isValidStoreType(const QString &type)
 {
-    static const QSet<QString> types = QSet<QString>() << "folder" << "mail" << "event" << "resource";
-    return types.contains(type);
+    return s_types.contains(type);
 }
 
 StoreBase &getStore(const QString &type)
@@ -97,21 +98,40 @@ QStringList resourceIds(State &state)
     return resources;
 }
 
-QStringList resourceCompleter(const QStringList &commands, const QString &fragment, State &state)
+QStringList filtered(const QStringList &list, const QString &fragment)
 {
-    QStringList resources = resourceIds(state);
     if (fragment.isEmpty()) {
-        return resources;
+        return list;
     }
 
     QStringList filtered;
-    for (auto resource: resources) {
-        if (resource.startsWith(fragment)) {
-            filtered << resource;
+    for (auto item: list) {
+        if (item.startsWith(fragment)) {
+            filtered << item;
         }
     }
 
     return filtered;
+}
+
+QStringList resourceCompleter(const QStringList &, const QString &fragment, State &state)
+{
+    return filtered(resourceIds(state), fragment);
+}
+
+QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &fragment, State &state)
+{
+    static QStringList types = QStringList() << "resource" << "folder" << "mail" << "event";
+    if (commands.count() == 1) {
+        return filtered(s_types, fragment);
+    }
+
+    return filtered(resourceIds(state), fragment);
+}
+
+QStringList typeCompleter(const QStringList &commands, const QString &fragment, State &state)
+{
+    return filtered(s_types, fragment);
 }
 
 QMap<QString, QString> keyValueMapFromArgs(const QStringList &args)
