@@ -80,11 +80,12 @@ static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, c
 template <class DomainType>
 QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 {
-    Trace() << "Requested: " << query.requestedProperties;
-    Trace() << "Filter: " << query.propertyFilter;
-    Trace() << "Parent: " << query.parentProperty;
-    Trace() << "Ids: " << query.ids;
-    Trace() << "IsLive: " << query.liveQuery;
+    Trace() << "Query: ";
+    Trace() << "  Requested: " << query.requestedProperties;
+    Trace() << "  Filter: " << query.propertyFilter;
+    Trace() << "  Parent: " << query.parentProperty;
+    Trace() << "  Ids: " << query.ids;
+    Trace() << "  IsLive: " << query.liveQuery;
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr> >::create(query, query.requestedProperties);
 
     //* Client defines lifetime of model
