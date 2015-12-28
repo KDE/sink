@@ -10,6 +10,8 @@
 #include "log.h"
 #include "definitions.h"
 
+static int sBatchSize = 100;
+
 using namespace Akonadi2;
 
 /**
@@ -206,8 +208,7 @@ private slots:
         }).then(KAsync::dowhile(
             [queue]() { return !queue->isEmpty(); },
             [this, queue](KAsync::Future<void> &future) {
-                const int batchSize = 100;
-                queue->dequeueBatch(batchSize, [this](const QByteArray &data) {
+                queue->dequeueBatch(sBatchSize, [this](const QByteArray &data) {
                         return KAsync::start<void>([this, data](KAsync::Future<void> &future) {
                             processQueuedCommand(data).then<void, qint64>([&future, this](qint64 createdRevision) {
                                 Trace() << "Created revision " << createdRevision;
@@ -357,11 +358,10 @@ void GenericResource::enqueueCommand(MessageQueue &mq, int commandId, const QByt
 void GenericResource::processCommand(int commandId, const QByteArray &data)
 {
     static int modifications = 0;
-    const int batchSize = 100;
     mUserQueue.startTransaction();
     enqueueCommand(mUserQueue, commandId, data);
     modifications++;
-    if (modifications >= batchSize) {
+    if (modifications >= sBatchSize) {
         mUserQueue.commit();
         modifications = 0;
         mCommitQueueTimer.stop();
