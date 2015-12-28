@@ -33,7 +33,9 @@ A entity is uniquely identified by:
 The additional revision identifies a specific instance/version of the entity.
 
 Uri Scheme:
-  akonadi://resource/id:revision
+```
+akonadi://resource/id:revision
+```
 
 ## Store Entities
 Each entity can be as normalized/denormalized as useful. It is not necessary to have a solution that fits everything.
@@ -64,7 +66,7 @@ Event {
 }
 ```
 
-Of course any combination of the two can be used, including duplicating data into individual properties while keeping the complete struct intact. The question then becomes though which copy is used for conflict resolution (perhaps this would result in more problems than it solves).
+Of course any combination of the two can be used, including duplicating data into individual properties while keeping the complete struct intact.
 
 #### Optional Properties
 For each domain type, we want to define a set of required and a set of optional properties. The required properties are the minimum bar for each resource, and are required in order for applications to work as expected. Optional properties may only be shown by the UI if actually supported by the backend.
@@ -79,17 +81,21 @@ The advantage of this is that a resource only needs to specify a minimal set of 
 Each entity-value in the key-value store consists of the following individual buffers:
 
 * Metadata: metadata that is required for every entity (revision, ....)
-* Resource: the buffer defined by the resource (synchronized properties, values that help for synchronization such as remoteId's)
-* Local-only: default storage buffer that is domain-type specific.
+* Local: default storage buffer that is domain-type specific.
+* Resource: the buffer defined by the resource (additional properties, values that help for synchronization)
 
 ## Database
-### Storage Layout
+### Database Layout
 Storage is split up in multiple named databases that reside in the same database environment.
 
 ```
- $DATADIR/storage/$RESOURCE_IDENTIFIER/$BUFFERTYPE.main
-                                                $BUFFERTYPE.index.$INDEXTYPE
+ $DATADIR/storage/$RESOURCE_IDENTIFIER/
 ```
+
+* $BUFFERTYPE.main: The primary store for a type
+* $BUFFERTYPE.index.$PROPERTY: Secondary indexes
+* revisionType: Allows to lookup the type by revision to find the correct primary or secondary db's.
+* revisions: Allows to lookup the entity id by revision
 
 The resource can be effectively removed from disk (besides configuration),
 by deleting the directories matching `$RESOURCE_IDENTIFIER*` and everything they contain.
@@ -100,8 +106,24 @@ by deleting the directories matching `$RESOURCE_IDENTIFIER*` and everything they
 ### Revisions
 Every operation (create/delete/modify), leads to a new revision. The revision is an ever increasing number for the complete store.
 
+Each entity is stored with a key consisting of its id and the revision. This way it is possible to lookup older revision.
+
+Removing an entity simply results in a new revision of the entitiy recording the removal.
+
+Secondary indexes always refer to the latest revision.
+
 #### Design Considerations
 By having one revision for the complete store instead of one per type, the change replay always works across all types. This is especially important in the write-back mechanism that replays the changes to the source.
+
+### Revision cleanup
+Because the store would grow infinitely, old revisions need to be removed.
+The resource maintains a "lower bound revision", which is the lowest revision of any change-replaying component (such as clients and write-back).
+For all lower revisions the cleanup will remove any revision that:
+
+* is a delete command (the revision is no longer existing)
+* has a newer revision for the same entity (the revision is outdated)
+
+By doing cleanups continously, we avoid keeping outdated data.
 
 ### BLOB properties
 Files are used to handle opaque large properties that should not end up in memory. BLOB properties are in their nature never queriable (extract parts of it to other properties if indexes are required).
@@ -110,7 +132,7 @@ For reading:
 
 Resources...
 
-* store the file in $DATADIR/storage/$RESOURCE_IDENTIFIER_files/
+* store the file in $DATADIR/storage/$RESOURCE_IDENTIFIER.files/
 * store the filename in the blob property.
 * delete the file when the corresponding entity is deleted.
 
@@ -132,7 +154,7 @@ Clients..
 
 Resources..
 
-* move the file to $DATADIR/storage/$RESOURCE_IDENTIFIER_files/
+* move the file to $DATADIR/storage/$RESOURCE_IDENTIFIER.files/
 * store the new path in the entity
 
 #### Design Considerations
@@ -145,7 +167,7 @@ Using regular files as the interface has the advantages:
 The copy is necessary to guarantee that the file remains for the client/resource even if the resource removes the file on it's side as part of a sync.
 The copy could be optimized by using hardlinks, which is not a portable solution though. For some next-gen copy-on-write filesystems copying is a very cheap operation.
 
-### Database choice
+## Database choice
 By design we're interested in key-value stores or perhaps document databases. This is because a fixed schema is not useful for this design, which makes
 SQL not very useful (it would just be a very slow key-value store). While document databases would allow for indexes on certain properties (which is something we need), we did not yet find any contenders that looked like they would be useful for this system.
 
@@ -216,9 +238,10 @@ Other useful properties:
     * reading about 30% the speed of lmdb
     * slow writes with transactions
 
-## Indexes
+### Result
+LMDB was chosen as one of the few contenders that are embeddable and have true multi process support. It also outperformed unqllite significantly, although its write performance and disk usage aren't ideal.
 
-### Index Choice
+### Indexes
 Additionally to the primary store, indexes are required for efficient lookups.
 
 Since indexes always need to be updated they directly affect how fast we can write data. While reading only a subset of the available indexes is typically used, so a slow index doesn't affect all quries.
@@ -244,6 +267,11 @@ Since indexes always need to be updated they directly affect how fast we can wri
 * lucenePlusPlus
     * fast full text searching
     * MVCC concurrency
+
+### Result
+For regular secondary indexes LMDB is used as well, because it's sufficient for key lookups, and by using the same database, we can store the indexed data directly in the same transaction.
+
+No solution for full-text indexes has been chosen yet. Baloo implements a fulltext index on top of LMDB though.
 
 ## Useful Resources
 * LMDB
