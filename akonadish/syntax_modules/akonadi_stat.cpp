@@ -111,10 +111,10 @@ bool stat(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax::List syntax;
-    syntax << Syntax("stat", QObject::tr("Shows database usage for the resources requested"), &AkonadiStat::stat, Syntax::EventDriven);
+    Syntax state("stat", QObject::tr("Shows database usage for the resources requested"), &AkonadiStat::stat, Syntax::EventDriven);
+    state.completer = &AkonadishUtils::resourceCompleter;
 
-    return syntax;
+    return Syntax::List() << state;
 }
 
 REGISTER_SYNTAX(AkonadiStat)

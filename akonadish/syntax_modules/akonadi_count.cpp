@@ -74,10 +74,10 @@ bool count(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax::List syntax;
-    syntax << Syntax("count", QObject::tr("Returns the number of items of a given type in a resource. Usage: count <type> <resource>"), &AkonadiCount::count, Syntax::EventDriven);
+    Syntax count("count", QObject::tr("Returns the number of items of a given type in a resource. Usage: count <type> <resource>"), &AkonadiCount::count, Syntax::EventDriven);
+    count.completer = &AkonadishUtils::resourceCompleter;
 
-    return syntax;
+    return Syntax::List() << count;
 }
 
 REGISTER_SYNTAX(AkonadiCount)

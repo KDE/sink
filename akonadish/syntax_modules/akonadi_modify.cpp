@@ -107,13 +107,12 @@ bool resource(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax::List syntax;
-
     Syntax modify("modify", QObject::tr("Modify items in a resource"), &AkonadiModify::modify);
-    modify.children << Syntax("resource", QObject::tr("Modify a resource"), &AkonadiModify::resource);//, Syntax::EventDriven);
+    Syntax resource("resource", QObject::tr("Modify a resource"), &AkonadiModify::resource);//, Syntax::EventDriven);
+    resource.completer = &AkonadishUtils::resourceCompleter;
+    modify.children << resource;
 
-    syntax << modify;
-    return syntax;
+    return Syntax::List() << modify;
 }
 
 REGISTER_SYNTAX(AkonadiModify)
