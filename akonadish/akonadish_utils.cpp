@@ -70,6 +70,50 @@ QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Akonadi2::Quer
     return model;
 }
 
+QStringList resourceIds(State &state)
+{
+    QStringList resources;
+    Akonadi2::Query query;
+    query.syncOnDemand = false;
+    query.processAll = false;
+    query.liveQuery = false;
+    auto model = AkonadishUtils::loadModel("resource", query);
+
+    QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, &resources] (const QModelIndex &index, int start, int end) mutable {
+        for (int i = start; i <= end; i++) {
+            auto object = model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectBaseRole).value<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr>();
+            resources << object->identifier();
+        }
+    });
+
+    QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
+        if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
+            state.commandFinished();
+        }
+    });
+
+    state.commandStarted();
+
+    return resources;
+}
+
+QStringList resourceCompleter(const QStringList &commands, const QString &fragment, State &state)
+{
+    QStringList resources = resourceIds(state);
+    if (fragment.isEmpty()) {
+        return resources;
+    }
+
+    QStringList filtered;
+    for (auto resource: resources) {
+        if (resource.startsWith(fragment)) {
+            filtered << resource;
+        }
+    }
+
+    return filtered;
+}
+
 QMap<QString, QString> keyValueMapFromArgs(const QStringList &args)
 {
     //TODO: this is not the most clever of algorithms. preserved during the port of commands

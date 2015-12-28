@@ -26,6 +26,8 @@
 #include "common/query.h"
 #include "common/clientapi.h"
 
+#include "state.h"
+
 namespace AkonadishUtils
 {
 
@@ -34,6 +36,8 @@ class StoreBase;
 bool isValidStoreType(const QString &type);
 StoreBase &getStore(const QString &type);
 QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Akonadi2::Query query);
+QStringList resourceIds();
+QStringList resourceCompleter(const QStringList &, const QString &fragment, State &state);
 QMap<QString, QString> keyValueMapFromArgs(const QStringList &args);
 
 /**
