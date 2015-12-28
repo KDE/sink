@@ -17,6 +17,7 @@ The client API consists of:
 A set of standardized domain types is defined. This is necessary to decouple applications from resources (so a calendar can access events from all resources), and to have a "language" for queries.
 
 The definition of the domain model directly affects:
+
 * granularity for data retrieval (email property, or individual subject, date, ...)
 * queriable properties for filtering and sorting (sender, id, ...)
 
@@ -24,6 +25,7 @@ The purpose of these domain types is strictly to be the interface and the types 
 
 ## Store Facade
 The store is always accessed through a store specific facade, which hides:
+
 * store access (one store could use a database, and another one plain files)
 * message type (flatbuffers, ...)
 * indexes
@@ -69,6 +71,7 @@ Queries can be kept open (live) to receive updates as the store changes.
 
 ### Query
 The query consists of:
+
 * a set of filters to match the wanted entities
 * the set of properties to retrieve for each entity
 

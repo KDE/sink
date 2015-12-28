@@ -5,12 +5,9 @@ The resource consists of:
 * a configuration setting of the filters
 
 # Synchronizer
-* The synchronization can either:
-    * Generate a full diff directly on top of the db. The diffing process can work against a single revision/snapshot (using transactions). It then generates a necessary changeset for the store.
-    * If the source supports incremental changes the changeset can directly be generated from that information.
+The synchronizer process is responsible for processing all commands, executing synchronizations with the source, and replaying changes to the source.
 
-The changeset is then simply inserted in the regular modification queue and processed like all other modifications.
-The synchronizer already knows that it doesn't have to replay this changeset to the source, since replay no longer goes via the store.
+Processing of commands happens in the pipeline which executes all preprocessors ebfore the entity is persisted.
 
 # Preprocessors
 Preprocessors are small processors that are guaranteed to be processed before an new/modified/deleted entity reaches storage. They can therefore be used for various tasks that need to be executed on every entity.
@@ -106,7 +103,7 @@ The indexes status information can be recorded using the latest revision the ind
 Most preprocessors will likely be used by several resources, and are either completely generic, or domain specific (such as only for mail).
 It is therefore desirable to have default implementations for common preprocessors that are ready to be plugged in.
 
-The domain types provide a generic interface to access most properties of the entities, on top of which generic preprocessors can be implemented.
+The domain type adaptors provide a generic interface to access most properties of the entities, on top of which generic preprocessors can be implemented.
 It is that way trivial to i.e. implement a preprocessor that populates a hierarchy index of collections.
 
 ## Preprocessors generating additional entities
@@ -116,3 +113,11 @@ In such a case the preprocessor must invoke the complete pipeline for the new en
 
 # Pipeline
 A pipeline is an assembly of a set of preprocessors with a defined order. A modification is always persisted at the end of the pipeline once all preprocessors have been processed.
+
+# Synchronization / Change Replay
+* The synchronization can either:
+    * Generate a full diff directly on top of the db. The diffing process can work against a single revision/snapshot (using transactions). It then generates a necessary changeset for the store.
+    * If the source supports incremental changes the changeset can directly be generated from that information.
+
+The changeset is then simply inserted in the regular modification queue and processed like all other modifications. The synchronizer has to ensure only changes are replayed to the source that didn't come from it already.
+

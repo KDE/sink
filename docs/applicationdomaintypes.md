@@ -2,6 +2,7 @@
 A set of standardized domain types is defined. This is necessary to decouple applications from resources (so a calendar can access events from all resources), and to have a "language" for queries.
 
 The definition of the domain model directly affects:
+
 * granularity for data retrieval (email property, or individual subject, date, ...)
 * queriable properties for filtering and sorting (sender, id, ...)
 

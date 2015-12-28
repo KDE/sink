@@ -14,7 +14,7 @@ It is recommended to familiarize yourself with the terms before going further in
 * store facade: An object provided by resources which provides transformations between domain objects and the store.
 * synchronizer: The operating system process responsible for overseeing the process of modifying and synchronizing a store. To accomplish this, a synchronizer loads the correct resource plugin, manages pipelines and handles client communication. One synchronizer is created for each source that is accessed by clients; these processes are shared by all clients.
 * Preprocessor: A component that takes an entity and performs some modification of it (e.g. changes the folder an email is in) or processes it in some way (e.g. indexes it)
-* pipeline: A run-time definable set of filters which are applied to an entity after a resource has performed a specific kind of function on it (add, update, remove)
+* pipeline: A run-time definable set of filters which are applied to an entity after a resource has performed a specific kind of function on it (create, modify, delete)
 * query: A declarative method for requesting entities from one or more sources that match a given set of constraints
 * command: Clients request modifications, additions and deletions to the store by sending commands to a synchronizer for processing
 * command queue: A queue of commands kept by the synchronizer to ensure durability and, when necessary, replayability

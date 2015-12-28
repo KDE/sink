@@ -27,7 +27,9 @@ Entity {
 The store consists of entities that have each an id and a set of properties. Each entity can have multiple revisions.
 
 A entity is uniquely identified by:
+
 * Resource + Id
+
 The additional revision identifies a specific instance/version of the entity.
 
 Uri Scheme:
@@ -37,8 +39,10 @@ Uri Scheme:
 Each entity can be as normalized/denormalized as useful. It is not necessary to have a solution that fits everything.
 
 Denormalized:
+
 * priority is that mime message stays intact (signatures/encryption)
 * could we still provide a streaming api for attachments?
+
 ```
 Mail {
   id
@@ -47,6 +51,7 @@ Mail {
 ```
 
 Normalized:
+
 * priority is that we can access individual members efficiently.
 * we don't care about exact reproducability of e.g. ical file
 ```
@@ -72,6 +77,7 @@ The advantage of this is that a resource only needs to specify a minimal set of 
 
 ### Value Format
 Each entity-value in the key-value store consists of the following individual buffers:
+
 * Metadata: metadata that is required for every entity (revision, ....)
 * Resource: the buffer defined by the resource (synchronized properties, values that help for synchronization such as remoteId's)
 * Local-only: default storage buffer that is domain-type specific.
@@ -81,7 +87,7 @@ Each entity-value in the key-value store consists of the following individual bu
 Storage is split up in multiple named databases that reside in the same database environment.
 
 ```
- $DATADIR/akonadi2/storage/$RESOURCE_IDENTIFIER/$BUFFERTYPE.main
+ $DATADIR/storage/$RESOURCE_IDENTIFIER/$BUFFERTYPE.main
                                                 $BUFFERTYPE.index.$INDEXTYPE
 ```
 
@@ -103,29 +109,35 @@ Files are used to handle opaque large properties that should not end up in memor
 For reading:
 
 Resources...
-* store the file in ~/akonadi2/storage/$RESOURCE_IDENTIFIER_files/
+
+* store the file in $DATADIR/storage/$RESOURCE_IDENTIFIER_files/
 * store the filename in the blob property.
 * delete the file when the corresponding entity is deleted.
 
 Queries...
+
 * Copy the requested property to /tmp/akonadi2/client_files/ and provide the path in the property
 * The file is guaranteed to exist for the lifetime of the query result.
 
 Clients..
+
 * Load the file from disk and use it as they wish (moving is fine too)
 
 For writing:
 
 Clients..
+
 * Request a path from akonadi2 and store the file there.
 * Store the path of the written file in the property.
 
 Resources..
-* move the file to ~/akonadi2/storage/$RESOURCE_IDENTIFIER_files/
+
+* move the file to $DATADIR/storage/$RESOURCE_IDENTIFIER_files/
 * store the new path in the entity
 
 #### Design Considerations
 Using regular files as the interface has the advantages:
+
 * Existing mechanisms can be used to stream data directly to disk.
 * The necessary file operations can be efficiently handled depending on OS and filesystem.
 * We avoid reinventing the wheel.
@@ -147,6 +159,7 @@ SQL not very useful (it would just be a very slow key-value store). While docume
 * Memory consumption is suitable for desktop-system (no in-memory stores).
 
 Other useful properties:
+
 * Is suitable to implement some indexes (the fewer tools we need the better)
 * Support for transactions
 * Small overhead in on-disk size

@@ -19,8 +19,10 @@ For debugging purposes a logging framework is required. Simple qDebugs() proved 
 
 ## Collected information
 Additionally to the regular message we want:
+
 * pid
 * threadid?
 * timestamp
 * sourcefile + position + function name
-* application name
+* application name / resource identfier
+* component identifier (i.e. resource access)
