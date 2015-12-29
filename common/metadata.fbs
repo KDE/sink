@@ -4,8 +4,7 @@ enum Operation : byte { Creation = 1, Modification, Removal }
 
 table Metadata {
     revision: ulong;
-    processed: bool = true;
-    processingProgress: [string];
+    replayToSource: bool = true;
     operation: Operation = Modification;
 }
 

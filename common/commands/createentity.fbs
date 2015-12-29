@@ -4,6 +4,7 @@ table CreateEntity {
     entityId: string;
     domainType: string;
     delta: [ubyte];
+    replayToSource: bool = true;
 }
 
 root_type CreateEntity;

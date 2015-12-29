@@ -6,6 +6,7 @@ table ModifyEntity {
     deletions: [string]; //A list of deleted properties
     domainType: string;
     delta: [ubyte]; //Contains an entity buffer with all changed properties set
+    replayToSource: bool = true;
 }
 
 root_type ModifyEntity;

@@ -132,6 +132,8 @@ QStringList MaildirResource::listAvailableFolders()
 
 static void createEntity(const QByteArray &akonadiId, const QByteArray &bufferType, const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
 {
+    //These changes are coming from the source
+    const auto replayToSource = false;
     flatbuffers::FlatBufferBuilder entityFbb;
     adaptorFactory.createBuffer(domainObject, entityFbb);
     flatbuffers::FlatBufferBuilder fbb;
@@ -139,13 +141,15 @@ static void createEntity(const QByteArray &akonadiId, const QByteArray &bufferTy
     auto entityId = fbb.CreateString(akonadiId.toStdString());
     auto type = fbb.CreateString(bufferType.toStdString());
     auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
-    auto location = Akonadi2::Commands::CreateCreateEntity(fbb, entityId, type, delta);
+    auto location = Akonadi2::Commands::CreateCreateEntity(fbb, entityId, type, delta, replayToSource);
     Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
     callback(QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
 }
 
 static void modifyEntity(const QByteArray &akonadiId, qint64 revision, const QByteArray &bufferType, const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
 {
+    //These changes are coming from the source
+    const auto replayToSource = false;
     flatbuffers::FlatBufferBuilder entityFbb;
     adaptorFactory.createBuffer(domainObject, entityFbb);
     flatbuffers::FlatBufferBuilder fbb;
@@ -154,18 +158,20 @@ static void modifyEntity(const QByteArray &akonadiId, qint64 revision, const QBy
     auto type = fbb.CreateString(bufferType.toStdString());
     auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
     //TODO removals
-    auto location = Akonadi2::Commands::CreateModifyEntity(fbb, revision, entityId, 0, type, delta);
+    auto location = Akonadi2::Commands::CreateModifyEntity(fbb, revision, entityId, 0, type, delta, replayToSource);
     Akonadi2::Commands::FinishModifyEntityBuffer(fbb, location);
     callback(QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
 }
 
 static void deleteEntity(const QByteArray &akonadiId, qint64 revision, const QByteArray &bufferType, std::function<void(const QByteArray &)> callback)
 {
+    //These changes are coming from the source
+    const auto replayToSource = false;
     flatbuffers::FlatBufferBuilder fbb;
     auto entityId = fbb.CreateString(akonadiId.toStdString());
     //This is the resource type and not the domain type
     auto type = fbb.CreateString(bufferType.toStdString());
-    auto location = Akonadi2::Commands::CreateDeleteEntity(fbb, revision, entityId, type);
+    auto location = Akonadi2::Commands::CreateDeleteEntity(fbb, revision, entityId, type, replayToSource);
     Akonadi2::Commands::FinishDeleteEntityBuffer(fbb, location);
     callback(QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
 }
@@ -365,23 +371,19 @@ KAsync::Job<void> MaildirResource::replay(const QByteArray &type, const QByteArr
     //This results in a deadlock during sync
     Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
     auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
-    const auto uid = Akonadi2::Storage::uidFromKey(key);
-    const auto remoteId = resolveLocalId(type, uid, synchronizationTransaction);
 
     Trace() << "Replaying " << key << type;
     if (type == ENTITY_TYPE_FOLDER) {
         Akonadi2::EntityBuffer buffer(value.data(), value.size());
         const Akonadi2::Entity &entity = buffer.entity();
         const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
+        if (metadataBuffer && !metadataBuffer->replayToSource()) {
+            Trace() << "Change is coming from the source";
+            return KAsync::null<void>();
+        }
         const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
         const auto operation = metadataBuffer ? metadataBuffer->operation() : Akonadi2::Operation_Creation;
         if (operation == Akonadi2::Operation_Creation) {
-            //FIXME: This check only works for new entities
-            //Figure out wether we have replayed that revision already to the source
-            if (!remoteId.isEmpty()) {
-                Trace() << "Change is coming from the source";
-                return KAsync::null<void>();
-            }
             const Akonadi2::ApplicationDomain::Folder folder(mResourceInstanceIdentifier, Akonadi2::Storage::uidFromKey(key), revision, mFolderAdaptorFactory->createAdaptor(entity));
             auto folderName = folder.getProperty("name").toString();
             //TODO handle non toplevel folders

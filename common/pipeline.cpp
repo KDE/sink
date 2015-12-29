@@ -142,6 +142,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     }
     auto createEntity = Akonadi2::Commands::GetCreateEntity(command);
 
+    const bool replayToSource = createEntity->replayToSource();
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const*>(createEntity->domainType()->Data()), createEntity->domainType()->size());
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(createEntity->delta()->Data()), createEntity->delta()->size());
@@ -175,8 +176,8 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder metadataFbb;
     auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
     metadataBuilder.add_revision(newRevision);
-    metadataBuilder.add_processed(false);
     metadataBuilder.add_operation(Akonadi2::Operation_Creation);
+    metadataBuilder.add_replayToSource(replayToSource);
     auto metadataBuffer = metadataBuilder.Finish();
     Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
@@ -224,6 +225,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     Q_ASSERT(modifyEntity);
 
     const qint64 baseRevision = modifyEntity->revision();
+    const bool replayToSource = modifyEntity->replayToSource();
     //TODO rename modifyEntity->domainType to bufferType
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const*>(modifyEntity->domainType()->Data()), modifyEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const*>(modifyEntity->entityId()->Data()), modifyEntity->entityId()->size());
@@ -291,8 +293,8 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder metadataFbb;
     auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
     metadataBuilder.add_revision(newRevision);
-    metadataBuilder.add_processed(false);
     metadataBuilder.add_operation(Akonadi2::Operation_Modification);
+    metadataBuilder.add_replayToSource(replayToSource);
     auto metadataBuffer = metadataBuilder.Finish();
     Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
@@ -329,6 +331,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     }
     auto deleteEntity = Akonadi2::Commands::GetDeleteEntity(command);
 
+    const bool replayToSource = deleteEntity->replayToSource();
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const*>(deleteEntity->domainType()->Data()), deleteEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const*>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
 
@@ -366,8 +369,8 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder metadataFbb;
     auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
     metadataBuilder.add_revision(newRevision);
-    metadataBuilder.add_processed(false);
     metadataBuilder.add_operation(Akonadi2::Operation_Removal);
+    metadataBuilder.add_replayToSource(replayToSource);
     auto metadataBuffer = metadataBuilder.Finish();
     Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
 

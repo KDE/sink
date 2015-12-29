@@ -58,7 +58,6 @@ private Q_SLOTS:
         flatbuffers::FlatBufferBuilder metadataFbb;
         auto metadataBuilder = Akonadi2::MetadataBuilder(metadataFbb);
         metadataBuilder.add_revision(1);
-        metadataBuilder.add_processed(false);
         auto metadataBuffer = metadataBuilder.Finish();
         Akonadi2::FinishMetadataBuffer(metadataFbb, metadataBuffer);
 

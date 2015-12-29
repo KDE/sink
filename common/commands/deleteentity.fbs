@@ -4,6 +4,7 @@ table DeleteEntity {
     revision: ulong;
     entityId: string;
     domainType: string;
+    replayToSource: bool = true;
 }
 
 root_type DeleteEntity;
