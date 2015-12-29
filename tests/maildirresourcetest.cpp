@@ -287,6 +287,30 @@ private Q_SLOTS:
         QTRY_VERIFY(!QFileInfo(targetPath).exists());
     }
 
+    void testCreateMail()
+    {
+        Akonadi2::Query query;
+        query.resources << "org.kde.maildir.instance1";
+        query.syncOnDemand = false;
+        query.processAll = true;
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        Akonadi2::ApplicationDomain::Mail mail("org.kde.maildir.instance1");
+        mail.setProperty("name", "testCreateMail");
+
+        Akonadi2::Store::create(mail).exec().waitForFinished();
+
+        //Ensure all local data is processed
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        auto targetPath = tempDir.path() + "/maildir1/new";
+        QDir dir(targetPath);
+        dir.setFilter(QDir::Files);
+        QTRY_COMPARE(dir.count(), static_cast<unsigned int>(1));
+    }
+
 };
 
 QTEST_MAIN(MaildirResourceTest)

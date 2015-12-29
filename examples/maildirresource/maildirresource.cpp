@@ -98,7 +98,7 @@ QString MaildirResource::resolveLocalId(const QByteArray &bufferType, const QByt
     Index index("localid.mapping." + bufferType, transaction);
     QByteArray remoteId = index.lookup(localId);
     if (remoteId.isEmpty()) {
-        Warning() << "Couldn't find the local id";
+        Warning() << "Couldn't find the remote id for " << localId;
     }
     return remoteId;
 }
@@ -402,6 +402,47 @@ KAsync::Job<void> MaildirResource::replay(const QByteArray &type, const QByteArr
             removeRemoteId(ENTITY_TYPE_FOLDER, uid, remoteId.toUtf8(), synchronizationTransaction);
         } else if (operation == Akonadi2::Operation_Modification) {
             Warning() << "Folder modifications are not implemented";
+        } else {
+            Warning() << "Unkown operation" << operation;
+        }
+    } else if (type == ENTITY_TYPE_MAIL) {
+        Akonadi2::EntityBuffer buffer(value.data(), value.size());
+        const Akonadi2::Entity &entity = buffer.entity();
+        const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
+        if (metadataBuffer && !metadataBuffer->replayToSource()) {
+            Trace() << "Change is coming from the source";
+            return KAsync::null<void>();
+        }
+        const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
+        const auto operation = metadataBuffer ? metadataBuffer->operation() : Akonadi2::Operation_Creation;
+        if (operation == Akonadi2::Operation_Creation) {
+            const Akonadi2::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, Akonadi2::Storage::uidFromKey(key), revision, mMailAdaptorFactory->createAdaptor(entity));
+            auto parentFolder = mail.getProperty("folder").toByteArray();
+            QByteArray parentFolderRemoteId;
+            if (!parentFolder.isEmpty()) {
+                parentFolderRemoteId = resolveLocalId(ENTITY_TYPE_FOLDER, parentFolder, synchronizationTransaction).toLatin1();
+            } else {
+                parentFolderRemoteId = mMaildirPath.toLatin1();
+            }
+            const auto parentFolderPath = parentFolderRemoteId;
+            KPIM::Maildir maildir(parentFolderPath, false);
+            //FIXME assemble the MIME message
+            const auto id = maildir.addEntry("foobar");
+            Trace() << "Creating a new mail: " << id;
+            recordRemoteId(ENTITY_TYPE_MAIL, mail.identifier(), id.toUtf8(), synchronizationTransaction);
+        } else if (operation == Akonadi2::Operation_Removal) {
+            const auto uid = Akonadi2::Storage::uidFromKey(key);
+            const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, uid, synchronizationTransaction);
+            const Akonadi2::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, Akonadi2::Storage::uidFromKey(key), revision, mMailAdaptorFactory->createAdaptor(entity));
+            auto parentFolder = mail.getProperty("folder").toByteArray();
+            const auto parentFolderRemoteId = resolveLocalId(ENTITY_TYPE_FOLDER, parentFolder, synchronizationTransaction);
+            const auto parentFolderPath = parentFolderRemoteId;
+            KPIM::Maildir maildir(parentFolderPath, false);
+            Trace() << "Removing a mail: " << remoteId;
+            maildir.removeEntry(remoteId);
+            removeRemoteId(ENTITY_TYPE_MAIL, uid, remoteId.toUtf8(), synchronizationTransaction);
+        } else if (operation == Akonadi2::Operation_Modification) {
+            Warning() << "Mail modifications are not implemented";
         } else {
             Warning() << "Unkown operation" << operation;
         }
