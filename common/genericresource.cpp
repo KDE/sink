@@ -104,11 +104,11 @@ private:
 /**
  * Drives the pipeline using the output from all command queues
  */
-class Processor : public QObject
+class CommandProcessor : public QObject
 {
     Q_OBJECT
 public:
-    Processor(Akonadi2::Pipeline *pipeline, QList<MessageQueue*> commandQueues)
+    CommandProcessor(Akonadi2::Pipeline *pipeline, QList<MessageQueue*> commandQueues)
         : QObject(),
         mPipeline(pipeline),
         mCommandQueues(commandQueues),
@@ -120,7 +120,7 @@ public:
         mPipeline->commit();
 
         for (auto queue : mCommandQueues) {
-            const bool ret = connect(queue, &MessageQueue::messageReady, this, &Processor::process);
+            const bool ret = connect(queue, &MessageQueue::messageReady, this, &CommandProcessor::process);
             Q_UNUSED(ret);
         }
     }
@@ -273,8 +273,8 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
     mError(0),
     mClientLowerBoundRevision(std::numeric_limits<qint64>::max())
 {
-    mProcessor = new Processor(mPipeline.data(), QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
-    QObject::connect(mProcessor, &Processor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
+    mProcessor = new CommandProcessor(mPipeline.data(), QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
+    QObject::connect(mProcessor, &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
     mSourceChangeReplay = new ChangeReplay(resourceInstanceIdentifier, [this](const QByteArray &type, const QByteArray &key, const QByteArray &value) {
         return this->replay(type, key, value);

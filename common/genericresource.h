@@ -26,7 +26,7 @@
 #include <domainadaptor.h>
 #include <QTimer>
 
-class Processor;
+class CommandProcessor;
 class ChangeReplay;
 
 namespace Akonadi2
@@ -67,7 +67,7 @@ protected:
     QSharedPointer<Pipeline> mPipeline;
 
 private:
-    Processor *mProcessor;
+    CommandProcessor *mProcessor;
     ChangeReplay *mSourceChangeReplay;
     int mError;
     QTimer mCommitQueueTimer;
