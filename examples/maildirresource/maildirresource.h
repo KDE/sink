@@ -75,8 +75,8 @@ private:
      */
     void createOrModify(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory, const QByteArray &bufferType, const QByteArray &remoteId, const Akonadi2::ApplicationDomain::ApplicationDomainType &entity);
 
-    void synchronizeFolders(Akonadi2::Storage::Transaction &transaction);
-    void synchronizeMails(Akonadi2::Storage::Transaction &transaction, const QString &folder);
+    void synchronizeFolders(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction);
+    void synchronizeMails(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, const QString &folder);
     QStringList listAvailableFolders();
     QString mMaildirPath;
     QSharedPointer<MaildirMailAdaptorFactory> mMailAdaptorFactory;

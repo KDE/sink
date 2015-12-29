@@ -251,15 +251,12 @@ void MaildirResource::createOrModify(Akonadi2::Storage::Transaction &transaction
     }
 }
 
-void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transaction)
+void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction)
 {
     const QByteArray bufferType = ENTITY_TYPE_FOLDER;
     QStringList folderList = listAvailableFolders();
     Trace() << "Found folders " << folderList;
 
-    Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
-    auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
-    auto mainDatabase = transaction.openDatabase(bufferType + ".main");
     scanForRemovals(transaction, synchronizationTransaction, bufferType, [&folderList](const QByteArray &remoteId) -> bool {
         return folderList.contains(remoteId);
     });
@@ -279,7 +276,7 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
     }
 }
 
-void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transaction, const QString &path)
+void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, const QString &path)
 {
     Trace() << "Synchronizing mails" << path;
     const QByteArray bufferType = ENTITY_TYPE_MAIL;
@@ -295,9 +292,6 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
     Trace() << "Looking into " << listingPath;
 
     QFileInfo entryInfo;
-
-    Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
-    auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
 
     const auto folderLocalId = resolveRemoteId(ENTITY_TYPE_FOLDER, path, synchronizationTransaction);
 
@@ -357,9 +351,18 @@ KAsync::Job<void> MaildirResource::synchronizeWithSource()
         //Changereplay would deadlock otherwise when trying to open the synchronization store
         enableChangeReplay(false);
         auto transaction = Akonadi2::Storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier, Akonadi2::Storage::ReadOnly).createTransaction(Akonadi2::Storage::ReadOnly);
-        synchronizeFolders(transaction);
+        Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
+        {
+            auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+            synchronizeFolders(transaction, synchronizationTransaction);
+            //The next sync needs the folders available
+            synchronizationTransaction.commit();
+        }
         for (const auto &folder : listAvailableFolders()) {
-            synchronizeMails(transaction, folder);
+            auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+            synchronizeMails(transaction, synchronizationTransaction, folder);
+            //Don't let the transaction grow too much
+            synchronizationTransaction.commit();
         }
         Log() << "Done Synchronizing";
         enableChangeReplay(true);
