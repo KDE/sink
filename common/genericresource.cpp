@@ -282,7 +282,9 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
     QObject::connect(mProcessor, &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
     mSourceChangeReplay = new ChangeReplay(resourceInstanceIdentifier, [this](const QByteArray &type, const QByteArray &key, const QByteArray &value) {
-        return this->replay(type, key, value);
+        //This results in a deadlock when a sync is in progress and we try to create a second writing transaction (which is why we turn changereplay off during the sync)
+        auto synchronizationStore = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
+        return this->replay(*synchronizationStore, type, key, value).then<void>([synchronizationStore](){});
     });
     enableChangeReplay(true);
     mClientLowerBoundRevision = mPipeline->cleanedUpRevision();
@@ -317,7 +319,7 @@ void GenericResource::addType(const QByteArray &type, DomainTypeAdaptorFactoryIn
     mPipeline->setAdaptorFactory(type, factory);
 }
 
-KAsync::Job<void> GenericResource::replay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
+KAsync::Job<void> GenericResource::replay(Akonadi2::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value)
 {
     return KAsync::null<void>();
 }

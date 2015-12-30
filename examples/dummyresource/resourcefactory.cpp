@@ -164,7 +164,7 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
     });
 }
 
-KAsync::Job<void> DummyResource::replay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
+KAsync::Job<void> DummyResource::replay(Akonadi2::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value)
 {
     Trace() << "Replaying " << key;
     return KAsync::null<void>();

@@ -38,7 +38,7 @@ public:
     KAsync::Job<void> synchronizeWithSource(Akonadi2::Storage &mainStore, Akonadi2::Storage &synchronizationStore) Q_DECL_OVERRIDE;
     static void removeFromDisk(const QByteArray &instanceIdentifier);
 private:
-    KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
+    KAsync::Job<void> replay(Akonadi2::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
 
     void synchronizeFolders(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction);
     void synchronizeMails(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, const QString &folder);

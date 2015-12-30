@@ -40,7 +40,7 @@ public:
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE;
     static void removeFromDisk(const QByteArray &instanceIdentifier);
 private:
-    KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
+    KAsync::Job<void> replay(Akonadi2::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
     QString resolveRemoteId(const QByteArray &type, const QString &remoteId, Akonadi2::Storage::Transaction &transaction);
     void createEvent(const QByteArray &rid, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &);
     void createMail(const QByteArray &rid, const QMap<QString, QVariant> &data, flatbuffers::FlatBufferBuilder &entityFbb, Akonadi2::Storage::Transaction &);

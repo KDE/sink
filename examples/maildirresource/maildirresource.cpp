@@ -212,11 +212,9 @@ KAsync::Job<void> MaildirResource::synchronizeWithSource(Akonadi2::Storage &main
     });
 }
 
-KAsync::Job<void> MaildirResource::replay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
+KAsync::Job<void> MaildirResource::replay(Akonadi2::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value)
 {
-    //This results in a deadlock during sync
-    Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
-    auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+    auto synchronizationTransaction = synchronizationStore.createTransaction(Akonadi2::Storage::ReadWrite);
 
     Trace() << "Replaying " << key << type;
     if (type == ENTITY_TYPE_FOLDER) {

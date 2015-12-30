@@ -60,7 +60,7 @@ private Q_SLOTS:
 protected:
     void enableChangeReplay(bool);
     void addType(const QByteArray &type, DomainTypeAdaptorFactoryInterface::Ptr factory, const QVector<Akonadi2::Preprocessor*> &preprocessors);
-    virtual KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value);
+    virtual KAsync::Job<void> replay(Akonadi2::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value);
     void onProcessorError(int errorCode, const QString &errorMessage);
     void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);
 
