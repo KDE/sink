@@ -4,11 +4,15 @@
 #include "pipeline.h"
 #include "queuedcommand_generated.h"
 #include "createentity_generated.h"
+#include "modifyentity_generated.h"
+#include "deleteentity_generated.h"
 #include "domainadaptor.h"
 #include "commands.h"
 #include "index.h"
 #include "log.h"
 #include "definitions.h"
+
+#include <QUuid>
 
 static int sBatchSize = 100;
 
@@ -52,6 +56,7 @@ public:
     {
         const qint64 topRevision = Storage::maxRevision(mStorage.createTransaction(Storage::ReadOnly));
         const qint64 lastReplayedRevision = getLastReplayedRevision();
+        Trace() << "All changes replayed " << topRevision << lastReplayedRevision;
         return (lastReplayedRevision >= topRevision);
     }
 
@@ -443,5 +448,160 @@ void GenericResource::setLowerBoundRevision(qint64 revision)
     mClientLowerBoundRevision = revision;
     updateLowerBoundRevision();
 }
+
+void GenericResource::createEntity(const QByteArray &akonadiId, const QByteArray &bufferType, const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
+{
+    //These changes are coming from the source
+    const auto replayToSource = false;
+    flatbuffers::FlatBufferBuilder entityFbb;
+    adaptorFactory.createBuffer(domainObject, entityFbb);
+    flatbuffers::FlatBufferBuilder fbb;
+    //This is the resource type and not the domain type
+    auto entityId = fbb.CreateString(akonadiId.toStdString());
+    auto type = fbb.CreateString(bufferType.toStdString());
+    auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
+    auto location = Akonadi2::Commands::CreateCreateEntity(fbb, entityId, type, delta, replayToSource);
+    Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+    callback(QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+}
+
+void GenericResource::modifyEntity(const QByteArray &akonadiId, qint64 revision, const QByteArray &bufferType, const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
+{
+    //These changes are coming from the source
+    const auto replayToSource = false;
+    flatbuffers::FlatBufferBuilder entityFbb;
+    adaptorFactory.createBuffer(domainObject, entityFbb);
+    flatbuffers::FlatBufferBuilder fbb;
+    auto entityId = fbb.CreateString(akonadiId.toStdString());
+    //This is the resource type and not the domain type
+    auto type = fbb.CreateString(bufferType.toStdString());
+    auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
+    //TODO removals
+    auto location = Akonadi2::Commands::CreateModifyEntity(fbb, revision, entityId, 0, type, delta, replayToSource);
+    Akonadi2::Commands::FinishModifyEntityBuffer(fbb, location);
+    callback(QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+}
+
+void GenericResource::deleteEntity(const QByteArray &akonadiId, qint64 revision, const QByteArray &bufferType, std::function<void(const QByteArray &)> callback)
+{
+    //These changes are coming from the source
+    const auto replayToSource = false;
+    flatbuffers::FlatBufferBuilder fbb;
+    auto entityId = fbb.CreateString(akonadiId.toStdString());
+    //This is the resource type and not the domain type
+    auto type = fbb.CreateString(bufferType.toStdString());
+    auto location = Akonadi2::Commands::CreateDeleteEntity(fbb, revision, entityId, type, replayToSource);
+    Akonadi2::Commands::FinishDeleteEntityBuffer(fbb, location);
+    callback(QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+}
+
+void GenericResource::recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Akonadi2::Storage::Transaction &transaction)
+{
+    Index index("rid.mapping." + bufferType, transaction);
+    Index localIndex("localid.mapping." + bufferType, transaction);
+    index.add(remoteId, localId);
+    localIndex.add(localId, remoteId);
+}
+
+void GenericResource::removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Akonadi2::Storage::Transaction &transaction)
+{
+    Index index("rid.mapping." + bufferType, transaction);
+    Index localIndex("localid.mapping." + bufferType, transaction);
+    index.remove(remoteId, localId);
+    localIndex.remove(localId, remoteId);
+}
+
+QByteArray GenericResource::resolveRemoteId(const QByteArray &bufferType, const QByteArray &remoteId, Akonadi2::Storage::Transaction &transaction)
+{
+    //Lookup local id for remote id, or insert a new pair otherwise
+    Index index("rid.mapping." + bufferType, transaction);
+    Index localIndex("localid.mapping." + bufferType, transaction);
+    QByteArray akonadiId = index.lookup(remoteId);
+    if (akonadiId.isEmpty()) {
+        akonadiId = QUuid::createUuid().toString().toUtf8();
+        index.add(remoteId, akonadiId);
+        localIndex.add(akonadiId, remoteId);
+    }
+    return akonadiId;
+}
+
+QByteArray GenericResource::resolveLocalId(const QByteArray &bufferType, const QByteArray &localId, Akonadi2::Storage::Transaction &transaction)
+{
+    Index index("localid.mapping." + bufferType, transaction);
+    QByteArray remoteId = index.lookup(localId);
+    if (remoteId.isEmpty()) {
+        Warning() << "Couldn't find the remote id for " << localId;
+        return QByteArray();
+    }
+    return remoteId;
+}
+
+void GenericResource::scanForRemovals(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, const QByteArray &bufferType, const std::function<void(const std::function<void(const QByteArray &key)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists)
+{
+    entryGenerator([this, &transaction, bufferType, &synchronizationTransaction, &exists](const QByteArray &key) {
+        auto akonadiId = Akonadi2::Storage::uidFromKey(key);
+        Trace() << "Checking for removal " << key;
+        const auto remoteId = resolveLocalId(bufferType, akonadiId, synchronizationTransaction);
+        //If we have no remoteId, the entity hasn't been replayed to the source yet
+        if (!remoteId.isEmpty()) {
+            if (!exists(remoteId)) {
+                Trace() << "Found a removed entity: " << akonadiId;
+                deleteEntity(akonadiId, Akonadi2::Storage::maxRevision(transaction), bufferType, [this](const QByteArray &buffer) {
+                    enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::DeleteEntityCommand, buffer);
+                });
+            }
+        }
+    });
+}
+
+static QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> getLatest(const Akonadi2::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory)
+{
+    QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> current;
+    db.findLatest(uid, [&current, &adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
+        Akonadi2::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+        if (!buffer.isValid()) {
+            Warning() << "Read invalid buffer from disk";
+        } else {
+            current = adaptorFactory.createAdaptor(buffer.entity());
+        }
+        return false;
+    },
+    [](const Akonadi2::Storage::Error &error) {
+        Warning() << "Failed to read current value from storage: " << error.message;
+    });
+    return current;
+}
+
+void GenericResource::createOrModify(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory, const QByteArray &bufferType, const QByteArray &remoteId, const Akonadi2::ApplicationDomain::ApplicationDomainType &entity)
+{
+    auto mainDatabase = transaction.openDatabase(bufferType + ".main");
+    const auto akonadiId = resolveRemoteId(bufferType, remoteId, synchronizationTransaction);
+    const auto found = mainDatabase.contains(akonadiId);
+    if (!found) {
+        Trace() << "Found a new entity: " << remoteId;
+        createEntity(akonadiId, bufferType, entity, adaptorFactory, [this](const QByteArray &buffer) {
+            enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, buffer);
+        });
+    } else { //modification
+        if (auto current = getLatest(mainDatabase, akonadiId, adaptorFactory)) {
+            bool changed = false;
+            for (const auto &property : entity.changedProperties()) {
+                if (entity.getProperty(property) != current->getProperty(property)) {
+                    Trace() << "Property changed " << akonadiId << property;
+                    changed = true;
+                }
+            }
+            if (changed) {
+                Trace() << "Found a modified entity: " << remoteId;
+                modifyEntity(akonadiId, Akonadi2::Storage::maxRevision(transaction), bufferType, entity, adaptorFactory, [this](const QByteArray &buffer) {
+                    enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::ModifyEntityCommand, buffer);
+                });
+            }
+        } else {
+            Warning() << "Failed to get current entity";
+        }
+    }
+}
+
 
 #include "genericresource.moc"
