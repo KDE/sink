@@ -344,28 +344,24 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
     }
 }
 
-KAsync::Job<void> MaildirResource::synchronizeWithSource()
+KAsync::Job<void> MaildirResource::synchronizeWithSource(Akonadi2::Storage &mainStore, Akonadi2::Storage &synchronizationStore)
 {
     Log() << " Synchronizing";
-    return KAsync::start<void>([this]() {
-        //Changereplay would deadlock otherwise when trying to open the synchronization store
-        enableChangeReplay(false);
-        auto transaction = Akonadi2::Storage(Akonadi2::storageLocation(), mResourceInstanceIdentifier, Akonadi2::Storage::ReadOnly).createTransaction(Akonadi2::Storage::ReadOnly);
-        Akonadi2::Storage store(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
+    return KAsync::start<void>([this, &mainStore, &synchronizationStore]() {
+        auto transaction = mainStore.createTransaction(Akonadi2::Storage::ReadOnly);
         {
-            auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+            auto synchronizationTransaction = synchronizationStore.createTransaction(Akonadi2::Storage::ReadWrite);
             synchronizeFolders(transaction, synchronizationTransaction);
             //The next sync needs the folders available
             synchronizationTransaction.commit();
         }
         for (const auto &folder : listAvailableFolders()) {
-            auto synchronizationTransaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+            auto synchronizationTransaction = synchronizationStore.createTransaction(Akonadi2::Storage::ReadWrite);
             synchronizeMails(transaction, synchronizationTransaction, folder);
             //Don't let the transaction grow too much
             synchronizationTransaction.commit();
         }
         Log() << "Done Synchronizing";
-        enableChangeReplay(true);
     });
 }
 

@@ -44,7 +44,8 @@ public:
     virtual ~GenericResource();
 
     virtual void processCommand(int commandId, const QByteArray &data) Q_DECL_OVERRIDE;
-    virtual KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE = 0;
+    virtual KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE;
+    virtual KAsync::Job<void> synchronizeWithSource(Akonadi2::Storage &mainStore, Akonadi2::Storage &synchronizationStore);
     virtual KAsync::Job<void> processAllMessages() Q_DECL_OVERRIDE;
     virtual void setLowerBoundRevision(qint64 revision) Q_DECL_OVERRIDE;
 
@@ -52,6 +53,7 @@ public:
 
     static void removeFromDisk(const QByteArray &instanceIdentifier);
     static qint64 diskUsage(const QByteArray &instanceIdentifier);
+
 private Q_SLOTS:
     void updateLowerBoundRevision();
 

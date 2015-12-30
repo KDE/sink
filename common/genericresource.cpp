@@ -370,6 +370,26 @@ void GenericResource::processCommand(int commandId, const QByteArray &data)
     }
 }
 
+KAsync::Job<void> GenericResource::synchronizeWithSource()
+{
+    return KAsync::start<void>([this]() {
+        Log() << " Synchronizing";
+        //Changereplay would deadlock otherwise when trying to open the synchronization store
+        enableChangeReplay(false);
+        auto mainStore = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::storageLocation(), mResourceInstanceIdentifier, Akonadi2::Storage::ReadOnly);
+        auto syncStore = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
+        synchronizeWithSource(*mainStore, *syncStore).then<void>([this, mainStore, syncStore]() {
+            Log() << "Done Synchronizing";
+            enableChangeReplay(true);
+        }).exec();
+    });
+}
+
+KAsync::Job<void> GenericResource::synchronizeWithSource(Akonadi2::Storage &mainStore, Akonadi2::Storage &synchronizationStore)
+{
+    return KAsync::null<void>();
+}
+
 static void waitForDrained(KAsync::Future<void> &f, MessageQueue &queue)
 {
     if (queue.isEmpty()) {
