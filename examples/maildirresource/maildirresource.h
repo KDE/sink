@@ -31,6 +31,14 @@
 class MaildirMailAdaptorFactory;
 class MaildirFolderAdaptorFactory;
 
+/**
+ * A maildir resource
+ * 
+ * Implementation details:
+ * The remoteid's have the following formats:
+ * files: full file path
+ * directories: full directory path
+ */
 class MaildirResource : public Akonadi2::GenericResource
 {
 public:

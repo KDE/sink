@@ -156,24 +156,23 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
                 Warning() << "Error in index: " <<  error.message << property;
             });
         },
-        [&listingPath](const QByteArray &remoteId) -> bool {
-            return QFile(listingPath + "/" + remoteId).exists();
+        [](const QByteArray &remoteId) -> bool {
+            return QFile(remoteId).exists();
         }
     );
 
     while (entryIterator->hasNext()) {
-        QString filePath = entryIterator->next();
-        QString fileName = entryIterator->fileName();
-        const auto remoteId = fileName.toUtf8();
+        const QString filePath = QDir::fromNativeSeparators(entryIterator->next());
+        const QString fileName = entryIterator->fileName();
+        const auto remoteId = filePath.toUtf8();
 
         KMime::Message *msg = new KMime::Message;
-        auto filepath = listingPath + "/" + fileName;
-        msg->setHead(KMime::CRLFtoLF(maildir.readEntryHeadersFromFile(filepath)));
+        msg->setHead(KMime::CRLFtoLF(maildir.readEntryHeadersFromFile(filePath)));
         msg->parse();
 
         const auto flags = maildir.readEntryFlags(fileName);
 
-        Trace() << "Found a mail " << filePath << fileName << msg->subject(true)->asUnicodeString();
+        Trace() << "Found a mail " << filePath << " : " << fileName << msg->subject(true)->asUnicodeString();
 
         Akonadi2::ApplicationDomain::Mail mail;
         mail.setProperty("subject", msg->subject(true)->asUnicodeString());
@@ -181,7 +180,7 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
         mail.setProperty("senderName", msg->from(true)->asUnicodeString());
         mail.setProperty("date", msg->date(true)->dateTime());
         mail.setProperty("folder", folderLocalId);
-        mail.setProperty("mimeMessage", filepath);
+        mail.setProperty("mimeMessage", filePath);
         mail.setProperty("unread", !flags.testFlag(KPIM::Maildir::Seen));
         mail.setProperty("important", flags.testFlag(KPIM::Maildir::Flagged));
 
@@ -275,13 +274,8 @@ KAsync::Job<void> MaildirResource::replay(Akonadi2::Storage &synchronizationStor
         } else if (operation == Akonadi2::Operation_Removal) {
             const auto uid = Akonadi2::Storage::uidFromKey(key);
             const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, uid, synchronizationTransaction);
-            const Akonadi2::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, Akonadi2::Storage::uidFromKey(key), revision, mMailAdaptorFactory->createAdaptor(entity));
-            auto parentFolder = mail.getProperty("folder").toByteArray();
-            const auto parentFolderRemoteId = resolveLocalId(ENTITY_TYPE_FOLDER, parentFolder, synchronizationTransaction);
-            const auto parentFolderPath = parentFolderRemoteId;
-            KPIM::Maildir maildir(parentFolderPath, false);
             Trace() << "Removing a mail: " << remoteId;
-            maildir.removeEntry(remoteId);
+            QFile::remove(remoteId);
             removeRemoteId(ENTITY_TYPE_MAIL, uid, remoteId, synchronizationTransaction);
         } else if (operation == Akonadi2::Operation_Modification) {
             Warning() << "Mail modifications are not implemented";
