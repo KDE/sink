@@ -143,8 +143,6 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
     auto entryIterator = QSharedPointer<QDirIterator>::create(listingPath, QDir::Files);
     Trace() << "Looking into " << listingPath;
 
-    QFileInfo entryInfo;
-
     const auto folderLocalId = resolveRemoteId(ENTITY_TYPE_FOLDER, path.toUtf8(), synchronizationTransaction);
 
     auto property = "folder";
