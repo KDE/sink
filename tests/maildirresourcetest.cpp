@@ -313,6 +313,36 @@ private Q_SLOTS:
         QTRY_COMPARE(dir.count(), static_cast<unsigned int>(1));
     }
 
+    void testRemoveMail()
+    {
+        Akonadi2::Query query;
+        query.resources << "org.kde.maildir.instance1";
+        query.syncOnDemand = true;
+        query.processAll = true;
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        Akonadi2::Query folderQuery;
+        folderQuery.resources << "org.kde.maildir.instance1";
+        folderQuery.propertyFilter.insert("name", "maildir1");
+        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(folderQuery);
+        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(QModelIndex()), 1);
+        auto folder = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+
+        Akonadi2::Query mailQuery;
+        mailQuery.resources << "org.kde.maildir.instance1";
+        mailQuery.propertyFilter.insert("folder", folder->identifier());
+        auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(mailQuery);
+        QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(mailModel->rowCount(QModelIndex()), 1);
+        auto mail = mailModel->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Mail::Ptr>();
+
+        Akonadi2::Store::remove(*mail).exec().waitForFinished();
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+
+        QTRY_COMPARE(QDir(tempDir.path() + "/maildir1/cur", QString(), QDir::NoSort, QDir::Files).count(), static_cast<unsigned int>(0));
+    }
+
 };
 
 QTEST_MAIN(MaildirResourceTest)
