@@ -82,8 +82,6 @@ static void createBufferPartBuffer(const Akonadi2::ApplicationDomain::Applicatio
 
 /**
  * A generic adaptor implementation that uses a property mapper to read/write values.
- * 
- * TODO: this is the read-only part. Create a write only equivalent
  */
 template <class LocalBuffer, class ResourceBuffer>
 class GenericBufferAdaptor : public Akonadi2::ApplicationDomain::BufferAdaptor
@@ -95,11 +93,6 @@ public:
 
     }
 
-    //TODO remove
-    void setProperty(const QByteArray &key, const QVariant &value)
-    {
-    }
-
     virtual QVariant getProperty(const QByteArray &key) const
     {
         if (mResourceBuffer && mResourceMapper->hasMapping(key)) {
@@ -107,16 +100,13 @@ public:
         } else if (mLocalBuffer && mLocalMapper->hasMapping(key)) {
             return mLocalMapper->getProperty(key, mLocalBuffer);
         }
-        qWarning() << "no mapping available for key " << key;
+        Warning() << "No mapping available for key " << key;
         return QVariant();
     }
 
     virtual QList<QByteArray> availableProperties() const
     {
-        QList<QByteArray> props;
-        props << mResourceMapper->availableProperties();
-        props << mLocalMapper->availableProperties();
-        return props;
+        return mResourceMapper->availableProperties() + mLocalMapper->availableProperties();
     }
 
     LocalBuffer const *mLocalBuffer;
