@@ -51,12 +51,11 @@ class MaildirResourceTest : public QObject
     Q_OBJECT
 
     QTemporaryDir tempDir;
+    QString targetPath;
 private Q_SLOTS:
     void initTestCase()
     {
-        QVERIFY(tempDir.isValid());
-        auto targetPath = tempDir.path() + "/maildir1/";
-        copyRecursively(TESTDATAPATH "/maildir1", targetPath);
+        targetPath = tempDir.path() + "/maildir1/";
 
         Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
         MaildirResource::removeFromDisk("org.kde.maildir.instance1");
@@ -71,7 +70,8 @@ private Q_SLOTS:
     {
         Akonadi2::Store::shutdown(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
         MaildirResource::removeFromDisk("org.kde.maildir.instance1");
-        Akonadi2::Store::start(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
+        QDir dir(targetPath);
+        dir.removeRecursively();
     }
 
     void init()
@@ -79,6 +79,8 @@ private Q_SLOTS:
         qDebug();
         qDebug() << "-----------------------------------------";
         qDebug();
+        copyRecursively(TESTDATAPATH "/maildir1", targetPath);
+        Akonadi2::Store::start(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
     }
 
     void testListFolders()
