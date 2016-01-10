@@ -24,6 +24,8 @@
 #include <QEventLoop>
 #include <QTextStream>
 
+#include "common/log.h"
+
 static bool s_hasEventLoop = false;
 
 class State::Private
@@ -122,4 +124,16 @@ bool State::commandTiming() const
     return d->timing;
 }
 
+void State::setLoggingLevel(const QString &level) const
+{
+    Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::debugLevelFromName(level.toLatin1()));
+}
+
+QString State::loggingLevel() const
+{
+    // do not turn this into a single line return: that core dumps due to allocation of
+    // the byte array in Akonadi2::Log
+    QByteArray rv = Akonadi2::Log::debugLevelName(Akonadi2::Log::debugOutputLevel());
+    return rv.toLower();
+}
 
