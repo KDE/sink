@@ -36,6 +36,20 @@
  *   3. called with commands: try to match to syntx
  */
 
+void processCommandStream(QTextStream &stream)
+{
+    QString line = stream.readLine();
+    while (!line.isEmpty()) {
+        line = line.trimmed();
+
+        if (!line.isEmpty() && !line.startsWith('#')) {
+            SyntaxTree::self()->run(SyntaxTree::tokenize(line));
+        }
+
+        line = stream.readLine();
+    }
+}
+
 int main(int argc, char *argv[])
 {
     const bool interactive = isatty(fileno(stdin));
@@ -72,30 +86,11 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        QString line = f.readLine();
-        while (!line.isEmpty()) {
-            line = line.trimmed();
-
-            if (!line.isEmpty() && !line.startsWith('#')) {
-                SyntaxTree::self()->run(SyntaxTree::tokenize(line));
-            }
-
-            line = f.readLine();
-        }
-        exit(0);
+        QTextStream inputStream(&f);
+        processCommandStream(inputStream);
     } else if (!interactive) {
         QTextStream inputStream(stdin);
-
-        QString line = inputStream.readLine();
-        while (!line.isEmpty()) {
-            line = line.trimmed();
-
-            if (!line.isEmpty() && !line.startsWith('#')) {
-                SyntaxTree::self()->run(SyntaxTree::tokenize(line));
-            }
-
-            line = inputStream.readLine();
-        }
+        processCommandStream(inputStream);
     } else {
         QStringList commands = app.arguments();
         commands.removeFirst();
