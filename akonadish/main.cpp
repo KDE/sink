@@ -36,6 +36,20 @@
  *   3. called with commands: try to match to syntx
  */
 
+int enterRepl()
+{
+    Repl *repl = new Repl;
+    QObject::connect(repl, &QStateMachine::finished,
+                     repl, &QObject::deleteLater);
+    QObject::connect(repl, &QStateMachine::finished,
+                     QCoreApplication::instance(), &QCoreApplication::quit);
+
+    State::setHasEventLoop(true);
+    int rv = QCoreApplication::instance()->exec();
+    State::setHasEventLoop(false);
+    return rv;
+}
+
 void processCommandStream(QTextStream &stream)
 {
     QString line = stream.readLine();
@@ -55,31 +69,15 @@ int main(int argc, char *argv[])
     const bool interactive = isatty(fileno(stdin));
     const bool startRepl = (argc == 1) && interactive;
     //TODO: make a json command parse cause that would be awesomesauce
-    const bool startJsonListener = !startRepl &&
-                                   (argc == 2 && qstrcmp(argv[1], "-") == 0);
     const bool fromScript = !startRepl && QFile::exists(argv[1]);
 
-    //qDebug() << "state at startup is" << interactive << startRepl << startJsonListener << fromScript;
+    //qDebug() << "state at startup is" << interactive << startRepl << fromScript;
 
     QCoreApplication app(argc, argv);
     app.setApplicationName(fromScript ? "interactive-app-shell" : argv[0]);
-    //app.setApplicationName(argv[0]);
 
-    if (startRepl || startJsonListener) {
-        if (startRepl) {
-            Repl *repl = new Repl;
-            QObject::connect(repl, &QStateMachine::finished,
-                             repl, &QObject::deleteLater);
-            QObject::connect(repl, &QStateMachine::finished,
-                             &app, &QCoreApplication::quit);
-        }
-
-        if (startJsonListener) {
-//        JsonListener listener(syntax);
-        }
-
-        State::setHasEventLoop(true);
-        return app.exec();
+    if (startRepl) {
+        return enterRepl();
     } else if (fromScript) {
         QFile f(argv[1]);
         if (!f.open(QIODevice::ReadOnly)) { 
