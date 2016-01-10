@@ -96,7 +96,7 @@ static QString colorCommand(QList<int> colorCodes)
     return string;
 }
 
-QByteArray debugLevelName(DebugLevel debugLevel)
+QByteArray Akonadi2::Log::debugLevelName(DebugLevel debugLevel)
 {
     switch (debugLevel) {
         case DebugLevel::Trace:
@@ -114,15 +114,16 @@ QByteArray debugLevelName(DebugLevel debugLevel)
     return QByteArray();
 }
 
-DebugLevel debugLevelFromName(const QByteArray &name)
+DebugLevel Akonadi2::Log::debugLevelFromName(const QByteArray &name)
 {
-    if (name.toLower() == "trace")
+    const QByteArray lowercaseName = name.toLower();
+    if (lowercaseName == "trace")
         return DebugLevel::Trace;
-    if (name.toLower() == "log")
+    if (lowercaseName == "log")
         return DebugLevel::Log;
-    if (name.toLower() == "warning")
+    if (lowercaseName == "warning")
         return DebugLevel::Warning;
-    if (name.toLower() == "error")
+    if (lowercaseName == "error")
         return DebugLevel::Error;
     return DebugLevel::Log;
 }
@@ -130,6 +131,11 @@ DebugLevel debugLevelFromName(const QByteArray &name)
 void Akonadi2::Log::setDebugOutputLevel(DebugLevel debugLevel)
 {
     qputenv("AKONADI2DEBUGLEVEL", debugLevelName(debugLevel));
+}
+
+Akonadi2::Log::DebugLevel Akonadi2::Log::debugOutputLevel()
+{
+    return debugLevelFromName(qgetenv("AKONADI2DEBUGLEVEL"));
 }
 
 QDebug Akonadi2::Log::debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea)

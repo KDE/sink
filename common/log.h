@@ -12,7 +12,11 @@ enum DebugLevel {
     Error
 };
 
+QByteArray debugLevelName(DebugLevel debugLevel);
+DebugLevel debugLevelFromName(const QByteArray &name);
+
 void setDebugOutputLevel(DebugLevel);
+DebugLevel debugOutputLevel();
 
 QDebug debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
 
