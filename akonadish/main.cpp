@@ -31,9 +31,10 @@
 /*
  * modes of operation:
  *
- *   1. called with no commands: start the REPL and listen for JSON on stin
- *   2. called with -: listen for JSON on stdin
- *   3. called with commands: try to match to syntx
+ *   1. called with no commands: start the REPL
+ *   2. called with -: listen for commands on stdin
+ *   3. called with a filename: try to run it as a script
+ *   4. called with commands: try to match to syntax and run the result
  */
 
 int enterRepl()
