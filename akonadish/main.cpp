@@ -39,6 +39,10 @@
 
 int enterRepl()
 {
+    if (State::hasEventLoop()) {
+        return 0;
+    }
+
     Repl *repl = new Repl;
     QObject::connect(repl, &QStateMachine::finished,
                      repl, &QObject::deleteLater);
@@ -51,8 +55,21 @@ int enterRepl()
     return rv;
 }
 
+bool goInteractive(const QStringList &, State &)
+{
+    enterRepl();
+    return true;
+}
+
+Syntax::List goInteractiveSyntax()
+{
+    Syntax interactive("go_interactive", QString(), &goInteractive);
+    return Syntax::List() << interactive;
+}
+
 void processCommandStream(QTextStream &stream)
 {
+    SyntaxTree::self()->registerSyntax(&goInteractiveSyntax);
     QString line = stream.readLine();
     while (!line.isEmpty()) {
         line = line.trimmed();
