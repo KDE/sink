@@ -40,6 +40,7 @@ public:
     void commandFinished(int returnCode = 0) const;
 
     static void setHasEventLoop(bool evented);
+    static bool hasEventLoop();
 
 private:
     class Private;
