@@ -18,7 +18,8 @@ set(akonadi2_cli_SRCS
     akonadish_utils.cpp
     repl/repl.cpp
     repl/replStates.cpp
-    state.cpp)
+    state.cpp
+    utils.cpp)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 

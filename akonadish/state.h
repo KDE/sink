@@ -39,6 +39,9 @@ public:
     int commandStarted() const;
     void commandFinished(int returnCode = 0) const;
 
+    void setLoggingLevel(const QString &level) const;
+    QString loggingLevel() const;
+
     static void setHasEventLoop(bool evented);
     static bool hasEventLoop();
 

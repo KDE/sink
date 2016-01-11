@@ -22,6 +22,8 @@
 
 #include "common/clientapi.h"
 
+#include "utils.h"
+
 namespace AkonadishUtils
 {
 
@@ -98,40 +100,24 @@ QStringList resourceIds(State &state)
     return resources;
 }
 
-QStringList filtered(const QStringList &list, const QString &fragment)
-{
-    if (fragment.isEmpty()) {
-        return list;
-    }
-
-    QStringList filtered;
-    for (auto item: list) {
-        if (item.startsWith(fragment)) {
-            filtered << item;
-        }
-    }
-
-    return filtered;
-}
-
 QStringList resourceCompleter(const QStringList &, const QString &fragment, State &state)
 {
-    return filtered(resourceIds(state), fragment);
+    return Utils::filteredCompletions(resourceIds(state), fragment);
 }
 
 QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &fragment, State &state)
 {
     static QStringList types = QStringList() << "resource" << "folder" << "mail" << "event";
     if (commands.count() == 1) {
-        return filtered(s_types, fragment);
+        return Utils::filteredCompletions(s_types, fragment);
     }
 
-    return filtered(resourceIds(state), fragment);
+    return Utils::filteredCompletions(resourceIds(state), fragment);
 }
 
 QStringList typeCompleter(const QStringList &commands, const QString &fragment, State &state)
 {
-    return filtered(s_types, fragment);
+    return Utils::filteredCompletions(s_types, fragment);
 }
 
 QMap<QString, QString> keyValueMapFromArgs(const QStringList &args)

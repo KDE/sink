@@ -24,6 +24,7 @@
 
 #include "state.h"
 #include "syntaxtree.h"
+#include "utils.h"
 
 namespace CoreSyntax
 {
@@ -145,6 +146,24 @@ bool printSyntaxTree(const QStringList &, State &state)
     return true;
 }
 
+bool setLoggingLevel(const QStringList &commands, State &state)
+{
+    if (commands.count() != 1) {
+        state.printError(QObject::tr("Wrong number of arguments; expected 1 got %1").arg(commands.count()));
+        return false;
+    }
+
+    state.setLoggingLevel(commands.at(0));
+    return true;
+}
+
+bool printLoggingLevel(const QStringList &commands, State &state)
+{
+    const QString level = state.loggingLevel();
+    state.printLine(level);
+    return true;
+}
+
 Syntax::List syntax()
 {
     Syntax::List syntax;
@@ -158,15 +177,22 @@ Syntax::List syntax()
 
     Syntax set("set", QObject::tr("Sets settings for the session"));
     set.children << Syntax("debug", QObject::tr("Set the debug level from 0 to 6"), &CoreSyntax::setDebugLevel);
+
     Syntax setTiming = Syntax("timing", QObject::tr("Whether or not to print the time commands take to complete"));
     setTiming.children << Syntax("on", QString(), [](const QStringList &, State &state) -> bool { state.setCommandTiming(true); return true; });
     setTiming.children << Syntax("off", QString(), [](const QStringList &, State &state) -> bool { state.setCommandTiming(false); return true; });
     set.children << setTiming;
+
+    Syntax logging("logging", QObject::tr("Set the logging level to one of Trace, Log, Warning or Error"), &CoreSyntax::setLoggingLevel);
+    logging.completer = [](const QStringList &, const QString &fragment, State &state) -> QStringList { return Utils::filteredCompletions(QStringList() << "trace" << "log" << "warning" << "error", fragment, Qt::CaseInsensitive); };
+    set.children << logging;
+
     syntax << set;
 
     Syntax get("get", QObject::tr("Gets settings for the session"));
     get.children << Syntax("debug", QObject::tr("The current debug level from 0 to 6"), &CoreSyntax::printDebugLevel);
     get.children << Syntax("timing", QObject::tr("Whether or not to print the time commands take to complete"), &CoreSyntax::printCommandTiming);
+    get.children << Syntax("logging", QObject::tr("The current logging level"), &CoreSyntax::printLoggingLevel);
     syntax << get;
 
     return syntax;
