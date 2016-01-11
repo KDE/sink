@@ -112,6 +112,11 @@ void State::setHasEventLoop(bool evented)
     s_hasEventLoop = evented;
 }
 
+bool State::hasEventLoop()
+{
+    return s_hasEventLoop;
+}
+
 void State::setCommandTiming(bool time)
 {
     d->timing = time;
