@@ -82,29 +82,34 @@ inline bool operator==(const ApplicationDomainType& lhs, const ApplicationDomain
             && lhs.resourceInstanceIdentifier() == rhs.resourceInstanceIdentifier();
 }
 
-struct Event : public ApplicationDomainType {
+struct Entity : public ApplicationDomainType {
+    typedef QSharedPointer<Entity> Ptr;
+    using ApplicationDomainType::ApplicationDomainType;
+};
+
+struct Event : public Entity {
     typedef QSharedPointer<Event> Ptr;
-    using ApplicationDomainType::ApplicationDomainType;
+    using Entity::Entity;
 };
 
-struct Todo : public ApplicationDomainType {
+struct Todo : public Entity {
     typedef QSharedPointer<Todo> Ptr;
-    using ApplicationDomainType::ApplicationDomainType;
+    using Entity::Entity;
 };
 
-struct Calendar : public ApplicationDomainType {
+struct Calendar : public Entity {
     typedef QSharedPointer<Calendar> Ptr;
-    using ApplicationDomainType::ApplicationDomainType;
+    using Entity::Entity;
 };
 
-struct Mail : public ApplicationDomainType {
+struct Mail : public Entity {
     typedef QSharedPointer<Mail> Ptr;
-    using ApplicationDomainType::ApplicationDomainType;
+    using Entity::Entity;
 };
 
-struct Folder : public ApplicationDomainType {
+struct Folder : public Entity {
     typedef QSharedPointer<Folder> Ptr;
-    using ApplicationDomainType::ApplicationDomainType;
+    using Entity::Entity;
 };
 
 /**
@@ -155,6 +160,8 @@ class TypeImplementation;
 
 Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::ApplicationDomainType)
 Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr)
+Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Entity)
+Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Entity::Ptr)
 Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Event)
 Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Event::Ptr)
 Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Mail)
