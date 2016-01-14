@@ -73,6 +73,11 @@ public:
     static KAsync::Job<void> remove(const DomainType &domainObject);
 
     /**
+     * Synchronize data to local cache.
+     */
+    static KAsync::Job<void> synchronize(const Akonadi2::Query &query);
+
+    /**
      * Shutdown resource.
      */
     static KAsync::Job<void> shutdown(const QByteArray &resourceIdentifier);
@@ -87,9 +92,9 @@ public:
     static KAsync::Job<void> start(const QByteArray &resourceIdentifier);
 
     /**
-     * Synchronize data to local cache.
+     * Flushes any pending messages to disk
      */
-    static KAsync::Job<void> synchronize(const Akonadi2::Query &query);
+    static KAsync::Job<void> flushMessageQueue(const QByteArrayList &resourceIdentifier);
 
     /**
      * Removes a resource from disk.

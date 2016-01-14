@@ -212,6 +212,22 @@ KAsync::Job<void> Store::synchronize(const Akonadi2::Query &query)
     .template then<void>([](){});
 }
 
+KAsync::Job<void> Store::flushMessageQueue(const QByteArrayList &resourceIdentifier)
+{
+    Trace() << "flushMessageQueue" << resourceIdentifier;
+    return KAsync::iterate(resourceIdentifier)
+    .template each<void, QByteArray>([](const QByteArray &resource, KAsync::Future<void> &future) {
+        Trace() << "Flushing message queue " << resource;
+        auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resource);
+        resourceAccess->open();
+        resourceAccess->synchronizeResource(false, true).then<void>([&future, resourceAccess]() {
+            future.setFinished();
+        }).exec();
+    })
+    //FIXME JOBAPI this is only required because we don't care about the return value of each (and each shouldn't even have a return value)
+    .template then<void>([](){});
+}
+
 template <class DomainType>
 KAsync::Job<DomainType> Store::fetchOne(const Akonadi2::Query &query)
 {
