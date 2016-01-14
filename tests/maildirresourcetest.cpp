@@ -120,34 +120,29 @@ private Q_SLOTS:
 
     void testListMailsOfFolder()
     {
-        {
-            Akonadi2::Query query;
-            query.resources << "org.kde.maildir.instance1";
-            query.syncOnDemand = true;
-            query.processAll = true;
-
-            //Ensure all local data is processed
-            Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        }
-        QByteArray folderIdentifier;
-        {
-            Akonadi2::Query query;
-            query.resources << "org.kde.maildir.instance1";
-            query.requestedProperties << "folder" << "name";
-
-            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
-            QVERIFY(model->rowCount(QModelIndex()) > 1);
-            folderIdentifier = model->index(1, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>()->identifier();
-        }
-
-        Akonadi2::Query query;
-        query.resources << "org.kde.maildir.instance1";
-        query.requestedProperties << "folder" << "subject";
-        query.propertyFilter.insert("folder", folderIdentifier);
-        auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
-        QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
-        QVERIFY(mailModel->rowCount(QModelIndex()) >= 1);
+        using namespace Akonadi2;
+        using namespace Akonadi2::ApplicationDomain;
+        //Ensure all local data is processed
+        auto query = Query::ResourceFilter("org.kde.maildir.instance1");
+        query.processAll = true;
+        query.syncOnDemand = true;
+        Store::synchronize(query).exec().waitForFinished();
+        // Store::flushMessageQueues(Query::ResourceFilter("org.kde.maildir.instance1")).exec().waitForFinished();
+        auto result = Store::fetchOne<Folder>(
+                Query::ResourceFilter("org.kde.maildir.instance1") + Query::RequestedProperties(QByteArrayList() << "name")
+            )
+            .then<QList<Mail::Ptr>, Folder>([](const Folder &folder) {
+                Trace() << "Found a folder" << folder.identifier();
+                return Store::fetchAll<Mail>(
+                    Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
+                );
+            })
+            .then<void, QList<Mail::Ptr> >([](const QList<Mail::Ptr> &mails) {
+                QVERIFY(mails.size() >= 1);
+            })
+            .exec();
+        result.waitForFinished();
+        QVERIFY(!result.errorCode());
     }
 
     void testMailContent()
