@@ -73,11 +73,9 @@ private Q_SLOTS:
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = true;
         query.liveQuery = true;
 
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test
         QTime time;

@@ -92,9 +92,7 @@ private Q_SLOTS:
         {
             Akonadi2::Query query;
             query.resources << "org.kde.dummy.instance1";
-            query.syncOnDemand = false;
-            query.processAll = true;
-            Akonadi2::Store::synchronize(query).exec().waitForFinished();
+            Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
         }
         auto allProcessedTime = time.elapsed();
 
@@ -123,8 +121,6 @@ private Q_SLOTS:
             time.start();
             Akonadi2::Query query;
             query.resources << "org.kde.dummy.instance1";
-            query.syncOnDemand = false;
-            query.processAll = false;
 
             query.propertyFilter.insert("uid", "testuid");
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);

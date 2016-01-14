@@ -204,7 +204,7 @@ KAsync::Job<void> Store::synchronize(const Akonadi2::Query &query)
         Trace() << "Synchronizing " << resource;
         auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resource);
         resourceAccess->open();
-        resourceAccess->synchronizeResource(query.syncOnDemand, query.processAll).then<void>([&future, resourceAccess]() {
+        resourceAccess->synchronizeResource(true, false).then<void>([&future, resourceAccess]() {
             future.setFinished();
         }).exec();
     })

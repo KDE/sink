@@ -43,8 +43,6 @@ bool sync(const QStringList &args, State &state)
     for (const auto &res : args) {
         query.resources << res.toLatin1();
     }
-    query.syncOnDemand = true;
-    query.processAll = true;
 
     QTimer::singleShot(0, [query, state]() {
     Akonadi2::Store::synchronize(query).then<void>([state]() {

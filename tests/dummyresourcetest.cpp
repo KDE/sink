@@ -62,11 +62,9 @@ private Q_SLOTS:
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = true;
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("uid", "testuid");
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
@@ -88,11 +86,9 @@ private Q_SLOTS:
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = true;
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("uid", "testuid");
 
@@ -118,11 +114,9 @@ private Q_SLOTS:
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = true;
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("summary", "summaryValue2");
 
@@ -153,11 +147,10 @@ private Q_SLOTS:
     {
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = true;
-        query.processAll = true;
 
         //Ensure all local data is processed
         Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
@@ -171,11 +164,10 @@ private Q_SLOTS:
     {
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = true;
-        query.processAll = true;
 
         //Ensure all local data is processed
         Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
@@ -195,12 +187,10 @@ private Q_SLOTS:
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = true;
         query.propertyFilter.insert("uid", "testuid");
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test create
         Akonadi2::ApplicationDomain::Event event2;
@@ -219,7 +209,7 @@ private Q_SLOTS:
         Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test modify
         {
@@ -234,7 +224,7 @@ private Q_SLOTS:
         Akonadi2::Store::remove<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test remove
         {
@@ -249,8 +239,6 @@ private Q_SLOTS:
 
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = true;
         query.liveQuery = true;
         query.propertyFilter.insert("uid", "testuid");
 

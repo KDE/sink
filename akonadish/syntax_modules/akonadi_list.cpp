@@ -58,8 +58,6 @@ bool list(const QStringList &args, State &state)
     for (const auto &res : resources) {
         query.resources << res.toLatin1();
     }
-    query.syncOnDemand = false;
-    query.processAll = false;
     query.liveQuery = false;
 
     QTime time;

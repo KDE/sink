@@ -69,8 +69,6 @@ void statResources(const QStringList &resources, const State &state)
 bool statAllResources(State &state)
 {
     Akonadi2::Query query;
-    query.syncOnDemand = false;
-    query.processAll = false;
     query.liveQuery = false;
     auto model = AkonadishUtils::loadModel("resource", query);
 

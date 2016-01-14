@@ -53,8 +53,6 @@ bool count(const QStringList &args, State &state)
     for (const auto &res : resources) {
         query.resources << res.toLatin1();
     }
-    query.syncOnDemand = false;
-    query.processAll = false;
     query.liveQuery = false;
 
     auto model = AkonadishUtils::loadModel(type, query);

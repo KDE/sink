@@ -48,8 +48,6 @@ private Q_SLOTS:
         //Test
         Akonadi2::Query query;
         query.resources << "foobar";
-        query.syncOnDemand = false;
-        query.processAll = false;
         query.liveQuery = true;
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
@@ -70,8 +68,6 @@ private Q_SLOTS:
         //Test
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = false;
         query.liveQuery = true;
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
@@ -91,12 +87,10 @@ private Q_SLOTS:
         //Test
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = true;
         query.liveQuery = false;
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
@@ -150,8 +144,6 @@ private Q_SLOTS:
         //Test
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = false;
         query.liveQuery = true;
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
@@ -171,11 +163,9 @@ private Q_SLOTS:
 
             Akonadi2::Query query;
             query.resources << "org.kde.dummy.instance1";
-            query.syncOnDemand = false;
-            query.processAll = true;
 
             //Ensure all local data is processed
-            Akonadi2::Store::synchronize(query).exec().waitForFinished();
+            Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
@@ -192,12 +182,10 @@ private Q_SLOTS:
         //Test
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = true;
         query.parentProperty = "parent";
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
@@ -222,13 +210,11 @@ private Q_SLOTS:
         //Test
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = true;
         query.liveQuery = false;
         query.propertyFilter.insert("uid", "test1");
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
@@ -246,11 +232,9 @@ private Q_SLOTS:
 
             Akonadi2::Query query;
             query.resources << "org.kde.dummy.instance1";
-            query.syncOnDemand = false;
-            query.processAll = true;
 
             //Ensure all local data is processed
-            Akonadi2::Store::synchronize(query).exec().waitForFinished();
+            Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
             auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
@@ -268,13 +252,10 @@ private Q_SLOTS:
         //Test
         Akonadi2::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.syncOnDemand = false;
-        query.processAll = true;
-        query.liveQuery = false;
         query.propertyFilter.insert("folder", folderEntity->identifier());
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);

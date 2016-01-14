@@ -120,7 +120,6 @@ public:
         QObject::connect(syncButton, &QPushButton::pressed, []() {
             Akonadi2::Query query;
             query.resources << "org.kde.dummy.instance1";
-            query.syncOnDemand = true;
             Akonadi2::Store::synchronize(query).exec();
         });
 
@@ -198,8 +197,6 @@ int main(int argc, char *argv[])
     for (const auto &res : resources) {
         query.resources << res.toLatin1();
     }
-    query.syncOnDemand = false;
-    query.processAll = false;
     query.liveQuery = true;
     if (type == "folder") {
         query.parentProperty = "parent";
