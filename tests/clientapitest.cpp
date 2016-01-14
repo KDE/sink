@@ -265,9 +265,18 @@ private Q_SLOTS:
         Akonadi2::Query query;
         query.liveQuery = false;
 
+        int childrenFetchedCount = 0;
         auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [&childrenFetchedCount](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
+            if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
+                childrenFetchedCount++;
+            }
+        });
         QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(QModelIndex()), 2);
+        //Ensure children fetched is only emitted once (when all resources are done)
+        QTest::qWait(50);
+        QCOMPARE(childrenFetchedCount, 1);
     }
 
 

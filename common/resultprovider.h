@@ -346,8 +346,14 @@ public:
         emitter->onRemoved([this](const DomainType &value) {
             this->remove(value);
         });
-        emitter->onInitialResultSetComplete([this](const DomainType &value) {
-            this->initialResultSetComplete(value);
+        auto ptr = emitter.data();
+        emitter->onInitialResultSetComplete([this, ptr](const DomainType &parent) {
+            auto hashValue = qHash(parent);
+            mInitialResultSetInProgress.remove(hashValue, ptr);
+            //Normally a parent is only in a single resource, except the toplevel (invalid) parent
+            if (!mInitialResultSetInProgress.contains(hashValue)) {
+                this->initialResultSetComplete(parent);
+            }
         });
         emitter->onComplete([this]() {
             this->complete();
@@ -365,6 +371,7 @@ public:
             this->initialResultSetComplete(parent);
         } else {
             for (const auto &emitter : mEmitter) {
+                mInitialResultSetInProgress.insert(qHash(parent), emitter.data());
                 emitter->fetch(parent);
             }
         }
@@ -372,6 +379,7 @@ public:
 
 private:
     QList<typename ResultEmitter<DomainType>::Ptr> mEmitter;
+    QMultiMap<qint64, ResultEmitter<DomainType>*> mInitialResultSetInProgress;
 };
 
 
