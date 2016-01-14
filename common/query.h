@@ -22,42 +22,120 @@
 #include <QByteArrayList>
 #include <QHash>
 #include <QSet>
+#include "applicationdomaintype.h"
 
 namespace Akonadi2 {
 
 /**
- * A query that matches a set of objects
- * 
- * The query will have to be updated regularly similary to the domain objects.
- * It probably also makes sense to have a domain specific part of the query,
- * such as what properties we're interested in (necessary information for on-demand
- * loading of data).
- *
- * The query defines:
- * * what resources to search
- * * filters on various properties (parent collection, startDate range, ....)
- * * properties we need (for on-demand querying)
- * 
- * syncOnDemand: Execute a source sync before executing the query
- * processAll: Ensure all local messages are processed before querying to guarantee an up-to date dataset.
+ * A query that matches a set of entities.
  */
 class Query
 {
 public:
-    Query() : syncOnDemand(true), processAll(false), liveQuery(false) {}
-    //Could also be a propertyFilter
+    enum Flag {
+        /** Leave the query running an contiously update the result set. */
+        LiveQuery
+    };
+    Q_DECLARE_FLAGS(Flags, Flag)
+
+    static Query PropertyFilter(const QByteArray &key, const QVariant &value)
+    {
+        Query query;
+        query.propertyFilter.insert(key, value);
+        return query;
+    }
+
+    static Query PropertyFilter(const QByteArray &key, const ApplicationDomain::Entity &entity)
+    {
+        return PropertyFilter(key, QVariant::fromValue(entity.identifier()));
+    }
+
+    static Query ResourceFilter(const QByteArray &identifier)
+    {
+        Query query;
+        query.resources.append(identifier);
+        return query;
+    }
+
+    static Query ResourceFilter(const QByteArrayList &identifier)
+    {
+        Query query;
+        query.resources = identifier;
+        return query;
+    }
+
+    static Query ResourceFilter(const ApplicationDomain::AkonadiResource &entity)
+    {
+        return ResourceFilter(entity.identifier());
+    }
+
+    static Query IdentityFilter(const QByteArray &identifier)
+    {
+        Query query;
+        query.ids << identifier;
+        return query;
+    }
+
+    static Query IdentityFilter(const QByteArrayList &identifier)
+    {
+        Query query;
+        query.ids = identifier;
+        return query;
+    }
+
+    static Query IdentityFilter(const ApplicationDomain::Entity &entity)
+    {
+        return IdentityFilter(entity.identifier());
+    }
+
+    static Query RequestedProperties(const QByteArrayList &properties)
+    {
+        Query query;
+        query.requestedProperties = properties;
+        return query;
+    }
+
+    static Query RequestTree(const QByteArray &parentProperty)
+    {
+        Query query;
+        query.parentProperty = parentProperty;
+        return query;
+    }
+
+    Query(Flags flags = Flags())
+    {}
+
+    Query& operator+=(const Query& rhs)
+    {
+        resources += rhs.resources;
+        ids += rhs.ids;
+        for (auto it = rhs.propertyFilter.constBegin(); it != rhs.propertyFilter.constEnd(); it++) {
+            propertyFilter.insert(it.key(), it.value());
+        }
+        requestedProperties += rhs.requestedProperties;
+        parentProperty = rhs.parentProperty;
+        liveQuery = rhs.liveQuery;
+        syncOnDemand = rhs.syncOnDemand;
+        processAll = rhs.processAll;
+        return *this;
+    }
+
+    friend Query operator+(Query lhs, const Query& rhs)
+    {
+        lhs += rhs;
+        return lhs;
+    }
+
     QByteArrayList resources;
-    //Could also be a propertyFilter
     QByteArrayList ids;
-    //Filters to apply
     QHash<QByteArray, QVariant> propertyFilter;
-    //Properties to retrieve
     QByteArrayList requestedProperties;
     QByteArray parentProperty;
+    bool liveQuery;
     bool syncOnDemand;
     bool processAll;
-    //If live query is false, this query will not continuously be updated
-    bool liveQuery;
 };
 
 }
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(Akonadi2::Query::Flags)
