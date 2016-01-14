@@ -279,6 +279,26 @@ private Q_SLOTS:
         QCOMPARE(childrenFetchedCount, 1);
     }
 
+    void testImperativeLoad()
+    {
+        auto facade = DummyResourceFacade<Akonadi2::ApplicationDomain::Event>::registerFacade();
+        facade->results << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+
+        Akonadi2::Query query;
+        query.resources << "dummyresource.instance1";
+        query.liveQuery = false;
+
+        bool gotValue = false;
+        auto result = Akonadi2::Store::fetchOne<Akonadi2::ApplicationDomain::Event>(query)
+            .then<void, Akonadi2::ApplicationDomain::Event>([&gotValue](const Akonadi2::ApplicationDomain::Event &event) {
+                gotValue = true;
+            }).exec();
+        result.waitForFinished();
+        QVERIFY(!result.errorCode());
+        QVERIFY(gotValue);
+    }
+
 
 };
 

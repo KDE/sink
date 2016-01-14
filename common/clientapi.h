@@ -95,6 +95,15 @@ public:
      * Removes a resource from disk.
      */
     static void removeFromDisk(const QByteArray &resourceIdentifier);
+
+    template <class DomainType>
+    static KAsync::Job<DomainType> fetchOne(const Akonadi2::Query &query);
+
+    template <class DomainType>
+    static KAsync::Job<QList<typename DomainType::Ptr> > fetchAll(const Akonadi2::Query &query);
+
+    template <class DomainType>
+    static KAsync::Job<QList<typename DomainType::Ptr> > fetch(const Akonadi2::Query &query, int minimumAmount = 0);
 };
 
 

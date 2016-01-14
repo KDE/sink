@@ -212,10 +212,74 @@ KAsync::Job<void> Store::synchronize(const Akonadi2::Query &query)
     .template then<void>([](){});
 }
 
+template <class DomainType>
+KAsync::Job<DomainType> Store::fetchOne(const Akonadi2::Query &query)
+{
+    return KAsync::start<DomainType>([query](KAsync::Future<DomainType> &future) {
+        //FIXME We could do this more elegantly if composed jobs would have the correct type (In that case we'd simply return the value from then continuation, and could avoid the outer job entirely)
+        fetch<DomainType>(query, 1)
+            .template then<void, QList<typename DomainType::Ptr> >([&future](const QList<typename DomainType::Ptr> &list){
+                future.setValue(*list.first());
+                future.setFinished();
+            }, [&future](int errorCode, const QString &errorMessage) {
+                future.setError(errorCode, errorMessage);
+                future.setFinished();
+            }).exec();
+    });
+}
+
+template <class DomainType>
+KAsync::Job<QList<typename DomainType::Ptr> > Store::fetchAll(const Akonadi2::Query &query)
+{
+    return fetch<DomainType>(query);
+}
+
+template <class DomainType>
+KAsync::Job<QList<typename DomainType::Ptr> > Store::fetch(const Akonadi2::Query &query, int minimumAmount)
+{
+    auto model = loadModel<DomainType>(query);
+    auto list = QSharedPointer<QList<typename DomainType::Ptr> >::create();
+    auto context = QSharedPointer<QObject>::create();
+    return KAsync::start<QList<typename DomainType::Ptr> >([model, list, context, minimumAmount](KAsync::Future<QList<typename DomainType::Ptr> > &future) {
+        if (model->rowCount() >= 1) {
+            for (int i = 0; i < model->rowCount(); i++) {
+                list->append(model->index(i, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).template value<typename DomainType::Ptr>());
+            }
+        } else {
+            QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, context.data(), [model, &future, list](const QModelIndex &index, int start, int end) {
+                for (int i = start; i <= end; i++) {
+                    list->append(model->index(i, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).template value<typename DomainType::Ptr>());
+                }
+            });
+            QObject::connect(model.data(), &QAbstractItemModel::dataChanged, context.data(), [model, &future, list, minimumAmount](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
+                if (roles.contains(ModelResult<DomainType, typename DomainType::Ptr>::ChildrenFetchedRole)) {
+                    if (list->size() < minimumAmount) {
+                        future.setError(1, "Not enough values.");
+                    } else {
+                        future.setValue(*list);
+                    }
+                    future.setFinished();
+                }
+            });
+        }
+        if (model->data(QModelIndex(), ModelResult<DomainType, typename DomainType::Ptr>::ChildrenFetchedRole).toBool()) {
+            if (list->size() < minimumAmount) {
+                future.setError(1, "Not enough values.");
+            } else {
+                future.setValue(*list);
+            }
+            future.setFinished();
+        }
+    });
+}
+
 #define REGISTER_TYPE(T) template KAsync::Job<void> Store::remove<T>(const T &domainObject); \
     template KAsync::Job<void> Store::create<T>(const T &domainObject); \
     template KAsync::Job<void> Store::modify<T>(const T &domainObject); \
     template QSharedPointer<QAbstractItemModel> Store::loadModel<T>(Query query); \
+    template KAsync::Job<T> Store::fetchOne<T>(const Query &); \
+    template KAsync::Job<QList<T::Ptr> > Store::fetchAll<T>(const Query &); \
+    template KAsync::Job<QList<T::Ptr> > Store::fetch<T>(const Query &, int); \
 
 REGISTER_TYPE(ApplicationDomain::Event);
 REGISTER_TYPE(ApplicationDomain::Mail);
