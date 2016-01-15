@@ -327,6 +327,49 @@ private Q_SLOTS:
         QTRY_COMPARE(QDir(tempDir.path() + "/maildir1/cur", QString(), QDir::NoSort, QDir::Files).count(), static_cast<unsigned int>(0));
     }
 
+    void testMarkMailAsRead()
+    {
+        using namespace Akonadi2;
+        using namespace Akonadi2::ApplicationDomain;
+
+        auto query = Query::ResourceFilter("org.kde.maildir.instance1");
+        Akonadi2::Store::synchronize(query).exec().waitForFinished();
+        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        auto result = Store::fetchOne<Folder>(
+                Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name")
+            )
+            .then<void, KAsync::Job<void>, Folder>([query](const Folder &folder) {
+                return Store::fetchAll<Mail>(
+                    Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
+                )
+                .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([](const QList<Mail::Ptr> &mails) -> KAsync::Job<void> {
+                    //Can't use QCOMPARE because it tries to return
+                    if (mails.size() != 1) {
+                        return KAsync::error<void>(1, "Wrong number of mails.");
+                    }
+                    auto mail = mails.first();
+                    mail->setProperty("unread", true);
+                    return Akonadi2::Store::modify(*mail);
+                })
+                .then<void>(Akonadi2::Store::flushMessageQueue(query.resources))
+                .then<void, KAsync::Job<void> >([folder]() -> KAsync::Job<void> {
+                    return Store::fetchAll<Mail>(
+                        Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject" << "unread")
+                    )
+                    .then<void, QList<Mail::Ptr> >([](const QList<Mail::Ptr> &mails) {
+                        QCOMPARE(mails.size(), 1);
+                        auto mail = mails.first();
+                        QCOMPARE(mail->getProperty("unread").toBool(), true);
+                    })
+                    .then<void>([](){});
+                });
+            })
+            .exec();
+        result.waitForFinished();
+        QVERIFY(!result.errorCode());
+    }
+
 };
 
 QTEST_MAIN(MaildirResourceTest)
