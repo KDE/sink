@@ -25,6 +25,7 @@
 #include <QEventLoop>
 #include <QAbstractItemModel>
 #include <QDir>
+#include <QUuid>
 #include <functional>
 #include <memory>
 
@@ -289,10 +290,26 @@ KAsync::Job<QList<typename DomainType::Ptr> > Store::fetch(const Akonadi2::Query
     });
 }
 
+template <class DomainType>
+KAsync::Job<void> Resources::inspect(const Inspection &inspectionCommand)
+{
+    auto resource = inspectionCommand.resourceIdentifier;
+
+    Trace() << "Sending inspection " << resource;
+    auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resource);
+    resourceAccess->open();
+    auto id = QUuid::createUuid().toByteArray();
+    return resourceAccess->sendInspectionCommand(id, ApplicationDomain::getTypeName<DomainType>(), inspectionCommand.entityIdentifier, inspectionCommand.property, inspectionCommand.expectedValue)
+        .template then<void>([resourceAccess]() {
+            //TODO wait for inspection notification
+        });
+}
+
 #define REGISTER_TYPE(T) template KAsync::Job<void> Store::remove<T>(const T &domainObject); \
     template KAsync::Job<void> Store::create<T>(const T &domainObject); \
     template KAsync::Job<void> Store::modify<T>(const T &domainObject); \
     template QSharedPointer<QAbstractItemModel> Store::loadModel<T>(Query query); \
+    template KAsync::Job<void> Resources::inspect<T>(const Inspection &); \
     template KAsync::Job<T> Store::fetchOne<T>(const Query &); \
     template KAsync::Job<QList<T::Ptr> > Store::fetchAll<T>(const Query &); \
     template KAsync::Job<QList<T::Ptr> > Store::fetch<T>(const Query &, int); \

@@ -48,6 +48,7 @@ public:
     virtual KAsync::Job<void> synchronizeWithSource(Akonadi2::Storage &mainStore, Akonadi2::Storage &synchronizationStore);
     virtual KAsync::Job<void> processAllMessages() Q_DECL_OVERRIDE;
     virtual void setLowerBoundRevision(qint64 revision) Q_DECL_OVERRIDE;
+    virtual KAsync::Job<void> inspect(int inspectionType, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue);
 
     int error() const;
 

@@ -47,6 +47,7 @@ enum CommandIds {
     NotificationCommand,
     PingCommand,
     RevisionReplayedCommand,
+    InspectionCommand,
     CustomCommand = 0xffff
 };
 

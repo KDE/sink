@@ -6,6 +6,7 @@
 #include "createentity_generated.h"
 #include "modifyentity_generated.h"
 #include "deleteentity_generated.h"
+#include "inspection_generated.h"
 #include "domainadaptor.h"
 #include "commands.h"
 #include "index.h"
@@ -13,6 +14,7 @@
 #include "definitions.h"
 
 #include <QUuid>
+#include <QDataStream>
 
 static int sBatchSize = 100;
 
@@ -112,6 +114,7 @@ private:
 class CommandProcessor : public QObject
 {
     Q_OBJECT
+    typedef std::function<KAsync::Job<void>(void const *, size_t)> InspectionFunction;
 public:
     CommandProcessor(Akonadi2::Pipeline *pipeline, QList<MessageQueue*> commandQueues)
         : QObject(),
@@ -133,6 +136,11 @@ public:
     void setOldestUsedRevision(qint64 revision)
     {
         mLowerBoundRevision = revision;
+    }
+
+    void setInspectionCommand(const InspectionFunction &f)
+    {
+        mInspect = f;
     }
 
 
@@ -176,6 +184,14 @@ private slots:
                 return mPipeline->modifiedEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
             case Akonadi2::Commands::CreateEntityCommand:
                 return mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
+            case Akonadi2::Commands::InspectionCommand:
+                if (mInspect) {
+                    return mInspect(queuedCommand->command()->Data(), queuedCommand->command()->size()).then<qint64>([]() {
+                        return -1;
+                    });
+                } else {
+                    return KAsync::error<qint64>(-1, "Missing inspection command.");
+                }
             default:
                 return KAsync::error<qint64>(-1, "Unhandled command");
         }
@@ -266,6 +282,7 @@ private:
     bool mProcessingLock;
     //The lowest revision we no longer need
     qint64 mLowerBoundRevision;
+    InspectionFunction mInspect;
 };
 
 
@@ -279,6 +296,22 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
     mClientLowerBoundRevision(std::numeric_limits<qint64>::max())
 {
     mProcessor = new CommandProcessor(mPipeline.data(), QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
+    mProcessor->setInspectionCommand([this](void const *command, size_t size) {
+        flatbuffers::Verifier verifier((const uint8_t *)command, size);
+        if (Akonadi2::Commands::VerifyInspectionBuffer(verifier)) {
+            auto buffer = Akonadi2::Commands::GetInspection(command);
+            int inspectionType = buffer->type();
+            QByteArray entityId = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->entityId()->Data()), buffer->entityId()->size());
+            QByteArray domainType = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->domainType()->Data()), buffer->domainType()->size());
+            QByteArray property = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->property()->Data()), buffer->property()->size());
+            QByteArray expectedValueString = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->expectedValue()->Data()), buffer->expectedValue()->size());
+            QDataStream s(expectedValueString);
+            QVariant expectedValue;
+            s >> expectedValue;
+            return inspect(inspectionType, domainType, entityId, property, expectedValue);
+        }
+        return KAsync::error<void>(-1, "Invalid inspection command.");
+    });
     QObject::connect(mProcessor, &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
     mSourceChangeReplay = new ChangeReplay(resourceInstanceIdentifier, [this](const QByteArray &type, const QByteArray &key, const QByteArray &value) {
@@ -299,6 +332,12 @@ GenericResource::~GenericResource()
 {
     delete mProcessor;
     delete mSourceChangeReplay;
+}
+
+KAsync::Job<void> GenericResource::inspect(int inspectionType, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
+{
+    Warning() << "Inspection not implemented";
+    return KAsync::null<void>();
 }
 
 void GenericResource::enableChangeReplay(bool enable)

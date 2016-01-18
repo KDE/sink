@@ -30,6 +30,7 @@
 #include "common/modifyentity_generated.h"
 #include "common/deleteentity_generated.h"
 #include "common/revisionreplayed_generated.h"
+#include "common/inspection_generated.h"
 #include "common/entitybuffer.h"
 #include "log.h"
 
@@ -37,6 +38,8 @@
 #include <QDebug>
 #include <QDir>
 #include <QProcess>
+#include <QDataStream>
+#include <QBuffer>
 
 #undef Trace
 #define Trace() Akonadi2::Log::debugStream(Akonadi2::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess")
@@ -336,6 +339,25 @@ KAsync::Job<void> ResourceAccess::sendRevisionReplayedCommand(qint64 revision)
     Akonadi2::Commands::FinishRevisionReplayedBuffer(fbb, location);
     open();
     return sendCommand(Akonadi2::Commands::RevisionReplayedCommand, fbb);
+}
+
+KAsync::Job<void> ResourceAccess::sendInspectionCommand(const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
+{
+    flatbuffers::FlatBufferBuilder fbb;
+    auto id = fbb.CreateString(inspectionId.toStdString());
+    auto domain = fbb.CreateString(domainType.toStdString());
+    auto entity = fbb.CreateString(entityId.toStdString());
+    auto prop = fbb.CreateString(property.toStdString());
+
+    QByteArray array;
+    QDataStream s(&array, QIODevice::WriteOnly);
+    s << expectedValue;
+
+    auto expected = fbb.CreateString(array.toStdString());
+    auto location = Akonadi2::Commands::CreateInspection (fbb, id, 0, entity, domain, prop, expected);
+    Akonadi2::Commands::FinishInspectionBuffer(fbb, location);
+    open();
+    return sendCommand(Akonadi2::Commands::InspectionCommand, fbb);
 }
 
 void ResourceAccess::open()

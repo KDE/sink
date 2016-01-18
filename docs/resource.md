@@ -141,3 +141,10 @@ The remoteid mapping has to be updated in two places:
 
 * New entities that are synchronized immediately get a localid assinged, that is then recorded together with the remoteid. This is required to be able to reference other entities directly in the command queue (i.e. for parent folders).
 * Entities created by clients get a remoteid assigned during change replay, so the entity can be recognized during the next sync.
+
+# Testing / Inspection
+Resources new to be tested, which often requires inspections into the current state of the resource. This is difficult in an asynchronous system where the whole backend logic is encapsulated in a separate process without running tests in a vastly different setup from how it will be run in production.
+
+To alleviate this inspection commands are introduced. Inspection commands are special commands that the resource processes just like all other commands, and that have the sole purpose of inspecting the current resource state. Because the command is processed with the same mechanism as other commands we can rely on ordering of commands in a way that a prior command is guaranteed to be executed once the inspection command is processed.
+
+A typical inspection command could i.e. verify that a file has been created in the expected path after a create command.

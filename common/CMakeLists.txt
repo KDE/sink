@@ -51,6 +51,7 @@ generate_flatbuffers(
     commands/synchronize
     commands/notification
     commands/revisionreplayed
+    commands/inspection
     domain/event
     domain/mail
     domain/folder

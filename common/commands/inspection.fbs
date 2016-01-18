@@ -1,0 +1,12 @@
+namespace Akonadi2.Commands;
+
+table Inspection {
+    id: string;
+    type: int;
+    entityId: string;
+    domainType: string;
+    property: string;
+    expectedValue: string;
+}
+
+root_type Inspection;

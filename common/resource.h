@@ -21,6 +21,7 @@
 #include <akonadi2common_export.h>
 
 #include <Async/Async>
+#include "notification.h"
 
 namespace Akonadi2
 {
@@ -55,6 +56,7 @@ public:
 
 Q_SIGNALS:
     void revisionUpdated(qint64);
+    void notify(ResourceNotification);
 
 private:
     class Private;

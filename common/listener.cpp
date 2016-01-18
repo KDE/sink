@@ -31,11 +31,13 @@
 #include "common/synchronize_generated.h"
 #include "common/notification_generated.h"
 #include "common/revisionreplayed_generated.h"
+#include "common/inspection_generated.h"
 
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QTimer>
 #include <QTime>
+#include <QDataStream>
 
 Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent)
     : QObject(parent),
@@ -241,6 +243,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             }
             break;
         }
+        case Akonadi2::Commands::InspectionCommand:
         case Akonadi2::Commands::FetchEntityCommand:
         case Akonadi2::Commands::DeleteEntityCommand:
         case Akonadi2::Commands::ModifyEntityCommand:

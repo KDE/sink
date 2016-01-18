@@ -51,12 +51,14 @@ auto_tests (
     databasepopulationandfacadequerybenchmark
     dummyresourcewritebenchmark
     modelinteractivitytest
+    inspectiontest
 )
 target_link_libraries(dummyresourcetest akonadi2_resource_dummy)
 target_link_libraries(dummyresourcebenchmark akonadi2_resource_dummy)
 target_link_libraries(dummyresourcewritebenchmark akonadi2_resource_dummy)
 target_link_libraries(querytest akonadi2_resource_dummy)
 target_link_libraries(modelinteractivitytest akonadi2_resource_dummy)
+target_link_libraries(inspectiontest akonadi2_resource_dummy)
 
 if (BUILD_MAILDIR)
     auto_tests (
