@@ -534,7 +534,9 @@ bool ResourceAccess::processMessageBuffer()
 
             d->completeCommands << buffer->id();
             //The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
-            QMetaObject::invokeMethod(this, "callCallbacks", Qt::QueuedConnection);
+            queuedInvoke([=]() {
+                d->callCallbacks();
+            });
             break;
         }
         case Commands::NotificationCommand: {
@@ -573,11 +575,6 @@ bool ResourceAccess::processMessageBuffer()
 
     d->partialMessageBuffer.remove(0, headerSize + size);
     return d->partialMessageBuffer.size() >= headerSize;
-}
-
-void ResourceAccess::callCallbacks()
-{
-    d->callCallbacks();
 }
 
 void ResourceAccess::log(const QString &message)
