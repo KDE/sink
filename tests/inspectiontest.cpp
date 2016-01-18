@@ -4,11 +4,7 @@
 
 #include "dummyresource/resourcefactory.h"
 #include "clientapi.h"
-#include "commands.h"
-#include "entitybuffer.h"
 #include "resourceconfig.h"
-#include "modelresult.h"
-#include "pipeline.h"
 #include "log.h"
 
 /**
@@ -38,25 +34,30 @@ private Q_SLOTS:
         Akonadi2::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
     }
 
-    void init()
+    void testInspection_data()
     {
-        qDebug();
-        qDebug() << "-----------------------------------------";
-        qDebug();
+        QTest::addColumn<bool>("success");
+        QTest::newRow("success") << true;
+        QTest::newRow("fail") << false;
     }
 
-    void testMarkMailAsRead()
+    void testInspection()
     {
+        QFETCH(bool, success);
         using namespace Akonadi2;
         using namespace Akonadi2::ApplicationDomain;
 
         Mail mail(QByteArray("org.kde.dummy.instance1"), QByteArray("identifier"), 0, QSharedPointer<MemoryBufferAdaptor::MemoryBufferAdaptor>::create());
 
-        auto inspectionCommand = Resources::Inspection::PropertyInspection(mail, "unread", true);
+        //testInspection is a magic property that the dummyresource supports
+        auto inspectionCommand = Resources::Inspection::PropertyInspection(mail, "testInspection", success);
         auto result = Resources::inspect<Mail>(inspectionCommand).exec();
         result.waitForFinished();
-        QVERIFY(!result.errorCode());
-        Akonadi2::Store::flushMessageQueue(QByteArrayList() << QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        if (success) {
+            QVERIFY(!result.errorCode());
+        } else {
+            QVERIFY(result.errorCode());
+        }
     }
 };
 

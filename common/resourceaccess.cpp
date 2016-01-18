@@ -46,6 +46,16 @@
 #undef Log
 #define Log(IDENTIFIER) Akonadi2::Log::debugStream(Akonadi2::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess("+IDENTIFIER+")")
 
+static void queuedInvoke(const std::function<void()> &f)
+{
+    QTimer *timer = new QTimer;
+    QObject::connect(timer, &QTimer::timeout, [=]() {
+        f();
+        delete timer;
+    });
+    timer->start(0);
+}
+
 namespace Akonadi2
 {
 
@@ -533,6 +543,23 @@ bool ResourceAccess::processMessageBuffer()
                 case Akonadi2::NotificationType::NotificationType_Shutdown:
                     Log(d->resourceInstanceIdentifier) << "Received shutdown notification.";
                     close();
+                    break;
+                case Akonadi2::NotificationType::NotificationType_Inspection: {
+                    Log(d->resourceInstanceIdentifier) << "Received inspection notification.";
+                    ResourceNotification n;
+                    if (buffer->identifier()) {
+                        n.id = QByteArray::fromRawData(reinterpret_cast<char const *>(buffer->identifier()->Data()), buffer->identifier()->size());
+                    }
+                    if (buffer->message()) {
+                        n.message = QByteArray::fromRawData(reinterpret_cast<char const *>(buffer->message()->Data()), buffer->message()->size());
+                    }
+                    n.type = buffer->type();
+                    n.code = buffer->code();
+                    //The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
+                    queuedInvoke([=]() {
+                        emit notification(n);
+                    });
+                }
                     break;
                 default:
                     Warning() << "Received unknown notification: " << buffer->type();

@@ -301,6 +301,7 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
         if (Akonadi2::Commands::VerifyInspectionBuffer(verifier)) {
             auto buffer = Akonadi2::Commands::GetInspection(command);
             int inspectionType = buffer->type();
+            QByteArray inspectionId = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->id()->Data()), buffer->id()->size());
             QByteArray entityId = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->entityId()->Data()), buffer->entityId()->size());
             QByteArray domainType = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->domainType()->Data()), buffer->domainType()->size());
             QByteArray property = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->property()->Data()), buffer->property()->size());
@@ -308,7 +309,21 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
             QDataStream s(expectedValueString);
             QVariant expectedValue;
             s >> expectedValue;
-            return inspect(inspectionType, domainType, entityId, property, expectedValue);
+            inspect(inspectionType, inspectionId, domainType, entityId, property, expectedValue).then<void>([=]() {
+                Akonadi2::ResourceNotification n;
+                n.type = Akonadi2::NotificationType_Inspection;
+                n.id = inspectionId;
+                n.code = Akonadi2::NotificationCode_Success;
+                emit notify(n);
+            }, [=](int code, const QString &message) {
+                Akonadi2::ResourceNotification n;
+                n.type = Akonadi2::NotificationType_Inspection;
+                n.message = message;
+                n.id = inspectionId;
+                n.code = Akonadi2::NotificationCode_Failure;
+                emit notify(n);
+            }).exec();
+            return KAsync::null<void>();
         }
         return KAsync::error<void>(-1, "Invalid inspection command.");
     });
@@ -334,7 +349,7 @@ GenericResource::~GenericResource()
     delete mSourceChangeReplay;
 }
 
-KAsync::Job<void> GenericResource::inspect(int inspectionType, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
+KAsync::Job<void> GenericResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
     Warning() << "Inspection not implemented";
     return KAsync::null<void>();

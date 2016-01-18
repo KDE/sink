@@ -386,6 +386,25 @@ void Listener::updateClientsWithRevision(qint64 revision)
     m_fbb.Clear();
 }
 
+void Listener::notify(const Akonadi2::ResourceNotification &notification)
+{
+    auto messageString = m_fbb.CreateString(notification.message.toUtf8().constData(), notification.message.toUtf8().size());
+    auto idString = m_fbb.CreateString(notification.id.constData(), notification.id.size());
+    Akonadi2::NotificationBuilder builder(m_fbb);
+    builder.add_type(static_cast<Akonadi2::NotificationType>(notification.type));
+    builder.add_code(notification.code);
+    builder.add_identifier(idString);
+    builder.add_message(messageString);
+    auto command = builder.Finish();
+    Akonadi2::FinishNotificationBuffer(m_fbb, command);
+    for (Client &client : m_connections) {
+        if (client.socket && client.socket->isOpen()) {
+            Akonadi2::Commands::write(client.socket, ++m_messageId, Akonadi2::Commands::NotificationCommand, m_fbb);
+        }
+    }
+    m_fbb.Clear();
+}
+
 Akonadi2::Resource *Listener::loadResource()
 {
     if (!m_resource) {
@@ -395,6 +414,8 @@ Akonadi2::Resource *Listener::loadResource()
             Trace() << QString("\tResource: %1").arg((qlonglong)m_resource);
             connect(m_resource, &Akonadi2::Resource::revisionUpdated,
                 this, &Listener::refreshRevision);
+            connect(m_resource, &Akonadi2::Resource::notify,
+                this, &Listener::notify);
         } else {
             ErrorMsg() << "Failed to load resource " << m_resourceName;
             m_resource = new Akonadi2::Resource;

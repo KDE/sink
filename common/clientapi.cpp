@@ -298,11 +298,48 @@ KAsync::Job<void> Resources::inspect(const Inspection &inspectionCommand)
     Trace() << "Sending inspection " << resource;
     auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resource);
     resourceAccess->open();
+    auto notifier = QSharedPointer<Akonadi2::Notifier>::create(resourceAccess);
     auto id = QUuid::createUuid().toByteArray();
     return resourceAccess->sendInspectionCommand(id, ApplicationDomain::getTypeName<DomainType>(), inspectionCommand.entityIdentifier, inspectionCommand.property, inspectionCommand.expectedValue)
-        .template then<void>([resourceAccess]() {
-            //TODO wait for inspection notification
+        .template then<void>([resourceAccess, notifier, id](KAsync::Future<void> &future) {
+            notifier->registerHandler([&future, id](const ResourceNotification &notification) {
+                if (notification.id == id) {
+                    if (notification.code) {
+                        future.setError(-1, "Inspection returned an error: " + notification.message);
+                    } else {
+                        future.setFinished();
+                    }
+                }
+            });
         });
+}
+
+class Akonadi2::Notifier::Private {
+public:
+    Private()
+        : context(new QObject)
+    {
+
+    }
+    QList<QSharedPointer<ResourceAccess> > resourceAccess;
+    QList<std::function<void(const ResourceNotification &)> > handler;
+    QSharedPointer<QObject> context;
+};
+
+Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess)
+    : d(new Akonadi2::Notifier::Private)
+{
+    QObject::connect(resourceAccess.data(), &ResourceAccess::notification, d->context.data(), [this](const ResourceNotification &notification) {
+        for (const auto &handler : d->handler) {
+            handler(notification);
+        }
+    });
+    d->resourceAccess << resourceAccess;
+}
+
+void Notifier::registerHandler(std::function<void(const ResourceNotification &)> handler)
+{
+    d->handler << handler;
 }
 
 #define REGISTER_TYPE(T) template KAsync::Job<void> Store::remove<T>(const T &domainObject); \

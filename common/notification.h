@@ -32,6 +32,7 @@ namespace Akonadi2
 class AKONADI2COMMON_EXPORT ResourceNotification
 {
 public:
+    QByteArray id;
     int type;
     QString message;
     int code;

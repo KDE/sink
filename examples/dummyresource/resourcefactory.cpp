@@ -134,21 +134,17 @@ void DummyResource::removeFromDisk(const QByteArray &instanceIdentifier)
     Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite).removeFromDisk();
 }
 
-KAsync::Job<void> DummyResource::inspect(int inspectionType, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
+KAsync::Job<void> DummyResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
 
     Trace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
     if (property == "testInspection") {
-        Akonadi2::ResourceNotification n;
-        n.type = Akonadi2::NotificationType_Inspection;
         if (expectedValue.toBool()) {
             //Success
-            n.code = 0;
-            emit notify(n);
+            return KAsync::null<void>();
         } else {
             //Failure
-            n.code = 1;
-            emit notify(n);
+            return KAsync::error<void>(1, "Failed.");
         }
     }
     return KAsync::null<void>();
