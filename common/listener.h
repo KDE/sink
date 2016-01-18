@@ -79,9 +79,9 @@ private Q_SLOTS:
     void quit();
 
 private:
-    void processCommand(int commandId, uint messageId, const QByteArray &commandBuffer, Client &client, const std::function<void()> &callback);
+    void processCommand(int commandId, uint messageId, const QByteArray &commandBuffer, Client &client, const std::function<void(bool)> &callback);
     bool processClientBuffer(Client &client);
-    void sendCommandCompleted(QLocalSocket *socket, uint messageId);
+    void sendCommandCompleted(QLocalSocket *socket, uint messageId, bool success);
     void updateClientsWithRevision(qint64);
     Akonadi2::Resource *loadResource();
     void readFromSocket(QLocalSocket *socket);

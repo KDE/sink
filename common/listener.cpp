@@ -203,8 +203,9 @@ void Listener::processClientBuffers()
     }
 }
 
-void Listener::processCommand(int commandId, uint messageId, const QByteArray &commandBuffer, Client &client, const std::function<void()> &callback)
+void Listener::processCommand(int commandId, uint messageId, const QByteArray &commandBuffer, Client &client, const std::function<void(bool)> &callback)
 {
+    bool success = true;
     switch (commandId) {
         case Akonadi2::Commands::HandshakeCommand: {
             flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
@@ -232,7 +233,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 }
                 job.then<void>([callback, timer]() {
                     Trace() << "Sync took " << timer->elapsed();
-                    callback();
+                    callback(true);
                 }).exec();
                 return;
             } else {
@@ -273,11 +274,12 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 Log() << QString("\tReceived custom command from %1: ").arg(client.name) << commandId;
                 loadResource()->processCommand(commandId, commandBuffer);
             } else {
+                success = false;
                 ErrorMsg() << QString("\tReceived invalid command from %1: ").arg(client.name) << commandId;
             }
             break;
     }
-    callback();
+    callback(success);
 }
 
 qint64 Listener::lowerBoundRevision()
@@ -333,10 +335,10 @@ bool Listener::processClientBuffer(Client &client)
         auto clientName = client.name;
         const QByteArray commandBuffer = client.commandBuffer.left(size);
         client.commandBuffer.remove(0, size);
-        processCommand(commandId, messageId, commandBuffer, client, [this, messageId, commandId, socket, clientName]() {
+        processCommand(commandId, messageId, commandBuffer, client, [this, messageId, commandId, socket, clientName](bool success) {
             Log() << QString("\tCompleted command messageid %1 of type \"%2\" from %3").arg(messageId).arg(QString(Akonadi2::Commands::name(commandId))).arg(clientName);
             if (socket) {
-                sendCommandCompleted(socket.data(), messageId);
+                sendCommandCompleted(socket.data(), messageId, success);
             } else {
                 Log() << QString("Socket became invalid before we could send a response. client: %1").arg(clientName);
             }
@@ -348,13 +350,13 @@ bool Listener::processClientBuffer(Client &client)
     return false;
 }
 
-void Listener::sendCommandCompleted(QLocalSocket *socket, uint messageId)
+void Listener::sendCommandCompleted(QLocalSocket *socket, uint messageId, bool success)
 {
     if (!socket || !socket->isValid()) {
         return;
     }
 
-    auto command = Akonadi2::CreateCommandCompletion(m_fbb, messageId);
+    auto command = Akonadi2::CreateCommandCompletion(m_fbb, messageId, success);
     Akonadi2::FinishCommandCompletionBuffer(m_fbb, command);
     Akonadi2::Commands::write(socket, ++m_messageId, Akonadi2::Commands::CommandCompletion, m_fbb);
     m_fbb.Clear();
