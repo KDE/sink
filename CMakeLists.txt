@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8.12)
 
 option(BUILD_MAILDIR "BUILD_MAILDIR" ON)
+option(AVOID_BINDING_REBUILD "AVOID_BINDING_REBUILD" OFF)
 
 # ECM setup
 find_package(ECM 0.0.10 REQUIRED NO_MODULE)
@@ -19,7 +20,12 @@ include(KDEInstallDirs)
 find_package(Qt5 COMPONENTS REQUIRED Core Widgets Network)
 find_package(KF5 COMPONENTS REQUIRED Async)
 find_package(FlatBuffers REQUIRED)
-add_custom_target(generate_bindings)
+if (${AVOID_BINDING_REBUILD})
+    add_custom_target(generate_bindings)
+else()
+    add_custom_target(generate_bindings ALL)
+endif()
+
 function(generate_flatbuffers _target)
     foreach(fbs ${ARGN})
        message("making ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h from ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs")
