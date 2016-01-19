@@ -46,12 +46,11 @@
 #undef Log
 #define Log(IDENTIFIER) Akonadi2::Log::debugStream(Akonadi2::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess("+IDENTIFIER+")")
 
-static void queuedInvoke(const std::function<void()> &f)
+static void queuedInvoke(const std::function<void()> &f, QObject *context = 0)
 {
-    QTimer *timer = new QTimer;
-    QObject::connect(timer, &QTimer::timeout, [=]() {
+    auto timer = QSharedPointer<QTimer>::create();
+    QObject::connect(timer.data(), &QTimer::timeout, context, [f, timer]() {
         f();
-        delete timer;
     });
     timer->start(0);
 }
@@ -536,7 +535,7 @@ bool ResourceAccess::processMessageBuffer()
             //The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
             queuedInvoke([=]() {
                 d->callCallbacks();
-            });
+            }, this);
             break;
         }
         case Commands::NotificationCommand: {
@@ -560,7 +559,7 @@ bool ResourceAccess::processMessageBuffer()
                     //The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
                     queuedInvoke([=]() {
                         emit notification(n);
-                    });
+                    }, this);
                 }
                     break;
                 default:
