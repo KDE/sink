@@ -321,7 +321,7 @@ private Q_SLOTS:
                     auto mail = mails.first();
 
                     return Store::remove(*mail)
-                        .then(Store::flushMessageQueue(query.resources)) //The change needs to be replayed already
+                        .then(Store::flushReplayQueue(query.resources)) //The change needs to be replayed already
                         .then(Resources::inspect<Mail>(Resources::Inspection::ExistenceInspection(*mail, false)));
                 })
                 .then<void>([](){});
@@ -357,7 +357,7 @@ private Q_SLOTS:
                     mail->setProperty("unread", true);
                     auto inspectionCommand = Resources::Inspection::PropertyInspection(*mail, "unread", true);
                     return Store::modify(*mail)
-                        .then<void>(Store::flushMessageQueue(query.resources)) //The change needs to be replayed already
+                        .then<void>(Store::flushReplayQueue(query.resources)) //The change needs to be replayed already
                         .then(Resources::inspect<Mail>(inspectionCommand));
                 })
                 .then<void>([](){});

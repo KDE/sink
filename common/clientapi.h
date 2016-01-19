@@ -100,6 +100,11 @@ public:
     static KAsync::Job<void> flushMessageQueue(const QByteArrayList &resourceIdentifier);
 
     /**
+     * Flushes any pending messages that haven't been replayed to the source.
+     */
+    static KAsync::Job<void> flushReplayQueue(const QByteArrayList &resourceIdentifier);
+
+    /**
      * Removes a resource from disk.
      */
     static void removeFromDisk(const QByteArray &resourceIdentifier);

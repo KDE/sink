@@ -229,6 +229,11 @@ KAsync::Job<void> Store::flushMessageQueue(const QByteArrayList &resourceIdentif
     .template then<void>([](){});
 }
 
+KAsync::Job<void> Store::flushReplayQueue(const QByteArrayList &resourceIdentifier)
+{
+    return flushMessageQueue(resourceIdentifier);
+}
+
 template <class DomainType>
 KAsync::Job<DomainType> Store::fetchOne(const Akonadi2::Query &query)
 {
