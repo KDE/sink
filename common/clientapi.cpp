@@ -307,7 +307,7 @@ KAsync::Job<void> Resources::inspect(const Inspection &inspectionCommand)
     auto id = QUuid::createUuid().toByteArray();
     return resourceAccess->sendInspectionCommand(id, ApplicationDomain::getTypeName<DomainType>(), inspectionCommand.entityIdentifier, inspectionCommand.property, inspectionCommand.expectedValue)
         .template then<void>([resourceAccess, notifier, id](KAsync::Future<void> &future) {
-            notifier->registerHandler([&future, id](const ResourceNotification &notification) {
+            notifier->registerHandler([&future, id](const Notification &notification) {
                 if (notification.id == id) {
                     if (notification.code) {
                         future.setError(-1, "Inspection returned an error: " + notification.message);
@@ -327,14 +327,14 @@ public:
 
     }
     QList<QSharedPointer<ResourceAccess> > resourceAccess;
-    QList<std::function<void(const ResourceNotification &)> > handler;
+    QList<std::function<void(const Notification &)> > handler;
     QSharedPointer<QObject> context;
 };
 
 Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess)
     : d(new Akonadi2::Notifier::Private)
 {
-    QObject::connect(resourceAccess.data(), &ResourceAccess::notification, d->context.data(), [this](const ResourceNotification &notification) {
+    QObject::connect(resourceAccess.data(), &ResourceAccess::notification, d->context.data(), [this](const Notification &notification) {
         for (const auto &handler : d->handler) {
             handler(notification);
         }
@@ -342,7 +342,7 @@ Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess)
     d->resourceAccess << resourceAccess;
 }
 
-void Notifier::registerHandler(std::function<void(const ResourceNotification &)> handler)
+void Notifier::registerHandler(std::function<void(const Notification &)> handler)
 {
     d->handler << handler;
 }

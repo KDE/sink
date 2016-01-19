@@ -21,7 +21,6 @@
 
 #include <akonadi2common_export.h>
 #include <QString>
-#include "notification_generated.h"
 
 namespace Akonadi2
 {
@@ -29,7 +28,7 @@ namespace Akonadi2
 /**
  * A notification
  */
-class AKONADI2COMMON_EXPORT ResourceNotification
+class AKONADI2COMMON_EXPORT Notification
 {
 public:
     QByteArray id;

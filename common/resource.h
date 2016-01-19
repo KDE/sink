@@ -57,7 +57,7 @@ public:
 
 Q_SIGNALS:
     void revisionUpdated(qint64);
-    void notify(ResourceNotification);
+    void notify(Notification);
 
 private:
     class Private;

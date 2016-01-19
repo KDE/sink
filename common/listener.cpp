@@ -386,7 +386,7 @@ void Listener::updateClientsWithRevision(qint64 revision)
     m_fbb.Clear();
 }
 
-void Listener::notify(const Akonadi2::ResourceNotification &notification)
+void Listener::notify(const Akonadi2::Notification &notification)
 {
     auto messageString = m_fbb.CreateString(notification.message.toUtf8().constData(), notification.message.toUtf8().size());
     auto idString = m_fbb.CreateString(notification.id.constData(), notification.id.size());

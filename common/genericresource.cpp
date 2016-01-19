@@ -7,6 +7,7 @@
 #include "modifyentity_generated.h"
 #include "deleteentity_generated.h"
 #include "inspection_generated.h"
+#include "notification_generated.h"
 #include "domainadaptor.h"
 #include "commands.h"
 #include "index.h"
@@ -312,13 +313,13 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
             QVariant expectedValue;
             s >> expectedValue;
             inspect(inspectionType, inspectionId, domainType, entityId, property, expectedValue).then<void>([=]() {
-                Akonadi2::ResourceNotification n;
+                Akonadi2::Notification n;
                 n.type = Akonadi2::Commands::NotificationType_Inspection;
                 n.id = inspectionId;
                 n.code = Akonadi2::Commands::NotificationCode_Success;
                 emit notify(n);
             }, [=](int code, const QString &message) {
-                Akonadi2::ResourceNotification n;
+                Akonadi2::Notification n;
                 n.type = Akonadi2::Commands::NotificationType_Inspection;
                 n.message = message;
                 n.id = inspectionId;

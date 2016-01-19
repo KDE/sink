@@ -55,7 +55,7 @@ public:
 Q_SIGNALS:
     void ready(bool isReady);
     void revisionChanged(qint64 revision);
-    void notification(ResourceNotification revision);
+    void notification(Notification revision);
 
 public Q_SLOTS:
     virtual void open() = 0;

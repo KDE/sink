@@ -28,7 +28,7 @@
 namespace Akonadi2
 {
     class Resource;
-    class ResourceNotification;
+    class Notification;
 }
 
 class QTimer;
@@ -77,7 +77,7 @@ private Q_SLOTS:
     void onDataAvailable();
     void processClientBuffers();
     void refreshRevision(qint64);
-    void notify(const Akonadi2::ResourceNotification &);
+    void notify(const Akonadi2::Notification &);
     void quit();
 
 private:

@@ -549,7 +549,7 @@ bool ResourceAccess::processMessageBuffer()
                     break;
                 case Akonadi2::Commands::NotificationType::NotificationType_Inspection: {
                     Log(d->resourceInstanceIdentifier) << "Received inspection notification.";
-                    ResourceNotification n;
+                    Notification n;
                     if (buffer->identifier()) {
                         //Don't use fromRawData, the buffer is gone once we invoke emit notification
                         n.id = BufferUtils::extractBufferCopy(buffer->identifier());

@@ -33,7 +33,7 @@ class QAbstractItemModel;
 
 namespace Akonadi2 {
 class ResourceAccess;
-class ResourceNotification;
+class Notification;
 
 /**
  * Store interface used in the client API.
@@ -127,7 +127,9 @@ namespace Resources {
 class Notifier {
 public:
     Notifier(const QSharedPointer<ResourceAccess> &resourceAccess);
-    void registerHandler(std::function<void(const ResourceNotification &)>);
+    // Notifier(const QByteArray &resource);
+    // Notifier(const QByteArrayList &resource);
+    void registerHandler(std::function<void(const Notification &)>);
 
 private:
     class Private;
