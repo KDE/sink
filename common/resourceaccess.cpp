@@ -550,10 +550,12 @@ bool ResourceAccess::processMessageBuffer()
                     Log(d->resourceInstanceIdentifier) << "Received inspection notification.";
                     ResourceNotification n;
                     if (buffer->identifier()) {
-                        n.id = QByteArray::fromRawData(reinterpret_cast<char const *>(buffer->identifier()->Data()), buffer->identifier()->size());
+                        //Don't use fromRawData, the buffer is gone once we invoke emit notification
+                        n.id = QByteArray(reinterpret_cast<char const *>(buffer->identifier()->Data()), buffer->identifier()->size());
                     }
                     if (buffer->message()) {
-                        n.message = QByteArray::fromRawData(reinterpret_cast<char const *>(buffer->message()->Data()), buffer->message()->size());
+                        //Don't use fromRawData, the buffer is gone once we invoke emit notification
+                        n.message = QByteArray(reinterpret_cast<char const *>(buffer->message()->Data()), buffer->message()->size());
                     }
                     n.type = buffer->type();
                     n.code = buffer->code();
