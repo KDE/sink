@@ -295,7 +295,25 @@ void MaildirResource::removeFromDisk(const QByteArray &instanceIdentifier)
 
 KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
+    auto synchronizationStore = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadOnly);
+    auto synchronizationTransaction = synchronizationStore->createTransaction(Akonadi2::Storage::ReadOnly);
     Trace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
+    if (domainType == ENTITY_TYPE_MAIL) {
+        if (inspectionType == Akonadi2::Resources::Inspection::PropertyInspectionType) {
+            if (property == "unread") {
+                const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, entityId, synchronizationTransaction);
+                const auto flags = KPIM::Maildir::readEntryFlags(remoteId.split('/').last());
+                if (expectedValue.toBool() && !(flags & KPIM::Maildir::Seen)) {
+                    return KAsync::error<void>(1, "Expected seen but couldn't find it.");
+                }
+                if (!expectedValue.toBool() && (flags & KPIM::Maildir::Seen)) {
+                    return KAsync::error<void>(1, "Expected seen but couldn't find it.");
+                }
+                return KAsync::null<void>();
+            }
+        }
+    }
+    return KAsync::null<void>();
 }
 
 MaildirResourceFactory::MaildirResourceFactory(QObject *parent)

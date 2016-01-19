@@ -770,7 +770,7 @@ bool Maildir::removeEntry(const QString& key)
 //     return newUniqueKey;
 // }
 //
-Maildir::Flags Maildir::readEntryFlags(const QString& key) const
+Maildir::Flags Maildir::readEntryFlags(const QString& key)
 {
     Flags flags;
     const QRegExp rx = *(statusSeparatorRx());

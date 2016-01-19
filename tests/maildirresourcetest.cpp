@@ -353,14 +353,22 @@ private Q_SLOTS:
                     return Akonadi2::Store::modify(*mail);
                 })
                 .then<void>(Akonadi2::Store::flushMessageQueue(query.resources))
-                .then<void, KAsync::Job<void> >([folder]() -> KAsync::Job<void> {
+                .then<void, KAsync::Job<void> >([folder]() {
                     return Store::fetchAll<Mail>(
                         Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject" << "unread")
                     )
-                    .then<void, QList<Mail::Ptr> >([](const QList<Mail::Ptr> &mails) {
-                        QCOMPARE(mails.size(), 1);
+                    .then<void, KAsync::Job<void>, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
+                        //Can't use QCOMPARE because it tries to return
+                        if (mails.size() != 1) {
+                            return KAsync::error<void>(1, "Wrong number of mails.");
+                        }
                         auto mail = mails.first();
-                        QCOMPARE(mail->getProperty("unread").toBool(), true);
+                        //Can't use QCOMPARE because it tries to return
+                        if (mail->getProperty("unread").toBool() != true) {
+                            return KAsync::error<void>(1, "Wrong property value.");
+                        }
+                        auto inspectionCommand = Akonadi2::Resources::Inspection::PropertyInspection(*mail, "unread", true);
+                        return Akonadi2::Resources::inspect<Mail>(inspectionCommand);
                     })
                     .then<void>([](){});
                 });

@@ -178,7 +178,7 @@ public:
     /**
      * Return the flags encoded in the maildir file name for an entry
      **/
-    Flags readEntryFlags( const QString& key ) const;
+    static Flags readEntryFlags( const QString& key );
 
     /**
      * Return the contents of the headers section of the file the maildir with the given @p file, that
