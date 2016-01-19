@@ -32,8 +32,8 @@ private Q_SLOTS:
 
         flatbuffers::FlatBufferBuilder fbb;
         auto name = fbb.CreateString("test");
-        auto command = Akonadi2::CreateHandshake(fbb, name);
-        Akonadi2::FinishHandshakeBuffer(fbb, command);
+        auto command = Akonadi2::Commands::CreateHandshake(fbb, name);
+        Akonadi2::Commands::FinishHandshakeBuffer(fbb, command);
         auto result = resourceAccess.sendCommand(Akonadi2::Commands::HandshakeCommand, fbb).exec();
         result.waitForFinished();
         QVERIFY(!result.errorCode());

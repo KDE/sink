@@ -298,8 +298,8 @@ KAsync::Job<void> ResourceAccess::synchronizeResource(bool sourceSync, bool loca
 {
     Trace() << "Sending synchronize command: " << sourceSync << localSync;
     flatbuffers::FlatBufferBuilder fbb;
-    auto command = Akonadi2::CreateSynchronize(fbb, sourceSync, localSync);
-    Akonadi2::FinishSynchronizeBuffer(fbb, command);
+    auto command = Akonadi2::Commands::CreateSynchronize(fbb, sourceSync, localSync);
+    Akonadi2::Commands::FinishSynchronizeBuffer(fbb, command);
     open();
     return sendCommand(Commands::SynchronizeCommand, fbb);
 }
@@ -457,8 +457,8 @@ void ResourceAccess::connected()
     {
         flatbuffers::FlatBufferBuilder fbb;
         auto name = fbb.CreateString(QString("PID: %1 ResourceAccess: %2").arg(QCoreApplication::applicationPid()).arg(reinterpret_cast<qlonglong>(this)).toLatin1());
-        auto command = Akonadi2::CreateHandshake(fbb, name);
-        Akonadi2::FinishHandshakeBuffer(fbb, command);
+        auto command = Akonadi2::Commands::CreateHandshake(fbb, name);
+        Akonadi2::Commands::FinishHandshakeBuffer(fbb, command);
         Commands::write(d->socket.data(), ++d->messageId, Commands::HandshakeCommand, fbb);
     }
 
@@ -523,14 +523,14 @@ bool ResourceAccess::processMessageBuffer()
 
     switch (commandId) {
         case Commands::RevisionUpdateCommand: {
-            auto buffer = GetRevisionUpdate(d->partialMessageBuffer.constData() + headerSize);
+            auto buffer = Commands::GetRevisionUpdate(d->partialMessageBuffer.constData() + headerSize);
             log(QString("Revision updated to: %1").arg(buffer->revision()));
             emit revisionChanged(buffer->revision());
 
             break;
         }
-        case Commands::CommandCompletion: {
-            auto buffer = GetCommandCompletion(d->partialMessageBuffer.constData() + headerSize);
+        case Commands::CommandCompletionCommand: {
+            auto buffer = Commands::GetCommandCompletion(d->partialMessageBuffer.constData() + headerSize);
             log(QString("Command with messageId %1 completed %2").arg(buffer->id()).arg(buffer->success() ? "sucessfully" : "unsuccessfully"));
 
             d->completeCommands << buffer->id();
@@ -541,13 +541,13 @@ bool ResourceAccess::processMessageBuffer()
             break;
         }
         case Commands::NotificationCommand: {
-            auto buffer = GetNotification(d->partialMessageBuffer.constData() + headerSize);
+            auto buffer = Commands::GetNotification(d->partialMessageBuffer.constData() + headerSize);
             switch (buffer->type()) {
-                case Akonadi2::NotificationType::NotificationType_Shutdown:
+                case Akonadi2::Commands::NotificationType::NotificationType_Shutdown:
                     Log(d->resourceInstanceIdentifier) << "Received shutdown notification.";
                     close();
                     break;
-                case Akonadi2::NotificationType::NotificationType_Inspection: {
+                case Akonadi2::Commands::NotificationType::NotificationType_Inspection: {
                     Log(d->resourceInstanceIdentifier) << "Received inspection notification.";
                     ResourceNotification n;
                     if (buffer->identifier()) {

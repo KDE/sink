@@ -313,16 +313,16 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
             s >> expectedValue;
             inspect(inspectionType, inspectionId, domainType, entityId, property, expectedValue).then<void>([=]() {
                 Akonadi2::ResourceNotification n;
-                n.type = Akonadi2::NotificationType_Inspection;
+                n.type = Akonadi2::Commands::NotificationType_Inspection;
                 n.id = inspectionId;
-                n.code = Akonadi2::NotificationCode_Success;
+                n.code = Akonadi2::Commands::NotificationCode_Success;
                 emit notify(n);
             }, [=](int code, const QString &message) {
                 Akonadi2::ResourceNotification n;
-                n.type = Akonadi2::NotificationType_Inspection;
+                n.type = Akonadi2::Commands::NotificationType_Inspection;
                 n.message = message;
                 n.id = inspectionId;
-                n.code = Akonadi2::NotificationCode_Failure;
+                n.code = Akonadi2::Commands::NotificationCode_Failure;
                 emit notify(n);
             }).exec();
             return KAsync::null<void>();

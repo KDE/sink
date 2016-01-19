@@ -34,7 +34,7 @@ namespace Commands
 
 enum CommandIds {
     UnknownCommand = 0,
-    CommandCompletion,
+    CommandCompletionCommand,
     HandshakeCommand,
     RevisionUpdateCommand,
     SynchronizeCommand,

@@ -33,7 +33,7 @@ QByteArray name(int commandId)
     switch(commandId) {
         case UnknownCommand:
             return "Unknown";
-        case CommandCompletion:
+        case CommandCompletionCommand:
             return "Completion";
         case HandshakeCommand:
             return "Handshake";

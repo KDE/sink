@@ -211,8 +211,8 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
     switch (commandId) {
         case Akonadi2::Commands::HandshakeCommand: {
             flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
-            if (Akonadi2::VerifyHandshakeBuffer(verifier)) {
-                auto buffer = Akonadi2::GetHandshake(commandBuffer.constData());
+            if (Akonadi2::Commands::VerifyHandshakeBuffer(verifier)) {
+                auto buffer = Akonadi2::Commands::GetHandshake(commandBuffer.constData());
                 client.name = buffer->name()->c_str();
             } else {
                 Warning() << "received invalid command";
@@ -221,8 +221,8 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         }
         case Akonadi2::Commands::SynchronizeCommand: {
             flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
-            if (Akonadi2::VerifySynchronizeBuffer(verifier)) {
-                auto buffer = Akonadi2::GetSynchronize(commandBuffer.constData());
+            if (Akonadi2::Commands::VerifySynchronizeBuffer(verifier)) {
+                auto buffer = Akonadi2::Commands::GetSynchronize(commandBuffer.constData());
                 Log() << QString("\tSynchronize request (id %1) from %2").arg(messageId).arg(client.name);
                 auto timer = QSharedPointer<QTime>::create();
                 timer->start();
@@ -303,8 +303,8 @@ qint64 Listener::lowerBoundRevision()
 void Listener::quit()
 {
     //Broadcast shutdown notifications to open clients, so they don't try to restart the resource
-    auto command = Akonadi2::CreateNotification(m_fbb, Akonadi2::NotificationType::NotificationType_Shutdown);
-    Akonadi2::FinishNotificationBuffer(m_fbb, command);
+    auto command = Akonadi2::Commands::CreateNotification(m_fbb, Akonadi2::Commands::NotificationType::NotificationType_Shutdown);
+    Akonadi2::Commands::FinishNotificationBuffer(m_fbb, command);
     for (Client &client : m_connections) {
         if (client.socket && client.socket->isOpen()) {
             Akonadi2::Commands::write(client.socket, ++m_messageId, Akonadi2::Commands::NotificationCommand, m_fbb);
@@ -359,9 +359,9 @@ void Listener::sendCommandCompleted(QLocalSocket *socket, uint messageId, bool s
         return;
     }
 
-    auto command = Akonadi2::CreateCommandCompletion(m_fbb, messageId, success);
-    Akonadi2::FinishCommandCompletionBuffer(m_fbb, command);
-    Akonadi2::Commands::write(socket, ++m_messageId, Akonadi2::Commands::CommandCompletion, m_fbb);
+    auto command = Akonadi2::Commands::CreateCommandCompletion(m_fbb, messageId, success);
+    Akonadi2::Commands::FinishCommandCompletionBuffer(m_fbb, command);
+    Akonadi2::Commands::write(socket, ++m_messageId, Akonadi2::Commands::CommandCompletionCommand, m_fbb);
     m_fbb.Clear();
 }
 
@@ -372,8 +372,8 @@ void Listener::refreshRevision(qint64 revision)
 
 void Listener::updateClientsWithRevision(qint64 revision)
 {
-    auto command = Akonadi2::CreateRevisionUpdate(m_fbb, revision);
-    Akonadi2::FinishRevisionUpdateBuffer(m_fbb, command);
+    auto command = Akonadi2::Commands::CreateRevisionUpdate(m_fbb, revision);
+    Akonadi2::Commands::FinishRevisionUpdateBuffer(m_fbb, command);
 
     for (const Client &client: m_connections) {
         if (!client.socket || !client.socket->isValid()) {
@@ -390,13 +390,13 @@ void Listener::notify(const Akonadi2::ResourceNotification &notification)
 {
     auto messageString = m_fbb.CreateString(notification.message.toUtf8().constData(), notification.message.toUtf8().size());
     auto idString = m_fbb.CreateString(notification.id.constData(), notification.id.size());
-    Akonadi2::NotificationBuilder builder(m_fbb);
-    builder.add_type(static_cast<Akonadi2::NotificationType>(notification.type));
+    Akonadi2::Commands::NotificationBuilder builder(m_fbb);
+    builder.add_type(static_cast<Akonadi2::Commands::NotificationType>(notification.type));
     builder.add_code(notification.code);
     builder.add_identifier(idString);
     builder.add_message(messageString);
     auto command = builder.Finish();
-    Akonadi2::FinishNotificationBuffer(m_fbb, command);
+    Akonadi2::Commands::FinishNotificationBuffer(m_fbb, command);
     for (Client &client : m_connections) {
         if (client.socket && client.socket->isOpen()) {
             Akonadi2::Commands::write(client.socket, ++m_messageId, Akonadi2::Commands::NotificationCommand, m_fbb);

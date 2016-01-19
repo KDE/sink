@@ -1,4 +1,4 @@
-namespace Akonadi2;
+namespace Akonadi2.Commands;
 
 enum NotificationType : byte { Shutdown = 1, Status, Warning, Progress, Inspection }
 enum NotificationCode : byte { Success = 0, Failure = 1, UserCode }
