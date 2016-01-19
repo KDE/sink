@@ -312,6 +312,12 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
                 return KAsync::null<void>();
             }
         }
+        if (inspectionType == Akonadi2::Resources::Inspection::ExistenceInspectionType) {
+            const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, entityId, synchronizationTransaction);
+            if (QFileInfo(remoteId).exists() != expectedValue.toBool()) {
+                return KAsync::error<void>(1, "Wrong file existence: " + remoteId);
+            }
+        }
     }
     return KAsync::null<void>();
 }

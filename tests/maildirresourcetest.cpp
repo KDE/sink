@@ -299,32 +299,37 @@ private Q_SLOTS:
 
     void testRemoveMail()
     {
-        Akonadi2::Query query;
-        query.resources << "org.kde.maildir.instance1";
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        using namespace Akonadi2;
+        using namespace Akonadi2::ApplicationDomain;
 
-        Akonadi2::Query folderQuery;
-        folderQuery.resources << "org.kde.maildir.instance1";
-        folderQuery.propertyFilter.insert("name", "maildir1");
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(folderQuery);
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(model->rowCount(QModelIndex()), 1);
-        auto folder = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+        auto query = Query::ResourceFilter("org.kde.maildir.instance1");
+        Store::synchronize(query).exec().waitForFinished();
+        Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        Akonadi2::Query mailQuery;
-        mailQuery.resources << "org.kde.maildir.instance1";
-        mailQuery.propertyFilter.insert("folder", folder->identifier());
-        auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(mailQuery);
-        QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(mailModel->rowCount(QModelIndex()), 1);
-        auto mail = mailModel->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Mail::Ptr>();
+        auto result = Store::fetchOne<Folder>(
+                Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name")
+            )
+            .then<void, KAsync::Job<void>, Folder>([query](const Folder &folder) {
+                return Store::fetchAll<Mail>(
+                    Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
+                )
+                .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([query](const QList<Mail::Ptr> &mails) {
+                    //Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
+                    if (mails.size() != 1) {
+                        return KAsync::error<void>(1, "Wrong number of mails.");
+                    }
+                    auto mail = mails.first();
 
-        Akonadi2::Store::remove(*mail).exec().waitForFinished();
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
-
-        QTRY_COMPARE(QDir(tempDir.path() + "/maildir1/cur", QString(), QDir::NoSort, QDir::Files).count(), static_cast<unsigned int>(0));
+                    auto inspectionCommand = Akonadi2::Resources::Inspection::ExistenceInspection(*mail, true);
+                    return Store::remove(*mail)
+                        .then(Store::flushMessageQueue(query.resources)) //The change needs to be replayed already
+                        .then(Resources::inspect<Mail>(inspectionCommand));
+                })
+                .then<void>([](){});
+            })
+            .exec();
+        result.waitForFinished();
+        QVERIFY(!result.errorCode());
     }
 
     void testMarkMailAsRead()

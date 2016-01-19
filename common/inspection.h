@@ -37,8 +37,18 @@ struct Inspection {
         return inspection;
     }
 
+    static Inspection ExistenceInspection(const Akonadi2::ApplicationDomain::Entity &entity, bool exists)
+    {
+        Inspection inspection;
+        inspection.resourceIdentifier = entity.resourceInstanceIdentifier();
+        inspection.entityIdentifier = entity.identifier();
+        inspection.expectedValue = exists;
+        return inspection;
+    }
+
     enum Type {
-        PropertyInspectionType
+        PropertyInspectionType,
+        ExistenceInspectionType
     };
     QByteArray resourceIdentifier;
     QByteArray entityIdentifier;
