@@ -49,6 +49,7 @@
 static void queuedInvoke(const std::function<void()> &f, QObject *context = 0)
 {
     auto timer = QSharedPointer<QTimer>::create();
+    timer->setSingleShot(true);
     QObject::connect(timer.data(), &QTimer::timeout, context, [f, timer]() {
         f();
     });
