@@ -12,6 +12,7 @@
 #include "index.h"
 #include "log.h"
 #include "definitions.h"
+#include "bufferutils.h"
 
 #include <QUuid>
 #include <QDataStream>
@@ -301,11 +302,12 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
         if (Akonadi2::Commands::VerifyInspectionBuffer(verifier)) {
             auto buffer = Akonadi2::Commands::GetInspection(command);
             int inspectionType = buffer->type();
-            QByteArray inspectionId = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->id()->Data()), buffer->id()->size());
-            QByteArray entityId = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->entityId()->Data()), buffer->entityId()->size());
-            QByteArray domainType = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->domainType()->Data()), buffer->domainType()->size());
-            QByteArray property = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->property()->Data()), buffer->property()->size());
-            QByteArray expectedValueString = QByteArray::fromRawData(reinterpret_cast<const char *>(buffer->expectedValue()->Data()), buffer->expectedValue()->size());
+
+            QByteArray inspectionId = BufferUtils::extractBuffer(buffer->id());
+            QByteArray entityId = BufferUtils::extractBuffer(buffer->entityId());
+            QByteArray domainType = BufferUtils::extractBuffer(buffer->domainType());
+            QByteArray property = BufferUtils::extractBuffer(buffer->property());
+            QByteArray expectedValueString = BufferUtils::extractBuffer(buffer->expectedValue());
             QDataStream s(expectedValueString);
             QVariant expectedValue;
             s >> expectedValue;
@@ -518,7 +520,7 @@ void GenericResource::createEntity(const QByteArray &akonadiId, const QByteArray
     auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
     auto location = Akonadi2::Commands::CreateCreateEntity(fbb, entityId, type, delta, replayToSource);
     Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
-    callback(QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+    callback(BufferUtils::extractBuffer(fbb));
 }
 
 void GenericResource::modifyEntity(const QByteArray &akonadiId, qint64 revision, const QByteArray &bufferType, const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
@@ -535,7 +537,7 @@ void GenericResource::modifyEntity(const QByteArray &akonadiId, qint64 revision,
     //TODO removals
     auto location = Akonadi2::Commands::CreateModifyEntity(fbb, revision, entityId, 0, type, delta, replayToSource);
     Akonadi2::Commands::FinishModifyEntityBuffer(fbb, location);
-    callback(QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+    callback(BufferUtils::extractBuffer(fbb));
 }
 
 void GenericResource::deleteEntity(const QByteArray &akonadiId, qint64 revision, const QByteArray &bufferType, std::function<void(const QByteArray &)> callback)
@@ -548,7 +550,7 @@ void GenericResource::deleteEntity(const QByteArray &akonadiId, qint64 revision,
     auto type = fbb.CreateString(bufferType.toStdString());
     auto location = Akonadi2::Commands::CreateDeleteEntity(fbb, revision, entityId, type, replayToSource);
     Akonadi2::Commands::FinishDeleteEntityBuffer(fbb, location);
-    callback(QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()));
+    callback(BufferUtils::extractBuffer(fbb));
 }
 
 void GenericResource::recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Akonadi2::Storage::Transaction &transaction)

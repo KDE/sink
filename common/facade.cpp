@@ -25,6 +25,7 @@
 #include "definitions.h"
 #include "domainadaptor.h"
 #include "queryrunner.h"
+#include "bufferutils.h"
 
 using namespace Akonadi2;
 
@@ -113,7 +114,7 @@ KAsync::Job<void> GenericFacade<DomainType>::create(const DomainType &domainObje
     }
     flatbuffers::FlatBufferBuilder entityFbb;
     mDomainTypeAdaptorFactory->createBuffer(domainObject, entityFbb);
-    return mResourceAccess->sendCreateCommand(bufferTypeForDomainType(), QByteArray::fromRawData(reinterpret_cast<const char*>(entityFbb.GetBufferPointer()), entityFbb.GetSize()));
+    return mResourceAccess->sendCreateCommand(bufferTypeForDomainType(), BufferUtils::extractBuffer(entityFbb));
 }
 
 template<class DomainType>
@@ -125,7 +126,7 @@ KAsync::Job<void> GenericFacade<DomainType>::modify(const DomainType &domainObje
     }
     flatbuffers::FlatBufferBuilder entityFbb;
     mDomainTypeAdaptorFactory->createBuffer(domainObject, entityFbb);
-    return mResourceAccess->sendModifyCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType(), QByteArrayList(), QByteArray::fromRawData(reinterpret_cast<const char*>(entityFbb.GetBufferPointer()), entityFbb.GetSize()));
+    return mResourceAccess->sendModifyCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType(), QByteArrayList(), BufferUtils::extractBuffer(entityFbb));
 }
 
 template<class DomainType>

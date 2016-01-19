@@ -32,6 +32,7 @@
 #include "common/revisionreplayed_generated.h"
 #include "common/inspection_generated.h"
 #include "common/entitybuffer.h"
+#include "common/bufferutils.h"
 #include "log.h"
 
 #include <QCoreApplication>
@@ -551,11 +552,11 @@ bool ResourceAccess::processMessageBuffer()
                     ResourceNotification n;
                     if (buffer->identifier()) {
                         //Don't use fromRawData, the buffer is gone once we invoke emit notification
-                        n.id = QByteArray(reinterpret_cast<char const *>(buffer->identifier()->Data()), buffer->identifier()->size());
+                        n.id = BufferUtils::extractBufferCopy(buffer->identifier());
                     }
                     if (buffer->message()) {
                         //Don't use fromRawData, the buffer is gone once we invoke emit notification
-                        n.message = QByteArray(reinterpret_cast<char const *>(buffer->message()->Data()), buffer->message()->size());
+                        n.message = BufferUtils::extractBufferCopy(buffer->message());
                     }
                     n.type = buffer->type();
                     n.code = buffer->code();

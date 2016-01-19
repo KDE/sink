@@ -34,6 +34,7 @@
 #include "log.h"
 #include "domain/applicationdomaintype.h"
 #include "definitions.h"
+#include "bufferutils.h"
 
 namespace Akonadi2
 {
@@ -119,7 +120,7 @@ Storage &Pipeline::storage() const
 
 void Pipeline::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid)
 {
-    d->transaction.openDatabase(bufferType + ".main").write(Akonadi2::Storage::assembleKey(uid, newRevision), QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize()),
+    d->transaction.openDatabase(bufferType + ".main").write(Akonadi2::Storage::assembleKey(uid, newRevision), BufferUtils::extractBuffer(fbb),
         [](const Akonadi2::Storage::Error &error) {
             Warning() << "Failed to write entity";
         }
@@ -285,7 +286,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     //Remove deletions
     if (modifyEntity->deletions()) {
         for (const auto &property : *modifyEntity->deletions()) {
-            newObject->setProperty(QByteArray::fromRawData(property->data(), property->size()), QVariant());
+            newObject->setProperty(BufferUtils::extractBuffer(property), QVariant());
         }
     }
 
