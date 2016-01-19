@@ -26,6 +26,7 @@
 #include <Async/Async>
 
 #include "query.h"
+#include "inspection.h"
 #include "applicationdomaintype.h"
 
 class QAbstractItemModel;
@@ -114,26 +115,6 @@ public:
 };
 
 namespace Resources {
-    struct Inspection {
-        static Inspection PropertyInspection(const Akonadi2::ApplicationDomain::Entity &entity, const QByteArray &property, const QVariant &expectedValue)
-        {
-            Inspection inspection;
-            inspection.resourceIdentifier = entity.resourceInstanceIdentifier();
-            inspection.entityIdentifier = entity.identifier();
-            inspection.property = property;
-            inspection.expectedValue = expectedValue;
-            return inspection;
-        }
-
-        enum Type {
-            PropertyInspectionType
-        };
-
-        QByteArray resourceIdentifier;
-        QByteArray entityIdentifier;
-        QByteArray property;
-        QVariant expectedValue;
-    };
     template <class DomainType>
     KAsync::Job<void> inspect(const Inspection &inspectionCommand);
 }

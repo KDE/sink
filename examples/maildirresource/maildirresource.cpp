@@ -35,6 +35,7 @@
 #include "facadefactory.h"
 #include "indexupdater.h"
 #include "libmaildir/maildir.h"
+#include "inspection.h"
 #include <QDate>
 #include <QUuid>
 #include <QDir>
@@ -290,6 +291,11 @@ void MaildirResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
     GenericResource::removeFromDisk(instanceIdentifier);
     Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite).removeFromDisk();
+}
+
+KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
+{
+    Trace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
 }
 
 MaildirResourceFactory::MaildirResourceFactory(QObject *parent)
