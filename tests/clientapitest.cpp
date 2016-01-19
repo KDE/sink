@@ -33,7 +33,6 @@ public:
     KAsync::Job<void> create(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
     KAsync::Job<void> modify(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
     KAsync::Job<void> remove(const T &domainObject) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
-    KAsync::Job<void> inspect(const Akonadi2::Inspection &) Q_DECL_OVERRIDE { return KAsync::null<void>(); };
     QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<typename T::Ptr>::Ptr > load(const Akonadi2::Query &query) Q_DECL_OVERRIDE
     {
         auto resultProvider = new Akonadi2::ResultProvider<typename T::Ptr>();

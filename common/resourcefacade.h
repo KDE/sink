@@ -39,9 +39,5 @@ public:
     KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::AkonadiResource &resource) Q_DECL_OVERRIDE;
     KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::AkonadiResource &resource) Q_DECL_OVERRIDE;
     QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<Akonadi2::ApplicationDomain::AkonadiResource::Ptr>::Ptr > load(const Akonadi2::Query &query) Q_DECL_OVERRIDE;
-    KAsync::Job<void> inspect(const Akonadi2::Inspection &domainObject) Q_DECL_OVERRIDE
-    {
-        return KAsync::error<void>(-1, "Failed to inspect.");
-    }
 };
 
