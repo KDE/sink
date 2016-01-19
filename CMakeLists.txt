@@ -13,6 +13,7 @@ include(FeatureSummary)
 include(GenerateExportHeader)
 include(ECMGenerateHeaders)
 include(ECMPackageConfigHelpers)
+include(ECMSetupVersion)
 include(KDEInstallDirs)
 
 find_package(Qt5 COMPONENTS REQUIRED Core Widgets Network)
