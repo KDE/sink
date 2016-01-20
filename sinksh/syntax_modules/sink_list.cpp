@@ -32,11 +32,11 @@
 #include "common/storage.h"
 #include "common/definitions.h"
 
-#include "akonadish_utils.h"
+#include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
 
-namespace AkonadiList
+namespace SinkList
 {
 
 bool list(const QStringList &args, State &state)
@@ -49,12 +49,12 @@ bool list(const QStringList &args, State &state)
     auto resources = args;
     auto type = !resources.isEmpty() ? resources.takeFirst() : QString();
 
-    if (!type.isEmpty() && !AkonadishUtils::isValidStoreType(type)) {
+    if (!type.isEmpty() && !SinkshUtils::isValidStoreType(type)) {
         state.printError(QObject::tr("Unknown type: %1").arg(type));
         return false;
     }
 
-    Akonadi2::Query query;
+    Sink::Query query;
     for (const auto &res : resources) {
         query.resources << res.toLatin1();
     }
@@ -62,7 +62,7 @@ bool list(const QStringList &args, State &state)
 
     QTime time;
     time.start();
-    auto model = AkonadishUtils::loadModel(type, query);
+    auto model = SinkshUtils::loadModel(type, query);
     if (state.debugLevel() > 0) {
         state.printLine(QObject::tr("Folder type %1").arg(type));
         state.printLine(QObject::tr("Loaded model in %1 ms").arg(time.elapsed()));
@@ -79,7 +79,7 @@ bool list(const QStringList &args, State &state)
 
     QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, colSize, state](const QModelIndex &index, int start, int end) {
         for (int i = start; i <= end; i++) {
-            auto object = model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectBaseRole).value<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr>();
+            auto object = model->data(model->index(i, 0, index), Sink::Store::DomainObjectBaseRole).value<Sink::ApplicationDomain::ApplicationDomainType::Ptr>();
             state.print(object->resourceInstanceIdentifier().leftJustified(colSize, ' ', true));
             state.print(object->identifier().leftJustified(colSize, ' ', true));
             for (int col = 0; col < model->columnCount(QModelIndex()); col++) {
@@ -90,12 +90,12 @@ bool list(const QStringList &args, State &state)
     });
 
     QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
-        if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
+        if (roles.contains(Sink::Store::ChildrenFetchedRole)) {
             state.commandFinished();
         }
     });
 
-    if (!model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool()) {
+    if (!model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool()) {
         return true;
     }
 
@@ -104,11 +104,11 @@ bool list(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax list("list", QObject::tr("List all resources, or the contents of one or more resources"), &AkonadiList::list, Syntax::EventDriven);
-    list.completer = &AkonadishUtils::resourceOrTypeCompleter;
+    Syntax list("list", QObject::tr("List all resources, or the contents of one or more resources"), &SinkList::list, Syntax::EventDriven);
+    list.completer = &SinkshUtils::resourceOrTypeCompleter;
     return Syntax::List() << list;
 }
 
-REGISTER_SYNTAX(AkonadiList)
+REGISTER_SYNTAX(SinkList)
 
 }

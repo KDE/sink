@@ -25,7 +25,7 @@
 #include <QLocalSocket>
 #include <flatbuffers/flatbuffers.h>
 
-namespace Akonadi2
+namespace Sink
 {
     class Resource;
     class Notification;
@@ -77,7 +77,7 @@ private Q_SLOTS:
     void onDataAvailable();
     void processClientBuffers();
     void refreshRevision(qint64);
-    void notify(const Akonadi2::Notification &);
+    void notify(const Sink::Notification &);
     void quit();
 
 private:
@@ -85,7 +85,7 @@ private:
     bool processClientBuffer(Client &client);
     void sendCommandCompleted(QLocalSocket *socket, uint messageId, bool success);
     void updateClientsWithRevision(qint64);
-    Akonadi2::Resource *loadResource();
+    Sink::Resource *loadResource();
     void readFromSocket(QLocalSocket *socket);
     qint64 lowerBoundRevision();
 
@@ -94,7 +94,7 @@ private:
     flatbuffers::FlatBufferBuilder m_fbb;
     const QByteArray m_resourceName;
     const QByteArray m_resourceInstanceIdentifier;
-    Akonadi2::Resource *m_resource;
+    Sink::Resource *m_resource;
     QTimer *m_clientBufferProcessesTimer;
     QTimer *m_checkConnectionsTimer;
     int m_messageId;

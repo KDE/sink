@@ -37,7 +37,7 @@
 
 static QMutex sMutex;
 
-using namespace Akonadi2::ApplicationDomain;
+using namespace Sink::ApplicationDomain;
 
 static TypeIndex &getIndex()
 {
@@ -51,18 +51,18 @@ static TypeIndex &getIndex()
     return *index;
 }
 
-ResultSet TypeImplementation<Folder>::queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction)
+ResultSet TypeImplementation<Folder>::queryIndexes(const Sink::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Sink::Storage::Transaction &transaction)
 {
     return getIndex().query(query, appliedFilters, transaction);
 }
 
-void TypeImplementation<Folder>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
+void TypeImplementation<Folder>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
 {
     Trace() << "Indexing " << identifier;
     getIndex().add(identifier, bufferAdaptor, transaction);
 }
 
-void TypeImplementation<Folder>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
+void TypeImplementation<Folder>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
 {
     getIndex().remove(identifier, bufferAdaptor, transaction);
 }

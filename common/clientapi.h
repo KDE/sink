@@ -31,7 +31,7 @@
 
 class QAbstractItemModel;
 
-namespace Akonadi2 {
+namespace Sink {
 class ResourceAccess;
 class Notification;
 
@@ -78,7 +78,7 @@ public:
     /**
      * Synchronize data to local cache.
      */
-    static KAsync::Job<void> synchronize(const Akonadi2::Query &query);
+    static KAsync::Job<void> synchronize(const Sink::Query &query);
 
     /**
      * Shutdown resource.
@@ -110,13 +110,13 @@ public:
     static void removeFromDisk(const QByteArray &resourceIdentifier);
 
     template <class DomainType>
-    static KAsync::Job<DomainType> fetchOne(const Akonadi2::Query &query);
+    static KAsync::Job<DomainType> fetchOne(const Sink::Query &query);
 
     template <class DomainType>
-    static KAsync::Job<QList<typename DomainType::Ptr> > fetchAll(const Akonadi2::Query &query);
+    static KAsync::Job<QList<typename DomainType::Ptr> > fetchAll(const Sink::Query &query);
 
     template <class DomainType>
-    static KAsync::Job<QList<typename DomainType::Ptr> > fetch(const Akonadi2::Query &query, int minimumAmount = 0);
+    static KAsync::Job<QList<typename DomainType::Ptr> > fetch(const Sink::Query &query, int minimumAmount = 0);
 };
 
 namespace Resources {

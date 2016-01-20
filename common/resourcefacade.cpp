@@ -25,7 +25,7 @@
 #include <QDir>
 
 ResourceFacade::ResourceFacade(const QByteArray &)
-    : Akonadi2::StoreFacade<Akonadi2::ApplicationDomain::AkonadiResource>()
+    : Sink::StoreFacade<Sink::ApplicationDomain::SinkResource>()
 {
 
 }
@@ -35,7 +35,7 @@ ResourceFacade::~ResourceFacade()
 
 }
 
-KAsync::Job<void> ResourceFacade::create(const Akonadi2::ApplicationDomain::AkonadiResource &resource)
+KAsync::Job<void> ResourceFacade::create(const Sink::ApplicationDomain::SinkResource &resource)
 {
     return KAsync::start<void>([resource, this]() {
         const QByteArray type = resource.getProperty("type").toByteArray();
@@ -57,7 +57,7 @@ KAsync::Job<void> ResourceFacade::create(const Akonadi2::ApplicationDomain::Akon
     });
 }
 
-KAsync::Job<void> ResourceFacade::modify(const Akonadi2::ApplicationDomain::AkonadiResource &resource)
+KAsync::Job<void> ResourceFacade::modify(const Sink::ApplicationDomain::SinkResource &resource)
 {
     return KAsync::start<void>([resource, this]() {
         const QByteArray identifier = resource.identifier();
@@ -79,7 +79,7 @@ KAsync::Job<void> ResourceFacade::modify(const Akonadi2::ApplicationDomain::Akon
     });
 }
 
-KAsync::Job<void> ResourceFacade::remove(const Akonadi2::ApplicationDomain::AkonadiResource &resource)
+KAsync::Job<void> ResourceFacade::remove(const Sink::ApplicationDomain::SinkResource &resource)
 {
     return KAsync::start<void>([resource, this]() {
         const QByteArray identifier = resource.identifier();
@@ -89,18 +89,18 @@ KAsync::Job<void> ResourceFacade::remove(const Akonadi2::ApplicationDomain::Akon
         }
         ResourceConfig::removeResource(identifier);
         //TODO shutdown resource, or use the resource process with a --remove option to cleanup (so we can take advantage of the file locking)
-        QDir dir(Akonadi2::storageLocation());
+        QDir dir(Sink::storageLocation());
         for (const auto &folder : dir.entryList(QStringList() << identifier + "*")) {
-            Akonadi2::Storage(Akonadi2::storageLocation(), folder, Akonadi2::Storage::ReadWrite).removeFromDisk();
+            Sink::Storage(Sink::storageLocation(), folder, Sink::Storage::ReadWrite).removeFromDisk();
         }
     });
 }
 
-QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<Akonadi2::ApplicationDomain::AkonadiResource::Ptr>::Ptr > ResourceFacade::load(const Akonadi2::Query &query)
+QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>::Ptr > ResourceFacade::load(const Sink::Query &query)
 {
-    auto resultProvider = new Akonadi2::ResultProvider<typename Akonadi2::ApplicationDomain::AkonadiResource::Ptr>();
+    auto resultProvider = new Sink::ResultProvider<typename Sink::ApplicationDomain::SinkResource::Ptr>();
     auto emitter = resultProvider->emitter();
-    resultProvider->setFetcher([](const QSharedPointer<Akonadi2::ApplicationDomain::AkonadiResource> &) {});
+    resultProvider->setFetcher([](const QSharedPointer<Sink::ApplicationDomain::SinkResource> &) {});
     resultProvider->onDone([resultProvider]() {
         delete resultProvider;
     });
@@ -109,13 +109,13 @@ QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<Akonadi2::ApplicationD
         for (const auto &res : configuredResources.keys()) {
             const auto type = configuredResources.value(res);
             if (!query.propertyFilter.contains("type") || query.propertyFilter.value("type").toByteArray() == type) {
-                auto resource = Akonadi2::ApplicationDomain::AkonadiResource::Ptr::create("", res, 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+                auto resource = Sink::ApplicationDomain::SinkResource::Ptr::create("", res, 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
                 resource->setProperty("type", type);
                 resultProvider->add(resource);
             }
         }
         //TODO initialResultSetComplete should be implicit
-        resultProvider->initialResultSetComplete(Akonadi2::ApplicationDomain::AkonadiResource::Ptr());
+        resultProvider->initialResultSetComplete(Sink::ApplicationDomain::SinkResource::Ptr());
         resultProvider->complete();
     });
     return qMakePair(job, emitter);

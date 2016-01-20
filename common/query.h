@@ -24,7 +24,7 @@
 #include <QSet>
 #include "applicationdomaintype.h"
 
-namespace Akonadi2 {
+namespace Sink {
 
 /**
  * A query that matches a set of entities.
@@ -64,7 +64,7 @@ public:
         return query;
     }
 
-    static Query ResourceFilter(const ApplicationDomain::AkonadiResource &entity)
+    static Query ResourceFilter(const ApplicationDomain::SinkResource &entity)
     {
         return ResourceFilter(entity.identifier());
     }
@@ -138,4 +138,4 @@ public:
 
 }
 
-Q_DECLARE_OPERATORS_FOR_FLAGS(Akonadi2::Query::Flags)
+Q_DECLARE_OPERATORS_FOR_FLAGS(Sink::Query::Flags)

@@ -39,7 +39,7 @@
  * Create a buffer from a domain object using the provided mappings
  */
 template <class Builder, class Buffer>
-flatbuffers::Offset<Buffer> createBufferPart(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, const WritePropertyMapper<Builder> &mapper)
+flatbuffers::Offset<Buffer> createBufferPart(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, const WritePropertyMapper<Builder> &mapper)
 {
     //First create a primitives such as strings using the mappings
     QList<std::function<void(Builder &)> > propertiesToAddToResource;
@@ -67,11 +67,11 @@ flatbuffers::Offset<Buffer> createBufferPart(const Akonadi2::ApplicationDomain::
  * After this the buffer can be extracted from the FlatBufferBuilder object.
  */
 template <typename Buffer, typename BufferBuilder>
-static void createBufferPartBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, WritePropertyMapper<BufferBuilder> &mapper)
+static void createBufferPartBuffer(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, WritePropertyMapper<BufferBuilder> &mapper)
 {
     auto pos = createBufferPart<BufferBuilder, Buffer>(domainObject, fbb, mapper);
     // Because we cannot template the following call
-    // Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(fbb, pos);
+    // Sink::ApplicationDomain::Buffer::FinishEventBuffer(fbb, pos);
     // FIXME: This means all buffers in here must have the AKFB identifier
     fbb.Finish(pos, "AKFB");
     flatbuffers::Verifier verifier(fbb.GetBufferPointer(), fbb.GetSize());
@@ -84,7 +84,7 @@ static void createBufferPartBuffer(const Akonadi2::ApplicationDomain::Applicatio
  * A generic adaptor implementation that uses a property mapper to read/write values.
  */
 template <class LocalBuffer, class ResourceBuffer>
-class GenericBufferAdaptor : public Akonadi2::ApplicationDomain::BufferAdaptor
+class GenericBufferAdaptor : public Sink::ApplicationDomain::BufferAdaptor
 {
 public:
     GenericBufferAdaptor()
@@ -123,13 +123,13 @@ public:
 template<typename DomainType, typename ResourceBuffer, typename ResourceBuilder>
 class DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInterface
 {
-    typedef typename Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::Buffer LocalBuffer;
-    typedef typename Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::BufferBuilder LocalBuilder;
+    typedef typename Sink::ApplicationDomain::TypeImplementation<DomainType>::Buffer LocalBuffer;
+    typedef typename Sink::ApplicationDomain::TypeImplementation<DomainType>::BufferBuilder LocalBuilder;
 public:
     DomainTypeAdaptorFactory() :
-        mLocalMapper(Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::initializeReadPropertyMapper()),
+        mLocalMapper(Sink::ApplicationDomain::TypeImplementation<DomainType>::initializeReadPropertyMapper()),
         mResourceMapper(QSharedPointer<ReadPropertyMapper<ResourceBuffer> >::create()),
-        mLocalWriteMapper(Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::initializeWritePropertyMapper()),
+        mLocalWriteMapper(Sink::ApplicationDomain::TypeImplementation<DomainType>::initializeWritePropertyMapper()),
         mResourceWriteMapper(QSharedPointer<WritePropertyMapper<ResourceBuilder> >::create())
     {};
     virtual ~DomainTypeAdaptorFactory() {};
@@ -139,11 +139,11 @@ public:
      * 
      * This returns by default a GenericBufferAdaptor initialized with the corresponding property mappers.
      */
-    virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity) Q_DECL_OVERRIDE
+    virtual QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> createAdaptor(const Sink::Entity &entity) Q_DECL_OVERRIDE
     {
-        const auto resourceBuffer = Akonadi2::EntityBuffer::readBuffer<ResourceBuffer>(entity.resource());
-        const auto localBuffer = Akonadi2::EntityBuffer::readBuffer<LocalBuffer>(entity.local());
-        // const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
+        const auto resourceBuffer = Sink::EntityBuffer::readBuffer<ResourceBuffer>(entity.resource());
+        const auto localBuffer = Sink::EntityBuffer::readBuffer<LocalBuffer>(entity.local());
+        // const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
 
         auto adaptor = QSharedPointer<GenericBufferAdaptor<LocalBuffer, ResourceBuffer> >::create();
         adaptor->mLocalBuffer = localBuffer;
@@ -153,7 +153,7 @@ public:
         return adaptor;
     }
 
-    virtual void createBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) Q_DECL_OVERRIDE
+    virtual void createBuffer(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) Q_DECL_OVERRIDE
     {
         flatbuffers::FlatBufferBuilder localFbb;
         if (mLocalWriteMapper) {
@@ -167,7 +167,7 @@ public:
             createBufferPartBuffer<ResourceBuffer, ResourceBuilder>(domainObject, resFbb, *mResourceWriteMapper);
         }
 
-        Akonadi2::EntityBuffer::assembleEntityBuffer(fbb, metadataData, metadataSize, resFbb.GetBufferPointer(), resFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
+        Sink::EntityBuffer::assembleEntityBuffer(fbb, metadataData, metadataSize, resFbb.GetBufferPointer(), resFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
     }
 
 

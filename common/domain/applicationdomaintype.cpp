@@ -21,7 +21,7 @@
 #include "log.h"
 #include "../bufferadaptor.h"
 
-namespace Akonadi2 {
+namespace Sink {
 namespace ApplicationDomain {
 
 ApplicationDomainType::ApplicationDomainType()
@@ -113,9 +113,9 @@ QByteArray getTypeName<Todo>()
 }
 
 template<>
-QByteArray getTypeName<AkonadiResource>()
+QByteArray getTypeName<SinkResource>()
 {
-    return "akonadiresource";
+    return "sinkresource";
 }
 
 template<>

@@ -29,7 +29,7 @@
 #include <flatbuffers/flatbuffers.h>
 #include "notification.h"
 
-namespace Akonadi2
+namespace Sink
 {
 
 struct QueuedCommand;

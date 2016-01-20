@@ -6,7 +6,7 @@
 #include <iostream>
 #include <unistd.h>
 
-using namespace Akonadi2::Log;
+using namespace Sink::Log;
 
 class DebugStream: public QIODevice
 {
@@ -96,7 +96,7 @@ static QString colorCommand(QList<int> colorCodes)
     return string;
 }
 
-QByteArray Akonadi2::Log::debugLevelName(DebugLevel debugLevel)
+QByteArray Sink::Log::debugLevelName(DebugLevel debugLevel)
 {
     switch (debugLevel) {
         case DebugLevel::Trace:
@@ -114,7 +114,7 @@ QByteArray Akonadi2::Log::debugLevelName(DebugLevel debugLevel)
     return QByteArray();
 }
 
-DebugLevel Akonadi2::Log::debugLevelFromName(const QByteArray &name)
+DebugLevel Sink::Log::debugLevelFromName(const QByteArray &name)
 {
     const QByteArray lowercaseName = name.toLower();
     if (lowercaseName == "trace")
@@ -128,19 +128,19 @@ DebugLevel Akonadi2::Log::debugLevelFromName(const QByteArray &name)
     return DebugLevel::Log;
 }
 
-void Akonadi2::Log::setDebugOutputLevel(DebugLevel debugLevel)
+void Sink::Log::setDebugOutputLevel(DebugLevel debugLevel)
 {
-    qputenv("AKONADI2DEBUGLEVEL", debugLevelName(debugLevel));
+    qputenv("SINKDEBUGLEVEL", debugLevelName(debugLevel));
 }
 
-Akonadi2::Log::DebugLevel Akonadi2::Log::debugOutputLevel()
+Sink::Log::DebugLevel Sink::Log::debugOutputLevel()
 {
-    return debugLevelFromName(qgetenv("AKONADI2DEBUGLEVEL"));
+    return debugLevelFromName(qgetenv("SINKDEBUGLEVEL"));
 }
 
-QDebug Akonadi2::Log::debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea)
+QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea)
 {
-    DebugLevel debugOutputLevel = debugLevelFromName(qgetenv("AKONADI2DEBUGLEVEL"));
+    DebugLevel debugOutputLevel = debugLevelFromName(qgetenv("SINKDEBUGLEVEL"));
     if (debugLevel < debugOutputLevel) {
         static NullStream stream;
         return QDebug(&stream);

@@ -19,16 +19,16 @@
  */
 #pragma once
 
-#include <akonadi2common_export.h>
+#include <sinkcommon_export.h>
 #include <QString>
 
-namespace Akonadi2
+namespace Sink
 {
 
 /**
  * A notification
  */
-class AKONADI2COMMON_EXPORT Notification
+class SINKCOMMON_EXPORT Notification
 {
 public:
     QByteArray id;

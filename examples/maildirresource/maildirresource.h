@@ -39,34 +39,34 @@ class MaildirFolderAdaptorFactory;
  * files: full file path
  * directories: full directory path
  */
-class MaildirResource : public Akonadi2::GenericResource
+class MaildirResource : public Sink::GenericResource
 {
 public:
-    MaildirResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline = QSharedPointer<Akonadi2::Pipeline>());
-    KAsync::Job<void> synchronizeWithSource(Akonadi2::Storage &mainStore, Akonadi2::Storage &synchronizationStore) Q_DECL_OVERRIDE;
+    MaildirResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
+    KAsync::Job<void> synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore) Q_DECL_OVERRIDE;
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
     static void removeFromDisk(const QByteArray &instanceIdentifier);
 private:
-    KAsync::Job<void> replay(Akonadi2::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
+    KAsync::Job<void> replay(Sink::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
 
-    void synchronizeFolders(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction);
-    void synchronizeMails(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, const QString &folder);
+    void synchronizeFolders(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction);
+    void synchronizeMails(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &folder);
     QStringList listAvailableFolders();
     QString mMaildirPath;
     QSharedPointer<MaildirMailAdaptorFactory> mMailAdaptorFactory;
     QSharedPointer<MaildirFolderAdaptorFactory> mFolderAdaptorFactory;
 };
 
-class MaildirResourceFactory : public Akonadi2::ResourceFactory
+class MaildirResourceFactory : public Sink::ResourceFactory
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.kde.maildir")
-    Q_INTERFACES(Akonadi2::ResourceFactory)
+    Q_INTERFACES(Sink::ResourceFactory)
 
 public:
     MaildirResourceFactory(QObject *parent = 0);
 
-    Akonadi2::Resource *createResource(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
-    void registerFacades(Akonadi2::FacadeFactory &factory) Q_DECL_OVERRIDE;
+    Sink::Resource *createResource(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
+    void registerFacades(Sink::FacadeFactory &factory) Q_DECL_OVERRIDE;
 };
 

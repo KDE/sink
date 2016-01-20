@@ -1,4 +1,4 @@
-namespace Akonadi2;
+namespace Sink;
 
 table Entity {
     metadata: [ubyte];

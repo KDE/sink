@@ -30,7 +30,7 @@
 //Replace with something different
 #include "event_generated.h"
 
-class TestEventAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Buffer::Event, Akonadi2::ApplicationDomain::Buffer::EventBuilder>
+class TestEventAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event, Sink::ApplicationDomain::Buffer::Event, Sink::ApplicationDomain::Buffer::EventBuilder>
 {
 public:
     TestEventAdaptorFactory()
@@ -41,7 +41,7 @@ public:
     virtual ~TestEventAdaptorFactory() {};
 };
 
-class TestResourceAccess : public Akonadi2::ResourceAccessInterface
+class TestResourceAccess : public Sink::ResourceAccessInterface
 {
     Q_OBJECT
 public:
@@ -55,11 +55,11 @@ public Q_SLOTS:
     void close() Q_DECL_OVERRIDE {}
 };
 
-class TestResourceFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>
+class TestResourceFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Event>
 {
 public:
-    TestResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::ResourceAccessInterface> resourceAccess)
-        : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<TestEventAdaptorFactory>::create(), resourceAccess)
+    TestResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
+        : Sink::GenericFacade<Sink::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<TestEventAdaptorFactory>::create(), resourceAccess)
     {
 
     }
@@ -69,11 +69,11 @@ public:
     }
 };
 
-class TestResource : public Akonadi2::GenericResource
+class TestResource : public Sink::GenericResource
 {
 public:
-    TestResource(const QByteArray &instanceIdentifier, QSharedPointer<Akonadi2::Pipeline> pipeline)
-        : Akonadi2::GenericResource(instanceIdentifier, pipeline)
+    TestResource(const QByteArray &instanceIdentifier, QSharedPointer<Sink::Pipeline> pipeline)
+        : Sink::GenericResource(instanceIdentifier, pipeline)
     {
     }
 

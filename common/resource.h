@@ -19,19 +19,19 @@
  */
 #pragma once
 
-#include <akonadi2common_export.h>
+#include <sinkcommon_export.h>
 
 #include <Async/Async>
 #include "notification.h"
 
-namespace Akonadi2
+namespace Sink
 {
 class FacadeFactory;
 
 /**
  * Resource interface
  */
-class AKONADI2COMMON_EXPORT Resource : public QObject
+class SINKCOMMON_EXPORT Resource : public QObject
 {
     Q_OBJECT
 public:
@@ -83,8 +83,8 @@ private:
     Private * const d;
 };
 
-} // namespace Akonadi2
+} // namespace Sink
 
-Q_DECLARE_INTERFACE(Akonadi2::ResourceFactory, "org.kde.akonadi2.resourcefactory")
+Q_DECLARE_INTERFACE(Sink::ResourceFactory, "org.kde.sink.resourcefactory")
 
 

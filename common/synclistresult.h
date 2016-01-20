@@ -19,7 +19,7 @@ namespace async {
 template<class T>
 class SyncListResult : public QList<T> {
 public:
-    SyncListResult(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter)
+    SyncListResult(const QSharedPointer<Sink::ResultEmitter<T> > &emitter)
         :QList<T>(),
         mEmitter(emitter)
     {
@@ -66,7 +66,7 @@ public:
     }
 
 private:
-    QSharedPointer<Akonadi2::ResultEmitter<T> > mEmitter;
+    QSharedPointer<Sink::ResultEmitter<T> > mEmitter;
     std::function<void()> eventLoopAborter;
 };
 

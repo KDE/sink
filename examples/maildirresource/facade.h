@@ -21,14 +21,14 @@
 
 #include "common/facade.h"
 
-class MaildirResourceMailFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Mail>
+class MaildirResourceMailFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Mail>
 {
 public:
     MaildirResourceMailFacade(const QByteArray &instanceIdentifier);
     virtual ~MaildirResourceMailFacade();
 };
 
-class MaildirResourceFolderFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Folder>
+class MaildirResourceFolderFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Folder>
 {
 public:
     MaildirResourceFolderFacade(const QByteArray &instanceIdentifier);

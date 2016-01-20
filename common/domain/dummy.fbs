@@ -1,4 +1,4 @@
-namespace Akonadi2.ApplicationDomain.Buffer;
+namespace Sink.ApplicationDomain.Buffer;
 
 table Dummy {
 }

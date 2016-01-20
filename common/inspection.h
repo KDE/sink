@@ -23,11 +23,11 @@
 #include <QVariant>
 #include "applicationdomaintype.h"
 
-namespace Akonadi2 {
+namespace Sink {
     namespace Resources {
 
 struct Inspection {
-    static Inspection PropertyInspection(const Akonadi2::ApplicationDomain::Entity &entity, const QByteArray &property, const QVariant &expectedValue)
+    static Inspection PropertyInspection(const Sink::ApplicationDomain::Entity &entity, const QByteArray &property, const QVariant &expectedValue)
     {
         Inspection inspection;
         inspection.resourceIdentifier = entity.resourceInstanceIdentifier();
@@ -37,7 +37,7 @@ struct Inspection {
         return inspection;
     }
 
-    static Inspection ExistenceInspection(const Akonadi2::ApplicationDomain::Entity &entity, bool exists)
+    static Inspection ExistenceInspection(const Sink::ApplicationDomain::Entity &entity, bool exists)
     {
         Inspection inspection;
         inspection.resourceIdentifier = entity.resourceInstanceIdentifier();

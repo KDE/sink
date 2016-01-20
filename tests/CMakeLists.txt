@@ -15,7 +15,7 @@ macro(manual_tests)
         add_executable(${_testname} ${_testname}.cpp testimplementations.cpp getrssusage.cpp)
         generate_flatbuffers(${_testname} calendar)
         qt5_use_modules(${_testname} Core Test Concurrent)
-        target_link_libraries(${_testname} akonadi2common libhawd)
+        target_link_libraries(${_testname} sinkcommon libhawd)
     endforeach(_testname)
 endmacro(manual_tests)
 
@@ -25,7 +25,7 @@ macro(auto_tests)
         generate_flatbuffers(${_testname} calendar)
         add_test(${_testname} ${_testname})
         qt5_use_modules(${_testname} Core Test Concurrent)
-        target_link_libraries(${_testname} akonadi2common libhawd)
+        target_link_libraries(${_testname} sinkcommon libhawd)
     endforeach(_testname)
 endmacro(auto_tests)
 
@@ -53,16 +53,16 @@ auto_tests (
     modelinteractivitytest
     inspectiontest
 )
-target_link_libraries(dummyresourcetest akonadi2_resource_dummy)
-target_link_libraries(dummyresourcebenchmark akonadi2_resource_dummy)
-target_link_libraries(dummyresourcewritebenchmark akonadi2_resource_dummy)
-target_link_libraries(querytest akonadi2_resource_dummy)
-target_link_libraries(modelinteractivitytest akonadi2_resource_dummy)
-target_link_libraries(inspectiontest akonadi2_resource_dummy)
+target_link_libraries(dummyresourcetest sink_resource_dummy)
+target_link_libraries(dummyresourcebenchmark sink_resource_dummy)
+target_link_libraries(dummyresourcewritebenchmark sink_resource_dummy)
+target_link_libraries(querytest sink_resource_dummy)
+target_link_libraries(modelinteractivitytest sink_resource_dummy)
+target_link_libraries(inspectiontest sink_resource_dummy)
 
 if (BUILD_MAILDIR)
     auto_tests (
         maildirresourcetest
     )
-    target_link_libraries(maildirresourcetest akonadi2_resource_maildir)
+    target_link_libraries(maildirresourcetest sink_resource_maildir)
 endif()

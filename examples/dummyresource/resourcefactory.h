@@ -33,36 +33,36 @@ class DummyEventAdaptorFactory;
 class DummyMailAdaptorFactory;
 class DummyFolderAdaptorFactory;
 
-class DummyResource : public Akonadi2::GenericResource
+class DummyResource : public Sink::GenericResource
 {
 public:
-    DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline = QSharedPointer<Akonadi2::Pipeline>());
-    KAsync::Job<void> synchronizeWithSource(Akonadi2::Storage &mainStore, Akonadi2::Storage &synchronizationStore) Q_DECL_OVERRIDE;
+    DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
+    KAsync::Job<void> synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore) Q_DECL_OVERRIDE;
     using GenericResource::synchronizeWithSource;
     static void removeFromDisk(const QByteArray &instanceIdentifier);
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
 private:
-    KAsync::Job<void> replay(Akonadi2::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
-    Akonadi2::ApplicationDomain::Event::Ptr createEvent(const QByteArray &rid, const QMap<QString, QVariant> &data, Akonadi2::Storage::Transaction &);
-    Akonadi2::ApplicationDomain::Mail::Ptr createMail(const QByteArray &rid, const QMap<QString, QVariant> &data, Akonadi2::Storage::Transaction &);
-    Akonadi2::ApplicationDomain::Folder::Ptr createFolder(const QByteArray &rid, const QMap<QString, QVariant> &data, Akonadi2::Storage::Transaction &);
-    void synchronize(const QByteArray &bufferType, const QMap<QString, QMap<QString, QVariant> > &data, Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, Akonadi2::Storage::Transaction &)> createEntity);
+    KAsync::Job<void> replay(Sink::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
+    Sink::ApplicationDomain::Event::Ptr createEvent(const QByteArray &rid, const QMap<QString, QVariant> &data, Sink::Storage::Transaction &);
+    Sink::ApplicationDomain::Mail::Ptr createMail(const QByteArray &rid, const QMap<QString, QVariant> &data, Sink::Storage::Transaction &);
+    Sink::ApplicationDomain::Folder::Ptr createFolder(const QByteArray &rid, const QMap<QString, QVariant> &data, Sink::Storage::Transaction &);
+    void synchronize(const QByteArray &bufferType, const QMap<QString, QMap<QString, QVariant> > &data, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<Sink::ApplicationDomain::ApplicationDomainType::Ptr(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, Sink::Storage::Transaction &)> createEntity);
 
     QSharedPointer<DummyEventAdaptorFactory> mEventAdaptorFactory;
     QSharedPointer<DummyMailAdaptorFactory> mMailAdaptorFactory;
     QSharedPointer<DummyFolderAdaptorFactory> mFolderAdaptorFactory;
 };
 
-class DummyResourceFactory : public Akonadi2::ResourceFactory
+class DummyResourceFactory : public Sink::ResourceFactory
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "org.kde.dummy")
-    Q_INTERFACES(Akonadi2::ResourceFactory)
+    Q_INTERFACES(Sink::ResourceFactory)
 
 public:
     DummyResourceFactory(QObject *parent = 0);
 
-    Akonadi2::Resource *createResource(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
-    void registerFacades(Akonadi2::FacadeFactory &factory) Q_DECL_OVERRIDE;
+    Sink::Resource *createResource(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
+    void registerFacades(Sink::FacadeFactory &factory) Q_DECL_OVERRIDE;
 };
 

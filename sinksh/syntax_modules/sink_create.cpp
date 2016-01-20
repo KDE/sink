@@ -32,33 +32,33 @@
 #include "common/storage.h"
 #include "common/definitions.h"
 
-#include "akonadish_utils.h"
+#include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
 
-namespace AkonadiCreate
+namespace SinkCreate
 {
 
 bool create(const QStringList &allArgs, State &state)
 {
     if (allArgs.isEmpty()) {
-        state.printError(QObject::tr("A type is required"), "akonadicreate/02");
+        state.printError(QObject::tr("A type is required"), "sinkcreate/02");
         return false;
     }
 
     if (allArgs.count() < 2) {
-        state.printError(QObject::tr("A resource ID is required to create items"), "akonadicreate/03");
+        state.printError(QObject::tr("A resource ID is required to create items"), "sinkcreate/03");
         return false;
     }
 
     auto args = allArgs;
     auto type = args.takeFirst();
-    auto &store = AkonadishUtils::getStore(type);
-    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object;
+    auto &store = SinkshUtils::getStore(type);
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object;
     auto resource = args.takeFirst().toLatin1();
     object = store.getObject(resource);
 
-    auto map = AkonadishUtils::keyValueMapFromArgs(args);
+    auto map = SinkshUtils::keyValueMapFromArgs(args);
     for (auto i = map.begin(); i != map.end(); ++i) {
         object->setProperty(i.key().toLatin1(), i.value());
     }
@@ -76,17 +76,17 @@ bool create(const QStringList &allArgs, State &state)
 bool resource(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("A resource can not be created without a type"), "akonadicreate/01");
+        state.printError(QObject::tr("A resource can not be created without a type"), "sinkcreate/01");
         return false;
     }
 
-    auto &store = AkonadishUtils::getStore("resource");
+    auto &store = SinkshUtils::getStore("resource");
 
     auto resourceType = args.at(0);
-    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("");
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("");
     object->setProperty("type", resourceType);
 
-    auto map = AkonadishUtils::keyValueMapFromArgs(args);
+    auto map = SinkshUtils::keyValueMapFromArgs(args);
     for (auto i = map.begin(); i != map.end(); ++i) {
         object->setProperty(i.key().toLatin1(), i.value());
     }
@@ -106,13 +106,13 @@ Syntax::List syntax()
 {
     Syntax::List syntax;
 
-    Syntax create("create", QObject::tr("Create items in a resource"), &AkonadiCreate::create);
-    create.children << Syntax("resource", QObject::tr("Creates a new resource"), &AkonadiCreate::resource);
+    Syntax create("create", QObject::tr("Create items in a resource"), &SinkCreate::create);
+    create.children << Syntax("resource", QObject::tr("Creates a new resource"), &SinkCreate::resource);
 
     syntax << create;
     return syntax;
 }
 
-REGISTER_SYNTAX(AkonadiCreate)
+REGISTER_SYNTAX(SinkCreate)
 
 }

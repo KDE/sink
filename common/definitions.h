@@ -23,7 +23,7 @@
 #include <QString>
 #include <QByteArray>
 
-namespace Akonadi2 {
+namespace Sink {
     QString storageLocation();
     QByteArray resourceName(const QByteArray &instanceIdentifier);
 }

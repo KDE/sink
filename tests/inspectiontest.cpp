@@ -18,8 +18,8 @@ class InspectionTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
-        auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
+        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
+        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
         DummyResource::removeFromDisk("org.kde.dummy.instance1");
         ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
@@ -27,11 +27,11 @@ private Q_SLOTS:
 
     void cleanup()
     {
-        Akonadi2::Store::shutdown(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::shutdown(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
         DummyResource::removeFromDisk("org.kde.dummy.instance1");
-        auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
+        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
-        Akonadi2::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
     }
 
     void testInspection_data()
@@ -44,8 +44,8 @@ private Q_SLOTS:
     void testInspection()
     {
         QFETCH(bool, success);
-        using namespace Akonadi2;
-        using namespace Akonadi2::ApplicationDomain;
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
 
         Mail mail(QByteArray("org.kde.dummy.instance1"), QByteArray("identifier"), 0, QSharedPointer<MemoryBufferAdaptor::MemoryBufferAdaptor>::create());
 

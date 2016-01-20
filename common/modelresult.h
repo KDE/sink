@@ -38,9 +38,9 @@ public:
         DomainObjectBaseRole
     };
 
-    ModelResult(const Akonadi2::Query &query, const QList<QByteArray> &propertyColumns);
+    ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns);
 
-    void setEmitter(const typename Akonadi2::ResultEmitter<Ptr>::Ptr &);
+    void setEmitter(const typename Sink::ResultEmitter<Ptr>::Ptr &);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
@@ -73,8 +73,8 @@ private:
     QSet<qint64 /* entity id */> mEntityChildrenFetched;
     QSet<qint64 /* entity id */> mEntityChildrenFetchComplete;
     QList<QByteArray> mPropertyColumns;
-    Akonadi2::Query mQuery;
+    Sink::Query mQuery;
     std::function<void(const Ptr &)> loadEntities;
-    typename Akonadi2::ResultEmitter<Ptr>::Ptr mEmitter;
+    typename Sink::ResultEmitter<Ptr>::Ptr mEmitter;
 };
 

@@ -20,8 +20,8 @@ class QueryTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
-        auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
+        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
+        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
         DummyResource::removeFromDisk("org.kde.dummy.instance1");
         ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
@@ -29,11 +29,11 @@ private Q_SLOTS:
 
     void cleanup()
     {
-        Akonadi2::Store::shutdown(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::shutdown(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
         DummyResource::removeFromDisk("org.kde.dummy.instance1");
-        auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
+        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
-        Akonadi2::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
     }
 
     void init()
@@ -46,13 +46,13 @@ private Q_SLOTS:
     void testNoResources()
     {
         //Test
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "foobar";
         query.liveQuery = true;
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 0);
     }
 
@@ -61,17 +61,17 @@ private Q_SLOTS:
     {
         //Setup
         {
-            Akonadi2::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
         }
 
         //Test
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.liveQuery = true;
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         model->fetchMore(QModelIndex());
         QTRY_COMPARE(model->rowCount(), 1);
     }
@@ -80,23 +80,23 @@ private Q_SLOTS:
     {
         //Setup
         {
-            Akonadi2::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
         }
 
         //Test
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.liveQuery = false;
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
 
         model->fetchMore(QModelIndex());
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
     }
 
@@ -105,31 +105,31 @@ private Q_SLOTS:
         QByteArray id;
         //Setup
         {
-            Akonadi2::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Mail>(mail).exec().waitForFinished();
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+            Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
 
-            Akonadi2::Query query;
+            Sink::Query query;
             query.resources << "org.kde.dummy.instance1";
 
             //Ensure all local data is processed
-            Akonadi2::Store::synchronize(query).exec().waitForFinished();
+            Sink::Store::synchronize(query).exec().waitForFinished();
 
             //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
-            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
             model->fetchMore(QModelIndex());
-            QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
             QVERIFY(model->rowCount() >= 1);
-            id = model->index(0, 0).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Mail::Ptr>()->identifier();
+            id = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Mail::Ptr>()->identifier();
         }
 
         //Test
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.ids << id;
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         model->fetchMore(QModelIndex());
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
     }
 
@@ -137,20 +137,20 @@ private Q_SLOTS:
     {
         //Setup
         {
-            Akonadi2::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Folder>(folder).exec().waitForFinished();
+            Sink::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
+            Sink::Store::create<Sink::ApplicationDomain::Folder>(folder).exec().waitForFinished();
         }
 
         //Test
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.liveQuery = true;
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         model->fetchMore(QModelIndex());
         QTRY_COMPARE(model->rowCount(), 1);
-        auto folderEntity = model->index(0, 0).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+        auto folderEntity = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>();
         QVERIFY(!folderEntity->identifier().isEmpty());
     }
 
@@ -158,42 +158,42 @@ private Q_SLOTS:
     {
         //Setup
         {
-            Akonadi2::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Folder>(folder).exec().waitForFinished();
+            Sink::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
+            Sink::Store::create<Sink::ApplicationDomain::Folder>(folder).exec().waitForFinished();
 
-            Akonadi2::Query query;
+            Sink::Query query;
             query.resources << "org.kde.dummy.instance1";
 
             //Ensure all local data is processed
-            Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+            Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
             QCOMPARE(model->rowCount(), 1);
 
-            auto folderEntity = model->index(0, 0).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+            auto folderEntity = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>();
             QVERIFY(!folderEntity->identifier().isEmpty());
 
-            Akonadi2::ApplicationDomain::Folder subfolder("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Folder subfolder("org.kde.dummy.instance1");
             subfolder.setProperty("parent", folderEntity->identifier());
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Folder>(subfolder).exec().waitForFinished();
+            Sink::Store::create<Sink::ApplicationDomain::Folder>(subfolder).exec().waitForFinished();
         }
 
         //Test
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.parentProperty = "parent";
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         model->fetchMore(QModelIndex());
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
         model->fetchMore(model->index(0, 0));
-        QTRY_VERIFY(model->data(model->index(0, 0), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QTRY_VERIFY(model->data(model->index(0, 0), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(model->index(0, 0)), 1);
     }
 
@@ -201,65 +201,65 @@ private Q_SLOTS:
     {
         //Setup
         {
-            Akonadi2::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
             mail.setProperty("uid", "test1");
             mail.setProperty("sender", "doe@example.org");
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+            Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
         }
 
         //Test
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.liveQuery = false;
         query.propertyFilter.insert("uid", "test1");
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
     }
 
     void testMailByFolder()
     {
         //Setup
-        Akonadi2::ApplicationDomain::Folder::Ptr folderEntity;
+        Sink::ApplicationDomain::Folder::Ptr folderEntity;
         {
-            Akonadi2::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Folder>(folder).exec().waitForFinished();
+            Sink::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
+            Sink::Store::create<Sink::ApplicationDomain::Folder>(folder).exec().waitForFinished();
 
-            Akonadi2::Query query;
+            Sink::Query query;
             query.resources << "org.kde.dummy.instance1";
 
             //Ensure all local data is processed
-            Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+            Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
             QCOMPARE(model->rowCount(), 1);
 
-            folderEntity = model->index(0, 0).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+            folderEntity = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>();
             QVERIFY(!folderEntity->identifier().isEmpty());
 
-            Akonadi2::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
             mail.setProperty("uid", "test1");
             mail.setProperty("folder", folderEntity->identifier());
-            Akonadi2::Store::create<Akonadi2::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+            Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
         }
 
         //Test
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.propertyFilter.insert("folder", folderEntity->identifier());
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
     }
 };

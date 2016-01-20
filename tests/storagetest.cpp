@@ -21,14 +21,14 @@ private:
 
     void populate(int count)
     {
-        Akonadi2::Storage storage(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = storage.createTransaction(Akonadi2::Storage::ReadWrite);
+        Sink::Storage storage(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = storage.createTransaction(Sink::Storage::ReadWrite);
         for (int i = 0; i < count; i++) {
             //This should perhaps become an implementation detail of the db?
             if (i % 10000 == 0) {
                 if (i > 0) {
                     transaction.commit();
-                    transaction = std::move(storage.createTransaction(Akonadi2::Storage::ReadWrite));
+                    transaction = std::move(storage.createTransaction(Sink::Storage::ReadWrite));
                 }
             }
             transaction.openDatabase().write(keyPrefix + QByteArray::number(i), keyPrefix + QByteArray::number(i));
@@ -36,12 +36,12 @@ private:
         transaction.commit();
     }
 
-    bool verify(Akonadi2::Storage &storage, int i)
+    bool verify(Sink::Storage &storage, int i)
     {
         bool success = true;
         bool keyMatch = true;
         const auto reference = keyPrefix + QByteArray::number(i);
-        storage.createTransaction(Akonadi2::Storage::ReadOnly).openDatabase().scan(keyPrefix + QByteArray::number(i),
+        storage.createTransaction(Sink::Storage::ReadOnly).openDatabase().scan(keyPrefix + QByteArray::number(i),
             [&keyMatch, &reference](const QByteArray &key, const QByteArray &value) -> bool {
                 if (value != reference) {
                     qDebug() << "Mismatch while reading";
@@ -49,7 +49,7 @@ private:
                 }
                 return keyMatch;
             },
-            [&success](const Akonadi2::Storage::Error &error) {
+            [&success](const Sink::Storage::Error &error) {
                 qDebug() << error.message;
                 success = false;
             }
@@ -62,20 +62,20 @@ private Q_SLOTS:
     {
         testDataPath = "./testdb";
         dbName = "test";
-        Akonadi2::Storage storage(testDataPath, dbName);
+        Sink::Storage storage(testDataPath, dbName);
         storage.removeFromDisk();
     }
 
     void cleanup()
     {
-        Akonadi2::Storage storage(testDataPath, dbName);
+        Sink::Storage storage(testDataPath, dbName);
         storage.removeFromDisk();
     }
 
     void testCleanup()
     {
         populate(1);
-        Akonadi2::Storage storage(testDataPath, dbName);
+        Sink::Storage storage(testDataPath, dbName);
         storage.removeFromDisk();
         QFileInfo info(testDataPath + "/" + dbName);
         QVERIFY(!info.exists());
@@ -89,7 +89,7 @@ private Q_SLOTS:
 
         //ensure we can read everything back correctly
         {
-            Akonadi2::Storage storage(testDataPath, dbName);
+            Sink::Storage storage(testDataPath, dbName);
             for (int i = 0; i < count; i++) {
                 QVERIFY(verify(storage, i));
             }
@@ -104,8 +104,8 @@ private Q_SLOTS:
         //ensure we can scan for values
         {
             int hit = 0;
-            Akonadi2::Storage store(testDataPath, dbName);
-            store.createTransaction(Akonadi2::Storage::ReadOnly).openDatabase().scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            Sink::Storage store(testDataPath, dbName);
+            store.createTransaction(Sink::Storage::ReadOnly).openDatabase().scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
                 if (key == "key50") {
                     hit++;
                 }
@@ -118,8 +118,8 @@ private Q_SLOTS:
         {
             int hit = 0;
             bool foundInvalidValue = false;
-            Akonadi2::Storage store(testDataPath, dbName);
-            store.createTransaction(Akonadi2::Storage::ReadOnly).openDatabase().scan("key50", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            Sink::Storage store(testDataPath, dbName);
+            store.createTransaction(Sink::Storage::ReadOnly).openDatabase().scan("key50", [&](const QByteArray &key, const QByteArray &value) -> bool {
                 if (key != "key50") {
                     foundInvalidValue = true;
                 }
@@ -134,10 +134,10 @@ private Q_SLOTS:
     void testNestedOperations()
     {
         populate(3);
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         transaction.openDatabase().scan("key1", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            transaction.openDatabase().remove(key, [](const Akonadi2::Storage::Error &) {
+            transaction.openDatabase().remove(key, [](const Sink::Storage::Error &) {
                 QVERIFY(false);
             });
             return false;
@@ -147,9 +147,9 @@ private Q_SLOTS:
     void testNestedTransactions()
     {
         populate(3);
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        store.createTransaction(Akonadi2::Storage::ReadOnly).openDatabase().scan("key1", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            store.createTransaction(Akonadi2::Storage::ReadWrite).openDatabase().remove(key, [](const Akonadi2::Storage::Error &) {
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        store.createTransaction(Sink::Storage::ReadOnly).openDatabase().scan("key1", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            store.createTransaction(Sink::Storage::ReadWrite).openDatabase().remove(key, [](const Sink::Storage::Error &) {
                 QVERIFY(false);
             });
             return false;
@@ -160,9 +160,9 @@ private Q_SLOTS:
     {
         bool gotResult = false;
         bool gotError = false;
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadOnly);
-        auto db = transaction.openDatabase("default", [&](const Akonadi2::Storage::Error &error) {
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadOnly);
+        auto db = transaction.openDatabase("default", [&](const Sink::Storage::Error &error) {
             qDebug() << error.message;
             gotError = true;
         });
@@ -170,7 +170,7 @@ private Q_SLOTS:
             gotResult = true;
             return false;
         },
-        [&](const Akonadi2::Storage::Error &error) {
+        [&](const Sink::Storage::Error &error) {
             qDebug() << error.message;
             gotError = true;
         });
@@ -195,8 +195,8 @@ private Q_SLOTS:
             const int concurrencyLevel = 20;
             for (int num = 0; num < concurrencyLevel; num++) {
                 futures << QtConcurrent::run([this, count, &error](){
-                    Akonadi2::Storage storage(testDataPath, dbName, Akonadi2::Storage::ReadOnly);
-                    Akonadi2::Storage storage2(testDataPath, dbName + "2", Akonadi2::Storage::ReadOnly);
+                    Sink::Storage storage(testDataPath, dbName, Sink::Storage::ReadOnly);
+                    Sink::Storage storage2(testDataPath, dbName + "2", Sink::Storage::ReadOnly);
                     for (int i = 0; i < count; i++) {
                         if (!verify(storage, i)) {
                             error = true;
@@ -212,9 +212,9 @@ private Q_SLOTS:
         }
 
         {
-            Akonadi2::Storage storage(testDataPath, dbName);
+            Sink::Storage storage(testDataPath, dbName);
             storage.removeFromDisk();
-            Akonadi2::Storage storage2(testDataPath, dbName + "2");
+            Sink::Storage storage2(testDataPath, dbName + "2");
             storage2.removeFromDisk();
         }
     }
@@ -223,8 +223,8 @@ private Q_SLOTS:
     {
         bool gotResult = false;
         bool gotError = false;
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("default", nullptr, false);
         db.write("key","value");
         db.write("key","value");
@@ -233,7 +233,7 @@ private Q_SLOTS:
             gotResult = true;
             return true;
         },
-        [&](const Akonadi2::Storage::Error &error) {
+        [&](const Sink::Storage::Error &error) {
             qDebug() << error.message;
             gotError = true;
         });
@@ -246,8 +246,8 @@ private Q_SLOTS:
     {
         bool gotResult = false;
         bool gotError = false;
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("default", nullptr, true);
         db.write("key","value1");
         db.write("key","value2");
@@ -255,7 +255,7 @@ private Q_SLOTS:
             gotResult = true;
             return true;
         },
-        [&](const Akonadi2::Storage::Error &error) {
+        [&](const Sink::Storage::Error &error) {
             qDebug() << error.message;
             gotError = true;
         });
@@ -268,12 +268,12 @@ private Q_SLOTS:
     {
         bool gotResult = false;
         bool gotError = false;
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadOnly);
-        int numValues = store.createTransaction(Akonadi2::Storage::ReadOnly).openDatabase("test").scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadOnly);
+        int numValues = store.createTransaction(Sink::Storage::ReadOnly).openDatabase("test").scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
             gotResult = true;
             return false;
         },
-        [&](const Akonadi2::Storage::Error &error) {
+        [&](const Sink::Storage::Error &error) {
             qDebug() << error.message;
             gotError = true;
         });
@@ -285,8 +285,8 @@ private Q_SLOTS:
     void testWriteToNamedDb()
     {
         bool gotError = false;
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        store.createTransaction(Akonadi2::Storage::ReadWrite).openDatabase("test").write("key1", "value1", [&](const Akonadi2::Storage::Error &error) {
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        store.createTransaction(Sink::Storage::ReadWrite).openDatabase("test").write("key1", "value1", [&](const Sink::Storage::Error &error) {
             qDebug() << error.message;
             gotError = true;
         });
@@ -296,8 +296,8 @@ private Q_SLOTS:
     void testWriteDuplicatesToNamedDb()
     {
         bool gotError = false;
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        store.createTransaction(Akonadi2::Storage::ReadWrite).openDatabase("test", nullptr, true).write("key1", "value1", [&](const Akonadi2::Storage::Error &error) {
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        store.createTransaction(Sink::Storage::ReadWrite).openDatabase("test", nullptr, true).write("key1", "value1", [&](const Sink::Storage::Error &error) {
             qDebug() << error.message;
             gotError = true;
         });
@@ -307,8 +307,8 @@ private Q_SLOTS:
     //By default we want only exact matches
     void testSubstringKeys()
     {
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, true);
         db.write("sub","value1");
         db.write("subsub","value2");
@@ -321,8 +321,8 @@ private Q_SLOTS:
 
     void testFindSubstringKeys()
     {
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
         db.write("sub","value1");
         db.write("subsub","value2");
@@ -336,8 +336,8 @@ private Q_SLOTS:
 
     void testKeySorting()
     {
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
         db.write("sub_2","value2");
         db.write("sub_1","value1");
@@ -357,8 +357,8 @@ private Q_SLOTS:
     //Ensure we don't retrieve a key that is greater than the current key. We only want equal keys.
     void testKeyRange()
     {
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, true);
         db.write("sub1","value1");
         int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
@@ -370,8 +370,8 @@ private Q_SLOTS:
 
     void testFindLatest()
     {
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
         db.write("sub1","value1");
         db.write("sub2","value2");
@@ -387,8 +387,8 @@ private Q_SLOTS:
 
     void testFindLatestInSingle()
     {
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
         db.write("sub2","value2");
         QByteArray result;
@@ -401,8 +401,8 @@ private Q_SLOTS:
 
     void testFindLast()
     {
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
         db.write("sub2","value2");
         db.write("wub3","value3");
@@ -416,11 +416,11 @@ private Q_SLOTS:
 
     void testRecordRevision()
     {
-        Akonadi2::Storage store(testDataPath, dbName, Akonadi2::Storage::ReadWrite);
-        auto transaction = store.createTransaction(Akonadi2::Storage::ReadWrite);
-        Akonadi2::Storage::recordRevision(transaction, 1, "uid", "type");
-        QCOMPARE(Akonadi2::Storage::getTypeFromRevision(transaction, 1), QByteArray("type"));
-        QCOMPARE(Akonadi2::Storage::getUidFromRevision(transaction, 1), QByteArray("uid"));
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
+        Sink::Storage::recordRevision(transaction, 1, "uid", "type");
+        QCOMPARE(Sink::Storage::getTypeFromRevision(transaction, 1), QByteArray("type"));
+        QCOMPARE(Sink::Storage::getUidFromRevision(transaction, 1), QByteArray("uid"));
     }
 };
 

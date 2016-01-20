@@ -39,14 +39,14 @@ public:
     {
     }
 
-    ListModelResult(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter, const QList<QByteArray> &propertyColumns)
+    ListModelResult(const QSharedPointer<Sink::ResultEmitter<T> > &emitter, const QList<QByteArray> &propertyColumns)
         :QAbstractListModel(),
         mPropertyColumns(propertyColumns)
     {
         setEmitter(emitter);
     }
 
-    void setEmitter(const QSharedPointer<Akonadi2::ResultEmitter<T> > &emitter)
+    void setEmitter(const QSharedPointer<Sink::ResultEmitter<T> > &emitter)
     {
         beginResetModel();
         mEntities.clear();
@@ -118,7 +118,7 @@ public:
     }
 
 private:
-    QSharedPointer<Akonadi2::ResultEmitter<T> > mEmitter;
+    QSharedPointer<Sink::ResultEmitter<T> > mEmitter;
     QMap<QByteArray, T> mEntities;
     QList<QByteArray> mPropertyColumns;
 };

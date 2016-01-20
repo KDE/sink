@@ -20,7 +20,7 @@
 
 static int sBatchSize = 100;
 
-using namespace Akonadi2;
+using namespace Sink;
 
 /**
  * Replays changes from the storage one by one.
@@ -105,8 +105,8 @@ public Q_SLOTS:
     }
 
 private:
-    Akonadi2::Storage mStorage;
-    Akonadi2::Storage mChangeReplayStore;
+    Sink::Storage mStorage;
+    Sink::Storage mChangeReplayStore;
     ReplayFunction mReplayFunction;
 };
 
@@ -118,7 +118,7 @@ class CommandProcessor : public QObject
     Q_OBJECT
     typedef std::function<KAsync::Job<void>(void const *, size_t)> InspectionFunction;
 public:
-    CommandProcessor(Akonadi2::Pipeline *pipeline, QList<MessageQueue*> commandQueues)
+    CommandProcessor(Sink::Pipeline *pipeline, QList<MessageQueue*> commandQueues)
         : QObject(),
         mPipeline(pipeline),
         mCommandQueues(commandQueues),
@@ -175,18 +175,18 @@ private slots:
         }).exec();
     }
 
-    KAsync::Job<qint64> processQueuedCommand(const Akonadi2::QueuedCommand *queuedCommand)
+    KAsync::Job<qint64> processQueuedCommand(const Sink::QueuedCommand *queuedCommand)
     {
-        Log() << "Processing command: " << Akonadi2::Commands::name(queuedCommand->commandId());
+        Log() << "Processing command: " << Sink::Commands::name(queuedCommand->commandId());
         //Throw command into appropriate pipeline
         switch (queuedCommand->commandId()) {
-            case Akonadi2::Commands::DeleteEntityCommand:
+            case Sink::Commands::DeleteEntityCommand:
                 return mPipeline->deletedEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
-            case Akonadi2::Commands::ModifyEntityCommand:
+            case Sink::Commands::ModifyEntityCommand:
                 return mPipeline->modifiedEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
-            case Akonadi2::Commands::CreateEntityCommand:
+            case Sink::Commands::CreateEntityCommand:
                 return mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
-            case Akonadi2::Commands::InspectionCommand:
+            case Sink::Commands::InspectionCommand:
                 if (mInspect) {
                     return mInspect(queuedCommand->command()->Data(), queuedCommand->command()->size()).then<qint64>([]() {
                         return -1;
@@ -203,16 +203,16 @@ private slots:
     KAsync::Job<qint64, qint64> processQueuedCommand(const QByteArray &data)
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(data.constData()), data.size());
-        if (!Akonadi2::VerifyQueuedCommandBuffer(verifyer)) {
+        if (!Sink::VerifyQueuedCommandBuffer(verifyer)) {
             Warning() << "invalid buffer";
             // return KAsync::error<void, qint64>(1, "Invalid Buffer");
         }
-        auto queuedCommand = Akonadi2::GetQueuedCommand(data.constData());
+        auto queuedCommand = Sink::GetQueuedCommand(data.constData());
         const auto commandId = queuedCommand->commandId();
-        Trace() << "Dequeued Command: " << Akonadi2::Commands::name(commandId);
+        Trace() << "Dequeued Command: " << Sink::Commands::name(commandId);
         return processQueuedCommand(queuedCommand).then<qint64, qint64>(
             [commandId](qint64 createdRevision) -> qint64 {
-                Trace() << "Command pipeline processed: " << Akonadi2::Commands::name(commandId);
+                Trace() << "Command pipeline processed: " << Sink::Commands::name(commandId);
                 return createdRevision;
             }
             ,
@@ -278,7 +278,7 @@ private slots:
     }
 
 private:
-    Akonadi2::Pipeline *mPipeline;
+    Sink::Pipeline *mPipeline;
     //Ordered by priority
     QList<MessageQueue*> mCommandQueues;
     bool mProcessingLock;
@@ -289,19 +289,19 @@ private:
 
 
 GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline)
-    : Akonadi2::Resource(),
-    mUserQueue(Akonadi2::storageLocation(), resourceInstanceIdentifier + ".userqueue"),
-    mSynchronizerQueue(Akonadi2::storageLocation(), resourceInstanceIdentifier + ".synchronizerqueue"),
+    : Sink::Resource(),
+    mUserQueue(Sink::storageLocation(), resourceInstanceIdentifier + ".userqueue"),
+    mSynchronizerQueue(Sink::storageLocation(), resourceInstanceIdentifier + ".synchronizerqueue"),
     mResourceInstanceIdentifier(resourceInstanceIdentifier),
-    mPipeline(pipeline ? pipeline : QSharedPointer<Akonadi2::Pipeline>::create(resourceInstanceIdentifier)),
+    mPipeline(pipeline ? pipeline : QSharedPointer<Sink::Pipeline>::create(resourceInstanceIdentifier)),
     mError(0),
     mClientLowerBoundRevision(std::numeric_limits<qint64>::max())
 {
     mProcessor = new CommandProcessor(mPipeline.data(), QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue);
     mProcessor->setInspectionCommand([this](void const *command, size_t size) {
         flatbuffers::Verifier verifier((const uint8_t *)command, size);
-        if (Akonadi2::Commands::VerifyInspectionBuffer(verifier)) {
-            auto buffer = Akonadi2::Commands::GetInspection(command);
+        if (Sink::Commands::VerifyInspectionBuffer(verifier)) {
+            auto buffer = Sink::Commands::GetInspection(command);
             int inspectionType = buffer->type();
 
             QByteArray inspectionId = BufferUtils::extractBuffer(buffer->id());
@@ -313,17 +313,17 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
             QVariant expectedValue;
             s >> expectedValue;
             inspect(inspectionType, inspectionId, domainType, entityId, property, expectedValue).then<void>([=]() {
-                Akonadi2::Notification n;
-                n.type = Akonadi2::Commands::NotificationType_Inspection;
+                Sink::Notification n;
+                n.type = Sink::Commands::NotificationType_Inspection;
                 n.id = inspectionId;
-                n.code = Akonadi2::Commands::NotificationCode_Success;
+                n.code = Sink::Commands::NotificationCode_Success;
                 emit notify(n);
             }, [=](int code, const QString &message) {
-                Akonadi2::Notification n;
-                n.type = Akonadi2::Commands::NotificationType_Inspection;
+                Sink::Notification n;
+                n.type = Sink::Commands::NotificationType_Inspection;
                 n.message = message;
                 n.id = inspectionId;
-                n.code = Akonadi2::Commands::NotificationCode_Failure;
+                n.code = Sink::Commands::NotificationCode_Failure;
                 emit notify(n);
             }).exec();
             return KAsync::null<void>();
@@ -334,7 +334,7 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
     mSourceChangeReplay = new ChangeReplay(resourceInstanceIdentifier, [this](const QByteArray &type, const QByteArray &key, const QByteArray &value) {
         //This results in a deadlock when a sync is in progress and we try to create a second writing transaction (which is why we turn changereplay off during the sync)
-        auto synchronizationStore = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
+        auto synchronizationStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadWrite);
         return this->replay(*synchronizationStore, type, key, value).then<void>([synchronizationStore](){});
     });
     enableChangeReplay(true);
@@ -370,13 +370,13 @@ void GenericResource::enableChangeReplay(bool enable)
     }
 }
 
-void GenericResource::addType(const QByteArray &type, DomainTypeAdaptorFactoryInterface::Ptr factory, const QVector<Akonadi2::Preprocessor*> &preprocessors)
+void GenericResource::addType(const QByteArray &type, DomainTypeAdaptorFactoryInterface::Ptr factory, const QVector<Sink::Preprocessor*> &preprocessors)
 {
     mPipeline->setPreprocessors(type, preprocessors);
     mPipeline->setAdaptorFactory(type, factory);
 }
 
-KAsync::Job<void> GenericResource::replay(Akonadi2::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value)
+KAsync::Job<void> GenericResource::replay(Sink::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value)
 {
     return KAsync::null<void>();
 }
@@ -384,18 +384,18 @@ KAsync::Job<void> GenericResource::replay(Akonadi2::Storage &synchronizationStor
 void GenericResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
     Warning() << "Removing from generic resource";
-    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier, Akonadi2::Storage::ReadWrite).removeFromDisk();
-    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".userqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
-    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronizerqueue", Akonadi2::Storage::ReadWrite).removeFromDisk();
-    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".changereplay", Akonadi2::Storage::ReadWrite).removeFromDisk();
+    Sink::Storage(Sink::storageLocation(), instanceIdentifier, Sink::Storage::ReadWrite).removeFromDisk();
+    Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".userqueue", Sink::Storage::ReadWrite).removeFromDisk();
+    Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".synchronizerqueue", Sink::Storage::ReadWrite).removeFromDisk();
+    Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".changereplay", Sink::Storage::ReadWrite).removeFromDisk();
 }
 
 qint64 GenericResource::diskUsage(const QByteArray &instanceIdentifier)
 {
-    auto size = Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier, Akonadi2::Storage::ReadOnly).diskUsage();
-    size += Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".userqueue", Akonadi2::Storage::ReadOnly).diskUsage();
-    size += Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronizerqueue", Akonadi2::Storage::ReadOnly).diskUsage();
-    size += Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".changereplay", Akonadi2::Storage::ReadOnly).diskUsage();
+    auto size = Sink::Storage(Sink::storageLocation(), instanceIdentifier, Sink::Storage::ReadOnly).diskUsage();
+    size += Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".userqueue", Sink::Storage::ReadOnly).diskUsage();
+    size += Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".synchronizerqueue", Sink::Storage::ReadOnly).diskUsage();
+    size += Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".changereplay", Sink::Storage::ReadOnly).diskUsage();
     return size;
 }
 
@@ -413,9 +413,9 @@ int GenericResource::error() const
 void GenericResource::enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data)
 {
     flatbuffers::FlatBufferBuilder fbb;
-    auto commandData = Akonadi2::EntityBuffer::appendAsVector(fbb, data.constData(), data.size());
-    auto buffer = Akonadi2::CreateQueuedCommand(fbb, commandId, commandData);
-    Akonadi2::FinishQueuedCommandBuffer(fbb, buffer);
+    auto commandData = Sink::EntityBuffer::appendAsVector(fbb, data.constData(), data.size());
+    auto buffer = Sink::CreateQueuedCommand(fbb, commandId, commandData);
+    Sink::FinishQueuedCommandBuffer(fbb, buffer);
     mq.enqueue(fbb.GetBufferPointer(), fbb.GetSize());
 }
 
@@ -440,8 +440,8 @@ KAsync::Job<void> GenericResource::synchronizeWithSource()
         Log() << " Synchronizing";
         //Changereplay would deadlock otherwise when trying to open the synchronization store
         enableChangeReplay(false);
-        auto mainStore = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::storageLocation(), mResourceInstanceIdentifier, Akonadi2::Storage::ReadOnly);
-        auto syncStore = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite);
+        auto mainStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier, Sink::Storage::ReadOnly);
+        auto syncStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadWrite);
         synchronizeWithSource(*mainStore, *syncStore).then<void>([this, mainStore, syncStore]() {
             Log() << "Done Synchronizing";
             enableChangeReplay(true);
@@ -449,7 +449,7 @@ KAsync::Job<void> GenericResource::synchronizeWithSource()
     });
 }
 
-KAsync::Job<void> GenericResource::synchronizeWithSource(Akonadi2::Storage &mainStore, Akonadi2::Storage &synchronizationStore)
+KAsync::Job<void> GenericResource::synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore)
 {
     return KAsync::null<void>();
 }
@@ -508,7 +508,7 @@ void GenericResource::setLowerBoundRevision(qint64 revision)
     updateLowerBoundRevision();
 }
 
-void GenericResource::createEntity(const QByteArray &akonadiId, const QByteArray &bufferType, const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
+void GenericResource::createEntity(const QByteArray &sinkId, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
 {
     //These changes are coming from the source
     const auto replayToSource = false;
@@ -516,45 +516,45 @@ void GenericResource::createEntity(const QByteArray &akonadiId, const QByteArray
     adaptorFactory.createBuffer(domainObject, entityFbb);
     flatbuffers::FlatBufferBuilder fbb;
     //This is the resource type and not the domain type
-    auto entityId = fbb.CreateString(akonadiId.toStdString());
+    auto entityId = fbb.CreateString(sinkId.toStdString());
     auto type = fbb.CreateString(bufferType.toStdString());
-    auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
-    auto location = Akonadi2::Commands::CreateCreateEntity(fbb, entityId, type, delta, replayToSource);
-    Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+    auto delta = Sink::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
+    auto location = Sink::Commands::CreateCreateEntity(fbb, entityId, type, delta, replayToSource);
+    Sink::Commands::FinishCreateEntityBuffer(fbb, location);
     callback(BufferUtils::extractBuffer(fbb));
 }
 
-void GenericResource::modifyEntity(const QByteArray &akonadiId, qint64 revision, const QByteArray &bufferType, const Akonadi2::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
+void GenericResource::modifyEntity(const QByteArray &sinkId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
 {
     //These changes are coming from the source
     const auto replayToSource = false;
     flatbuffers::FlatBufferBuilder entityFbb;
     adaptorFactory.createBuffer(domainObject, entityFbb);
     flatbuffers::FlatBufferBuilder fbb;
-    auto entityId = fbb.CreateString(akonadiId.toStdString());
+    auto entityId = fbb.CreateString(sinkId.toStdString());
     //This is the resource type and not the domain type
     auto type = fbb.CreateString(bufferType.toStdString());
-    auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
+    auto delta = Sink::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
     //TODO removals
-    auto location = Akonadi2::Commands::CreateModifyEntity(fbb, revision, entityId, 0, type, delta, replayToSource);
-    Akonadi2::Commands::FinishModifyEntityBuffer(fbb, location);
+    auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, 0, type, delta, replayToSource);
+    Sink::Commands::FinishModifyEntityBuffer(fbb, location);
     callback(BufferUtils::extractBuffer(fbb));
 }
 
-void GenericResource::deleteEntity(const QByteArray &akonadiId, qint64 revision, const QByteArray &bufferType, std::function<void(const QByteArray &)> callback)
+void GenericResource::deleteEntity(const QByteArray &sinkId, qint64 revision, const QByteArray &bufferType, std::function<void(const QByteArray &)> callback)
 {
     //These changes are coming from the source
     const auto replayToSource = false;
     flatbuffers::FlatBufferBuilder fbb;
-    auto entityId = fbb.CreateString(akonadiId.toStdString());
+    auto entityId = fbb.CreateString(sinkId.toStdString());
     //This is the resource type and not the domain type
     auto type = fbb.CreateString(bufferType.toStdString());
-    auto location = Akonadi2::Commands::CreateDeleteEntity(fbb, revision, entityId, type, replayToSource);
-    Akonadi2::Commands::FinishDeleteEntityBuffer(fbb, location);
+    auto location = Sink::Commands::CreateDeleteEntity(fbb, revision, entityId, type, replayToSource);
+    Sink::Commands::FinishDeleteEntityBuffer(fbb, location);
     callback(BufferUtils::extractBuffer(fbb));
 }
 
-void GenericResource::recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Akonadi2::Storage::Transaction &transaction)
+void GenericResource::recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Sink::Storage::Transaction &transaction)
 {
     Index index("rid.mapping." + bufferType, transaction);
     Index localIndex("localid.mapping." + bufferType, transaction);
@@ -562,7 +562,7 @@ void GenericResource::recordRemoteId(const QByteArray &bufferType, const QByteAr
     localIndex.add(localId, remoteId);
 }
 
-void GenericResource::removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Akonadi2::Storage::Transaction &transaction)
+void GenericResource::removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Sink::Storage::Transaction &transaction)
 {
     Index index("rid.mapping." + bufferType, transaction);
     Index localIndex("localid.mapping." + bufferType, transaction);
@@ -570,21 +570,21 @@ void GenericResource::removeRemoteId(const QByteArray &bufferType, const QByteAr
     localIndex.remove(localId, remoteId);
 }
 
-QByteArray GenericResource::resolveRemoteId(const QByteArray &bufferType, const QByteArray &remoteId, Akonadi2::Storage::Transaction &transaction)
+QByteArray GenericResource::resolveRemoteId(const QByteArray &bufferType, const QByteArray &remoteId, Sink::Storage::Transaction &transaction)
 {
     //Lookup local id for remote id, or insert a new pair otherwise
     Index index("rid.mapping." + bufferType, transaction);
     Index localIndex("localid.mapping." + bufferType, transaction);
-    QByteArray akonadiId = index.lookup(remoteId);
-    if (akonadiId.isEmpty()) {
-        akonadiId = QUuid::createUuid().toString().toUtf8();
-        index.add(remoteId, akonadiId);
-        localIndex.add(akonadiId, remoteId);
+    QByteArray sinkId = index.lookup(remoteId);
+    if (sinkId.isEmpty()) {
+        sinkId = QUuid::createUuid().toString().toUtf8();
+        index.add(remoteId, sinkId);
+        localIndex.add(sinkId, remoteId);
     }
-    return akonadiId;
+    return sinkId;
 }
 
-QByteArray GenericResource::resolveLocalId(const QByteArray &bufferType, const QByteArray &localId, Akonadi2::Storage::Transaction &transaction)
+QByteArray GenericResource::resolveLocalId(const QByteArray &bufferType, const QByteArray &localId, Sink::Storage::Transaction &transaction)
 {
     Index index("localid.mapping." + bufferType, transaction);
     QByteArray remoteId = index.lookup(localId);
@@ -595,29 +595,29 @@ QByteArray GenericResource::resolveLocalId(const QByteArray &bufferType, const Q
     return remoteId;
 }
 
-void GenericResource::scanForRemovals(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, const QByteArray &bufferType, const std::function<void(const std::function<void(const QByteArray &key)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists)
+void GenericResource::scanForRemovals(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QByteArray &bufferType, const std::function<void(const std::function<void(const QByteArray &key)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists)
 {
     entryGenerator([this, &transaction, bufferType, &synchronizationTransaction, &exists](const QByteArray &key) {
-        auto akonadiId = Akonadi2::Storage::uidFromKey(key);
+        auto sinkId = Sink::Storage::uidFromKey(key);
         Trace() << "Checking for removal " << key;
-        const auto remoteId = resolveLocalId(bufferType, akonadiId, synchronizationTransaction);
+        const auto remoteId = resolveLocalId(bufferType, sinkId, synchronizationTransaction);
         //If we have no remoteId, the entity hasn't been replayed to the source yet
         if (!remoteId.isEmpty()) {
             if (!exists(remoteId)) {
-                Trace() << "Found a removed entity: " << akonadiId;
-                deleteEntity(akonadiId, Akonadi2::Storage::maxRevision(transaction), bufferType, [this](const QByteArray &buffer) {
-                    enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::DeleteEntityCommand, buffer);
+                Trace() << "Found a removed entity: " << sinkId;
+                deleteEntity(sinkId, Sink::Storage::maxRevision(transaction), bufferType, [this](const QByteArray &buffer) {
+                    enqueueCommand(mSynchronizerQueue, Sink::Commands::DeleteEntityCommand, buffer);
                 });
             }
         }
     });
 }
 
-static QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> getLatest(const Akonadi2::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory)
+static QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory)
 {
-    QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> current;
+    QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
     db.findLatest(uid, [&current, &adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
-        Akonadi2::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+        Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         if (!buffer.isValid()) {
             Warning() << "Read invalid buffer from disk";
         } else {
@@ -625,35 +625,35 @@ static QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> getLatest(cons
         }
         return false;
     },
-    [](const Akonadi2::Storage::Error &error) {
+    [](const Sink::Storage::Error &error) {
         Warning() << "Failed to read current value from storage: " << error.message;
     });
     return current;
 }
 
-void GenericResource::createOrModify(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory, const QByteArray &bufferType, const QByteArray &remoteId, const Akonadi2::ApplicationDomain::ApplicationDomainType &entity)
+void GenericResource::createOrModify(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory, const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
     auto mainDatabase = transaction.openDatabase(bufferType + ".main");
-    const auto akonadiId = resolveRemoteId(bufferType, remoteId, synchronizationTransaction);
-    const auto found = mainDatabase.contains(akonadiId);
+    const auto sinkId = resolveRemoteId(bufferType, remoteId, synchronizationTransaction);
+    const auto found = mainDatabase.contains(sinkId);
     if (!found) {
         Trace() << "Found a new entity: " << remoteId;
-        createEntity(akonadiId, bufferType, entity, adaptorFactory, [this](const QByteArray &buffer) {
-            enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::CreateEntityCommand, buffer);
+        createEntity(sinkId, bufferType, entity, adaptorFactory, [this](const QByteArray &buffer) {
+            enqueueCommand(mSynchronizerQueue, Sink::Commands::CreateEntityCommand, buffer);
         });
     } else { //modification
-        if (auto current = getLatest(mainDatabase, akonadiId, adaptorFactory)) {
+        if (auto current = getLatest(mainDatabase, sinkId, adaptorFactory)) {
             bool changed = false;
             for (const auto &property : entity.changedProperties()) {
                 if (entity.getProperty(property) != current->getProperty(property)) {
-                    Trace() << "Property changed " << akonadiId << property;
+                    Trace() << "Property changed " << sinkId << property;
                     changed = true;
                 }
             }
             if (changed) {
                 Trace() << "Found a modified entity: " << remoteId;
-                modifyEntity(akonadiId, Akonadi2::Storage::maxRevision(transaction), bufferType, entity, adaptorFactory, [this](const QByteArray &buffer) {
-                    enqueueCommand(mSynchronizerQueue, Akonadi2::Commands::ModifyEntityCommand, buffer);
+                modifyEntity(sinkId, Sink::Storage::maxRevision(transaction), bufferType, entity, adaptorFactory, [this](const QByteArray &buffer) {
+                    enqueueCommand(mSynchronizerQueue, Sink::Commands::ModifyEntityCommand, buffer);
                 });
             }
         } else {

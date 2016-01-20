@@ -1,31 +1,31 @@
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(domain)
 
-project(akonadi2common)
+project(sinkcommon)
 
-ecm_setup_version("0.1" VARIABLE_PREFIX Akonadi2Common
-                        VERSION_HEADER "${CMAKE_CURRENT_BINARY_DIR}/akonadi2common_version.h"
-                        PACKAGE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/Akonadi2CommonConfigVersion.cmake"
+ecm_setup_version("0.1" VARIABLE_PREFIX SinkCommon
+                        VERSION_HEADER "${CMAKE_CURRENT_BINARY_DIR}/sinkcommon_version.h"
+                        PACKAGE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/SinkCommonConfigVersion.cmake"
                         SOVERSION 0
 )
 
 ########### CMake Config Files ###########
-set(CMAKECONFIG_INSTALL_DIR "${KDE_INSTALL_CMAKEPACKAGEDIR}/Akonadi2Common")
+set(CMAKECONFIG_INSTALL_DIR "${KDE_INSTALL_CMAKEPACKAGEDIR}/SinkCommon")
 
 ecm_configure_package_config_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/Akonadi2CommonConfig.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/Akonadi2CommonConfig.cmake"
+  "${CMAKE_CURRENT_SOURCE_DIR}/SinkCommonConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/SinkCommonConfig.cmake"
   INSTALL_DESTINATION  ${CMAKECONFIG_INSTALL_DIR}
 )
 
 install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/Akonadi2CommonConfig.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/Akonadi2CommonConfigVersion.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/SinkCommonConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/SinkCommonConfigVersion.cmake"
   DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
   COMPONENT Devel
 )
 
-install(EXPORT Akonadi2CommonTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE Akonadi2CommonTargets.cmake NAMESPACE KF5::)
+install(EXPORT SinkCommonTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE SinkCommonTargets.cmake NAMESPACE KF5::)
 
 set(storage_SRCS storage_lmdb.cpp)
 set(storage_LIBS lmdb)
@@ -85,7 +85,7 @@ generate_flatbuffers(
     queuedcommand
 )
 
-generate_export_header(${PROJECT_NAME} BASE_NAME Akonadi2Common EXPORT_FILE_NAME akonadi2common_export.h)
+generate_export_header(${PROJECT_NAME} BASE_NAME SinkCommon EXPORT_FILE_NAME sinkcommon_export.h)
 SET_TARGET_PROPERTIES(${PROJECT_NAME}
     PROPERTIES LINKER_LANGUAGE CXX
     VERSION "0.1"
@@ -95,7 +95,7 @@ SET_TARGET_PROPERTIES(${PROJECT_NAME}
 qt5_use_modules(${PROJECT_NAME} Network)
 target_link_libraries(${PROJECT_NAME} ${storage_LIBS} KF5::Async)
 install(TARGETS ${PROJECT_NAME}
-    EXPORT Akonadi2CommonTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )
+    EXPORT SinkCommonTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )
 
 install(FILES
     clientapi.h

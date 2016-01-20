@@ -50,7 +50,7 @@ configure_file(hawd.conf hawd.conf)
 
 enable_testing()
 
-set(AKONADI2_RESOURCE_PLUGINS_PATH ${QT_PLUGIN_INSTALL_DIR}/akonadi2/resources)
+set(SINK_RESOURCE_PLUGINS_PATH ${QT_PLUGIN_INSTALL_DIR}/sink/resources)
 
 # common, eventually a lib but right now just the command buffers
 add_subdirectory(common)
@@ -65,6 +65,6 @@ add_subdirectory(examples)
 add_subdirectory(tests)
 
 # cli
-add_subdirectory(akonadish)
+add_subdirectory(sinksh)
 
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)

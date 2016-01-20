@@ -30,18 +30,18 @@
 #include "common/storage.h"
 #include "common/definitions.h"
 
-#include "akonadish_utils.h"
+#include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
 
-namespace AkonadiClear
+namespace SinkClear
 {
 
 bool clear(const QStringList &args, State &state)
 {
     for (const auto &resource : args) {
         state.print(QObject::tr("Removing local cache for '%1' ...").arg(resource));
-        Akonadi2::Store::removeFromDisk(resource.toLatin1());
+        Sink::Store::removeFromDisk(resource.toLatin1());
         state.printLine(QObject::tr("done"));
     }
 
@@ -50,12 +50,12 @@ bool clear(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax clear("clear", QObject::tr("Clears the local cache of one or more resources (be careful!)"), &AkonadiClear::clear);
-    clear.completer = &AkonadishUtils::resourceCompleter;
+    Syntax clear("clear", QObject::tr("Clears the local cache of one or more resources (be careful!)"), &SinkClear::clear);
+    clear.completer = &SinkshUtils::resourceCompleter;
 
     return Syntax::List() << clear;
 }
 
-REGISTER_SYNTAX(AkonadiClear)
+REGISTER_SYNTAX(SinkClear)
 
 }

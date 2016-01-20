@@ -30,22 +30,22 @@
 #include "common/storage.h"
 #include "common/definitions.h"
 
-#include "akonadish_utils.h"
+#include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
 
-namespace AkonadiSync
+namespace SinkSync
 {
 
 bool sync(const QStringList &args, State &state)
 {
-    Akonadi2::Query query;
+    Sink::Query query;
     for (const auto &res : args) {
         query.resources << res.toLatin1();
     }
 
     QTimer::singleShot(0, [query, state]() {
-    Akonadi2::Store::synchronize(query).then<void>([state]() {
+    Sink::Store::synchronize(query).then<void>([state]() {
             state.printLine("Synchronization complete!");
             state.commandFinished();
             }).exec();
@@ -56,12 +56,12 @@ bool sync(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax sync("sync", QObject::tr("Syncronizes all resources that are listed; and empty list triggers a syncronizaton on all resources"), &AkonadiSync::sync, Syntax::EventDriven );
-    sync.completer = &AkonadishUtils::resourceCompleter;
+    Syntax sync("sync", QObject::tr("Syncronizes all resources that are listed; and empty list triggers a syncronizaton on all resources"), &SinkSync::sync, Syntax::EventDriven );
+    sync.completer = &SinkshUtils::resourceCompleter;
 
     return Syntax::List() << sync;
 }
 
-REGISTER_SYNTAX(AkonadiSync)
+REGISTER_SYNTAX(SinkSync)
 
 }

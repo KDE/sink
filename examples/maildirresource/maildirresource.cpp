@@ -46,15 +46,15 @@
 #define ENTITY_TYPE_MAIL "mail"
 #define ENTITY_TYPE_FOLDER "folder"
 
-MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSharedPointer<Akonadi2::Pipeline> &pipeline)
-    : Akonadi2::GenericResource(instanceIdentifier, pipeline),
+MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
+    : Sink::GenericResource(instanceIdentifier, pipeline),
     mMailAdaptorFactory(QSharedPointer<MaildirMailAdaptorFactory>::create()),
     mFolderAdaptorFactory(QSharedPointer<MaildirFolderAdaptorFactory>::create())
 {
     addType(ENTITY_TYPE_MAIL, mMailAdaptorFactory,
-            QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Mail>);
+            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     addType(ENTITY_TYPE_FOLDER, mFolderAdaptorFactory,
-            QVector<Akonadi2::Preprocessor*>() << new DefaultIndexUpdater<Akonadi2::ApplicationDomain::Folder>);
+            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
     auto config = ResourceConfig::getConfiguration(instanceIdentifier);
     mMaildirPath = QDir::cleanPath(QDir::fromNativeSeparators(config.value("path").toString()));
     //Chop a trailing slash if necessary
@@ -91,7 +91,7 @@ QStringList MaildirResource::listAvailableFolders()
     return folderList;
 }
 
-void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction)
+void MaildirResource::synchronizeFolders(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction)
 {
     const QByteArray bufferType = ENTITY_TYPE_FOLDER;
     QStringList folderList = listAvailableFolders();
@@ -102,7 +102,7 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
             //TODO Instead of iterating over all entries in the database, which can also pick up the same item multiple times,
             //we should rather iterate over an index that contains every uid exactly once. The remoteId index would be such an index,
             //but we currently fail to iterate over all entries in an index it seems.
-            // auto remoteIds = synchronizationTransaction.openDatabase("rid.mapping." + bufferType, std::function<void(const Akonadi2::Storage::Error &)>(), true);
+            // auto remoteIds = synchronizationTransaction.openDatabase("rid.mapping." + bufferType, std::function<void(const Sink::Storage::Error &)>(), true);
             auto mainDatabase = transaction.openDatabase(bufferType + ".main");
             mainDatabase.scan("", [&](const QByteArray &key, const QByteArray &) {
                 callback(key);
@@ -119,7 +119,7 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
         Trace() << "Processing folder " << remoteId;
         KPIM::Maildir md(folderPath, folderPath == mMaildirPath);
 
-        Akonadi2::ApplicationDomain::Folder folder;
+        Sink::ApplicationDomain::Folder folder;
         folder.setProperty("name", md.name());
         folder.setProperty("icon", "folder");
         if (!md.isRoot()) {
@@ -129,7 +129,7 @@ void MaildirResource::synchronizeFolders(Akonadi2::Storage::Transaction &transac
     }
 }
 
-void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transaction, Akonadi2::Storage::Transaction &synchronizationTransaction, const QString &path)
+void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &path)
 {
     Trace() << "Synchronizing mails" << path;
     const QByteArray bufferType = ENTITY_TYPE_MAIL;
@@ -150,8 +150,8 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
     scanForRemovals(transaction, synchronizationTransaction, bufferType,
         [&](const std::function<void(const QByteArray &)> &callback) {
             Index index(bufferType + ".index." + property, transaction);
-            index.lookup(folderLocalId, [&](const QByteArray &akonadiId) {
-                callback(akonadiId);
+            index.lookup(folderLocalId, [&](const QByteArray &sinkId) {
+                callback(sinkId);
             },
             [&](const Index::Error &error) {
                 Warning() << "Error in index: " <<  error.message << property;
@@ -175,7 +175,7 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
 
         Trace() << "Found a mail " << filePath << " : " << fileName << msg->subject(true)->asUnicodeString();
 
-        Akonadi2::ApplicationDomain::Mail mail;
+        Sink::ApplicationDomain::Mail mail;
         mail.setProperty("subject", msg->subject(true)->asUnicodeString());
         mail.setProperty("sender", msg->from(true)->asUnicodeString());
         mail.setProperty("senderName", msg->from(true)->asUnicodeString());
@@ -189,19 +189,19 @@ void MaildirResource::synchronizeMails(Akonadi2::Storage::Transaction &transacti
     }
 }
 
-KAsync::Job<void> MaildirResource::synchronizeWithSource(Akonadi2::Storage &mainStore, Akonadi2::Storage &synchronizationStore)
+KAsync::Job<void> MaildirResource::synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore)
 {
     Log() << " Synchronizing";
     return KAsync::start<void>([this, &mainStore, &synchronizationStore]() {
-        auto transaction = mainStore.createTransaction(Akonadi2::Storage::ReadOnly);
+        auto transaction = mainStore.createTransaction(Sink::Storage::ReadOnly);
         {
-            auto synchronizationTransaction = synchronizationStore.createTransaction(Akonadi2::Storage::ReadWrite);
+            auto synchronizationTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
             synchronizeFolders(transaction, synchronizationTransaction);
             //The next sync needs the folders available
             synchronizationTransaction.commit();
         }
         for (const auto &folder : listAvailableFolders()) {
-            auto synchronizationTransaction = synchronizationStore.createTransaction(Akonadi2::Storage::ReadWrite);
+            auto synchronizationTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
             synchronizeMails(transaction, synchronizationTransaction, folder);
             //Don't let the transaction grow too much
             synchronizationTransaction.commit();
@@ -210,23 +210,23 @@ KAsync::Job<void> MaildirResource::synchronizeWithSource(Akonadi2::Storage &main
     });
 }
 
-KAsync::Job<void> MaildirResource::replay(Akonadi2::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value)
+KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value)
 {
-    auto synchronizationTransaction = synchronizationStore.createTransaction(Akonadi2::Storage::ReadWrite);
+    auto synchronizationTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
 
     Trace() << "Replaying " << key << type;
     if (type == ENTITY_TYPE_FOLDER) {
-        Akonadi2::EntityBuffer buffer(value.data(), value.size());
-        const Akonadi2::Entity &entity = buffer.entity();
-        const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
+        Sink::EntityBuffer buffer(value.data(), value.size());
+        const Sink::Entity &entity = buffer.entity();
+        const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
         if (metadataBuffer && !metadataBuffer->replayToSource()) {
             Trace() << "Change is coming from the source";
             return KAsync::null<void>();
         }
         const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-        const auto operation = metadataBuffer ? metadataBuffer->operation() : Akonadi2::Operation_Creation;
-        if (operation == Akonadi2::Operation_Creation) {
-            const Akonadi2::ApplicationDomain::Folder folder(mResourceInstanceIdentifier, Akonadi2::Storage::uidFromKey(key), revision, mFolderAdaptorFactory->createAdaptor(entity));
+        const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
+        if (operation == Sink::Operation_Creation) {
+            const Sink::ApplicationDomain::Folder folder(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, mFolderAdaptorFactory->createAdaptor(entity));
             auto folderName = folder.getProperty("name").toString();
             //TODO handle non toplevel folders
             auto path = mMaildirPath + "/" + folderName;
@@ -234,31 +234,31 @@ KAsync::Job<void> MaildirResource::replay(Akonadi2::Storage &synchronizationStor
             KPIM::Maildir maildir(path, false);
             maildir.create();
             recordRemoteId(ENTITY_TYPE_FOLDER, folder.identifier(), path.toUtf8(), synchronizationTransaction);
-        } else if (operation == Akonadi2::Operation_Removal) {
-            const auto uid = Akonadi2::Storage::uidFromKey(key);
+        } else if (operation == Sink::Operation_Removal) {
+            const auto uid = Sink::Storage::uidFromKey(key);
             const auto remoteId = resolveLocalId(ENTITY_TYPE_FOLDER, uid, synchronizationTransaction);
             const auto path = remoteId;
             Trace() << "Removing a folder: " << path;
             KPIM::Maildir maildir(path, false);
             maildir.remove();
             removeRemoteId(ENTITY_TYPE_FOLDER, uid, remoteId, synchronizationTransaction);
-        } else if (operation == Akonadi2::Operation_Modification) {
+        } else if (operation == Sink::Operation_Modification) {
             Warning() << "Folder modifications are not implemented";
         } else {
             Warning() << "Unkown operation" << operation;
         }
     } else if (type == ENTITY_TYPE_MAIL) {
-        Akonadi2::EntityBuffer buffer(value.data(), value.size());
-        const Akonadi2::Entity &entity = buffer.entity();
-        const auto metadataBuffer = Akonadi2::EntityBuffer::readBuffer<Akonadi2::Metadata>(entity.metadata());
+        Sink::EntityBuffer buffer(value.data(), value.size());
+        const Sink::Entity &entity = buffer.entity();
+        const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
         if (metadataBuffer && !metadataBuffer->replayToSource()) {
             Trace() << "Change is coming from the source";
             return KAsync::null<void>();
         }
         const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-        const auto operation = metadataBuffer ? metadataBuffer->operation() : Akonadi2::Operation_Creation;
-        if (operation == Akonadi2::Operation_Creation) {
-            const Akonadi2::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, Akonadi2::Storage::uidFromKey(key), revision, mMailAdaptorFactory->createAdaptor(entity));
+        const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
+        if (operation == Sink::Operation_Creation) {
+            const Sink::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, mMailAdaptorFactory->createAdaptor(entity));
             auto parentFolder = mail.getProperty("folder").toByteArray();
             QByteArray parentFolderRemoteId;
             if (!parentFolder.isEmpty()) {
@@ -272,13 +272,13 @@ KAsync::Job<void> MaildirResource::replay(Akonadi2::Storage &synchronizationStor
             const auto id = maildir.addEntry("foobar");
             Trace() << "Creating a new mail: " << id;
             recordRemoteId(ENTITY_TYPE_MAIL, mail.identifier(), id.toUtf8(), synchronizationTransaction);
-        } else if (operation == Akonadi2::Operation_Removal) {
-            const auto uid = Akonadi2::Storage::uidFromKey(key);
+        } else if (operation == Sink::Operation_Removal) {
+            const auto uid = Sink::Storage::uidFromKey(key);
             const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, uid, synchronizationTransaction);
             Trace() << "Removing a mail: " << remoteId;
             QFile::remove(remoteId);
             removeRemoteId(ENTITY_TYPE_MAIL, uid, remoteId, synchronizationTransaction);
-        } else if (operation == Akonadi2::Operation_Modification) {
+        } else if (operation == Sink::Operation_Modification) {
             Warning() << "Mail modifications are not implemented";
         } else {
             Warning() << "Unkown operation" << operation;
@@ -290,16 +290,16 @@ KAsync::Job<void> MaildirResource::replay(Akonadi2::Storage &synchronizationStor
 void MaildirResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
     GenericResource::removeFromDisk(instanceIdentifier);
-    Akonadi2::Storage(Akonadi2::storageLocation(), instanceIdentifier + ".synchronization", Akonadi2::Storage::ReadWrite).removeFromDisk();
+    Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::ReadWrite).removeFromDisk();
 }
 
 KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
-    auto synchronizationStore = QSharedPointer<Akonadi2::Storage>::create(Akonadi2::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Akonadi2::Storage::ReadOnly);
-    auto synchronizationTransaction = synchronizationStore->createTransaction(Akonadi2::Storage::ReadOnly);
+    auto synchronizationStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadOnly);
+    auto synchronizationTransaction = synchronizationStore->createTransaction(Sink::Storage::ReadOnly);
     Trace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
     if (domainType == ENTITY_TYPE_MAIL) {
-        if (inspectionType == Akonadi2::Resources::Inspection::PropertyInspectionType) {
+        if (inspectionType == Sink::Resources::Inspection::PropertyInspectionType) {
             if (property == "unread") {
                 const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, entityId, synchronizationTransaction);
                 const auto flags = KPIM::Maildir::readEntryFlags(remoteId.split('/').last());
@@ -312,7 +312,7 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
                 return KAsync::null<void>();
             }
         }
-        if (inspectionType == Akonadi2::Resources::Inspection::ExistenceInspectionType) {
+        if (inspectionType == Sink::Resources::Inspection::ExistenceInspectionType) {
             const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, entityId, synchronizationTransaction);
             if (QFileInfo(remoteId).exists() != expectedValue.toBool()) {
                 return KAsync::error<void>(1, "Wrong file existence: " + remoteId);
@@ -323,19 +323,19 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
 }
 
 MaildirResourceFactory::MaildirResourceFactory(QObject *parent)
-    : Akonadi2::ResourceFactory(parent)
+    : Sink::ResourceFactory(parent)
 {
 
 }
 
-Akonadi2::Resource *MaildirResourceFactory::createResource(const QByteArray &instanceIdentifier)
+Sink::Resource *MaildirResourceFactory::createResource(const QByteArray &instanceIdentifier)
 {
     return new MaildirResource(instanceIdentifier);
 }
 
-void MaildirResourceFactory::registerFacades(Akonadi2::FacadeFactory &factory)
+void MaildirResourceFactory::registerFacades(Sink::FacadeFactory &factory)
 {
-    factory.registerFacade<Akonadi2::ApplicationDomain::Mail, MaildirResourceMailFacade>(PLUGIN_NAME);
-    factory.registerFacade<Akonadi2::ApplicationDomain::Folder, MaildirResourceFolderFacade>(PLUGIN_NAME);
+    factory.registerFacade<Sink::ApplicationDomain::Mail, MaildirResourceMailFacade>(PLUGIN_NAME);
+    factory.registerFacade<Sink::ApplicationDomain::Folder, MaildirResourceFolderFacade>(PLUGIN_NAME);
 }
 

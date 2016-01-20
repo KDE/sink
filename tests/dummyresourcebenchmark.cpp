@@ -30,8 +30,8 @@ private:
 private Q_SLOTS:
     void initTestCase()
     {
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Warning);
-        auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
+        Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
+        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
         ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
         num = 5000;
@@ -79,20 +79,20 @@ private Q_SLOTS:
         time.start();
         QList<KAsync::Future<void> > waitCondition;
         for (int i = 0; i < num; i++) {
-            Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
             event.setProperty("uid", "testuid");
             QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
             event.setProperty("summary", "summaryValue");
-            waitCondition << Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec();
+            waitCondition << Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec();
         }
         waitForCompletion(waitCondition).exec().waitForFinished();
         auto appendTime = time.elapsed();
 
         //Ensure everything is processed
         {
-            Akonadi2::Query query;
+            Sink::Query query;
             query.resources << "org.kde.dummy.instance1";
-            Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+            Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
         }
         auto allProcessedTime = time.elapsed();
 
@@ -119,11 +119,11 @@ private Q_SLOTS:
         //Measure query
         {
             time.start();
-            Akonadi2::Query query;
+            Sink::Query query;
             query.resources << "org.kde.dummy.instance1";
 
             query.propertyFilter.insert("uid", "testuid");
-            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), num);
         }
         auto queryTime = time.elapsed();
@@ -142,44 +142,44 @@ private Q_SLOTS:
         QTime time;
         time.start();
 
-        auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.dummy.instance1");
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.dummy.instance1");
         DummyResource resource("org.kde.dummy.instance1", pipeline);
 
         flatbuffers::FlatBufferBuilder eventFbb;
         eventFbb.Clear();
         {
             auto summary = eventFbb.CreateString("summary");
-            Akonadi2::ApplicationDomain::Buffer::EventBuilder eventBuilder(eventFbb);
+            Sink::ApplicationDomain::Buffer::EventBuilder eventBuilder(eventFbb);
             eventBuilder.add_summary(summary);
             auto eventLocation = eventBuilder.Finish();
-            Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
+            Sink::ApplicationDomain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
         }
 
         flatbuffers::FlatBufferBuilder localFbb;
         {
             auto uid = localFbb.CreateString("testuid");
-            auto localBuilder = Akonadi2::ApplicationDomain::Buffer::EventBuilder(localFbb);
+            auto localBuilder = Sink::ApplicationDomain::Buffer::EventBuilder(localFbb);
             localBuilder.add_uid(uid);
             auto location = localBuilder.Finish();
-            Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
+            Sink::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
         }
 
         flatbuffers::FlatBufferBuilder entityFbb;
-        Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
+        Sink::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
 
         flatbuffers::FlatBufferBuilder fbb;
-        auto type = fbb.CreateString(Akonadi2::ApplicationDomain::getTypeName<Akonadi2::ApplicationDomain::Event>().toStdString().data());
+        auto type = fbb.CreateString(Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>().toStdString().data());
         auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
-        Akonadi2::Commands::CreateEntityBuilder builder(fbb);
+        Sink::Commands::CreateEntityBuilder builder(fbb);
         builder.add_domainType(type);
         builder.add_delta(delta);
         auto location = builder.Finish();
-        Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+        Sink::Commands::FinishCreateEntityBuffer(fbb, location);
 
         const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 
         for (int i = 0; i < num; i++) {
-            resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command);
+            resource.processCommand(Sink::Commands::CreateEntityCommand, command);
         }
         auto appendTime = time.elapsed();
 
@@ -203,7 +203,7 @@ private Q_SLOTS:
 
     void testCreateCommand()
     {
-        Akonadi2::ApplicationDomain::Event event;
+        Sink::ApplicationDomain::Event event;
 
         QBENCHMARK {
             auto mFactory = new DummyEventAdaptorFactory;
@@ -217,9 +217,9 @@ private Q_SLOTS:
             auto entityId = fbb.CreateString("");
             auto type = fbb.CreateString("event");
             // auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
-            auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
-            auto location = Akonadi2::Commands::CreateCreateEntity(fbb, entityId, type, delta);
-            Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+            auto delta = Sink::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
+            auto location = Sink::Commands::CreateCreateEntity(fbb, entityId, type, delta);
+            Sink::Commands::FinishCreateEntityBuffer(fbb, location);
         }
     }
 

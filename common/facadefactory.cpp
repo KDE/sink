@@ -22,7 +22,7 @@
 #include "resourcefacade.h"
 #include "resource.h"
 
-using namespace Akonadi2;
+using namespace Sink;
 
 QMutex FacadeFactory::sMutex;
 
@@ -54,7 +54,7 @@ void FacadeFactory::resetFactory()
 
 void FacadeFactory::registerStaticFacades()
 {
-    registerFacade<Akonadi2::ApplicationDomain::AkonadiResource, ResourceFacade>(QByteArray());
+    registerFacade<Sink::ApplicationDomain::SinkResource, ResourceFacade>(QByteArray());
 }
 
 std::shared_ptr<void> FacadeFactory::getFacade(const QByteArray &resource, const QByteArray &instanceIdentifier, const QByteArray &typeName)
@@ -65,7 +65,7 @@ std::shared_ptr<void> FacadeFactory::getFacade(const QByteArray &resource, const
     if (!mFacadeRegistry.contains(k)) {
         locker.unlock();
         //This will call FacadeFactory::instace() internally
-        Akonadi2::ResourceFactory::load(QString::fromLatin1(resource));
+        Sink::ResourceFactory::load(QString::fromLatin1(resource));
         locker.relock();
     }
 

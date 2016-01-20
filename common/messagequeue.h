@@ -54,7 +54,7 @@ private slots:
 
 private:
     Q_DISABLE_COPY(MessageQueue);
-    Akonadi2::Storage mStorage;
-    Akonadi2::Storage::Transaction mWriteTransaction;
+    Sink::Storage mStorage;
+    Sink::Storage::Transaction mWriteTransaction;
     QByteArrayList mPendingRemoval;
 };

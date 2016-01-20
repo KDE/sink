@@ -22,12 +22,12 @@
 
 #include <QStandardPaths>
 
-QString Akonadi2::storageLocation()
+QString Sink::storageLocation()
 {
-    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/storage";
+    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/storage";
 }
 
-QByteArray Akonadi2::resourceName(const QByteArray &instanceIdentifier)
+QByteArray Sink::resourceName(const QByteArray &instanceIdentifier)
 {
     auto split = instanceIdentifier.split('.');
     if (split.size() <= 1) {

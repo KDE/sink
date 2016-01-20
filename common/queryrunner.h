@@ -79,13 +79,13 @@ template<typename DomainType>
 class QueryRunner : public QueryRunnerBase
 {
 public:
-    QueryRunner(const Akonadi2::Query &query, const Akonadi2::ResourceAccessInterface::Ptr &, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &, const QByteArray &bufferType);
+    QueryRunner(const Sink::Query &query, const Sink::ResourceAccessInterface::Ptr &, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &, const QByteArray &bufferType);
     virtual ~QueryRunner();
 
-    typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
+    typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
 
 private:
-    QSharedPointer<Akonadi2::ResourceAccessInterface> mResourceAccess;
-    QSharedPointer<Akonadi2::ResultProvider<typename DomainType::Ptr> > mResultProvider;
+    QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
+    QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr> > mResultProvider;
 };
 

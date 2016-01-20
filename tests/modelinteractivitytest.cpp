@@ -45,16 +45,16 @@ class ModelinteractivityTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Warning);
+        Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
         DummyResource::removeFromDisk("org.kde.dummy.instance1");
         ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
     }
 
     void cleanup()
     {
-        Akonadi2::Store::shutdown(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::shutdown(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
         DummyResource::removeFromDisk("org.kde.dummy.instance1");
-        Akonadi2::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
     }
 
     void init()
@@ -65,24 +65,24 @@ private Q_SLOTS:
     {
         //Setup
         {
-            Akonadi2::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
             for (int i = 0; i < 1000; i++) {
-                Akonadi2::Store::create<Akonadi2::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+                Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
             }
         }
 
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.liveQuery = true;
 
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test
         QTime time;
         time.start();
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         blockingTime += time.elapsed();
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         //Never block longer than 10 ms
         QVERIFY2(blockingTime < 10, QString("Total blocking time: %1").arg(blockingTime).toLatin1().data());
     }

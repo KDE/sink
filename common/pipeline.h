@@ -25,19 +25,19 @@
 #include <QSharedDataPointer>
 #include <QObject>
 
-#include <akonadi2common_export.h>
+#include <sinkcommon_export.h>
 #include <storage.h>
 
 #include <Async/Async>
 
 #include "domainadaptor.h"
 
-namespace Akonadi2
+namespace Sink
 {
 
 class Preprocessor;
 
-class AKONADI2COMMON_EXPORT Pipeline : public QObject
+class SINKCOMMON_EXPORT Pipeline : public QObject
 {
     Q_OBJECT
 
@@ -79,16 +79,16 @@ private:
     Private * const d;
 };
 
-class AKONADI2COMMON_EXPORT Preprocessor
+class SINKCOMMON_EXPORT Preprocessor
 {
 public:
     Preprocessor();
     virtual ~Preprocessor();
 
     virtual void startBatch();
-    virtual void newEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) = 0;
-    virtual void modifiedEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) = 0;
-    virtual void deletedEntity(const QByteArray &key, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) = 0;
+    virtual void newEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) = 0;
+    virtual void modifiedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) = 0;
+    virtual void deletedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) = 0;
     virtual void finalize();
 
 private:
@@ -96,5 +96,5 @@ private:
     Private * const d;
 };
 
-} // namespace Akonadi2
+} // namespace Sink
 

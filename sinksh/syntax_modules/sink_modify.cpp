@@ -32,27 +32,27 @@
 #include "common/storage.h"
 #include "common/definitions.h"
 
-#include "akonadish_utils.h"
+#include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
 
-namespace AkonadiModify
+namespace SinkModify
 {
 
 bool modify(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("A type is required"), "akonadi_modify/02");
+        state.printError(QObject::tr("A type is required"), "sink_modify/02");
         return false;
     }
 
     if (args.count() < 2) {
-        state.printError(QObject::tr("A resource ID is required to remove items"), "akonadi_modify/03");
+        state.printError(QObject::tr("A resource ID is required to remove items"), "sink_modify/03");
         return false;
     }
 
     if (args.count() < 3) {
-        state.printError(QObject::tr("An object ID is required to remove items"), "akonadi_modify/03");
+        state.printError(QObject::tr("An object ID is required to remove items"), "sink_modify/03");
         return false;
     }
 
@@ -60,10 +60,10 @@ bool modify(const QStringList &args, State &state)
     auto resourceId = args[1];
     auto identifier = args[2];
 
-    auto &store = AkonadishUtils::getStore(type);
-    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject(resourceId.toUtf8(), identifier.toUtf8());
+    auto &store = SinkshUtils::getStore(type);
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject(resourceId.toUtf8(), identifier.toUtf8());
 
-    auto map = AkonadishUtils::keyValueMapFromArgs(args);
+    auto map = SinkshUtils::keyValueMapFromArgs(args);
     for (auto i = map.begin(); i != map.end(); ++i) {
         object->setProperty(i.key().toLatin1(), i.value());
     }
@@ -81,15 +81,15 @@ bool modify(const QStringList &args, State &state)
 bool resource(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("A resource can not be modified without an id"), "akonadi_modify/01");
+        state.printError(QObject::tr("A resource can not be modified without an id"), "sink_modify/01");
     }
 
-    auto &store = AkonadishUtils::getStore("resource");
+    auto &store = SinkshUtils::getStore("resource");
 
     auto resourceId = args.at(0);
-    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", resourceId.toLatin1());
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", resourceId.toLatin1());
 
-    auto map = AkonadishUtils::keyValueMapFromArgs(args);
+    auto map = SinkshUtils::keyValueMapFromArgs(args);
     for (auto i = map.begin(); i != map.end(); ++i) {
         object->setProperty(i.key().toLatin1(), i.value());
     }
@@ -107,14 +107,14 @@ bool resource(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax modify("modify", QObject::tr("Modify items in a resource"), &AkonadiModify::modify);
-    Syntax resource("resource", QObject::tr("Modify a resource"), &AkonadiModify::resource);//, Syntax::EventDriven);
-    resource.completer = &AkonadishUtils::resourceOrTypeCompleter;
+    Syntax modify("modify", QObject::tr("Modify items in a resource"), &SinkModify::modify);
+    Syntax resource("resource", QObject::tr("Modify a resource"), &SinkModify::resource);//, Syntax::EventDriven);
+    resource.completer = &SinkshUtils::resourceOrTypeCompleter;
     modify.children << resource;
 
     return Syntax::List() << modify;
 }
 
-REGISTER_SYNTAX(AkonadiModify)
+REGISTER_SYNTAX(SinkModify)
 
 }

@@ -20,7 +20,7 @@
 
 #include <QSharedPointer>
 
-namespace Akonadi2 {
+namespace Sink {
     namespace ApplicationDomain {
         class BufferAdaptor;
         class ApplicationDomainType;
@@ -37,6 +37,6 @@ class DomainTypeAdaptorFactoryInterface
 public:
     typedef QSharedPointer<DomainTypeAdaptorFactoryInterface> Ptr;
     virtual ~DomainTypeAdaptorFactoryInterface() {};
-    virtual QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor> createAdaptor(const Akonadi2::Entity &entity) = 0;
-    virtual void createBuffer(const Akonadi2::ApplicationDomain::ApplicationDomainType &domainType, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) = 0;
+    virtual QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> createAdaptor(const Sink::Entity &entity) = 0;
+    virtual void createBuffer(const Sink::ApplicationDomain::ApplicationDomainType &domainType, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) = 0;
 };

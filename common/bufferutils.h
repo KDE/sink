@@ -3,7 +3,7 @@
 #include <flatbuffers/flatbuffers.h>
 #include <QByteArray>
 
-namespace Akonadi2 {
+namespace Sink {
 namespace BufferUtils {
     template<typename T>
     static QByteArray extractBuffer(const T *data)

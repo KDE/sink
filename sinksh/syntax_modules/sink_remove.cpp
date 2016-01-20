@@ -32,27 +32,27 @@
 #include "common/storage.h"
 #include "common/definitions.h"
 
-#include "akonadish_utils.h"
+#include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
 
-namespace AkonadiRemove
+namespace SinkRemove
 {
 
 bool remove(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("A type is required"), "akonadi_remove/02");
+        state.printError(QObject::tr("A type is required"), "sink_remove/02");
         return false;
     }
 
     if (args.count() < 2) {
-        state.printError(QObject::tr("A resource ID is required to remove items"), "akonadi_remove/03");
+        state.printError(QObject::tr("A resource ID is required to remove items"), "sink_remove/03");
         return false;
     }
 
     if (args.count() < 3) {
-        state.printError(QObject::tr("An object ID is required to remove items"), "akonadi_remove/03");
+        state.printError(QObject::tr("An object ID is required to remove items"), "sink_remove/03");
         return false;
     }
 
@@ -60,8 +60,8 @@ bool remove(const QStringList &args, State &state)
     auto resourceId = args[1];
     auto identifier = args[2];
 
-    auto &store = AkonadishUtils::getStore(type);
-    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject(resourceId.toUtf8(), identifier.toUtf8());
+    auto &store = SinkshUtils::getStore(type);
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject(resourceId.toUtf8(), identifier.toUtf8());
 
     auto result = store.remove(*object).exec();
     result.waitForFinished();
@@ -76,13 +76,13 @@ bool remove(const QStringList &args, State &state)
 bool resource(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("A resource can not be removed without an id"), "akonadi_remove/01");
+        state.printError(QObject::tr("A resource can not be removed without an id"), "sink_remove/01");
     }
 
-    auto &store = AkonadishUtils::getStore("resource");
+    auto &store = SinkshUtils::getStore("resource");
 
     auto resourceId = args.at(0);
-    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", resourceId.toLatin1());
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", resourceId.toLatin1());
 
     auto result = store.remove(*object).exec();
     result.waitForFinished();
@@ -97,14 +97,14 @@ bool resource(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax remove("remove", QObject::tr("Remove items in a resource"), &AkonadiRemove::remove);
-    Syntax resource("resource", QObject::tr("Removes a resource"), &AkonadiRemove::resource);//, Syntax::EventDriven);
-    resource.completer = &AkonadishUtils::resourceCompleter;
+    Syntax remove("remove", QObject::tr("Remove items in a resource"), &SinkRemove::remove);
+    Syntax resource("resource", QObject::tr("Removes a resource"), &SinkRemove::resource);//, Syntax::EventDriven);
+    resource.completer = &SinkshUtils::resourceCompleter;
     remove.children << resource;
 
     return Syntax::List() << remove;
 }
 
-REGISTER_SYNTAX(AkonadiRemove)
+REGISTER_SYNTAX(SinkRemove)
 
 }

@@ -22,7 +22,7 @@
 #include "domainadaptor.h"
 
 MaildirResourceMailFacade::MaildirResourceMailFacade(const QByteArray &instanceIdentifier)
-    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<MaildirMailAdaptorFactory>::create())
+    : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<MaildirMailAdaptorFactory>::create())
 {
 }
 
@@ -32,7 +32,7 @@ MaildirResourceMailFacade::~MaildirResourceMailFacade()
 
 
 MaildirResourceFolderFacade::MaildirResourceFolderFacade(const QByteArray &instanceIdentifier)
-    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Folder>(instanceIdentifier, QSharedPointer<MaildirFolderAdaptorFactory>::create())
+    : Sink::GenericFacade<Sink::ApplicationDomain::Folder>(instanceIdentifier, QSharedPointer<MaildirFolderAdaptorFactory>::create())
 {
 }
 

@@ -30,7 +30,7 @@
 #include "applicationdomaintype.h"
 #include "log.h"
 
-namespace Akonadi2 {
+namespace Sink {
 
 /**
  * Facade factory that returns a store facade implementation, by loading a plugin and providing the relevant implementation.

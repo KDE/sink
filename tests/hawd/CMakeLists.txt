@@ -26,7 +26,7 @@ set(SRCS
 add_library(lib${PROJECT_NAME} SHARED ${lib_SRCS})
 generate_export_header(lib${PROJECT_NAME} BASE_NAME HAWD EXPORT_FILE_NAME hawd_export.h)
 qt5_use_modules(lib${PROJECT_NAME} Core)
-target_link_libraries(lib${PROJECT_NAME} akonadi2common)
+target_link_libraries(lib${PROJECT_NAME} sinkcommon)
 if (LIBGIT2_FOUND)
    target_link_libraries(lib${PROJECT_NAME} ${LIBGIT2_LIBRARIES})
 endif(LIBGIT2_FOUND)

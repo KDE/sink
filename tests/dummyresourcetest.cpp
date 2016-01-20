@@ -22,8 +22,8 @@ class DummyResourceTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
-        auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
+        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
+        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
         DummyResource::removeFromDisk("org.kde.dummy.instance1");
         ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
@@ -31,11 +31,11 @@ private Q_SLOTS:
 
     void cleanup()
     {
-        Akonadi2::Store::shutdown(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::shutdown(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
         DummyResource::removeFromDisk("org.kde.dummy.instance1");
-        auto factory = Akonadi2::ResourceFactory::load("org.kde.dummy");
+        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
-        Akonadi2::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
     }
 
     void init()
@@ -47,54 +47,54 @@ private Q_SLOTS:
 
     void testProperty()
     {
-        Akonadi2::ApplicationDomain::Event event;
+        Sink::ApplicationDomain::Event event;
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
     }
 
     void testWriteToFacadeAndQueryByUid()
     {
-        Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("uid", "testuid");
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
     }
 
     void testWriteToFacadeAndQueryByUid2()
     {
-        Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
         event.setProperty("summary", "summaryValue");
 
         event.setProperty("uid", "testuid");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
         event.setProperty("uid", "testuid2");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("uid", "testuid");
 
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
 
         qDebug() << value->getProperty("uid").toByteArray();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
@@ -102,27 +102,27 @@ private Q_SLOTS:
 
     void testWriteToFacadeAndQueryBySummary()
     {
-        Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
 
         event.setProperty("uid", "testuid");
         event.setProperty("summary", "summaryValue1");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
         event.setProperty("uid", "testuid2");
         event.setProperty("summary", "summaryValue2");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("summary", "summaryValue2");
 
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
 
         qDebug() << value->getProperty("uid").toByteArray();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid2"));
@@ -130,7 +130,7 @@ private Q_SLOTS:
 
     void testResourceSync()
     {
-        auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.dummy.instance1");
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.dummy.instance1");
         DummyResource resource("org.kde.dummy.instance1", pipeline);
         auto job = resource.synchronizeWithSource();
         //TODO pass in optional timeout?
@@ -145,16 +145,16 @@ private Q_SLOTS:
 
     void testSyncAndFacade()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
-        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
 
         QVERIFY(!value->getProperty("summary").toString().isEmpty());
         qDebug() << value->getProperty("summary").toString();
@@ -162,16 +162,16 @@ private Q_SLOTS:
 
     void testSyncAndFacadeMail()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
-        auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Mail::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Mail::Ptr>();
 
         QVERIFY(!value->getProperty("subject").toString().isEmpty());
         qDebug() << value->getProperty("subject").toString();
@@ -179,25 +179,25 @@ private Q_SLOTS:
 
     void testWriteModifyDelete()
     {
-        Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.propertyFilter.insert("uid", "testuid");
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test create
-        Akonadi2::ApplicationDomain::Event event2;
+        Sink::ApplicationDomain::Event event2;
         {
-            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
 
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue"));
@@ -206,30 +206,30 @@ private Q_SLOTS:
 
         event2.setProperty("uid", "testuid");
         event2.setProperty("summary", "summaryValue2");
-        Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
+        Sink::Store::modify<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test modify
         {
-            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
 
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
         }
 
-        Akonadi2::Store::remove<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
+        Sink::Store::remove<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test remove
         {
-            auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
             QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
         }
     }
@@ -237,25 +237,25 @@ private Q_SLOTS:
     void testWriteModifyDeleteLive()
     {
 
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.liveQuery = true;
         query.propertyFilter.insert("uid", "testuid");
 
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Event>(query);
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
 
-        Akonadi2::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Akonadi2::Store::create<Akonadi2::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
         //Test create
-        Akonadi2::ApplicationDomain::Event event2;
+        Sink::ApplicationDomain::Event event2;
         {
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue"));
             event2 = *value;
@@ -263,18 +263,18 @@ private Q_SLOTS:
 
         event2.setProperty("uid", "testuid");
         event2.setProperty("summary", "summaryValue2");
-        Akonadi2::Store::modify<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
+        Sink::Store::modify<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Test modify
         {
             //TODO wait for a change signal
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
         }
 
-        Akonadi2::Store::remove<Akonadi2::ApplicationDomain::Event>(event2).exec().waitForFinished();
+        Sink::Store::remove<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Test remove
         {

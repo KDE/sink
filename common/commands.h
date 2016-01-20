@@ -20,13 +20,13 @@
 
 #pragma once
 
-#include <akonadi2common_export.h>
+#include <sinkcommon_export.h>
 #include <flatbuffers/flatbuffers.h>
 #include <QByteArray>
 
 class QIODevice;
 
-namespace Akonadi2
+namespace Sink
 {
 
 namespace Commands
@@ -54,11 +54,11 @@ enum CommandIds {
 
 QByteArray name(int commandId);
 
-int AKONADI2COMMON_EXPORT headerSize();
-void AKONADI2COMMON_EXPORT write(QIODevice *device, int messageId, int commandId);
-void AKONADI2COMMON_EXPORT write(QIODevice *device, int messageId, int commandId, const char *buffer, uint size);
-void AKONADI2COMMON_EXPORT write(QIODevice *device, int messageId, int commandId, flatbuffers::FlatBufferBuilder &fbb);
+int SINKCOMMON_EXPORT headerSize();
+void SINKCOMMON_EXPORT write(QIODevice *device, int messageId, int commandId);
+void SINKCOMMON_EXPORT write(QIODevice *device, int messageId, int commandId, const char *buffer, uint size);
+void SINKCOMMON_EXPORT write(QIODevice *device, int messageId, int commandId, flatbuffers::FlatBufferBuilder &fbb);
 
 }
 
-} // namespace Akonadi2
+} // namespace Sink

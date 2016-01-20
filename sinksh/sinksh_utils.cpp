@@ -18,13 +18,13 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include "akonadish_utils.h"
+#include "sinksh_utils.h"
 
 #include "common/clientapi.h"
 
 #include "utils.h"
 
-namespace AkonadishUtils
+namespace SinkshUtils
 {
 
 static QStringList s_types = QStringList() << "resource" << "folder" << "mail" << "event";
@@ -37,27 +37,27 @@ bool isValidStoreType(const QString &type)
 StoreBase &getStore(const QString &type)
 {
     if (type == "folder") {
-        static Store<Akonadi2::ApplicationDomain::Folder> store;
+        static Store<Sink::ApplicationDomain::Folder> store;
         return store;
     } else if (type == "mail") {
-        static Store<Akonadi2::ApplicationDomain::Mail> store;
+        static Store<Sink::ApplicationDomain::Mail> store;
         return store;
     } else if (type == "event") {
-        static Store<Akonadi2::ApplicationDomain::Event> store;
+        static Store<Sink::ApplicationDomain::Event> store;
         return store;
     } else if (type == "resource") {
-        static Store<Akonadi2::ApplicationDomain::AkonadiResource> store;
+        static Store<Sink::ApplicationDomain::SinkResource> store;
         return store;
     }
 
     //TODO: reinstate the warning+assert
     //Q_ASSERT(false);
     //qWarning() << "Trying to get a store that doesn't exist, falling back to event";
-    static Store<Akonadi2::ApplicationDomain::Event> store;
+    static Store<Sink::ApplicationDomain::Event> store;
     return store;
 }
 
-QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Akonadi2::Query query)
+QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Sink::Query query)
 {
     if (type == "folder") {
         query.requestedProperties << "name" << "parent";
@@ -76,19 +76,19 @@ QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Akonadi2::Quer
 QStringList resourceIds(State &state)
 {
     QStringList resources;
-    Akonadi2::Query query;
+    Sink::Query query;
     query.liveQuery = false;
-    auto model = AkonadishUtils::loadModel("resource", query);
+    auto model = SinkshUtils::loadModel("resource", query);
 
     QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, &resources] (const QModelIndex &index, int start, int end) mutable {
         for (int i = start; i <= end; i++) {
-            auto object = model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectBaseRole).value<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr>();
+            auto object = model->data(model->index(i, 0, index), Sink::Store::DomainObjectBaseRole).value<Sink::ApplicationDomain::ApplicationDomainType::Ptr>();
             resources << object->identifier();
         }
     });
 
     QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
-        if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
+        if (roles.contains(Sink::Store::ChildrenFetchedRole)) {
             state.commandFinished();
         }
     });
@@ -121,7 +121,7 @@ QStringList typeCompleter(const QStringList &commands, const QString &fragment, 
 QMap<QString, QString> keyValueMapFromArgs(const QStringList &args)
 {
     //TODO: this is not the most clever of algorithms. preserved during the port of commands
-    // from akonadi2_client ... we can probably do better, however ;)
+    // from sink_client ... we can probably do better, however ;)
     QMap<QString, QString> map;
     for (int i = 0; i + 2 <= args.size(); i += 2) {
         map.insert(args.at(i), args.at(i + 1));

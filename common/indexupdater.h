@@ -21,7 +21,7 @@
 #include <pipeline.h>
 #include <index.h>
 
-class IndexUpdater : public Akonadi2::Preprocessor {
+class IndexUpdater : public Sink::Preprocessor {
 public:
     IndexUpdater(const QByteArray &index, const QByteArray &type, const QByteArray &property)
         :mIndexIdentifier(index),
@@ -31,31 +31,31 @@ public:
 
     }
 
-    void newEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void newEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         add(newEntity.getProperty(mProperty), uid, transaction);
     }
 
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         remove(oldEntity.getProperty(mProperty), uid, transaction);
         add(newEntity.getProperty(mProperty), uid, transaction);
     }
 
-    void deletedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         remove(oldEntity.getProperty(mProperty), uid, transaction);
     }
 
 private:
-    void add(const QVariant &value, const QByteArray &uid, Akonadi2::Storage::Transaction &transaction)
+    void add(const QVariant &value, const QByteArray &uid, Sink::Storage::Transaction &transaction)
     {
         if (value.isValid()) {
             Index(mIndexIdentifier, transaction).add(value.toByteArray(), uid);
         }
     }
 
-    void remove(const QVariant &value, const QByteArray &uid, Akonadi2::Storage::Transaction &transaction)
+    void remove(const QVariant &value, const QByteArray &uid, Sink::Storage::Transaction &transaction)
     {
         //TODO hide notfound error
         Index(mIndexIdentifier, transaction).remove(value.toByteArray(), uid);
@@ -67,21 +67,21 @@ private:
 };
 
 template<typename DomainType>
-class DefaultIndexUpdater : public Akonadi2::Preprocessor {
+class DefaultIndexUpdater : public Sink::Preprocessor {
 public:
-    void newEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void newEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
+        Sink::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
     }
 
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
-        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
+        Sink::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
+        Sink::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
     }
 
-    void deletedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        Akonadi2::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
+        Sink::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
     }
 };

@@ -34,12 +34,12 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
 
     void populateDatabase(int count)
     {
-        Akonadi2::Storage(Akonadi2::storageLocation(), "identifier", Akonadi2::Storage::ReadWrite).removeFromDisk();
+        Sink::Storage(Sink::storageLocation(), "identifier", Sink::Storage::ReadWrite).removeFromDisk();
         //Setup
         auto domainTypeAdaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
         {
-            Akonadi2::Storage storage(Akonadi2::storageLocation(), identifier, Akonadi2::Storage::ReadWrite);
-            auto transaction = storage.createTransaction(Akonadi2::Storage::ReadWrite);
+            Sink::Storage storage(Sink::storageLocation(), identifier, Sink::Storage::ReadWrite);
+            auto transaction = storage.createTransaction(Sink::Storage::ReadWrite);
             auto db = transaction.openDatabase("event.main");
 
             int bufferSizeTotal = 0;
@@ -47,7 +47,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
             QByteArray attachment;
             attachment.fill('c', 1000);
             for (int i = 0; i < count; i++) {
-                auto domainObject = Akonadi2::ApplicationDomain::Event::Ptr::create();
+                auto domainObject = Sink::ApplicationDomain::Event::Ptr::create();
                 domainObject->setProperty("uid", "uid");
                 domainObject->setProperty("summary", "summary");
                 domainObject->setProperty("attachment", attachment);
@@ -82,7 +82,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
     {
         const auto startingRss = getCurrentRSS();
 
-        Akonadi2::Query query;
+        Sink::Query query;
         query.liveQuery = false;
         query.requestedProperties << "uid" << "summary";
 
@@ -90,22 +90,22 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         QTime time;
         time.start();
 
-        auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr> >::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         TestResourceFacade facade(identifier, resourceAccess);
 
         auto ret = facade.load(query);
         ret.first.exec().waitForFinished();
         auto emitter = ret.second;
-        QList<Akonadi2::ApplicationDomain::Event::Ptr> list;
-        emitter->onAdded([&list](const Akonadi2::ApplicationDomain::Event::Ptr &event) {
+        QList<Sink::ApplicationDomain::Event::Ptr> list;
+        emitter->onAdded([&list](const Sink::ApplicationDomain::Event::Ptr &event) {
             list << event;
         });
         bool done = false;
-        emitter->onInitialResultSetComplete([&done](const Akonadi2::ApplicationDomain::Event::Ptr &event) {
+        emitter->onInitialResultSetComplete([&done](const Sink::ApplicationDomain::Event::Ptr &event) {
             done = true;
         });
-        emitter->fetch(Akonadi2::ApplicationDomain::Event::Ptr());
+        emitter->fetch(Sink::ApplicationDomain::Event::Ptr());
         QTRY_VERIFY(done);
         QCOMPARE(list.size(), count);
 
@@ -114,7 +114,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         const auto finalRss = getCurrentRSS();
         const auto rssGrowth = finalRss - startingRss;
         //Since the database is memory mapped it is attributted to the resident set size.
-        const auto rssWithoutDb = finalRss - Akonadi2::Storage(Akonadi2::storageLocation(), identifier, Akonadi2::Storage::ReadWrite).diskUsage();
+        const auto rssWithoutDb = finalRss - Sink::Storage(Sink::storageLocation(), identifier, Sink::Storage::ReadWrite).diskUsage();
         const auto peakRss =  getPeakRSS();
         //How much peak deviates from final rss in percent (should be around 0)
         const auto percentageRssError = static_cast<double>(peakRss - finalRss)*100.0/static_cast<double>(finalRss);

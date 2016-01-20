@@ -3,7 +3,7 @@
 #include <functional>
 #include <flatbuffers/flatbuffers.h>
 
-namespace Akonadi2 {
+namespace Sink {
 struct Entity;
 
 class EntityBuffer {

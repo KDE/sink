@@ -21,15 +21,15 @@
 
 #pragma once
 
-#include <akonadi2common_export.h>
+#include <sinkcommon_export.h>
 #include <string>
 #include <functional>
 #include <QString>
 
-namespace Akonadi2
+namespace Sink
 {
 
-class AKONADI2COMMON_EXPORT Storage {
+class SINKCOMMON_EXPORT Storage {
 public:
     enum AccessMode { ReadOnly, ReadWrite };
 
@@ -180,16 +180,16 @@ public:
     qint64 diskUsage() const;
     void removeFromDisk() const;
 
-    static qint64 maxRevision(const Akonadi2::Storage::Transaction &);
-    static void setMaxRevision(Akonadi2::Storage::Transaction &, qint64 revision);
+    static qint64 maxRevision(const Sink::Storage::Transaction &);
+    static void setMaxRevision(Sink::Storage::Transaction &, qint64 revision);
 
-    static qint64 cleanedUpRevision(const Akonadi2::Storage::Transaction &);
-    static void setCleanedUpRevision(Akonadi2::Storage::Transaction &, qint64 revision);
+    static qint64 cleanedUpRevision(const Sink::Storage::Transaction &);
+    static void setCleanedUpRevision(Sink::Storage::Transaction &, qint64 revision);
 
-    static QByteArray getUidFromRevision(const Akonadi2::Storage::Transaction &, qint64 revision);
-    static QByteArray getTypeFromRevision(const Akonadi2::Storage::Transaction &, qint64 revision);
-    static void recordRevision(Akonadi2::Storage::Transaction &, qint64 revision, const QByteArray &uid, const QByteArray &type);
-    static void removeRevision(Akonadi2::Storage::Transaction &, qint64 revision);
+    static QByteArray getUidFromRevision(const Sink::Storage::Transaction &, qint64 revision);
+    static QByteArray getTypeFromRevision(const Sink::Storage::Transaction &, qint64 revision);
+    static void recordRevision(Sink::Storage::Transaction &, qint64 revision, const QByteArray &uid, const QByteArray &type);
+    static void removeRevision(Sink::Storage::Transaction &, qint64 revision);
 
     bool exists() const;
 
@@ -208,5 +208,5 @@ private:
     Private * const d;
 };
 
-} // namespace Akonadi2
+} // namespace Sink
 

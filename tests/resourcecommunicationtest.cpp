@@ -16,9 +16,9 @@ private Q_SLOTS:
     {
         const QByteArray resourceIdentifier("test");
         Listener listener(resourceIdentifier);
-        Akonadi2::ResourceAccess resourceAccess(resourceIdentifier);
+        Sink::ResourceAccess resourceAccess(resourceIdentifier);
 
-        QSignalSpy spy(&resourceAccess, &Akonadi2::ResourceAccess::ready);
+        QSignalSpy spy(&resourceAccess, &Sink::ResourceAccess::ready);
         resourceAccess.open();
         QTRY_COMPARE(spy.size(), 1);
     }
@@ -27,14 +27,14 @@ private Q_SLOTS:
     {
         const QByteArray resourceIdentifier("test");
         Listener listener(resourceIdentifier);
-        Akonadi2::ResourceAccess resourceAccess(resourceIdentifier);
+        Sink::ResourceAccess resourceAccess(resourceIdentifier);
         resourceAccess.open();
 
         flatbuffers::FlatBufferBuilder fbb;
         auto name = fbb.CreateString("test");
-        auto command = Akonadi2::Commands::CreateHandshake(fbb, name);
-        Akonadi2::Commands::FinishHandshakeBuffer(fbb, command);
-        auto result = resourceAccess.sendCommand(Akonadi2::Commands::HandshakeCommand, fbb).exec();
+        auto command = Sink::Commands::CreateHandshake(fbb, name);
+        Sink::Commands::FinishHandshakeBuffer(fbb, command);
+        auto result = resourceAccess.sendCommand(Sink::Commands::HandshakeCommand, fbb).exec();
         result.waitForFinished();
         QVERIFY(!result.errorCode());
     }
@@ -43,14 +43,14 @@ private Q_SLOTS:
     {
         const QByteArray resourceIdentifier("test");
         Listener listener(resourceIdentifier);
-        Akonadi2::ResourceAccess resourceAccess(resourceIdentifier);
+        Sink::ResourceAccess resourceAccess(resourceIdentifier);
         resourceAccess.open();
 
         const int count = 500;
         int complete = 0;
         int errors = 0;
         for (int i = 0; i < count; i++) {
-            auto result = resourceAccess.sendCommand(Akonadi2::Commands::PingCommand)
+            auto result = resourceAccess.sendCommand(Sink::Commands::PingCommand)
                 .then<void>([&complete]() {
                     complete++;
                 },
@@ -69,14 +69,14 @@ private Q_SLOTS:
         qDebug();
         const QByteArray resourceIdentifier("test");
         Listener listener(resourceIdentifier);
-        Akonadi2::ResourceAccess resourceAccess(resourceIdentifier);
+        Sink::ResourceAccess resourceAccess(resourceIdentifier);
         resourceAccess.open();
 
         const int count = 10;
         int complete = 0;
         int errors = 0;
         for (int i = 0; i < count; i++) {
-            resourceAccess.sendCommand(Akonadi2::Commands::PingCommand)
+            resourceAccess.sendCommand(Sink::Commands::PingCommand)
                 .then<void>([&complete]() {
                     complete++;
                 },

@@ -57,18 +57,18 @@ private Q_SLOTS:
     {
         targetPath = tempDir.path() + "/maildir1/";
 
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
+        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
         MaildirResource::removeFromDisk("org.kde.maildir.instance1");
-        Akonadi2::ApplicationDomain::AkonadiResource resource;
+        Sink::ApplicationDomain::SinkResource resource;
         resource.setProperty("identifier", "org.kde.maildir.instance1");
         resource.setProperty("type", "org.kde.maildir");
         resource.setProperty("path", targetPath);
-        Akonadi2::Store::create(resource).exec().waitForFinished();
+        Sink::Store::create(resource).exec().waitForFinished();
     }
 
     void cleanup()
     {
-        Akonadi2::Store::shutdown(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
+        Sink::Store::shutdown(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
         MaildirResource::removeFromDisk("org.kde.maildir.instance1");
         QDir dir(targetPath);
         dir.removeRecursively();
@@ -80,46 +80,46 @@ private Q_SLOTS:
         qDebug() << "-----------------------------------------";
         qDebug();
         copyRecursively(TESTDATAPATH "/maildir1", targetPath);
-        Akonadi2::Store::start(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
+        Sink::Store::start(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
     }
 
     void testListFolders()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(QModelIndex()), 2);
     }
 
     void testListFolderTree()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
         query.parentProperty = "parent";
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(QModelIndex()), 1);
         auto parentIndex = model->index(0, 0, QModelIndex());
         model->fetchMore(parentIndex);
-        QTRY_VERIFY(model->data(parentIndex, Akonadi2::Store::ChildrenFetchedRole).toBool());
+        QTRY_VERIFY(model->data(parentIndex, Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(parentIndex), 1);
     }
 
     void testListMailsOfFolder()
     {
-        using namespace Akonadi2;
-        using namespace Akonadi2::ApplicationDomain;
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
         //Ensure all local data is processed
         auto query = Query::ResourceFilter("org.kde.maildir.instance1");
         Store::synchronize(query).exec().waitForFinished();
@@ -143,18 +143,18 @@ private Q_SLOTS:
 
     void testMailContent()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
         query.requestedProperties << "folder" << "subject" << "mimeMessage" << "date";
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
-        QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        auto mailModel = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(mailModel->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QVERIFY(mailModel->rowCount(QModelIndex()) >= 1);
-        auto mail = mailModel->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Mail::Ptr>();
+        auto mail = mailModel->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Mail::Ptr>();
         QVERIFY(!mail->getProperty("subject").toString().isEmpty());
         QVERIFY(!mail->getProperty("mimeMessage").toString().isEmpty());
         QVERIFY(mail->getProperty("date").toDateTime().isValid());
@@ -163,85 +163,85 @@ private Q_SLOTS:
 
     void testSyncFolderMove()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
         query.requestedProperties << "name";
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto targetPath = tempDir.path() + "/maildir1/";
         QDir dir(targetPath);
         QVERIFY(dir.rename("inbox", "newbox"));
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(query);
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(QModelIndex()), 2);
         QCOMPARE(model->match(model->index(0, 0, QModelIndex()), Qt::DisplayRole, QStringLiteral("newbox"), 1).size(), 1);
     }
 
     void testReSyncMail()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
         query.requestedProperties << "folder" << "subject";
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
-        QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        auto mailModel = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(mailModel->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(mailModel->rowCount(QModelIndex()), 2);
     }
 
     void testSyncMailRemoval()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
         query.requestedProperties << "folder" << "subject";
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto targetPath = tempDir.path() + "/maildir1/cur/1365777830.R28.localhost.localdomain:2,S";
         QFile file(targetPath);
         QVERIFY(file.remove());
 
         //Ensure all local data is processed
-        Akonadi2::Store::synchronize(query).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto mailModel = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Mail>(query);
-        QTRY_VERIFY(mailModel->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        auto mailModel = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(mailModel->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(mailModel->rowCount(QModelIndex()), 1);
     }
 
     void testCreateFolder()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        Akonadi2::ApplicationDomain::Folder folder("org.kde.maildir.instance1");
+        Sink::ApplicationDomain::Folder folder("org.kde.maildir.instance1");
         folder.setProperty("name", "testCreateFolder");
 
-        Akonadi2::Store::create(folder).exec().waitForFinished();
+        Sink::Store::create(folder).exec().waitForFinished();
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto targetPath = tempDir.path() + "/maildir1/testCreateFolder";
         QFileInfo file(targetPath);
@@ -251,45 +251,45 @@ private Q_SLOTS:
 
     void testRemoveFolder()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
 
         auto targetPath = tempDir.path() + "/maildir1/testCreateFolder";
 
-        Akonadi2::ApplicationDomain::Folder folder("org.kde.maildir.instance1");
+        Sink::ApplicationDomain::Folder folder("org.kde.maildir.instance1");
         folder.setProperty("name", "testCreateFolder");
-        Akonadi2::Store::create(folder).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::create(folder).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
         QTRY_VERIFY(QFileInfo(targetPath).exists());
 
-        Akonadi2::Query folderQuery;
+        Sink::Query folderQuery;
         folderQuery.resources << "org.kde.maildir.instance1";
         folderQuery.propertyFilter.insert("name", "testCreateFolder");
-        auto model = Akonadi2::Store::loadModel<Akonadi2::ApplicationDomain::Folder>(folderQuery);
-        QTRY_VERIFY(model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool());
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(folderQuery);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(QModelIndex()), 1);
-        auto createdFolder = model->index(0, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).value<Akonadi2::ApplicationDomain::Folder::Ptr>();
+        auto createdFolder = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>();
 
-        Akonadi2::Store::remove(*createdFolder).exec().waitForFinished();
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::remove(*createdFolder).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
         QTRY_VERIFY(!QFileInfo(targetPath).exists());
     }
 
     void testCreateMail()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        Akonadi2::ApplicationDomain::Mail mail("org.kde.maildir.instance1");
+        Sink::ApplicationDomain::Mail mail("org.kde.maildir.instance1");
         mail.setProperty("name", "testCreateMail");
 
-        Akonadi2::Store::create(mail).exec().waitForFinished();
+        Sink::Store::create(mail).exec().waitForFinished();
 
         //Ensure all local data is processed
-        Akonadi2::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto targetPath = tempDir.path() + "/maildir1/new";
         QDir dir(targetPath);
@@ -299,8 +299,8 @@ private Q_SLOTS:
 
     void testRemoveMail()
     {
-        using namespace Akonadi2;
-        using namespace Akonadi2::ApplicationDomain;
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
 
         auto query = Query::ResourceFilter("org.kde.maildir.instance1");
         Store::synchronize(query).exec().waitForFinished();
@@ -333,8 +333,8 @@ private Q_SLOTS:
 
     void testMarkMailAsRead()
     {
-        using namespace Akonadi2;
-        using namespace Akonadi2::ApplicationDomain;
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
 
         auto query = Query::ResourceFilter("org.kde.maildir.instance1");
         Store::synchronize(query).exec().waitForFinished();

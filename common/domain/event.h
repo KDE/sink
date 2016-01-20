@@ -30,7 +30,7 @@ class ReadPropertyMapper;
 template<typename T>
 class WritePropertyMapper;
 
-namespace Akonadi2 {
+namespace Sink {
     class Query;
 
 namespace ApplicationDomain {
@@ -45,19 +45,19 @@ namespace ApplicationDomain {
  * These are type specifiy default implementations. Theoretically a resource could implement it's own implementation.
  */
 template<>
-class TypeImplementation<Akonadi2::ApplicationDomain::Event> {
+class TypeImplementation<Sink::ApplicationDomain::Event> {
 public:
-    typedef Akonadi2::ApplicationDomain::Buffer::Event Buffer;
-    typedef Akonadi2::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
+    typedef Sink::ApplicationDomain::Buffer::Event Buffer;
+    typedef Sink::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
     static QSet<QByteArray> indexedProperties();
     /**
      * Returns the potential result set based on the indexes.
      * 
      * An empty result set indicates that a full scan is required.
      */
-    static ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction);
-    static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction);
-    static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction);
+    static ResultSet queryIndexes(const Sink::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Sink::Storage::Transaction &transaction);
+    static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
+    static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
     static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();
     static QSharedPointer<WritePropertyMapper<BufferBuilder> > initializeWritePropertyMapper();
 };

@@ -4,17 +4,17 @@
 #include "metadata_generated.h"
 #include <QDebug>
 
-using namespace Akonadi2;
+using namespace Sink;
 
 EntityBuffer::EntityBuffer(const void *dataValue, int dataSize)
     : mEntity(nullptr)
 {
     flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(dataValue), dataSize);
-    // Q_ASSERT(Akonadi2::VerifyEntity(verifyer));
-    if (!Akonadi2::VerifyEntityBuffer(verifyer)) {
+    // Q_ASSERT(Sink::VerifyEntity(verifyer));
+    if (!Sink::VerifyEntityBuffer(verifyer)) {
         qWarning() << "invalid buffer";
     } else {
-        mEntity = Akonadi2::GetEntity(dataValue);
+        mEntity = Sink::GetEntity(dataValue);
     }
 }
 
@@ -23,7 +23,7 @@ bool EntityBuffer::isValid() const
     return mEntity;
 }
 
-const Akonadi2::Entity &EntityBuffer::entity()
+const Sink::Entity &EntityBuffer::entity()
 {
     return *mEntity;
 }
@@ -55,7 +55,7 @@ const uint8_t* EntityBuffer::localBuffer()
 
 void EntityBuffer::extractResourceBuffer(void *dataValue, int dataSize, const std::function<void(const uint8_t *, size_t size)> &handler)
 {
-    Akonadi2::EntityBuffer buffer(dataValue, dataSize);
+    Sink::EntityBuffer buffer(dataValue, dataSize);
     if (auto resourceData = buffer.entity().resource()) {
         handler(resourceData->Data(), resourceData->size());
     }
@@ -76,7 +76,7 @@ void EntityBuffer::assembleEntityBuffer(flatbuffers::FlatBufferBuilder &fbb, voi
     auto metadata = appendAsVector(fbb, metadataData, metadataSize);
     auto resource = appendAsVector(fbb, resourceData, resourceSize);
     auto local = appendAsVector(fbb, localData, localSize);
-    auto entity = Akonadi2::CreateEntity(fbb, metadata, resource, local);
-    Akonadi2::FinishEntityBuffer(fbb, entity);
+    auto entity = Sink::CreateEntity(fbb, metadata, resource, local);
+    Sink::FinishEntityBuffer(fbb, entity);
 }
 

@@ -1,15 +1,15 @@
 #include "index.h"
 #include <QDebug>
 
-Index::Index(const QString &storageRoot, const QString &name, Akonadi2::Storage::AccessMode mode)
-    : mTransaction(Akonadi2::Storage(storageRoot, name, mode).createTransaction(mode)),
-    mDb(mTransaction.openDatabase(name.toLatin1(), std::function<void(const Akonadi2::Storage::Error &)>(), true))
+Index::Index(const QString &storageRoot, const QString &name, Sink::Storage::AccessMode mode)
+    : mTransaction(Sink::Storage(storageRoot, name, mode).createTransaction(mode)),
+    mDb(mTransaction.openDatabase(name.toLatin1(), std::function<void(const Sink::Storage::Error &)>(), true))
 {
 
 }
 
-Index::Index(const QByteArray &name, Akonadi2::Storage::Transaction &transaction)
-    : mDb(transaction.openDatabase(name, std::function<void(const Akonadi2::Storage::Error &)>(), true))
+Index::Index(const QByteArray &name, Sink::Storage::Transaction &transaction)
+    : mDb(transaction.openDatabase(name, std::function<void(const Sink::Storage::Error &)>(), true))
 {
 
 }
@@ -31,7 +31,7 @@ void Index::lookup(const QByteArray &key, const std::function<void(const QByteAr
         resultHandler(value);
         return true;
     },
-    [errorHandler](const Akonadi2::Storage::Error &error) {
+    [errorHandler](const Sink::Storage::Error &error) {
         qDebug() << "Error while retrieving value" << error.message;
         errorHandler(Error(error.store, error.code, error.message));
     }

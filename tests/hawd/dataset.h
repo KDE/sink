@@ -84,8 +84,8 @@ public:
 
 private:
     DatasetDefinition m_definition;
-    Akonadi2::Storage m_storage;
-    Akonadi2::Storage::Transaction m_transaction;
+    Sink::Storage m_storage;
+    Sink::Storage::Transaction m_transaction;
     QString m_commitHash;
 };
 

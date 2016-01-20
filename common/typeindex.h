@@ -32,14 +32,14 @@ public:
     template<typename T>
     void addProperty(const QByteArray &property);
 
-    void add(const QByteArray &identifier, const Akonadi2::ApplicationDomain::BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction);
-    void remove(const QByteArray &identifier, const Akonadi2::ApplicationDomain::BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction);
+    void add(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
+    void remove(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
 
-    ResultSet query(const Akonadi2::Query &query, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction);
+    ResultSet query(const Sink::Query &query, QSet<QByteArray> &appliedFilters, Sink::Storage::Transaction &transaction);
 
 private:
     QByteArray mType;
     QByteArrayList mProperties;
-    QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, Akonadi2::Storage::Transaction &transaction)> > mIndexer;
+    QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction)> > mIndexer;
 };
 

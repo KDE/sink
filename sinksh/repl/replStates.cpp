@@ -31,14 +31,14 @@
 
 #include "syntaxtree.h"
 
-static char *akonadi2_cli_next_tab_complete_match(const char *text, int state);
-static char ** akonadi2_cli_tab_completion(const char *text, int start, int end);
+static char *sink_cli_next_tab_complete_match(const char *text, int state);
+static char ** sink_cli_tab_completion(const char *text, int start, int end);
 
 ReadState::ReadState(QState *parent)
     : QState(parent)
 {
-    rl_completion_entry_function = akonadi2_cli_next_tab_complete_match;
-    rl_attempted_completion_function = akonadi2_cli_tab_completion;
+    rl_completion_entry_function = sink_cli_next_tab_complete_match;
+    rl_attempted_completion_function = sink_cli_tab_completion;
 }
 
 void ReadState::onEntry(QEvent *event)
@@ -140,14 +140,14 @@ void PrintState::onEntry(QEvent *event)
 static QStringList tab_completion_full_state;
 static bool tab_completion_at_root = false;
 
-static char **akonadi2_cli_tab_completion(const char *text, int start, int end)
+static char **sink_cli_tab_completion(const char *text, int start, int end)
 {
     tab_completion_at_root = start == 0;
     tab_completion_full_state = QString(rl_line_buffer).remove(start, end - start).split(" ", QString::SkipEmptyParts);
     return NULL;
 }
 
-static char *akonadi2_cli_next_tab_complete_match(const char *text, int state)
+static char *sink_cli_next_tab_complete_match(const char *text, int state)
 {
     const QString fragment(text);
     Syntax::List nearest = SyntaxTree::self()->nearestSyntax(tab_completion_full_state, fragment);

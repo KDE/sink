@@ -24,7 +24,7 @@
 #include "domain/folder.h"
 #include "log.h"
 
-static  uint qHash(const Akonadi2::ApplicationDomain::ApplicationDomainType &type)
+static  uint qHash(const Sink::ApplicationDomain::ApplicationDomainType &type)
 {
     Q_ASSERT(!type.resourceInstanceIdentifier().isEmpty());
     Q_ASSERT(!type.identifier().isEmpty());
@@ -32,7 +32,7 @@ static  uint qHash(const Akonadi2::ApplicationDomain::ApplicationDomainType &typ
 }
 
 template<class T, class Ptr>
-ModelResult<T, Ptr>::ModelResult(const Akonadi2::Query &query, const QList<QByteArray> &propertyColumns)
+ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns)
     :QAbstractItemModel(),
     mPropertyColumns(propertyColumns),
     mQuery(query)
@@ -53,7 +53,7 @@ qint64 ModelResult<T, Ptr>::parentId(const Ptr &value)
     if (!mQuery.parentProperty.isEmpty()) {
         const auto identifier = value->getProperty(mQuery.parentProperty).toByteArray();
         if (!identifier.isEmpty()) {
-            return qHash(T(value->resourceInstanceIdentifier(), identifier, 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>()));
+            return qHash(T(value->resourceInstanceIdentifier(), identifier, 0, QSharedPointer<Sink::ApplicationDomain::BufferAdaptor>()));
         }
     }
     return 0;
@@ -91,7 +91,7 @@ QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
     }
     if (role == DomainObjectBaseRole) {
         Q_ASSERT(mEntities.contains(index.internalId()));
-        return QVariant::fromValue(mEntities.value(index.internalId()). template staticCast<Akonadi2::ApplicationDomain::ApplicationDomainType>());
+        return QVariant::fromValue(mEntities.value(index.internalId()). template staticCast<Sink::ApplicationDomain::ApplicationDomainType>());
     }
     if (role == ChildrenFetchedRole) {
         return childrenFetched(index);
@@ -226,7 +226,7 @@ void ModelResult<T, Ptr>::setFetcher(const std::function<void(const Ptr &parent)
 }
 
 template<class T, class Ptr>
-void ModelResult<T, Ptr>::setEmitter(const typename Akonadi2::ResultEmitter<Ptr>::Ptr &emitter)
+void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Ptr &emitter)
 {
     setFetcher([this](const Ptr &parent) {mEmitter->fetch(parent);});
     emitter->onAdded([this](const Ptr &value) {
@@ -272,7 +272,7 @@ void ModelResult<T, Ptr>::modify(const Ptr &value)
     emit dataChanged(idx, idx);
 }
 
-template class ModelResult<Akonadi2::ApplicationDomain::Folder, Akonadi2::ApplicationDomain::Folder::Ptr>;
-template class ModelResult<Akonadi2::ApplicationDomain::Mail, Akonadi2::ApplicationDomain::Mail::Ptr>;
-template class ModelResult<Akonadi2::ApplicationDomain::Event, Akonadi2::ApplicationDomain::Event::Ptr>;
-template class ModelResult<Akonadi2::ApplicationDomain::AkonadiResource, Akonadi2::ApplicationDomain::AkonadiResource::Ptr>;
+template class ModelResult<Sink::ApplicationDomain::Folder, Sink::ApplicationDomain::Folder::Ptr>;
+template class ModelResult<Sink::ApplicationDomain::Mail, Sink::ApplicationDomain::Mail::Ptr>;
+template class ModelResult<Sink::ApplicationDomain::Event, Sink::ApplicationDomain::Event::Ptr>;
+template class ModelResult<Sink::ApplicationDomain::SinkResource, Sink::ApplicationDomain::SinkResource::Ptr>;

@@ -54,7 +54,7 @@ private:
 private Q_SLOTS:
     void initTestCase()
     {
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Warning);
+        Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
         testDataPath = "./testdb";
         dbName = "test";
         filePath = testDataPath + "buffer.fb";
@@ -62,7 +62,7 @@ private Q_SLOTS:
 
     void cleanupTestCase()
     {
-        Akonadi2::Storage store(testDataPath, dbName);
+        Sink::Storage store(testDataPath, dbName);
         store.removeFromDisk();
     }
 
@@ -70,7 +70,7 @@ private Q_SLOTS:
     {
         auto event = createEvent();
 
-        QScopedPointer<Akonadi2::Storage> store(new Akonadi2::Storage(testDataPath, dbName, Akonadi2::Storage::ReadWrite));
+        QScopedPointer<Sink::Storage> store(new Sink::Storage(testDataPath, dbName, Sink::Storage::ReadWrite));
 
         const char *keyPrefix = "key";
 
@@ -78,12 +78,12 @@ private Q_SLOTS:
         time.start();
         //Test db write time
         {
-            auto transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
+            auto transaction = store->createTransaction(Sink::Storage::ReadWrite);
             for (int i = 0; i < count; i++) {
                 transaction.openDatabase().write(keyPrefix + QByteArray::number(i), event);
                 if ((i % 10000) == 0) {
                     transaction.commit();
-                    transaction = store->createTransaction(Akonadi2::Storage::ReadWrite);
+                    transaction = store->createTransaction(Sink::Storage::ReadWrite);
                 }
             }
             transaction.commit();
@@ -105,7 +105,7 @@ private Q_SLOTS:
 
         //Db read time
         {
-            auto transaction = store->createTransaction(Akonadi2::Storage::ReadOnly);
+            auto transaction = store->createTransaction(Sink::Storage::ReadOnly);
             auto db = transaction.openDatabase();
             for (int i = 0; i < count; i++) {
                 db.scan(keyPrefix + QByteArray::number(i), [](const QByteArray &key, const QByteArray &value) -> bool { return true; });
@@ -126,7 +126,7 @@ private Q_SLOTS:
 
     void testSizes()
     {
-        Akonadi2::Storage store(testDataPath, dbName);
+        Sink::Storage store(testDataPath, dbName);
         qDebug() << "Database size [kb]: " << store.diskUsage()/1024;
 
         QFileInfo fileInfo(filePath);
@@ -135,11 +135,11 @@ private Q_SLOTS:
 
     void testScan()
     {
-        QScopedPointer<Akonadi2::Storage> store(new Akonadi2::Storage(testDataPath, dbName, Akonadi2::Storage::ReadOnly));
+        QScopedPointer<Sink::Storage> store(new Sink::Storage(testDataPath, dbName, Sink::Storage::ReadOnly));
 
         QBENCHMARK {
             int hit = 0;
-            store->createTransaction(Akonadi2::Storage::ReadOnly).openDatabase().scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            store->createTransaction(Sink::Storage::ReadOnly).openDatabase().scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
                 if (key == "key10000") {
                     //qDebug() << "hit";
                     hit++;
@@ -152,11 +152,11 @@ private Q_SLOTS:
 
     void testKeyLookup()
     {
-        QScopedPointer<Akonadi2::Storage> store(new Akonadi2::Storage(testDataPath, dbName, Akonadi2::Storage::ReadOnly));
+        QScopedPointer<Sink::Storage> store(new Sink::Storage(testDataPath, dbName, Sink::Storage::ReadOnly));
 
         QBENCHMARK {
             int hit = 0;
-            store->createTransaction(Akonadi2::Storage::ReadOnly).openDatabase().scan("key40000", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            store->createTransaction(Sink::Storage::ReadOnly).openDatabase().scan("key40000", [&](const QByteArray &key, const QByteArray &value) -> bool {
                 hit++;
                 return true;
             });

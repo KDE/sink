@@ -27,7 +27,7 @@
 #include "queryrunner.h"
 #include "bufferutils.h"
 
-using namespace Akonadi2;
+using namespace Sink;
 
 class ResourceAccessFactory {
 public:
@@ -40,7 +40,7 @@ public:
         return *instance;
     }
 
-    Akonadi2::ResourceAccess::Ptr getAccess(const QByteArray &instanceIdentifier)
+    Sink::ResourceAccess::Ptr getAccess(const QByteArray &instanceIdentifier)
     {
         if (!mCache.contains(instanceIdentifier)) {
             //Reuse the pointer if something else kept the resourceaccess alive
@@ -52,8 +52,8 @@ public:
             }
             if (!mCache.contains(instanceIdentifier)) {
                 //Create a new instance if necessary
-                auto sharedPointer = Akonadi2::ResourceAccess::Ptr::create(instanceIdentifier);
-                QObject::connect(sharedPointer.data(), &Akonadi2::ResourceAccess::ready, sharedPointer.data(), [this, instanceIdentifier](bool ready) {
+                auto sharedPointer = Sink::ResourceAccess::Ptr::create(instanceIdentifier);
+                QObject::connect(sharedPointer.data(), &Sink::ResourceAccess::ready, sharedPointer.data(), [this, instanceIdentifier](bool ready) {
                     if (!ready) {
                         mCache.remove(instanceIdentifier);
                     }
@@ -76,14 +76,14 @@ public:
         return mCache.value(instanceIdentifier);
     }
 
-    QHash<QByteArray, QWeakPointer<Akonadi2::ResourceAccess> > mWeakCache;
-    QHash<QByteArray, Akonadi2::ResourceAccess::Ptr> mCache;
+    QHash<QByteArray, QWeakPointer<Sink::ResourceAccess> > mWeakCache;
+    QHash<QByteArray, Sink::ResourceAccess::Ptr> mCache;
     QHash<QByteArray, QTimer*> mTimer;
 };
 
 template<class DomainType>
-GenericFacade<DomainType>::GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory , const QSharedPointer<Akonadi2::ResourceAccessInterface> resourceAccess)
-    : Akonadi2::StoreFacade<DomainType>(),
+GenericFacade<DomainType>::GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory , const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
+    : Sink::StoreFacade<DomainType>(),
     mResourceAccess(resourceAccess),
     mDomainTypeAdaptorFactory(adaptorFactory),
     mResourceInstanceIdentifier(resourceIdentifier)
@@ -102,7 +102,7 @@ template<class DomainType>
 QByteArray GenericFacade<DomainType>::bufferTypeForDomainType()
 {
     //We happen to have a one to one mapping
-    return Akonadi2::ApplicationDomain::getTypeName<DomainType>();
+    return Sink::ApplicationDomain::getTypeName<DomainType>();
 }
 
 template<class DomainType>
@@ -136,7 +136,7 @@ KAsync::Job<void> GenericFacade<DomainType>::remove(const DomainType &domainObje
 }
 
 template<class DomainType>
-QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> GenericFacade<DomainType>::load(const Akonadi2::Query &query)
+QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> GenericFacade<DomainType>::load(const Sink::Query &query)
 {
     //The runner lives for the lifetime of the query
     auto runner = new QueryRunner<DomainType>(query, mResourceAccess, mResourceInstanceIdentifier, mDomainTypeAdaptorFactory, bufferTypeForDomainType());
@@ -144,8 +144,8 @@ QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> 
 }
 
 
-template class Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Folder>;
-template class Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Mail>;
-template class Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>;
+template class Sink::GenericFacade<Sink::ApplicationDomain::Folder>;
+template class Sink::GenericFacade<Sink::ApplicationDomain::Mail>;
+template class Sink::GenericFacade<Sink::ApplicationDomain::Event>;
 
 #include "facade.moc"

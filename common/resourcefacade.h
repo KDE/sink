@@ -25,19 +25,19 @@
 #include "common/resultprovider.h"
 #include "common/domain/applicationdomaintype.h"
 
-namespace Akonadi2 {
+namespace Sink {
     class Query;
     class Inspection;
 }
 
-class ResourceFacade : public Akonadi2::StoreFacade<Akonadi2::ApplicationDomain::AkonadiResource>
+class ResourceFacade : public Sink::StoreFacade<Sink::ApplicationDomain::SinkResource>
 {
 public:
     ResourceFacade(const QByteArray &instanceIdentifier);
     virtual ~ResourceFacade();
-    KAsync::Job<void> create(const Akonadi2::ApplicationDomain::AkonadiResource &resource) Q_DECL_OVERRIDE;
-    KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::AkonadiResource &resource) Q_DECL_OVERRIDE;
-    KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::AkonadiResource &resource) Q_DECL_OVERRIDE;
-    QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<Akonadi2::ApplicationDomain::AkonadiResource::Ptr>::Ptr > load(const Akonadi2::Query &query) Q_DECL_OVERRIDE;
+    KAsync::Job<void> create(const Sink::ApplicationDomain::SinkResource &resource) Q_DECL_OVERRIDE;
+    KAsync::Job<void> modify(const Sink::ApplicationDomain::SinkResource &resource) Q_DECL_OVERRIDE;
+    KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkResource &resource) Q_DECL_OVERRIDE;
+    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>::Ptr > load(const Sink::Query &query) Q_DECL_OVERRIDE;
 };
 

@@ -23,14 +23,14 @@
 #include "folder_generated.h"
 #include "dummy_generated.h"
 
-class MaildirMailAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Mail, Akonadi2::ApplicationDomain::Buffer::Dummy, Akonadi2::ApplicationDomain::Buffer::DummyBuilder>
+class MaildirMailAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail, Sink::ApplicationDomain::Buffer::Dummy, Sink::ApplicationDomain::Buffer::DummyBuilder>
 {
 public:
     MaildirMailAdaptorFactory();
     virtual ~MaildirMailAdaptorFactory() {};
 };
 
-class MaildirFolderAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Folder, Akonadi2::ApplicationDomain::Buffer::Dummy, Akonadi2::ApplicationDomain::Buffer::DummyBuilder>
+class MaildirFolderAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Folder, Sink::ApplicationDomain::Buffer::Dummy, Sink::ApplicationDomain::Buffer::DummyBuilder>
 {
 public:
     MaildirFolderAdaptorFactory();

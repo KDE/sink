@@ -71,7 +71,7 @@ Repl::~Repl()
 void Repl::printWelcomeBanner()
 {
     QTextStream out(stdout);
-    out << QObject::tr("Welcome to the Akonadi2 interative shell!\n");
+    out << QObject::tr("Welcome to the Sink interative shell!\n");
     out << QObject::tr("Type `help` for information on the available commands.\n");
     out.flush();
 }

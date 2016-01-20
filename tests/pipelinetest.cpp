@@ -22,14 +22,14 @@
 
 static void removeFromDisk(const QString &name)
 {
-    Akonadi2::Storage store(Akonadi2::Store::storageLocation(), name, Akonadi2::Storage::ReadWrite);
+    Sink::Storage store(Sink::Store::storageLocation(), name, Sink::Storage::ReadWrite);
     store.removeFromDisk();
 }
 
 static QList<QByteArray> getKeys(const QByteArray &dbEnv, const QByteArray &name)
 {
-    Akonadi2::Storage store(Akonadi2::storageLocation(), dbEnv, Akonadi2::Storage::ReadOnly);
-    auto transaction = store.createTransaction(Akonadi2::Storage::ReadOnly);
+    Sink::Storage store(Sink::storageLocation(), dbEnv, Sink::Storage::ReadOnly);
+    auto transaction = store.createTransaction(Sink::Storage::ReadOnly);
     auto db = transaction.openDatabase(name, nullptr, false);
     QList<QByteArray> result;
     db.scan("", [&](const QByteArray &key, const QByteArray &value) {
@@ -41,8 +41,8 @@ static QList<QByteArray> getKeys(const QByteArray &dbEnv, const QByteArray &name
 
 static QByteArray getEntity(const QByteArray &dbEnv, const QByteArray &name, const QByteArray &uid)
 {
-    Akonadi2::Storage store(Akonadi2::storageLocation(), dbEnv, Akonadi2::Storage::ReadOnly);
-    auto transaction = store.createTransaction(Akonadi2::Storage::ReadOnly);
+    Sink::Storage store(Sink::storageLocation(), dbEnv, Sink::Storage::ReadOnly);
+    auto transaction = store.createTransaction(Sink::Storage::ReadOnly);
     auto db = transaction.openDatabase(name, nullptr, false);
     QByteArray result;
     db.scan(uid, [&](const QByteArray &key, const QByteArray &value) {
@@ -57,41 +57,41 @@ flatbuffers::FlatBufferBuilder &createEvent(flatbuffers::FlatBufferBuilder &enti
     flatbuffers::FlatBufferBuilder eventFbb;
     eventFbb.Clear();
     {
-        Akonadi2::ApplicationDomain::Buffer::EventBuilder eventBuilder(eventFbb);
+        Sink::ApplicationDomain::Buffer::EventBuilder eventBuilder(eventFbb);
         auto eventLocation = eventBuilder.Finish();
-        Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
+        Sink::ApplicationDomain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
     }
 
     flatbuffers::FlatBufferBuilder localFbb;
     {
         auto uid = localFbb.CreateString("testuid");
         auto summary = localFbb.CreateString(s.toStdString());
-        auto localBuilder = Akonadi2::ApplicationDomain::Buffer::EventBuilder(localFbb);
+        auto localBuilder = Sink::ApplicationDomain::Buffer::EventBuilder(localFbb);
         localBuilder.add_uid(uid);
         localBuilder.add_summary(summary);
         auto location = localBuilder.Finish();
-        Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
+        Sink::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
     }
 
-    Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
+    Sink::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
     return entityFbb;
 }
 
 QByteArray createEntityCommand(const flatbuffers::FlatBufferBuilder &entityFbb)
 {
     flatbuffers::FlatBufferBuilder fbb;
-    auto type = fbb.CreateString(Akonadi2::ApplicationDomain::getTypeName<Akonadi2::ApplicationDomain::Event>().toStdString().data());
+    auto type = fbb.CreateString(Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>().toStdString().data());
     auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
-    Akonadi2::Commands::CreateEntityBuilder builder(fbb);
+    Sink::Commands::CreateEntityBuilder builder(fbb);
     builder.add_domainType(type);
     builder.add_delta(delta);
     auto location = builder.Finish();
-    Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+    Sink::Commands::FinishCreateEntityBuffer(fbb, location);
 
     const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command.data()), command.size());
-        Q_ASSERT(Akonadi2::Commands::VerifyCreateEntityBuffer(verifyer));
+        Q_ASSERT(Sink::Commands::VerifyCreateEntityBuffer(verifyer));
     }
     return command;
 }
@@ -99,22 +99,22 @@ QByteArray createEntityCommand(const flatbuffers::FlatBufferBuilder &entityFbb)
 QByteArray modifyEntityCommand(const flatbuffers::FlatBufferBuilder &entityFbb, const QByteArray &uid, qint64 revision)
 {
     flatbuffers::FlatBufferBuilder fbb;
-    auto type = fbb.CreateString(Akonadi2::ApplicationDomain::getTypeName<Akonadi2::ApplicationDomain::Event>().toStdString().data());
+    auto type = fbb.CreateString(Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>().toStdString().data());
     auto id = fbb.CreateString(std::string(uid.constData(), uid.size()));
     auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
-    // auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
-    Akonadi2::Commands::ModifyEntityBuilder builder(fbb);
+    // auto delta = Sink::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
+    Sink::Commands::ModifyEntityBuilder builder(fbb);
     builder.add_domainType(type);
     builder.add_delta(delta);
     builder.add_revision(revision);
     builder.add_entityId(id);
     auto location = builder.Finish();
-    Akonadi2::Commands::FinishModifyEntityBuffer(fbb, location);
+    Sink::Commands::FinishModifyEntityBuffer(fbb, location);
 
     const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command.data()), command.size());
-        Q_ASSERT(Akonadi2::Commands::VerifyCreateEntityBuffer(verifyer));
+        Q_ASSERT(Sink::Commands::VerifyCreateEntityBuffer(verifyer));
     }
     return command;
 }
@@ -122,38 +122,38 @@ QByteArray modifyEntityCommand(const flatbuffers::FlatBufferBuilder &entityFbb, 
 QByteArray deleteEntityCommand(const QByteArray &uid, qint64 revision)
 {
     flatbuffers::FlatBufferBuilder fbb;
-    auto type = fbb.CreateString(Akonadi2::ApplicationDomain::getTypeName<Akonadi2::ApplicationDomain::Event>().toStdString().data());
+    auto type = fbb.CreateString(Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>().toStdString().data());
     auto id = fbb.CreateString(std::string(uid.constData(), uid.size()));
-    Akonadi2::Commands::DeleteEntityBuilder builder(fbb);
+    Sink::Commands::DeleteEntityBuilder builder(fbb);
     builder.add_domainType(type);
     builder.add_revision(revision);
     builder.add_entityId(id);
     auto location = builder.Finish();
-    Akonadi2::Commands::FinishDeleteEntityBuffer(fbb, location);
+    Sink::Commands::FinishDeleteEntityBuffer(fbb, location);
 
     const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command.data()), command.size());
-        Q_ASSERT(Akonadi2::Commands::VerifyDeleteEntityBuffer(verifyer));
+        Q_ASSERT(Sink::Commands::VerifyDeleteEntityBuffer(verifyer));
     }
     return command;
 }
 
-class TestProcessor : public Akonadi2::Preprocessor {
+class TestProcessor : public Sink::Preprocessor {
 public:
-    void newEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void newEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         newUids << uid;
         newRevisions << revision;
     }
 
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, const Akonadi2::ApplicationDomain::BufferAdaptor &newEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         modifiedUids << uid;
         modifiedRevisions << revision;
     }
 
-    void deletedEntity(const QByteArray &uid, qint64 revision, const Akonadi2::ApplicationDomain::BufferAdaptor &oldEntity, Akonadi2::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         deletedUids << uid;
         deletedRevisions << revision;
@@ -178,7 +178,7 @@ class PipelineTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
+        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
     }
 
     void init()
@@ -191,7 +191,7 @@ private Q_SLOTS:
         flatbuffers::FlatBufferBuilder entityFbb;
         auto command = createEntityCommand(createEvent(entityFbb));
 
-        Akonadi2::Pipeline pipeline("org.kde.pipelinetest.instance1");
+        Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
         pipeline.startTransaction();
         pipeline.newEntity(command.constData(), command.size());
         pipeline.commit();
@@ -205,7 +205,7 @@ private Q_SLOTS:
         flatbuffers::FlatBufferBuilder entityFbb;
         auto command = createEntityCommand(createEvent(entityFbb));
 
-        Akonadi2::Pipeline pipeline("org.kde.pipelinetest.instance1");
+        Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
 
         auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
         pipeline.setAdaptorFactory("event", adaptorFactory);
@@ -219,7 +219,7 @@ private Q_SLOTS:
         auto keys = getKeys("org.kde.pipelinetest.instance1", "event.main");
         QCOMPARE(keys.size(), 1);
         const auto key = keys.first();
-        const auto uid = Akonadi2::Storage::uidFromKey(key);
+        const auto uid = Sink::Storage::uidFromKey(key);
 
         //Execute the modification
         entityFbb.Clear();
@@ -229,9 +229,9 @@ private Q_SLOTS:
         pipeline.commit();
 
         //Ensure we've got the new revision with the modification
-        auto buffer = getEntity("org.kde.pipelinetest.instance1", "event.main", Akonadi2::Storage::assembleKey(uid, 2));
+        auto buffer = getEntity("org.kde.pipelinetest.instance1", "event.main", Sink::Storage::assembleKey(uid, 2));
         QVERIFY(!buffer.isEmpty());
-        Akonadi2::EntityBuffer entityBuffer(buffer.data(), buffer.size());
+        Sink::EntityBuffer entityBuffer(buffer.data(), buffer.size());
         auto adaptor = adaptorFactory->createAdaptor(entityBuffer.entity());
         QCOMPARE(adaptor->getProperty("summary").toString(), QString("summary2"));
 
@@ -252,7 +252,7 @@ private Q_SLOTS:
         flatbuffers::FlatBufferBuilder entityFbb;
         auto command = createEntityCommand(createEvent(entityFbb));
 
-        Akonadi2::Pipeline pipeline("org.kde.pipelinetest.instance1");
+        Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
 
         auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
         pipeline.setAdaptorFactory("event", adaptorFactory);
@@ -265,7 +265,7 @@ private Q_SLOTS:
         //Get uid of written entity
         auto keys = getKeys("org.kde.pipelinetest.instance1", "event.main");
         QCOMPARE(keys.size(), 1);
-        const auto uid = Akonadi2::Storage::uidFromKey(keys.first());
+        const auto uid = Sink::Storage::uidFromKey(keys.first());
 
 
         //Create another operation inbetween
@@ -285,9 +285,9 @@ private Q_SLOTS:
         pipeline.commit();
 
         //Ensure we've got the new revision with the modification
-        auto buffer = getEntity("org.kde.pipelinetest.instance1", "event.main", Akonadi2::Storage::assembleKey(uid, 3));
+        auto buffer = getEntity("org.kde.pipelinetest.instance1", "event.main", Sink::Storage::assembleKey(uid, 3));
         QVERIFY(!buffer.isEmpty());
-        Akonadi2::EntityBuffer entityBuffer(buffer.data(), buffer.size());
+        Sink::EntityBuffer entityBuffer(buffer.data(), buffer.size());
         auto adaptor = adaptorFactory->createAdaptor(entityBuffer.entity());
         QCOMPARE(adaptor->getProperty("summary").toString(), QString("summary2"));
     }
@@ -296,7 +296,7 @@ private Q_SLOTS:
     {
         flatbuffers::FlatBufferBuilder entityFbb;
         auto command = createEntityCommand(createEvent(entityFbb));
-        Akonadi2::Pipeline pipeline("org.kde.pipelinetest.instance1");
+        Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
         pipeline.setAdaptorFactory("event", QSharedPointer<TestEventAdaptorFactory>::create());
 
         //Create the initial revision
@@ -307,7 +307,7 @@ private Q_SLOTS:
         auto result = getKeys("org.kde.pipelinetest.instance1", "event.main");
         QCOMPARE(result.size(), 1);
 
-        const auto uid = Akonadi2::Storage::uidFromKey(result.first());
+        const auto uid = Sink::Storage::uidFromKey(result.first());
 
         //Delete entity
         auto deleteCommand = deleteEntityCommand(uid, 1);
@@ -333,8 +333,8 @@ private Q_SLOTS:
 
         TestProcessor testProcessor;
 
-        Akonadi2::Pipeline pipeline("org.kde.pipelinetest.instance1");
-        pipeline.setPreprocessors("event", QVector<Akonadi2::Preprocessor*>() << &testProcessor);
+        Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
+        pipeline.setPreprocessors("event", QVector<Sink::Preprocessor*>() << &testProcessor);
         pipeline.startTransaction();
         pipeline.setAdaptorFactory("event", QSharedPointer<TestEventAdaptorFactory>::create());
 
@@ -345,21 +345,21 @@ private Q_SLOTS:
             QCOMPARE(testProcessor.newUids.size(), 1);
             QCOMPARE(testProcessor.newRevisions.size(), 1);
             //Key doesn't contain revision and is just the uid
-            QCOMPARE(testProcessor.newUids.at(0), Akonadi2::Storage::uidFromKey(testProcessor.newUids.at(0)));
+            QCOMPARE(testProcessor.newUids.at(0), Sink::Storage::uidFromKey(testProcessor.newUids.at(0)));
         }
         pipeline.commit();
         entityFbb.Clear();
         pipeline.startTransaction();
         auto keys = getKeys("org.kde.pipelinetest.instance1", "event.main");
         QCOMPARE(keys.size(), 1);
-        const auto uid = Akonadi2::Storage::uidFromKey(keys.first());
+        const auto uid = Sink::Storage::uidFromKey(keys.first());
         {
             auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summary2"), uid, 1);
             pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
             QCOMPARE(testProcessor.modifiedUids.size(), 1);
             QCOMPARE(testProcessor.modifiedRevisions.size(), 1);
             //Key doesn't contain revision and is just the uid
-            QCOMPARE(testProcessor.modifiedUids.at(0), Akonadi2::Storage::uidFromKey(testProcessor.modifiedUids.at(0)));
+            QCOMPARE(testProcessor.modifiedUids.at(0), Sink::Storage::uidFromKey(testProcessor.modifiedUids.at(0)));
         }
         pipeline.commit();
         entityFbb.Clear();
@@ -371,7 +371,7 @@ private Q_SLOTS:
             QCOMPARE(testProcessor.deletedUids.size(), 1);
             QCOMPARE(testProcessor.deletedSummaries.size(), 1);
             //Key doesn't contain revision and is just the uid
-            QCOMPARE(testProcessor.deletedUids.at(0), Akonadi2::Storage::uidFromKey(testProcessor.deletedUids.at(0)));
+            QCOMPARE(testProcessor.deletedUids.at(0), Sink::Storage::uidFromKey(testProcessor.deletedUids.at(0)));
             QCOMPARE(testProcessor.deletedSummaries.at(0), QByteArray("summary2"));
         }
     }

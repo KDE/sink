@@ -31,19 +31,19 @@
 #include "common/storage.h"
 #include "common/definitions.h"
 
-#include "akonadish_utils.h"
+#include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
 
-namespace AkonadiStat
+namespace SinkStat
 {
 
 void statResources(const QStringList &resources, const State &state)
 {
     qint64 total = 0;
     for (const auto &resource : resources) {
-        Akonadi2::Storage storage(Akonadi2::storageLocation(), resource, Akonadi2::Storage::ReadOnly);
-        auto transaction = storage.createTransaction(Akonadi2::Storage::ReadOnly);
+        Sink::Storage storage(Sink::storageLocation(), resource, Sink::Storage::ReadOnly);
+        auto transaction = storage.createTransaction(Sink::Storage::ReadOnly);
 
         QList<QByteArray> databases = transaction.getDatabaseNames();
         for (const auto &databaseName : databases) {
@@ -55,9 +55,9 @@ void statResources(const QStringList &resources, const State &state)
         }
         int diskUsage = 0;
 
-        QDir dir(Akonadi2::storageLocation());
+        QDir dir(Sink::storageLocation());
         for (const auto &folder : dir.entryList(QStringList() << resource + "*")) {
-            diskUsage += Akonadi2::Storage(Akonadi2::storageLocation(), folder, Akonadi2::Storage::ReadOnly).diskUsage();
+            diskUsage += Sink::Storage(Sink::storageLocation(), folder, Sink::Storage::ReadOnly).diskUsage();
         }
         auto size = diskUsage / 1024;
         state.printLine(QObject::tr("Disk usage [kb]: %1").arg(size), 1);
@@ -68,9 +68,9 @@ void statResources(const QStringList &resources, const State &state)
 
 bool statAllResources(State &state)
 {
-    Akonadi2::Query query;
+    Sink::Query query;
     query.liveQuery = false;
-    auto model = AkonadishUtils::loadModel("resource", query);
+    auto model = SinkshUtils::loadModel("resource", query);
 
     //SUUUPER ugly, but can't think of a better way with 2 glasses of wine in me on Christmas day
     static QStringList resources;
@@ -78,19 +78,19 @@ bool statAllResources(State &state)
 
     QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) mutable {
         for (int i = start; i <= end; i++) {
-            auto object = model->data(model->index(i, 0, index), Akonadi2::Store::DomainObjectBaseRole).value<Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr>();
+            auto object = model->data(model->index(i, 0, index), Sink::Store::DomainObjectBaseRole).value<Sink::ApplicationDomain::ApplicationDomainType::Ptr>();
             resources << object->identifier();
         }
     });
 
     QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
-        if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
+        if (roles.contains(Sink::Store::ChildrenFetchedRole)) {
             statResources(resources, state);
             state.commandFinished();
         }
     });
 
-    if (!model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool()) {
+    if (!model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool()) {
         return true;
     }
 
@@ -109,12 +109,12 @@ bool stat(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax state("stat", QObject::tr("Shows database usage for the resources requested"), &AkonadiStat::stat, Syntax::EventDriven);
-    state.completer = &AkonadishUtils::resourceCompleter;
+    Syntax state("stat", QObject::tr("Shows database usage for the resources requested"), &SinkStat::stat, Syntax::EventDriven);
+    state.completer = &SinkshUtils::resourceCompleter;
 
     return Syntax::List() << state;
 }
 
-REGISTER_SYNTAX(AkonadiStat)
+REGISTER_SYNTAX(SinkStat)
 
 }

@@ -29,7 +29,7 @@
 
 using namespace async;
 
-namespace Akonadi2 {
+namespace Sink {
 
 /**
 * Query result set

@@ -24,7 +24,7 @@
 #include <QByteArray>
 #include "bufferadaptor.h"
 
-namespace Akonadi2 {
+namespace Sink {
 
 namespace ApplicationDomain {
 
@@ -48,7 +48,7 @@ public:
     template <typename DomainType>
     static typename DomainType::Ptr getInMemoryRepresentation(const ApplicationDomainType &domainType, const QList<QByteArray> properties = QList<QByteArray>())
     {
-        auto memoryAdaptor = QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create(*(domainType.mAdaptor), properties);
+        auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create(*(domainType.mAdaptor), properties);
         //The identifier still internal refers to the memory-mapped pointer, we need to copy the memory or it will become invalid
         return QSharedPointer<DomainType>::create(domainType.mResourceInstanceIdentifier, QByteArray(domainType.mIdentifier.constData(), domainType.mIdentifier.size()), domainType.mRevision, memoryAdaptor);
     }
@@ -113,13 +113,13 @@ struct Folder : public Entity {
 };
 
 /**
- * Represents an akonadi resource.
+ * Represents an sink resource.
  * 
  * This type is used for configuration of resources,
  * and for creating and removing resource instances.
  */
-struct AkonadiResource : public ApplicationDomainType {
-    typedef QSharedPointer<AkonadiResource> Ptr;
+struct SinkResource : public ApplicationDomainType {
+    typedef QSharedPointer<SinkResource> Ptr;
     using ApplicationDomainType::ApplicationDomainType;
 };
 
@@ -138,7 +138,7 @@ template<>
 QByteArray getTypeName<Todo>();
 
 template<>
-QByteArray getTypeName<AkonadiResource>();
+QByteArray getTypeName<SinkResource>();
 
 template<>
 QByteArray getTypeName<Mail>();
@@ -158,15 +158,15 @@ class TypeImplementation;
 }
 }
 
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::ApplicationDomainType)
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr)
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Entity)
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Entity::Ptr)
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Event)
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Event::Ptr)
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Mail)
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Mail::Ptr)
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Folder)
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::Folder::Ptr)
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::AkonadiResource)
-Q_DECLARE_METATYPE(Akonadi2::ApplicationDomain::AkonadiResource::Ptr)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType::Ptr)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Entity)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Entity::Ptr)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Event)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Event::Ptr)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Mail)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Mail::Ptr)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Folder)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Folder::Ptr)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkResource)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkResource::Ptr)

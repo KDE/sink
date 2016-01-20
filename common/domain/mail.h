@@ -30,7 +30,7 @@ class ReadPropertyMapper;
 template<typename T>
 class WritePropertyMapper;
 
-namespace Akonadi2 {
+namespace Sink {
     class Query;
 
 namespace ApplicationDomain {
@@ -40,19 +40,19 @@ namespace ApplicationDomain {
     }
 
 template<>
-class TypeImplementation<Akonadi2::ApplicationDomain::Mail> {
+class TypeImplementation<Sink::ApplicationDomain::Mail> {
 public:
-    typedef Akonadi2::ApplicationDomain::Buffer::Mail Buffer;
-    typedef Akonadi2::ApplicationDomain::Buffer::MailBuilder BufferBuilder;
+    typedef Sink::ApplicationDomain::Buffer::Mail Buffer;
+    typedef Sink::ApplicationDomain::Buffer::MailBuilder BufferBuilder;
     static QSet<QByteArray> indexedProperties();
     /**
      * Returns the potential result set based on the indexes.
      * 
      * An empty result set indicates that a full scan is required.
      */
-    static ResultSet queryIndexes(const Akonadi2::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction);
-    static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction);
-    static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction);
+    static ResultSet queryIndexes(const Sink::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Sink::Storage::Transaction &transaction);
+    static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
+    static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
     static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();
     static QSharedPointer<WritePropertyMapper<BufferBuilder> > initializeWritePropertyMapper();
 };

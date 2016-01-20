@@ -22,21 +22,21 @@
 #include "common/facade.h"
 #include "common/domain/event.h"
 
-class DummyResourceFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>
+class DummyResourceFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Event>
 {
 public:
     DummyResourceFacade(const QByteArray &instanceIdentifier);
     virtual ~DummyResourceFacade();
 };
 
-class DummyResourceMailFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Mail>
+class DummyResourceMailFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Mail>
 {
 public:
     DummyResourceMailFacade(const QByteArray &instanceIdentifier);
     virtual ~DummyResourceMailFacade();
 };
 
-class DummyResourceFolderFacade : public Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Folder>
+class DummyResourceFolderFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Folder>
 {
 public:
     DummyResourceFolderFacade(const QByteArray &instanceIdentifier);

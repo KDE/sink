@@ -43,9 +43,9 @@
 #include <QBuffer>
 
 #undef Trace
-#define Trace() Akonadi2::Log::debugStream(Akonadi2::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess")
+#define Trace() Sink::Log::debugStream(Sink::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess")
 #undef Log
-#define Log(IDENTIFIER) Akonadi2::Log::debugStream(Akonadi2::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess("+IDENTIFIER+")")
+#define Log(IDENTIFIER) Sink::Log::debugStream(Sink::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, "ResourceAccess("+IDENTIFIER+")")
 
 static void queuedInvoke(const std::function<void()> &f, QObject *context = 0)
 {
@@ -57,7 +57,7 @@ static void queuedInvoke(const std::function<void()> &f, QObject *context = 0)
     timer->start(0);
 }
 
-namespace Akonadi2
+namespace Sink
 {
 
 struct QueuedCommand
@@ -205,7 +205,7 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
             QStringList args;
             args << resourceInstanceIdentifier;
             qint64 pid = 0;
-            if (QProcess::startDetached("akonadi2_synchronizer", args, QDir::homePath(), &pid)) {
+            if (QProcess::startDetached("sink_synchronizer", args, QDir::homePath(), &pid)) {
                 Trace() << "Started resource " << pid;
                 tryToConnect()
                 .then<void>([&future]() {
@@ -298,8 +298,8 @@ KAsync::Job<void> ResourceAccess::synchronizeResource(bool sourceSync, bool loca
 {
     Trace() << "Sending synchronize command: " << sourceSync << localSync;
     flatbuffers::FlatBufferBuilder fbb;
-    auto command = Akonadi2::Commands::CreateSynchronize(fbb, sourceSync, localSync);
-    Akonadi2::Commands::FinishSynchronizeBuffer(fbb, command);
+    auto command = Sink::Commands::CreateSynchronize(fbb, sourceSync, localSync);
+    Sink::Commands::FinishSynchronizeBuffer(fbb, command);
     open();
     return sendCommand(Commands::SynchronizeCommand, fbb);
 }
@@ -309,11 +309,11 @@ KAsync::Job<void> ResourceAccess::sendCreateCommand(const QByteArray &resourceBu
     flatbuffers::FlatBufferBuilder fbb;
     //This is the resource buffer type and not the domain type
     auto type = fbb.CreateString(resourceBufferType.constData());
-    auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
-    auto location = Akonadi2::Commands::CreateCreateEntity(fbb, 0, type, delta);
-    Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+    auto delta = Sink::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
+    auto location = Sink::Commands::CreateCreateEntity(fbb, 0, type, delta);
+    Sink::Commands::FinishCreateEntityBuffer(fbb, location);
     open();
-    return sendCommand(Akonadi2::Commands::CreateEntityCommand, fbb);
+    return sendCommand(Sink::Commands::CreateEntityCommand, fbb);
 }
 
 KAsync::Job<void> ResourceAccess::sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer)
@@ -324,11 +324,11 @@ KAsync::Job<void> ResourceAccess::sendModifyCommand(const QByteArray &uid, qint6
     auto type = fbb.CreateString(resourceBufferType.constData());
     //FIXME
     auto deletions = 0;
-    auto delta = Akonadi2::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
-    auto location = Akonadi2::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta);
-    Akonadi2::Commands::FinishModifyEntityBuffer(fbb, location);
+    auto delta = Sink::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
+    auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta);
+    Sink::Commands::FinishModifyEntityBuffer(fbb, location);
     open();
-    return sendCommand(Akonadi2::Commands::ModifyEntityCommand, fbb);
+    return sendCommand(Sink::Commands::ModifyEntityCommand, fbb);
 }
 
 KAsync::Job<void> ResourceAccess::sendDeleteCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType)
@@ -337,19 +337,19 @@ KAsync::Job<void> ResourceAccess::sendDeleteCommand(const QByteArray &uid, qint6
     auto entityId = fbb.CreateString(uid.constData());
     //This is the resource buffer type and not the domain type
     auto type = fbb.CreateString(resourceBufferType.constData());
-    auto location = Akonadi2::Commands::CreateDeleteEntity(fbb, revision, entityId, type);
-    Akonadi2::Commands::FinishDeleteEntityBuffer(fbb, location);
+    auto location = Sink::Commands::CreateDeleteEntity(fbb, revision, entityId, type);
+    Sink::Commands::FinishDeleteEntityBuffer(fbb, location);
     open();
-    return sendCommand(Akonadi2::Commands::DeleteEntityCommand, fbb);
+    return sendCommand(Sink::Commands::DeleteEntityCommand, fbb);
 }
 
 KAsync::Job<void> ResourceAccess::sendRevisionReplayedCommand(qint64 revision)
 {
     flatbuffers::FlatBufferBuilder fbb;
-    auto location = Akonadi2::Commands::CreateRevisionReplayed(fbb, revision);
-    Akonadi2::Commands::FinishRevisionReplayedBuffer(fbb, location);
+    auto location = Sink::Commands::CreateRevisionReplayed(fbb, revision);
+    Sink::Commands::FinishRevisionReplayedBuffer(fbb, location);
     open();
-    return sendCommand(Akonadi2::Commands::RevisionReplayedCommand, fbb);
+    return sendCommand(Sink::Commands::RevisionReplayedCommand, fbb);
 }
 
 KAsync::Job<void> ResourceAccess::sendInspectionCommand(const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
@@ -365,10 +365,10 @@ KAsync::Job<void> ResourceAccess::sendInspectionCommand(const QByteArray &inspec
     s << expectedValue;
 
     auto expected = fbb.CreateString(array.toStdString());
-    auto location = Akonadi2::Commands::CreateInspection (fbb, id, 0, entity, domain, prop, expected);
-    Akonadi2::Commands::FinishInspectionBuffer(fbb, location);
+    auto location = Sink::Commands::CreateInspection (fbb, id, 0, entity, domain, prop, expected);
+    Sink::Commands::FinishInspectionBuffer(fbb, location);
     open();
-    return sendCommand(Akonadi2::Commands::InspectionCommand, fbb);
+    return sendCommand(Sink::Commands::InspectionCommand, fbb);
 }
 
 void ResourceAccess::open()
@@ -412,7 +412,7 @@ void ResourceAccess::sendCommand(const QSharedPointer<QueuedCommand> &command)
     //TODO: we should have a timeout for commands
     d->messageId++;
     const auto messageId = d->messageId;
-    log(QString("Sending command \"%1\" with messageId %2").arg(QString(Akonadi2::Commands::name(command->commandId))).arg(d->messageId));
+    log(QString("Sending command \"%1\" with messageId %2").arg(QString(Sink::Commands::name(command->commandId))).arg(d->messageId));
     Q_ASSERT(command->callback);
     registerCallback(d->messageId, [this, messageId, command](int errorCode, QString errorMessage) {
         Trace() << "Command complete " << messageId;
@@ -457,8 +457,8 @@ void ResourceAccess::connected()
     {
         flatbuffers::FlatBufferBuilder fbb;
         auto name = fbb.CreateString(QString("PID: %1 ResourceAccess: %2").arg(QCoreApplication::applicationPid()).arg(reinterpret_cast<qlonglong>(this)).toLatin1());
-        auto command = Akonadi2::Commands::CreateHandshake(fbb, name);
-        Akonadi2::Commands::FinishHandshakeBuffer(fbb, command);
+        auto command = Sink::Commands::CreateHandshake(fbb, name);
+        Sink::Commands::FinishHandshakeBuffer(fbb, command);
         Commands::write(d->socket.data(), ++d->messageId, Commands::HandshakeCommand, fbb);
     }
 
@@ -543,11 +543,11 @@ bool ResourceAccess::processMessageBuffer()
         case Commands::NotificationCommand: {
             auto buffer = Commands::GetNotification(d->partialMessageBuffer.constData() + headerSize);
             switch (buffer->type()) {
-                case Akonadi2::Commands::NotificationType::NotificationType_Shutdown:
+                case Sink::Commands::NotificationType::NotificationType_Shutdown:
                     Log(d->resourceInstanceIdentifier) << "Received shutdown notification.";
                     close();
                     break;
-                case Akonadi2::Commands::NotificationType::NotificationType_Inspection: {
+                case Sink::Commands::NotificationType::NotificationType_Inspection: {
                     Log(d->resourceInstanceIdentifier) << "Received inspection notification.";
                     Notification n;
                     if (buffer->identifier()) {

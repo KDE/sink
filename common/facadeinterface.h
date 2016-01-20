@@ -27,7 +27,7 @@
 #include "applicationdomaintype.h"
 #include "resultprovider.h"
 
-namespace Akonadi2 {
+namespace Sink {
 class Query;
 
 /**
@@ -68,7 +68,7 @@ public:
     /**
      * Load entities from the store.
      */
-    virtual QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr > load(const Query &query) = 0;
+    virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr > load(const Query &query) = 0;
 };
 
 template<class DomainType>
@@ -90,9 +90,9 @@ public:
         return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
-    QPair<KAsync::Job<void>, typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr > load(const Query &query)
+    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr > load(const Query &query)
     {
-        return qMakePair(KAsync::null<void>(), typename Akonadi2::ResultEmitter<typename DomainType::Ptr>::Ptr());
+        return qMakePair(KAsync::null<void>(), typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr());
     }
 };
 

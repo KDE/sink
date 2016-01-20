@@ -1,4 +1,4 @@
-namespace Akonadi2.Commands;
+namespace Sink.Commands;
 
 table Inspection {
     id: string;

@@ -22,7 +22,7 @@
 #include "domainadaptor.h"
 
 DummyResourceFacade::DummyResourceFacade(const QByteArray &instanceIdentifier)
-    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<DummyEventAdaptorFactory>::create())
+    : Sink::GenericFacade<Sink::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<DummyEventAdaptorFactory>::create())
 {
 }
 
@@ -32,7 +32,7 @@ DummyResourceFacade::~DummyResourceFacade()
 
 
 DummyResourceMailFacade::DummyResourceMailFacade(const QByteArray &instanceIdentifier)
-    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<DummyMailAdaptorFactory>::create())
+    : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<DummyMailAdaptorFactory>::create())
 {
 }
 
@@ -42,7 +42,7 @@ DummyResourceMailFacade::~DummyResourceMailFacade()
 
 
 DummyResourceFolderFacade::DummyResourceFolderFacade(const QByteArray &instanceIdentifier)
-    : Akonadi2::GenericFacade<Akonadi2::ApplicationDomain::Folder>(instanceIdentifier, QSharedPointer<DummyFolderAdaptorFactory>::create())
+    : Sink::GenericFacade<Sink::ApplicationDomain::Folder>(instanceIdentifier, QSharedPointer<DummyFolderAdaptorFactory>::create())
 {
 }
 

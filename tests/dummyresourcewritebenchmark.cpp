@@ -60,33 +60,33 @@ static QByteArray createEntityBuffer(int &bufferSize)
     eventFbb.Clear();
     {
         auto summary = eventFbb.CreateString("summary");
-        Akonadi2::ApplicationDomain::Buffer::EventBuilder eventBuilder(eventFbb);
+        Sink::ApplicationDomain::Buffer::EventBuilder eventBuilder(eventFbb);
         eventBuilder.add_summary(summary);
         auto eventLocation = eventBuilder.Finish();
-        Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
+        Sink::ApplicationDomain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
     }
 
     flatbuffers::FlatBufferBuilder localFbb;
     {
         auto uid = localFbb.CreateString("testuid");
-        auto localBuilder = Akonadi2::ApplicationDomain::Buffer::EventBuilder(localFbb);
+        auto localBuilder = Sink::ApplicationDomain::Buffer::EventBuilder(localFbb);
         localBuilder.add_uid(uid);
         auto location = localBuilder.Finish();
-        Akonadi2::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
+        Sink::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
     }
 
     flatbuffers::FlatBufferBuilder entityFbb;
-    Akonadi2::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
+    Sink::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
     bufferSize = entityFbb.GetSize();
 
     flatbuffers::FlatBufferBuilder fbb;
-    auto type = fbb.CreateString(Akonadi2::ApplicationDomain::getTypeName<Akonadi2::ApplicationDomain::Event>().toStdString().data());
+    auto type = fbb.CreateString(Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>().toStdString().data());
     auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
-    Akonadi2::Commands::CreateEntityBuilder builder(fbb);
+    Sink::Commands::CreateEntityBuilder builder(fbb);
     builder.add_domainType(type);
     builder.add_delta(delta);
     auto location = builder.Finish();
-    Akonadi2::Commands::FinishCreateEntityBuffer(fbb, location);
+    Sink::Commands::FinishCreateEntityBuffer(fbb, location);
 
     return QByteArray(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
@@ -109,7 +109,7 @@ class DummyResourceWriteBenchmark : public QObject
         QTime time;
         time.start();
 
-        auto pipeline = QSharedPointer<Akonadi2::Pipeline>::create("org.kde.dummy.instance1");
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.dummy.instance1");
         DummyResource resource("org.kde.dummy.instance1", pipeline);
 
         int bufferSize = 0;
@@ -117,7 +117,7 @@ class DummyResourceWriteBenchmark : public QObject
 
         const auto startingRss = getCurrentRSS();
         for (int i = 0; i < num; i++) {
-            resource.processCommand(Akonadi2::Commands::CreateEntityCommand, command);
+            resource.processCommand(Sink::Commands::CreateEntityCommand, command);
         }
         auto appendTime = time.elapsed();
         auto bufferSizeTotal = bufferSize * num;
@@ -174,7 +174,7 @@ class DummyResourceWriteBenchmark : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Warning);
+        Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
     }
 
     void cleanup()
@@ -215,7 +215,7 @@ private Q_SLOTS:
 
     void getFreePages()
     {
-        std::system(QString("mdb_stat %1/%2 -ff").arg(Akonadi2::storageLocation()).arg("org.kde.dummy.instance1").toLatin1().constData());
+        std::system(QString("mdb_stat %1/%2 -ff").arg(Sink::storageLocation()).arg("org.kde.dummy.instance1").toLatin1().constData());
     }
 
     //This allows to run individual parts without doing a cleanup, but still cleaning up normally

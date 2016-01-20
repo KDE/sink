@@ -131,14 +131,14 @@ bool State::commandTiming() const
 
 void State::setLoggingLevel(const QString &level) const
 {
-    Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::debugLevelFromName(level.toLatin1()));
+    Sink::Log::setDebugOutputLevel(Sink::Log::debugLevelFromName(level.toLatin1()));
 }
 
 QString State::loggingLevel() const
 {
     // do not turn this into a single line return: that core dumps due to allocation of
-    // the byte array in Akonadi2::Log
-    QByteArray rv = Akonadi2::Log::debugLevelName(Akonadi2::Log::debugOutputLevel());
+    // the byte array in Sink::Log
+    QByteArray rv = Sink::Log::debugLevelName(Sink::Log::debugOutputLevel());
     return rv.toLower();
 }
 

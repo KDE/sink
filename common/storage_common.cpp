@@ -23,7 +23,7 @@
 
 #include "log.h"
 
-namespace Akonadi2
+namespace Sink
 {
 
 static const char *s_internalPrefix = "__internal";
@@ -52,45 +52,45 @@ std::function<void(const Storage::Error &error)> Storage::defaultErrorHandler() 
     return basicErrorHandler();
 }
 
-void Storage::setMaxRevision(Akonadi2::Storage::Transaction &transaction, qint64 revision)
+void Storage::setMaxRevision(Sink::Storage::Transaction &transaction, qint64 revision)
 {
     transaction.openDatabase().write("__internal_maxRevision", QByteArray::number(revision));
 }
 
-qint64 Storage::maxRevision(const Akonadi2::Storage::Transaction &transaction)
+qint64 Storage::maxRevision(const Sink::Storage::Transaction &transaction)
 {
     qint64 r = 0;
     transaction.openDatabase().scan("__internal_maxRevision", [&](const QByteArray &, const QByteArray &revision) -> bool {
         r = revision.toLongLong();
         return false;
     }, [](const Error &error){
-        if (error.code != Akonadi2::Storage::NotFound) {
+        if (error.code != Sink::Storage::NotFound) {
             Warning() << "Coultn'd find the maximum revision.";
         }
     });
     return r;
 }
 
-void Storage::setCleanedUpRevision(Akonadi2::Storage::Transaction &transaction, qint64 revision)
+void Storage::setCleanedUpRevision(Sink::Storage::Transaction &transaction, qint64 revision)
 {
     transaction.openDatabase().write("__internal_cleanedUpRevision", QByteArray::number(revision));
 }
 
-qint64 Storage::cleanedUpRevision(const Akonadi2::Storage::Transaction &transaction)
+qint64 Storage::cleanedUpRevision(const Sink::Storage::Transaction &transaction)
 {
     qint64 r = 0;
     transaction.openDatabase().scan("__internal_cleanedUpRevision", [&](const QByteArray &, const QByteArray &revision) -> bool {
         r = revision.toLongLong();
         return false;
     }, [](const Error &error){
-        if (error.code != Akonadi2::Storage::NotFound) {
+        if (error.code != Sink::Storage::NotFound) {
             Warning() << "Coultn'd find the maximum revision.";
         }
     });
     return r;
 }
 
-QByteArray Storage::getUidFromRevision(const Akonadi2::Storage::Transaction &transaction, qint64 revision)
+QByteArray Storage::getUidFromRevision(const Sink::Storage::Transaction &transaction, qint64 revision)
 {
     QByteArray uid;
     transaction.openDatabase("revisions").scan(QByteArray::number(revision), [&](const QByteArray &, const QByteArray &value) -> bool {
@@ -102,7 +102,7 @@ QByteArray Storage::getUidFromRevision(const Akonadi2::Storage::Transaction &tra
     return uid;
 }
 
-QByteArray Storage::getTypeFromRevision(const Akonadi2::Storage::Transaction &transaction, qint64 revision)
+QByteArray Storage::getTypeFromRevision(const Sink::Storage::Transaction &transaction, qint64 revision)
 {
     QByteArray type;
     transaction.openDatabase("revisionType").scan(QByteArray::number(revision), [&](const QByteArray &, const QByteArray &value) -> bool {
@@ -114,14 +114,14 @@ QByteArray Storage::getTypeFromRevision(const Akonadi2::Storage::Transaction &tr
     return type;
 }
 
-void Storage::recordRevision(Akonadi2::Storage::Transaction &transaction, qint64 revision, const QByteArray &uid, const QByteArray &type)
+void Storage::recordRevision(Sink::Storage::Transaction &transaction, qint64 revision, const QByteArray &uid, const QByteArray &type)
 {
     //TODO use integerkeys
     transaction.openDatabase("revisions").write(QByteArray::number(revision), uid);
     transaction.openDatabase("revisionType").write(QByteArray::number(revision), type);
 }
 
-void Storage::removeRevision(Akonadi2::Storage::Transaction &transaction, qint64 revision)
+void Storage::removeRevision(Sink::Storage::Transaction &transaction, qint64 revision)
 {
     transaction.openDatabase("revisions").remove(QByteArray::number(revision));
 }
@@ -162,9 +162,9 @@ bool Storage::NamedDatabase::contains(const QByteArray &uid)
     scan(uid, [&found](const QByteArray &, const QByteArray &) -> bool {
         found = true;
         return false;
-    }, [this](const Akonadi2::Storage::Error &error) {
+    }, [this](const Sink::Storage::Error &error) {
     }, true);
     return found;
 }
 
-} // namespace Akonadi2
+} // namespace Sink

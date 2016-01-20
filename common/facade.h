@@ -29,7 +29,7 @@
 #include "domaintypeadaptorfactoryinterface.h"
 #include "storage.h"
 
-namespace Akonadi2 {
+namespace Sink {
 
 /**
  * Default facade implementation for resources that are implemented in a separate process using the ResourceAccess class.
@@ -43,7 +43,7 @@ namespace Akonadi2 {
  * Additionally a resource only has to provide a synchronizer plugin to execute the synchronization
  */
 template <typename DomainType>
-class GenericFacade: public Akonadi2::StoreFacade<DomainType>
+class GenericFacade: public Sink::StoreFacade<DomainType>
 {
 public:
     /**
@@ -52,18 +52,18 @@ public:
      * @param resourceIdentifier is the identifier of the resource instance
      * @param adaptorFactory is the adaptor factory used to generate the mappings from domain to resource types and vice versa
      */
-    GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr(), const QSharedPointer<Akonadi2::ResourceAccessInterface> resourceAccess = QSharedPointer<Akonadi2::ResourceAccessInterface>());
+    GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr(), const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess = QSharedPointer<Sink::ResourceAccessInterface>());
     ~GenericFacade();
 
     static QByteArray bufferTypeForDomainType();
     KAsync::Job<void> create(const DomainType &domainObject) Q_DECL_OVERRIDE;
     KAsync::Job<void> modify(const DomainType &domainObject) Q_DECL_OVERRIDE;
     KAsync::Job<void> remove(const DomainType &domainObject) Q_DECL_OVERRIDE;
-    QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Akonadi2::Query &query) Q_DECL_OVERRIDE;
+    QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 
 protected:
     //TODO use one resource access instance per application & per resource
-    QSharedPointer<Akonadi2::ResourceAccessInterface> mResourceAccess;
+    QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
     QByteArray mResourceInstanceIdentifier;
 };

@@ -32,11 +32,11 @@
 #include "common/storage.h"
 #include "common/definitions.h"
 
-#include "akonadish_utils.h"
+#include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
 
-namespace AkonadiCount
+namespace SinkCount
 {
 
 bool count(const QStringList &args, State &state)
@@ -44,26 +44,26 @@ bool count(const QStringList &args, State &state)
     auto resources = args;
     auto type = !resources.isEmpty() ? resources.takeFirst() : QString();
 
-    if (!type.isEmpty() && !AkonadishUtils::isValidStoreType(type)) {
+    if (!type.isEmpty() && !SinkshUtils::isValidStoreType(type)) {
         state.printError(QObject::tr("Unknown type: %1").arg(type));
         return false;
     }
 
-    Akonadi2::Query query;
+    Sink::Query query;
     for (const auto &res : resources) {
         query.resources << res.toLatin1();
     }
     query.liveQuery = false;
 
-    auto model = AkonadishUtils::loadModel(type, query);
+    auto model = SinkshUtils::loadModel(type, query);
     QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
-        if (roles.contains(Akonadi2::Store::ChildrenFetchedRole)) {
+        if (roles.contains(Sink::Store::ChildrenFetchedRole)) {
             state.printLine(QObject::tr("Counted results %1").arg(model->rowCount(QModelIndex())));
             state.commandFinished();
         }
     });
 
-    if (!model->data(QModelIndex(), Akonadi2::Store::ChildrenFetchedRole).toBool()) {
+    if (!model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool()) {
         return true;
     }
 
@@ -72,12 +72,12 @@ bool count(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax count("count", QObject::tr("Returns the number of items of a given type in a resource. Usage: count <type> <resource>"), &AkonadiCount::count, Syntax::EventDriven);
-    count.completer = &AkonadishUtils::typeCompleter;
+    Syntax count("count", QObject::tr("Returns the number of items of a given type in a resource. Usage: count <type> <resource>"), &SinkCount::count, Syntax::EventDriven);
+    count.completer = &SinkshUtils::typeCompleter;
 
     return Syntax::List() << count;
 }
 
-REGISTER_SYNTAX(AkonadiCount)
+REGISTER_SYNTAX(SinkCount)
 
 }

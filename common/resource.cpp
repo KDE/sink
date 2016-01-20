@@ -27,7 +27,7 @@
 
 #include "facadefactory.h"
 
-namespace Akonadi2
+namespace Sink
 {
 
 Resource::Resource()
@@ -94,8 +94,8 @@ ResourceFactory *ResourceFactory::load(const QString &resourceName)
         if (path.endsWith(QLatin1String("plugins"))) {
             QDir pluginDir(path);
             //TODO: centralize this so that it is easy to change centrally
-            //      also ref'd in cmake as ${AKONADI_RESOURCE_PLUGINS_PATH}
-            pluginDir.cd(QStringLiteral("akonadi2"));
+            //      also ref'd in cmake as ${SINK_RESOURCE_PLUGINS_PATH}
+            pluginDir.cd(QStringLiteral("sink"));
             pluginDir.cd(QStringLiteral("resources"));
 
             for (const QString &fileName: pluginDir.entryList(QDir::Files)) {
@@ -128,4 +128,4 @@ ResourceFactory *ResourceFactory::load(const QString &resourceName)
     return nullptr;
 }
 
-} // namespace Akonadi2
+} // namespace Sink

@@ -22,7 +22,7 @@
 
 #include <QIODevice>
 
-namespace Akonadi2
+namespace Sink
 {
 
 namespace Commands
@@ -102,4 +102,4 @@ void write(QIODevice *device, int messageId, int commandId, flatbuffers::FlatBuf
 
 } // namespace Commands
 
-} // namespace Akonadi2
+} // namespace Sink

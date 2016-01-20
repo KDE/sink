@@ -31,7 +31,7 @@ TypeIndex::TypeIndex(const QByteArray &type)
 template<>
 void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 {
-    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Akonadi2::Storage::Transaction &transaction) {
+    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
         // Trace() << "Indexing " << mType + ".index." + property << value.toByteArray();
         if (value.isValid()) {
             Index(mType + ".index." + property, transaction).add(value.toByteArray(), identifier);
@@ -46,7 +46,7 @@ void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 template<>
 void TypeIndex::addProperty<QString>(const QByteArray &property)
 {
-    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Akonadi2::Storage::Transaction &transaction) {
+    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
         // Trace() << "Indexing " << mType + ".index." + property << value.toByteArray();
         if (value.isValid()) {
             Index(mType + ".index." + property, transaction).add(value.toByteArray(), identifier);
@@ -61,7 +61,7 @@ void TypeIndex::addProperty<QString>(const QByteArray &property)
 template<>
 void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
 {
-    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Akonadi2::Storage::Transaction &transaction) {
+    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
         const auto date = value.toDateTime();
         // Trace() << "Indexing " << mType + ".index." + property << date.toString();
         if (date.isValid()) {
@@ -72,7 +72,7 @@ void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
     mProperties << property;
 }
 
-void TypeIndex::add(const QByteArray &identifier, const Akonadi2::ApplicationDomain::BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
+void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
 {
     for (const auto &property : mProperties) {
         const auto value = bufferAdaptor.getProperty(property);
@@ -81,7 +81,7 @@ void TypeIndex::add(const QByteArray &identifier, const Akonadi2::ApplicationDom
     }
 }
 
-void TypeIndex::remove(const QByteArray &identifier, const Akonadi2::ApplicationDomain::BufferAdaptor &bufferAdaptor, Akonadi2::Storage::Transaction &transaction)
+void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
 {
     for (const auto &property : mProperties) {
         const auto value = bufferAdaptor.getProperty(property);
@@ -94,7 +94,7 @@ void TypeIndex::remove(const QByteArray &identifier, const Akonadi2::Application
     }
 }
 
-ResultSet TypeIndex::query(const Akonadi2::Query &query, QSet<QByteArray> &appliedFilters, Akonadi2::Storage::Transaction &transaction)
+ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFilters, Sink::Storage::Transaction &transaction)
 {
     QVector<QByteArray> keys;
     for (const auto &property : mProperties) {

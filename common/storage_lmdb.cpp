@@ -33,7 +33,7 @@
 
 #include <lmdb.h>
 
-namespace Akonadi2
+namespace Sink
 {
 
 int getErrorCode(int e)
@@ -615,4 +615,4 @@ void Storage::removeFromDisk() const
     mdb_env_close(env);
 }
 
-} // namespace Akonadi2
+} // namespace Sink

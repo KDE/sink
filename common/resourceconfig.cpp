@@ -25,12 +25,12 @@
 
 static QSharedPointer<QSettings> getSettings()
 {
-    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/resources.ini", QSettings::IniFormat);
+    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/resources.ini", QSettings::IniFormat);
 }
 
 static QSharedPointer<QSettings> getResourceConfig(const QByteArray &identifier)
 {
-    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/akonadi2/" + identifier, QSettings::IniFormat);
+    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/" + identifier, QSettings::IniFormat);
 }
 
 QByteArray ResourceConfig::newIdentifier(const QByteArray &type)

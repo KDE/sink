@@ -39,23 +39,23 @@
 #include "storage.h"
 #include "log.h"
 
-namespace Akonadi2
+namespace Sink
 {
 
 QString Store::storageLocation()
 {
-    return Akonadi2::storageLocation();
+    return Sink::storageLocation();
 }
 
 QByteArray Store::resourceName(const QByteArray &instanceIdentifier)
 {
-    return Akonadi2::resourceName(instanceIdentifier);
+    return Sink::resourceName(instanceIdentifier);
 }
 
 static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type)
 {
     //Return the global resource (signified by an empty name) for types that don't eblong to a specific resource
-    if (type == "akonadiresource") {
+    if (type == "sinkresource") {
         return QList<QByteArray>() << "";
     }
     QList<QByteArray> resources;
@@ -162,9 +162,9 @@ KAsync::Job<void> Store::shutdown(const QByteArray &identifier)
     return ResourceAccess::connectToServer(identifier).then<void, QSharedPointer<QLocalSocket>>([identifier](QSharedPointer<QLocalSocket> socket, KAsync::Future<void> &future) {
         //We can't currently reuse the socket
         socket->close();
-        auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(identifier);
+        auto resourceAccess = QSharedPointer<Sink::ResourceAccess>::create(identifier);
         resourceAccess->open();
-        resourceAccess->sendCommand(Akonadi2::Commands::ShutdownCommand).then<void>([&future, resourceAccess]() {
+        resourceAccess->sendCommand(Sink::Commands::ShutdownCommand).then<void>([&future, resourceAccess]() {
             Trace() << "Shutdown complete";
             future.setFinished();
         }).exec();
@@ -180,9 +180,9 @@ KAsync::Job<void> Store::shutdown(const QByteArray &identifier)
 KAsync::Job<void> Store::start(const QByteArray &identifier)
 {
     Trace() << "start " << identifier;
-    auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(identifier);
+    auto resourceAccess = QSharedPointer<Sink::ResourceAccess>::create(identifier);
     resourceAccess->open();
-    return resourceAccess->sendCommand(Akonadi2::Commands::PingCommand).then<void>([resourceAccess]() {
+    return resourceAccess->sendCommand(Sink::Commands::PingCommand).then<void>([resourceAccess]() {
         Trace() << "Start complete";
     });
 }
@@ -191,19 +191,19 @@ void Store::removeFromDisk(const QByteArray &identifier)
 {
     //TODO By calling the resource executable with a --remove option instead
     //we can ensure that no other resource process is running at the same time
-    QDir dir(Akonadi2::storageLocation());
+    QDir dir(Sink::storageLocation());
     for (const auto &folder : dir.entryList(QStringList() << identifier + "*")) {
-        Akonadi2::Storage(Akonadi2::storageLocation(), folder, Akonadi2::Storage::ReadWrite).removeFromDisk();
+        Sink::Storage(Sink::storageLocation(), folder, Sink::Storage::ReadWrite).removeFromDisk();
     }
 }
 
-KAsync::Job<void> Store::synchronize(const Akonadi2::Query &query)
+KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
     Trace() << "synchronize" << query.resources;
     return KAsync::iterate(query.resources)
     .template each<void, QByteArray>([query](const QByteArray &resource, KAsync::Future<void> &future) {
         Trace() << "Synchronizing " << resource;
-        auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resource);
+        auto resourceAccess = QSharedPointer<Sink::ResourceAccess>::create(resource);
         resourceAccess->open();
         resourceAccess->synchronizeResource(true, false).then<void>([&future, resourceAccess]() {
             future.setFinished();
@@ -219,7 +219,7 @@ KAsync::Job<void> Store::flushMessageQueue(const QByteArrayList &resourceIdentif
     return KAsync::iterate(resourceIdentifier)
     .template each<void, QByteArray>([](const QByteArray &resource, KAsync::Future<void> &future) {
         Trace() << "Flushing message queue " << resource;
-        auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resource);
+        auto resourceAccess = QSharedPointer<Sink::ResourceAccess>::create(resource);
         resourceAccess->open();
         resourceAccess->synchronizeResource(false, true).then<void>([&future, resourceAccess]() {
             future.setFinished();
@@ -235,7 +235,7 @@ KAsync::Job<void> Store::flushReplayQueue(const QByteArrayList &resourceIdentifi
 }
 
 template <class DomainType>
-KAsync::Job<DomainType> Store::fetchOne(const Akonadi2::Query &query)
+KAsync::Job<DomainType> Store::fetchOne(const Sink::Query &query)
 {
     return KAsync::start<DomainType>([query](KAsync::Future<DomainType> &future) {
         //FIXME We could do this more elegantly if composed jobs would have the correct type (In that case we'd simply return the value from then continuation, and could avoid the outer job entirely)
@@ -251,13 +251,13 @@ KAsync::Job<DomainType> Store::fetchOne(const Akonadi2::Query &query)
 }
 
 template <class DomainType>
-KAsync::Job<QList<typename DomainType::Ptr> > Store::fetchAll(const Akonadi2::Query &query)
+KAsync::Job<QList<typename DomainType::Ptr> > Store::fetchAll(const Sink::Query &query)
 {
     return fetch<DomainType>(query);
 }
 
 template <class DomainType>
-KAsync::Job<QList<typename DomainType::Ptr> > Store::fetch(const Akonadi2::Query &query, int minimumAmount)
+KAsync::Job<QList<typename DomainType::Ptr> > Store::fetch(const Sink::Query &query, int minimumAmount)
 {
     auto model = loadModel<DomainType>(query);
     auto list = QSharedPointer<QList<typename DomainType::Ptr> >::create();
@@ -265,12 +265,12 @@ KAsync::Job<QList<typename DomainType::Ptr> > Store::fetch(const Akonadi2::Query
     return KAsync::start<QList<typename DomainType::Ptr> >([model, list, context, minimumAmount](KAsync::Future<QList<typename DomainType::Ptr> > &future) {
         if (model->rowCount() >= 1) {
             for (int i = 0; i < model->rowCount(); i++) {
-                list->append(model->index(i, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).template value<typename DomainType::Ptr>());
+                list->append(model->index(i, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).template value<typename DomainType::Ptr>());
             }
         } else {
             QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, context.data(), [model, &future, list](const QModelIndex &index, int start, int end) {
                 for (int i = start; i <= end; i++) {
-                    list->append(model->index(i, 0, QModelIndex()).data(Akonadi2::Store::DomainObjectRole).template value<typename DomainType::Ptr>());
+                    list->append(model->index(i, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).template value<typename DomainType::Ptr>());
                 }
             });
             QObject::connect(model.data(), &QAbstractItemModel::dataChanged, context.data(), [model, &future, list, minimumAmount](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
@@ -301,9 +301,9 @@ KAsync::Job<void> Resources::inspect(const Inspection &inspectionCommand)
     auto resource = inspectionCommand.resourceIdentifier;
 
     Trace() << "Sending inspection " << resource;
-    auto resourceAccess = QSharedPointer<Akonadi2::ResourceAccess>::create(resource);
+    auto resourceAccess = QSharedPointer<Sink::ResourceAccess>::create(resource);
     resourceAccess->open();
-    auto notifier = QSharedPointer<Akonadi2::Notifier>::create(resourceAccess);
+    auto notifier = QSharedPointer<Sink::Notifier>::create(resourceAccess);
     auto id = QUuid::createUuid().toByteArray();
     return resourceAccess->sendInspectionCommand(id, ApplicationDomain::getTypeName<DomainType>(), inspectionCommand.entityIdentifier, inspectionCommand.property, inspectionCommand.expectedValue)
         .template then<void>([resourceAccess, notifier, id](KAsync::Future<void> &future) {
@@ -319,7 +319,7 @@ KAsync::Job<void> Resources::inspect(const Inspection &inspectionCommand)
         });
 }
 
-class Akonadi2::Notifier::Private {
+class Sink::Notifier::Private {
 public:
     Private()
         : context(new QObject)
@@ -332,7 +332,7 @@ public:
 };
 
 Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess)
-    : d(new Akonadi2::Notifier::Private)
+    : d(new Sink::Notifier::Private)
 {
     QObject::connect(resourceAccess.data(), &ResourceAccess::notification, d->context.data(), [this](const Notification &notification) {
         for (const auto &handler : d->handler) {
@@ -359,7 +359,7 @@ void Notifier::registerHandler(std::function<void(const Notification &)> handler
 REGISTER_TYPE(ApplicationDomain::Event);
 REGISTER_TYPE(ApplicationDomain::Mail);
 REGISTER_TYPE(ApplicationDomain::Folder);
-REGISTER_TYPE(ApplicationDomain::AkonadiResource);
+REGISTER_TYPE(ApplicationDomain::SinkResource);
 
-} // namespace Akonadi2
+} // namespace Sink
 

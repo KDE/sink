@@ -26,21 +26,21 @@
 #include "dummycalendar_generated.h"
 #include "entity_generated.h"
 
-class DummyEventAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Event, DummyCalendar::DummyEvent, DummyCalendar::DummyEventBuilder>
+class DummyEventAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event, DummyCalendar::DummyEvent, DummyCalendar::DummyEventBuilder>
 {
 public:
     DummyEventAdaptorFactory();
     virtual ~DummyEventAdaptorFactory() {};
 };
 
-class DummyMailAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Mail, Akonadi2::ApplicationDomain::Buffer::Dummy, Akonadi2::ApplicationDomain::Buffer::DummyBuilder>
+class DummyMailAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail, Sink::ApplicationDomain::Buffer::Dummy, Sink::ApplicationDomain::Buffer::DummyBuilder>
 {
 public:
     DummyMailAdaptorFactory();
     virtual ~DummyMailAdaptorFactory() {};
 };
 
-class DummyFolderAdaptorFactory : public DomainTypeAdaptorFactory<Akonadi2::ApplicationDomain::Folder, Akonadi2::ApplicationDomain::Buffer::Dummy, Akonadi2::ApplicationDomain::Buffer::DummyBuilder>
+class DummyFolderAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Folder, Sink::ApplicationDomain::Buffer::Dummy, Sink::ApplicationDomain::Buffer::DummyBuilder>
 {
 public:
     DummyFolderAdaptorFactory();

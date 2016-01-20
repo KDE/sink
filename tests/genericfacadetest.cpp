@@ -26,20 +26,20 @@ private Q_SLOTS:
 
     void init()
     {
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
+        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
     }
 
     void testLoad()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.liveQuery = false;
 
-        auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr> >::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
-        // storage->mResults << Akonadi2::ApplicationDomain::Event::Ptr::create();
+        // storage->mResults << Sink::ApplicationDomain::Event::Ptr::create();
         TestResourceFacade facade("identifier", resourceAccess);
 
-        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
+        async::SyncListResult<Sink::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
 
         facade.load(query, *resultSet).exec().waitForFinished();
         resultSet->initialResultSetComplete();
@@ -52,15 +52,15 @@ private Q_SLOTS:
 
     void testLiveQuery()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.liveQuery = true;
 
-        auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr> >::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
-        // storage->mResults << Akonadi2::ApplicationDomain::Event::Ptr::create();
+        // storage->mResults << Sink::ApplicationDomain::Event::Ptr::create();
         TestResourceFacade facade("identifier", resourceAccess);
 
-        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
+        async::SyncListResult<Sink::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
 
         facade.load(query, *resultSet).exec().waitForFinished();
         resultSet->initialResultSetComplete();
@@ -70,7 +70,7 @@ private Q_SLOTS:
 
         //Enter a second result
         // storage->mResults.clear();
-        // storage->mResults << QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        // storage->mResults << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Sink::ApplicationDomain::BufferAdaptor>());
         // storage->mLatestRevision = 2;
         resourceAccess->emit revisionChanged(2);
 
@@ -83,17 +83,17 @@ private Q_SLOTS:
 
     void testLiveQueryModify()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.liveQuery = true;
 
-        auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr> >::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
-        auto entity = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        auto entity = QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         entity->setProperty("test", "test1");
         // storage->mResults << entity;
         TestResourceFacade facade("identifier", resourceAccess);
 
-        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
+        async::SyncListResult<Sink::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
 
         facade.load(query, *resultSet).exec().waitForFinished();
         resultSet->initialResultSetComplete();
@@ -103,7 +103,7 @@ private Q_SLOTS:
 
         //Modify the entity again
         // storage->mResults.clear();
-        entity = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+        entity = QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         entity->setProperty("test", "test2");
         // storage->mModifications << entity;
         // storage->mLatestRevision = 2;
@@ -119,16 +119,16 @@ private Q_SLOTS:
 
     void testLiveQueryRemove()
     {
-        Akonadi2::Query query;
+        Sink::Query query;
         query.liveQuery = true;
 
-        auto resultSet = QSharedPointer<Akonadi2::ResultProvider<Akonadi2::ApplicationDomain::Event::Ptr> >::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr> >::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
-        auto entity = QSharedPointer<Akonadi2::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Akonadi2::ApplicationDomain::BufferAdaptor>());
+        auto entity = QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Sink::ApplicationDomain::BufferAdaptor>());
         // storage->mResults << entity;
         TestResourceFacade facade("identifier", resourceAccess);
 
-        async::SyncListResult<Akonadi2::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
+        async::SyncListResult<Sink::ApplicationDomain::Event::Ptr> result(resultSet->emitter());
 
         facade.load(query, *resultSet).exec().waitForFinished();
         resultSet->initialResultSetComplete();

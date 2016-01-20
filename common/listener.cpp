@@ -42,7 +42,7 @@
 Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent)
     : QObject(parent),
       m_server(new QLocalServer(this)),
-      m_resourceName(Akonadi2::resourceName(resourceInstanceIdentifier)),
+      m_resourceName(Sink::resourceName(resourceInstanceIdentifier)),
       m_resourceInstanceIdentifier(resourceInstanceIdentifier),
       m_resource(0),
       m_clientBufferProcessesTimer(new QTimer(this)),
@@ -209,20 +209,20 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
 {
     bool success = true;
     switch (commandId) {
-        case Akonadi2::Commands::HandshakeCommand: {
+        case Sink::Commands::HandshakeCommand: {
             flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
-            if (Akonadi2::Commands::VerifyHandshakeBuffer(verifier)) {
-                auto buffer = Akonadi2::Commands::GetHandshake(commandBuffer.constData());
+            if (Sink::Commands::VerifyHandshakeBuffer(verifier)) {
+                auto buffer = Sink::Commands::GetHandshake(commandBuffer.constData());
                 client.name = buffer->name()->c_str();
             } else {
                 Warning() << "received invalid command";
             }
             break;
         }
-        case Akonadi2::Commands::SynchronizeCommand: {
+        case Sink::Commands::SynchronizeCommand: {
             flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
-            if (Akonadi2::Commands::VerifySynchronizeBuffer(verifier)) {
-                auto buffer = Akonadi2::Commands::GetSynchronize(commandBuffer.constData());
+            if (Sink::Commands::VerifySynchronizeBuffer(verifier)) {
+                auto buffer = Sink::Commands::GetSynchronize(commandBuffer.constData());
                 Log() << QString("\tSynchronize request (id %1) from %2").arg(messageId).arg(client.name);
                 auto timer = QSharedPointer<QTime>::create();
                 timer->start();
@@ -243,28 +243,28 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             }
             break;
         }
-        case Akonadi2::Commands::InspectionCommand:
-        case Akonadi2::Commands::FetchEntityCommand:
-        case Akonadi2::Commands::DeleteEntityCommand:
-        case Akonadi2::Commands::ModifyEntityCommand:
-        case Akonadi2::Commands::CreateEntityCommand:
-            Log() << "\tCommand id  " << messageId << " of type \"" << Akonadi2::Commands::name(commandId) << "\" from " << client.name;
+        case Sink::Commands::InspectionCommand:
+        case Sink::Commands::FetchEntityCommand:
+        case Sink::Commands::DeleteEntityCommand:
+        case Sink::Commands::ModifyEntityCommand:
+        case Sink::Commands::CreateEntityCommand:
+            Log() << "\tCommand id  " << messageId << " of type \"" << Sink::Commands::name(commandId) << "\" from " << client.name;
             loadResource()->processCommand(commandId, commandBuffer);
             break;
-        case Akonadi2::Commands::ShutdownCommand:
+        case Sink::Commands::ShutdownCommand:
             Log() << QString("\tReceived shutdown command from %1").arg(client.name);
             //Immediately reject new connections
             m_server->close();
             QTimer::singleShot(0, this, &Listener::quit);
             break;
-        case Akonadi2::Commands::PingCommand:
+        case Sink::Commands::PingCommand:
             Log() << QString("\tReceived ping command from %1").arg(client.name);
             break;
-        case Akonadi2::Commands::RevisionReplayedCommand: {
+        case Sink::Commands::RevisionReplayedCommand: {
             Log() << QString("\tReceived revision replayed command from %1").arg(client.name);
             flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
-            if (Akonadi2::Commands::VerifyRevisionReplayedBuffer(verifier)) {
-                auto buffer = Akonadi2::Commands::GetRevisionReplayed(commandBuffer.constData());
+            if (Sink::Commands::VerifyRevisionReplayedBuffer(verifier)) {
+                auto buffer = Sink::Commands::GetRevisionReplayed(commandBuffer.constData());
                 client.currentRevision = buffer->revision();
             } else {
                 Warning() << "received invalid command";
@@ -273,7 +273,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         }
             break;
         default:
-            if (commandId > Akonadi2::Commands::CustomCommand) {
+            if (commandId > Sink::Commands::CustomCommand) {
                 Log() << QString("\tReceived custom command from %1: ").arg(client.name) << commandId;
                 loadResource()->processCommand(commandId, commandBuffer);
             } else {
@@ -303,11 +303,11 @@ qint64 Listener::lowerBoundRevision()
 void Listener::quit()
 {
     //Broadcast shutdown notifications to open clients, so they don't try to restart the resource
-    auto command = Akonadi2::Commands::CreateNotification(m_fbb, Akonadi2::Commands::NotificationType::NotificationType_Shutdown);
-    Akonadi2::Commands::FinishNotificationBuffer(m_fbb, command);
+    auto command = Sink::Commands::CreateNotification(m_fbb, Sink::Commands::NotificationType::NotificationType_Shutdown);
+    Sink::Commands::FinishNotificationBuffer(m_fbb, command);
     for (Client &client : m_connections) {
         if (client.socket && client.socket->isOpen()) {
-            Akonadi2::Commands::write(client.socket, ++m_messageId, Akonadi2::Commands::NotificationCommand, m_fbb);
+            Sink::Commands::write(client.socket, ++m_messageId, Sink::Commands::NotificationCommand, m_fbb);
         }
     }
     m_fbb.Clear();
@@ -318,7 +318,7 @@ void Listener::quit()
 
 bool Listener::processClientBuffer(Client &client)
 {
-    static const int headerSize = Akonadi2::Commands::headerSize();
+    static const int headerSize = Sink::Commands::headerSize();
     if (client.commandBuffer.size() < headerSize) {
         return false;
     }
@@ -339,7 +339,7 @@ bool Listener::processClientBuffer(Client &client)
         const QByteArray commandBuffer = client.commandBuffer.left(size);
         client.commandBuffer.remove(0, size);
         processCommand(commandId, messageId, commandBuffer, client, [this, messageId, commandId, socket, clientName](bool success) {
-            Log() << QString("\tCompleted command messageid %1 of type \"%2\" from %3").arg(messageId).arg(QString(Akonadi2::Commands::name(commandId))).arg(clientName);
+            Log() << QString("\tCompleted command messageid %1 of type \"%2\" from %3").arg(messageId).arg(QString(Sink::Commands::name(commandId))).arg(clientName);
             if (socket) {
                 sendCommandCompleted(socket.data(), messageId, success);
             } else {
@@ -359,9 +359,9 @@ void Listener::sendCommandCompleted(QLocalSocket *socket, uint messageId, bool s
         return;
     }
 
-    auto command = Akonadi2::Commands::CreateCommandCompletion(m_fbb, messageId, success);
-    Akonadi2::Commands::FinishCommandCompletionBuffer(m_fbb, command);
-    Akonadi2::Commands::write(socket, ++m_messageId, Akonadi2::Commands::CommandCompletionCommand, m_fbb);
+    auto command = Sink::Commands::CreateCommandCompletion(m_fbb, messageId, success);
+    Sink::Commands::FinishCommandCompletionBuffer(m_fbb, command);
+    Sink::Commands::write(socket, ++m_messageId, Sink::Commands::CommandCompletionCommand, m_fbb);
     m_fbb.Clear();
 }
 
@@ -372,8 +372,8 @@ void Listener::refreshRevision(qint64 revision)
 
 void Listener::updateClientsWithRevision(qint64 revision)
 {
-    auto command = Akonadi2::Commands::CreateRevisionUpdate(m_fbb, revision);
-    Akonadi2::Commands::FinishRevisionUpdateBuffer(m_fbb, command);
+    auto command = Sink::Commands::CreateRevisionUpdate(m_fbb, revision);
+    Sink::Commands::FinishRevisionUpdateBuffer(m_fbb, command);
 
     for (const Client &client: m_connections) {
         if (!client.socket || !client.socket->isValid()) {
@@ -381,44 +381,44 @@ void Listener::updateClientsWithRevision(qint64 revision)
         }
 
         Trace() << "Sending revision update for " << client.name << revision;
-        Akonadi2::Commands::write(client.socket, ++m_messageId, Akonadi2::Commands::RevisionUpdateCommand, m_fbb);
+        Sink::Commands::write(client.socket, ++m_messageId, Sink::Commands::RevisionUpdateCommand, m_fbb);
     }
     m_fbb.Clear();
 }
 
-void Listener::notify(const Akonadi2::Notification &notification)
+void Listener::notify(const Sink::Notification &notification)
 {
     auto messageString = m_fbb.CreateString(notification.message.toUtf8().constData(), notification.message.toUtf8().size());
     auto idString = m_fbb.CreateString(notification.id.constData(), notification.id.size());
-    Akonadi2::Commands::NotificationBuilder builder(m_fbb);
-    builder.add_type(static_cast<Akonadi2::Commands::NotificationType>(notification.type));
+    Sink::Commands::NotificationBuilder builder(m_fbb);
+    builder.add_type(static_cast<Sink::Commands::NotificationType>(notification.type));
     builder.add_code(notification.code);
     builder.add_identifier(idString);
     builder.add_message(messageString);
     auto command = builder.Finish();
-    Akonadi2::Commands::FinishNotificationBuffer(m_fbb, command);
+    Sink::Commands::FinishNotificationBuffer(m_fbb, command);
     for (Client &client : m_connections) {
         if (client.socket && client.socket->isOpen()) {
-            Akonadi2::Commands::write(client.socket, ++m_messageId, Akonadi2::Commands::NotificationCommand, m_fbb);
+            Sink::Commands::write(client.socket, ++m_messageId, Sink::Commands::NotificationCommand, m_fbb);
         }
     }
     m_fbb.Clear();
 }
 
-Akonadi2::Resource *Listener::loadResource()
+Sink::Resource *Listener::loadResource()
 {
     if (!m_resource) {
-        if (Akonadi2::ResourceFactory *resourceFactory = Akonadi2::ResourceFactory::load(m_resourceName)) {
+        if (Sink::ResourceFactory *resourceFactory = Sink::ResourceFactory::load(m_resourceName)) {
             m_resource = resourceFactory->createResource(m_resourceInstanceIdentifier);
             Trace() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
             Trace() << QString("\tResource: %1").arg((qlonglong)m_resource);
-            connect(m_resource, &Akonadi2::Resource::revisionUpdated,
+            connect(m_resource, &Sink::Resource::revisionUpdated,
                 this, &Listener::refreshRevision);
-            connect(m_resource, &Akonadi2::Resource::notify,
+            connect(m_resource, &Sink::Resource::notify,
                 this, &Listener::notify);
         } else {
             ErrorMsg() << "Failed to load resource " << m_resourceName;
-            m_resource = new Akonadi2::Resource;
+            m_resource = new Sink::Resource;
         }
     }
     return m_resource;

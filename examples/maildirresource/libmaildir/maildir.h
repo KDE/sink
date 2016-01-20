@@ -211,7 +211,7 @@ public:
      * Change the flags for an entry specified by @p key. Returns the new key of the entry (the key might change because
      * flags are stored in the unique filename).
      */
-    // QString changeEntryFlags( const QString& key, const Akonadi::Item::Flags& flags );
+    // QString changeEntryFlags( const QString& key, const Sink::Item::Flags& flags );
 
     /**
      * Moves this maildir into @p destination.

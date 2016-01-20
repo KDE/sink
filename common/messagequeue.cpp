@@ -37,7 +37,7 @@ static KAsync::Job<void> waitForCompletion(QList<KAsync::Future<void> > &futures
 }
 
 MessageQueue::MessageQueue(const QString &storageRoot, const QString &name)
-    : mStorage(storageRoot, name, Akonadi2::Storage::ReadWrite)
+    : mStorage(storageRoot, name, Sink::Storage::ReadWrite)
 {
 }
 
@@ -56,13 +56,13 @@ void MessageQueue::startTransaction()
         return;
     }
     processRemovals();
-    mWriteTransaction = std::move(mStorage.createTransaction(Akonadi2::Storage::ReadWrite));
+    mWriteTransaction = std::move(mStorage.createTransaction(Sink::Storage::ReadWrite));
 }
 
 void MessageQueue::commit()
 {
     mWriteTransaction.commit();
-    mWriteTransaction = Akonadi2::Storage::Transaction();
+    mWriteTransaction = Sink::Storage::Transaction();
     processRemovals();
     emit messageReady();
 }
@@ -74,10 +74,10 @@ void MessageQueue::enqueue(const QByteArray &value)
         implicitTransaction = true;
         startTransaction();
     }
-    const qint64 revision = Akonadi2::Storage::maxRevision(mWriteTransaction) + 1;
+    const qint64 revision = Sink::Storage::maxRevision(mWriteTransaction) + 1;
     const QByteArray key = QString("%1").arg(revision).toUtf8();
     mWriteTransaction.openDatabase().write(key, value);
-    Akonadi2::Storage::setMaxRevision(mWriteTransaction, revision);
+    Sink::Storage::setMaxRevision(mWriteTransaction, revision);
     if (implicitTransaction) {
         commit();
     }
@@ -88,7 +88,7 @@ void MessageQueue::processRemovals()
     if (mWriteTransaction) {
         return;
     }
-    auto transaction = std::move(mStorage.createTransaction(Akonadi2::Storage::ReadWrite));
+    auto transaction = std::move(mStorage.createTransaction(Sink::Storage::ReadWrite));
     for (const auto &key : mPendingRemoval) {
         transaction.openDatabase().remove(key);
     }
@@ -117,8 +117,8 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
     return KAsync::start<void>([this, maxBatchSize, resultHandler, resultCount](KAsync::Future<void> &future) {
         int count = 0;
         QList<KAsync::Future<void> > waitCondition;
-        mStorage.createTransaction(Akonadi2::Storage::ReadOnly).openDatabase().scan("", [this, resultHandler, resultCount, &count, maxBatchSize, &waitCondition](const QByteArray &key, const QByteArray &value) -> bool {
-            if (Akonadi2::Storage::isInternalKey(key) || mPendingRemoval.contains(key)) {
+        mStorage.createTransaction(Sink::Storage::ReadOnly).openDatabase().scan("", [this, resultHandler, resultCount, &count, maxBatchSize, &waitCondition](const QByteArray &key, const QByteArray &value) -> bool {
+            if (Sink::Storage::isInternalKey(key) || mPendingRemoval.contains(key)) {
                 return true;
             }
             *resultCount += 1;
@@ -133,7 +133,7 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
             }
             return false;
         },
-        [](const Akonadi2::Storage::Error &error) {
+        [](const Sink::Storage::Error &error) {
             ErrorMsg() << "Error while retrieving value" << error.message;
             // errorHandler(Error(error.store, error.code, error.message));
         });
@@ -157,17 +157,17 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
 bool MessageQueue::isEmpty()
 {
     int count = 0;
-    auto t = mStorage.createTransaction(Akonadi2::Storage::ReadOnly);
+    auto t = mStorage.createTransaction(Sink::Storage::ReadOnly);
     auto db = t.openDatabase();
     if (db) {
         db.scan("", [&count, this](const QByteArray &key, const QByteArray &value) -> bool {
-            if (!Akonadi2::Storage::isInternalKey(key) && !mPendingRemoval.contains(key)) {
+            if (!Sink::Storage::isInternalKey(key) && !mPendingRemoval.contains(key)) {
                 count++;
                 return false;
             }
             return true;
         },
-        [](const Akonadi2::Storage::Error &error) {
+        [](const Sink::Storage::Error &error) {
             ErrorMsg() << "Error while checking if empty" << error.message;
         });
     }

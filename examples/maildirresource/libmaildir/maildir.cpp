@@ -688,7 +688,7 @@ bool Maildir::removeEntry(const QString& key)
     // return QFile::remove(realKey);
 }
 
-// QString Maildir::changeEntryFlags(const QString& key, const Akonadi::Item::Flags& flags)
+// QString Maildir::changeEntryFlags(const QString& key, const Sink::Item::Flags& flags)
 // {
 //     QString realKey(d->findRealKey(key));
 //     if (realKey.isEmpty()) {
@@ -701,16 +701,16 @@ bool Maildir::removeEntry(const QString& key)
 //     QString finalKey = key.left(key.indexOf(rx));
 //
 //     QStringList mailDirFlags;
-//     Q_FOREACH (const Akonadi::Item::Flag &flag, flags) {
-//       if (flag == Akonadi::MessageFlags::Forwarded)
+//     Q_FOREACH (const Sink::Item::Flag &flag, flags) {
+//       if (flag == Sink::MessageFlags::Forwarded)
 //         mailDirFlags << QLatin1String("P");
-//       if (flag == Akonadi::MessageFlags::Replied)
+//       if (flag == Sink::MessageFlags::Replied)
 //         mailDirFlags << QLatin1String("R");
-//       if (flag == Akonadi::MessageFlags::Seen)
+//       if (flag == Sink::MessageFlags::Seen)
 //         mailDirFlags << QLatin1String("S");
-//       if (flag == Akonadi::MessageFlags::Deleted)
+//       if (flag == Sink::MessageFlags::Deleted)
 //         mailDirFlags << QLatin1String("T");
-//       if (flag == Akonadi::MessageFlags::Flagged)
+//       if (flag == Sink::MessageFlags::Flagged)
 //         mailDirFlags << QLatin1String("F");
 //     }
 //     mailDirFlags.sort();
@@ -726,7 +726,7 @@ bool Maildir::removeEntry(const QString& key)
 //     finalKey.prepend(d->path + QString::fromLatin1("/cur/"));
 //
 //     if (realKey == finalKey) {
-//       // Somehow it already is named this way (e.g. migration bug -> wrong status in akonadi)
+//       // Somehow it already is named this way (e.g. migration bug -> wrong status in sink)
 //       return newUniqueKey;
 //     }
 //

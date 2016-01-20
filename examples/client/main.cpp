@@ -34,64 +34,64 @@
 #include <iostream>
 
 /**
- * A small abstraction layer to use the akonadi store with the type available as string.
+ * A small abstraction layer to use the sink store with the type available as string.
  */
 class StoreBase {
 public:
-    virtual Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr getObject() = 0;
-    virtual Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr getObject(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier = QByteArray()) = 0;
-    virtual KAsync::Job<void> create(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) = 0;
-    virtual KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) = 0;
-    virtual KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) = 0;
-    virtual QSharedPointer<QAbstractItemModel> loadModel(const Akonadi2::Query &query) = 0;
+    virtual Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject() = 0;
+    virtual Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier = QByteArray()) = 0;
+    virtual KAsync::Job<void> create(const Sink::ApplicationDomain::ApplicationDomainType &type) = 0;
+    virtual KAsync::Job<void> modify(const Sink::ApplicationDomain::ApplicationDomainType &type) = 0;
+    virtual KAsync::Job<void> remove(const Sink::ApplicationDomain::ApplicationDomainType &type) = 0;
+    virtual QSharedPointer<QAbstractItemModel> loadModel(const Sink::Query &query) = 0;
 };
 
 template <typename T>
 class Store : public StoreBase {
 public:
-    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr getObject() Q_DECL_OVERRIDE {
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject() Q_DECL_OVERRIDE {
         return T::Ptr::create();
     }
 
-    Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr getObject(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier = QByteArray()) Q_DECL_OVERRIDE {
-        return T::Ptr::create(resourceInstanceIdentifier, identifier, 0, QSharedPointer<Akonadi2::ApplicationDomain::MemoryBufferAdaptor>::create());
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier = QByteArray()) Q_DECL_OVERRIDE {
+        return T::Ptr::create(resourceInstanceIdentifier, identifier, 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
     }
 
-    KAsync::Job<void> create(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
-        return Akonadi2::Store::create<T>(*static_cast<const T*>(&type));
+    KAsync::Job<void> create(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
+        return Sink::Store::create<T>(*static_cast<const T*>(&type));
     }
 
-    KAsync::Job<void> modify(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
-        return Akonadi2::Store::modify<T>(*static_cast<const T*>(&type));
+    KAsync::Job<void> modify(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
+        return Sink::Store::modify<T>(*static_cast<const T*>(&type));
     }
 
-    KAsync::Job<void> remove(const Akonadi2::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
-        return Akonadi2::Store::remove<T>(*static_cast<const T*>(&type));
+    KAsync::Job<void> remove(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
+        return Sink::Store::remove<T>(*static_cast<const T*>(&type));
     }
 
-    QSharedPointer<QAbstractItemModel> loadModel(const Akonadi2::Query &query) Q_DECL_OVERRIDE {
-        return Akonadi2::Store::loadModel<T>(query);
+    QSharedPointer<QAbstractItemModel> loadModel(const Sink::Query &query) Q_DECL_OVERRIDE {
+        return Sink::Store::loadModel<T>(query);
     }
 };
 
 StoreBase& getStore(const QString &type)
 {
     if (type == "folder") {
-        static Store<Akonadi2::ApplicationDomain::Folder> store;
+        static Store<Sink::ApplicationDomain::Folder> store;
         return store;
     } else if (type == "mail") {
-        static Store<Akonadi2::ApplicationDomain::Mail> store;
+        static Store<Sink::ApplicationDomain::Mail> store;
         return store;
     } else if (type == "event") {
-        static Store<Akonadi2::ApplicationDomain::Event> store;
+        static Store<Sink::ApplicationDomain::Event> store;
         return store;
     } else if (type == "resource") {
-        static Store<Akonadi2::ApplicationDomain::AkonadiResource> store;
+        static Store<Sink::ApplicationDomain::SinkResource> store;
         return store;
     }
     Q_ASSERT(false);
     qWarning() << "Trying to get a store that doesn't exist, falling back to event";
-    static Store<Akonadi2::ApplicationDomain::Event> store;
+    static Store<Sink::ApplicationDomain::Event> store;
     return store;
 }
 
@@ -118,17 +118,17 @@ public:
         auto syncButton = new QPushButton(this);
         syncButton->setText("Synchronize!");
         QObject::connect(syncButton, &QPushButton::pressed, []() {
-            Akonadi2::Query query;
+            Sink::Query query;
             query.resources << "org.kde.dummy.instance1";
-            Akonadi2::Store::synchronize(query).exec();
+            Sink::Store::synchronize(query).exec();
         });
 
         auto removeButton = new QPushButton(this);
         removeButton->setText("Remove");
         QObject::connect(removeButton, &QPushButton::pressed, [modelView]() {
             for (auto index : modelView->selectionModel()->selectedIndexes()) {
-                auto object = index.data(Akonadi2::Store::DomainObjectRole).value<typename T::Ptr>();
-                Akonadi2::Store::remove(*object).exec();
+                auto object = index.data(Sink::Store::DomainObjectRole).value<typename T::Ptr>();
+                Sink::Store::remove(*object).exec();
             }
         });
 
@@ -142,7 +142,7 @@ public:
 
 };
 
-static QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Akonadi2::Query query)
+static QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Sink::Query query)
 {
     QTime time;
     time.start();
@@ -187,13 +187,13 @@ int main(int argc, char *argv[])
     QStringList args = cliOptions.positionalArguments();
 
     if (cliOptions.isSet("debuglevel")) {
-        Akonadi2::Log::setDebugOutputLevel(static_cast<Akonadi2::Log::DebugLevel>(cliOptions.value("debuglevel").toInt()));
+        Sink::Log::setDebugOutputLevel(static_cast<Sink::Log::DebugLevel>(cliOptions.value("debuglevel").toInt()));
     }
 
     auto type = !args.isEmpty() ? args.takeFirst() : QByteArray();
     auto resources = args;
 
-    Akonadi2::Query query;
+    Sink::Query query;
     for (const auto &res : resources) {
         query.resources << res.toLatin1();
     }
@@ -208,13 +208,13 @@ int main(int argc, char *argv[])
                 model->fetchMore(model->index(i, 0, index));
             }
         });
-        auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Folder> >::create(model.data());
+        auto view = QSharedPointer<View<Sink::ApplicationDomain::Folder> >::create(model.data());
         app.exec();
     } else if (type == "mail") {
-        auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Mail> >::create(model.data());
+        auto view = QSharedPointer<View<Sink::ApplicationDomain::Mail> >::create(model.data());
         app.exec();
     } else if (type == "event") {
-        auto view = QSharedPointer<View<Akonadi2::ApplicationDomain::Event> >::create(model.data());
+        auto view = QSharedPointer<View<Sink::ApplicationDomain::Event> >::create(model.data());
         app.exec();
     }
     return 0;

@@ -37,7 +37,7 @@ class ResultSet {
 
         }
 
-        ResultSet(const std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)>)> &generator)
+        ResultSet(const std::function<bool(std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)>)> &generator)
             : mIt(nullptr),
             mValueGenerator(generator)
         {
@@ -76,7 +76,7 @@ class ResultSet {
             return false;
         }
 
-        bool next(std::function<bool(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &value, Akonadi2::Operation)> callback)
+        bool next(std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation)> callback)
         {
             Q_ASSERT(mValueGenerator);
             return mValueGenerator(callback);
@@ -116,6 +116,6 @@ class ResultSet {
         QVector<QByteArray>::ConstIterator mIt;
         QByteArray mCurrentValue;
         std::function<QByteArray()> mGenerator;
-        std::function<bool(std::function<void(const Akonadi2::ApplicationDomain::ApplicationDomainType::Ptr &, Akonadi2::Operation)>)> mValueGenerator;
+        std::function<bool(std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)>)> mValueGenerator;
 };
 

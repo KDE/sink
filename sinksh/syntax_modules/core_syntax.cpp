@@ -39,7 +39,7 @@ bool showHelp(const QStringList &commands, State &state)
 {
     SyntaxTree::Command command = SyntaxTree::self()->match(commands);
     if (commands.isEmpty()) {
-        state.printLine(QObject::tr("Welcome to the Akonadi2 command line tool!"));
+        state.printLine(QObject::tr("Welcome to the Sink command line tool!"));
         state.printLine(QObject::tr("Top-level commands:"));
 
         QSet<QString> sorted;

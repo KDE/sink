@@ -23,7 +23,7 @@
 #include <QByteArray>
 #include <QHash>
 
-namespace Akonadi2 {
+namespace Sink {
 
 namespace ApplicationDomain {
 

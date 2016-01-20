@@ -17,8 +17,8 @@ class MessageQueueTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
-        Akonadi2::Log::setDebugOutputLevel(Akonadi2::Log::Trace);
-        Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue", Akonadi2::Storage::ReadWrite);
+        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
+        Sink::Storage store(Sink::Store::storageLocation(), "org.kde.dummy.testqueue", Sink::Storage::ReadWrite);
         store.removeFromDisk();
     }
 
@@ -28,13 +28,13 @@ private Q_SLOTS:
 
     void cleanup()
     {
-        Akonadi2::Storage store(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue", Akonadi2::Storage::ReadWrite);
+        Sink::Storage store(Sink::Store::storageLocation(), "org.kde.dummy.testqueue", Sink::Storage::ReadWrite);
         store.removeFromDisk();
     }
 
     void testEmpty()
     {
-        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
         QVERIFY(queue.isEmpty());
         queue.enqueue("value");
         QVERIFY(!queue.isEmpty());
@@ -42,7 +42,7 @@ private Q_SLOTS:
 
     void testDequeueEmpty()
     {
-        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
         bool gotValue = false;
         bool gotError = false;
         queue.dequeue([&](void *ptr, int size, std::function<void(bool success)> callback) {
@@ -57,7 +57,7 @@ private Q_SLOTS:
 
     void testEnqueue()
     {
-        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
         QSignalSpy spy(&queue, SIGNAL(messageReady()));
         queue.enqueue("value1");
         QCOMPARE(spy.size(), 1);
@@ -65,7 +65,7 @@ private Q_SLOTS:
 
     void testDrained()
     {
-        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
         QSignalSpy spy(&queue, SIGNAL(drained()));
         queue.enqueue("value1");
 
@@ -81,7 +81,7 @@ private Q_SLOTS:
         values << "value1";
         values << "value2";
 
-        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
         for (const QByteArray &value : values) {
             queue.enqueue(value);
         }
@@ -112,7 +112,7 @@ private Q_SLOTS:
         values << "value1";
         values << "value2";
 
-        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
         for (const QByteArray &value : values) {
             queue.enqueue(value);
         }
@@ -151,7 +151,7 @@ private Q_SLOTS:
      */
     void testNestedEnqueue()
     {
-        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
         queue.enqueue("value1");
 
         bool gotError = false;
@@ -167,7 +167,7 @@ private Q_SLOTS:
 
     void testBatchDequeue()
     {
-        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
         queue.enqueue("value1");
         queue.enqueue("value2");
         queue.enqueue("value3");
@@ -188,7 +188,7 @@ private Q_SLOTS:
 
     void testBatchEnqueue()
     {
-        MessageQueue queue(Akonadi2::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
         QSignalSpy spy(&queue, SIGNAL(messageReady()));
         queue.startTransaction();
         queue.enqueue("value1");
