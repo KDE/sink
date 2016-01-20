@@ -101,6 +101,8 @@ install(FILES
     clientapi.h
     domain/applicationdomaintype.h
     query.h
+    inspection.h
+    notification.h
     bufferadaptor.h
     DESTINATION ${INCLUDE_INSTALL_DIR}/${PROJECT_NAME} COMPONENT Devel
 )
