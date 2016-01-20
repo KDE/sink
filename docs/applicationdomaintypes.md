@@ -22,7 +22,7 @@ This is a proposed set of types that we will need to evolve into what we actuall
         * Mail
         * Contact
         * Collection
-            * Akonadi Resource
+            * Sink Resource
             * Mail Folder
             * Calendar
             * Todolist
@@ -32,19 +32,19 @@ This is a proposed set of types that we will need to evolve into what we actuall
             * Tag
             * Contact Group
             * Thread
-    * Akonadi Resource
+    * Sink Resource
         * Maildir Resource
 
 #### Properties
 ```no-highlight
-Entity: The smallest unit in the akonadi universe
-    id: unique identifier in the akonadi storage. Not persistant over db recreations and can therefore only be referenced from within the akonadi database.
+Entity: The smallest unit in the sink universe
+    id: unique identifier in the sink storage. Not persistant over db recreations and can therefore only be referenced from within the sink database.
 ```
 ```no-highlight
 Domain Object:
     uid: unique identifier of the domain object.
     revision: revision of the entity
-    resource: reference to AkonadiResource:id of the parent resource.
+    resource: reference to SinkResource:id of the parent resource.
 ```
 ```no-highlight
 Event:
@@ -61,7 +61,7 @@ Mail:
     mimeMessage: A string containing the path to the mime message
 ```
 ```no-highlight
-Akonadi Resource:
+Sink Resource:
     type: The type of the resource.
     name: The name of the resource.
 ```
@@ -75,7 +75,7 @@ Some domain objects reference others, and that is often used to build hierarchie
 Examples are folder hierachies, tags, todo hierarchies, mail threads, contact groups, etc.
 
 These references can be built on two levels:
-* On the akonadi entity level: The referenced object *must* be available in local storage, and we're only linking to that specific instance. If the referenced entity is removed, the reference breaks. The reference always only references a single akonadi entity.
+* On the sink entity level: The referenced object *must* be available in local storage, and we're only linking to that specific instance. If the referenced entity is removed, the reference breaks. The reference always only references a single sink entity.
 * On the domain object level: The reference can remain also if no object currently matches the reference. The reference automatically applies to new entities containing an object with the referenced uid. More than one entity can be matched if they contain the same domain object.
 
 #### Examples
@@ -84,7 +84,7 @@ The following hierachies exist among others:
 * Parent Collection
     * Given by the source (path of the folder in IMAP)
     * Parent folder "owns" the sub entity
-    * Link exists on the akonadi entity level: We specify where the entity lives, this MUST always be a single parent entity.
+    * Link exists on the sink entity level: We specify where the entity lives, this MUST always be a single parent entity.
 * Subtodos
     * Given by the todo itself
     * Not necessarly owning (though often implemented as such, similar to threading)

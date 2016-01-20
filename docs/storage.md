@@ -34,7 +34,7 @@ The additional revision identifies a specific instance/version of the entity.
 
 Uri Scheme:
 ```
-akonadi://resource/id:revision
+sink://resource/id:revision
 ```
 
 ## Store Entities
@@ -138,7 +138,7 @@ Resources...
 
 Queries...
 
-* Copy the requested property to /tmp/akonadi2/client_files/ and provide the path in the property
+* Copy the requested property to /tmp/sink/client_files/ and provide the path in the property
 * The file is guaranteed to exist for the lifetime of the query result.
 
 Clients..
@@ -149,7 +149,7 @@ For writing:
 
 Clients..
 
-* Request a path from akonadi2 and store the file there.
+* Request a path from sink and store the file there.
 * Store the path of the written file in the property.
 
 Resources..
@@ -218,7 +218,7 @@ Other useful properties:
 * couchdb
     * MVCC concurrency
     * document store
-    * not embeddable (unless we write akonadi in erlang ;)
+    * not embeddable (unless we write sink in erlang ;)
 * https://github.com/simonhf/sharedhashfile
     * not portable (i.e. Windows; it's a mostly-Linux thing)
 * http://sphia.org/architecture.html

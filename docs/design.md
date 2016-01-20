@@ -40,7 +40,7 @@ Implications of the above:
 # Overview
 
 ## Client API
-The client facing API hides all akonadi internals from the applications and emulates a unified store that provides data through a standardized interface. 
+The client facing API hides all Sink internals from the applications and emulates a unified store that provides data through a standardized interface. 
 This allows applications to transparently use various data sources with various data source formats.
 
 ## Resource
@@ -98,4 +98,4 @@ Each resource has an internal pipeline of preprocessors that can be used for tas
 * key-value store does not perform with large amounts of data
 * query performance is not sufficient
 * turnaround time for modifications is too high to feel responsive
-* design turns out similarly complex as akonadi1
+* design turns out similarly complex as Akonadi

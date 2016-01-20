@@ -1,4 +1,4 @@
-site_name: Akonadi Next
+site_name: Sink
 pages:
 - Home: index.md
 - Terminology: terminology.md
@@ -7,8 +7,8 @@ pages:
 - Storage: storage.md
 - Logging: logging.md
 - "Client API": clientapi.md
-- akonadish: akonadish.md
+- sinksh: sinksh.md
 - "Application Domain Types": applicationdomaintypes.md
-- "Extending Akonadi": extendingakonadi.md
+- "Extending Sink": extending.md
 - Building: building.md
 theme: readthedocs

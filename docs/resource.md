@@ -31,7 +31,7 @@ The following kinds of preprocessors exist:
 * passive preprocessors, that extract data that is stored externally (i.e. indexers)
 * flag extractors, that produce data stored with the entity (spam detection)
 
-Preprocessors are typically read-only, to i.e. not break signatures of emails. Extra flags that are accessible through the akonadi domain model, can therefore be stored in the local buffer of each resource.
+Preprocessors are typically read-only, to i.e. not break signatures of emails. Extra flags that are accessible through the sink domain model, can therefore be stored in the local buffer of each resource.
 
 ## Requirements
 * A preprocessor must work with batch processing. Because batch-processing is vital for efficient writing to the database, all preprocessors have to be included in the batch processing.
