@@ -10,4 +10,5 @@ pages:
 - akonadish: akonadish.md
 - "Application Domain Types": applicationdomaintypes.md
 - "Extending Akonadi": extendingakonadi.md
+- Building: building.md
 theme: readthedocs
