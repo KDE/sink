@@ -25,7 +25,7 @@ install(FILES
   COMPONENT Devel
 )
 
-install(EXPORT SinkCommonTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE SinkCommonTargets.cmake NAMESPACE KF5::)
+install(EXPORT SinkCommonTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE SinkCommonTargets.cmake)
 
 set(storage_SRCS storage_lmdb.cpp)
 set(storage_LIBS lmdb)
