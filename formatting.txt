@@ -1,0 +1,7 @@
+Configuration: See .clang-format
+
+# Reformat
+clang-format -i common/*.{cpp,h}
+
+# Test
+clang-format formattest.cpp > formatted && vimdiff formattest.cpp formatted
