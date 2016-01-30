@@ -156,8 +156,8 @@ void Storage::NamedDatabase::remove(const QByteArray &k, const QByteArray &value
                      const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d || !d->transaction) {
-        Error error(d->name.toLatin1() + d->db, ErrorCodes::GenericError, "Not open");
         if (d) {
+            Error error(d->name.toLatin1() + d->db, ErrorCodes::GenericError, "Not open");
             errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
         }
         return;
