@@ -97,6 +97,8 @@ target_link_libraries(${PROJECT_NAME} ${storage_LIBS} KF5::Async)
 install(TARGETS ${PROJECT_NAME}
     EXPORT SinkCommonTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )
 
+add_clang_static_analysis(${PROJECT_NAME})
+
 install(FILES
     clientapi.h
     domain/applicationdomaintype.h

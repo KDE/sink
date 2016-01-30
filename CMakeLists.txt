@@ -41,6 +41,20 @@ function(generate_flatbuffers _target)
     endforeach(fbs)
 endfunction(generate_flatbuffers)
 
+add_custom_target(analyze)
+function(add_clang_static_analysis target)
+    get_target_property(SRCs ${target} SOURCES)
+    get_target_property(INCLUDEs ${target} INCLUDE_DIRECTORIES)
+    add_library(${target}_analyze OBJECT EXCLUDE_FROM_ALL ${SRCs})
+    set_target_properties(${target}_analyze PROPERTIES
+        COMPILE_OPTIONS "--analyze"
+        EXCLUDE_FROM_DEFAULT_BUILD true
+        INCLUDE_DIRECTORIES "${INCLUDEs};/work/install/include/KF5/" # Had to hardcode include directory to find KAsync includes
+        COMPILE_FLAGS "${Qt5Core_EXECUTABLE_COMPILE_FLAGS}" # Necessary to get options such as fPic
+    )
+    add_dependencies(analyze ${target}_analyze)
+endfunction()
+
 set(CMAKE_AUTOMOC ON)
 add_definitions("-Wall -std=c++0x -g")
 include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${FLATBUFFERS_INCLUDE_DIR} ${CMAKE_BINARY_DIR}/common)
