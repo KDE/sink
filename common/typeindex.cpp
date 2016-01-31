@@ -111,9 +111,9 @@ ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFi
                 Warning() << "Error in index: " <<  error.message << property;
             });
             appliedFilters << property;
+            Trace() << "Index lookup on " << property << " found " << keys.size() << " keys.";
+            return ResultSet(keys);
         }
-        Trace() << "Index lookup on " << property << " found " << keys.size() << " keys.";
-        return ResultSet(keys);
     }
     Trace() << "No matching index";
     return ResultSet(keys);
