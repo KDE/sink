@@ -424,3 +424,7 @@ Sink::Resource *Listener::loadResource()
     return m_resource;
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#include "moc_listener.cpp"
+#pragma clang diagnostic pop

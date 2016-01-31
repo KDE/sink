@@ -34,7 +34,7 @@ Resource::Resource()
     : QObject(),
     d(0)
 {
-
+    Q_UNUSED(d);
 }
 
 Resource::~Resource()
@@ -75,7 +75,7 @@ ResourceFactory::ResourceFactory(QObject *parent)
     : QObject(parent),
       d(0)
 {
-
+    Q_UNUSED(d);
 }
 
 ResourceFactory::~ResourceFactory()
@@ -129,3 +129,9 @@ ResourceFactory *ResourceFactory::load(const QString &resourceName)
 }
 
 } // namespace Sink
+
+//Ignore warning I don't know how to fix in a moc file
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#include "moc_resource.cpp"
+#pragma clang diagnostic pop

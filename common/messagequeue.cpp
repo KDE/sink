@@ -174,3 +174,7 @@ bool MessageQueue::isEmpty()
     return count == 0;
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#include "moc_messagequeue.cpp"
+#pragma clang diagnostic pop

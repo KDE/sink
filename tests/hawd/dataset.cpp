@@ -216,8 +216,8 @@ QString Dataset::Row::toString(const QStringList &cols, int standardCols, const 
 Dataset::Dataset(const QString &name, const State &state)
     : m_definition(state.datasetDefinition(name)),
       m_storage(state.resultsPath(), name, Sink::Storage::ReadWrite),
-      m_commitHash(state.commitHash()),
-      m_transaction(std::move(m_storage.createTransaction()))
+      m_transaction(std::move(m_storage.createTransaction())),
+      m_commitHash(state.commitHash())
 {
 }
 

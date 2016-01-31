@@ -169,5 +169,7 @@ static char *sink_cli_next_tab_complete_match(const char *text, int state)
 }
 
 //Ignore warning I don't know how to fix in a moc file
+#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
 #include "moc_replStates.cpp"
+#pragma clang diagnostic pop

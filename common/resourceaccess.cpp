@@ -589,3 +589,8 @@ void ResourceAccess::log(const QString &message)
 }
 
 }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#include "moc_resourceaccess.cpp"
+#pragma clang diagnostic pop
