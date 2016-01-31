@@ -47,6 +47,7 @@ QMap<QString, QString> keyValueMapFromArgs(const QStringList &args);
  */
 class StoreBase {
 public:
+    virtual ~StoreBase() {};
     virtual Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject() = 0;
     virtual Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier = QByteArray()) = 0;
     virtual KAsync::Job<void> create(const Sink::ApplicationDomain::ApplicationDomainType &type) = 0;

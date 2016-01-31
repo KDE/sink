@@ -52,6 +52,8 @@ template<typename BufferType>
 class ReadPropertyMapper
 {
 public:
+    virtual ~ReadPropertyMapper(){};
+
     virtual QVariant getProperty(const QByteArray &key, BufferType const *buffer) const
     {
         if (mReadAccessors.contains(key)) {
@@ -106,6 +108,8 @@ template<typename BufferBuilder>
 class WritePropertyMapper
 {
 public:
+    virtual ~WritePropertyMapper(){};
+
     virtual void setProperty(const QByteArray &key, const QVariant &value, QList<std::function<void(BufferBuilder &)> > &builderCalls, flatbuffers::FlatBufferBuilder &fbb) const
     {
         if (mWriteAccessors.contains(key)) {

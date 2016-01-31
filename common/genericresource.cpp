@@ -197,7 +197,6 @@ private slots:
             default:
                 return KAsync::error<qint64>(-1, "Unhandled command");
         }
-        return KAsync::null<qint64>();
     }
 
     KAsync::Job<qint64, qint64> processQueuedCommand(const QByteArray &data)

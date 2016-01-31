@@ -100,6 +100,36 @@ QByteArray ApplicationDomainType::identifier() const
     return mIdentifier;
 }
 
+Entity::~Entity()
+{
+
+}
+
+Event::~Event()
+{
+
+}
+
+Todo::~Todo()
+{
+
+}
+
+Mail::~Mail()
+{
+
+}
+
+Folder::~Folder()
+{
+
+}
+
+SinkResource::~SinkResource()
+{
+
+}
+
 template<>
 QByteArray getTypeName<Event>()
 {

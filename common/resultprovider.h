@@ -27,8 +27,6 @@
 #include "resultset.h"
 #include "log.h"
 
-using namespace async;
-
 namespace Sink {
 
 /**
@@ -43,6 +41,11 @@ class ResultProviderInterface
 public:
     ResultProviderInterface()
         : mRevision(0)
+    {
+
+    }
+
+    virtual ~ResultProviderInterface()
     {
 
     }
@@ -183,7 +186,7 @@ public:
 
     void onDone(const std::function<void()> &callback)
     {
-        mThreadBoundary = QSharedPointer<ThreadBoundary>::create();
+        mThreadBoundary = QSharedPointer<async::ThreadBoundary>::create();
         mOnDoneCallback = callback;
     }
 
@@ -212,7 +215,7 @@ private:
 
     QWeakPointer<ResultEmitter<T> > mResultEmitter;
     std::function<void()> mOnDoneCallback;
-    QSharedPointer<ThreadBoundary> mThreadBoundary;
+    QSharedPointer<async::ThreadBoundary> mThreadBoundary;
     std::function<void(const T &parent)> mFetcher;
 };
 
@@ -327,7 +330,7 @@ private:
     std::function<void(void)> clearHandler;
 
     std::function<void(const DomainType &parent)> mFetcher;
-    ThreadBoundary mThreadBoundary;
+    async::ThreadBoundary mThreadBoundary;
 };
 
 template<class DomainType>

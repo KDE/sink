@@ -85,31 +85,37 @@ inline bool operator==(const ApplicationDomainType& lhs, const ApplicationDomain
 struct Entity : public ApplicationDomainType {
     typedef QSharedPointer<Entity> Ptr;
     using ApplicationDomainType::ApplicationDomainType;
+    virtual ~Entity();
 };
 
 struct Event : public Entity {
     typedef QSharedPointer<Event> Ptr;
     using Entity::Entity;
+    virtual ~Event();
 };
 
 struct Todo : public Entity {
     typedef QSharedPointer<Todo> Ptr;
     using Entity::Entity;
+    virtual ~Todo();
 };
 
 struct Calendar : public Entity {
     typedef QSharedPointer<Calendar> Ptr;
     using Entity::Entity;
+    virtual ~Calendar();
 };
 
 struct Mail : public Entity {
     typedef QSharedPointer<Mail> Ptr;
     using Entity::Entity;
+    virtual ~Mail();
 };
 
 struct Folder : public Entity {
     typedef QSharedPointer<Folder> Ptr;
     using Entity::Entity;
+    virtual ~Folder();
 };
 
 /**
@@ -121,6 +127,7 @@ struct Folder : public Entity {
 struct SinkResource : public ApplicationDomainType {
     typedef QSharedPointer<SinkResource> Ptr;
     using ApplicationDomainType::ApplicationDomainType;
+    virtual ~SinkResource();
 };
 
 /**

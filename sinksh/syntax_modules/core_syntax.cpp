@@ -32,7 +32,6 @@ namespace CoreSyntax
 bool exit(const QStringList &, State &)
 {
     ::exit(0);
-    return true;
 }
 
 bool showHelp(const QStringList &commands, State &state)

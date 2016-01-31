@@ -443,8 +443,8 @@ Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, 
     d->implicitCommit = true;
     auto p = new Storage::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
     if (!p->openDatabase(d->requestedRead, errorHandler)) {
-        return Storage::NamedDatabase();
         delete p;
+        return Storage::NamedDatabase();
     }
     return Storage::NamedDatabase(p);
 }

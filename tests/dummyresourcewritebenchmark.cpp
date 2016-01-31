@@ -120,6 +120,7 @@ class DummyResourceWriteBenchmark : public QObject
             resource.processCommand(Sink::Commands::CreateEntityCommand, command);
         }
         auto appendTime = time.elapsed();
+        Q_UNUSED(appendTime);
         auto bufferSizeTotal = bufferSize * num;
 
         //Wait until all messages have been processed

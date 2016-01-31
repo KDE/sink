@@ -17,7 +17,7 @@ public:
     {
         open(WriteOnly);
     }
-    virtual ~DebugStream(){};
+    virtual ~DebugStream();
 
     bool isSequential() const { return true; }
     qint64 readData(char *, qint64) { return 0; /* eof */ }
@@ -35,6 +35,10 @@ private:
     Q_DISABLE_COPY(DebugStream)
 };
 
+//Virtual method anchor
+DebugStream::~DebugStream()
+{}
+
 class NullStream: public QIODevice
 {
 public:
@@ -43,7 +47,7 @@ public:
     {
         open(WriteOnly);
     }
-    virtual ~NullStream(){};
+    virtual ~NullStream();
 
     bool isSequential() const { return true; }
     qint64 readData(char *, qint64) { return 0; /* eof */ }
@@ -55,6 +59,10 @@ public:
 private:
     Q_DISABLE_COPY(NullStream)
 };
+
+//Virtual method anchor
+NullStream::~NullStream()
+{}
 
     /*
      * ANSI color codes:
@@ -174,8 +182,6 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char* file,
         case DebugLevel::Error:
             prefix = "Error:  ";
             prefixColorCode = ANSI_Colors::Red;
-            break;
-        default:
             break;
     };
 

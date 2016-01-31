@@ -566,6 +566,9 @@ bool ResourceAccess::processMessageBuffer()
                     }, this);
                 }
                     break;
+                case Sink::Commands::NotificationType::NotificationType_Status:
+                case Sink::Commands::NotificationType::NotificationType_Warning:
+                case Sink::Commands::NotificationType::NotificationType_Progress:
                 default:
                     Warning() << "Received unknown notification: " << buffer->type();
                     break;
