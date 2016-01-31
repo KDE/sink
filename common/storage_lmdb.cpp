@@ -463,7 +463,7 @@ QList<QByteArray> Storage::Transaction::getDatabaseNames() const
         MDB_val data;
         MDB_cursor *cursor;
 
-        rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
+        mdb_cursor_open(d->transaction, d->dbi, &cursor);
         if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST)) == 0) {
             list << QByteArray::fromRawData((char*)key.mv_data, key.mv_size);
             while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {

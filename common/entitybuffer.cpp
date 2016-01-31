@@ -25,6 +25,7 @@ bool EntityBuffer::isValid() const
 
 const Sink::Entity &EntityBuffer::entity()
 {
+    Q_ASSERT(mEntity);
     return *mEntity;
 }
 
