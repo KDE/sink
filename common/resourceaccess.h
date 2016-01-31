@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <sinkcommon_export.h>
+#include "sinkcommon_export.h"
 #include <QLocalSocket>
 #include <QObject>
 #include <QTimer>

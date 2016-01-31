@@ -108,6 +108,7 @@ install(FILES
     inspection.h
     notification.h
     bufferadaptor.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sinkcommon_export.h
     DESTINATION ${INCLUDE_INSTALL_DIR}/${PROJECT_NAME} COMPONENT Devel
 )
 

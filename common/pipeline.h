@@ -25,7 +25,7 @@
 #include <QSharedDataPointer>
 #include <QObject>
 
-#include <sinkcommon_export.h>
+#include "sinkcommon_export.h"
 #include <storage.h>
 
 #include <Async/Async>

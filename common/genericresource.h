@@ -19,7 +19,7 @@
  */
 #pragma once
 
-#include <sinkcommon_export.h>
+#include "sinkcommon_export.h"
 #include <resource.h>
 #include <messagequeue.h>
 #include <flatbuffers/flatbuffers.h>

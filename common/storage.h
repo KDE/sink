@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include <sinkcommon_export.h>
+#include "sinkcommon_export.h"
 #include <string>
 #include <functional>
 #include <QString>

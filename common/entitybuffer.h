@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sinkcommon_export.h>
+#include "sinkcommon_export.h"
 #include <functional>
 #include <flatbuffers/flatbuffers.h>
 

@@ -19,7 +19,7 @@
  */
 #pragma once
 
-#include <sinkcommon_export.h>
+#include "sinkcommon_export.h"
 
 #include <Async/Async>
 #include "notification.h"
