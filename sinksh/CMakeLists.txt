@@ -2,8 +2,6 @@ project(sinksh)
 
 find_package(Readline REQUIRED)
 
-add_definitions("-Wno-undefined-reinterpret-cast")
-
 set(sink_cli_SRCS
     main.cpp
     syntaxtree.cpp
