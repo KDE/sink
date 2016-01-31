@@ -49,9 +49,11 @@ function(add_clang_static_analysis target)
     set_target_properties(${target}_analyze PROPERTIES
         COMPILE_OPTIONS "--analyze"
         EXCLUDE_FROM_DEFAULT_BUILD true
-        INCLUDE_DIRECTORIES "${INCLUDEs};/work/install/include/KF5/" # Had to hardcode include directory to find KAsync includes
-        COMPILE_FLAGS "${Qt5Core_EXECUTABLE_COMPILE_FLAGS}" # Necessary to get options such as fPic
+        INCLUDE_DIRECTORIES "${INCLUDEs};${KDE_INSTALL_FULL_INCLUDEDIR}/KF5/" # Had to hardcode include directory to find KAsync includes
+        #COMPILE_FLAGS is deprecated, but the only way that -Xanalyzer isn't erronously deduplicated
+        COMPILE_FLAGS "-Xanalyzer -analyzer-eagerly-assume -Xanalyzer -analyzer-opt-analyze-nested-blocks"
     )
+    target_compile_options(${target}_analyze PRIVATE ${Qt5Core_EXECUTABLE_COMPILE_FLAGS})# Necessary to get options such as fPIC
     add_dependencies(analyze ${target}_analyze)
 endfunction()
 
