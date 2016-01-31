@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sinkcommon_export.h>
 #include <QDebug>
 
 namespace Sink {
@@ -12,13 +13,13 @@ enum DebugLevel {
     Error
 };
 
-QByteArray debugLevelName(DebugLevel debugLevel);
-DebugLevel debugLevelFromName(const QByteArray &name);
+QByteArray SINKCOMMON_EXPORT debugLevelName(DebugLevel debugLevel);
+DebugLevel SINKCOMMON_EXPORT debugLevelFromName(const QByteArray &name);
 
-void setDebugOutputLevel(DebugLevel);
-DebugLevel debugOutputLevel();
+void SINKCOMMON_EXPORT setDebugOutputLevel(DebugLevel);
+DebugLevel SINKCOMMON_EXPORT debugOutputLevel();
 
-QDebug debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
+QDebug SINKCOMMON_EXPORT debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
 
 }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sinkcommon_export.h>
 #include <string>
 #include <functional>
 #include <QString>
@@ -8,7 +9,7 @@
 /**
  * An index for value pairs.
  */
-class Index
+class SINKCOMMON_EXPORT Index
 {
 public:
     enum ErrorCodes {

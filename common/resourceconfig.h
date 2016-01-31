@@ -19,12 +19,13 @@
 
 #pragma once
 
+#include <sinkcommon_export.h>
 #include <QList>
 #include <QByteArray>
 #include <QVariant>
 #include <QMap>
 
-class ResourceConfig
+class SINKCOMMON_EXPORT ResourceConfig
 {
 public:
     static QMap<QByteArray, QByteArray> getResources();

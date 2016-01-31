@@ -1,12 +1,13 @@
 #pragma once
 
+#include <sinkcommon_export.h>
 #include <functional>
 #include <flatbuffers/flatbuffers.h>
 
 namespace Sink {
 struct Entity;
 
-class EntityBuffer {
+class SINKCOMMON_EXPORT EntityBuffer {
 public:
     EntityBuffer(const void *dataValue, int size);
     const uint8_t *resourceBuffer();

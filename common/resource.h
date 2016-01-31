@@ -67,7 +67,7 @@ private:
 /**
  * Factory interface for resource to implement.
  */
-class ResourceFactory : public QObject
+class SINKCOMMON_EXPORT ResourceFactory : public QObject
 {
 public:
     static ResourceFactory *load(const QString &resourceName);

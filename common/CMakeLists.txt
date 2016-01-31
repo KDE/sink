@@ -25,6 +25,8 @@ install(FILES
   COMPONENT Devel
 )
 
+add_definitions("-fvisibility=hidden")
+
 install(EXPORT SinkCommonTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE SinkCommonTargets.cmake)
 
 set(storage_SRCS storage_lmdb.cpp)

@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <sinkcommon_export.h>
 #include "facadeinterface.h"
 
 #include <QByteArray>
@@ -43,7 +44,7 @@ namespace Sink {
  * Additionally a resource only has to provide a synchronizer plugin to execute the synchronization
  */
 template <typename DomainType>
-class GenericFacade: public Sink::StoreFacade<DomainType>
+class SINKCOMMON_EXPORT GenericFacade: public Sink::StoreFacade<DomainType>
 {
 public:
     /**

@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <sinkcommon_export.h>
 #include <QObject>
 
 #include <QPointer>
@@ -56,7 +57,7 @@ public:
     qint64 currentRevision;
 };
 
-class Listener : public QObject
+class SINKCOMMON_EXPORT Listener : public QObject
 {
     Q_OBJECT
 

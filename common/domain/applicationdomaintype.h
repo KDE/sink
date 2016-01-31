@@ -19,6 +19,7 @@
  */
 #pragma once
 
+#include <sinkcommon_export.h>
 #include <QSharedPointer>
 #include <QVariant>
 #include <QByteArray>
@@ -35,7 +36,7 @@ namespace ApplicationDomain {
  *
  * ApplicationDomainTypes don't adhere to any standard and are meant to be extended frequently (hence the non-typesafe interface).
  */
-class ApplicationDomainType {
+class SINKCOMMON_EXPORT ApplicationDomainType {
 public:
     typedef QSharedPointer<ApplicationDomainType> Ptr;
 
@@ -82,37 +83,37 @@ inline bool operator==(const ApplicationDomainType& lhs, const ApplicationDomain
             && lhs.resourceInstanceIdentifier() == rhs.resourceInstanceIdentifier();
 }
 
-struct Entity : public ApplicationDomainType {
+struct SINKCOMMON_EXPORT Entity : public ApplicationDomainType {
     typedef QSharedPointer<Entity> Ptr;
     using ApplicationDomainType::ApplicationDomainType;
     virtual ~Entity();
 };
 
-struct Event : public Entity {
+struct SINKCOMMON_EXPORT Event : public Entity {
     typedef QSharedPointer<Event> Ptr;
     using Entity::Entity;
     virtual ~Event();
 };
 
-struct Todo : public Entity {
+struct SINKCOMMON_EXPORT Todo : public Entity {
     typedef QSharedPointer<Todo> Ptr;
     using Entity::Entity;
     virtual ~Todo();
 };
 
-struct Calendar : public Entity {
+struct SINKCOMMON_EXPORT Calendar : public Entity {
     typedef QSharedPointer<Calendar> Ptr;
     using Entity::Entity;
     virtual ~Calendar();
 };
 
-struct Mail : public Entity {
+struct SINKCOMMON_EXPORT Mail : public Entity {
     typedef QSharedPointer<Mail> Ptr;
     using Entity::Entity;
     virtual ~Mail();
 };
 
-struct Folder : public Entity {
+struct SINKCOMMON_EXPORT Folder : public Entity {
     typedef QSharedPointer<Folder> Ptr;
     using Entity::Entity;
     virtual ~Folder();
@@ -124,7 +125,7 @@ struct Folder : public Entity {
  * This type is used for configuration of resources,
  * and for creating and removing resource instances.
  */
-struct SinkResource : public ApplicationDomainType {
+struct SINKCOMMON_EXPORT SinkResource : public ApplicationDomainType {
     typedef QSharedPointer<SinkResource> Ptr;
     using ApplicationDomainType::ApplicationDomainType;
     virtual ~SinkResource();
@@ -136,22 +137,22 @@ struct SinkResource : public ApplicationDomainType {
  * Do not store these types to disk, they may change over time.
  */
 template<class DomainType>
-QByteArray getTypeName();
+QByteArray SINKCOMMON_EXPORT getTypeName();
 
 template<>
-QByteArray getTypeName<Event>();
+QByteArray SINKCOMMON_EXPORT getTypeName<Event>();
 
 template<>
-QByteArray getTypeName<Todo>();
+QByteArray SINKCOMMON_EXPORT getTypeName<Todo>();
 
 template<>
-QByteArray getTypeName<SinkResource>();
+QByteArray SINKCOMMON_EXPORT getTypeName<SinkResource>();
 
 template<>
-QByteArray getTypeName<Mail>();
+QByteArray SINKCOMMON_EXPORT getTypeName<Mail>();
 
 template<>
-QByteArray getTypeName<Folder>();
+QByteArray SINKCOMMON_EXPORT getTypeName<Folder>();
 
 /**
  * Type implementation.
@@ -160,7 +161,7 @@ QByteArray getTypeName<Folder>();
  * Contains all non-resource specific, but type-specific code.
  */
 template<typename DomainType>
-class TypeImplementation;
+class SINKCOMMON_EXPORT TypeImplementation;
 
 }
 }

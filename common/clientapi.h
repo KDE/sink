@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <sinkcommon_export.h>
 #include <QString>
 #include <QSharedPointer>
 
@@ -38,7 +39,7 @@ class Notification;
 /**
  * Store interface used in the client API.
  */
-class Store {
+class SINKCOMMON_EXPORT Store {
 public:
     static QString storageLocation();
     static QByteArray resourceName(const QByteArray &instanceIdentifier);
@@ -121,10 +122,10 @@ public:
 
 namespace Resources {
     template <class DomainType>
-    KAsync::Job<void> inspect(const Inspection &inspectionCommand);
+    KAsync::Job<void> SINKCOMMON_EXPORT inspect(const Inspection &inspectionCommand);
 }
 
-class Notifier {
+class SINKCOMMON_EXPORT Notifier {
 public:
     Notifier(const QSharedPointer<ResourceAccess> &resourceAccess);
     // Notifier(const QByteArray &resource);
