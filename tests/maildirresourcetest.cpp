@@ -307,26 +307,26 @@ private Q_SLOTS:
         Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto result = Store::fetchOne<Folder>(
-                Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name")
+            Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name")
+        )
+        .then<void, KAsync::Job<void>, Folder>([query](const Folder &folder) {
+            return Store::fetchAll<Mail>(
+                Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
             )
-            .then<void, KAsync::Job<void>, Folder>([query](const Folder &folder) {
-                return Store::fetchAll<Mail>(
-                    Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
-                )
-                .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([query](const QList<Mail::Ptr> &mails) {
-                    //Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
-                    if (mails.size() != 1) {
-                        return KAsync::error<void>(1, "Wrong number of mails.");
-                    }
-                    auto mail = mails.first();
+            .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([query](const QList<Mail::Ptr> &mails) {
+                //Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
+                if (mails.size() != 1) {
+                    return KAsync::error<void>(1, "Wrong number of mails.");
+                }
+                auto mail = mails.first();
 
-                    return Store::remove(*mail)
-                        .then(Store::flushReplayQueue(query.resources)) //The change needs to be replayed already
-                        .then(Resources::inspect<Mail>(Resources::Inspection::ExistenceInspection(*mail, false)));
-                })
-                .then<void>([](){});
+                return Store::remove(*mail)
+                    .then(Store::flushReplayQueue(query.resources)) //The change needs to be replayed already
+                    .then(Resources::inspect<Mail>(Resources::Inspection::ExistenceInspection(*mail, false)));
             })
-            .exec();
+            .then<void>([](){});
+        })
+        .exec();
         result.waitForFinished();
         QVERIFY(!result.errorCode());
     }
@@ -340,31 +340,54 @@ private Q_SLOTS:
         Store::synchronize(query).exec().waitForFinished();
         Store::flushMessageQueue(query.resources).exec().waitForFinished();
 
+        Folder f;
+
         auto result = Store::fetchOne<Folder>(
-                Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name")
+            Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name")
+        )
+        .then<void, KAsync::Job<void>, Folder>([query, &f](const Folder &folder) {
+            f = folder;
+            return Store::fetchAll<Mail>(
+                Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
             )
-            .then<void, KAsync::Job<void>, Folder>([query](const Folder &folder) {
                 Trace() << "Found a folder" << folder.identifier();
-                return Store::fetchAll<Mail>(
-                    Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
-                )
-                .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([query](const QList<Mail::Ptr> &mails) {
-                    //Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
-                    if (mails.size() != 1) {
-                        return KAsync::error<void>(1, "Wrong number of mails.");
-                    }
-                    auto mail = mails.first();
-                    mail->setProperty("unread", true);
-                    auto inspectionCommand = Resources::Inspection::PropertyInspection(*mail, "unread", true);
-                    return Store::modify(*mail)
-                        .then<void>(Store::flushReplayQueue(query.resources)) //The change needs to be replayed already
-                        .then(Resources::inspect<Mail>(inspectionCommand));
-                })
-                .then<void>([](){});
+            .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([query](const QList<Mail::Ptr> &mails) {
+                //Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
+                if (mails.size() != 1) {
+                    return KAsync::error<void>(1, "Wrong number of mails.");
+                }
+                auto mail = mails.first();
+                mail->setProperty("unread", true);
+                return Store::modify(*mail)
+                .then<void>(Store::flushReplayQueue(query.resources)) //The change needs to be replayed already
+                .then(Resources::inspect<Mail>(Resources::Inspection::PropertyInspection(*mail, "unread", true)))
+                .then(Resources::inspect<Mail>(Resources::Inspection::PropertyInspection(*mail, "subject", mail->getProperty("subject"))));
             })
-            .exec();
+            .then<void>([](){});
+        })
+        .exec();
         result.waitForFinished();
         QVERIFY(!result.errorCode());
+
+        auto result2 = Store::fetchAll<Mail>(
+            Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("folder", f) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
+        )
+        .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([query](const QList<Mail::Ptr> &mails) {
+            //Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
+            if (mails.size() != 1) {
+                qWarning() << "Wrong number of mails";
+                return KAsync::error<void>(1, "Wrong number of mails.");
+            }
+            auto mail = mails.first();
+            if (mail->getProperty("subject").toString().isEmpty()) {
+                qWarning() << "Wrong subject";
+                return KAsync::error<void>(1, "Wrong subject.");
+            }
+            return KAsync::null<void>();
+        })
+        .exec();
+        result2.waitForFinished();
+        QVERIFY(!result2.errorCode());
     }
 
 };

@@ -311,6 +311,18 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
                 }
                 return KAsync::null<void>();
             }
+            if (property == "subject") {
+                const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, entityId, synchronizationTransaction);
+
+                KMime::Message *msg = new KMime::Message;
+                msg->setHead(KMime::CRLFtoLF(KPIM::Maildir::readEntryHeadersFromFile(remoteId)));
+                msg->parse();
+
+                if (msg->subject(true)->asUnicodeString() != expectedValue.toString()) {
+                    return KAsync::error<void>(1, "Subject not as expected.");
+                }
+                return KAsync::null<void>();
+            }
         }
         if (inspectionType == Sink::Resources::Inspection::ExistenceInspectionType) {
             const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, entityId, synchronizationTransaction);

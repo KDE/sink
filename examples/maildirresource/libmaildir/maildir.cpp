@@ -560,7 +560,7 @@ QDateTime Maildir::lastModified(const QString& key) const
     return info.lastModified();
 }
 
-QByteArray Maildir::readEntryHeadersFromFile(const QString& file) const
+QByteArray Maildir::readEntryHeadersFromFile(const QString& file)
 {
     QByteArray result;
 

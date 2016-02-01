@@ -184,7 +184,7 @@ public:
      * Return the contents of the headers section of the file the maildir with the given @p file, that
      * is a full path to the file. You can get it by using findRealKey(key) .
      */
-    QByteArray readEntryHeadersFromFile( const QString& file ) const;
+    static QByteArray readEntryHeadersFromFile( const QString& file );
 
     /**
      * Return the contents of the headers section of the file the maildir with the given @p key.
