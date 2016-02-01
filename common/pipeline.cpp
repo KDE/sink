@@ -349,7 +349,6 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     bool found = false;
     bool alreadyRemoved = false;
     d->transaction.openDatabase(bufferType + ".main").findLatest(key, [&found, &alreadyRemoved](const QByteArray &key, const QByteArray &data) -> bool {
-        Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         auto entity = Sink::GetEntity(data.data());
         if (entity && entity->metadata()) {
             auto metadata = Sink::GetMetadata(entity->metadata()->Data());
