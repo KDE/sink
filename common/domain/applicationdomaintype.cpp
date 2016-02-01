@@ -76,13 +76,18 @@ QVariant ApplicationDomainType::getProperty(const QByteArray &key) const
 void ApplicationDomainType::setProperty(const QByteArray &key, const QVariant &value)
 {
     Q_ASSERT(mAdaptor);
-    mChangeSet.insert(key, value);
+    mChangeSet.insert(key);
     mAdaptor->setProperty(key, value);
+}
+
+void ApplicationDomainType::setChangedProperties(const QSet<QByteArray> &changeset)
+{
+    mChangeSet = changeset;
 }
 
 QByteArrayList ApplicationDomainType::changedProperties() const
 {
-    return mChangeSet.keys();
+    return mChangeSet.toList();
 }
 
 qint64 ApplicationDomainType::revision() const

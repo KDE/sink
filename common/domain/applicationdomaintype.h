@@ -23,6 +23,7 @@
 #include <QSharedPointer>
 #include <QVariant>
 #include <QByteArray>
+#include <QDebug>
 #include "bufferadaptor.h"
 
 namespace Sink {
@@ -56,16 +57,18 @@ public:
 
     virtual ~ApplicationDomainType();
 
-    virtual QVariant getProperty(const QByteArray &key) const;
-    virtual void setProperty(const QByteArray &key, const QVariant &value);
-    virtual QByteArrayList changedProperties() const;
+    QVariant getProperty(const QByteArray &key) const;;
+    void setProperty(const QByteArray &key, const QVariant &value);
+    void setChangedProperties(const QSet<QByteArray> &changeset);
+    QByteArrayList changedProperties() const;
     qint64 revision() const;
     QByteArray resourceInstanceIdentifier() const;
     QByteArray identifier() const;
 
 private:
+    friend QDebug operator<<(QDebug, const ApplicationDomainType &);
     QSharedPointer<BufferAdaptor> mAdaptor;
-    QHash<QByteArray, QVariant> mChangeSet;
+    QSet<QByteArray> mChangeSet;
     /*
      * Each domain object needs to store the resource, identifier, revision triple so we can link back to the storage location.
      */
@@ -81,6 +84,16 @@ inline bool operator==(const ApplicationDomainType& lhs, const ApplicationDomain
 {
     return lhs.identifier() == rhs.identifier()
             && lhs.resourceInstanceIdentifier() == rhs.resourceInstanceIdentifier();
+}
+
+inline QDebug operator<< (QDebug d, const ApplicationDomainType &type)
+{
+    d << "ApplicationDomainType(\n";
+    for (const auto &property : type.mAdaptor->availableProperties()) {
+        d << " " << property << "\t" << type.getProperty(property) << "\n";
+    }
+    d << ")";
+    return d;
 }
 
 struct SINKCOMMON_EXPORT Entity : public ApplicationDomainType {

@@ -279,9 +279,16 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     //Apply diff
     //FIXME only apply the properties that are available in the buffer
     Trace() << "Applying changed properties: " << diff->availableProperties();
+    QSet<QByteArray> changeset;
     for (const auto &property : diff->availableProperties()) {
-        newObject->setProperty(property, diff->getProperty(property));
+        changeset << property;
+        const auto value = diff->getProperty(property);
+        if (value.isValid()) {
+            newObject->setProperty(property, value);
+        }
     }
+    //Altough we only set some properties, we want all to be serialized
+    newObject->setChangedProperties(changeset);
 
     //Remove deletions
     if (modifyEntity->deletions()) {
@@ -304,8 +311,11 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     storeNewRevision(newRevision, fbb, bufferType, key);
     Log() << "Pipeline: modified entity: " << key << newRevision << bufferType;
-    d->transaction.openDatabase(bufferType + ".main").scan(Sink::Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, current, key](const QByteArray &, const QByteArray &value) -> bool {
-        auto entity = Sink::GetEntity(value);
+    d->transaction.openDatabase(bufferType + ".main").scan(Sink::Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, current, key](const QByteArray &k, const QByteArray &value) -> bool {
+        if (value.isEmpty()) {
+            ErrorMsg() << "Read buffer is empty.";
+        }
+        auto entity = Sink::GetEntity(value.data());
         auto newEntity = adaptorFactory->createAdaptor(*entity);
         for (auto processor : d->processors[bufferType]) {
             processor->modifiedEntity(key, newRevision, *current, *newEntity, d->transaction);

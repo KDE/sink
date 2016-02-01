@@ -52,7 +52,7 @@ static QByteArray getEntity(const QByteArray &dbEnv, const QByteArray &name, con
     return result;
 }
 
-flatbuffers::FlatBufferBuilder &createEvent(flatbuffers::FlatBufferBuilder &entityFbb, const QString &s = QString("summary"))
+flatbuffers::FlatBufferBuilder &createEvent(flatbuffers::FlatBufferBuilder &entityFbb, const QString &s = QString("summary"), const QString &d = QString())
 {
     flatbuffers::FlatBufferBuilder eventFbb;
     eventFbb.Clear();
@@ -66,9 +66,13 @@ flatbuffers::FlatBufferBuilder &createEvent(flatbuffers::FlatBufferBuilder &enti
     {
         auto uid = localFbb.CreateString("testuid");
         auto summary = localFbb.CreateString(s.toStdString());
+        auto description = localFbb.CreateString(d.toStdString());
         auto localBuilder = Sink::ApplicationDomain::Buffer::EventBuilder(localFbb);
         localBuilder.add_uid(uid);
         localBuilder.add_summary(summary);
+        if (!d.isEmpty()) {
+            localBuilder.add_description(description);
+        }
         auto location = localBuilder.Finish();
         Sink::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
     }
@@ -203,7 +207,7 @@ private Q_SLOTS:
     void testModify()
     {
         flatbuffers::FlatBufferBuilder entityFbb;
-        auto command = createEntityCommand(createEvent(entityFbb));
+        auto command = createEntityCommand(createEvent(entityFbb, "summary", "description"));
 
         Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
 
@@ -233,7 +237,9 @@ private Q_SLOTS:
         QVERIFY(!buffer.isEmpty());
         Sink::EntityBuffer entityBuffer(buffer.data(), buffer.size());
         auto adaptor = adaptorFactory->createAdaptor(entityBuffer.entity());
-        QCOMPARE(adaptor->getProperty("summary").toString(), QString("summary2"));
+        QVERIFY2(adaptor->getProperty("summary").toString() == QString("summary2"), "The modification isn't applied.");
+        //Ensure we didn't modify anything else
+        QVERIFY2(adaptor->getProperty("description").toString() == QString("description"), "The modification has sideeffects.");
 
         //Both revisions are in the store at this point
         QCOMPARE(getKeys("org.kde.pipelinetest.instance1", "event.main").size(), 2);
