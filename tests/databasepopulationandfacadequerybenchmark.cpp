@@ -40,7 +40,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         {
             Sink::Storage storage(Sink::storageLocation(), identifier, Sink::Storage::ReadWrite);
             auto transaction = storage.createTransaction(Sink::Storage::ReadWrite);
-            auto db = transaction.openDatabase("event.main");
+            auto db = Sink::Storage::mainDatabase(transaction, "event");
 
             int bufferSizeTotal = 0;
             int keysSizeTotal = 0;

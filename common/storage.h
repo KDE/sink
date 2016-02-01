@@ -200,6 +200,8 @@ public:
     static QByteArray assembleKey(const QByteArray &key, qint64 revision);
     static QByteArray uidFromKey(const QByteArray &key);
 
+    static NamedDatabase mainDatabase(const Sink::Storage::Transaction &, const QByteArray &type);
+
 private:
     std::function<void(const Storage::Error &error)> mErrorHandler;
 

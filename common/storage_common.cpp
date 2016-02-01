@@ -156,6 +156,11 @@ QByteArray Storage::uidFromKey(const QByteArray &key)
     return key.mid(0, 38);
 }
 
+Storage::NamedDatabase Storage::mainDatabase(const Sink::Storage::Transaction &t, const QByteArray &type)
+{
+    return t.openDatabase(type + ".main");
+}
+
 bool Storage::NamedDatabase::contains(const QByteArray &uid)
 {
     bool found = false;

@@ -103,7 +103,7 @@ void MaildirResource::synchronizeFolders(Sink::Storage::Transaction &transaction
             //we should rather iterate over an index that contains every uid exactly once. The remoteId index would be such an index,
             //but we currently fail to iterate over all entries in an index it seems.
             // auto remoteIds = synchronizationTransaction.openDatabase("rid.mapping." + bufferType, std::function<void(const Sink::Storage::Error &)>(), true);
-            auto mainDatabase = transaction.openDatabase(bufferType + ".main");
+            auto mainDatabase = Sink::Storage::mainDatabase(transaction, bufferType);
             mainDatabase.scan("", [&](const QByteArray &key, const QByteArray &) {
                 callback(key);
                 return true;

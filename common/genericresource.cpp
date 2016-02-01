@@ -87,7 +87,7 @@ public Q_SLOTS:
                 const auto uid = Storage::getUidFromRevision(mainStoreTransaction, revision);
                 const auto type = Storage::getTypeFromRevision(mainStoreTransaction, revision);
                 const auto key = Storage::assembleKey(uid, revision);
-                mainStoreTransaction.openDatabase(type + ".main").scan(key, [&lastReplayedRevision, type, this](const QByteArray &key, const QByteArray &value) -> bool {
+                Storage::mainDatabase(mainStoreTransaction, type).scan(key, [&lastReplayedRevision, type, this](const QByteArray &key, const QByteArray &value) -> bool {
                     mReplayFunction(type, key, value).exec();
                     //TODO make for loop async, and pass to async replay function together with type
                     Trace() << "Replaying " << key;
@@ -632,7 +632,7 @@ static QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getLatest(const Si
 
 void GenericResource::createOrModify(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory, const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
-    auto mainDatabase = transaction.openDatabase(bufferType + ".main");
+    auto mainDatabase = Storage::mainDatabase(transaction, bufferType);
     const auto sinkId = resolveRemoteId(bufferType, remoteId, synchronizationTransaction);
     const auto found = mainDatabase.contains(sinkId);
     if (!found) {

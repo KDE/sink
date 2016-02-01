@@ -120,7 +120,7 @@ Storage &Pipeline::storage() const
 
 void Pipeline::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid)
 {
-    d->transaction.openDatabase(bufferType + ".main").write(Sink::Storage::assembleKey(uid, newRevision), BufferUtils::extractBuffer(fbb),
+    Storage::mainDatabase(d->transaction, bufferType).write(Sink::Storage::assembleKey(uid, newRevision), BufferUtils::extractBuffer(fbb),
         [](const Sink::Storage::Error &error) {
             Warning() << "Failed to write entity";
         }
@@ -161,7 +161,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     QByteArray key;
     if (createEntity->entityId()) {
         key = QByteArray(reinterpret_cast<char const*>(createEntity->entityId()->Data()), createEntity->entityId()->size());
-        if (d->transaction.openDatabase(bufferType + ".main").contains(key)) {
+        if (Storage::mainDatabase(d->transaction, bufferType).contains(key)) {
             ErrorMsg() << "An entity with this id already exists: " << key;
             return KAsync::error<qint64>(0);
         }
@@ -194,7 +194,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     }
 
     Log() << "Pipeline: wrote entity: " << key << newRevision << bufferType;
-    d->transaction.openDatabase(bufferType + ".main").scan(Sink::Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, key](const QByteArray &, const QByteArray &value) -> bool {
+    Storage::mainDatabase(d->transaction, bufferType).scan(Sink::Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, key](const QByteArray &, const QByteArray &value) -> bool {
         auto entity = Sink::GetEntity(value);
         auto adaptor = adaptorFactory->createAdaptor(*entity);
         for (auto processor : d->processors[bufferType]) {
@@ -254,7 +254,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     auto diff = adaptorFactory->createAdaptor(*diffEntity);
 
     QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
-    d->transaction.openDatabase(bufferType + ".main").findLatest(key, [&current, adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
+    Storage::mainDatabase(d->transaction, bufferType).findLatest(key, [&current, adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
         Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         if (!buffer.isValid()) {
             Warning() << "Read invalid buffer from disk";
@@ -311,7 +311,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     storeNewRevision(newRevision, fbb, bufferType, key);
     Log() << "Pipeline: modified entity: " << key << newRevision << bufferType;
-    d->transaction.openDatabase(bufferType + ".main").scan(Sink::Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, current, key](const QByteArray &k, const QByteArray &value) -> bool {
+    Storage::mainDatabase(d->transaction, bufferType).scan(Sink::Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, current, key](const QByteArray &k, const QByteArray &value) -> bool {
         if (value.isEmpty()) {
             ErrorMsg() << "Read buffer is empty.";
         }
@@ -348,7 +348,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 
     bool found = false;
     bool alreadyRemoved = false;
-    d->transaction.openDatabase(bufferType + ".main").findLatest(key, [&found, &alreadyRemoved](const QByteArray &key, const QByteArray &data) -> bool {
+    Storage::mainDatabase(d->transaction, bufferType).findLatest(key, [&found, &alreadyRemoved](const QByteArray &key, const QByteArray &data) -> bool {
         auto entity = Sink::GetEntity(data.data());
         if (entity && entity->metadata()) {
             auto metadata = Sink::GetMetadata(entity->metadata()->Data());
@@ -394,7 +394,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     }
 
     QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
-    d->transaction.openDatabase(bufferType + ".main").findLatest(key, [this, bufferType, newRevision, adaptorFactory, key, &current](const QByteArray &, const QByteArray &data) -> bool {
+    Storage::mainDatabase(d->transaction, bufferType).findLatest(key, [this, bufferType, newRevision, adaptorFactory, key, &current](const QByteArray &, const QByteArray &data) -> bool {
         Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         if (!buffer.isValid()) {
             Warning() << "Read invalid buffer from disk";
@@ -423,7 +423,7 @@ void Pipeline::cleanupRevision(qint64 revision)
     const auto uid = Sink::Storage::getUidFromRevision(d->transaction, revision);
     const auto bufferType = Sink::Storage::getTypeFromRevision(d->transaction, revision);
     Trace() << "Cleaning up revision " << revision << uid << bufferType;
-    d->transaction.openDatabase(bufferType + ".main").scan(uid, [&](const QByteArray &key, const QByteArray &data) -> bool {
+    Storage::mainDatabase(d->transaction, bufferType).scan(uid, [&](const QByteArray &key, const QByteArray &data) -> bool {
         Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         if (!buffer.isValid()) {
             Warning() << "Read invalid buffer from disk";
@@ -433,7 +433,7 @@ void Pipeline::cleanupRevision(qint64 revision)
             //Remove old revisions, and the current if the entity has already been removed
             if (rev < revision || metadata->operation() == Sink::Operation_Removal) {
                 Sink::Storage::removeRevision(d->transaction, rev);
-                d->transaction.openDatabase(bufferType + ".main").remove(key);
+                Storage::mainDatabase(d->transaction, bufferType).remove(key);
             }
         }
 

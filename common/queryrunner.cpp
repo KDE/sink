@@ -129,7 +129,7 @@ static inline ResultSet fullScan(const Sink::Storage::Transaction &transaction, 
 {
     //TODO use a result set with an iterator, to read values on demand
     QVector<QByteArray> keys;
-    transaction.openDatabase(bufferType + ".main").scan(QByteArray(), [&](const QByteArray &key, const QByteArray &value) -> bool {
+    Storage::mainDatabase(transaction, bufferType).scan(QByteArray(), [&](const QByteArray &key, const QByteArray &value) -> bool {
         //Skip internals
         if (Sink::Storage::isInternalKey(key)) {
             return true;
@@ -319,7 +319,7 @@ qint64 QueryWorker<DomainType>::load(const Sink::Query &query, const std::functi
         Warning() << "Error during query: " << error.store << error.message;
     });
     auto transaction = storage.createTransaction(Sink::Storage::ReadOnly);
-    auto db = transaction.openDatabase(mBufferType + ".main");
+    auto db = Storage::mainDatabase(transaction, mBufferType);
 
     QSet<QByteArray> remainingFilters;
     auto resultSet = baseSetRetriever(transaction, remainingFilters);
