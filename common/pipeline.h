@@ -73,8 +73,6 @@ Q_SIGNALS:
     void revisionUpdated(qint64);
 
 private:
-    void storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid);
-
     class Private;
     Private * const d;
 };

@@ -53,7 +53,21 @@ public:
     QHash<QString, QVector<Preprocessor *> > processors;
     QHash<QString, DomainTypeAdaptorFactoryInterface::Ptr> adaptorFactory;
     bool revisionChanged;
+    void storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid);
 };
+
+void Pipeline::Private::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid)
+{
+    Storage::mainDatabase(transaction, bufferType).write(Storage::assembleKey(uid, newRevision), BufferUtils::extractBuffer(fbb),
+        [uid, newRevision](const Storage::Error &error) {
+            Warning() << "Failed to write entity" << uid << newRevision;
+        }
+    );
+    revisionChanged = true;
+    Storage::setMaxRevision(transaction, newRevision);
+    Storage::recordRevision(transaction, newRevision, uid, bufferType);
+}
+
 
 Pipeline::Pipeline(const QString &resourceName, QObject *parent)
     : QObject(parent),
@@ -118,18 +132,6 @@ Storage &Pipeline::storage() const
     return d->storage;
 }
 
-void Pipeline::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid)
-{
-    Storage::mainDatabase(d->transaction, bufferType).write(Storage::assembleKey(uid, newRevision), BufferUtils::extractBuffer(fbb),
-        [](const Storage::Error &error) {
-            Warning() << "Failed to write entity";
-        }
-    );
-    d->revisionChanged = true;
-    Storage::setMaxRevision(d->transaction, newRevision);
-    Storage::recordRevision(d->transaction, newRevision, uid, bufferType);
-}
-
 KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 {
     Trace() << "Pipeline: New Entity";
@@ -185,7 +187,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), entity->resource()->Data(), entity->resource()->size(), entity->local()->Data(), entity->local()->size());
 
-    storeNewRevision(newRevision, fbb, bufferType, key);
+    d->storeNewRevision(newRevision, fbb, bufferType, key);
 
     auto adaptorFactory = d->adaptorFactory.value(bufferType);
     if (!adaptorFactory) {
@@ -309,7 +311,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder fbb;
     adaptorFactory->createBuffer(*newObject, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
-    storeNewRevision(newRevision, fbb, bufferType, key);
+    d->storeNewRevision(newRevision, fbb, bufferType, key);
     Log() << "Pipeline: modified entity: " << key << newRevision << bufferType;
     Storage::mainDatabase(d->transaction, bufferType).scan(Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, current, key](const QByteArray &k, const QByteArray &value) -> bool {
         if (value.isEmpty()) {
@@ -406,7 +408,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
         ErrorMsg() << "Failed to find value in pipeline: " << error.message;
     });
 
-    storeNewRevision(newRevision, fbb, bufferType, key);
+    d->storeNewRevision(newRevision, fbb, bufferType, key);
     Log() << "Pipeline: deleted entity: "<< newRevision;
 
     for (auto processor : d->processors[bufferType]) {
