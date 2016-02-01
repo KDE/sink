@@ -86,7 +86,7 @@ void Pipeline::startTransaction()
     if (d->transaction) {
         return;
     }
-    d->transaction = std::move(storage().createTransaction(Sink::Storage::ReadWrite));
+    d->transaction = std::move(storage().createTransaction(Storage::ReadWrite));
 }
 
 void Pipeline::commit()
@@ -96,7 +96,7 @@ void Pipeline::commit()
     // for (auto processor : d->processors[bufferType]) {
     //     processor->finalize();
     // }
-    const auto revision = Sink::Storage::maxRevision(d->transaction);
+    const auto revision = Storage::maxRevision(d->transaction);
     Trace() << "Committing " << revision;
     if (d->transaction) {
         d->transaction.commit();
@@ -120,14 +120,14 @@ Storage &Pipeline::storage() const
 
 void Pipeline::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid)
 {
-    Storage::mainDatabase(d->transaction, bufferType).write(Sink::Storage::assembleKey(uid, newRevision), BufferUtils::extractBuffer(fbb),
-        [](const Sink::Storage::Error &error) {
+    Storage::mainDatabase(d->transaction, bufferType).write(Storage::assembleKey(uid, newRevision), BufferUtils::extractBuffer(fbb),
+        [](const Storage::Error &error) {
             Warning() << "Failed to write entity";
         }
     );
     d->revisionChanged = true;
-    Sink::Storage::setMaxRevision(d->transaction, newRevision);
-    Sink::Storage::recordRevision(d->transaction, newRevision, uid, bufferType);
+    Storage::setMaxRevision(d->transaction, newRevision);
+    Storage::recordRevision(d->transaction, newRevision, uid, bufferType);
 }
 
 KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
@@ -136,23 +136,23 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
-        if (!Sink::Commands::VerifyCreateEntityBuffer(verifyer)) {
+        if (!Commands::VerifyCreateEntityBuffer(verifyer)) {
             Warning() << "invalid buffer, not a create entity buffer";
             return KAsync::error<qint64>(0);
         }
     }
-    auto createEntity = Sink::Commands::GetCreateEntity(command);
+    auto createEntity = Commands::GetCreateEntity(command);
 
     const bool replayToSource = createEntity->replayToSource();
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const*>(createEntity->domainType()->Data()), createEntity->domainType()->size());
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(createEntity->delta()->Data()), createEntity->delta()->size());
-        if (!Sink::VerifyEntityBuffer(verifyer)) {
+        if (!VerifyEntityBuffer(verifyer)) {
             Warning() << "invalid buffer, not an entity buffer";
             return KAsync::error<qint64>(0);
         }
     }
-    auto entity = Sink::GetEntity(createEntity->delta()->Data());
+    auto entity = GetEntity(createEntity->delta()->Data());
     if (!entity->resource()->size() && !entity->local()->size()) {
         Warning() << "No local and no resource buffer while trying to create entity.";
         return KAsync::error<qint64>(0);
@@ -171,16 +171,16 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
         key = QUuid::createUuid().toString().toUtf8();
     }
     Q_ASSERT(!key.isEmpty());
-    const qint64 newRevision = Sink::Storage::maxRevision(d->transaction) + 1;
+    const qint64 newRevision = Storage::maxRevision(d->transaction) + 1;
 
     //Add metadata buffer
     flatbuffers::FlatBufferBuilder metadataFbb;
-    auto metadataBuilder = Sink::MetadataBuilder(metadataFbb);
+    auto metadataBuilder = MetadataBuilder(metadataFbb);
     metadataBuilder.add_revision(newRevision);
-    metadataBuilder.add_operation(Sink::Operation_Creation);
+    metadataBuilder.add_operation(Operation_Creation);
     metadataBuilder.add_replayToSource(replayToSource);
     auto metadataBuffer = metadataBuilder.Finish();
-    Sink::FinishMetadataBuffer(metadataFbb, metadataBuffer);
+    FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), entity->resource()->Data(), entity->resource()->size(), entity->local()->Data(), entity->local()->size());
@@ -194,14 +194,14 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     }
 
     Log() << "Pipeline: wrote entity: " << key << newRevision << bufferType;
-    Storage::mainDatabase(d->transaction, bufferType).scan(Sink::Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, key](const QByteArray &, const QByteArray &value) -> bool {
-        auto entity = Sink::GetEntity(value);
+    Storage::mainDatabase(d->transaction, bufferType).scan(Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, key](const QByteArray &, const QByteArray &value) -> bool {
+        auto entity = GetEntity(value);
         auto adaptor = adaptorFactory->createAdaptor(*entity);
         for (auto processor : d->processors[bufferType]) {
             processor->newEntity(key, newRevision, *adaptor, d->transaction);
         }
         return false;
-    }, [this](const Sink::Storage::Error &error) {
+    }, [this](const Storage::Error &error) {
         ErrorMsg() << "Failed to find value in pipeline: " << error.message;
     });
     return KAsync::start<qint64>([newRevision](){
@@ -213,16 +213,16 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 {
     Trace() << "Pipeline: Modified Entity";
 
-    const qint64 newRevision = Sink::Storage::maxRevision(d->transaction) + 1;
+    const qint64 newRevision = Storage::maxRevision(d->transaction) + 1;
 
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
-        if (!Sink::Commands::VerifyModifyEntityBuffer(verifyer)) {
+        if (!Commands::VerifyModifyEntityBuffer(verifyer)) {
             Warning() << "invalid buffer, not a modify entity buffer";
             return KAsync::error<qint64>(0);
         }
     }
-    auto modifyEntity = Sink::Commands::GetModifyEntity(command);
+    auto modifyEntity = Commands::GetModifyEntity(command);
     Q_ASSERT(modifyEntity);
 
     const qint64 baseRevision = modifyEntity->revision();
@@ -236,7 +236,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     }
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(modifyEntity->delta()->Data()), modifyEntity->delta()->size());
-        if (!Sink::VerifyEntityBuffer(verifyer)) {
+        if (!VerifyEntityBuffer(verifyer)) {
             Warning() << "invalid buffer, not an entity buffer";
             return KAsync::error<qint64>(0);
         }
@@ -249,13 +249,13 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         return KAsync::error<qint64>(0);
     }
 
-    auto diffEntity = Sink::GetEntity(modifyEntity->delta()->Data());
+    auto diffEntity = GetEntity(modifyEntity->delta()->Data());
     Q_ASSERT(diffEntity);
     auto diff = adaptorFactory->createAdaptor(*diffEntity);
 
-    QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
+    QSharedPointer<ApplicationDomain::BufferAdaptor> current;
     Storage::mainDatabase(d->transaction, bufferType).findLatest(key, [&current, adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
-        Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+        EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         if (!buffer.isValid()) {
             Warning() << "Read invalid buffer from disk";
         } else {
@@ -273,8 +273,8 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     }
 
     //resource and uid don't matter at this point
-    const Sink::ApplicationDomain::ApplicationDomainType existingObject("", "", newRevision, current);
-    auto newObject = Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<Sink::ApplicationDomain::ApplicationDomainType>(existingObject);
+    const ApplicationDomain::ApplicationDomainType existingObject("", "", newRevision, current);
+    auto newObject = ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(existingObject);
 
     //Apply diff
     //FIXME only apply the properties that are available in the buffer
@@ -299,29 +299,29 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     //Add metadata buffer
     flatbuffers::FlatBufferBuilder metadataFbb;
-    auto metadataBuilder = Sink::MetadataBuilder(metadataFbb);
+    auto metadataBuilder = MetadataBuilder(metadataFbb);
     metadataBuilder.add_revision(newRevision);
-    metadataBuilder.add_operation(Sink::Operation_Modification);
+    metadataBuilder.add_operation(Operation_Modification);
     metadataBuilder.add_replayToSource(replayToSource);
     auto metadataBuffer = metadataBuilder.Finish();
-    Sink::FinishMetadataBuffer(metadataFbb, metadataBuffer);
+    FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
     flatbuffers::FlatBufferBuilder fbb;
     adaptorFactory->createBuffer(*newObject, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
     storeNewRevision(newRevision, fbb, bufferType, key);
     Log() << "Pipeline: modified entity: " << key << newRevision << bufferType;
-    Storage::mainDatabase(d->transaction, bufferType).scan(Sink::Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, current, key](const QByteArray &k, const QByteArray &value) -> bool {
+    Storage::mainDatabase(d->transaction, bufferType).scan(Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, current, key](const QByteArray &k, const QByteArray &value) -> bool {
         if (value.isEmpty()) {
             ErrorMsg() << "Read buffer is empty.";
         }
-        auto entity = Sink::GetEntity(value.data());
+        auto entity = GetEntity(value.data());
         auto newEntity = adaptorFactory->createAdaptor(*entity);
         for (auto processor : d->processors[bufferType]) {
             processor->modifiedEntity(key, newRevision, *current, *newEntity, d->transaction);
         }
         return false;
-    }, [this](const Sink::Storage::Error &error) {
+    }, [this](const Storage::Error &error) {
         ErrorMsg() << "Failed to find value in pipeline: " << error.message;
     });
     return KAsync::start<qint64>([newRevision](){
@@ -335,12 +335,12 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
-        if (!Sink::Commands::VerifyDeleteEntityBuffer(verifyer)) {
+        if (!Commands::VerifyDeleteEntityBuffer(verifyer)) {
             Warning() << "invalid buffer, not a delete entity buffer";
             return KAsync::error<qint64>(0);
         }
     }
-    auto deleteEntity = Sink::Commands::GetDeleteEntity(command);
+    auto deleteEntity = Commands::GetDeleteEntity(command);
 
     const bool replayToSource = deleteEntity->replayToSource();
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const*>(deleteEntity->domainType()->Data()), deleteEntity->domainType()->size());
@@ -349,11 +349,11 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     bool found = false;
     bool alreadyRemoved = false;
     Storage::mainDatabase(d->transaction, bufferType).findLatest(key, [&found, &alreadyRemoved](const QByteArray &key, const QByteArray &data) -> bool {
-        auto entity = Sink::GetEntity(data.data());
+        auto entity = GetEntity(data.data());
         if (entity && entity->metadata()) {
-            auto metadata = Sink::GetMetadata(entity->metadata()->Data());
+            auto metadata = GetMetadata(entity->metadata()->Data());
             found = true;
-            if (metadata->operation() == Sink::Operation_Removal) {
+            if (metadata->operation() == Operation_Removal) {
                 alreadyRemoved = true;
             }
 
@@ -373,16 +373,16 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
         return KAsync::error<qint64>(0);
     }
 
-    const qint64 newRevision = Sink::Storage::maxRevision(d->transaction) + 1;
+    const qint64 newRevision = Storage::maxRevision(d->transaction) + 1;
 
     //Add metadata buffer
     flatbuffers::FlatBufferBuilder metadataFbb;
-    auto metadataBuilder = Sink::MetadataBuilder(metadataFbb);
+    auto metadataBuilder = MetadataBuilder(metadataFbb);
     metadataBuilder.add_revision(newRevision);
-    metadataBuilder.add_operation(Sink::Operation_Removal);
+    metadataBuilder.add_operation(Operation_Removal);
     metadataBuilder.add_replayToSource(replayToSource);
     auto metadataBuffer = metadataBuilder.Finish();
-    Sink::FinishMetadataBuffer(metadataFbb, metadataBuffer);
+    FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), 0, 0, 0, 0);
@@ -393,16 +393,16 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
         return KAsync::error<qint64>(0);
     }
 
-    QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
+    QSharedPointer<ApplicationDomain::BufferAdaptor> current;
     Storage::mainDatabase(d->transaction, bufferType).findLatest(key, [this, bufferType, newRevision, adaptorFactory, key, &current](const QByteArray &, const QByteArray &data) -> bool {
-        Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+        EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         if (!buffer.isValid()) {
             Warning() << "Read invalid buffer from disk";
         } else {
             current = adaptorFactory->createAdaptor(buffer.entity());
         }
         return false;
-    }, [this](const Sink::Storage::Error &error) {
+    }, [this](const Storage::Error &error) {
         ErrorMsg() << "Failed to find value in pipeline: " << error.message;
     });
 
@@ -420,33 +420,33 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 
 void Pipeline::cleanupRevision(qint64 revision)
 {
-    const auto uid = Sink::Storage::getUidFromRevision(d->transaction, revision);
-    const auto bufferType = Sink::Storage::getTypeFromRevision(d->transaction, revision);
+    const auto uid = Storage::getUidFromRevision(d->transaction, revision);
+    const auto bufferType = Storage::getTypeFromRevision(d->transaction, revision);
     Trace() << "Cleaning up revision " << revision << uid << bufferType;
     Storage::mainDatabase(d->transaction, bufferType).scan(uid, [&](const QByteArray &key, const QByteArray &data) -> bool {
-        Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+        EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
         if (!buffer.isValid()) {
             Warning() << "Read invalid buffer from disk";
         } else {
-            const auto metadata =  flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
+            const auto metadata =  flatbuffers::GetRoot<Metadata>(buffer.metadataBuffer());
             const qint64 rev = metadata->revision();
             //Remove old revisions, and the current if the entity has already been removed
-            if (rev < revision || metadata->operation() == Sink::Operation_Removal) {
-                Sink::Storage::removeRevision(d->transaction, rev);
+            if (rev < revision || metadata->operation() == Operation_Removal) {
+                Storage::removeRevision(d->transaction, rev);
                 Storage::mainDatabase(d->transaction, bufferType).remove(key);
             }
         }
 
         return true;
-    }, [](const Sink::Storage::Error &error) {
+    }, [](const Storage::Error &error) {
         Warning() << "Error while reading: " << error.message;
     }, true);
-    Sink::Storage::setCleanedUpRevision(d->transaction, revision);
+    Storage::setCleanedUpRevision(d->transaction, revision);
 }
 
 qint64 Pipeline::cleanedUpRevision()
 {
-    return Sink::Storage::cleanedUpRevision(d->transaction);
+    return Storage::cleanedUpRevision(d->transaction);
 }
 
 Preprocessor::Preprocessor()
