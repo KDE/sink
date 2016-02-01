@@ -350,7 +350,6 @@ private Q_SLOTS:
             return Store::fetchAll<Mail>(
                 Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
             )
-                Trace() << "Found a folder" << folder.identifier();
             .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([query](const QList<Mail::Ptr> &mails) {
                 //Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
                 if (mails.size() != 1) {
