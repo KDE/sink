@@ -142,7 +142,6 @@ public:
     {
         // KeyCache* keyCache = KeyCache::self();
         // if (keyCache->isNewKey(path, key)) {
-        qWarning() << path + QString::fromLatin1("/new/") + key;
         if (QFile::exists(path + QString::fromLatin1("/new/") + key)) {
 #ifdef DEBUG_KEYCACHE_CONSITENCY
           if (!QFile::exists(path + QString::fromLatin1("/new/") + key)) {
@@ -688,88 +687,89 @@ bool Maildir::removeEntry(const QString& key)
     // return QFile::remove(realKey);
 }
 
-// QString Maildir::changeEntryFlags(const QString& key, const Sink::Item::Flags& flags)
-// {
-//     QString realKey(d->findRealKey(key));
-//     if (realKey.isEmpty()) {
-//         qWarning() << "Maildir::changeEntryFlags unable to find: " << key;
-//         d->lastError = i18n("Cannot locate mail file %1." , key);
-//         return QString();
-//     }
-//
-//     const QRegExp rx = *(statusSeparatorRx());
-//     QString finalKey = key.left(key.indexOf(rx));
-//
-//     QStringList mailDirFlags;
-//     Q_FOREACH (const Sink::Item::Flag &flag, flags) {
-//       if (flag == Sink::MessageFlags::Forwarded)
-//         mailDirFlags << QLatin1String("P");
-//       if (flag == Sink::MessageFlags::Replied)
-//         mailDirFlags << QLatin1String("R");
-//       if (flag == Sink::MessageFlags::Seen)
-//         mailDirFlags << QLatin1String("S");
-//       if (flag == Sink::MessageFlags::Deleted)
-//         mailDirFlags << QLatin1String("T");
-//       if (flag == Sink::MessageFlags::Flagged)
-//         mailDirFlags << QLatin1String("F");
-//     }
-//     mailDirFlags.sort();
-//     if (!mailDirFlags.isEmpty()) {
-// #ifdef Q_OS_WIN
-//       finalKey.append(QLatin1String("!2,") + mailDirFlags.join(QString()));
-// #else
-//       finalKey.append(QLatin1String(":2,") + mailDirFlags.join(QString()));
-// #endif
-//     }
-//
-//     QString newUniqueKey = finalKey; //key without path
-//     finalKey.prepend(d->path + QString::fromLatin1("/cur/"));
-//
-//     if (realKey == finalKey) {
-//       // Somehow it already is named this way (e.g. migration bug -> wrong status in sink)
-//       return newUniqueKey;
-//     }
-//
-//     QFile f(realKey);
-//     if (QFile::exists(finalKey)) {
-//       QFile destFile(finalKey);
-//       QByteArray destContent;
-//       if (destFile.open(QIODevice::ReadOnly)) {
-//         destContent = destFile.readAll();
-//         destFile.close();
-//       }
-//       QByteArray sourceContent;
-//       if (f.open(QIODevice::ReadOnly)) {
-//         sourceContent = f.readAll();
-//         f.close();
-//       }
-//
-//       if (destContent != sourceContent) {
-//          QString newFinalKey = QLatin1String("1-") + newUniqueKey;
-//          int i = 1;
-//          while (QFile::exists(d->path + QString::fromLatin1("/cur/") + newFinalKey)) {
-//            i++;
-//            newFinalKey = QString::number(i) + QLatin1Char('-') + newUniqueKey;
-//          }
-//          finalKey = d->path + QString::fromLatin1("/cur/") + newFinalKey;
-//       } else {
-//             QFile::remove(finalKey); //they are the same
-//       }
-//     }
-//
-//     if (!f.rename(finalKey)) {
-//         qWarning() << "Maildir: Failed to rename entry: " << f.fileName() << " to "  << finalKey  << "! Error: " << f.errorString();
-//         d->lastError = i18n("Failed to update the file name %1 to %2 on the disk. The error was: %3." , f.fileName(), finalKey, f.errorString());
-//         return QString();
-//      }
-//
-//     KeyCache *keyCache = KeyCache::self();
-//     keyCache->removeKey(d->path, key);
-//     keyCache->addCurKey(d->path, newUniqueKey);
-//
-//     return newUniqueKey;
-// }
-//
+QString Maildir::changeEntryFlags(const QString& key, const Maildir::Flags& flags)
+{
+    QString realKey(d->findRealKey(key));
+    if (realKey.isEmpty()) {
+        qWarning() << "Maildir::changeEntryFlags unable to find: " << key;
+        // d->lastError = i18n("Cannot locate mail file %1." , key);
+        return QString();
+    }
+
+    const QRegExp rx = *(statusSeparatorRx());
+    QString finalKey = key.left(key.indexOf(rx));
+
+    QStringList mailDirFlags;
+    if (flags & Forwarded)
+        mailDirFlags << QLatin1String("P");
+    if (flags & Replied)
+        mailDirFlags << QLatin1String("R");
+    if (flags & Seen)
+        mailDirFlags << QLatin1String("S");
+    if (flags & Deleted)
+        mailDirFlags << QLatin1String("T");
+    if (flags & Flagged)
+        mailDirFlags << QLatin1String("F");
+
+    mailDirFlags.sort();
+    if (!mailDirFlags.isEmpty()) {
+#ifdef Q_OS_WIN
+      finalKey.append(QLatin1String("!2,") + mailDirFlags.join(QString()));
+#else
+      finalKey.append(QLatin1String(":2,") + mailDirFlags.join(QString()));
+#endif
+    }
+
+    QString newUniqueKey = finalKey; //key without path
+    finalKey.prepend(d->path + QString::fromLatin1("/cur/"));
+
+    if (realKey == finalKey) {
+      // Somehow it already is named this way (e.g. migration bug -> wrong status in sink)
+      qWarning() << "File already named that way: " << newUniqueKey << finalKey;
+      return newUniqueKey;
+    }
+
+    QFile f(realKey);
+    if (QFile::exists(finalKey)) {
+      QFile destFile(finalKey);
+      QByteArray destContent;
+      if (destFile.open(QIODevice::ReadOnly)) {
+        destContent = destFile.readAll();
+        destFile.close();
+      }
+      QByteArray sourceContent;
+      if (f.open(QIODevice::ReadOnly)) {
+        sourceContent = f.readAll();
+        f.close();
+      }
+
+      if (destContent != sourceContent) {
+         QString newFinalKey = QLatin1String("1-") + newUniqueKey;
+         int i = 1;
+         while (QFile::exists(d->path + QString::fromLatin1("/cur/") + newFinalKey)) {
+           i++;
+           newFinalKey = QString::number(i) + QLatin1Char('-') + newUniqueKey;
+         }
+         finalKey = d->path + QString::fromLatin1("/cur/") + newFinalKey;
+      } else {
+            QFile::remove(finalKey); //they are the same
+      }
+    }
+
+    if (!f.rename(finalKey)) {
+        qWarning() << "Maildir: Failed to rename entry: " << f.fileName() << " to "  << finalKey  << "! Error: " << f.errorString();
+        // d->lastError = i18n("Failed to update the file name %1 to %2 on the disk. The error was: %3." , f.fileName(), finalKey, f.errorString());
+        return QString();
+    }
+    qWarning() << "Renamed file: " << f.fileName() << finalKey;
+
+    // KeyCache *keyCache = KeyCache::self();
+    // keyCache->removeKey(d->path, key);
+    // keyCache->addCurKey(d->path, newUniqueKey);
+
+    return newUniqueKey;
+}
+
 Maildir::Flags Maildir::readEntryFlags(const QString& key)
 {
     Flags flags;

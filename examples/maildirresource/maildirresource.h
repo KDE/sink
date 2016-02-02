@@ -32,12 +32,15 @@ class MaildirMailAdaptorFactory;
 class MaildirFolderAdaptorFactory;
 
 /**
- * A maildir resource
+ * A maildir resource.
  * 
  * Implementation details:
  * The remoteid's have the following formats:
  * files: full file path
  * directories: full directory path
+ * 
+ * The resource moves all messages from new to cur during sync and thus expectes all messages that are in the store to always reside in cur.
+ * The tmp directory is never directly used
  */
 class MaildirResource : public Sink::GenericResource
 {

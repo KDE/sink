@@ -269,9 +269,9 @@ KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, c
             const auto parentFolderPath = parentFolderRemoteId;
             KPIM::Maildir maildir(parentFolderPath, false);
             //FIXME assemble the MIME message
-            const auto id = maildir.addEntry("foobar");
-            Trace() << "Creating a new mail: " << id;
-            recordRemoteId(ENTITY_TYPE_MAIL, mail.identifier(), id.toUtf8(), synchronizationTransaction);
+            const auto remoteId = maildir.addEntry("foobar");
+            Trace() << "Creating a new mail: " << remoteId;
+            recordRemoteId(ENTITY_TYPE_MAIL, mail.identifier(), remoteId.toUtf8(), synchronizationTransaction);
         } else if (operation == Sink::Operation_Removal) {
             const auto uid = Sink::Storage::uidFromKey(key);
             const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, uid, synchronizationTransaction);
@@ -279,7 +279,26 @@ KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, c
             QFile::remove(remoteId);
             removeRemoteId(ENTITY_TYPE_MAIL, uid, remoteId, synchronizationTransaction);
         } else if (operation == Sink::Operation_Modification) {
-            Warning() << "Mail modifications are not implemented";
+            const auto uid = Sink::Storage::uidFromKey(key);
+            const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, uid, synchronizationTransaction);
+            Trace() << "Modifying a mail: " << remoteId;
+            auto parts = remoteId.split('/');
+            const auto filename = parts.takeLast(); //filename
+            parts.removeLast(); //cur/new folder
+            auto maildirPath = parts.join('/');
+
+            KPIM::Maildir maildir(maildirPath, false);
+
+            const Sink::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, mMailAdaptorFactory->createAdaptor(entity));
+
+            //get flags from
+            KPIM::Maildir::Flags flags;
+            if (!mail.getProperty("unread").toBool()) {
+                flags |= KPIM::Maildir::Seen;
+            }
+
+            auto newRemoteId = maildir.changeEntryFlags(filename, flags);
+            updateRemoteId(ENTITY_TYPE_MAIL, uid, QString(maildirPath + "/cur/" + newRemoteId).toUtf8(), synchronizationTransaction);
         } else {
             Warning() << "Unkown operation" << operation;
         }
@@ -303,11 +322,11 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
             if (property == "unread") {
                 const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, entityId, synchronizationTransaction);
                 const auto flags = KPIM::Maildir::readEntryFlags(remoteId.split('/').last());
-                if (expectedValue.toBool() && !(flags & KPIM::Maildir::Seen)) {
-                    return KAsync::error<void>(1, "Expected seen but couldn't find it.");
+                if (expectedValue.toBool() && (flags & KPIM::Maildir::Seen)) {
+                    return KAsync::error<void>(1, "Expected unread but couldn't find it.");
                 }
-                if (!expectedValue.toBool() && (flags & KPIM::Maildir::Seen)) {
-                    return KAsync::error<void>(1, "Expected seen but couldn't find it.");
+                if (!expectedValue.toBool() && !(flags & KPIM::Maildir::Seen)) {
+                    return KAsync::error<void>(1, "Expected read but couldn't find it.");
                 }
                 return KAsync::null<void>();
             }
@@ -319,7 +338,7 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
                 msg->parse();
 
                 if (msg->subject(true)->asUnicodeString() != expectedValue.toString()) {
-                    return KAsync::error<void>(1, "Subject not as expected.");
+                    return KAsync::error<void>(1, "Subject not as expected: " + msg->subject(true)->asUnicodeString());
                 }
                 return KAsync::null<void>();
             }

@@ -167,13 +167,14 @@ public:
      */
     QByteArray readEntry( const QString& key ) const;
 
-    enum MailFlags {
-        Forwarded,
-        Replied,
-        Seen,
-        Flagged
+    enum Flag {
+        Forwarded = 0x1,
+        Replied = 0x2,
+        Seen = 0x4,
+        Flagged = 0x8,
+        Deleted = 0x10
     };
-    Q_DECLARE_FLAGS(Flags, MailFlags);
+    Q_DECLARE_FLAGS(Flags, Flag);
 
     /**
      * Return the flags encoded in the maildir file name for an entry
@@ -211,7 +212,7 @@ public:
      * Change the flags for an entry specified by @p key. Returns the new key of the entry (the key might change because
      * flags are stored in the unique filename).
      */
-    // QString changeEntryFlags( const QString& key, const Sink::Item::Flags& flags );
+    QString changeEntryFlags( const QString& key, const Flags& flags );
 
     /**
      * Moves this maildir into @p destination.

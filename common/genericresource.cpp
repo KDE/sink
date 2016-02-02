@@ -312,12 +312,14 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
             QVariant expectedValue;
             s >> expectedValue;
             inspect(inspectionType, inspectionId, domainType, entityId, property, expectedValue).then<void>([=]() {
+                Log() << "Inspection was successful: " << inspectionType << inspectionId << entityId;
                 Sink::Notification n;
                 n.type = Sink::Commands::NotificationType_Inspection;
                 n.id = inspectionId;
                 n.code = Sink::Commands::NotificationCode_Success;
                 emit notify(n);
             }, [=](int code, const QString &message) {
+                Log() << "Inspection failed: "<< inspectionType << inspectionId << entityId << message;
                 Sink::Notification n;
                 n.type = Sink::Commands::NotificationType_Inspection;
                 n.message = message;
@@ -555,38 +557,39 @@ void GenericResource::deleteEntity(const QByteArray &sinkId, qint64 revision, co
 
 void GenericResource::recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Sink::Storage::Transaction &transaction)
 {
-    Index index("rid.mapping." + bufferType, transaction);
-    Index localIndex("localid.mapping." + bufferType, transaction);
-    index.add(remoteId, localId);
-    localIndex.add(localId, remoteId);
+    Index("rid.mapping." + bufferType, transaction).add(remoteId, localId);;
+    Index("localid.mapping." + bufferType, transaction).add(localId, remoteId);
 }
 
 void GenericResource::removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Sink::Storage::Transaction &transaction)
 {
-    Index index("rid.mapping." + bufferType, transaction);
-    Index localIndex("localid.mapping." + bufferType, transaction);
-    index.remove(remoteId, localId);
-    localIndex.remove(localId, remoteId);
+    Index("rid.mapping." + bufferType, transaction).remove(remoteId, localId);
+    Index("localid.mapping." + bufferType, transaction).remove(localId, remoteId);
+}
+
+void GenericResource::updateRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Sink::Storage::Transaction &transaction)
+{
+    const auto oldRemoteId = Index("localid.mapping." + bufferType, transaction).lookup(localId);
+    removeRemoteId(bufferType, localId, oldRemoteId, transaction);
+    recordRemoteId(bufferType, localId, remoteId, transaction);
 }
 
 QByteArray GenericResource::resolveRemoteId(const QByteArray &bufferType, const QByteArray &remoteId, Sink::Storage::Transaction &transaction)
 {
     //Lookup local id for remote id, or insert a new pair otherwise
     Index index("rid.mapping." + bufferType, transaction);
-    Index localIndex("localid.mapping." + bufferType, transaction);
     QByteArray sinkId = index.lookup(remoteId);
     if (sinkId.isEmpty()) {
         sinkId = QUuid::createUuid().toString().toUtf8();
         index.add(remoteId, sinkId);
-        localIndex.add(sinkId, remoteId);
+        Index("localid.mapping." + bufferType, transaction).add(sinkId, remoteId);
     }
     return sinkId;
 }
 
 QByteArray GenericResource::resolveLocalId(const QByteArray &bufferType, const QByteArray &localId, Sink::Storage::Transaction &transaction)
 {
-    Index index("localid.mapping." + bufferType, transaction);
-    QByteArray remoteId = index.lookup(localId);
+    QByteArray remoteId = Index("localid.mapping." + bufferType, transaction).lookup(localId);
     if (remoteId.isEmpty()) {
         Warning() << "Couldn't find the remote id for " << localId;
         return QByteArray();
