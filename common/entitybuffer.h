@@ -3,6 +3,7 @@
 #include "sinkcommon_export.h"
 #include <functional>
 #include <flatbuffers/flatbuffers.h>
+#include <QByteArray>
 
 namespace Sink {
 struct Entity;
@@ -10,6 +11,7 @@ struct Entity;
 class SINKCOMMON_EXPORT EntityBuffer {
 public:
     EntityBuffer(const void *dataValue, int size);
+    EntityBuffer(const QByteArray &data);
     const uint8_t *resourceBuffer();
     const uint8_t *metadataBuffer();
     const uint8_t *localBuffer();

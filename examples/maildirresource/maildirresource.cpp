@@ -216,7 +216,7 @@ KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, c
 
     Trace() << "Replaying " << key << type;
     if (type == ENTITY_TYPE_FOLDER) {
-        Sink::EntityBuffer buffer(value.data(), value.size());
+        Sink::EntityBuffer buffer(value);
         const Sink::Entity &entity = buffer.entity();
         const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
         if (metadataBuffer && !metadataBuffer->replayToSource()) {
@@ -248,7 +248,7 @@ KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, c
             Warning() << "Unkown operation" << operation;
         }
     } else if (type == ENTITY_TYPE_MAIL) {
-        Sink::EntityBuffer buffer(value.data(), value.size());
+        Sink::EntityBuffer buffer(value);
         const Sink::Entity &entity = buffer.entity();
         const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
         if (metadataBuffer && !metadataBuffer->replayToSource()) {

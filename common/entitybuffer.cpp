@@ -18,6 +18,12 @@ EntityBuffer::EntityBuffer(const void *dataValue, int dataSize)
     }
 }
 
+EntityBuffer::EntityBuffer(const QByteArray &data)
+    : EntityBuffer(data.constData(), data.size())
+{
+
+}
+
 bool EntityBuffer::isValid() const
 {
     return mEntity;
