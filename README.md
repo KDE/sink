@@ -1,7 +1,8 @@
-This repository contains a draft of a possible successor to Akonadi 1.
+# Sink
 
-It is currently entirely experimental and should not be considered a definite
-replacement for Akonadi 1 at this point in time.
+Sink is a data access layer handling synchronization, caching and indexing.
+
+To build it's documentation please run the builddocs.sh script or see the docs/ subdirectory.
 
 Discussion of the code should be done on the kde-pim at kde.org mailing list
 or in #kontact on IRC.
@@ -13,7 +14,7 @@ development easy (and easy for others to coordinate with):
 
     https://github.com/nvie/gitflow
 
-You can find information about the overall design here:
+For further information see:
 
-    https://community.kde.org/KDE_PIM/Akonadi_Next
+    https://phabricator.kde.org/project/view/5/
 
