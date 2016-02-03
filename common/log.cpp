@@ -24,11 +24,7 @@ public:
     qint64 readLineData(char *, qint64) { return 0; /* eof */ }
     qint64 writeData(const char *data, qint64 len)
     {
-        const QByteArray buf = QByteArray::fromRawData(data, len);
-        // if (!qgetenv("IMAP_TRACE").isEmpty()) {
-            // qt_message_output(QtDebugMsg, buf.trimmed().constData());
-            std::cout << buf.trimmed().constData() << std::endl;
-        // }
+        std::cout << data << std::endl;
         return len;
     }
 private:
@@ -186,24 +182,46 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char* file,
     };
 
     bool showLocation = false;
-    bool showProgram = true;
+    bool showFunction = false;
+    bool showProgram = false;
+    bool useColor = true;
+    bool multiline = false;
 
     const QString resetColor = colorCommand(ANSI_Colors::Reset);
     QString output;
-    output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode) + prefix + resetColor;
+    if (useColor) {
+        output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode);
+    }
+    output += prefix;
+    if (useColor) {
+        output += resetColor;
+    }
     if (showProgram) {
-        output += QString(" %1(%2)").arg(QString::fromLatin1(programName)).arg(unsigned(getpid()));
+        int width = 10;
+        output += QString(" %1(%2)").arg(QString::fromLatin1(programName).leftJustified(width, ' ', true)).arg(unsigned(getpid())).rightJustified(width + 8, ' ');
     }
     if (debugArea) {
-        output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode) + QString(" %1 ").arg(QString::fromLatin1(debugArea)) + resetColor;
+        if (useColor) {
+            output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode);
+        }
+        output += QString(" %1 ").arg(QString::fromLatin1(debugArea).leftJustified(25, ' ', true));
+        if (useColor) {
+            output += resetColor;
+        }
+    }
+    if (showFunction) {
+        output += QString(" %3").arg(QString::fromLatin1(function).leftJustified(25, ' ', true));
     }
     if (showLocation) {
-        output += QString(" %3").arg(function);
-        output += QString("%1:%2").arg(file).arg(line);
+        const auto filename = QString::fromLatin1(file).split('/').last();
+        output += QString(" %1:%2").arg(filename.right(25)).arg(QString::number(line).leftJustified(4, ' ')).leftJustified(30, ' ', true);
     }
-    output += ":";
+    if (multiline) {
+        output += "\n  ";
+    }
+    output += ": ";
 
-    debug << output;
+    debug.noquote().nospace() << output;
 
     return debug;
 }
