@@ -22,6 +22,9 @@ static int sBatchSize = 100;
 
 using namespace Sink;
 
+#undef DEBUG_AREA
+#define DEBUG_AREA "resource.changereplay"
+
 /**
  * Replays changes from the storage one by one.
  *
@@ -109,6 +112,9 @@ private:
     Sink::Storage mChangeReplayStore;
     ReplayFunction mReplayFunction;
 };
+
+#undef DEBUG_AREA
+#define DEBUG_AREA "resource.commandprocessor"
 
 /**
  * Drives the pipeline using the output from all command queues
@@ -286,6 +292,8 @@ private:
     InspectionFunction mInspect;
 };
 
+#undef DEBUG_AREA
+#define DEBUG_AREA "resource"
 
 GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline)
     : Sink::Resource(),
@@ -312,7 +320,7 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
             QVariant expectedValue;
             s >> expectedValue;
             inspect(inspectionType, inspectionId, domainType, entityId, property, expectedValue).then<void>([=]() {
-                Log() << "Inspection was successful: " << inspectionType << inspectionId << entityId;
+                Log_area("resource.inspection") << "Inspection was successful: " << inspectionType << inspectionId << entityId;
                 Sink::Notification n;
                 n.type = Sink::Commands::NotificationType_Inspection;
                 n.id = inspectionId;
@@ -384,7 +392,6 @@ KAsync::Job<void> GenericResource::replay(Sink::Storage &synchronizationStore, c
 
 void GenericResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
-    Warning() << "Removing from generic resource";
     Sink::Storage(Sink::storageLocation(), instanceIdentifier, Sink::Storage::ReadWrite).removeFromDisk();
     Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".userqueue", Sink::Storage::ReadWrite).removeFromDisk();
     Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".synchronizerqueue", Sink::Storage::ReadWrite).removeFromDisk();

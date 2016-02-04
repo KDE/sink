@@ -39,6 +39,9 @@
 #include <QTime>
 #include <QDataStream>
 
+#undef DEBUG_AREA
+#define DEBUG_AREA "resource.communication"
+
 Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent)
     : QObject(parent),
       m_server(new QLocalServer(this)),

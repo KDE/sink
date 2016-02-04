@@ -29,6 +29,9 @@
 
 using namespace Sink;
 
+#undef DEBUG_AREA
+#define DEBUG_AREA "client.facade"
+
 class ResourceAccessFactory {
 public:
     static ResourceAccessFactory &instance()

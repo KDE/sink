@@ -46,6 +46,9 @@
 #define ENTITY_TYPE_MAIL "mail"
 #define ENTITY_TYPE_FOLDER "folder"
 
+#undef DEBUG_AREA
+#define DEBUG_AREA "resource.maildir"
+
 MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
     : Sink::GenericResource(instanceIdentifier, pipeline),
     mMailAdaptorFactory(QSharedPointer<MaildirMailAdaptorFactory>::create()),

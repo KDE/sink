@@ -24,6 +24,9 @@
 #include "domain/folder.h"
 #include "log.h"
 
+#undef DEBUG_AREA
+#define DEBUG_AREA "client.modelresult"
+
 static  uint qHash(const Sink::ApplicationDomain::ApplicationDomainType &type)
 {
     Q_ASSERT(!type.resourceInstanceIdentifier().isEmpty());

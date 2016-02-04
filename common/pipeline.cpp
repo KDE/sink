@@ -36,6 +36,9 @@
 #include "definitions.h"
 #include "bufferutils.h"
 
+#undef DEBUG_AREA
+#define DEBUG_AREA "resource.pipeline"
+
 namespace Sink
 {
 

@@ -39,6 +39,9 @@
 #include "storage.h"
 #include "log.h"
 
+#undef DEBUG_AREA
+#define DEBUG_AREA "client.clientapi"
+
 namespace Sink
 {
 

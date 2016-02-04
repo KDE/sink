@@ -26,6 +26,9 @@
 #include "domainadaptor.h"
 #include "asyncutils.h"
 
+#undef DEBUG_AREA
+#define DEBUG_AREA "client.queryrunner"
+
 using namespace Sink;
 
 /*

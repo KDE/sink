@@ -22,6 +22,9 @@
 #include "index.h"
 #include <QDateTime>
 
+#undef DEBUG_AREA
+#define DEBUG_AREA "common.typeindex"
+
 TypeIndex::TypeIndex(const QByteArray &type)
     : mType(type)
 {

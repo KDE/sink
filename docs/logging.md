@@ -10,12 +10,33 @@ For debugging purposes a logging framework is required. Simple qDebugs() proved 
     * logfiles
     * a commandline monitor tool
     * some other developer tool
+This way we get complete logs also if some resource was not started from the console (i.e. because it was already running).
 
 ## Debug levels
-* trace: trace individual codepaths. Likely outputs way to much information for all normal cases and likely is only ever temporarily enabled. Trace points are likely only inserted into code fragments that are known to be problematic.
+* trace: trace individual codepaths. Likely outputs way to much information for all normal cases and likely is only ever temporarily enabled for certain areas.
 * log: Comprehensive debug output. Enabled on demand
 * warning: Only warnings, should always be logged.
 * error: Critical messages that should never appear. Should always be logged.
+
+## Debug areas
+Debug areas split the code into sections that can be enabled/disabled as one.
+This is supposed to give finer grained control over what is logged or displayed.
+
+Debug areas may align with classes, but don't have to, the should be made so that they are useful.
+
+Areas could be:
+
+* resource.sync.performance
+* resource.sync
+* resource.listener
+* resource.pipeline
+* resource.store
+* resource.communication
+* client.communication
+* client.communication.org.sink.resource.maildir.identifier1
+* client.queryrunner
+* client.queryrunner.performance
+* common.typeindex
 
 ## Collected information
 Additionally to the regular message we want:
@@ -24,5 +45,5 @@ Additionally to the regular message we want:
 * threadid?
 * timestamp
 * sourcefile + position + function name
-* application name / resource identfier
-* component identifier (i.e. resource access)
+* application name / resource identifier
+* area (i.e. resource access)

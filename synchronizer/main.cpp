@@ -26,6 +26,9 @@
 #include "listener.h"
 #include "log.h"
 
+#undef DEBUG_AREA
+#define DEBUG_AREA "resource"
+
 void crashHandler(int sig) {
     std::fprintf(stderr, "Error: signal %d\n", sig);
 
@@ -70,6 +73,7 @@ int main(int argc, char *argv[])
     }
 
     const QByteArray instanceIdentifier = argv[1];
+    app.setApplicationName(instanceIdentifier);
 
     QLockFile lockfile(instanceIdentifier + ".lock");
     lockfile.setStaleLockTime(500);
