@@ -25,6 +25,7 @@
 #include "state.h"
 #include "syntaxtree.h"
 #include "utils.h"
+#include "common/log.h"
 
 namespace CoreSyntax
 {
@@ -163,6 +164,38 @@ bool printLoggingLevel(const QStringList &commands, State &state)
     return true;
 }
 
+bool setLoggingAreas(const QStringList &commands, State &state)
+{
+    if (commands.isEmpty()) {
+        state.printError(QObject::tr("Wrong number of arguments; expected logging areas."));
+        return false;
+    }
+
+    QByteArrayList areas;
+    for (const auto &c : commands) {
+        areas << c.toLatin1();
+    }
+
+    Sink::Log::setAreas(areas);
+    return true;
+}
+
+bool setLoggingFilter(const QStringList &commands, State &state)
+{
+    if (commands.isEmpty()) {
+        state.printError(QObject::tr("Wrong number of arguments; expected resource identifier or application names."));
+        return false;
+    }
+
+    QByteArrayList filter;
+    for (const auto &c : commands) {
+        filter << c.toLatin1();
+    }
+
+    Sink::Log::setFilter(filter);
+    return true;
+}
+
 Syntax::List syntax()
 {
     Syntax::List syntax;
@@ -185,6 +218,12 @@ Syntax::List syntax()
     Syntax logging("logging", QObject::tr("Set the logging level to one of Trace, Log, Warning or Error"), &CoreSyntax::setLoggingLevel);
     logging.completer = [](const QStringList &, const QString &fragment, State &state) -> QStringList { return Utils::filteredCompletions(QStringList() << "trace" << "log" << "warning" << "error", fragment, Qt::CaseInsensitive); };
     set.children << logging;
+
+    Syntax loggingAreas("loggingAreas", QObject::tr("Set logging areas."), &CoreSyntax::setLoggingAreas);
+    set.children << loggingAreas;
+
+    Syntax loggingFilter("loggingFilter", QObject::tr("Set logging filter."), &CoreSyntax::setLoggingFilter);
+    set.children << loggingFilter;
 
     syntax << set;
 
