@@ -142,23 +142,56 @@ Sink::Log::DebugLevel Sink::Log::debugOutputLevel()
     return debugLevelFromName(qgetenv("SINKDEBUGLEVEL"));
 }
 
+void Sink::Log::setFilter(const QByteArrayList &filter)
+{
+    qputenv("SINKDEBUGFILTER", filter.join(','));
+}
+
+void Sink::Log::setAreas(const QByteArrayList &filter)
+{
+    qputenv("SINKDEBUGAREAS", filter.join(','));
+}
+
+static QByteArray getProgramName()
+{
+    if (QCoreApplication::instance()) {
+        return QCoreApplication::instance()->applicationName().toLocal8Bit();
+    } else {
+        return "<unknown program name>";
+    }
+}
+
+static bool containsItemStartingWith(const QByteArray &pattern, const QByteArrayList &list)
+{
+    for (const auto &item : list) {
+        if (pattern.startsWith(item)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea)
 {
+    static NullStream nullstream;
     DebugLevel debugOutputLevel = debugLevelFromName(qgetenv("SINKDEBUGLEVEL"));
     if (debugLevel < debugOutputLevel) {
-        static NullStream stream;
-        return QDebug(&stream);
+        return QDebug(&nullstream);
     }
 
-    static DebugStream stream;
-    QDebug debug(&stream);
+    auto areas = qgetenv("SINKDEBUGAREAS").split(',');
+    if (debugArea && !areas.isEmpty()) {
+        if (!containsItemStartingWith(debugArea, areas)) {
+            return QDebug(&nullstream);
+        }
+    }
+    static QByteArray programName = getProgramName();
 
-    static QByteArray programName;
-    if (programName.isEmpty()) {
-        if (QCoreApplication::instance())
-            programName = QCoreApplication::instance()->applicationName().toLocal8Bit();
-        else
-            programName = "<unknown program name>";
+    auto filter = qgetenv("SINKDEBUGFILTER").split(',');
+    if (!filter.isEmpty() && !filter.contains(programName)) {
+        if (!containsItemStartingWith(programName, filter)) {
+            return QDebug(&nullstream);
+        }
     }
 
     QString prefix;
@@ -220,6 +253,9 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char* file,
         output += "\n  ";
     }
     output += ": ";
+
+    static DebugStream stream;
+    QDebug debug(&stream);
 
     debug.noquote().nospace() << output;
 

@@ -16,15 +16,31 @@ enum DebugLevel {
 QByteArray SINKCOMMON_EXPORT debugLevelName(DebugLevel debugLevel);
 DebugLevel SINKCOMMON_EXPORT debugLevelFromName(const QByteArray &name);
 
+/**
+ * Sets the debug output level.
+ *
+ * Everything below is ignored.
+ */
 void SINKCOMMON_EXPORT setDebugOutputLevel(DebugLevel);
 DebugLevel SINKCOMMON_EXPORT debugOutputLevel();
+
+/// Set debug areas that should be logged
+void SINKCOMMON_EXPORT setAreas(const QByteArrayList &areas);
+
+/**
+ * Set an application name filter.
+ *
+ * Note: In case of resources the identifier is the application name.
+ */
+void SINKCOMMON_EXPORT setFilter(const QByteArrayList &filter);
+
 
 QDebug SINKCOMMON_EXPORT debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
 
 }
 }
 
-#define DEBUG_AREA 0
+#define DEBUG_AREA nullptr
 
 #define Trace_() Sink::Log::debugStream(Sink::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO)
 #define Log_() Sink::Log::debugStream(Sink::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO)
