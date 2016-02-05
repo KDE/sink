@@ -24,25 +24,32 @@ DebugLevel SINKCOMMON_EXPORT debugLevelFromName(const QByteArray &name);
 void SINKCOMMON_EXPORT setDebugOutputLevel(DebugLevel);
 DebugLevel SINKCOMMON_EXPORT debugOutputLevel();
 
-/// Set debug areas that should be logged
-void SINKCOMMON_EXPORT setAreas(const QByteArrayList &areas);
+enum FilterType {
+    Area,
+    ApplicationName
+};
 
 /**
- * Set an application name filter.
+ * Sets a debug output filter.
+ * 
+ * Everything that is not matching the filter is ignored.
+ * An empty filter matches everything.
  *
- * Note: In case of resources the identifier is the application name.
+ * Note: In case of resources the application name is the identifier.
  */
-void SINKCOMMON_EXPORT setFilter(const QByteArrayList &filter);
+void SINKCOMMON_EXPORT setDebugOutputFilter(FilterType, const QByteArrayList &filter);
 
 /**
- * Set an application debug output.
+ * Set the debug output fields.
  *
  * Currently supported are:
  * * Name: Application name used for filter.
  * * Function: The function name:
  * * Location: The source code location.
+ *
+ * These are additional items to the default ones (level, area, message).
  */
-void SINKCOMMON_EXPORT setDebugOutput(const QByteArrayList &filter);
+void SINKCOMMON_EXPORT setDebugOutputFields(const QByteArrayList &filter);
 
 QDebug SINKCOMMON_EXPORT debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
 

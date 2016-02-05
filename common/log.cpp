@@ -142,17 +142,19 @@ Sink::Log::DebugLevel Sink::Log::debugOutputLevel()
     return debugLevelFromName(qgetenv("SINKDEBUGLEVEL"));
 }
 
-void Sink::Log::setFilter(const QByteArrayList &filter)
+void Sink::Log::setDebugOutputFilter(FilterType type, const QByteArrayList &filter)
 {
-    qputenv("SINKDEBUGFILTER", filter.join(','));
+    switch (type) {
+        case ApplicationName:
+            qputenv("SINKDEBUGFILTER", filter.join(','));
+            break;
+        case Area:
+            qputenv("SINKDEBUGAREAS", filter.join(','));
+            break;
+    }
 }
 
-void Sink::Log::setAreas(const QByteArrayList &filter)
-{
-    qputenv("SINKDEBUGAREAS", filter.join(','));
-}
-
-void Sink::Log::setDebugOutput(const QByteArrayList &output)
+void Sink::Log::setDebugOutputFields(const QByteArrayList &output)
 {
     qputenv("SINKDEBUGOUTPUT", output.join(','));
 }

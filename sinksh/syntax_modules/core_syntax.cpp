@@ -176,7 +176,7 @@ bool setLoggingAreas(const QStringList &commands, State &state)
         areas << c.toLatin1();
     }
 
-    Sink::Log::setAreas(areas);
+    Sink::Log::setDebugOutputFilter(Sink::Log::Area, areas);
     return true;
 }
 
@@ -192,18 +192,18 @@ bool setLoggingFilter(const QStringList &commands, State &state)
         filter << c.toLatin1();
     }
 
-    Sink::Log::setFilter(filter);
+    Sink::Log::setDebugOutputFilter(Sink::Log::ApplicationName, filter);
     return true;
 }
 
-bool setLoggingOutput(const QStringList &commands, State &state)
+bool setLoggingFields(const QStringList &commands, State &state)
 {
     QByteArrayList output;
     for (const auto &c : commands) {
         output << c.toLatin1();
     }
 
-    Sink::Log::setDebugOutput(output);
+    Sink::Log::setDebugOutputFields(output);
     return true;
 }
 
@@ -236,9 +236,9 @@ Syntax::List syntax()
     Syntax loggingFilter("loggingFilter", QObject::tr("Set logging filter."), &CoreSyntax::setLoggingFilter);
     set.children << loggingFilter;
 
-    Syntax loggingOutput("loggingOutput", QObject::tr("Set logging output."), &CoreSyntax::setLoggingFilter);
-    loggingOutput.completer = [](const QStringList &, const QString &fragment, State &state) -> QStringList { return Utils::filteredCompletions(QStringList() << "name" << "function" << "location" << "", fragment, Qt::CaseInsensitive); };
-    set.children << loggingOutput;
+    Syntax loggingFields("loggingFields", QObject::tr("Set logging fields."), &CoreSyntax::setLoggingFields);
+    loggingFields.completer = [](const QStringList &, const QString &fragment, State &state) -> QStringList { return Utils::filteredCompletions(QStringList() << "name" << "function" << "location" << "", fragment, Qt::CaseInsensitive); };
+    set.children << loggingFields;
 
     syntax << set;
 
