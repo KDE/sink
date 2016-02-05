@@ -293,12 +293,12 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char* file,
     if (multiline) {
         output += "\n  ";
     }
-    output += ": ";
+    output += ":";
 
     static DebugStream stream;
     QDebug debug(&stream);
 
     debug.noquote().nospace() << output;
 
-    return debug;
+    return debug.space().quote();
 }
