@@ -642,9 +642,14 @@ QString Maildir::addEntry(const QByteArray& data)
 
     QFile f(key);
     bool result = f.open(QIODevice::WriteOnly);
+    if (!result) {
+       qWarning() << f.errorString();
+       qWarning() << "Cannot write to mail file: " << key;
+    }
     result = result & (f.write(data) != -1);
     f.close();
     if (!result) {
+       qWarning() << "Cannot write to mail file: " << key;
        // d->lastError = i18n("Cannot write to mail file %1." , key);
        return QString();
     }

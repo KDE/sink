@@ -271,10 +271,19 @@ KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, c
             }
             const auto parentFolderPath = parentFolderRemoteId;
             KPIM::Maildir maildir(parentFolderPath, false);
+            if (!maildir.isValid(true)) {
+                return KAsync::error<void>(1, "Invalid folder " + parentFolderPath);
+            }
             //FIXME assemble the MIME message
+            Trace() << "Creating a new mail.";
             const auto remoteId = maildir.addEntry("foobar");
-            Trace() << "Creating a new mail: " << remoteId;
-            recordRemoteId(ENTITY_TYPE_MAIL, mail.identifier(), remoteId.toUtf8(), synchronizationTransaction);
+            if (remoteId.isEmpty()) {
+                Warning() << "Failed to create mail: " << remoteId;
+                return KAsync::error<void>(1, "Failed to create mail.");
+            } else {
+                Trace() << "Mail created: " << remoteId;
+                recordRemoteId(ENTITY_TYPE_MAIL, mail.identifier(), remoteId.toUtf8(), synchronizationTransaction);
+            }
         } else if (operation == Sink::Operation_Removal) {
             const auto uid = Sink::Storage::uidFromKey(key);
             const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, uid, synchronizationTransaction);
