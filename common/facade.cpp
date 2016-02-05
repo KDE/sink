@@ -148,6 +148,7 @@ QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> 
 {
     //The runner lives for the lifetime of the query
     auto runner = new QueryRunner<DomainType>(query, mResourceAccess, mResourceInstanceIdentifier, mDomainTypeAdaptorFactory, bufferTypeForDomainType());
+    runner->setResultTransformation(mResultTransformation);
     return qMakePair(KAsync::null<void>(), runner->emitter());
 }
 

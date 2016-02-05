@@ -32,6 +32,9 @@
 class QueryRunnerBase : public QObject
 {
     Q_OBJECT
+public:
+    typedef std::function<void(Sink::ApplicationDomain::ApplicationDomainType &domainObject)> ResultTransformation;
+
 protected:
     typedef std::function<KAsync::Job<void>()> QueryFunction;
 
@@ -42,7 +45,6 @@ protected:
     {
         queryFunction = query;
     }
-
 
 protected slots:
     /**
@@ -82,10 +84,17 @@ public:
     QueryRunner(const Sink::Query &query, const Sink::ResourceAccessInterface::Ptr &, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &, const QByteArray &bufferType);
     virtual ~QueryRunner();
 
+    /**
+     * Allows you to run a transformation on every result.
+     * This transformation is executed in the query thread.
+     */
+    void setResultTransformation(const ResultTransformation &transformation);
+
     typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
 
 private:
     QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
     QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr> > mResultProvider;
+    ResultTransformation mResultTransformation;
 };
 

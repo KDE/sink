@@ -41,14 +41,14 @@ template<typename DomainType>
 class QueryWorker : public QObject
 {
 public:
-    QueryWorker(const Sink::Query &query, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &, const QByteArray &bufferType);
+    QueryWorker(const Sink::Query &query, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &, const QByteArray &bufferType, const QueryRunnerBase::ResultTransformation &transformation);
     virtual ~QueryWorker();
 
     qint64 executeIncrementalQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
     qint64 executeInitialQuery(const Sink::Query &query, const typename DomainType::Ptr &parent, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
 
 private:
-    static void replaySet(ResultSet &resultSet, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const QList<QByteArray> &properties);
+    void replaySet(ResultSet &resultSet, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const QList<QByteArray> &properties);
 
     void readEntity(const Sink::Storage::NamedDatabase &db, const QByteArray &key, const std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> &resultCallback);
 
@@ -60,6 +60,7 @@ private:
     qint64 load(const Sink::Query &query, const std::function<ResultSet(Sink::Storage::Transaction &, QSet<QByteArray> &)> &baseSetRetriever, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery);
 
 private:
+    QueryRunnerBase::ResultTransformation mResultTransformation;
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
     QByteArray mResourceInstanceIdentifier;
     QByteArray mBufferType;
@@ -78,8 +79,8 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
     mResultProvider->setFetcher([=](const typename DomainType::Ptr &parent) {
         Trace() << "Running fetcher";
         auto resultProvider = mResultProvider;
-        async::run<qint64>([query, instanceIdentifier, factory, bufferType, parent, resultProvider]() -> qint64 {
-                QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType);
+        async::run<qint64>([=]() -> qint64 {
+                QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType, mResultTransformation);
                 const qint64 newRevision = worker.executeInitialQuery(query, parent, *resultProvider);
                 return newRevision;
             })
@@ -96,8 +97,8 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
         //Incremental updates are always loaded directly, leaving it up to the result to discard the changes if they are not interesting
         setQuery([=] () -> KAsync::Job<void> {
             auto resultProvider = mResultProvider;
-                    QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType);
             return async::run<qint64>([=]() -> qint64 {
+                    QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType, mResultTransformation);
                     const qint64 newRevision = worker.executeIncrementalQuery(query, *resultProvider);
                     return newRevision;
                 })
@@ -118,6 +119,12 @@ template<class DomainType>
 QueryRunner<DomainType>::~QueryRunner()
 {
     Trace() << "Stopped query";
+}
+
+template<class DomainType>
+void QueryRunner<DomainType>::setResultTransformation(const ResultTransformation &transformation)
+{
+    mResultTransformation = transformation;
 }
 
 template<class DomainType>
@@ -150,8 +157,9 @@ static inline ResultSet fullScan(const Sink::Storage::Transaction &transaction, 
 
 
 template<class DomainType>
-QueryWorker<DomainType>::QueryWorker(const Sink::Query &query, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &factory, const QByteArray &bufferType)
+QueryWorker<DomainType>::QueryWorker(const Sink::Query &query, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &factory, const QByteArray &bufferType, const QueryRunnerBase::ResultTransformation &transformation)
     : QObject(),
+    mResultTransformation(transformation),
     mDomainTypeAdaptorFactory(factory),
     mResourceInstanceIdentifier(instanceIdentifier),
     mBufferType(bufferType),
@@ -170,20 +178,25 @@ template<class DomainType>
 void QueryWorker<DomainType>::replaySet(ResultSet &resultSet, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const QList<QByteArray> &properties)
 {
     int counter = 0;
-    while (resultSet.next([&resultProvider, &counter, &properties](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation operation) -> bool {
+    while (resultSet.next([this, &resultProvider, &counter, &properties](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation operation) -> bool {
+        //FIXME allow maildir resource to set the mimeMessage property
+        auto valueCopy = Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value, properties).template staticCast<DomainType>();
+        if (mResultTransformation) {
+            mResultTransformation(*valueCopy);
+        }
         counter++;
         switch (operation) {
         case Sink::Operation_Creation:
             // Trace() << "Got creation";
-            resultProvider.add(Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value, properties).template staticCast<DomainType>());
+            resultProvider.add(valueCopy);
             break;
         case Sink::Operation_Modification:
             // Trace() << "Got modification";
-            resultProvider.modify(Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value, properties).template staticCast<DomainType>());
+            resultProvider.modify(valueCopy);
             break;
         case Sink::Operation_Removal:
             // Trace() << "Got removal";
-            resultProvider.remove(Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value, properties).template staticCast<DomainType>());
+            resultProvider.remove(valueCopy);
             break;
         }
         return true;

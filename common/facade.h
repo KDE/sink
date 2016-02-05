@@ -60,9 +60,10 @@ public:
     KAsync::Job<void> create(const DomainType &domainObject) Q_DECL_OVERRIDE;
     KAsync::Job<void> modify(const DomainType &domainObject) Q_DECL_OVERRIDE;
     KAsync::Job<void> remove(const DomainType &domainObject) Q_DECL_OVERRIDE;
-    QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
+    virtual QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 
 protected:
+    std::function<void(Sink::ApplicationDomain::ApplicationDomainType &domainObject)> mResultTransformation;
     //TODO use one resource access instance per application & per resource
     QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
