@@ -75,7 +75,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
 {
     Trace() << "Starting query";
     //We delegate loading of initial data to the result provider, os it can decide for itself what it needs to load.
-    mResultProvider->setFetcher([this, query, instanceIdentifier, factory, bufferType](const typename DomainType::Ptr &parent) {
+    mResultProvider->setFetcher([=](const typename DomainType::Ptr &parent) {
         Trace() << "Running fetcher";
         auto resultProvider = mResultProvider;
         async::run<qint64>([query, instanceIdentifier, factory, bufferType, parent, resultProvider]() -> qint64 {
@@ -94,10 +94,10 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
     // In case of a live query we keep the runner for as long alive as the result provider exists
     if (query.liveQuery) {
         //Incremental updates are always loaded directly, leaving it up to the result to discard the changes if they are not interesting
-        setQuery([this, query, instanceIdentifier, factory, bufferType] () -> KAsync::Job<void> {
+        setQuery([=] () -> KAsync::Job<void> {
             auto resultProvider = mResultProvider;
-            return async::run<qint64>([query, instanceIdentifier, factory, bufferType, resultProvider]() -> qint64 {
                     QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType);
+            return async::run<qint64>([=]() -> qint64 {
                     const qint64 newRevision = worker.executeIncrementalQuery(query, *resultProvider);
                     return newRevision;
                 })
