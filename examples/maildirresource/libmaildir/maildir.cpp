@@ -177,6 +177,13 @@ public:
         return realKey;
     }
 
+    static QString stripFlags(const QString& key)
+    {
+        const QRegExp rx = *(statusSeparatorRx());
+        const int index = key.indexOf(rx);
+        return key.mid(0, index);
+    }
+
     static QString subDirNameForFolderName(const QString &folderName)
     {
         return QString::fromLatin1(".%1.directory").arg(folderName);
@@ -557,6 +564,19 @@ QDateTime Maildir::lastModified(const QString& key) const
         return QDateTime();
 
     return info.lastModified();
+}
+
+QString Maildir::getKeyFromFile(const QString& file)
+{
+    return Maildir::Private::stripFlags(file.split('/').last());
+}
+
+QString Maildir::getDirectoryFromFile( const QString& file )
+{
+    auto parts = file.split('/');
+    parts.removeLast(); //File
+    parts.removeLast(); //cur/new/tmp
+    return parts.join('/') + "/";
 }
 
 QByteArray Maildir::readEntryHeadersFromFile(const QString& file)

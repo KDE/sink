@@ -262,6 +262,19 @@ public:
      querying the last error string. */
     QString lastError() const;
 
+    /**
+     * Returns the key from the file identified by the full path @param file.
+     */
+    static QString getKeyFromFile( const QString& file );
+
+    /**
+     * Returns the directory from a file.
+     * 
+     * Strips key and new/cur/tmp.
+     * The returned path is ended with a trailing slash.
+     */
+    static QString getDirectoryFromFile( const QString& file );
+
 private:
     void swap( const Maildir& );
     class Private;

@@ -175,6 +175,7 @@ void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, 
         msg->parse();
 
         const auto flags = maildir.readEntryFlags(fileName);
+        const auto maildirKey = maildir.getKeyFromFile(fileName);
 
         Trace() << "Found a mail " << filePath << " : " << fileName << msg->subject(true)->asUnicodeString();
 
@@ -184,7 +185,8 @@ void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, 
         mail.setProperty("senderName", msg->from(true)->asUnicodeString());
         mail.setProperty("date", msg->date(true)->dateTime());
         mail.setProperty("folder", folderLocalId);
-        mail.setProperty("mimeMessage", filePath);
+        //We only store the directory path + key, so we facade can add the changing bits (flags)
+        mail.setProperty("mimeMessage", KPIM::Maildir::getDirectoryFromFile(filePath) + maildirKey);
         mail.setProperty("unread", !flags.testFlag(KPIM::Maildir::Seen));
         mail.setProperty("important", flags.testFlag(KPIM::Maildir::Flagged));
 
@@ -274,7 +276,7 @@ KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, c
             if (!maildir.isValid(true)) {
                 return KAsync::error<void>(1, "Invalid folder " + parentFolderPath);
             }
-            //FIXME assemble the MIME message
+            //FIXME move the mime message from the mimeMessage property to the proper place.
             Trace() << "Creating a new mail.";
             const auto remoteId = maildir.addEntry("foobar");
             if (remoteId.isEmpty()) {

@@ -158,6 +158,9 @@ private Q_SLOTS:
         QVERIFY(!mail->getProperty("subject").toString().isEmpty());
         QVERIFY(!mail->getProperty("mimeMessage").toString().isEmpty());
         QVERIFY(mail->getProperty("date").toDateTime().isValid());
+
+        QFileInfo info(mail->getProperty("mimeMessage").toString());
+        QVERIFY(info.exists());
     }
 
 
@@ -368,10 +371,11 @@ private Q_SLOTS:
         result.waitForFinished();
         QVERIFY(!result.errorCode());
 
+        //Verify that we can still query for all relevant information
         auto result2 = Store::fetchAll<Mail>(
-            Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("folder", f) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
+            Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("folder", f) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject" << "mimeMessage" << "unread")
         )
-        .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([query](const QList<Mail::Ptr> &mails) {
+        .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([](const QList<Mail::Ptr> &mails) {
             //Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
             if (mails.size() != 1) {
                 qWarning() << "Wrong number of mails";
@@ -381,6 +385,15 @@ private Q_SLOTS:
             if (mail->getProperty("subject").toString().isEmpty()) {
                 qWarning() << "Wrong subject";
                 return KAsync::error<void>(1, "Wrong subject.");
+            }
+            if (mail->getProperty("unread").toBool() != true) {
+                qWarning() << "Not unread";
+                return KAsync::error<void>(1, "Not unread.");
+            }
+            QFileInfo info(mail->getProperty("mimeMessage").toString());
+            if (!info.exists()) {
+                qWarning() << "Wrong subject";
+                return KAsync::error<void>(1, "Can't find mime message.");
             }
             return KAsync::null<void>();
         })

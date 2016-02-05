@@ -19,15 +19,45 @@
 
 #include "facade.h"
 
+#include <QDir>
+#include <QFileInfo>
+
 #include "domainadaptor.h"
+#include "queryrunner.h"
 
 MaildirResourceMailFacade::MaildirResourceMailFacade(const QByteArray &instanceIdentifier)
     : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<MaildirMailAdaptorFactory>::create())
 {
+    mResultTransformation = [](Sink::ApplicationDomain::ApplicationDomainType &value) {
+        const auto property = value.getProperty("mimeMessage");
+        if (property.isValid()) {
+            //Transform the mime message property into the actual path on disk.
+            const auto mimeMessage = property.toString();
+            auto parts = mimeMessage.split('/');
+            auto key = parts.takeLast();
+            const auto folderPath = parts.join('/');
+            const auto path =  folderPath + "/cur/";
+
+            Trace() << "Looking for mail in: " << path << key;
+            QDir dir(path);
+            const QFileInfoList list = dir.entryInfoList(QStringList() << (key+"*"), QDir::Files);
+            if (list.size() != 1) {
+                Warning() << "Failed to find message " << path << key << list.size();
+                value.setProperty("mimeMessage", QVariant());
+            } else {
+                value.setProperty("mimeMessage", list.at(0).filePath());
+            }
+        }
+    };
 }
 
 MaildirResourceMailFacade::~MaildirResourceMailFacade()
 {
+}
+
+QPair<KAsync::Job<void>, Sink::ResultEmitter<Sink::ApplicationDomain::Mail::Ptr>::Ptr> MaildirResourceMailFacade::load(const Sink::Query &query)
+{
+    return Sink::GenericFacade<Sink::ApplicationDomain::Mail>::load(query);
 }
 
 
