@@ -34,6 +34,15 @@ void SINKCOMMON_EXPORT setAreas(const QByteArrayList &areas);
  */
 void SINKCOMMON_EXPORT setFilter(const QByteArrayList &filter);
 
+/**
+ * Set an application debug output.
+ *
+ * Currently supported are:
+ * * Name: Application name used for filter.
+ * * Function: The function name:
+ * * Location: The source code location.
+ */
+void SINKCOMMON_EXPORT setDebugOutput(const QByteArrayList &filter);
 
 QDebug SINKCOMMON_EXPORT debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
 

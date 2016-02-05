@@ -152,6 +152,11 @@ void Sink::Log::setAreas(const QByteArrayList &filter)
     qputenv("SINKDEBUGAREAS", filter.join(','));
 }
 
+void Sink::Log::setDebugOutput(const QByteArrayList &output)
+{
+    qputenv("SINKDEBUGOUTPUT", output.join(','));
+}
+
 static QByteArray getProgramName()
 {
     if (QCoreApplication::instance()) {
@@ -165,6 +170,16 @@ static bool containsItemStartingWith(const QByteArray &pattern, const QByteArray
 {
     for (const auto &item : list) {
         if (pattern.startsWith(item)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool caseInsensitiveContains(const QByteArray &pattern, const QByteArrayList &list)
+{
+    for (const auto &item : list) {
+        if (item.toLower() == pattern) {
             return true;
         }
     }
@@ -214,9 +229,11 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char* file,
             break;
     };
 
-    bool showLocation = false;
-    bool showFunction = false;
-    bool showProgram = false;
+    auto debugOutput = qgetenv("SINKDEBUGOUTPUT").split(',');
+
+    bool showLocation = debugOutput.isEmpty() ? false : caseInsensitiveContains("location", debugOutput);
+    bool showFunction = debugOutput.isEmpty() ? false : caseInsensitiveContains("function", debugOutput);
+    bool showProgram = debugOutput.isEmpty() ? false : caseInsensitiveContains("application", debugOutput);
     bool useColor = true;
     bool multiline = false;
 

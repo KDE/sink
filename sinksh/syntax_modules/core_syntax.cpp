@@ -196,6 +196,17 @@ bool setLoggingFilter(const QStringList &commands, State &state)
     return true;
 }
 
+bool setLoggingOutput(const QStringList &commands, State &state)
+{
+    QByteArrayList output;
+    for (const auto &c : commands) {
+        output << c.toLatin1();
+    }
+
+    Sink::Log::setDebugOutput(output);
+    return true;
+}
+
 Syntax::List syntax()
 {
     Syntax::List syntax;
@@ -224,6 +235,10 @@ Syntax::List syntax()
 
     Syntax loggingFilter("loggingFilter", QObject::tr("Set logging filter."), &CoreSyntax::setLoggingFilter);
     set.children << loggingFilter;
+
+    Syntax loggingOutput("loggingOutput", QObject::tr("Set logging output."), &CoreSyntax::setLoggingFilter);
+    loggingOutput.completer = [](const QStringList &, const QString &fragment, State &state) -> QStringList { return Utils::filteredCompletions(QStringList() << "name" << "function" << "location" << "", fragment, Qt::CaseInsensitive); };
+    set.children << loggingOutput;
 
     syntax << set;
 
