@@ -38,6 +38,7 @@ enum FilterType {
  * Note: In case of resources the application name is the identifier.
  */
 void SINKCOMMON_EXPORT setDebugOutputFilter(FilterType, const QByteArrayList &filter);
+QByteArrayList SINKCOMMON_EXPORT debugOutputFilter(FilterType type);
 
 /**
  * Set the debug output fields.
@@ -50,6 +51,7 @@ void SINKCOMMON_EXPORT setDebugOutputFilter(FilterType, const QByteArrayList &fi
  * These are additional items to the default ones (level, area, message).
  */
 void SINKCOMMON_EXPORT setDebugOutputFields(const QByteArrayList &filter);
+QByteArrayList SINKCOMMON_EXPORT debugOutputFields();
 
 QDebug SINKCOMMON_EXPORT debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
 

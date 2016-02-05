@@ -3,10 +3,18 @@
 #include <QString>
 #include <QIODevice>
 #include <QCoreApplication>
+#include <QSettings>
+#include <QStandardPaths>
+#include <QSharedPointer>
 #include <iostream>
 #include <unistd.h>
 
 using namespace Sink::Log;
+
+static QSharedPointer<QSettings> config()
+{
+    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/log.ini", QSettings::IniFormat);
+}
 
 class DebugStream: public QIODevice
 {
@@ -134,29 +142,44 @@ DebugLevel Sink::Log::debugLevelFromName(const QByteArray &name)
 
 void Sink::Log::setDebugOutputLevel(DebugLevel debugLevel)
 {
-    qputenv("SINKDEBUGLEVEL", debugLevelName(debugLevel));
+    config()->setValue("level", debugLevel);
 }
 
 Sink::Log::DebugLevel Sink::Log::debugOutputLevel()
 {
-    return debugLevelFromName(qgetenv("SINKDEBUGLEVEL"));
+    return static_cast<Sink::Log::DebugLevel>(config()->value("level", Sink::Log::Log).toInt());
 }
 
 void Sink::Log::setDebugOutputFilter(FilterType type, const QByteArrayList &filter)
 {
     switch (type) {
         case ApplicationName:
-            qputenv("SINKDEBUGFILTER", filter.join(','));
+            config()->setValue("applicationfilter", QVariant::fromValue(filter));
             break;
         case Area:
-            qputenv("SINKDEBUGAREAS", filter.join(','));
+            config()->setValue("areafilter", QVariant::fromValue(filter));
             break;
+    }
+}
+
+QByteArrayList Sink::Log::debugOutputFilter(FilterType type)
+{
+    switch (type) {
+        case ApplicationName:
+            return config()->value("applicationfilter").value<QByteArrayList>();
+        case Area:
+            return config()->value("areafilter").value<QByteArrayList>();
     }
 }
 
 void Sink::Log::setDebugOutputFields(const QByteArrayList &output)
 {
-    qputenv("SINKDEBUGOUTPUT", output.join(','));
+    config()->setValue("outputfields", QVariant::fromValue(output));
+}
+
+QByteArrayList Sink::Log::debugOutputFields()
+{
+    return config()->value("outputfields").value<QByteArrayList>();
 }
 
 static QByteArray getProgramName()
@@ -191,12 +214,11 @@ static bool caseInsensitiveContains(const QByteArray &pattern, const QByteArrayL
 QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea)
 {
     static NullStream nullstream;
-    DebugLevel debugOutputLevel = debugLevelFromName(qgetenv("SINKDEBUGLEVEL"));
-    if (debugLevel < debugOutputLevel) {
+    if (debugLevel < debugOutputLevel()) {
         return QDebug(&nullstream);
     }
 
-    auto areas = qgetenv("SINKDEBUGAREAS").split(',');
+    auto areas = debugOutputFilter(Sink::Log::Area);
     if (debugArea && !areas.isEmpty()) {
         if (!containsItemStartingWith(debugArea, areas)) {
             return QDebug(&nullstream);
@@ -204,7 +226,7 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char* file,
     }
     static QByteArray programName = getProgramName();
 
-    auto filter = qgetenv("SINKDEBUGFILTER").split(',');
+    auto filter = debugOutputFilter(Sink::Log::ApplicationName);
     if (!filter.isEmpty() && !filter.contains(programName)) {
         if (!containsItemStartingWith(programName, filter)) {
             return QDebug(&nullstream);
@@ -231,7 +253,7 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char* file,
             break;
     };
 
-    auto debugOutput = qgetenv("SINKDEBUGOUTPUT").split(',');
+    auto debugOutput = debugOutputFields();
 
     bool showLocation = debugOutput.isEmpty() ? false : caseInsensitiveContains("location", debugOutput);
     bool showFunction = debugOutput.isEmpty() ? false : caseInsensitiveContains("function", debugOutput);
