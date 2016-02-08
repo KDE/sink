@@ -1,15 +1,18 @@
-# Index
-* Design
-    * Design Goals
-    * Overview
-    * Client API
-    * Storage
-    * Resource
-    * Facade
-    * Logging
-* Extending Akoandi Next
-    * Steps to add support for new types
-    * Steps for adding support for a type to a resource
+Sink is a data access layer handling synchronization, caching and indexing.
+
+Discussion of the code should be done on the kde-pim at kde.org mailing list
+or in #kontact on IRC.
+
+Note that all feature development should happen in feature branches, and that
+the mainline development branch is "develop". Master is for releases. It is
+recommended (though not required) to use the "git flow" tools to make branched
+development easy (and easy for others to coordinate with):
+
+    https://github.com/nvie/gitflow
+
+For further information see:
+
+    https://phabricator.kde.org/project/view/5/
 
 # Documentation
 This documentation is built using [mkdocs.org](http://mkdocs.org).

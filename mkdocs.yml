@@ -1,14 +1,18 @@
 site_name: Sink
 pages:
 - Home: index.md
-- Terminology: terminology.md
-- Overview: design.md
-- Resource: resource.md
-- Storage: storage.md
-- Logging: logging.md
-- "Client API": clientapi.md
-- sinksh: sinksh.md
-- "Application Domain Types": applicationdomaintypes.md
-- "Extending Sink": extending.md
+- Design:
+    - Terminology: terminology.md
+    - "Design Goals": designgoals.md
+    - Overview: design.md
+    - Resource: resource.md
+    - Storage: storage.md
+    - Logging: logging.md
+    - "Client API": clientapi.md
+    - "Application Domain Types": applicationdomaintypes.md
+    - "Tradeoffs and Design Decisions": tradeoffs.md
+- Development:
+    - "Extending Sink": extending.md
 - Building: building.md
+- "Sink Shell": sinksh.md
 theme: readthedocs
