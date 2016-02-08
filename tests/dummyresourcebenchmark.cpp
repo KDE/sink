@@ -10,6 +10,7 @@
 #include "pipeline.h"
 #include "log.h"
 #include "resourceconfig.h"
+#include "notification_generated.h"
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
@@ -69,6 +70,41 @@ private Q_SLOTS:
         }).then<void>([context]() {
             delete context;
         });
+    }
+
+    //Ensure we can process a command in less than 0.1s
+    void testCommandResponsiveness()
+    {
+        //Test responsiveness including starting the process.
+        Sink::Store::shutdown("org.kde.dummy.instance1").exec().waitForFinished();
+        DummyResource::removeFromDisk("org.kde.dummy.instance1");
+
+        QTime time;
+        time.start();
+
+        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        event.setProperty("uid", "testuid");
+        QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
+        event.setProperty("summary", "summaryValue");
+
+        auto notifier = QSharedPointer<Sink::Notifier>::create("org.kde.dummy.instance1");
+        bool gotNotification = false;
+        int duration = 0;
+        notifier->registerHandler([&gotNotification, &duration, &time](const Sink::Notification &notification) {
+            if (notification.type == Sink::Commands::NotificationType::NotificationType_RevisionUpdate) {
+                gotNotification = true;
+                duration = time.elapsed();
+            }
+        });
+
+        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec();
+
+        //Wait for notification
+        QTRY_VERIFY(gotNotification);
+
+        QVERIFY2(duration < 100, QString::fromLatin1("Processing a create command took more than 100ms: %1").arg(duration).toLatin1());
+        Sink::Store::shutdown("org.kde.dummy.instance1").exec().waitForFinished();
+        qDebug() << "Single command took [ms]: " << duration;
     }
 
     void testWriteToFacade()
