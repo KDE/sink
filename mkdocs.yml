@@ -5,11 +5,12 @@ pages:
     - Terminology: terminology.md
     - "Design Goals": designgoals.md
     - Overview: design.md
-    - Resource: resource.md
-    - Storage: storage.md
-    - Logging: logging.md
     - "Client API": clientapi.md
     - "Application Domain Types": applicationdomaintypes.md
+    - Queries: queries.md
+    - Resource: resource.md
+    - "Store and Indexes": storage.md
+    - Logging: logging.md
     - "Tradeoffs and Design Decisions": tradeoffs.md
 - Development:
     - "Extending Sink": extending.md

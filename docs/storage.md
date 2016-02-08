@@ -1,17 +1,3 @@
-## Store access
-Access to the entities happens through a well defined interface that defines a property-map for each supported domain type. A property map could look like:
-```
-Event {
-  startDate: QDateTime
-  subject: QString
-  ...
-}
-```
-
-This property map can be freely extended with new properties for various features. It shouldn't adhere to any external specification and exists solely to define how to access the data.
-
-Clients will map these properties to the values of their domain object implementations, and resources will map the properties to the values in their buffers.
-
 ## Storage Model
 The storage model is simple:
 ```
@@ -42,8 +28,7 @@ Each entity can be as normalized/denormalized as useful. It is not necessary to 
 
 Denormalized:
 
-* priority is that mime message stays intact (signatures/encryption)
-* could we still provide a streaming api for attachments?
+* priority is that the mime message stays intact (signatures/encryption)
 
 ```
 Mail {
@@ -55,7 +40,7 @@ Mail {
 Normalized:
 
 * priority is that we can access individual members efficiently.
-* we don't care about exact reproducability of e.g. ical file
+* we don't care about exact reproducability of e.g. an ical file
 ```
 Event {
   id
@@ -101,7 +86,7 @@ The resource can be effectively removed from disk (besides configuration),
 by deleting the directories matching `$RESOURCE_IDENTIFIER*` and everything they contain.
 
 #### Design Considerations
-* The stores are split by buffertype, so a full scan (which is done by type), doesn't require filtering by type first. The downside is that an additional lookup is required to get from revision to the data.
+The stores are split by buffertype, so a full scan (which is done by type), doesn't require filtering by type first. The downside is that an additional lookup is required to get from revision to the data.
 
 ### Revisions
 Every operation (create/delete/modify), leads to a new revision. The revision is an ever increasing number for the complete store.
@@ -166,6 +151,8 @@ Using regular files as the interface has the advantages:
 
 The copy is necessary to guarantee that the file remains for the client/resource even if the resource removes the file on it's side as part of a sync.
 The copy could be optimized by using hardlinks, which is not a portable solution though. For some next-gen copy-on-write filesystems copying is a very cheap operation.
+
+A downside of having a file based design is that it's not possible to directly stream from a remote resource i.e. into the application memory, it always has to go via a file.
 
 ## Database choice
 By design we're interested in key-value stores or perhaps document databases. This is because a fixed schema is not useful for this design, which makes
