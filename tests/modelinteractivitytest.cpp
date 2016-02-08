@@ -46,15 +46,13 @@ private Q_SLOTS:
     void initTestCase()
     {
         Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
         ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
+        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
     }
 
     void cleanup()
     {
-        Sink::Store::shutdown(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
-        Sink::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
     }
 
     void init()

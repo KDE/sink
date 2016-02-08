@@ -111,7 +111,9 @@ public:
     static void removeFromDisk(const QByteArray &resourceIdentifier);
 
     /**
-     * Removes a resource from disk.
+     * Removes all resource data from disk.
+     * 
+     * This will not touch the configuration. All commands that that arrived at the resource before this command will be dropped. All commands that arrived later will be executed.
      */
     static KAsync::Job<void> removeDataFromDisk(const QByteArray &resourceIdentifier);
 
