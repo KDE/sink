@@ -1,6 +1,6 @@
 namespace Sink.Commands;
 
-enum NotificationType : byte { Shutdown = 1, Status, Warning, Progress, Inspection }
+enum NotificationType : byte { Shutdown = 1, Status, Warning, Progress, Inspection, RevisionUpdate }
 enum NotificationCode : byte { Success = 0, Failure = 1, UserCode }
 
 table Notification {

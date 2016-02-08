@@ -528,6 +528,9 @@ bool ResourceAccess::processMessageBuffer()
         case Commands::RevisionUpdateCommand: {
             auto buffer = Commands::GetRevisionUpdate(d->partialMessageBuffer.constData() + headerSize);
             Log() << QString("Revision updated to: %1").arg(buffer->revision());
+            Notification n;
+            n.type = Sink::Commands::NotificationType::NotificationType_RevisionUpdate;
+            emit notification(n);
             emit revisionChanged(buffer->revision());
 
             break;
@@ -572,6 +575,7 @@ bool ResourceAccess::processMessageBuffer()
                 case Sink::Commands::NotificationType::NotificationType_Status:
                 case Sink::Commands::NotificationType::NotificationType_Warning:
                 case Sink::Commands::NotificationType::NotificationType_Progress:
+                case Sink::Commands::NotificationType::NotificationType_RevisionUpdate:
                 default:
                     Warning() << "Received unknown notification: " << buffer->type();
                     break;
