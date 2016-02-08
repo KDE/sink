@@ -20,6 +20,8 @@
 #include <QTime>
 
 static int sBatchSize = 100;
+//This interval directly affects the roundtrip time of single commands
+static int sCommitInterval = 10;
 
 using namespace Sink;
 
@@ -354,7 +356,7 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
     mClientLowerBoundRevision = mPipeline->cleanedUpRevision();
     mProcessor->setOldestUsedRevision(mSourceChangeReplay->getLastReplayedRevision());
 
-    mCommitQueueTimer.setInterval(100);
+    mCommitQueueTimer.setInterval(sCommitInterval);
     mCommitQueueTimer.setSingleShot(true);
     QObject::connect(&mCommitQueueTimer, &QTimer::timeout, &mUserQueue, &MessageQueue::commit);
 }

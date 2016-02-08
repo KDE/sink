@@ -41,6 +41,7 @@
 #include <QProcess>
 #include <QDataStream>
 #include <QBuffer>
+#include <QTime>
 
 #undef Trace
 #define TracePrivate() Trace_area("client.communication." + resourceInstanceIdentifier)
@@ -170,23 +171,26 @@ KAsync::Job<void> ResourceAccess::Private::tryToConnect()
     },
     [this, counter](KAsync::Future<void> &future) {
         TracePrivate() << "Loop";
-        KAsync::wait(50)
-        .then(connectToServer(resourceInstanceIdentifier))
+        connectToServer(resourceInstanceIdentifier)
         .then<void, QSharedPointer<QLocalSocket> >([this, &future](const QSharedPointer<QLocalSocket> &s) {
             Q_ASSERT(s);
             socket = s;
             future.setFinished();
-        },
-        [&future, counter, this](int errorCode, const QString &errorString) {
-            const int maxRetries = 10;
+        }, [&future, counter, this](int errorCode, const QString &errorString) {
+            static int waitTime = 10;
+            static int timeout = 500;
+            static int maxRetries = timeout / waitTime;
             if (*counter > maxRetries) {
                 TracePrivate() << "Giving up";
                 future.setError(-1, "Failed to connect to socket");
             } else {
-                future.setFinished();
+                KAsync::wait(waitTime).then<void>([&future]() {
+                    future.setFinished();
+                }).exec();
             }
             *counter = *counter + 1;
-        }).exec();
+        })
+        .exec();
     });
 }
 
