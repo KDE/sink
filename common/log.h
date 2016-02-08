@@ -55,6 +55,18 @@ QByteArrayList SINKCOMMON_EXPORT debugOutputFields();
 
 QDebug SINKCOMMON_EXPORT debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
 
+struct SINKCOMMON_EXPORT TraceTime
+{
+    TraceTime(int i) : time(i){};
+    const int time;
+};
+
+inline QDebug SINKCOMMON_EXPORT operator<<(QDebug d, const TraceTime &time)
+{
+    d << time.time << "[ms]";
+    return d;
+}
+
 }
 }
 

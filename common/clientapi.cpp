@@ -22,6 +22,7 @@
 
 #include <QtConcurrent/QtConcurrentRun>
 #include <QTimer>
+#include <QTime>
 #include <QEventLoop>
 #include <QAbstractItemModel>
 #include <QDir>
@@ -162,13 +163,15 @@ KAsync::Job<void> Store::remove(const DomainType &domainObject)
 KAsync::Job<void> Store::shutdown(const QByteArray &identifier)
 {
     Trace() << "shutdown " << identifier;
-    return ResourceAccess::connectToServer(identifier).then<void, QSharedPointer<QLocalSocket>>([identifier](QSharedPointer<QLocalSocket> socket, KAsync::Future<void> &future) {
+    auto time = QSharedPointer<QTime>::create();
+    time->start();
+    return ResourceAccess::connectToServer(identifier).then<void, QSharedPointer<QLocalSocket>>([identifier, time](QSharedPointer<QLocalSocket> socket, KAsync::Future<void> &future) {
         //We can't currently reuse the socket
         socket->close();
         auto resourceAccess = QSharedPointer<Sink::ResourceAccess>::create(identifier);
         resourceAccess->open();
-        resourceAccess->sendCommand(Sink::Commands::ShutdownCommand).then<void>([&future, resourceAccess]() {
-            Trace() << "Shutdown complete";
+        resourceAccess->sendCommand(Sink::Commands::ShutdownCommand).then<void>([&future, resourceAccess, time]() {
+            Trace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
             future.setFinished();
         }).exec();
     },
@@ -183,10 +186,12 @@ KAsync::Job<void> Store::shutdown(const QByteArray &identifier)
 KAsync::Job<void> Store::start(const QByteArray &identifier)
 {
     Trace() << "start " << identifier;
+    auto time = QSharedPointer<QTime>::create();
+    time->start();
     auto resourceAccess = QSharedPointer<Sink::ResourceAccess>::create(identifier);
     resourceAccess->open();
-    return resourceAccess->sendCommand(Sink::Commands::PingCommand).then<void>([resourceAccess]() {
-        Trace() << "Start complete";
+    return resourceAccess->sendCommand(Sink::Commands::PingCommand).then<void>([resourceAccess, time]() {
+        Trace() << "Start complete." << Log::TraceTime(time->elapsed());
     });
 }
 
@@ -303,15 +308,18 @@ KAsync::Job<void> Resources::inspect(const Inspection &inspectionCommand)
 {
     auto resource = inspectionCommand.resourceIdentifier;
 
+    auto time = QSharedPointer<QTime>::create();
+    time->start();
     Trace() << "Sending inspection " << resource;
     auto resourceAccess = QSharedPointer<Sink::ResourceAccess>::create(resource);
     resourceAccess->open();
     auto notifier = QSharedPointer<Sink::Notifier>::create(resourceAccess);
     auto id = QUuid::createUuid().toByteArray();
     return resourceAccess->sendInspectionCommand(id, ApplicationDomain::getTypeName<DomainType>(), inspectionCommand.entityIdentifier, inspectionCommand.property, inspectionCommand.expectedValue)
-        .template then<void>([resourceAccess, notifier, id](KAsync::Future<void> &future) {
-            notifier->registerHandler([&future, id](const Notification &notification) {
+        .template then<void>([resourceAccess, notifier, id, time](KAsync::Future<void> &future) {
+            notifier->registerHandler([&future, id, time](const Notification &notification) {
                 if (notification.id == id) {
+                    Trace() << "Inspection complete." << Log::TraceTime(time->elapsed());
                     if (notification.code) {
                         future.setError(-1, "Inspection returned an error: " + notification.message);
                     } else {

@@ -17,6 +17,7 @@
 
 #include <QUuid>
 #include <QDataStream>
+#include <QTime>
 
 static int sBatchSize = 100;
 
@@ -273,9 +274,12 @@ private slots:
         return KAsync::dowhile(
             [it]() { return it->hasNext(); },
             [it, this](KAsync::Future<void> &future) {
+                auto time = QSharedPointer<QTime>::create();
+                time->start();
+
                 auto queue = it->next();
-                processQueue(queue).then<void>([&future]() {
-                    Trace() << "Queue processed";
+                processQueue(queue).then<void>([&future, time]() {
+                    Trace() << "Queue processed." << Log::TraceTime(time->elapsed());
                     future.setFinished();
                 }).exec();
             }

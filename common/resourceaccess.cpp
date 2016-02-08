@@ -381,9 +381,11 @@ void ResourceAccess::open()
     if (d->openingSocket) {
         return;
     }
+    auto time = QSharedPointer<QTime>::create();
+    time->start();
     d->openingSocket = true;
-    d->initializeSocket().then<void>([this]() {
-        Trace() << "Socket is initialized";
+    d->initializeSocket().then<void>([this, time]() {
+        Trace() << "Socket is initialized." << Log::TraceTime(time->elapsed());
         d->openingSocket = false;
         QObject::connect(d->socket.data(), &QLocalSocket::disconnected,
                 this, &ResourceAccess::disconnected);
