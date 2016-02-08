@@ -95,12 +95,17 @@ Sink::ApplicationDomain::Folder::Ptr DummyResource::createFolder(const QByteArra
 
 void DummyResource::synchronize(const QByteArray &bufferType, const QMap<QString, QMap<QString, QVariant> > &data, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<Sink::ApplicationDomain::ApplicationDomainType::Ptr(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, Sink::Storage::Transaction &)> createEntity)
 {
+    auto time = QSharedPointer<QTime>::create();
+    time->start();
     //TODO find items to remove
+    int count = 0;
     for (auto it = data.constBegin(); it != data.constEnd(); it++) {
+        count++;
         const auto remoteId = it.key().toUtf8();
         auto entity = createEntity(remoteId, it.value(), synchronizationTransaction);
         createOrModify(transaction, synchronizationTransaction, adaptorFactory, bufferType, remoteId, *entity);
     }
+    Trace() << "Sync of " << count << " entities of type " << bufferType << " done." << Sink::Log::TraceTime(time->elapsed());
 }
 
 KAsync::Job<void> DummyResource::synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore)

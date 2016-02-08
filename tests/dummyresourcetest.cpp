@@ -19,6 +19,9 @@
 class DummyResourceTest : public QObject
 {
     Q_OBJECT
+
+    QTime time;
+
 private Q_SLOTS:
     void initTestCase()
     {
@@ -29,16 +32,18 @@ private Q_SLOTS:
         ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
     }
 
-    void cleanup()
-    {
-        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
-    }
-
     void init()
     {
         qDebug();
         qDebug() << "-----------------------------------------";
         qDebug();
+        time.start();
+    }
+
+    void cleanup()
+    {
+        qDebug() << "Test took " << time.elapsed();
+        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
     }
 
     void testProperty()

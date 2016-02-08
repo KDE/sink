@@ -135,6 +135,8 @@ void MaildirResource::synchronizeFolders(Sink::Storage::Transaction &transaction
 void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &path)
 {
     Trace() << "Synchronizing mails" << path;
+    auto time = QSharedPointer<QTime>::create();
+    time->start();
     const QByteArray bufferType = ENTITY_TYPE_MAIL;
 
     KPIM::Maildir maildir(path, true);
@@ -165,7 +167,9 @@ void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, 
         }
     );
 
+    int count = 0;
     while (entryIterator->hasNext()) {
+        count++;
         const QString filePath = QDir::fromNativeSeparators(entryIterator->next());
         const QString fileName = entryIterator->fileName();
         const auto remoteId = filePath.toUtf8();
@@ -192,6 +196,8 @@ void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, 
 
         createOrModify(transaction, synchronizationTransaction, *mMailAdaptorFactory, bufferType, remoteId, mail);
     }
+    Trace() << "Synchronized " << count << " mails in " << listingPath << Sink::Log::TraceTime(time->elapsed());
+
 }
 
 KAsync::Job<void> MaildirResource::synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore)

@@ -237,7 +237,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                     job = job.then<void>(loadResource()->processAllMessages());
                 }
                 job.then<void>([callback, timer]() {
-                    Trace() << "Sync took " << timer->elapsed();
+                    Trace() << "Sync took " << Sink::Log::TraceTime(timer->elapsed());
                     callback(true);
                 }).exec();
                 return;
