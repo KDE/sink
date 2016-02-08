@@ -48,6 +48,7 @@ enum CommandIds {
     PingCommand,
     RevisionReplayedCommand,
     InspectionCommand,
+    RemoveFromDiskCommand,
     CustomCommand = 0xffff
 };
 

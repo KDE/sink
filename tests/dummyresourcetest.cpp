@@ -31,11 +31,7 @@ private Q_SLOTS:
 
     void cleanup()
     {
-        Sink::Store::shutdown(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
-        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
-        QVERIFY(factory);
-        Sink::Store::start(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
     }
 
     void init()

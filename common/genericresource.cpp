@@ -396,12 +396,18 @@ KAsync::Job<void> GenericResource::replay(Sink::Storage &synchronizationStore, c
     return KAsync::null<void>();
 }
 
+void GenericResource::removeDataFromDisk()
+{
+    removeFromDisk(mResourceInstanceIdentifier);
+}
+
 void GenericResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
     Sink::Storage(Sink::storageLocation(), instanceIdentifier, Sink::Storage::ReadWrite).removeFromDisk();
     Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".userqueue", Sink::Storage::ReadWrite).removeFromDisk();
     Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".synchronizerqueue", Sink::Storage::ReadWrite).removeFromDisk();
     Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".changereplay", Sink::Storage::ReadWrite).removeFromDisk();
+    Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::ReadWrite).removeFromDisk();
 }
 
 qint64 GenericResource::diskUsage(const QByteArray &instanceIdentifier)

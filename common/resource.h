@@ -55,6 +55,11 @@ public:
      */
     virtual void setLowerBoundRevision(qint64 revision);
 
+    /**
+     * Remove the data from disk
+     */
+    virtual void removeDataFromDisk();
+
 Q_SIGNALS:
     void revisionUpdated(qint64);
     void notify(Notification);

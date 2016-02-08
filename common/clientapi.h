@@ -110,6 +110,11 @@ public:
      */
     static void removeFromDisk(const QByteArray &resourceIdentifier);
 
+    /**
+     * Removes a resource from disk.
+     */
+    static KAsync::Job<void> removeDataFromDisk(const QByteArray &resourceIdentifier);
+
     template <class DomainType>
     static KAsync::Job<DomainType> fetchOne(const Sink::Query &query);
 

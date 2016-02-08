@@ -128,6 +128,11 @@ KAsync::Job<void> DummyResource::replay(Sink::Storage &synchronizationStore, con
     return KAsync::null<void>();
 }
 
+void DummyResource::removeDataFromDisk()
+{
+    removeFromDisk(mResourceInstanceIdentifier);
+}
+
 void DummyResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
     GenericResource::removeFromDisk(instanceIdentifier);

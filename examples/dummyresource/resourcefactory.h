@@ -39,6 +39,7 @@ public:
     DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
     KAsync::Job<void> synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore) Q_DECL_OVERRIDE;
     using GenericResource::synchronizeWithSource;
+    void removeDataFromDisk() Q_DECL_OVERRIDE;
     static void removeFromDisk(const QByteArray &instanceIdentifier);
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
 private:

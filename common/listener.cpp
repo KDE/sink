@@ -275,6 +275,14 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             loadResource()->setLowerBoundRevision(lowerBoundRevision());
         }
             break;
+        case Sink::Commands::RemoveFromDiskCommand: {
+            Log() << QString("\tReceived a remove from disk command from %1").arg(client.name);
+            m_resource->removeDataFromDisk();
+            delete m_resource;
+            m_resource = nullptr;
+            loadResource()->setLowerBoundRevision(0);
+        }
+            break;
         default:
             if (commandId > Sink::Commands::CustomCommand) {
                 Log() << QString("\tReceived custom command from %1: ").arg(client.name) << commandId;

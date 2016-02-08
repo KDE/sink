@@ -180,6 +180,13 @@ public:
     qint64 diskUsage() const;
     void removeFromDisk() const;
 
+    /**
+     * Clears all cached environments.
+     * 
+     * This only ever has to be called if a database was removed from another process.
+     */
+    static void clearEnv();
+
     static qint64 maxRevision(const Sink::Storage::Transaction &);
     static void setMaxRevision(Sink::Storage::Transaction &, qint64 revision);
 

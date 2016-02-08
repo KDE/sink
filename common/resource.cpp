@@ -63,6 +63,11 @@ void Resource::setLowerBoundRevision(qint64 revision)
     Q_UNUSED(revision)
 }
 
+void Resource::removeDataFromDisk()
+{
+}
+
+
 class ResourceFactory::Private
 {
 public:

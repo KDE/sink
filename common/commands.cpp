@@ -61,6 +61,8 @@ QByteArray name(int commandId)
             return "RevisionReplayed";
         case InspectionCommand:
             return "Inspection";
+        case RemoveFromDiskCommand:
+            return "RemoveFromDisk";
         case CustomCommand:
             return "Custom";
     };

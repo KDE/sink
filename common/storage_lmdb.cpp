@@ -615,4 +615,12 @@ void Storage::removeFromDisk() const
     mdb_env_close(env);
 }
 
+void Storage::clearEnv()
+{
+    for (auto env : Storage::Private::sEnvironments) {
+        mdb_env_close(env);
+    }
+    Storage::Private::sEnvironments.clear();
+}
+
 } // namespace Sink

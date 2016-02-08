@@ -197,12 +197,22 @@ KAsync::Job<void> Store::start(const QByteArray &identifier)
 
 void Store::removeFromDisk(const QByteArray &identifier)
 {
-    //TODO By calling the resource executable with a --remove option instead
-    //we can ensure that no other resource process is running at the same time
-    QDir dir(Sink::storageLocation());
-    for (const auto &folder : dir.entryList(QStringList() << identifier + "*")) {
-        Sink::Storage(Sink::storageLocation(), folder, Sink::Storage::ReadWrite).removeFromDisk();
-    }
+    removeDataFromDisk(identifier).exec().waitForFinished();
+}
+
+KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
+{
+    //All databases are going to become invalid, nuke the environments
+    //TODO: all clients should react to a notification the resource
+    Sink::Storage::clearEnv();
+    Trace() << "Remove data from disk " << identifier;
+    auto time = QSharedPointer<QTime>::create();
+    time->start();
+    auto resourceAccess = QSharedPointer<Sink::ResourceAccess>::create(identifier);
+    resourceAccess->open();
+    return resourceAccess->sendCommand(Sink::Commands::RemoveFromDiskCommand).then<void>([resourceAccess, time]() {
+        Trace() << "Remove from disk complete." << Log::TraceTime(time->elapsed());
+    });
 }
 
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
