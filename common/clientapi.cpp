@@ -353,6 +353,19 @@ Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess)
     d->resourceAccess << resourceAccess;
 }
 
+Notifier::Notifier(const QByteArray &instanceIdentifier)
+    : d(new Sink::Notifier::Private)
+{
+    auto resourceAccess = Sink::ResourceAccess::Ptr::create(instanceIdentifier);
+    resourceAccess->open();
+    QObject::connect(resourceAccess.data(), &ResourceAccess::notification, d->context.data(), [this](const Notification &notification) {
+        for (const auto &handler : d->handler) {
+            handler(notification);
+        }
+    });
+    d->resourceAccess << resourceAccess;
+}
+
 void Notifier::registerHandler(std::function<void(const Notification &)> handler)
 {
     d->handler << handler;

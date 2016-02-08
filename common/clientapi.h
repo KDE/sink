@@ -128,13 +128,13 @@ namespace Resources {
 class SINKCOMMON_EXPORT Notifier {
 public:
     Notifier(const QSharedPointer<ResourceAccess> &resourceAccess);
-    // Notifier(const QByteArray &resource);
+    Notifier(const QByteArray &resourceInstanceIdentifier);
     // Notifier(const QByteArrayList &resource);
     void registerHandler(std::function<void(const Notification &)>);
 
 private:
     class Private;
-    QScopedPointer<Private> d;
+    QSharedPointer<Private> d;
 };
 
 }
