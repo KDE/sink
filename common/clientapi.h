@@ -52,68 +52,69 @@ private:
 /**
  * Store interface used in the client API.
  */
-class SINKCOMMON_EXPORT Store {
-public:
-    static QString storageLocation();
-    static QByteArray resourceName(const QByteArray &instanceIdentifier);
+namespace Store {
 
-    enum Roles {
-        DomainObjectRole = Qt::UserRole + 1, //Must be the same as in ModelResult
-        ChildrenFetchedRole,
-        DomainObjectBaseRole
-    };
+QString SINKCOMMON_EXPORT storageLocation();
+QByteArray SINKCOMMON_EXPORT resourceName(const QByteArray &instanceIdentifier);
 
-    /**
-     * Asynchronusly load a dataset with tree structure information
-     */
-    template <class DomainType>
-    static QSharedPointer<QAbstractItemModel> loadModel(Query query);
+enum Roles {
+    DomainObjectRole = Qt::UserRole + 1, //Must be the same as in ModelResult
+    ChildrenFetchedRole,
+    DomainObjectBaseRole
+};
 
-    /**
-     * Create a new entity.
-     */
-    template <class DomainType>
-    static KAsync::Job<void> create(const DomainType &domainObject);
+/**
+    * Asynchronusly load a dataset with tree structure information
+    */
+template <class DomainType>
+QSharedPointer<QAbstractItemModel> SINKCOMMON_EXPORT loadModel(Query query);
 
-    /**
-     * Modify an entity.
-     * 
-     * This includes moving etc. since these are also simple settings on a property.
-     */
-    template <class DomainType>
-    static KAsync::Job<void> modify(const DomainType &domainObject);
+/**
+ * Create a new entity.
+ */
+template <class DomainType>
+KAsync::Job<void> SINKCOMMON_EXPORT create(const DomainType &domainObject);
 
-    /**
-     * Remove an entity.
-     */
-    template <class DomainType>
-    static KAsync::Job<void> remove(const DomainType &domainObject);
+/**
+ * Modify an entity.
+ * 
+ * This includes moving etc. since these are also simple settings on a property.
+ */
+template <class DomainType>
+KAsync::Job<void> SINKCOMMON_EXPORT modify(const DomainType &domainObject);
 
-    /**
-     * Synchronize data to local cache.
-     */
-    static KAsync::Job<void> synchronize(const Sink::Query &query);
+/**
+ * Remove an entity.
+ */
+template <class DomainType>
+KAsync::Job<void> SINKCOMMON_EXPORT remove(const DomainType &domainObject);
 
-    /**
-     * Removes a resource from disk.
-     */
-    static void removeFromDisk(const QByteArray &resourceIdentifier);
+/**
+ * Synchronize data to local cache.
+ */
+KAsync::Job<void> SINKCOMMON_EXPORT synchronize(const Sink::Query &query);
 
-    /**
-     * Removes all resource data from disk.
-     * 
-     * This will not touch the configuration. All commands that that arrived at the resource before this command will be dropped. All commands that arrived later will be executed.
-     */
-    static KAsync::Job<void> removeDataFromDisk(const QByteArray &resourceIdentifier);
+/**
+ * Removes a resource from disk.
+ */
+void SINKCOMMON_EXPORT removeFromDisk(const QByteArray &resourceIdentifier);
 
-    template <class DomainType>
-    static KAsync::Job<DomainType> fetchOne(const Sink::Query &query);
+/**
+ * Removes all resource data from disk.
+ * 
+ * This will not touch the configuration. All commands that that arrived at the resource before this command will be dropped. All commands that arrived later will be executed.
+ */
+KAsync::Job<void> SINKCOMMON_EXPORT removeDataFromDisk(const QByteArray &resourceIdentifier);
 
-    template <class DomainType>
-    static KAsync::Job<QList<typename DomainType::Ptr> > fetchAll(const Sink::Query &query);
+template <class DomainType>
+KAsync::Job<DomainType> SINKCOMMON_EXPORT fetchOne(const Sink::Query &query);
 
-    template <class DomainType>
-    static KAsync::Job<QList<typename DomainType::Ptr> > fetch(const Sink::Query &query, int minimumAmount = 0);
+template <class DomainType>
+KAsync::Job<QList<typename DomainType::Ptr> > SINKCOMMON_EXPORT fetchAll(const Sink::Query &query);
+
+template <class DomainType>
+KAsync::Job<QList<typename DomainType::Ptr> > SINKCOMMON_EXPORT fetch(const Sink::Query &query, int minimumAmount = 0);
+
 };
 
 namespace Resources {
