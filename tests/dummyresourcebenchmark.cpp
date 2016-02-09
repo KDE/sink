@@ -76,8 +76,7 @@ private Q_SLOTS:
     void testCommandResponsiveness()
     {
         //Test responsiveness including starting the process.
-        Sink::Store::shutdown("org.kde.dummy.instance1").exec().waitForFinished();
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
+        Sink::Store::removeDataFromDisk("org.kde.dummy.instance1").exec().waitForFinished();
 
         QTime time;
         time.start();
@@ -109,7 +108,7 @@ private Q_SLOTS:
 
     void testWriteToFacade()
     {
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
+        Sink::Store::removeDataFromDisk("org.kde.dummy.instance1").exec().waitForFinished();
 
         QTime time;
         time.start();
@@ -174,7 +173,7 @@ private Q_SLOTS:
 
     void testWriteInProcess()
     {
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
+        Sink::Store::removeDataFromDisk("org.kde.dummy.instance1").exec().waitForFinished();
         QTime time;
         time.start();
 
@@ -262,7 +261,7 @@ private Q_SLOTS:
     //This allows to run individual parts without doing a cleanup, but still cleaning up normally
     void testCleanupForCompleteTest()
     {
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
+        Sink::Store::removeDataFromDisk("org.kde.dummy.instance1").exec().waitForFinished();
     }
 
 private:
