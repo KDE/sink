@@ -12,6 +12,9 @@
 #include <common/query.h>
 #include <common/clientapi.h>
 
+#include "hawd/dataset.h"
+#include "hawd/formatter.h"
+
 #include <iostream>
 #include <math.h>
 
@@ -31,6 +34,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
     QByteArray identifier;
     QList<double> mRssGrowthPerEntity;
     QList<double> mTimePerEntity;
+    HAWD::State mHawdState;
 
     void populateDatabase(int count)
     {
@@ -128,6 +132,13 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         std::cout << "Rss growth per entity [byte]: " << rssGrowthPerEntity << std::endl;
         std::cout << "Rss without db [kb]: " << rssWithoutDb/1024 << std::endl;
         std::cout << "Percentage error: " << percentageRssError << std::endl;
+
+        HAWD::Dataset dataset("facade_query", mHawdState);
+        HAWD::Dataset::Row row = dataset.row();
+        row.setValue("rows", list.size());
+        row.setValue("queryTimePerResult", (qreal)list.size()/elapsed);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
 
         mTimePerEntity << static_cast<double>(elapsed)/static_cast<double>(count);
         mRssGrowthPerEntity << rssGrowthPerEntity;

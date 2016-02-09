@@ -1,0 +1,8 @@
+{
+    "name": "Read performance",
+    "description": "Measures performance of the query system",
+    "columns": [
+        { "name": "rows", "type": "int" },
+        { "name": "queryTimePerResult", "type": "float", "unit": "result/ms" }
+    ]
+}
