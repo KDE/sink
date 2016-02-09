@@ -36,6 +36,19 @@ namespace Sink {
 class ResourceAccess;
 class Notification;
 
+class SINKCOMMON_EXPORT Notifier {
+public:
+    Notifier(const QSharedPointer<ResourceAccess> &resourceAccess);
+    Notifier(const QByteArray &resourceInstanceIdentifier);
+    // Notifier(const QByteArrayList &resource);
+    void registerHandler(std::function<void(const Notification &)>);
+
+private:
+    class Private;
+    QSharedPointer<Private> d;
+};
+
+
 /**
  * Store interface used in the client API.
  */
@@ -82,30 +95,6 @@ public:
     static KAsync::Job<void> synchronize(const Sink::Query &query);
 
     /**
-     * Shutdown resource.
-     */
-    static KAsync::Job<void> shutdown(const QByteArray &resourceIdentifier);
-
-    /**
-     * Start resource.
-     * 
-     * The resource is ready for operation once this command completes.
-     * This command is only necessary if a resource was shutdown previously,
-     * otherwise the resource process will automatically start as necessary.
-     */
-    static KAsync::Job<void> start(const QByteArray &resourceIdentifier);
-
-    /**
-     * Flushes any pending messages to disk
-     */
-    static KAsync::Job<void> flushMessageQueue(const QByteArrayList &resourceIdentifier);
-
-    /**
-     * Flushes any pending messages that haven't been replayed to the source.
-     */
-    static KAsync::Job<void> flushReplayQueue(const QByteArrayList &resourceIdentifier);
-
-    /**
      * Removes a resource from disk.
      */
     static void removeFromDisk(const QByteArray &resourceIdentifier);
@@ -128,21 +117,35 @@ public:
 };
 
 namespace Resources {
-    template <class DomainType>
-    KAsync::Job<void> SINKCOMMON_EXPORT inspect(const Inspection &inspectionCommand);
+
+template <class DomainType>
+KAsync::Job<void> SINKCOMMON_EXPORT inspect(const Inspection &inspectionCommand);
+
+/**
+    * Shutdown resource.
+    */
+KAsync::Job<void> SINKCOMMON_EXPORT shutdown(const QByteArray &resourceIdentifier);
+
+/**
+    * Start resource.
+    * 
+    * The resource is ready for operation once this command completes.
+    * This command is only necessary if a resource was shutdown previously,
+    * otherwise the resource process will automatically start as necessary.
+    */
+KAsync::Job<void> SINKCOMMON_EXPORT start(const QByteArray &resourceIdentifier);
+
+/**
+    * Flushes any pending messages to disk
+    */
+KAsync::Job<void> SINKCOMMON_EXPORT flushMessageQueue(const QByteArrayList &resourceIdentifier);
+
+/**
+    * Flushes any pending messages that haven't been replayed to the source.
+    */
+KAsync::Job<void> SINKCOMMON_EXPORT flushReplayQueue(const QByteArrayList &resourceIdentifier);
+
 }
-
-class SINKCOMMON_EXPORT Notifier {
-public:
-    Notifier(const QSharedPointer<ResourceAccess> &resourceAccess);
-    Notifier(const QByteArray &resourceInstanceIdentifier);
-    // Notifier(const QByteArrayList &resource);
-    void registerHandler(std::function<void(const Notification &)>);
-
-private:
-    class Private;
-    QSharedPointer<Private> d;
-};
 
 }
 

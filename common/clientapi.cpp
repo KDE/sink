@@ -160,7 +160,7 @@ KAsync::Job<void> Store::remove(const DomainType &domainObject)
     });
 }
 
-KAsync::Job<void> Store::shutdown(const QByteArray &identifier)
+KAsync::Job<void> Resources::shutdown(const QByteArray &identifier)
 {
     Trace() << "shutdown " << identifier;
     auto time = QSharedPointer<QTime>::create();
@@ -183,7 +183,7 @@ KAsync::Job<void> Store::shutdown(const QByteArray &identifier)
     .template then<void>([](){});
 }
 
-KAsync::Job<void> Store::start(const QByteArray &identifier)
+KAsync::Job<void> Resources::start(const QByteArray &identifier)
 {
     Trace() << "start " << identifier;
     auto time = QSharedPointer<QTime>::create();
@@ -231,7 +231,7 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
     .template then<void>([](){});
 }
 
-KAsync::Job<void> Store::flushMessageQueue(const QByteArrayList &resourceIdentifier)
+KAsync::Job<void> Resources::flushMessageQueue(const QByteArrayList &resourceIdentifier)
 {
     Trace() << "flushMessageQueue" << resourceIdentifier;
     return KAsync::iterate(resourceIdentifier)
@@ -247,7 +247,7 @@ KAsync::Job<void> Store::flushMessageQueue(const QByteArrayList &resourceIdentif
     .template then<void>([](){});
 }
 
-KAsync::Job<void> Store::flushReplayQueue(const QByteArrayList &resourceIdentifier)
+KAsync::Job<void> Resources::flushReplayQueue(const QByteArrayList &resourceIdentifier)
 {
     return flushMessageQueue(resourceIdentifier);
 }

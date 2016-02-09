@@ -86,7 +86,7 @@ private Q_SLOTS:
         query.liveQuery = false;
 
         //Ensure all local data is processed
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
@@ -161,7 +161,7 @@ private Q_SLOTS:
             query.resources << "org.kde.dummy.instance1";
 
             //Ensure all local data is processed
-            Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+            Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -181,7 +181,7 @@ private Q_SLOTS:
         query.parentProperty = "parent";
 
         //Ensure all local data is processed
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
@@ -210,7 +210,7 @@ private Q_SLOTS:
         query.propertyFilter.insert("uid", "test1");
 
         //Ensure all local data is processed
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
@@ -230,7 +230,7 @@ private Q_SLOTS:
             query.resources << "org.kde.dummy.instance1";
 
             //Ensure all local data is processed
-            Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+            Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -251,7 +251,7 @@ private Q_SLOTS:
         query.propertyFilter.insert("folder", folderEntity->identifier());
 
         //Ensure all local data is processed
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);

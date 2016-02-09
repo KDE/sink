@@ -68,7 +68,7 @@ private Q_SLOTS:
 
     void cleanup()
     {
-        Sink::Store::shutdown(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
+        Sink::Resources::shutdown(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
         MaildirResource::removeFromDisk("org.kde.maildir.instance1");
         QDir dir(targetPath);
         dir.removeRecursively();
@@ -80,7 +80,7 @@ private Q_SLOTS:
         qDebug() << "-----------------------------------------";
         qDebug();
         copyRecursively(TESTDATAPATH "/maildir1", targetPath);
-        Sink::Store::start(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
+        Sink::Resources::start(QByteArray("org.kde.maildir.instance1")).exec().waitForFinished();
     }
 
     void testListFolders()
@@ -90,7 +90,7 @@ private Q_SLOTS:
 
         //Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -105,7 +105,7 @@ private Q_SLOTS:
 
         //Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -123,7 +123,7 @@ private Q_SLOTS:
         //Ensure all local data is processed
         auto query = Query::ResourceFilter("org.kde.maildir.instance1");
         Store::synchronize(query).exec().waitForFinished();
-        Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Resources::flushMessageQueue(query.resources).exec().waitForFinished();
         auto result = Store::fetchOne<Folder>(
                 Query::ResourceFilter("org.kde.maildir.instance1") + Query::RequestedProperties(QByteArrayList() << "name")
             )
@@ -149,7 +149,7 @@ private Q_SLOTS:
 
         //Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto mailModel = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(mailModel->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -172,7 +172,7 @@ private Q_SLOTS:
 
         //Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto targetPath = tempDir.path() + "/maildir1/";
         QDir dir(targetPath);
@@ -180,7 +180,7 @@ private Q_SLOTS:
 
         //Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -196,11 +196,11 @@ private Q_SLOTS:
 
         //Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto mailModel = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(mailModel->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -215,7 +215,7 @@ private Q_SLOTS:
 
         //Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto targetPath = tempDir.path() + "/maildir1/cur/1365777830.R28.localhost.localdomain:2,S";
         QFile file(targetPath);
@@ -223,7 +223,7 @@ private Q_SLOTS:
 
         //Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto mailModel = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(mailModel->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -236,7 +236,7 @@ private Q_SLOTS:
         query.resources << "org.kde.maildir.instance1";
 
         //Ensure all local data is processed
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         Sink::ApplicationDomain::Folder folder("org.kde.maildir.instance1");
         folder.setProperty("name", "testCreateFolder");
@@ -244,7 +244,7 @@ private Q_SLOTS:
         Sink::Store::create(folder).exec().waitForFinished();
 
         //Ensure all local data is processed
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto targetPath = tempDir.path() + "/maildir1/testCreateFolder";
         QFileInfo file(targetPath);
@@ -262,7 +262,7 @@ private Q_SLOTS:
         Sink::ApplicationDomain::Folder folder("org.kde.maildir.instance1");
         folder.setProperty("name", "testCreateFolder");
         Sink::Store::create(folder).exec().waitForFinished();
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
         QTRY_VERIFY(QFileInfo(targetPath).exists());
 
         Sink::Query folderQuery;
@@ -274,7 +274,7 @@ private Q_SLOTS:
         auto createdFolder = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>();
 
         Sink::Store::remove(*createdFolder).exec().waitForFinished();
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
         QTRY_VERIFY(!QFileInfo(targetPath).exists());
     }
 
@@ -284,15 +284,16 @@ private Q_SLOTS:
         query.resources << "org.kde.maildir.instance1";
 
         //Ensure all local data is processed
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         Sink::ApplicationDomain::Mail mail("org.kde.maildir.instance1");
         mail.setProperty("name", "testCreateMail");
+        //FIXME instead of properties, ensure the mimeMessage property is used and the file is moved as expected
 
         Sink::Store::create(mail).exec().waitForFinished();
 
         //Ensure all local data is processed
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto targetPath = tempDir.path() + "/maildir1/new";
         QDir dir(targetPath);
@@ -307,7 +308,7 @@ private Q_SLOTS:
 
         auto query = Query::ResourceFilter("org.kde.maildir.instance1");
         Store::synchronize(query).exec().waitForFinished();
-        Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto result = Store::fetchOne<Folder>(
             Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name")
@@ -324,7 +325,7 @@ private Q_SLOTS:
                 auto mail = mails.first();
 
                 return Store::remove(*mail)
-                    .then(Store::flushReplayQueue(query.resources)) //The change needs to be replayed already
+                    .then(Resources::flushReplayQueue(query.resources)) //The change needs to be replayed already
                     .then(Resources::inspect<Mail>(Resources::Inspection::ExistenceInspection(*mail, false)));
             })
             .then<void>([](){});
@@ -341,7 +342,7 @@ private Q_SLOTS:
 
         auto query = Query::ResourceFilter("org.kde.maildir.instance1");
         Store::synchronize(query).exec().waitForFinished();
-        Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         Folder f;
 
@@ -361,7 +362,7 @@ private Q_SLOTS:
                 auto mail = mails.first();
                 mail->setProperty("unread", true);
                 return Store::modify(*mail)
-                .then<void>(Store::flushReplayQueue(query.resources)) //The change needs to be replayed already
+                .then<void>(Resources::flushReplayQueue(query.resources)) //The change needs to be replayed already
                 .then(Resources::inspect<Mail>(Resources::Inspection::PropertyInspection(*mail, "unread", true)))
                 .then(Resources::inspect<Mail>(Resources::Inspection::PropertyInspection(*mail, "subject", mail->getProperty("subject"))));
             })

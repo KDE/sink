@@ -73,7 +73,7 @@ private Q_SLOTS:
         query.resources << "org.kde.dummy.instance1";
         query.liveQuery = true;
 
-        Sink::Store::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test
         QTime time;
