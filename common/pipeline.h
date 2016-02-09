@@ -25,7 +25,7 @@
 #include <QSharedDataPointer>
 #include <QObject>
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <storage.h>
 
 #include <Async/Async>
@@ -37,7 +37,7 @@ namespace Sink
 
 class Preprocessor;
 
-class SINKCOMMON_EXPORT Pipeline : public QObject
+class SINK_EXPORT Pipeline : public QObject
 {
     Q_OBJECT
 
@@ -77,7 +77,7 @@ private:
     Private * const d;
 };
 
-class SINKCOMMON_EXPORT Preprocessor
+class SINK_EXPORT Preprocessor
 {
 public:
     Preprocessor();

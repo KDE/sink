@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <QObject>
 #include <QByteArrayList>
 #include <string>
@@ -12,7 +12,7 @@
 /**
  * A persistent FIFO message queue.
  */
-class SINKCOMMON_EXPORT MessageQueue : public QObject
+class SINK_EXPORT MessageQueue : public QObject
 {
     Q_OBJECT
 public:

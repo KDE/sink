@@ -19,7 +19,7 @@
  */
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <QString>
 
 namespace Sink
@@ -28,7 +28,7 @@ namespace Sink
 /**
  * A notification
  */
-class SINKCOMMON_EXPORT Notification
+class SINK_EXPORT Notification
 {
 public:
     QByteArray id;

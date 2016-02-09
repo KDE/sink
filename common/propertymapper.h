@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <QVariant>
 #include <QByteArray>
 #include <functional>
@@ -29,17 +29,17 @@
  * Defines how to convert qt primitives to flatbuffer ones
  */
 template <class T>
-flatbuffers::uoffset_t SINKCOMMON_EXPORT variantToProperty(const QVariant &, flatbuffers::FlatBufferBuilder &fbb);
+flatbuffers::uoffset_t SINK_EXPORT variantToProperty(const QVariant &, flatbuffers::FlatBufferBuilder &fbb);
 
 /**
  * Defines how to convert flatbuffer primitives to qt ones
  */
 template <typename T>
-QVariant SINKCOMMON_EXPORT propertyToVariant(const flatbuffers::String *);
+QVariant SINK_EXPORT propertyToVariant(const flatbuffers::String *);
 template <typename T>
-QVariant SINKCOMMON_EXPORT propertyToVariant(uint8_t);
+QVariant SINK_EXPORT propertyToVariant(uint8_t);
 template <typename T>
-QVariant SINKCOMMON_EXPORT propertyToVariant(const flatbuffers::Vector<uint8_t> *);
+QVariant SINK_EXPORT propertyToVariant(const flatbuffers::Vector<uint8_t> *);
 
 
 /**

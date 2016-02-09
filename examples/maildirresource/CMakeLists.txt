@@ -8,7 +8,7 @@ find_package(KF5 COMPONENTS REQUIRED Mime)
 add_library(${PROJECT_NAME} SHARED facade.cpp maildirresource.cpp domainadaptor.cpp)
 # generate_flatbuffers(${PROJECT_NAME} dummycalendar)
 qt5_use_modules(${PROJECT_NAME} Core Network)
-target_link_libraries(${PROJECT_NAME} sinkcommon maildir KF5::Mime)
+target_link_libraries(${PROJECT_NAME} sink maildir KF5::Mime)
 
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
 

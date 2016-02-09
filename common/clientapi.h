@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <QString>
 #include <QSharedPointer>
 
@@ -36,7 +36,7 @@ namespace Sink {
 class ResourceAccess;
 class Notification;
 
-class SINKCOMMON_EXPORT Notifier {
+class SINK_EXPORT Notifier {
 public:
     Notifier(const QSharedPointer<ResourceAccess> &resourceAccess);
     Notifier(const QByteArray &resourceInstanceIdentifier);
@@ -54,8 +54,8 @@ private:
  */
 namespace Store {
 
-QString SINKCOMMON_EXPORT storageLocation();
-QByteArray SINKCOMMON_EXPORT resourceName(const QByteArray &instanceIdentifier);
+QString SINK_EXPORT storageLocation();
+QByteArray SINK_EXPORT resourceName(const QByteArray &instanceIdentifier);
 
 enum Roles {
     DomainObjectRole = Qt::UserRole + 1, //Must be the same as in ModelResult
@@ -67,13 +67,13 @@ enum Roles {
     * Asynchronusly load a dataset with tree structure information
     */
 template <class DomainType>
-QSharedPointer<QAbstractItemModel> SINKCOMMON_EXPORT loadModel(Query query);
+QSharedPointer<QAbstractItemModel> SINK_EXPORT loadModel(Query query);
 
 /**
  * Create a new entity.
  */
 template <class DomainType>
-KAsync::Job<void> SINKCOMMON_EXPORT create(const DomainType &domainObject);
+KAsync::Job<void> SINK_EXPORT create(const DomainType &domainObject);
 
 /**
  * Modify an entity.
@@ -81,51 +81,51 @@ KAsync::Job<void> SINKCOMMON_EXPORT create(const DomainType &domainObject);
  * This includes moving etc. since these are also simple settings on a property.
  */
 template <class DomainType>
-KAsync::Job<void> SINKCOMMON_EXPORT modify(const DomainType &domainObject);
+KAsync::Job<void> SINK_EXPORT modify(const DomainType &domainObject);
 
 /**
  * Remove an entity.
  */
 template <class DomainType>
-KAsync::Job<void> SINKCOMMON_EXPORT remove(const DomainType &domainObject);
+KAsync::Job<void> SINK_EXPORT remove(const DomainType &domainObject);
 
 /**
  * Synchronize data to local cache.
  */
-KAsync::Job<void> SINKCOMMON_EXPORT synchronize(const Sink::Query &query);
+KAsync::Job<void> SINK_EXPORT synchronize(const Sink::Query &query);
 
 /**
  * Removes a resource from disk.
  */
-void SINKCOMMON_EXPORT removeFromDisk(const QByteArray &resourceIdentifier);
+void SINK_EXPORT removeFromDisk(const QByteArray &resourceIdentifier);
 
 /**
  * Removes all resource data from disk.
  * 
  * This will not touch the configuration. All commands that that arrived at the resource before this command will be dropped. All commands that arrived later will be executed.
  */
-KAsync::Job<void> SINKCOMMON_EXPORT removeDataFromDisk(const QByteArray &resourceIdentifier);
+KAsync::Job<void> SINK_EXPORT removeDataFromDisk(const QByteArray &resourceIdentifier);
 
 template <class DomainType>
-KAsync::Job<DomainType> SINKCOMMON_EXPORT fetchOne(const Sink::Query &query);
+KAsync::Job<DomainType> SINK_EXPORT fetchOne(const Sink::Query &query);
 
 template <class DomainType>
-KAsync::Job<QList<typename DomainType::Ptr> > SINKCOMMON_EXPORT fetchAll(const Sink::Query &query);
+KAsync::Job<QList<typename DomainType::Ptr> > SINK_EXPORT fetchAll(const Sink::Query &query);
 
 template <class DomainType>
-KAsync::Job<QList<typename DomainType::Ptr> > SINKCOMMON_EXPORT fetch(const Sink::Query &query, int minimumAmount = 0);
+KAsync::Job<QList<typename DomainType::Ptr> > SINK_EXPORT fetch(const Sink::Query &query, int minimumAmount = 0);
 
 };
 
 namespace Resources {
 
 template <class DomainType>
-KAsync::Job<void> SINKCOMMON_EXPORT inspect(const Inspection &inspectionCommand);
+KAsync::Job<void> SINK_EXPORT inspect(const Inspection &inspectionCommand);
 
 /**
     * Shutdown resource.
     */
-KAsync::Job<void> SINKCOMMON_EXPORT shutdown(const QByteArray &resourceIdentifier);
+KAsync::Job<void> SINK_EXPORT shutdown(const QByteArray &resourceIdentifier);
 
 /**
     * Start resource.
@@ -134,17 +134,17 @@ KAsync::Job<void> SINKCOMMON_EXPORT shutdown(const QByteArray &resourceIdentifie
     * This command is only necessary if a resource was shutdown previously,
     * otherwise the resource process will automatically start as necessary.
     */
-KAsync::Job<void> SINKCOMMON_EXPORT start(const QByteArray &resourceIdentifier);
+KAsync::Job<void> SINK_EXPORT start(const QByteArray &resourceIdentifier);
 
 /**
     * Flushes any pending messages to disk
     */
-KAsync::Job<void> SINKCOMMON_EXPORT flushMessageQueue(const QByteArrayList &resourceIdentifier);
+KAsync::Job<void> SINK_EXPORT flushMessageQueue(const QByteArrayList &resourceIdentifier);
 
 /**
     * Flushes any pending messages that haven't been replayed to the source.
     */
-KAsync::Job<void> SINKCOMMON_EXPORT flushReplayQueue(const QByteArrayList &resourceIdentifier);
+KAsync::Job<void> SINK_EXPORT flushReplayQueue(const QByteArrayList &resourceIdentifier);
 
 }
 

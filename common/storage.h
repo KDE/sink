@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <string>
 #include <functional>
 #include <QString>
@@ -29,7 +29,7 @@
 namespace Sink
 {
 
-class SINKCOMMON_EXPORT Storage {
+class SINK_EXPORT Storage {
 public:
     enum AccessMode { ReadOnly, ReadWrite };
 

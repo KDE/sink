@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <QByteArray>
 #include <QDebug>
 #include <QMutex>
@@ -38,7 +38,7 @@ namespace Sink {
  *
  * If we were to provide default implementations for certain capabilities. Here would be the place to do so.
  */
-class SINKCOMMON_EXPORT FacadeFactory {
+class SINK_EXPORT FacadeFactory {
 public:
     typedef std::function<std::shared_ptr<void>(const QByteArray &)> FactoryFunction;
 

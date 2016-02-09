@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <QVariant>
 #include <QByteArray>
 #include <functional>
@@ -122,7 +122,7 @@ public:
  * This is required by the facade the read the value, and by the pipeline preprocessors to access the domain values in a generic way.
  */
 template<typename DomainType, typename ResourceBuffer, typename ResourceBuilder>
-class SINKCOMMON_EXPORT DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInterface
+class SINK_EXPORT DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInterface
 {
     typedef typename Sink::ApplicationDomain::TypeImplementation<DomainType>::Buffer LocalBuffer;
     typedef typename Sink::ApplicationDomain::TypeImplementation<DomainType>::BufferBuilder LocalBuilder;

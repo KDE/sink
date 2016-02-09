@@ -19,7 +19,7 @@
  */
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <resource.h>
 #include <messagequeue.h>
 #include <flatbuffers/flatbuffers.h>
@@ -37,7 +37,7 @@ class Preprocessor;
 /**
  * Generic Resource implementation.
  */
-class SINKCOMMON_EXPORT GenericResource : public Resource
+class SINK_EXPORT GenericResource : public Resource
 {
 public:
     GenericResource(const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline = QSharedPointer<Pipeline>());

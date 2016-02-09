@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <QDebug>
 
 namespace Sink {
@@ -13,16 +13,16 @@ enum DebugLevel {
     Error
 };
 
-QByteArray SINKCOMMON_EXPORT debugLevelName(DebugLevel debugLevel);
-DebugLevel SINKCOMMON_EXPORT debugLevelFromName(const QByteArray &name);
+QByteArray SINK_EXPORT debugLevelName(DebugLevel debugLevel);
+DebugLevel SINK_EXPORT debugLevelFromName(const QByteArray &name);
 
 /**
  * Sets the debug output level.
  *
  * Everything below is ignored.
  */
-void SINKCOMMON_EXPORT setDebugOutputLevel(DebugLevel);
-DebugLevel SINKCOMMON_EXPORT debugOutputLevel();
+void SINK_EXPORT setDebugOutputLevel(DebugLevel);
+DebugLevel SINK_EXPORT debugOutputLevel();
 
 enum FilterType {
     Area,
@@ -37,8 +37,8 @@ enum FilterType {
  *
  * Note: In case of resources the application name is the identifier.
  */
-void SINKCOMMON_EXPORT setDebugOutputFilter(FilterType, const QByteArrayList &filter);
-QByteArrayList SINKCOMMON_EXPORT debugOutputFilter(FilterType type);
+void SINK_EXPORT setDebugOutputFilter(FilterType, const QByteArrayList &filter);
+QByteArrayList SINK_EXPORT debugOutputFilter(FilterType type);
 
 /**
  * Set the debug output fields.
@@ -50,18 +50,18 @@ QByteArrayList SINKCOMMON_EXPORT debugOutputFilter(FilterType type);
  *
  * These are additional items to the default ones (level, area, message).
  */
-void SINKCOMMON_EXPORT setDebugOutputFields(const QByteArrayList &filter);
-QByteArrayList SINKCOMMON_EXPORT debugOutputFields();
+void SINK_EXPORT setDebugOutputFields(const QByteArrayList &filter);
+QByteArrayList SINK_EXPORT debugOutputFields();
 
-QDebug SINKCOMMON_EXPORT debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
+QDebug SINK_EXPORT debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
 
-struct SINKCOMMON_EXPORT TraceTime
+struct SINK_EXPORT TraceTime
 {
     TraceTime(int i) : time(i){};
     const int time;
 };
 
-inline QDebug SINKCOMMON_EXPORT operator<<(QDebug d, const TraceTime &time)
+inline QDebug SINK_EXPORT operator<<(QDebug d, const TraceTime &time)
 {
     d << time.time << "[ms]";
     return d;

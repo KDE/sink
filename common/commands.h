@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <flatbuffers/flatbuffers.h>
 #include <QByteArray>
 
@@ -55,10 +55,10 @@ enum CommandIds {
 
 QByteArray name(int commandId);
 
-int SINKCOMMON_EXPORT headerSize();
-void SINKCOMMON_EXPORT write(QIODevice *device, int messageId, int commandId);
-void SINKCOMMON_EXPORT write(QIODevice *device, int messageId, int commandId, const char *buffer, uint size);
-void SINKCOMMON_EXPORT write(QIODevice *device, int messageId, int commandId, flatbuffers::FlatBufferBuilder &fbb);
+int SINK_EXPORT headerSize();
+void SINK_EXPORT write(QIODevice *device, int messageId, int commandId);
+void SINK_EXPORT write(QIODevice *device, int messageId, int commandId, const char *buffer, uint size);
+void SINK_EXPORT write(QIODevice *device, int messageId, int commandId, flatbuffers::FlatBufferBuilder &fbb);
 
 }
 

@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 
 #include <QObject>
 #include <functional>
@@ -31,7 +31,7 @@ namespace async {
 * A helper class to invoke a method in a different thread using the event loop.
 * The ThreadBoundary object must live in the thread where the function should be called.
 */
-class SINKCOMMON_EXPORT ThreadBoundary : public QObject {
+class SINK_EXPORT ThreadBoundary : public QObject {
     Q_OBJECT
 public:
     ThreadBoundary();

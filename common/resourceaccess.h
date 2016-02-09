@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <QLocalSocket>
 #include <QObject>
 #include <QTimer>
@@ -35,7 +35,7 @@ namespace Sink
 
 struct QueuedCommand;
 
-class SINKCOMMON_EXPORT ResourceAccessInterface : public QObject
+class SINK_EXPORT ResourceAccessInterface : public QObject
 {
     Q_OBJECT
 public:
@@ -63,7 +63,7 @@ public Q_SLOTS:
     virtual void close() = 0;
 };
 
-class SINKCOMMON_EXPORT ResourceAccess : public ResourceAccessInterface
+class SINK_EXPORT ResourceAccess : public ResourceAccessInterface
 {
     Q_OBJECT
 public:

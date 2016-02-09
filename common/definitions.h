@@ -20,11 +20,11 @@
 
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <QString>
 #include <QByteArray>
 
 namespace Sink {
-    QString SINKCOMMON_EXPORT storageLocation();
-    QByteArray SINKCOMMON_EXPORT resourceName(const QByteArray &instanceIdentifier);
+    QString SINK_EXPORT storageLocation();
+    QByteArray SINK_EXPORT resourceName(const QByteArray &instanceIdentifier);
 }

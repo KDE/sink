@@ -19,7 +19,7 @@
  */
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 
 #include <Async/Async>
 #include "notification.h"
@@ -31,7 +31,7 @@ class FacadeFactory;
 /**
  * Resource interface
  */
-class SINKCOMMON_EXPORT Resource : public QObject
+class SINK_EXPORT Resource : public QObject
 {
     Q_OBJECT
 public:
@@ -72,7 +72,7 @@ private:
 /**
  * Factory interface for resource to implement.
  */
-class SINKCOMMON_EXPORT ResourceFactory : public QObject
+class SINK_EXPORT ResourceFactory : public QObject
 {
 public:
     static ResourceFactory *load(const QString &resourceName);

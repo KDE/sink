@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sinkcommon_export.h"
+#include "sink_export.h"
 #include <string>
 #include <functional>
 #include <QString>
@@ -9,7 +9,7 @@
 /**
  * An index for value pairs.
  */
-class SINKCOMMON_EXPORT Index
+class SINK_EXPORT Index
 {
 public:
     enum ErrorCodes {
