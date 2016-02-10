@@ -107,7 +107,6 @@ install(FILES
     store.h
     notifier.h
     resourcecontrol.h
-    clientapi.h
     domain/applicationdomaintype.h
     query.h
     inspection.h
