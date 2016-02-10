@@ -55,7 +55,6 @@ private:
 namespace Store {
 
 QString SINK_EXPORT storageLocation();
-QByteArray SINK_EXPORT resourceName(const QByteArray &instanceIdentifier);
 
 enum Roles {
     DomainObjectRole = Qt::UserRole + 1, //Must be the same as in ModelResult

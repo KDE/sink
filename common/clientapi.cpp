@@ -51,11 +51,6 @@ QString Store::storageLocation()
     return Sink::storageLocation();
 }
 
-QByteArray Store::resourceName(const QByteArray &instanceIdentifier)
-{
-    return Sink::resourceName(instanceIdentifier);
-}
-
 static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type)
 {
     //Return the global resource (signified by an empty name) for types that don't eblong to a specific resource
