@@ -34,11 +34,12 @@ set(storage_LIBS lmdb)
 
 set(command_SRCS
     store.cpp
+    notifier.cpp
+    resourcecontrol.cpp
     modelresult.cpp
     definitions.cpp
     log.cpp
     entitybuffer.cpp
-    clientapi.cpp
     facadefactory.cpp
     commands.cpp
     facade.cpp
@@ -104,6 +105,8 @@ add_clang_static_analysis(${PROJECT_NAME})
 
 install(FILES
     store.h
+    notifier.h
+    resourcecontrol.h
     clientapi.h
     domain/applicationdomaintype.h
     query.h

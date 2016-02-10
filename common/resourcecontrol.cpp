@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Christian Mollekopf <chrigi_1@fastmail.fm>
+ * Copyright (C) 2015 Christian Mollekopf <chrigi_1@fastmail.fm>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,30 +18,19 @@
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "clientapi.h"
+#include "resourcecontrol.h"
 
-#include <QtConcurrent/QtConcurrentRun>
-#include <QTimer>
 #include <QTime>
-#include <QEventLoop>
-#include <QAbstractItemModel>
-#include <QDir>
 #include <QUuid>
 #include <functional>
-#include <memory>
 
 #include "resourceaccess.h"
 #include "commands.h"
-#include "resourcefacade.h"
-#include "definitions.h"
-#include "resourceconfig.h"
-#include "facadefactory.h"
-#include "modelresult.h"
-#include "storage.h"
 #include "log.h"
+#include "notifier.h"
 
 #undef DEBUG_AREA
-#define DEBUG_AREA "client.clientapi"
+#define DEBUG_AREA "client.resourcecontrol"
 
 namespace Sink
 {
@@ -127,47 +116,6 @@ KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
                 }
             });
         });
-}
-
-class Sink::Notifier::Private {
-public:
-    Private()
-        : context(new QObject)
-    {
-
-    }
-    QList<QSharedPointer<ResourceAccess> > resourceAccess;
-    QList<std::function<void(const Notification &)> > handler;
-    QSharedPointer<QObject> context;
-};
-
-Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess)
-    : d(new Sink::Notifier::Private)
-{
-    QObject::connect(resourceAccess.data(), &ResourceAccess::notification, d->context.data(), [this](const Notification &notification) {
-        for (const auto &handler : d->handler) {
-            handler(notification);
-        }
-    });
-    d->resourceAccess << resourceAccess;
-}
-
-Notifier::Notifier(const QByteArray &instanceIdentifier)
-    : d(new Sink::Notifier::Private)
-{
-    auto resourceAccess = Sink::ResourceAccess::Ptr::create(instanceIdentifier);
-    resourceAccess->open();
-    QObject::connect(resourceAccess.data(), &ResourceAccess::notification, d->context.data(), [this](const Notification &notification) {
-        for (const auto &handler : d->handler) {
-            handler(notification);
-        }
-    });
-    d->resourceAccess << resourceAccess;
-}
-
-void Notifier::registerHandler(std::function<void(const Notification &)> handler)
-{
-    d->handler << handler;
 }
 
 #define REGISTER_TYPE(T) template KAsync::Job<void> ResourceControl::inspect<T>(const Inspection &); \

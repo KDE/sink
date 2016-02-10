@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Christian Mollekopf <chrigi_1@fastmail.fm>
+ * Copyright (C) 2015 Christian Mollekopf <chrigi_1@fastmail.fm>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,6 +20,27 @@
 
 #pragma once
 
-#include "store.h"
-#include "notifier.h"
-#include "resourcecontrol.h"
+#include "sink_export.h"
+#include <QByteArray>
+#include <QSharedPointer>
+
+#include <Async/Async>
+
+class QAbstractItemModel;
+
+namespace Sink {
+class ResourceAccess;
+class Notification;
+
+class SINK_EXPORT Notifier {
+public:
+    Notifier(const QSharedPointer<ResourceAccess> &resourceAccess);
+    Notifier(const QByteArray &resourceInstanceIdentifier);
+    void registerHandler(std::function<void(const Notification &)>);
+
+private:
+    class Private;
+    QSharedPointer<Private> d;
+};
+
+}
