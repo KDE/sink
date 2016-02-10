@@ -29,8 +29,8 @@ MaildirResourceMailFacade::MaildirResourceMailFacade(const QByteArray &instanceI
     : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<MaildirMailAdaptorFactory>::create())
 {
     mResultTransformation = [](Sink::ApplicationDomain::ApplicationDomainType &value) {
-        const auto property = value.getProperty("mimeMessage");
-        if (property.isValid()) {
+        if (value.hasProperty("mimeMessage")) {
+            const auto property = value.getProperty("mimeMessage");
             //Transform the mime message property into the actual path on disk.
             const auto mimeMessage = property.toString();
             auto parts = mimeMessage.split('/');

@@ -64,6 +64,12 @@ ApplicationDomainType::~ApplicationDomainType()
 {
 }
 
+bool ApplicationDomainType::hasProperty(const QByteArray &key) const
+{
+    Q_ASSERT(mAdaptor);
+    return mAdaptor->availableProperties().contains(key);
+}
+
 QVariant ApplicationDomainType::getProperty(const QByteArray &key) const
 {
     Q_ASSERT(mAdaptor);

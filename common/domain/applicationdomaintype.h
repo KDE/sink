@@ -57,7 +57,8 @@ public:
 
     virtual ~ApplicationDomainType();
 
-    QVariant getProperty(const QByteArray &key) const;;
+    bool hasProperty(const QByteArray &key) const;
+    QVariant getProperty(const QByteArray &key) const;
     void setProperty(const QByteArray &key, const QVariant &value);
     void setChangedProperties(const QSet<QByteArray> &changeset);
     QByteArrayList changedProperties() const;
