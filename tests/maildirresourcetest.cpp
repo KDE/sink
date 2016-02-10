@@ -329,7 +329,6 @@ private Q_SLOTS:
                     .then(ResourceControl::flushReplayQueue(query.resources)) //The change needs to be replayed already
                     .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::ExistenceInspection(*mail, false)));
             });
-            // .then<void>([](){});
         })
         .exec();
         result.waitForFinished();
@@ -366,8 +365,7 @@ private Q_SLOTS:
                 .then<void>(ResourceControl::flushReplayQueue(query.resources)) //The change needs to be replayed already
                 .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::PropertyInspection(*mail, "unread", true)))
                 .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::PropertyInspection(*mail, "subject", mail->getProperty("subject"))));
-            })
-            .then<void>([](){});
+            });
         })
         .exec();
         result.waitForFinished();

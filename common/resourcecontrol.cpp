@@ -53,9 +53,7 @@ KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
     [](int, const QString &) {
         Trace() << "Resource is already closed.";
         //Resource isn't started, nothing to shutdown
-    })
-    //FIXME JOBAPI this is only required because we don't care about the return value of connectToServer
-    .template then<void>([](){});
+    });
 }
 
 KAsync::Job<void> ResourceControl::start(const QByteArray &identifier)
@@ -81,9 +79,7 @@ KAsync::Job<void> ResourceControl::flushMessageQueue(const QByteArrayList &resou
         resourceAccess->synchronizeResource(false, true).then<void>([&future, resourceAccess]() {
             future.setFinished();
         }).exec();
-    })
-    //FIXME JOBAPI this is only required because we don't care about the return value of each (and each shouldn't even have a return value)
-    .template then<void>([](){});
+    });
 }
 
 KAsync::Job<void> ResourceControl::flushReplayQueue(const QByteArrayList &resourceIdentifier)

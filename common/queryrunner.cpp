@@ -105,8 +105,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                 .template then<void, qint64>([query, this](qint64 newRevision) {
                     //Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
                     mResourceAccess->sendRevisionReplayedCommand(newRevision);
-                })
-                .template then<void>([](){});
+                });
         });
         //Ensure the connection is open, if it wasn't already opened
         //TODO If we are not connected already, we have to check for the latest revision once connected, otherwise we could miss some updates

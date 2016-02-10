@@ -176,9 +176,7 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
         resourceAccess->synchronizeResource(true, false).then<void>([&future, resourceAccess]() {
             future.setFinished();
         }).exec();
-    })
-    //FIXME JOBAPI this is only required because we don't care about the return value of each (and each shouldn't even have a return value)
-    .template then<void>([](){});
+    });
 }
 
 template <class DomainType>
