@@ -2,16 +2,16 @@
 
 Sink is a data access layer that additionally handles synchronization with external sources and indexing of data for efficient queries.
 
-## Client API
-The client facing API hides all Sink internals from the applications and emulates a unified store that provides data through a standardized interface. 
+## Store
+The client facing Store API hides all Sink internals from the applications and emulates a unified store that provides data through a standardized interface. 
 This allows applications to transparently use various data sources with various data source formats.
 
 ## Resource
 A resource is a plugin that provides access to an additional source. It consists of a store, a synchronizer process that executes synchronization & change replay to the source and maintains the store, as well as a facade plugin for the client api.
 
-## Store / Indexes
+## Storage / Indexes
 Each resource maintains a store that can either store the full dataset for offline access or only metadata for quick lookups. Resources can define how data is stored.
-The store consits of revisions with every revision containing one entity.
+The store consists of revisions with every revision containing one entity.
 
 The store additionally contains various secondary indexes for efficient lookups.
 
