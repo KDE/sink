@@ -85,3 +85,15 @@ mkdir build && cd build
 cmake ..
 make install
 ```
+
+# Dependencies
+
+* ExtraCmakeModules >= 0.0.10
+* Qt >= 5.2
+* KF5::Async >= 0.1
+* flatbuffers >= 1.0
+* libgit2
+* readline
+
+## Maildir Resource
+* KF5::Mime
