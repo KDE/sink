@@ -190,11 +190,6 @@ KAsync::Job<void> Resources::start(const QByteArray &identifier)
     });
 }
 
-void Store::removeFromDisk(const QByteArray &identifier)
-{
-    removeDataFromDisk(identifier).exec().waitForFinished();
-}
-
 KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 {
     //All databases are going to become invalid, nuke the environments

@@ -94,11 +94,6 @@ KAsync::Job<void> SINK_EXPORT remove(const DomainType &domainObject);
 KAsync::Job<void> SINK_EXPORT synchronize(const Sink::Query &query);
 
 /**
- * Removes a resource from disk.
- */
-void SINK_EXPORT removeFromDisk(const QByteArray &resourceIdentifier);
-
-/**
  * Removes all resource data from disk.
  * 
  * This will not touch the configuration. All commands that that arrived at the resource before this command will be dropped. All commands that arrived later will be executed.
