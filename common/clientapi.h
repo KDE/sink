@@ -26,6 +26,8 @@
 
 #include <Async/Async>
 
+#include "store.h"
+
 #include "query.h"
 #include "inspection.h"
 #include "applicationdomaintype.h"
@@ -48,68 +50,6 @@ private:
     QSharedPointer<Private> d;
 };
 
-
-/**
- * Store interface used in the client API.
- */
-namespace Store {
-
-QString SINK_EXPORT storageLocation();
-
-enum Roles {
-    DomainObjectRole = Qt::UserRole + 1, //Must be the same as in ModelResult
-    ChildrenFetchedRole,
-    DomainObjectBaseRole
-};
-
-/**
-    * Asynchronusly load a dataset with tree structure information
-    */
-template <class DomainType>
-QSharedPointer<QAbstractItemModel> SINK_EXPORT loadModel(Query query);
-
-/**
- * Create a new entity.
- */
-template <class DomainType>
-KAsync::Job<void> SINK_EXPORT create(const DomainType &domainObject);
-
-/**
- * Modify an entity.
- * 
- * This includes moving etc. since these are also simple settings on a property.
- */
-template <class DomainType>
-KAsync::Job<void> SINK_EXPORT modify(const DomainType &domainObject);
-
-/**
- * Remove an entity.
- */
-template <class DomainType>
-KAsync::Job<void> SINK_EXPORT remove(const DomainType &domainObject);
-
-/**
- * Synchronize data to local cache.
- */
-KAsync::Job<void> SINK_EXPORT synchronize(const Sink::Query &query);
-
-/**
- * Removes all resource data from disk.
- * 
- * This will not touch the configuration. All commands that that arrived at the resource before this command will be dropped. All commands that arrived later will be executed.
- */
-KAsync::Job<void> SINK_EXPORT removeDataFromDisk(const QByteArray &resourceIdentifier);
-
-template <class DomainType>
-KAsync::Job<DomainType> SINK_EXPORT fetchOne(const Sink::Query &query);
-
-template <class DomainType>
-KAsync::Job<QList<typename DomainType::Ptr> > SINK_EXPORT fetchAll(const Sink::Query &query);
-
-template <class DomainType>
-KAsync::Job<QList<typename DomainType::Ptr> > SINK_EXPORT fetch(const Sink::Query &query, int minimumAmount = 0);
-
-};
 
 namespace ResourceControl {
 

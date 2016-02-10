@@ -33,6 +33,7 @@ set(storage_SRCS storage_lmdb.cpp)
 set(storage_LIBS lmdb)
 
 set(command_SRCS
+    store.cpp
     modelresult.cpp
     definitions.cpp
     log.cpp
@@ -102,6 +103,7 @@ install(TARGETS ${PROJECT_NAME}
 add_clang_static_analysis(${PROJECT_NAME})
 
 install(FILES
+    store.h
     clientapi.h
     domain/applicationdomaintype.h
     query.h
