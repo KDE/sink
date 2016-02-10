@@ -25,6 +25,7 @@
 #include <QVector>
 #include <QUuid>
 #include <QDebug>
+#include <QTime>
 #include "entity_generated.h"
 #include "metadata_generated.h"
 #include "createentity_generated.h"
@@ -57,6 +58,8 @@ public:
     QHash<QString, DomainTypeAdaptorFactoryInterface::Ptr> adaptorFactory;
     bool revisionChanged;
     void storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid);
+    QTime transactionTime;
+    int transactionItemCount;
 };
 
 void Pipeline::Private::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid)
@@ -103,6 +106,9 @@ void Pipeline::startTransaction()
     if (d->transaction) {
         return;
     }
+    Trace() << "Starting transaction.";
+    d->transactionTime.start();
+    d->transactionItemCount = 0;
     d->transaction = std::move(storage().createTransaction(Storage::ReadWrite));
 }
 
@@ -114,7 +120,8 @@ void Pipeline::commit()
     //     processor->finalize();
     // }
     const auto revision = Storage::maxRevision(d->transaction);
-    Trace() << "Committing " << revision;
+    const auto elapsed = d->transactionTime.elapsed();
+    Trace() << "Committing revision: " << revision << ":" << d->transactionItemCount << " items in: " << Log::TraceTime(elapsed) << " " << (double)elapsed/(double)qMax(d->transactionItemCount, 1) << "[ms/item]";
     if (d->transaction) {
         d->transaction.commit();
     }
@@ -138,6 +145,7 @@ Storage &Pipeline::storage() const
 KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 {
     Trace() << "Pipeline: New Entity";
+    d->transactionItemCount++;
 
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
@@ -217,6 +225,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 {
     Trace() << "Pipeline: Modified Entity";
+    d->transactionItemCount++;
 
     const qint64 newRevision = Storage::maxRevision(d->transaction) + 1;
 
@@ -337,6 +346,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 {
     Trace() << "Pipeline: Deleted Entity";
+    d->transactionItemCount++;
 
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);

@@ -234,15 +234,17 @@ private slots:
     //Process all messages of this queue
     KAsync::Job<void> processQueue(MessageQueue *queue)
     {
+        auto time = QSharedPointer<QTime>::create();
         return KAsync::start<void>([this](){
             mPipeline->startTransaction();
         }).then(KAsync::dowhile(
             [queue]() { return !queue->isEmpty(); },
-            [this, queue](KAsync::Future<void> &future) {
-                queue->dequeueBatch(sBatchSize, [this](const QByteArray &data) {
-                        return KAsync::start<void>([this, data](KAsync::Future<void> &future) {
-                            processQueuedCommand(data).then<void, qint64>([&future, this](qint64 createdRevision) {
-                                Trace() << "Created revision " << createdRevision;
+            [this, queue, time](KAsync::Future<void> &future) {
+                queue->dequeueBatch(sBatchSize, [this, time](const QByteArray &data) {
+                        time->start();
+                        return KAsync::start<void>([this, data, time](KAsync::Future<void> &future) {
+                            processQueuedCommand(data).then<void, qint64>([&future, this, time](qint64 createdRevision) {
+                                Trace() << "Created revision " << createdRevision << ". Processing took: " << Log::TraceTime(time->elapsed());
                                 future.setFinished();
                             }).exec();
                         });
@@ -264,12 +266,15 @@ private slots:
 
     KAsync::Job<void> processPipeline()
     {
+        auto time = QSharedPointer<QTime>::create();
+        time->start();
         mPipeline->startTransaction();
         Trace() << "Cleaning up from " << mPipeline->cleanedUpRevision() + 1 << " to " << mLowerBoundRevision;
         for (qint64 revision = mPipeline->cleanedUpRevision() + 1; revision <= mLowerBoundRevision; revision++) {
             mPipeline->cleanupRevision(revision);
         }
         mPipeline->commit();
+        Trace() << "Cleanup done." << Log::TraceTime(time->elapsed());
 
         //Go through all message queues
         auto it = QSharedPointer<QListIterator<MessageQueue*> >::create(mCommandQueues);
