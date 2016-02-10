@@ -65,7 +65,7 @@ private Q_SLOTS:
         query.resources << "org.kde.dummy.instance1";
 
         //Ensure all local data is processed
-        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("uid", "testuid");
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
@@ -89,7 +89,7 @@ private Q_SLOTS:
         query.resources << "org.kde.dummy.instance1";
 
         //Ensure all local data is processed
-        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("uid", "testuid");
 
@@ -117,7 +117,7 @@ private Q_SLOTS:
         query.resources << "org.kde.dummy.instance1";
 
         //Ensure all local data is processed
-        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("summary", "summaryValue2");
 
@@ -151,7 +151,7 @@ private Q_SLOTS:
 
         //Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
@@ -168,7 +168,7 @@ private Q_SLOTS:
 
         //Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
@@ -191,7 +191,7 @@ private Q_SLOTS:
         query.propertyFilter.insert("uid", "testuid");
 
         //Ensure all local data is processed
-        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test create
         Sink::ApplicationDomain::Event event2;
@@ -210,7 +210,7 @@ private Q_SLOTS:
         Sink::Store::modify<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Ensure all local data is processed
-        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test modify
         {
@@ -225,7 +225,7 @@ private Q_SLOTS:
         Sink::Store::remove<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
         //Ensure all local data is processed
-        Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         //Test remove
         {

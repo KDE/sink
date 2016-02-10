@@ -41,8 +41,8 @@ private Q_SLOTS:
         Mail mail(QByteArray("org.kde.dummy.instance1"), QByteArray("identifier"), 0, QSharedPointer<MemoryBufferAdaptor::MemoryBufferAdaptor>::create());
 
         //testInspection is a magic property that the dummyresource supports
-        auto inspectionCommand = Resources::Inspection::PropertyInspection(mail, "testInspection", success);
-        auto result = Resources::inspect<Mail>(inspectionCommand).exec();
+        auto inspectionCommand = ResourceControl::Inspection::PropertyInspection(mail, "testInspection", success);
+        auto result = ResourceControl::inspect<Mail>(inspectionCommand).exec();
         result.waitForFinished();
         if (success) {
             QVERIFY(!result.errorCode());

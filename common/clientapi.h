@@ -111,33 +111,33 @@ KAsync::Job<QList<typename DomainType::Ptr> > SINK_EXPORT fetch(const Sink::Quer
 
 };
 
-namespace Resources {
+namespace ResourceControl {
 
 template <class DomainType>
 KAsync::Job<void> SINK_EXPORT inspect(const Inspection &inspectionCommand);
 
 /**
-    * Shutdown resource.
-    */
+ * Shutdown resource.
+ */
 KAsync::Job<void> SINK_EXPORT shutdown(const QByteArray &resourceIdentifier);
 
 /**
-    * Start resource.
-    * 
-    * The resource is ready for operation once this command completes.
-    * This command is only necessary if a resource was shutdown previously,
-    * otherwise the resource process will automatically start as necessary.
-    */
+ * Start resource.
+ * 
+ * The resource is ready for operation once this command completes.
+ * This command is only necessary if a resource was shutdown previously,
+ * otherwise the resource process will automatically start as necessary.
+ */
 KAsync::Job<void> SINK_EXPORT start(const QByteArray &resourceIdentifier);
 
 /**
-    * Flushes any pending messages to disk
-    */
+ * Flushes any pending messages to disk
+ */
 KAsync::Job<void> SINK_EXPORT flushMessageQueue(const QByteArrayList &resourceIdentifier);
 
 /**
-    * Flushes any pending messages that haven't been replayed to the source.
-    */
+ * Flushes any pending messages that haven't been replayed to the source.
+ */
 KAsync::Job<void> SINK_EXPORT flushReplayQueue(const QByteArrayList &resourceIdentifier);
 
 }

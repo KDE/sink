@@ -155,7 +155,7 @@ KAsync::Job<void> Store::remove(const DomainType &domainObject)
     });
 }
 
-KAsync::Job<void> Resources::shutdown(const QByteArray &identifier)
+KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
 {
     Trace() << "shutdown " << identifier;
     auto time = QSharedPointer<QTime>::create();
@@ -178,7 +178,7 @@ KAsync::Job<void> Resources::shutdown(const QByteArray &identifier)
     .template then<void>([](){});
 }
 
-KAsync::Job<void> Resources::start(const QByteArray &identifier)
+KAsync::Job<void> ResourceControl::start(const QByteArray &identifier)
 {
     Trace() << "start " << identifier;
     auto time = QSharedPointer<QTime>::create();
@@ -221,7 +221,7 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
     .template then<void>([](){});
 }
 
-KAsync::Job<void> Resources::flushMessageQueue(const QByteArrayList &resourceIdentifier)
+KAsync::Job<void> ResourceControl::flushMessageQueue(const QByteArrayList &resourceIdentifier)
 {
     Trace() << "flushMessageQueue" << resourceIdentifier;
     return KAsync::iterate(resourceIdentifier)
@@ -237,7 +237,7 @@ KAsync::Job<void> Resources::flushMessageQueue(const QByteArrayList &resourceIde
     .template then<void>([](){});
 }
 
-KAsync::Job<void> Resources::flushReplayQueue(const QByteArrayList &resourceIdentifier)
+KAsync::Job<void> ResourceControl::flushReplayQueue(const QByteArrayList &resourceIdentifier)
 {
     return flushMessageQueue(resourceIdentifier);
 }
@@ -304,7 +304,7 @@ KAsync::Job<QList<typename DomainType::Ptr> > Store::fetch(const Sink::Query &qu
 }
 
 template <class DomainType>
-KAsync::Job<void> Resources::inspect(const Inspection &inspectionCommand)
+KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
 {
     auto resource = inspectionCommand.resourceIdentifier;
 
@@ -375,7 +375,7 @@ void Notifier::registerHandler(std::function<void(const Notification &)> handler
     template KAsync::Job<void> Store::create<T>(const T &domainObject); \
     template KAsync::Job<void> Store::modify<T>(const T &domainObject); \
     template QSharedPointer<QAbstractItemModel> Store::loadModel<T>(Query query); \
-    template KAsync::Job<void> Resources::inspect<T>(const Inspection &); \
+    template KAsync::Job<void> ResourceControl::inspect<T>(const Inspection &); \
     template KAsync::Job<T> Store::fetchOne<T>(const Query &); \
     template KAsync::Job<QList<T::Ptr> > Store::fetchAll<T>(const Query &); \
     template KAsync::Job<QList<T::Ptr> > Store::fetch<T>(const Query &, int); \

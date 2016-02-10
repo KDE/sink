@@ -102,7 +102,7 @@ private Q_SLOTS:
         QTRY_VERIFY(gotNotification);
 
         QVERIFY2(duration < 100, QString::fromLatin1("Processing a create command took more than 100ms: %1").arg(duration).toLatin1());
-        Sink::Resources::shutdown("org.kde.dummy.instance1").exec().waitForFinished();
+        Sink::ResourceControl::shutdown("org.kde.dummy.instance1").exec().waitForFinished();
         qDebug() << "Single command took [ms]: " << duration;
     }
 
@@ -127,7 +127,7 @@ private Q_SLOTS:
         {
             Sink::Query query;
             query.resources << "org.kde.dummy.instance1";
-            Sink::Resources::flushMessageQueue(query.resources).exec().waitForFinished();
+            Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
         }
         auto allProcessedTime = time.elapsed();
 

@@ -338,7 +338,7 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
     auto synchronizationTransaction = synchronizationStore->createTransaction(Sink::Storage::ReadOnly);
     Trace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
     if (domainType == ENTITY_TYPE_MAIL) {
-        if (inspectionType == Sink::Resources::Inspection::PropertyInspectionType) {
+        if (inspectionType == Sink::ResourceControl::Inspection::PropertyInspectionType) {
             if (property == "unread") {
                 const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, entityId, synchronizationTransaction);
                 const auto flags = KPIM::Maildir::readEntryFlags(remoteId.split('/').last());
@@ -363,7 +363,7 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
                 return KAsync::null<void>();
             }
         }
-        if (inspectionType == Sink::Resources::Inspection::ExistenceInspectionType) {
+        if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
             const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, entityId, synchronizationTransaction);
             if (QFileInfo(remoteId).exists() != expectedValue.toBool()) {
                 return KAsync::error<void>(1, "Wrong file existence: " + remoteId);
