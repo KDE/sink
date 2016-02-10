@@ -22,7 +22,7 @@
 #include <QCommandLineOption>
 #include <QTime>
 
-#include "common/clientapi.h"
+#include "common/store.h"
 #include "common/log.h"
 
 #include <QWidget>

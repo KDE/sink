@@ -6,7 +6,7 @@
 
 #include "dummyresource/resourcefactory.h"
 #include "dummyresource/domainadaptor.h"
-#include "clientapi.h"
+#include "store.h"
 #include "commands.h"
 #include "entitybuffer.h"
 #include "pipeline.h"

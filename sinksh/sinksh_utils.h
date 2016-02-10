@@ -24,7 +24,7 @@
 #include <QSharedPointer>
 
 #include "common/query.h"
-#include "common/clientapi.h"
+#include "common/store.h"
 
 #include "state.h"
 

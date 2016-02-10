@@ -3,10 +3,11 @@
 #include <QString>
 
 #include "dummyresource/resourcefactory.h"
-#include "clientapi.h"
+#include "store.h"
 #include "commands.h"
 #include "entitybuffer.h"
 #include "resourceconfig.h"
+#include "resourcecontrol.h"
 #include "modelresult.h"
 #include "pipeline.h"
 #include "log.h"

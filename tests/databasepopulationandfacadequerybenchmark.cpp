@@ -10,7 +10,7 @@
 #include <common/synclistresult.h>
 #include <common/definitions.h>
 #include <common/query.h>
-#include <common/clientapi.h>
+#include <common/store.h>
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"

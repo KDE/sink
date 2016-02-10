@@ -2,7 +2,7 @@
 #include <QDebug>
 #include <functional>
 
-#include "clientapi.h"
+#include "store.h"
 #include "facade.h"
 #include "resourceconfig.h"
 #include "modelresult.h"

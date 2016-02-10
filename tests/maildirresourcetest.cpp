@@ -3,7 +3,8 @@
 #include <QString>
 
 #include "maildirresource/maildirresource.h"
-#include "clientapi.h"
+#include "store.h"
+#include "resourcecontrol.h"
 #include "commands.h"
 #include "entitybuffer.h"
 #include "resourceconfig.h"

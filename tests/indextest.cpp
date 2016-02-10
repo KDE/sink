@@ -3,7 +3,7 @@
 #include <QString>
 #include <QQueue>
 
-#include "clientapi.h"
+#include "store.h"
 #include "storage.h"
 #include "index.h"
 

@@ -5,7 +5,7 @@
 #include <QDebug>
 
 #include "dummyresource/resourcefactory.h"
-#include "clientapi.h"
+#include "store.h"
 
 #include "common/domainadaptor.h"
 #include "common/entitybuffer.h"

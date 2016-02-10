@@ -20,7 +20,7 @@
 
 #include "sinksh_utils.h"
 
-#include "common/clientapi.h"
+#include "common/store.h"
 
 #include "utils.h"
 
