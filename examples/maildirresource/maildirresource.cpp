@@ -196,7 +196,8 @@ void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, 
 
         createOrModify(transaction, synchronizationTransaction, *mMailAdaptorFactory, bufferType, remoteId, mail);
     }
-    Trace() << "Synchronized " << count << " mails in " << listingPath << Sink::Log::TraceTime(time->elapsed());
+    const auto elapsed = time->elapsed();
+    Trace() << "Synchronized " << count << " mails in " << listingPath << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
 
 }
 
