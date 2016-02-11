@@ -23,7 +23,7 @@ ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 0
 Cpp11BracedListStyle: false
 DerivePointerBinding: false
-ForEachMacros: ['foreach', 'Q_FOREACH']
+ForEachMacros: ['foreach', 'Q_FOREACH', 'QBENCHMARK']
 IndentCaseLabels: true
 IndentFunctionDeclarationAfterType: false
 IndentWidth: 4
