@@ -1,15 +1,21 @@
 #include "index.h"
-#include <QDebug>
+
+#include "log.h"
+
+#undef Trace
+#define Trace() Trace_area("index." + mName.toLatin1())
 
 Index::Index(const QString &storageRoot, const QString &name, Sink::Storage::AccessMode mode)
     : mTransaction(Sink::Storage(storageRoot, name, mode).createTransaction(mode)),
-    mDb(mTransaction.openDatabase(name.toLatin1(), std::function<void(const Sink::Storage::Error &)>(), true))
+    mDb(mTransaction.openDatabase(name.toLatin1(), std::function<void(const Sink::Storage::Error &)>(), true)),
+    mName(name)
 {
 
 }
 
 Index::Index(const QByteArray &name, Sink::Storage::Transaction &transaction)
-    : mDb(transaction.openDatabase(name, std::function<void(const Sink::Storage::Error &)>(), true))
+    : mDb(transaction.openDatabase(name, std::function<void(const Sink::Storage::Error &)>(), true)),
+    mName(name)
 {
 
 }
@@ -32,7 +38,7 @@ void Index::lookup(const QByteArray &key, const std::function<void(const QByteAr
         return true;
     },
     [errorHandler](const Sink::Storage::Error &error) {
-        qDebug() << "Error while retrieving value" << error.message;
+        Warning() << "Error while retrieving value" << error.message;
         errorHandler(Error(error.store, error.code, error.message));
     }
     );
@@ -45,8 +51,8 @@ QByteArray Index::lookup(const QByteArray &key)
     [&result](const QByteArray &value) {
         result = value;
     },
-    [](const Index::Error &error) {
-        qDebug() << "Error while retrieving value" << error.message;
+    [this](const Index::Error &error) {
+        Trace() << "Error while retrieving value" << error.message;
     });
     return result;
 }

@@ -32,9 +32,14 @@
 #include <QMutex>
 
 #include <lmdb.h>
+#include "log.h"
 
-namespace Sink
-{
+#undef Trace
+#define Trace() Trace_area("storage." + d->storageRoot.toLatin1() + '/' + d->name.toLatin1())
+#undef Warning
+#define Warning() Warning_area("storage")
+
+namespace Sink {
 
 int getErrorCode(int e)
 {
@@ -328,7 +333,7 @@ qint64 Storage::NamedDatabase::getSize()
     MDB_stat stat;
     rc = mdb_stat(d->transaction, d->dbi, &stat);
     if (rc) {
-        qWarning() << "Something went wrong " << rc;
+        Warning() << "Something went wrong " << rc;
     }
     // std::cout << "overflow_pages: " << stat.ms_overflow_pages << std::endl;
     // std::cout << "page size: " << stat.ms_psize << std::endl;
@@ -452,7 +457,7 @@ Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, 
 QList<QByteArray> Storage::Transaction::getDatabaseNames() const
 {
     if (!d) {
-        qWarning() << "Invalid transaction";
+        Warning() << "Invalid transaction";
         return QList<QByteArray>();
     }
 
@@ -470,10 +475,10 @@ QList<QByteArray> Storage::Transaction::getDatabaseNames() const
                 list << QByteArray::fromRawData((char*)key.mv_data, key.mv_size);
             }
         } else {
-            qWarning() << "Failed to get a value" << rc;
+            Warning() << "Failed to get a value" << rc;
         }
     } else {
-        qWarning() << "Failed to open db" << rc << QByteArray(mdb_strerror(rc));
+        Warning() << "Failed to open db" << rc << QByteArray(mdb_strerror(rc));
     }
     return list;
 }
@@ -596,7 +601,7 @@ qint64 Storage::diskUsage() const
 {
     QFileInfo info(d->storageRoot + '/' + d->name + "/data.mdb");
     if (!info.exists()) {
-        qWarning() << "Tried to get filesize for non-existant file: " << info.path();
+        Warning() << "Tried to get filesize for non-existant file: " << info.path();
     }
     return info.size();
 }
@@ -606,7 +611,7 @@ void Storage::removeFromDisk() const
     const QString fullPath(d->storageRoot + '/' + d->name);
     QMutexLocker locker(&d->sMutex);
     QDir dir(fullPath);
-    std::cout << "Removing database from disk: " << fullPath.toStdString() << std::endl;
+    Trace() << "Removing database from disk: " << fullPath;
     if (!dir.removeRecursively()) {
         Error error(d->name.toLatin1(), ErrorCodes::GenericError, QString("Failed to remove directory %1 %2").arg(d->storageRoot).arg(d->name).toLatin1());
         defaultErrorHandler()(error);

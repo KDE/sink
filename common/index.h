@@ -40,4 +40,5 @@ private:
     Q_DISABLE_COPY(Index);
     Sink::Storage::Transaction mTransaction;
     Sink::Storage::NamedDatabase mDb;
+    QString mName;
 };
