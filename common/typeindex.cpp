@@ -36,7 +36,7 @@ void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
         // Trace() << "Indexing " << mType + ".index." + property << value.toByteArray();
-        if (value.isValid()) {
+        if (value.isValid() && !value.toByteArray().isEmpty()) {
             Index(mType + ".index." + property, transaction).add(value.toByteArray(), identifier);
         } else {
             Index(mType + ".index." + property, transaction).add("toplevel", identifier);
@@ -51,7 +51,7 @@ void TypeIndex::addProperty<QString>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
         // Trace() << "Indexing " << mType + ".index." + property << value.toByteArray();
-        if (value.isValid()) {
+        if (value.isValid() && !value.toByteArray().isEmpty()) {
             Index(mType + ".index." + property, transaction).add(value.toByteArray(), identifier);
         } else {
             Index(mType + ".index." + property, transaction).add("toplevel", identifier);
