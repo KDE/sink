@@ -167,6 +167,7 @@ void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, 
         }
     );
 
+    mSynchronizerQueue.startTransaction();
     int count = 0;
     while (entryIterator->hasNext()) {
         count++;
@@ -196,6 +197,7 @@ void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, 
 
         createOrModify(transaction, synchronizationTransaction, *mMailAdaptorFactory, bufferType, remoteId, mail);
     }
+    mSynchronizerQueue.commit();
     const auto elapsed = time->elapsed();
     Trace() << "Synchronized " << count << " mails in " << listingPath << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
 
