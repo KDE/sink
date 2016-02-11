@@ -163,6 +163,11 @@ public:
     QDateTime lastModified( const QString &key ) const;
 
     /**
+     * Move all mails in new to cur
+     */
+    void importNewMails();
+
+    /**
      * Return the contents of the file in the maildir with the given @p key.
      */
     QByteArray readEntry( const QString& key ) const;

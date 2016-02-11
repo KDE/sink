@@ -22,6 +22,7 @@
 
 #include <QDateTime>
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
 #include <QHostInfo>
 #include <QUuid>
@@ -564,6 +565,18 @@ QDateTime Maildir::lastModified(const QString& key) const
         return QDateTime();
 
     return info.lastModified();
+}
+
+void Maildir::importNewMails()
+{
+    QDirIterator entryIterator(pathToNew(), QDir::Files);
+    while (entryIterator.hasNext()) {
+        const QString filePath = QDir::fromNativeSeparators(entryIterator.next());
+        QFile file(filePath);
+        if (!file.rename(pathToCurrent() +"/" + entryIterator.fileName())) {
+            qWarning() << "Failed to rename the file: " << file.errorString();
+        }
+    }
 }
 
 QString Maildir::getKeyFromFile(const QString& file)

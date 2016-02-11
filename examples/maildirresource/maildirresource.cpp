@@ -145,6 +145,9 @@ void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, 
         return;
     }
 
+    Trace() << "Importing new mail.";
+    maildir.importNewMails();
+
     auto listingPath = maildir.pathToCurrent();
     auto entryIterator = QSharedPointer<QDirIterator>::create(listingPath, QDir::Files);
     Trace() << "Looking into " << listingPath;
@@ -199,7 +202,7 @@ void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, 
     }
     mSynchronizerQueue.commit();
     const auto elapsed = time->elapsed();
-    Trace() << "Synchronized " << count << " mails in " << listingPath << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
+    Log() << "Synchronized " << count << " mails in " << listingPath << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
 
 }
 

@@ -205,7 +205,7 @@ private Q_SLOTS:
 
         auto mailModel = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(mailModel->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(mailModel->rowCount(QModelIndex()), 2);
+        QCOMPARE(mailModel->rowCount(QModelIndex()), 3);
     }
 
     void testSyncMailRemoval()
@@ -228,7 +228,7 @@ private Q_SLOTS:
 
         auto mailModel = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(mailModel->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(mailModel->rowCount(QModelIndex()), 1);
+        QCOMPARE(mailModel->rowCount(QModelIndex()), 2);
     }
 
     void testCreateFolder()
