@@ -21,6 +21,16 @@ include(KDEInstallDirs)
 find_package(Qt5 COMPONENTS REQUIRED Core Widgets Network)
 find_package(KF5 COMPONENTS REQUIRED Async)
 find_package(FlatBuffers REQUIRED)
+
+#Clang-format support
+add_custom_command(
+    OUTPUT  format.dummy
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMAND clang-format -i ${CMAKE_SOURCE_DIR}/**.{cpp,h}
+)
+add_custom_target(format DEPENDS format.dummy)
+
+#Generate flatbuffer bindings
 if (${AVOID_BINDING_REBUILD})
     add_custom_target(generate_bindings)
 else()
@@ -42,6 +52,7 @@ function(generate_flatbuffers _target)
     endforeach(fbs)
 endfunction(generate_flatbuffers)
 
+#Clang-analyze support
 add_custom_target(analyze)
 function(add_clang_static_analysis target)
     get_target_property(SRCs ${target} SOURCES)
