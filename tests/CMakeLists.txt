@@ -64,5 +64,9 @@ if (BUILD_MAILDIR)
     auto_tests (
         maildirresourcetest
     )
+    manual_tests (
+        maildirsyncbenchmark
+    )
     target_link_libraries(maildirresourcetest sink_resource_maildir)
+    target_link_libraries(maildirsyncbenchmark sink_resource_maildir)
 endif()
