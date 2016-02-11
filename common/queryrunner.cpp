@@ -329,6 +329,9 @@ std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &do
 template<class DomainType>
 qint64 QueryWorker<DomainType>::load(const Sink::Query &query, const std::function<ResultSet(Sink::Storage::Transaction &, QSet<QByteArray> &)> &baseSetRetriever, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery)
 {
+    QTime time;
+    time.start();
+
     Sink::Storage storage(Sink::storageLocation(), mResourceInstanceIdentifier);
     storage.setDefaultErrorHandler([](const Sink::Storage::Error &error) {
         Warning() << "Error during query: " << error.store << error.message;
@@ -338,8 +341,11 @@ qint64 QueryWorker<DomainType>::load(const Sink::Query &query, const std::functi
 
     QSet<QByteArray> remainingFilters;
     auto resultSet = baseSetRetriever(transaction, remainingFilters);
+    Trace() << "Base set retrieved. " << time.elapsed();
     auto filteredSet = filterSet(resultSet, getFilter(remainingFilters, query), db, initialQuery);
+    Trace() << "Filtered set retrieved. " << time.elapsed();
     replaySet(filteredSet, resultProvider, query.requestedProperties);
+    Trace() << "Filtered set replayed. " << time.elapsed();
     resultProvider.setRevision(Sink::Storage::maxRevision(transaction));
     return Sink::Storage::maxRevision(transaction);
 }
