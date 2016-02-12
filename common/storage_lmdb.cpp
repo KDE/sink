@@ -333,7 +333,7 @@ qint64 Storage::NamedDatabase::getSize()
     MDB_stat stat;
     rc = mdb_stat(d->transaction, d->dbi, &stat);
     if (rc) {
-        Warning() << "Something went wrong " << rc;
+        Warning() << "Something went wrong " << QByteArray(mdb_strerror(rc));
     }
     // std::cout << "overflow_pages: " << stat.ms_overflow_pages << std::endl;
     // std::cout << "page size: " << stat.ms_psize << std::endl;
@@ -532,7 +532,7 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
             int rc = 0;
             if ((rc = mdb_env_create(&env))) {
                 // TODO: handle error
-                std::cerr << "mdb_env_create: " << rc << " " << mdb_strerror(rc) << std::endl;
+                Warning() << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
             } else {
                 mdb_env_set_maxdbs(env, 50);
                 unsigned int flags = MDB_NOTLS;
@@ -540,7 +540,7 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
                     flags |= MDB_RDONLY;
                 }
                 if ((rc = mdb_env_open(env, fullPath.toStdString().data(), flags, 0664))) {
-                    std::cerr << "mdb_env_open: " << rc << " " << mdb_strerror(rc) << std::endl;
+                    Warning() << "mdb_env_open: " << rc << " " << mdb_strerror(rc);
                     mdb_env_close(env);
                     env = 0;
                 } else {
