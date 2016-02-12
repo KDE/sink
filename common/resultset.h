@@ -30,6 +30,8 @@
  */
 class ResultSet {
     public:
+        typedef std::function<bool(std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)>)> ValueGenerator;
+        typedef std::function<QByteArray()> IdGenerator;
 
         ResultSet()
             : mIt(nullptr)
@@ -37,14 +39,14 @@ class ResultSet {
 
         }
 
-        ResultSet(const std::function<bool(std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)>)> &generator)
+        ResultSet(const ValueGenerator &generator)
             : mIt(nullptr),
             mValueGenerator(generator)
         {
 
         }
 
-        ResultSet(const std::function<QByteArray()> &generator)
+        ResultSet(const IdGenerator &generator)
             : mIt(nullptr),
             mGenerator(generator)
         {
@@ -115,7 +117,7 @@ class ResultSet {
         QVector<QByteArray> mResultSet;
         QVector<QByteArray>::ConstIterator mIt;
         QByteArray mCurrentValue;
-        std::function<QByteArray()> mGenerator;
-        std::function<bool(std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)>)> mValueGenerator;
+        IdGenerator mGenerator;
+        ValueGenerator mValueGenerator;
 };
 
