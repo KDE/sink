@@ -53,7 +53,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
             for (int i = 0; i < count; i++) {
                 auto domainObject = Sink::ApplicationDomain::Event::Ptr::create();
                 domainObject->setProperty("uid", "uid");
-                domainObject->setProperty("summary", "summary");
+                domainObject->setProperty("summary", QString("summary%1").arg(i));
                 domainObject->setProperty("attachment", attachment);
                 flatbuffers::FlatBufferBuilder fbb;
                 domainTypeAdaptorFactory->createBuffer(*domainObject, fbb);
@@ -64,6 +64,9 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
                 keysSizeTotal += key.size();
             }
             transaction.commit();
+
+            transaction = storage.createTransaction(Sink::Storage::ReadOnly);
+            db = Sink::Storage::mainDatabase(transaction, "event");
 
             auto dataSizeTotal = count * (QByteArray("uid").size() + QByteArray("summary").size() + attachment.size());
             auto size = db.getSize();
