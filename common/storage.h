@@ -86,6 +86,12 @@ public:
                     const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
                     const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool findSubstringKeys = false) const;
 
+        /**
+         * Finds the last value in a series matched by prefix.
+         *
+         * This is used to match by uid prefix and find the highest revision.
+         * Note that this relies on a key scheme like $uid$revision.
+         */
         void findLatest(const QByteArray &uid,
                         const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
                         const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
