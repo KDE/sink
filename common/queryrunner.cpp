@@ -55,7 +55,7 @@ private:
     ResultSet loadInitialResultSet(const Sink::Query &query, Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters);
     ResultSet loadIncrementalResultSet(qint64 baseRevision, const Sink::Query &query, Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters);
 
-    ResultSet filterSet(const ResultSet &resultSet, const std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Sink::Storage::NamedDatabase &db, bool initialQuery);
+    ResultSet filterAndSortSet(ResultSet &resultSet, const std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Sink::Storage::NamedDatabase &db, bool initialQuery, const QByteArray &sortProperty);
     std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> getFilter(const QSet<QByteArray> remainingFilters, const Sink::Query &query);
     qint64 load(const Sink::Query &query, const std::function<ResultSet(Sink::Storage::Transaction &, QSet<QByteArray> &)> &baseSetRetriever, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery);
 
@@ -272,33 +272,53 @@ ResultSet QueryWorker<DomainType>::loadIncrementalResultSet(qint64 baseRevision,
 }
 
 template<class DomainType>
-ResultSet QueryWorker<DomainType>::filterSet(const ResultSet &resultSet, const std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Sink::Storage::NamedDatabase &db, bool initialQuery)
+ResultSet QueryWorker<DomainType>::filterAndSortSet(ResultSet &resultSet, const std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Sink::Storage::NamedDatabase &db, bool initialQuery, const QByteArray &sortProperty)
 {
-    auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
+    auto sortedMap = QSharedPointer<QMap<QByteArray, QByteArray>>::create();
 
-    //Read through the source values and return whatever matches the filter
-    std::function<bool(std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)>)> generator = [this, resultSetPtr, &db, filter, initialQuery](std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> callback) -> bool {
-        if (resultSetPtr->next()) {
+    if (initialQuery) {
+        while (resultSet.next()) {
             //readEntity is only necessary if we actually want to filter or know the operation type (but not a big deal if we do it always I guess)
-            readEntity(db, resultSetPtr->id(), [this, filter, callback, initialQuery](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Sink::Operation operation) {
-                //Always remove removals, they probably don't match due to non-available properties
-                if (filter(domainObject) || operation == Sink::Operation_Removal) {
-                    if (initialQuery) {
-                        //We're not interested in removals during the initial query
-                        if (operation != Sink::Operation_Removal) {
-                            callback(domainObject, Sink::Operation_Creation);
-                        }
+            readEntity(db, resultSet.id(), [this, filter, initialQuery, sortedMap, sortProperty, &resultSet](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Sink::Operation operation) {
+                //We're not interested in removals during the initial query
+                if ((operation != Sink::Operation_Removal) && filter(domainObject)) {
+                    if (!sortProperty.isEmpty()) {
+                        sortedMap->insert(domainObject->getProperty(sortProperty).toString().toLatin1(), domainObject->identifier());
                     } else {
-                        callback(domainObject, operation);
+                        sortedMap->insert(domainObject->identifier(), domainObject->identifier());
                     }
                 }
             });
-            return true;
-        } else {
-            return false;
         }
-    };
-    return ResultSet(generator);
+
+        auto iterator = QSharedPointer<QMapIterator<QByteArray, QByteArray> >::create(*sortedMap);
+        ResultSet::ValueGenerator generator = [this, iterator, sortedMap, &db, filter, initialQuery](std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> callback) -> bool {
+            if (iterator->hasNext()) {
+                readEntity(db, iterator->next().value(), [this, filter, callback, initialQuery](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Sink::Operation operation) {
+                    callback(domainObject, Sink::Operation_Creation);
+                });
+                return true;
+            }
+            return false;
+        };
+        return ResultSet(generator);
+    } else {
+        auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
+        ResultSet::ValueGenerator generator = [this, resultSetPtr, &db, filter, initialQuery](std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> callback) -> bool {
+            if (resultSetPtr->next()) {
+                //readEntity is only necessary if we actually want to filter or know the operation type (but not a big deal if we do it always I guess)
+                readEntity(db, resultSetPtr->id(), [this, filter, callback, initialQuery](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Sink::Operation operation) {
+                    //Always remove removals, they probably don't match due to non-available properties
+                    if ((operation == Sink::Operation_Removal) || filter(domainObject)) {
+                        callback(domainObject, operation);
+                    }
+                });
+                return true;
+            }
+            return false;
+        };
+        return ResultSet(generator);
+    }
 }
 
 template<class DomainType>
@@ -342,7 +362,7 @@ qint64 QueryWorker<DomainType>::load(const Sink::Query &query, const std::functi
     QSet<QByteArray> remainingFilters;
     auto resultSet = baseSetRetriever(transaction, remainingFilters);
     Trace() << "Base set retrieved. " << time.elapsed();
-    auto filteredSet = filterSet(resultSet, getFilter(remainingFilters, query), db, initialQuery);
+    auto filteredSet = filterAndSortSet(resultSet, getFilter(remainingFilters, query), db, initialQuery, query.sortProperty);
     Trace() << "Filtered set retrieved. " << time.elapsed();
     replaySet(filteredSet, resultProvider, query.requestedProperties);
     Trace() << "Filtered set replayed. " << time.elapsed();
