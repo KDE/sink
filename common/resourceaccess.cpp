@@ -594,6 +594,51 @@ bool ResourceAccess::processMessageBuffer()
     return d->partialMessageBuffer.size() >= headerSize;
 }
 
+ResourceAccessFactory &ResourceAccessFactory::instance()
+{
+    static ResourceAccessFactory *instance = 0;
+    if (!instance) {
+        instance = new ResourceAccessFactory;
+    }
+    return *instance;
+}
+
+Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &instanceIdentifier)
+{
+    if (!mCache.contains(instanceIdentifier)) {
+        //Reuse the pointer if something else kept the resourceaccess alive
+        if (mWeakCache.contains(instanceIdentifier)) {
+            auto sharedPointer = mWeakCache.value(instanceIdentifier).toStrongRef();
+            if (sharedPointer) {
+                mCache.insert(instanceIdentifier, sharedPointer);
+            }
+        }
+        if (!mCache.contains(instanceIdentifier)) {
+            //Create a new instance if necessary
+            auto sharedPointer = Sink::ResourceAccess::Ptr::create(instanceIdentifier);
+            QObject::connect(sharedPointer.data(), &Sink::ResourceAccess::ready, sharedPointer.data(), [this, instanceIdentifier](bool ready) {
+                if (!ready) {
+                    mCache.remove(instanceIdentifier);
+                }
+            });
+            mCache.insert(instanceIdentifier, sharedPointer);
+            mWeakCache.insert(instanceIdentifier, sharedPointer);
+        }
+    }
+    if (!mTimer.contains(instanceIdentifier)) {
+        auto timer = new QTimer;
+        //Drop connection after 3 seconds (which is a random value)
+        QObject::connect(timer, &QTimer::timeout, timer, [this, instanceIdentifier]() {
+            mCache.remove(instanceIdentifier);
+        });
+        timer->setInterval(3000);
+        mTimer.insert(instanceIdentifier, timer);
+    }
+    auto timer = mTimer.value(instanceIdentifier);
+    timer->start();
+    return mCache.value(instanceIdentifier);
+}
+
 }
 
 #pragma clang diagnostic push

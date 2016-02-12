@@ -111,4 +111,20 @@ private:
     Private * const d;
 };
 
+/**
+ * A factory for resource access instances that caches the instance for some time.
+ * 
+ * This avoids constantly recreating connections, and should allow a single process to have one connection per resource.
+ */
+class ResourceAccessFactory {
+public:
+    static ResourceAccessFactory &instance();
+    Sink::ResourceAccess::Ptr getAccess(const QByteArray &instanceIdentifier);
+
+    QHash<QByteArray, QWeakPointer<Sink::ResourceAccess> > mWeakCache;
+    QHash<QByteArray, Sink::ResourceAccess::Ptr> mCache;
+    QHash<QByteArray, QTimer*> mTimer;
+};
+
+
 }

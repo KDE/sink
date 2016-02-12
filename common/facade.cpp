@@ -32,63 +32,6 @@ using namespace Sink;
 #undef DEBUG_AREA
 #define DEBUG_AREA "client.facade"
 
-/**
- * A factory for resource access instances that caches the instance for some time.
- * 
- * This avoids constantly recreating connections, and should allow a single process to have one connection per resource.
- */
-class ResourceAccessFactory {
-public:
-    static ResourceAccessFactory &instance()
-    {
-        static ResourceAccessFactory *instance = 0;
-        if (!instance) {
-            instance = new ResourceAccessFactory;
-        }
-        return *instance;
-    }
-
-    Sink::ResourceAccess::Ptr getAccess(const QByteArray &instanceIdentifier)
-    {
-        if (!mCache.contains(instanceIdentifier)) {
-            //Reuse the pointer if something else kept the resourceaccess alive
-            if (mWeakCache.contains(instanceIdentifier)) {
-                auto sharedPointer = mWeakCache.value(instanceIdentifier).toStrongRef();
-                if (sharedPointer) {
-                    mCache.insert(instanceIdentifier, sharedPointer);
-                }
-            }
-            if (!mCache.contains(instanceIdentifier)) {
-                //Create a new instance if necessary
-                auto sharedPointer = Sink::ResourceAccess::Ptr::create(instanceIdentifier);
-                QObject::connect(sharedPointer.data(), &Sink::ResourceAccess::ready, sharedPointer.data(), [this, instanceIdentifier](bool ready) {
-                    if (!ready) {
-                        mCache.remove(instanceIdentifier);
-                    }
-                });
-                mCache.insert(instanceIdentifier, sharedPointer);
-                mWeakCache.insert(instanceIdentifier, sharedPointer);
-            }
-        }
-        if (!mTimer.contains(instanceIdentifier)) {
-            auto timer = new QTimer;
-            //Drop connection after 3 seconds (which is a random value)
-            QObject::connect(timer, &QTimer::timeout, timer, [this, instanceIdentifier]() {
-                mCache.remove(instanceIdentifier);
-            });
-            timer->setInterval(3000);
-            mTimer.insert(instanceIdentifier, timer);
-        }
-        auto timer = mTimer.value(instanceIdentifier);
-        timer->start();
-        return mCache.value(instanceIdentifier);
-    }
-
-    QHash<QByteArray, QWeakPointer<Sink::ResourceAccess> > mWeakCache;
-    QHash<QByteArray, Sink::ResourceAccess::Ptr> mCache;
-    QHash<QByteArray, QTimer*> mTimer;
-};
-
 template<class DomainType>
 GenericFacade<DomainType>::GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory , const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
     : Sink::StoreFacade<DomainType>(),
