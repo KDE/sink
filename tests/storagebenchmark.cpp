@@ -153,10 +153,28 @@ private Q_SLOTS:
     void testKeyLookup()
     {
         QScopedPointer<Sink::Storage> store(new Sink::Storage(testDataPath, dbName, Sink::Storage::ReadOnly));
+        auto transaction = store->createTransaction(Sink::Storage::ReadOnly);
+        auto db = transaction.openDatabase();
 
         QBENCHMARK {
             int hit = 0;
-            store->createTransaction(Sink::Storage::ReadOnly).openDatabase().scan("key40000", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            db.scan("key40000", [&](const QByteArray &key, const QByteArray &value) -> bool {
+                hit++;
+                return true;
+            });
+            QCOMPARE(hit, 1);
+        }
+    }
+
+    void testFindLatest()
+    {
+        QScopedPointer<Sink::Storage> store(new Sink::Storage(testDataPath, dbName, Sink::Storage::ReadOnly));
+        auto transaction = store->createTransaction(Sink::Storage::ReadOnly);
+        auto db = transaction.openDatabase();
+
+        QBENCHMARK {
+            int hit = 0;
+            db.findLatest("key40000", [&](const QByteArray &key, const QByteArray &value) -> bool {
                 hit++;
                 return true;
             });
