@@ -147,7 +147,7 @@ static inline ResultSet fullScan(const Sink::Storage::Transaction &transaction, 
         return true;
     },
     [](const Sink::Storage::Error &error) {
-        qWarning() << "Error during query: " << error.message;
+        Warning() << "Error during query: " << error.message;
     });
 
     Trace() << "Full scan on " << bufferType << " found " << keys.size() << " results";
@@ -221,7 +221,7 @@ void QueryWorker<DomainType>::readEntity(const Sink::Storage::NamedDatabase &db,
         return false;
     },
     [](const Sink::Storage::Error &error) {
-        qWarning() << "Error during query: " << error.message;
+        Warning() << "Error during query: " << error.message;
     });
 }
 

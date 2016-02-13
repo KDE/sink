@@ -127,7 +127,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         const auto percentageRssError = static_cast<double>(peakRss - finalRss)*100.0/static_cast<double>(finalRss);
         auto rssGrowthPerEntity = rssGrowth/count;
 
-        std::cout << "Loaded " << list.size() << "results." << std::endl;
+        std::cout << "Loaded " << list.size() << " results." << std::endl;
         std::cout << "The query took [ms]: " << elapsed << std::endl;
         std::cout << "Current Rss usage [kb]: " << finalRss/1024 << std::endl;
         std::cout << "Peak Rss usage [kb]: " << peakRss/1024 << std::endl;
@@ -139,7 +139,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         HAWD::Dataset dataset("facade_query", mHawdState);
         HAWD::Dataset::Row row = dataset.row();
         row.setValue("rows", list.size());
-        row.setValue("queryTimePerResult", (qreal)list.size()/elapsed);
+        row.setValue("queryResultPerMs", (qreal)list.size()/elapsed);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
 
