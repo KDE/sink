@@ -164,8 +164,9 @@ KAsync::Job<QSharedPointer<QLocalSocket> > ResourceAccess::connectToServer(const
 
 KAsync::Job<void> ResourceAccess::Private::tryToConnect()
 {
-    auto counter = QSharedPointer<int>::create();
-    *counter = 0;
+    //We may have a socket from the last connection leftover
+    socket.reset();
+    auto counter = QSharedPointer<int>::create(0);
     return KAsync::dowhile([this]() -> bool {
         return !socket;
     },
@@ -456,6 +457,7 @@ void ResourceAccess::processPendingCommandQueue()
 void ResourceAccess::connected()
 {
     if (!isReady()) {
+        Trace() << "Connected but not ready?";
         return;
     }
 
