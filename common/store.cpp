@@ -158,7 +158,7 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
     Trace() << "Remove data from disk " << identifier;
     auto time = QSharedPointer<QTime>::create();
     time->start();
-    auto resourceAccess = QSharedPointer<Sink::ResourceAccess>::create(identifier);
+    auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier);
     resourceAccess->open();
     return resourceAccess->sendCommand(Sink::Commands::RemoveFromDiskCommand).then<void>([resourceAccess, time]() {
         Trace() << "Remove from disk complete." << Log::TraceTime(time->elapsed());
@@ -171,7 +171,7 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
     return KAsync::iterate(query.resources)
     .template each<void, QByteArray>([query](const QByteArray &resource, KAsync::Future<void> &future) {
         Trace() << "Synchronizing " << resource;
-        auto resourceAccess = QSharedPointer<Sink::ResourceAccess>::create(resource);
+        auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource);
         resourceAccess->open();
         resourceAccess->synchronizeResource(true, false).then<void>([&future, resourceAccess]() {
             future.setFinished();
