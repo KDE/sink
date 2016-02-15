@@ -131,6 +131,7 @@ public:
     QHash<QByteArray, QVariant> propertyFilter;
     QByteArrayList requestedProperties;
     QByteArray parentProperty;
+    QByteArray sortProperty;
     bool liveQuery;
     bool syncOnDemand;
     bool processAll;

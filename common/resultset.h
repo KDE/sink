@@ -32,6 +32,7 @@ class ResultSet {
     public:
         typedef std::function<bool(std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)>)> ValueGenerator;
         typedef std::function<QByteArray()> IdGenerator;
+        typedef std::function<void()> SkipValue;
 
         ResultSet()
             : mIt(nullptr)
@@ -39,23 +40,30 @@ class ResultSet {
 
         }
 
-        ResultSet(const ValueGenerator &generator)
+        ResultSet(const ValueGenerator &generator, const SkipValue &skip)
             : mIt(nullptr),
-            mValueGenerator(generator)
+            mValueGenerator(generator),
+            mSkip(skip)
         {
 
         }
 
         ResultSet(const IdGenerator &generator)
             : mIt(nullptr),
-            mGenerator(generator)
+            mGenerator(generator),
+            mSkip([this]() {
+                mGenerator();
+            })
         {
 
         }
 
         ResultSet(const QVector<QByteArray> &resultSet)
             : mResultSet(resultSet),
-            mIt(nullptr)
+            mIt(nullptr),
+            mSkip([this]() {
+                mGenerator();
+            })
         {
 
         }
@@ -99,6 +107,14 @@ class ResultSet {
             return false;
         }
 
+        void skip(int number)
+        {
+            Q_ASSERT(mSkip);
+            for (int i = 0; i < number; i++) {
+                mSkip();
+            }
+        }
+
         QByteArray id()
         {
             if (mIt) {
@@ -119,5 +135,6 @@ class ResultSet {
         QByteArray mCurrentValue;
         IdGenerator mGenerator;
         ValueGenerator mValueGenerator;
+        SkipValue mSkip;
 };
 
