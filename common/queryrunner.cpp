@@ -18,7 +18,9 @@
 */
 #include "queryrunner.h"
 
+#include <limits>
 #include <QTime>
+
 #include "commands.h"
 #include "log.h"
 #include "storage.h"
@@ -74,7 +76,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
     mResourceAccess(resourceAccess),
     mResultProvider(new ResultProvider<typename DomainType::Ptr>),
     mOffset(0),
-    mBatchSize(0)
+    mBatchSize(query.limit)
 {
     Trace() << "Starting query";
     //We delegate loading of initial data to the result provider, os it can decide for itself what it needs to load.
@@ -280,7 +282,7 @@ ResultSet QueryWorker<DomainType>::loadIncrementalResultSet(qint64 baseRevision,
 template<class DomainType>
 ResultSet QueryWorker<DomainType>::filterAndSortSet(ResultSet &resultSet, const std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Sink::Storage::NamedDatabase &db, bool initialQuery, const QByteArray &sortProperty)
 {
-    bool sortingRequired = false;
+    const bool sortingRequired = !sortProperty.isEmpty();
     if (initialQuery && sortingRequired) {
         //Sort the complete set by reading the sort property and filling into a sorted map
         auto sortedMap = QSharedPointer<QMap<QByteArray, QByteArray>>::create();
@@ -290,7 +292,12 @@ ResultSet QueryWorker<DomainType>::filterAndSortSet(ResultSet &resultSet, const 
                 //We're not interested in removals during the initial query
                 if ((operation != Sink::Operation_Removal) && filter(domainObject)) {
                     if (!sortProperty.isEmpty()) {
-                        sortedMap->insert(domainObject->getProperty(sortProperty).toString().toLatin1(), domainObject->identifier());
+                        const auto sortValue = domainObject->getProperty(sortProperty);
+                        if (sortValue.canConvert<QDateTime>()) {
+                            sortedMap->insert(QByteArray::number(std::numeric_limits<unsigned int>::max() - sortValue.toDateTime().toTime_t()), domainObject->identifier());
+                        } else {
+                            sortedMap->insert(sortValue.toString().toLatin1(), domainObject->identifier());
+                        }
                     } else {
                         sortedMap->insert(domainObject->identifier(), domainObject->identifier());
                     }

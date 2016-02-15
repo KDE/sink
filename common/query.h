@@ -103,6 +103,7 @@ public:
     }
 
     Query(Flags flags = Flags())
+        : limit(0)
     {}
 
     Query& operator+=(const Query& rhs)
@@ -115,8 +116,6 @@ public:
         requestedProperties += rhs.requestedProperties;
         parentProperty = rhs.parentProperty;
         liveQuery = rhs.liveQuery;
-        syncOnDemand = rhs.syncOnDemand;
-        processAll = rhs.processAll;
         return *this;
     }
 
@@ -133,8 +132,7 @@ public:
     QByteArray parentProperty;
     QByteArray sortProperty;
     bool liveQuery;
-    bool syncOnDemand;
-    bool processAll;
+    int limit;
 };
 
 }

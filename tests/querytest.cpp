@@ -259,6 +259,69 @@ private Q_SLOTS:
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
     }
+
+    void testMailByFolderSortedByDate()
+    {
+        //Setup
+        Sink::ApplicationDomain::Folder::Ptr folderEntity;
+        {
+            Sink::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
+            Sink::Store::create<Sink::ApplicationDomain::Folder>(folder).exec().waitForFinished();
+
+            Sink::Query query;
+            query.resources << "org.kde.dummy.instance1";
+
+            //Ensure all local data is processed
+            Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+
+            folderEntity = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>();
+            QVERIFY(!folderEntity->identifier().isEmpty());
+
+            const auto date = QDateTime(QDate(2015, 7, 7), QTime(12, 0));
+            {
+                Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+                mail.setProperty("uid", "testSecond");
+                mail.setProperty("folder", folderEntity->identifier());
+                mail.setProperty("date", date.addDays(-1));
+                Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+            }
+            {
+                Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+                mail.setProperty("uid", "testLatest");
+                mail.setProperty("folder", folderEntity->identifier());
+                mail.setProperty("date", date);
+                Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+            }
+            {
+                Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+                mail.setProperty("uid", "testLast");
+                mail.setProperty("folder", folderEntity->identifier());
+                mail.setProperty("date", date.addDays(-2));
+                Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+            }
+        }
+
+        //Test
+        Sink::Query query;
+        query.resources << "org.kde.dummy.instance1";
+        query.propertyFilter.insert("folder", folderEntity->identifier());
+        query.sortProperty = "date";
+        query.limit = 1;
+
+        //Ensure all local data is processed
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        //The model is not sorted, but the limited set is sorted, so we can only test for the latest result.
+        QCOMPARE(model->rowCount(), 1);
+        QCOMPARE(model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Mail::Ptr>()->getProperty("uid").toByteArray(), QByteArray("testLatest"));
+    }
 };
 
 QTEST_MAIN(QueryTest)
