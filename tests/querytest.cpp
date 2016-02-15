@@ -69,7 +69,6 @@ private Q_SLOTS:
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
-        model->fetchMore(QModelIndex());
         QTRY_COMPARE(model->rowCount(), 1);
     }
 
@@ -92,7 +91,6 @@ private Q_SLOTS:
         //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
 
-        model->fetchMore(QModelIndex());
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
     }
@@ -114,7 +112,6 @@ private Q_SLOTS:
 
             //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
-            model->fetchMore(QModelIndex());
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
             QVERIFY(model->rowCount() >= 1);
             id = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Mail::Ptr>()->identifier();
@@ -125,7 +122,6 @@ private Q_SLOTS:
         query.resources << "org.kde.dummy.instance1";
         query.ids << id;
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
-        model->fetchMore(QModelIndex());
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
     }
@@ -145,7 +141,6 @@ private Q_SLOTS:
 
         //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
-        model->fetchMore(QModelIndex());
         QTRY_COMPARE(model->rowCount(), 1);
         auto folderEntity = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>();
         QVERIFY(!folderEntity->identifier().isEmpty());
@@ -186,7 +181,6 @@ private Q_SLOTS:
 
         //We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
-        model->fetchMore(QModelIndex());
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
         model->fetchMore(model->index(0, 0));
