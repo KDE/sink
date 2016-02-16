@@ -209,6 +209,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     Log() << "Pipeline: wrote entity: " << key << newRevision << bufferType;
     Storage::mainDatabase(d->transaction, bufferType).scan(Storage::assembleKey(key, newRevision), [this, bufferType, newRevision, adaptorFactory, key](const QByteArray &, const QByteArray &value) -> bool {
         auto entity = GetEntity(value);
+        Q_ASSERT(entity->resource() || entity->local());
         auto adaptor = adaptorFactory->createAdaptor(*entity);
         for (auto processor : d->processors[bufferType]) {
             processor->newEntity(key, newRevision, *adaptor, d->transaction);

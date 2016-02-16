@@ -101,7 +101,7 @@ public:
         } else if (mLocalBuffer && mLocalMapper->hasMapping(key)) {
             return mLocalMapper->getProperty(key, mLocalBuffer);
         }
-        Warning() << "No mapping available for key " << key;
+        Warning() << "No mapping available for key " << key << mLocalBuffer << mResourceBuffer;
         return QVariant();
     }
 

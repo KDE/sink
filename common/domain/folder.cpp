@@ -51,9 +51,9 @@ static TypeIndex &getIndex()
     return *index;
 }
 
-ResultSet TypeImplementation<Folder>::queryIndexes(const Sink::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Sink::Storage::Transaction &transaction)
+ResultSet TypeImplementation<Folder>::queryIndexes(const Sink::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::Transaction &transaction)
 {
-    return getIndex().query(query, appliedFilters, transaction);
+    return getIndex().query(query, appliedFilters, appliedSorting, transaction);
 }
 
 void TypeImplementation<Folder>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)

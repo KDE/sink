@@ -45,7 +45,7 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Folder Buffer;
     typedef Sink::ApplicationDomain::Buffer::FolderBuilder BufferBuilder;
     static QSet<QByteArray> indexedProperties();
-    static ResultSet queryIndexes(const Sink::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, Sink::Storage::Transaction &transaction);
+    static ResultSet queryIndexes(const Sink::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::Transaction &transaction);
     static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
     static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
     static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();

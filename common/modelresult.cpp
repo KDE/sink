@@ -27,9 +27,9 @@
 #undef DEBUG_AREA
 #define DEBUG_AREA "client.modelresult"
 
-static  uint qHash(const Sink::ApplicationDomain::ApplicationDomainType &type)
+static uint qHash(const Sink::ApplicationDomain::ApplicationDomainType &type)
 {
-    Q_ASSERT(!type.resourceInstanceIdentifier().isEmpty());
+    // Q_ASSERT(!type.resourceInstanceIdentifier().isEmpty());
     Q_ASSERT(!type.identifier().isEmpty());
     return qHash(type.resourceInstanceIdentifier() + type.identifier());
 }
@@ -88,18 +88,18 @@ QVariant ModelResult<T, Ptr>::headerData(int section, Qt::Orientation orientatio
 template<class T, class Ptr>
 QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
 {
-    if (role == DomainObjectRole) {
+    if (role == DomainObjectRole && index.isValid()) {
         Q_ASSERT(mEntities.contains(index.internalId()));
         return QVariant::fromValue(mEntities.value(index.internalId()));
     }
-    if (role == DomainObjectBaseRole) {
+    if (role == DomainObjectBaseRole && index.isValid()) {
         Q_ASSERT(mEntities.contains(index.internalId()));
         return QVariant::fromValue(mEntities.value(index.internalId()). template staticCast<Sink::ApplicationDomain::ApplicationDomainType>());
     }
     if (role == ChildrenFetchedRole) {
         return childrenFetched(index);
     }
-    if (role == Qt::DisplayRole) {
+    if (role == Qt::DisplayRole && index.isValid()) {
         if (index.column() < mPropertyColumns.size()) {
             Q_ASSERT(mEntities.contains(index.internalId()));
             auto entity = mEntities.value(index.internalId());
@@ -115,8 +115,13 @@ template<class T, class Ptr>
 QModelIndex ModelResult<T, Ptr>::index(int row, int column, const QModelIndex &parent) const
 {
     const auto id = getIdentifier(parent);
-    const auto childId = mTree.value(id).at(row);
-    return createIndex(row, column, childId);
+    const auto list = mTree.value(id);
+    if (list.size() > row) {
+        const auto childId = list.at(row);
+        return createIndex(row, column, childId);
+    }
+    Warning() << "Index not available " << row << column << parent;
+    return QModelIndex();
 }
 
 template<class T, class Ptr>
@@ -156,6 +161,7 @@ bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 template<class T, class Ptr>
 void ModelResult<T, Ptr>::fetchMore(const QModelIndex &parent)
 {
+    Trace() << "Fetching more: " << parent;
     fetchEntities(parent);
 }
 

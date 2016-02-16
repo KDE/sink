@@ -54,12 +54,12 @@ private:
 
     void readEntity(const Sink::Storage::NamedDatabase &db, const QByteArray &key, const std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> &resultCallback);
 
-    ResultSet loadInitialResultSet(const Sink::Query &query, Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters);
+    ResultSet loadInitialResultSet(const Sink::Query &query, Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting);
     ResultSet loadIncrementalResultSet(qint64 baseRevision, const Sink::Query &query, Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters);
 
     ResultSet filterAndSortSet(ResultSet &resultSet, const std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter, const Sink::Storage::NamedDatabase &db, bool initialQuery, const QByteArray &sortProperty);
     std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> getFilter(const QSet<QByteArray> remainingFilters, const Sink::Query &query);
-    qint64 load(const Sink::Query &query, const std::function<ResultSet(Sink::Storage::Transaction &, QSet<QByteArray> &)> &baseSetRetriever, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery, int offset, int batchSize);
+    qint64 load(const Sink::Query &query, const std::function<ResultSet(Sink::Storage::Transaction &, QSet<QByteArray> &, QByteArray &)> &baseSetRetriever, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery, int offset, int batchSize);
 
 private:
     QueryRunnerBase::ResultTransformation mResultTransformation;
@@ -154,6 +154,7 @@ static inline ResultSet fullScan(const Sink::Storage::Transaction &transaction, 
         Warning() << "Error during query: " << error.message;
     });
 
+    Trace() << "Full scan retrieved " << keys.size() << " results.";
     return ResultSet(keys);
 }
 
@@ -207,7 +208,7 @@ void QueryWorker<DomainType>::replaySet(ResultSet &resultSet, Sink::ResultProvid
         }
         return true;
     })){};
-    Trace() << "Replayed " << counter << " results";
+    Trace() << "Replayed " << counter << " results." << "Limit " << batchSize;
 }
 
 template<class DomainType>
@@ -234,14 +235,18 @@ void QueryWorker<DomainType>::readEntity(const Sink::Storage::NamedDatabase &db,
 }
 
 template<class DomainType>
-ResultSet QueryWorker<DomainType>::loadInitialResultSet(const Sink::Query &query, Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters)
+ResultSet QueryWorker<DomainType>::loadInitialResultSet(const Sink::Query &query, Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting)
 {
     if (!query.ids.isEmpty()) {
         return ResultSet(query.ids.toVector());
     }
     QSet<QByteArray> appliedFilters;
-    auto resultSet = Sink::ApplicationDomain::TypeImplementation<DomainType>::queryIndexes(query, mResourceInstanceIdentifier, appliedFilters, transaction);
+    QByteArray appliedSorting;
+    auto resultSet = Sink::ApplicationDomain::TypeImplementation<DomainType>::queryIndexes(query, mResourceInstanceIdentifier, appliedFilters, appliedSorting, transaction);
     remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
+    if (appliedSorting.isEmpty()) {
+        remainingSorting = query.sortProperty;
+    }
 
     //We do a full scan if there were no indexes available to create the initial set.
     if (appliedFilters.isEmpty()) {
@@ -284,6 +289,7 @@ ResultSet QueryWorker<DomainType>::filterAndSortSet(ResultSet &resultSet, const 
 {
     const bool sortingRequired = !sortProperty.isEmpty();
     if (initialQuery && sortingRequired) {
+        Trace() << "Sorting the resultset in memory according to property: " << sortProperty;
         //Sort the complete set by reading the sort property and filling into a sorted map
         auto sortedMap = QSharedPointer<QMap<QByteArray, QByteArray>>::create();
         while (resultSet.next()) {
@@ -293,7 +299,7 @@ ResultSet QueryWorker<DomainType>::filterAndSortSet(ResultSet &resultSet, const 
                 if ((operation != Sink::Operation_Removal) && filter(domainObject)) {
                     if (!sortProperty.isEmpty()) {
                         const auto sortValue = domainObject->getProperty(sortProperty);
-                        if (sortValue.canConvert<QDateTime>()) {
+                        if (sortValue.type() == QVariant::DateTime) {
                             sortedMap->insert(QByteArray::number(std::numeric_limits<unsigned int>::max() - sortValue.toDateTime().toTime_t()), domainObject->identifier());
                         } else {
                             sortedMap->insert(sortValue.toString().toLatin1(), domainObject->identifier());
@@ -305,6 +311,7 @@ ResultSet QueryWorker<DomainType>::filterAndSortSet(ResultSet &resultSet, const 
             });
         }
 
+        Trace() << "Sorted " << sortedMap->size() << " values.";
         auto iterator = QSharedPointer<QMapIterator<QByteArray, QByteArray> >::create(*sortedMap);
         ResultSet::ValueGenerator generator = [this, iterator, sortedMap, &db, filter, initialQuery](std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> callback) -> bool {
             if (iterator->hasNext()) {
@@ -377,7 +384,7 @@ std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &do
 }
 
 template<class DomainType>
-qint64 QueryWorker<DomainType>::load(const Sink::Query &query, const std::function<ResultSet(Sink::Storage::Transaction &, QSet<QByteArray> &)> &baseSetRetriever, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery, int offset, int batchSize)
+qint64 QueryWorker<DomainType>::load(const Sink::Query &query, const std::function<ResultSet(Sink::Storage::Transaction &, QSet<QByteArray> &, QByteArray &)> &baseSetRetriever, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, bool initialQuery, int offset, int batchSize)
 {
     QTime time;
     time.start();
@@ -390,9 +397,10 @@ qint64 QueryWorker<DomainType>::load(const Sink::Query &query, const std::functi
     auto db = Storage::mainDatabase(transaction, mBufferType);
 
     QSet<QByteArray> remainingFilters;
-    auto resultSet = baseSetRetriever(transaction, remainingFilters);
+    QByteArray remainingSorting;
+    auto resultSet = baseSetRetriever(transaction, remainingFilters, remainingSorting);
     Trace() << "Base set retrieved. " << time.elapsed();
-    auto filteredSet = filterAndSortSet(resultSet, getFilter(remainingFilters, query), db, initialQuery, query.sortProperty);
+    auto filteredSet = filterAndSortSet(resultSet, getFilter(remainingFilters, query), db, initialQuery, remainingSorting);
     Trace() << "Filtered set retrieved. " << time.elapsed();
     replaySet(filteredSet, resultProvider, query.requestedProperties, offset, batchSize);
     Trace() << "Filtered set replayed. " << time.elapsed();
@@ -408,7 +416,7 @@ qint64 QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query &query
 
     const qint64 baseRevision = resultProvider.revision() + 1;
     Trace() << "Running incremental query " << baseRevision;
-    auto revision = load(query, [&](Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
+    auto revision = load(query, [&](Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting) -> ResultSet {
         return loadIncrementalResultSet(baseRevision, query, transaction, remainingFilters);
     }, resultProvider, false, 0, 0);
     Trace() << "Incremental query took: " << time.elapsed() << " ms";
@@ -431,8 +439,8 @@ qint64 QueryWorker<DomainType>::executeInitialQuery(const Sink::Query &query, co
             modifiedQuery.propertyFilter.insert(query.parentProperty, QVariant());
         }
     }
-    auto revision = load(modifiedQuery, [&](Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters) -> ResultSet {
-        return loadInitialResultSet(modifiedQuery, transaction, remainingFilters);
+    auto revision = load(modifiedQuery, [&](Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting) -> ResultSet {
+        return loadInitialResultSet(modifiedQuery, transaction, remainingFilters, remainingSorting);
     }, resultProvider, true, offset, batchsize);
     Trace() << "Initial query took: " << time.elapsed() << " ms";
     resultProvider.initialResultSetComplete(parent);

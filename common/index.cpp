@@ -31,7 +31,7 @@ void Index::remove(const QByteArray &key, const QByteArray &value)
 }
 
 void Index::lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler,
-                                          const std::function<void(const Error &error)> &errorHandler)
+                                          const std::function<void(const Error &error)> &errorHandler, bool matchSubStringKeys)
 {
     mDb.scan(key, [this, resultHandler](const QByteArray &key, const QByteArray &value) -> bool {
         resultHandler(value);
@@ -40,8 +40,8 @@ void Index::lookup(const QByteArray &key, const std::function<void(const QByteAr
     [errorHandler](const Sink::Storage::Error &error) {
         Warning() << "Error while retrieving value" << error.message;
         errorHandler(Error(error.store, error.code, error.message));
-    }
-    );
+    },
+    matchSubStringKeys);
 }
 
 QByteArray Index::lookup(const QByteArray &key)
