@@ -1,0 +1,9 @@
+{
+    "name": "Pipeline write",
+    "description": "Measures performance of the Pipeline",
+    "columns": {
+        "rows": { "type": "int" },
+        "append": { "type": "float", "unit": "ops/ms" },
+        "total": { "type": "float", "unit": "ops/ms" }
+    }
+}

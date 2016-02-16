@@ -34,6 +34,7 @@ manual_tests (
     dummyresourcebenchmark
 #     genericresourcebenchmark
     mailquerybenchmark
+    pipelinebenchmark
 #     genericfacadebenchmark
 )
 
