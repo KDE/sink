@@ -83,16 +83,10 @@ class MailQueryBenchmark : public QObject
         pipeline->commit();
     }
 
-    void testLoad(int count)
+    void testLoad(const Sink::Query &query, int count)
     {
         const auto startingRss = getCurrentRSS();
 
-        Sink::Query query;
-        query.liveQuery = false;
-        query.requestedProperties << "uid" << "subject" << "date";
-        query.sortProperty = "date";
-        query.propertyFilter.insert("folder", "folder1");
-        query.limit = 1000;
 
         //Benchmark
         QTime time;
@@ -115,7 +109,7 @@ class MailQueryBenchmark : public QObject
         });
         emitter->fetch(Sink::ApplicationDomain::Mail::Ptr());
         QTRY_VERIFY(done);
-        QCOMPARE(list.size(), count);
+        QCOMPARE(list.size(), query.limit);
 
         const auto elapsed = time.elapsed();
 
@@ -137,7 +131,7 @@ class MailQueryBenchmark : public QObject
         std::cout << "Rss without db [kb]: " << rssWithoutDb/1024 << std::endl;
         std::cout << "Percentage error: " << percentageRssError << std::endl;
 
-        HAWD::Dataset dataset("facade_query", mHawdState);
+        HAWD::Dataset dataset("mail_query", mHawdState);
         HAWD::Dataset::Row row = dataset.row();
         row.setValue("rows", list.size());
         row.setValue("queryResultPerMs", (qreal)list.size()/elapsed);
@@ -163,8 +157,15 @@ private Q_SLOTS:
 
     void test50k()
     {
-        // populateDatabase(50000);
-        testLoad(50000);
+        Sink::Query query;
+        query.liveQuery = false;
+        query.requestedProperties << "uid" << "subject" << "date";
+        query.sortProperty = "date";
+        query.propertyFilter.insert("folder", "folder1");
+        query.limit = 1000;
+
+        populateDatabase(50000);
+        testLoad(query, 50000);
     }
 
 };
