@@ -51,6 +51,7 @@ static TypeIndex &getIndex()
         index->addProperty<QString>("subject");
         index->addProperty<QDateTime>("date");
         index->addProperty<QByteArray>("folder");
+        index->addPropertyWithSorting<QByteArray, QDateTime>("folder", "date");
     }
     return *index;
 }

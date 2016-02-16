@@ -26,9 +26,12 @@
 #include <common/resourceaccess.h>
 #include <common/facade.h>
 #include <common/genericresource.h>
+#include <common/commands.h>
 
 //Replace with something different
 #include "event_generated.h"
+#include "mail_generated.h"
+#include "createentity_generated.h"
 
 class TestEventAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event, Sink::ApplicationDomain::Buffer::Event, Sink::ApplicationDomain::Buffer::EventBuilder>
 {
@@ -39,6 +42,17 @@ public:
     }
 
     virtual ~TestEventAdaptorFactory() {};
+};
+
+class TestMailAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail, Sink::ApplicationDomain::Buffer::Mail, Sink::ApplicationDomain::Buffer::MailBuilder>
+{
+public:
+    TestMailAdaptorFactory()
+        : DomainTypeAdaptorFactory()
+    {
+    }
+
+    virtual ~TestMailAdaptorFactory() {};
 };
 
 class TestResourceAccess : public Sink::ResourceAccessInterface
@@ -69,6 +83,20 @@ public:
     }
 };
 
+class TestMailResourceFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Mail>
+{
+public:
+    TestMailResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
+        : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<TestMailAdaptorFactory>::create(), resourceAccess)
+    {
+
+    }
+    virtual ~TestMailResourceFacade()
+    {
+
+    }
+};
+
 class TestResource : public Sink::GenericResource
 {
 public:
@@ -82,3 +110,20 @@ public:
         return KAsync::null<void>();
     }
 };
+
+template <typename DomainType>
+QByteArray createCommand(const DomainType &domainObject, DomainTypeAdaptorFactoryInterface &domainTypeAdaptorFactory)
+{
+    flatbuffers::FlatBufferBuilder entityFbb;
+    domainTypeAdaptorFactory.createBuffer(domainObject, entityFbb);
+    flatbuffers::FlatBufferBuilder fbb;
+    auto type = fbb.CreateString(Sink::ApplicationDomain::getTypeName<DomainType>().toStdString().data());
+    auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
+    Sink::Commands::CreateEntityBuilder builder(fbb);
+    builder.add_domainType(type);
+    builder.add_delta(delta);
+    auto location = builder.Finish();
+    Sink::Commands::FinishCreateEntityBuffer(fbb, location);
+    return QByteArray(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
+}
+
