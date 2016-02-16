@@ -33,6 +33,7 @@ manual_tests (
     storagebenchmark
     dummyresourcebenchmark
 #     genericresourcebenchmark
+    mailquerybenchmark
 #     genericfacadebenchmark
 )
 
