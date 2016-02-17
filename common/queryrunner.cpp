@@ -222,7 +222,6 @@ void QueryWorker<DomainType>::readEntity(const Sink::Storage::NamedDatabase &db,
         Sink::EntityBuffer buffer(value.data(), value.size());
         const Sink::Entity &entity = buffer.entity();
         const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
-        Q_ASSERT(metadataBuffer);
         const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
         const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
         auto adaptor = mDomainTypeAdaptorFactory->createAdaptor(entity);
