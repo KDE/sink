@@ -22,7 +22,7 @@
 class GenericFacadeTest : public QObject
 {
     Q_OBJECT
-private Q_SLOTS:
+private slots:
 
     void init()
     {

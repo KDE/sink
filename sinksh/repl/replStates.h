@@ -30,7 +30,7 @@ class ReadState : public QState
 public:
     ReadState(QState *parent = 0);
 
-Q_SIGNALS:
+signals:
     void command(const QString &command);
     void exitRequested();
 
@@ -57,7 +57,7 @@ class EvalState : public QState
 public:
     EvalState(QState *parent = 0);
 
-Q_SIGNALS:
+signals:
     void completed();
     void continueInput();
     void output(const QString &output);
@@ -78,7 +78,7 @@ class PrintState : public QState
 public:
     PrintState(QState *parent = 0);
 
-Q_SIGNALS:
+signals:
     void completed();
 
 protected:

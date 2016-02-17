@@ -116,10 +116,10 @@ public:
         return (lastReplayedRevision >= topRevision);
     }
 
-Q_SIGNALS:
+signals:
     void changesReplayed();
 
-public Q_SLOTS:
+public slots:
     void revisionChanged()
     {
         auto mainStoreTransaction = mStorage.createTransaction(Storage::ReadOnly);

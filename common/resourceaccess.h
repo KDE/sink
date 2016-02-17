@@ -53,12 +53,12 @@ public:
     virtual KAsync::Job<void> sendRevisionReplayedCommand(qint64 revision) {return KAsync::null<void>(); };
     virtual KAsync::Job<void> sendInspectionCommand(const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expecedValue) {return KAsync::null<void>(); };
 
-Q_SIGNALS:
+signals:
     void ready(bool isReady);
     void revisionChanged(qint64 revision);
     void notification(Notification revision);
 
-public Q_SLOTS:
+public slots:
     virtual void open() = 0;
     virtual void close() = 0;
 };
@@ -88,11 +88,11 @@ public:
      */
     static KAsync::Job<QSharedPointer<QLocalSocket> > connectToServer(const QByteArray &identifier);
 
-public Q_SLOTS:
+public slots:
     void open() Q_DECL_OVERRIDE;
     void close() Q_DECL_OVERRIDE;
 
-private Q_SLOTS:
+private slots:
     //TODO: move these to the Private class
     void disconnected();
     void connectionError(QLocalSocket::LocalSocketError error);

@@ -53,7 +53,7 @@ class MaildirResourceTest : public QObject
 
     QTemporaryDir tempDir;
     QString targetPath;
-private Q_SLOTS:
+private slots:
     void initTestCase()
     {
         targetPath = tempDir.path() + "/maildir1/";

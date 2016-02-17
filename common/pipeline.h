@@ -69,7 +69,7 @@ public:
      */
     qint64 cleanedUpRevision();
 
-Q_SIGNALS:
+signals:
     void revisionUpdated(qint64);
 
 private:

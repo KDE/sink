@@ -57,7 +57,7 @@ private:
         return success && keyMatch;
     }
 
-private Q_SLOTS:
+private slots:
     void initTestCase()
     {
         testDataPath = "./testdb";

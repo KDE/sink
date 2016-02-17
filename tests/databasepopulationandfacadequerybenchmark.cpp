@@ -156,7 +156,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         // std::system("top -p \"$PPID\" -b -n 1");
     }
 
-private Q_SLOTS:
+private slots:
 
     void init()
     {

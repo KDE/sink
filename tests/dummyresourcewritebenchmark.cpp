@@ -172,7 +172,7 @@ class DummyResourceWriteBenchmark : public QObject
     }
 
 
-private Q_SLOTS:
+private slots:
     void initTestCase()
     {
         Sink::Log::setDebugOutputLevel(Sink::Log::Warning);

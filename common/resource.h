@@ -60,7 +60,7 @@ public:
      */
     virtual void removeDataFromDisk();
 
-Q_SIGNALS:
+signals:
     void revisionUpdated(qint64);
     void notify(Notification);
 

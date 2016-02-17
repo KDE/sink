@@ -11,7 +11,7 @@
 class ResourceCommunicationTest : public QObject
 {
     Q_OBJECT
-private Q_SLOTS:
+private slots:
     void testConnect()
     {
         const QByteArray resourceIdentifier("test");

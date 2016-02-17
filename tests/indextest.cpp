@@ -13,7 +13,7 @@
 class IndexTest : public QObject
 {
     Q_OBJECT
-private Q_SLOTS:
+private slots:
     void initTestCase()
     {
         Sink::Storage store("./testindex", "org.kde.dummy.testindex", Sink::Storage::ReadWrite);

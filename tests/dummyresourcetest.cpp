@@ -23,7 +23,7 @@ class DummyResourceTest : public QObject
 
     QTime time;
 
-private Q_SLOTS:
+private slots:
     void initTestCase()
     {
         Sink::Log::setDebugOutputLevel(Sink::Log::Trace);

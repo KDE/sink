@@ -126,7 +126,7 @@ class PipelineBenchmark : public QObject
 
     }
 
-private Q_SLOTS:
+private slots:
 
     void init()
     {

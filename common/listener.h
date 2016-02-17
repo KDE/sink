@@ -65,13 +65,13 @@ public:
     Listener(const QByteArray &resourceName, QObject *parent = 0);
     ~Listener();
 
-Q_SIGNALS:
+signals:
     void noClients();
 
-public Q_SLOTS:
+public slots:
     void closeAllConnections();
 
-private Q_SLOTS:
+private slots:
     void acceptConnection();
     void clientDropped();
     void checkConnections();

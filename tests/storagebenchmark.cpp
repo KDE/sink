@@ -51,7 +51,7 @@ private:
     QString filePath;
     const int count = 50000;
 
-private Q_SLOTS:
+private slots:
     void initTestCase()
     {
         Sink::Log::setDebugOutputLevel(Sink::Log::Warning);

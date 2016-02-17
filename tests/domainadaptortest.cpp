@@ -28,7 +28,7 @@ public:
 class DomainAdaptorTest : public QObject
 {
     Q_OBJECT
-private Q_SLOTS:
+private slots:
     void initTestCase()
     {
     }

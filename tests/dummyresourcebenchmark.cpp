@@ -30,7 +30,7 @@ class DummyResourceBenchmark : public QObject
     Q_OBJECT
 private:
     int num;
-private Q_SLOTS:
+private slots:
     void initTestCase()
     {
         Sink::Log::setDebugOutputLevel(Sink::Log::Warning);

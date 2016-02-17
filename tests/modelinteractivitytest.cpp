@@ -43,7 +43,7 @@ public:
 class ModelinteractivityTest : public QObject
 {
     Q_OBJECT
-private Q_SLOTS:
+private slots:
     void initTestCase()
     {
         Sink::Log::setDebugOutputLevel(Sink::Log::Warning);

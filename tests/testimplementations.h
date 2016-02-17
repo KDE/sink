@@ -64,7 +64,7 @@ public:
     KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE { return KAsync::null<void>(); }
     KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) Q_DECL_OVERRIDE { return KAsync::null<void>(); }
 
-public Q_SLOTS:
+public slots:
     void open() Q_DECL_OVERRIDE {}
     void close() Q_DECL_OVERRIDE {}
 };

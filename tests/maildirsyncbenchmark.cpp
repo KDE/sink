@@ -59,7 +59,7 @@ class MaildirSyncBenchmark : public QObject
     QString targetPath;
     HAWD::State mHawdState;
 
-private Q_SLOTS:
+private slots:
     void initTestCase()
     {
         targetPath = tempDir.path() + "/maildir1";
