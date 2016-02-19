@@ -180,34 +180,36 @@ QueryWorker<DomainType>::~QueryWorker()
 template<class DomainType>
 void QueryWorker<DomainType>::replaySet(ResultSet &resultSet, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const QList<QByteArray> &properties, int offset, int batchSize)
 {
-    int counter = 0;
+    Trace() << "Skipping over " << offset << " results";
     resultSet.skip(offset);
-    while (resultSet.next([this, &resultProvider, &counter, &properties, batchSize](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation operation) -> bool {
-        //FIXME allow maildir resource to set the mimeMessage property
-        auto valueCopy = Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value, properties).template staticCast<DomainType>();
-        if (mResultTransformation) {
-            mResultTransformation(*valueCopy);
-        }
-        if (batchSize && counter >= batchSize) {
-            return false;
-        }
-        counter++;
-        switch (operation) {
-        case Sink::Operation_Creation:
-            // Trace() << "Got creation";
-            resultProvider.add(valueCopy);
+    int counter;
+    for (counter = 0; !batchSize || (counter < batchSize); counter++) {
+        const bool ret = resultSet.next([this, &resultProvider, &counter, &properties, batchSize](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation operation) -> bool {
+            //FIXME allow maildir resource to set the mimeMessage property
+            auto valueCopy = Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value, properties).template staticCast<DomainType>();
+            if (mResultTransformation) {
+                mResultTransformation(*valueCopy);
+            }
+            switch (operation) {
+            case Sink::Operation_Creation:
+                // Trace() << "Got creation";
+                resultProvider.add(valueCopy);
+                break;
+            case Sink::Operation_Modification:
+                // Trace() << "Got modification";
+                resultProvider.modify(valueCopy);
+                break;
+            case Sink::Operation_Removal:
+                // Trace() << "Got removal";
+                resultProvider.remove(valueCopy);
+                break;
+            }
+            return true;
+        });
+        if (!ret) {
             break;
-        case Sink::Operation_Modification:
-            // Trace() << "Got modification";
-            resultProvider.modify(valueCopy);
-            break;
-        case Sink::Operation_Removal:
-            // Trace() << "Got removal";
-            resultProvider.remove(valueCopy);
-            break;
         }
-        return true;
-    })){};
+    };
     Trace() << "Replayed " << counter << " results." << "Limit " << batchSize;
 }
 
