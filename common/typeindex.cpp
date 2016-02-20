@@ -153,7 +153,6 @@ ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFi
             appliedSorting = it.value();
             Trace() << "Index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
             return ResultSet(keys);
-
         }
     }
     for (const auto &property : mProperties) {

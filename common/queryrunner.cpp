@@ -400,11 +400,11 @@ qint64 QueryWorker<DomainType>::load(const Sink::Query &query, const std::functi
     QSet<QByteArray> remainingFilters;
     QByteArray remainingSorting;
     auto resultSet = baseSetRetriever(transaction, remainingFilters, remainingSorting);
-    Trace() << "Base set retrieved. " << time.elapsed();
+    Trace() << "Base set retrieved. " << Log::TraceTime(time.elapsed());
     auto filteredSet = filterAndSortSet(resultSet, getFilter(remainingFilters, query), db, initialQuery, remainingSorting);
-    Trace() << "Filtered set retrieved. " << time.elapsed();
+    Trace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
     replaySet(filteredSet, resultProvider, query.requestedProperties, offset, batchSize);
-    Trace() << "Filtered set replayed. " << time.elapsed();
+    Trace() << "Filtered set replayed. " << Log::TraceTime(time.elapsed());
     resultProvider.setRevision(Sink::Storage::maxRevision(transaction));
     return Sink::Storage::maxRevision(transaction);
 }
@@ -420,7 +420,7 @@ qint64 QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query &query
     auto revision = load(query, [&](Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting) -> ResultSet {
         return loadIncrementalResultSet(baseRevision, query, transaction, remainingFilters);
     }, resultProvider, false, 0, 0);
-    Trace() << "Incremental query took: " << time.elapsed() << " ms";
+    Trace() << "Incremental query took: " << Log::TraceTime(time.elapsed());
     return revision;
 }
 
@@ -443,7 +443,7 @@ qint64 QueryWorker<DomainType>::executeInitialQuery(const Sink::Query &query, co
     auto revision = load(modifiedQuery, [&](Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting) -> ResultSet {
         return loadInitialResultSet(modifiedQuery, transaction, remainingFilters, remainingSorting);
     }, resultProvider, true, offset, batchsize);
-    Trace() << "Initial query took: " << time.elapsed() << " ms";
+    Trace() << "Initial query took: " << Log::TraceTime(time.elapsed());
     resultProvider.initialResultSetComplete(parent);
     return revision;
 }

@@ -26,7 +26,6 @@
 #include <Async/Async>
 
 #include "resourceaccess.h"
-#include "resultset.h"
 #include "domaintypeadaptorfactoryinterface.h"
 #include "storage.h"
 
