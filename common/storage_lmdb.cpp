@@ -224,7 +224,12 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
             if (QByteArray::fromRawData((char*)key.mv_data, key.mv_size).startsWith(k)) {
                 numberOfRetrievedValues++;
                 if (resultHandler(QByteArray::fromRawData((char*)key.mv_data, key.mv_size), QByteArray::fromRawData((char*)data.mv_data, data.mv_size))) {
-                    MDB_cursor_op nextOp = d->allowDuplicates ? MDB_NEXT_DUP : MDB_NEXT;
+                    if (findSubstringKeys) {
+                        //Reset the key to what we search for
+                        key.mv_data = (void*)k.constData();
+                        key.mv_size = k.size();
+                    }
+                    MDB_cursor_op nextOp = (d->allowDuplicates && !findSubstringKeys) ? MDB_NEXT_DUP : MDB_NEXT;
                     while ((rc = mdb_cursor_get(cursor, &key, &data, nextOp)) == 0) {
                         //Every consequent lookup simply iterates through the list
                         if (QByteArray::fromRawData((char*)key.mv_data, key.mv_size).startsWith(k)) {

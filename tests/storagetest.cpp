@@ -334,6 +334,21 @@ private slots:
         QCOMPARE(numValues, 2);
     }
 
+    void testFindSubstringKeysWithDuplicatesEnabled()
+    {
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
+        auto db = transaction.openDatabase("test", nullptr, true);
+        db.write("sub","value1");
+        db.write("subsub","value2");
+        db.write("wubsub","value3");
+        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
+            return true;
+        }, nullptr, true);
+
+        QCOMPARE(numValues, 2);
+    }
+
     void testKeySorting()
     {
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
