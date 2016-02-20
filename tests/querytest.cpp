@@ -305,16 +305,22 @@ private slots:
         query.propertyFilter.insert("folder", folderEntity->identifier());
         query.sortProperty = "date";
         query.limit = 1;
+        query.liveQuery = false;
 
         //Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        //We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         //The model is not sorted, but the limited set is sorted, so we can only test for the latest result.
         QCOMPARE(model->rowCount(), 1);
         QCOMPARE(model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Mail::Ptr>()->getProperty("uid").toByteArray(), QByteArray("testLatest"));
+
+        model->fetchMore(QModelIndex());
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 2);
+        //We can't make any assumptions about the order of the indexes
+        // QCOMPARE(model->index(1, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Mail::Ptr>()->getProperty("uid").toByteArray(), QByteArray("testSecond"));
     }
 };
 

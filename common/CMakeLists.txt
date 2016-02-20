@@ -58,6 +58,7 @@ set(command_SRCS
     typeindex.cpp
     resourcefacade.cpp
     resourceconfig.cpp
+    resultset.cpp
     domain/applicationdomaintype.cpp
     domain/event.cpp
     domain/mail.cpp

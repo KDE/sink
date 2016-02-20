@@ -79,9 +79,12 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
     mBatchSize(query.limit)
 {
     Trace() << "Starting query";
+    if (query.limit && query.sortProperty.isEmpty()) {
+        Warning() << "A limited query without sorting is typically a bad idea.";
+    }
     //We delegate loading of initial data to the result provider, os it can decide for itself what it needs to load.
     mResultProvider->setFetcher([=](const typename DomainType::Ptr &parent) {
-        Trace() << "Running fetcher";
+        Trace() << "Running fetcher. Offset: " << mOffset << " Batchsize: " << mBatchSize;
         auto resultProvider = mResultProvider;
         async::run<qint64>([=]() -> qint64 {
                 QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType, mResultTransformation);
@@ -89,6 +92,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                 return newRevision;
             })
             .template then<void, qint64>([query, this](qint64 newRevision) {
+                mOffset += mBatchSize;
                 //Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
                 if (query.liveQuery) {
                     mResourceAccess->sendRevisionReplayedCommand(newRevision);
@@ -325,7 +329,9 @@ ResultSet QueryWorker<DomainType>::filterAndSortSet(ResultSet &resultSet, const 
         };
 
         auto skip = [iterator]() {
-            iterator->next();
+            if (iterator->hasNext()) {
+                iterator->next();
+            }
         };
         return ResultSet(generator, skip);
     } else {
@@ -339,8 +345,7 @@ ResultSet QueryWorker<DomainType>::filterAndSortSet(ResultSet &resultSet, const 
                         if ((operation != Sink::Operation_Removal) && filter(domainObject)) {
                             //In the initial set every entity is new
                             callback(domainObject, Sink::Operation_Creation);
-                        }
-                    } else {
+                        } } else {
                         //Always remove removals, they probably don't match due to non-available properties
                         if ((operation == Sink::Operation_Removal) || filter(domainObject)) {
                             //TODO only replay if this is in the currently visible set (or just always replay, worst case we have a couple to many results)

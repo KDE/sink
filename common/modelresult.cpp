@@ -155,7 +155,8 @@ bool ModelResult<T, Ptr>::hasChildren(const QModelIndex &parent) const
 template<class T, class Ptr>
 bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 {
-    return !mEntityChildrenFetched.contains(parent.internalId());
+    const auto id = parent.internalId();
+    return !mEntityChildrenFetched.contains(id) || mEntityChildrenFetchComplete.contains(id);
 }
 
 template<class T, class Ptr>
@@ -218,6 +219,7 @@ template<class T, class Ptr>
 void ModelResult<T, Ptr>::fetchEntities(const QModelIndex &parent)
 {
     const auto id = getIdentifier(parent);
+    mEntityChildrenFetchComplete.remove(id);
     mEntityChildrenFetched.insert(id);
     Trace() << "Loading child entities of parent " << id;
     if (loadEntities) {

@@ -34,100 +34,20 @@ class ResultSet {
         typedef std::function<QByteArray()> IdGenerator;
         typedef std::function<void()> SkipValue;
 
-        ResultSet()
-            : mIt(nullptr)
-        {
+        ResultSet();
+        ResultSet(const ValueGenerator &generator, const SkipValue &skip);
+        ResultSet(const IdGenerator &generator);
+        ResultSet(const QVector<QByteArray> &resultSet);
+        ResultSet(const ResultSet &other);
 
-        }
+        bool next();
+        bool next(std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation)> callback);
 
-        ResultSet(const ValueGenerator &generator, const SkipValue &skip)
-            : mIt(nullptr),
-            mValueGenerator(generator),
-            mSkip(skip)
-        {
+        void skip(int number);
 
-        }
+        QByteArray id();
 
-        ResultSet(const IdGenerator &generator)
-            : mIt(nullptr),
-            mGenerator(generator),
-            mSkip([this]() {
-                mGenerator();
-            })
-        {
-
-        }
-
-        ResultSet(const QVector<QByteArray> &resultSet)
-            : mResultSet(resultSet),
-            mIt(nullptr),
-            mSkip([this]() {
-                mGenerator();
-            })
-        {
-
-        }
-
-        bool next()
-        {
-            if (mGenerator) {
-                mCurrentValue = mGenerator();
-            } else {
-                if (!mIt) {
-                    mIt = mResultSet.constBegin();
-                } else {
-                    mIt++;
-                }
-                return mIt != mResultSet.constEnd();
-            }
-            if (!mCurrentValue.isNull()) {
-                return true;
-            }
-            return false;
-        }
-
-        bool next(std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation)> callback)
-        {
-            Q_ASSERT(mValueGenerator);
-            return mValueGenerator(callback);
-        }
-
-        bool next(std::function<void(const QByteArray &key)> callback)
-        {
-            if (mGenerator) {
-                mCurrentValue = mGenerator();
-            } else {
-                if (!mIt) {
-                    mIt = mResultSet.constBegin();
-                } else {
-                    mIt++;
-                }
-                return mIt != mResultSet.constEnd();
-            }
-            return false;
-        }
-
-        void skip(int number)
-        {
-            Q_ASSERT(mSkip);
-            for (int i = 0; i < number; i++) {
-                mSkip();
-            }
-        }
-
-        QByteArray id()
-        {
-            if (mIt) {
-                return *mIt;
-            } else {
-                return mCurrentValue;
-            }
-        }
-
-        bool isEmpty()
-        {
-            return mResultSet.isEmpty();
-        }
+        bool isEmpty();
 
     private:
         QVector<QByteArray> mResultSet;
@@ -136,5 +56,6 @@ class ResultSet {
         IdGenerator mGenerator;
         ValueGenerator mValueGenerator;
         SkipValue mSkip;
+        bool mFirst;
 };
 

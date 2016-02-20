@@ -36,6 +36,10 @@ static QByteArray getByteArray(const QVariant &value)
 
 static QByteArray toSortableByteArray(const QDateTime &date)
 {
+    //Sort invalid last
+    if (!date.isValid()) {
+        return QByteArray::number(std::numeric_limits<unsigned int>::max());
+    }
     return QByteArray::number(std::numeric_limits<unsigned int>::max() - date.toTime_t());
 }
 
