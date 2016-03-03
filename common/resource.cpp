@@ -27,19 +27,16 @@
 
 #include "facadefactory.h"
 
-namespace Sink
-{
+namespace Sink {
 
-Resource::Resource()
-    : QObject(),
-    d(0)
+Resource::Resource() : QObject(), d(0)
 {
     Q_UNUSED(d);
 }
 
 Resource::~Resource()
 {
-    //delete d;
+    // delete d;
 }
 
 void Resource::processCommand(int commandId, const QByteArray &data)
@@ -71,21 +68,19 @@ void Resource::removeDataFromDisk()
 class ResourceFactory::Private
 {
 public:
-    static QHash<QString, QPointer<ResourceFactory> > s_loadedFactories;
+    static QHash<QString, QPointer<ResourceFactory>> s_loadedFactories;
 };
 
-QHash<QString, QPointer<ResourceFactory> > ResourceFactory::Private::s_loadedFactories;
+QHash<QString, QPointer<ResourceFactory>> ResourceFactory::Private::s_loadedFactories;
 
-ResourceFactory::ResourceFactory(QObject *parent)
-    : QObject(parent),
-      d(0)
+ResourceFactory::ResourceFactory(QObject *parent) : QObject(parent), d(0)
 {
     Q_UNUSED(d);
 }
 
 ResourceFactory::~ResourceFactory()
 {
-    //delete d;
+    // delete d;
 }
 
 ResourceFactory *ResourceFactory::load(const QString &resourceName)
@@ -95,15 +90,15 @@ ResourceFactory *ResourceFactory::load(const QString &resourceName)
         return factory;
     }
 
-    for (auto const &path: QCoreApplication::instance()->libraryPaths()) {
+    for (auto const &path : QCoreApplication::instance()->libraryPaths()) {
         if (path.endsWith(QLatin1String("plugins"))) {
             QDir pluginDir(path);
-            //TODO: centralize this so that it is easy to change centrally
+            // TODO: centralize this so that it is easy to change centrally
             //      also ref'd in cmake as ${SINK_RESOURCE_PLUGINS_PATH}
             pluginDir.cd(QStringLiteral("sink"));
             pluginDir.cd(QStringLiteral("resources"));
 
-            for (const QString &fileName: pluginDir.entryList(QDir::Files)) {
+            for (const QString &fileName : pluginDir.entryList(QDir::Files)) {
                 const QString path = pluginDir.absoluteFilePath(fileName);
                 QPluginLoader loader(path);
 
@@ -115,7 +110,7 @@ ResourceFactory *ResourceFactory::load(const QString &resourceName)
                         if (factory) {
                             Private::s_loadedFactories.insert(resourceName, factory);
                             factory->registerFacades(FacadeFactory::instance());
-                            //TODO: if we need more data on it const QJsonObject json = loader.metaData()[QStringLiteral("MetaData")].toObject();
+                            // TODO: if we need more data on it const QJsonObject json = loader.metaData()[QStringLiteral("MetaData")].toObject();
                             return factory;
                         } else {
                             qWarning() << "Plugin for" << resourceName << "from plugin" << loader.fileName() << "produced the wrong object type:" << object;
@@ -135,7 +130,7 @@ ResourceFactory *ResourceFactory::load(const QString &resourceName)
 
 } // namespace Sink
 
-//Ignore warning I don't know how to fix in a moc file
+// Ignore warning I don't know how to fix in a moc file
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
 #include "moc_resource.cpp"

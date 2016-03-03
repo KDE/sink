@@ -21,22 +21,22 @@
 #include <QSharedPointer>
 
 namespace Sink {
-    namespace ApplicationDomain {
-        class BufferAdaptor;
-        class ApplicationDomainType;
-    }
-    struct Entity;
+namespace ApplicationDomain {
+class BufferAdaptor;
+class ApplicationDomainType;
+}
+struct Entity;
 }
 
 namespace flatbuffers {
-    class FlatBufferBuilder;
+class FlatBufferBuilder;
 }
 
 class DomainTypeAdaptorFactoryInterface
 {
 public:
     typedef QSharedPointer<DomainTypeAdaptorFactoryInterface> Ptr;
-    virtual ~DomainTypeAdaptorFactoryInterface() {};
+    virtual ~DomainTypeAdaptorFactoryInterface(){};
     virtual QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> createAdaptor(const Sink::Entity &entity) = 0;
 
     /*
@@ -44,5 +44,6 @@ public:
      *
      * Note that this only serialized parameters that are part of ApplicationDomainType::changedProperties()
      */
-    virtual void createBuffer(const Sink::ApplicationDomain::ApplicationDomainType &domainType, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) = 0;
+    virtual void
+    createBuffer(const Sink::ApplicationDomain::ApplicationDomainType &domainType, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) = 0;
 };

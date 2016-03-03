@@ -6,7 +6,8 @@
 namespace Sink {
 namespace Log {
 
-enum DebugLevel {
+enum DebugLevel
+{
     Trace,
     Log,
     Warning,
@@ -24,14 +25,15 @@ DebugLevel SINK_EXPORT debugLevelFromName(const QByteArray &name);
 void SINK_EXPORT setDebugOutputLevel(DebugLevel);
 DebugLevel SINK_EXPORT debugOutputLevel();
 
-enum FilterType {
+enum FilterType
+{
     Area,
     ApplicationName
 };
 
 /**
  * Sets a debug output filter.
- * 
+ *
  * Everything that is not matching the filter is ignored.
  * An empty filter matches everything.
  *
@@ -53,7 +55,7 @@ QByteArrayList SINK_EXPORT debugOutputFilter(FilterType type);
 void SINK_EXPORT setDebugOutputFields(const QByteArrayList &filter);
 QByteArrayList SINK_EXPORT debugOutputFields();
 
-QDebug SINK_EXPORT debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea = 0);
+QDebug SINK_EXPORT debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea = 0);
 
 struct SINK_EXPORT TraceTime
 {
@@ -66,7 +68,6 @@ inline QDebug SINK_EXPORT operator<<(QDebug d, const TraceTime &time)
     d << time.time << "[ms]";
     return d;
 }
-
 }
 }
 
@@ -83,5 +84,5 @@ inline QDebug SINK_EXPORT operator<<(QDebug d, const TraceTime &time)
 #define Trace() Sink::Log::debugStream(Sink::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, DEBUG_AREA)
 #define Log() Sink::Log::debugStream(Sink::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, DEBUG_AREA)
 #define Warning() Sink::Log::debugStream(Sink::Log::DebugLevel::Warning, __LINE__, __FILE__, Q_FUNC_INFO, DEBUG_AREA)
-//FIXME Error clashes with Storage::Error and MessageQueue::Error
+// FIXME Error clashes with Storage::Error and MessageQueue::Error
 #define ErrorMsg() Sink::Log::debugStream(Sink::Log::DebugLevel::Error, __LINE__, __FILE__, Q_FUNC_INFO, DEBUG_AREA)

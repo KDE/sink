@@ -16,20 +16,23 @@ static int blockingTime;
 class TimeMeasuringApplication : public QCoreApplication
 {
     QElapsedTimer t;
-public:
-    TimeMeasuringApplication(int& argc, char ** argv) : QCoreApplication(argc, argv) { }
-    virtual ~TimeMeasuringApplication() { }
 
-    virtual bool notify(QObject* receiver, QEvent* event)
+public:
+    TimeMeasuringApplication(int &argc, char **argv) : QCoreApplication(argc, argv)
+    {
+    }
+    virtual ~TimeMeasuringApplication()
+    {
+    }
+
+    virtual bool notify(QObject *receiver, QEvent *event)
     {
         t.start();
         const bool ret = QCoreApplication::notify(receiver, event);
-        if(t.elapsed() > 1)
-            std::cout << QString("processing event type %1 for object %2 took %3ms")
-                .arg((int)event->type())
-                .arg(""/* receiver->objectName().toLocal8Bit().data()*/)
-                .arg((int)t.elapsed())
-                .toStdString() << std::endl;
+        if (t.elapsed() > 1)
+            std::cout
+                << QString("processing event type %1 for object %2 took %3ms").arg((int)event->type()).arg("" /* receiver->objectName().toLocal8Bit().data()*/).arg((int)t.elapsed()).toStdString()
+                << std::endl;
         blockingTime += t.elapsed();
         return ret;
     }
@@ -62,7 +65,7 @@ private slots:
 
     void testSingle()
     {
-        //Setup
+        // Setup
         {
             Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
             for (int i = 0; i < 1000; i++) {
@@ -76,13 +79,13 @@ private slots:
 
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        //Test
+        // Test
         QTime time;
         time.start();
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         blockingTime += time.elapsed();
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-        //Never block longer than 10 ms
+        // Never block longer than 10 ms
         QVERIFY2(blockingTime < 10, QString("Total blocking time: %1").arg(blockingTime).toLatin1().data());
     }
 };

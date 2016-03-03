@@ -28,8 +28,7 @@
 
 #include "state.h"
 
-namespace SinkshUtils
-{
+namespace SinkshUtils {
 
 class StoreBase;
 
@@ -45,9 +44,10 @@ QMap<QString, QString> keyValueMapFromArgs(const QStringList &args);
 /**
  * A small abstraction layer to use the sink store with the type available as string.
  */
-class StoreBase {
+class StoreBase
+{
 public:
-    virtual ~StoreBase() {};
+    virtual ~StoreBase(){};
     virtual Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject() = 0;
     virtual Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier = QByteArray()) = 0;
     virtual KAsync::Job<void> create(const Sink::ApplicationDomain::ApplicationDomainType &type) = 0;
@@ -57,33 +57,37 @@ public:
 };
 
 template <typename T>
-class Store : public StoreBase {
+class Store : public StoreBase
+{
 public:
-    Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject() Q_DECL_OVERRIDE {
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject() Q_DECL_OVERRIDE
+    {
         return T::Ptr::create();
     }
 
-    Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier = QByteArray()) Q_DECL_OVERRIDE {
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier = QByteArray()) Q_DECL_OVERRIDE
+    {
         return T::Ptr::create(resourceInstanceIdentifier, identifier, 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
     }
 
-    KAsync::Job<void> create(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
-        return Sink::Store::create<T>(*static_cast<const T*>(&type));
+    KAsync::Job<void> create(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE
+    {
+        return Sink::Store::create<T>(*static_cast<const T *>(&type));
     }
 
-    KAsync::Job<void> modify(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
-        return Sink::Store::modify<T>(*static_cast<const T*>(&type));
+    KAsync::Job<void> modify(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE
+    {
+        return Sink::Store::modify<T>(*static_cast<const T *>(&type));
     }
 
-    KAsync::Job<void> remove(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE {
-        return Sink::Store::remove<T>(*static_cast<const T*>(&type));
+    KAsync::Job<void> remove(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE
+    {
+        return Sink::Store::remove<T>(*static_cast<const T *>(&type));
     }
 
-    QSharedPointer<QAbstractItemModel> loadModel(const Sink::Query &query) Q_DECL_OVERRIDE {
+    QSharedPointer<QAbstractItemModel> loadModel(const Sink::Query &query) Q_DECL_OVERRIDE
+    {
         return Sink::Store::loadModel<T>(query);
     }
 };
-
-
 }
-

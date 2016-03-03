@@ -19,8 +19,7 @@
 
 #include "utils.h"
 
-namespace Utils
-{
+namespace Utils {
 
 QStringList filteredCompletions(const QStringList &possibleCompletions, const QString &commandFragment, Qt::CaseSensitivity cs)
 {
@@ -29,7 +28,7 @@ QStringList filteredCompletions(const QStringList &possibleCompletions, const QS
     }
 
     QStringList filtered;
-    for (auto item: possibleCompletions) {
+    for (auto item : possibleCompletions) {
         if (item.startsWith(commandFragment, cs)) {
             filtered << item;
         }
@@ -39,4 +38,3 @@ QStringList filteredCompletions(const QStringList &possibleCompletions, const QS
 }
 
 } // namespace Utils
-

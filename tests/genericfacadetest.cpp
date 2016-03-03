@@ -9,7 +9,7 @@
 #include <common/resultprovider.h>
 #include <common/synclistresult.h>
 
-//Replace with something different
+// Replace with something different
 #include "event_generated.h"
 
 
@@ -34,7 +34,7 @@ private slots:
         Sink::Query query;
         query.liveQuery = false;
 
-        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr> >::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr>>::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         // storage->mResults << Sink::ApplicationDomain::Event::Ptr::create();
         TestResourceFacade facade("identifier", resourceAccess);
@@ -44,7 +44,7 @@ private slots:
         facade.load(query, *resultSet).exec().waitForFinished();
         resultSet->initialResultSetComplete();
 
-        //We have to wait for the events that deliver the results to be processed by the eventloop
+        // We have to wait for the events that deliver the results to be processed by the eventloop
         result.exec();
 
         QCOMPARE(result.size(), 1);
@@ -55,7 +55,7 @@ private slots:
         Sink::Query query;
         query.liveQuery = true;
 
-        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr> >::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr>>::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         // storage->mResults << Sink::ApplicationDomain::Event::Ptr::create();
         TestResourceFacade facade("identifier", resourceAccess);
@@ -68,13 +68,13 @@ private slots:
         result.exec();
         QCOMPARE(result.size(), 1);
 
-        //Enter a second result
+        // Enter a second result
         // storage->mResults.clear();
         // storage->mResults << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Sink::ApplicationDomain::BufferAdaptor>());
         // storage->mLatestRevision = 2;
         resourceAccess->emit revisionChanged(2);
 
-        //Hack to get event loop in synclistresult to abort again
+        // Hack to get event loop in synclistresult to abort again
         resultSet->initialResultSetComplete();
         result.exec();
 
@@ -86,7 +86,7 @@ private slots:
         Sink::Query query;
         query.liveQuery = true;
 
-        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr> >::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr>>::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         auto entity = QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         entity->setProperty("test", "test1");
@@ -101,7 +101,7 @@ private slots:
         result.exec();
         QCOMPARE(result.size(), 1);
 
-        //Modify the entity again
+        // Modify the entity again
         // storage->mResults.clear();
         entity = QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         entity->setProperty("test", "test2");
@@ -109,7 +109,7 @@ private slots:
         // storage->mLatestRevision = 2;
         resourceAccess->emit revisionChanged(2);
 
-        //Hack to get event loop in synclistresult to abort again
+        // Hack to get event loop in synclistresult to abort again
         resultSet->initialResultSetComplete();
         result.exec();
 
@@ -122,7 +122,7 @@ private slots:
         Sink::Query query;
         query.liveQuery = true;
 
-        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr> >::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr>>::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         auto entity = QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id2", 0, QSharedPointer<Sink::ApplicationDomain::BufferAdaptor>());
         // storage->mResults << entity;
@@ -136,13 +136,13 @@ private slots:
         result.exec();
         QCOMPARE(result.size(), 1);
 
-        //Remove the entity again
+        // Remove the entity again
         // storage->mResults.clear();
         // storage->mRemovals << entity;
         // storage->mLatestRevision = 2;
         resourceAccess->emit revisionChanged(2);
 
-        //Hack to get event loop in synclistresult to abort again
+        // Hack to get event loop in synclistresult to abort again
         resultSet->initialResultSetComplete();
         result.exec();
 

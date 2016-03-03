@@ -12,15 +12,17 @@
 class SINK_EXPORT Index
 {
 public:
-    enum ErrorCodes {
+    enum ErrorCodes
+    {
         IndexNotAvailable = -1
     };
 
     class Error
     {
     public:
-        Error(const QByteArray &s, int c, const QByteArray &m)
-            : store(s), message(m), code(c) {}
+        Error(const QByteArray &s, int c, const QByteArray &m) : store(s), message(m), code(c)
+        {
+        }
         QByteArray store;
         QByteArray message;
         int code;
@@ -32,8 +34,8 @@ public:
     void add(const QByteArray &key, const QByteArray &value);
     void remove(const QByteArray &key, const QByteArray &value);
 
-    void lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler,
-                                       const std::function<void(const Error &error)> &errorHandler, bool matchSubStringKeys = false);
+    void lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler, const std::function<void(const Error &error)> &errorHandler,
+        bool matchSubStringKeys = false);
     QByteArray lookup(const QByteArray &key);
 
 private:

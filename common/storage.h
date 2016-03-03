@@ -26,14 +26,19 @@
 #include <functional>
 #include <QString>
 
-namespace Sink
+namespace Sink {
+
+class SINK_EXPORT Storage
 {
-
-class SINK_EXPORT Storage {
 public:
-    enum AccessMode { ReadOnly, ReadWrite };
+    enum AccessMode
+    {
+        ReadOnly,
+        ReadWrite
+    };
 
-    enum ErrorCodes {
+    enum ErrorCodes
+    {
         GenericError,
         NotOpen,
         ReadOnlyError,
@@ -44,8 +49,9 @@ public:
     class Error
     {
     public:
-        Error(const QByteArray &s, int c, const QByteArray &m)
-            : store(s), message(m), code(c) {}
+        Error(const QByteArray &s, int c, const QByteArray &m) : store(s), message(m), code(c)
+        {
+        }
         QByteArray store;
         QByteArray message;
         int code;
@@ -65,13 +71,11 @@ public:
         /**
          * Remove a key
          */
-        void remove(const QByteArray &key,
-                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+        void remove(const QByteArray &key, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
         /**
          * Remove a key-value pair
          */
-        void remove(const QByteArray &key, const QByteArray &value,
-                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+        void remove(const QByteArray &key, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
 
         /**
         * Read values with a given key.
@@ -82,9 +86,8 @@ public:
         *
         * @return The number of values retrieved.
         */
-        int scan(const QByteArray &key,
-                    const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-                    const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool findSubstringKeys = false) const;
+        int scan(const QByteArray &key, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
+            const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool findSubstringKeys = false) const;
 
         /**
          * Finds the last value in a series matched by prefix.
@@ -92,28 +95,29 @@ public:
          * This is used to match by uid prefix and find the highest revision.
          * Note that this relies on a key scheme like $uid$revision.
          */
-        void findLatest(const QByteArray &uid,
-                        const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
-                        const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
+        void findLatest(const QByteArray &uid, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
+            const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
 
         /**
          * Returns true if the database contains the substring key.
          */
         bool contains(const QByteArray &uid);
 
-        NamedDatabase(NamedDatabase&& other) : d(other.d)
+        NamedDatabase(NamedDatabase &&other) : d(other.d)
         {
             d = other.d;
             other.d = nullptr;
         }
 
-        NamedDatabase& operator=(NamedDatabase&& other) {
+        NamedDatabase &operator=(NamedDatabase &&other)
+        {
             d = other.d;
             other.d = nullptr;
             return *this;
         }
 
-        operator bool() const {
+        operator bool() const
+        {
             return (d != nullptr);
         }
 
@@ -121,10 +125,10 @@ public:
 
     private:
         friend Transaction;
-        NamedDatabase(NamedDatabase& other);
-        NamedDatabase& operator=(NamedDatabase& other);
+        NamedDatabase(NamedDatabase &other);
+        NamedDatabase &operator=(NamedDatabase &other);
         class Private;
-        NamedDatabase(Private*);
+        NamedDatabase(Private *);
         Private *d;
     };
 
@@ -138,37 +142,39 @@ public:
 
         QList<QByteArray> getDatabaseNames() const;
 
-        NamedDatabase openDatabase(const QByteArray &name = QByteArray("default"), const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool allowDuplicates = false) const;
+        NamedDatabase openDatabase(const QByteArray &name = QByteArray("default"),
+            const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool allowDuplicates = false) const;
 
-        Transaction(Transaction&& other) : d(other.d)
+        Transaction(Transaction &&other) : d(other.d)
         {
             d = other.d;
             other.d = nullptr;
         }
-        Transaction& operator=(Transaction&& other) {
+        Transaction &operator=(Transaction &&other)
+        {
             d = other.d;
             other.d = nullptr;
             return *this;
         }
 
-        operator bool() const {
+        operator bool() const
+        {
             return (d != nullptr);
         }
 
     private:
-        Transaction(Transaction& other);
-        Transaction& operator=(Transaction& other);
+        Transaction(Transaction &other);
+        Transaction &operator=(Transaction &other);
         friend Storage;
         class Private;
-        Transaction(Private*);
+        Transaction(Private *);
         Private *d;
     };
 
     Storage(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly);
     ~Storage();
 
-    Transaction createTransaction(AccessMode mode = ReadWrite,
-                  const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+    Transaction createTransaction(AccessMode mode = ReadWrite, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
 
     /**
      * Set the default error handler.
@@ -178,7 +184,7 @@ public:
 
     /**
      * A basic error handler that writes to std::cerr.
-     * 
+     *
      * Used if nothing else is configured.
      */
     static std::function<void(const Storage::Error &error)> basicErrorHandler();
@@ -188,7 +194,7 @@ public:
 
     /**
      * Clears all cached environments.
-     * 
+     *
      * This only ever has to be called if a database was removed from another process.
      */
     static void clearEnv();
@@ -220,8 +226,7 @@ private:
 
 private:
     class Private;
-    Private * const d;
+    Private *const d;
 };
 
 } // namespace Sink
-

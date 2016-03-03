@@ -18,4 +18,3 @@
  */
 
 #include "domainadaptor.h"
-

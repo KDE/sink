@@ -143,7 +143,8 @@ QByteArray deleteEntityCommand(const QByteArray &uid, qint64 revision)
     return command;
 }
 
-class TestProcessor : public Sink::Preprocessor {
+class TestProcessor : public Sink::Preprocessor
+{
 public:
     void newEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
@@ -151,7 +152,8 @@ public:
         newRevisions << revision;
     }
 
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity,
+        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         modifiedUids << uid;
         modifiedRevisions << revision;
@@ -214,42 +216,42 @@ private slots:
         auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
         pipeline.setAdaptorFactory("event", adaptorFactory);
 
-        //Create the initial revision
+        // Create the initial revision
         pipeline.startTransaction();
         pipeline.newEntity(command.constData(), command.size());
         pipeline.commit();
 
-        //Get uid of written entity
+        // Get uid of written entity
         auto keys = getKeys("org.kde.pipelinetest.instance1", "event.main");
         QCOMPARE(keys.size(), 1);
         const auto key = keys.first();
         const auto uid = Sink::Storage::uidFromKey(key);
 
-        //Execute the modification
+        // Execute the modification
         entityFbb.Clear();
         auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summary2"), uid, 1);
         pipeline.startTransaction();
         pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
         pipeline.commit();
 
-        //Ensure we've got the new revision with the modification
+        // Ensure we've got the new revision with the modification
         auto buffer = getEntity("org.kde.pipelinetest.instance1", "event.main", Sink::Storage::assembleKey(uid, 2));
         QVERIFY(!buffer.isEmpty());
         Sink::EntityBuffer entityBuffer(buffer.data(), buffer.size());
         auto adaptor = adaptorFactory->createAdaptor(entityBuffer.entity());
         QVERIFY2(adaptor->getProperty("summary").toString() == QString("summary2"), "The modification isn't applied.");
-        //Ensure we didn't modify anything else
+        // Ensure we didn't modify anything else
         QVERIFY2(adaptor->getProperty("description").toString() == QString("description"), "The modification has sideeffects.");
 
-        //Both revisions are in the store at this point
+        // Both revisions are in the store at this point
         QCOMPARE(getKeys("org.kde.pipelinetest.instance1", "event.main").size(), 2);
 
-        //Cleanup old revisions
+        // Cleanup old revisions
         pipeline.startTransaction();
         pipeline.cleanupRevision(2);
         pipeline.commit();
 
-        //And now only the latest revision is left
+        // And now only the latest revision is left
         QCOMPARE(getKeys("org.kde.pipelinetest.instance1", "event.main").size(), 1);
     }
 
@@ -263,18 +265,18 @@ private slots:
         auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
         pipeline.setAdaptorFactory("event", adaptorFactory);
 
-        //Create the initial revision
+        // Create the initial revision
         pipeline.startTransaction();
         pipeline.newEntity(command.constData(), command.size());
         pipeline.commit();
 
-        //Get uid of written entity
+        // Get uid of written entity
         auto keys = getKeys("org.kde.pipelinetest.instance1", "event.main");
         QCOMPARE(keys.size(), 1);
         const auto uid = Sink::Storage::uidFromKey(keys.first());
 
 
-        //Create another operation inbetween
+        // Create another operation inbetween
         {
             entityFbb.Clear();
             auto command = createEntityCommand(createEvent(entityFbb));
@@ -283,14 +285,14 @@ private slots:
             pipeline.commit();
         }
 
-        //Execute the modification on revision 2
+        // Execute the modification on revision 2
         entityFbb.Clear();
         auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summary2"), uid, 2);
         pipeline.startTransaction();
         pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
         pipeline.commit();
 
-        //Ensure we've got the new revision with the modification
+        // Ensure we've got the new revision with the modification
         auto buffer = getEntity("org.kde.pipelinetest.instance1", "event.main", Sink::Storage::assembleKey(uid, 3));
         QVERIFY(!buffer.isEmpty());
         Sink::EntityBuffer entityBuffer(buffer.data(), buffer.size());
@@ -305,7 +307,7 @@ private slots:
         Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
         pipeline.setAdaptorFactory("event", QSharedPointer<TestEventAdaptorFactory>::create());
 
-        //Create the initial revision
+        // Create the initial revision
         pipeline.startTransaction();
         pipeline.newEntity(command.constData(), command.size());
         pipeline.commit();
@@ -315,21 +317,21 @@ private slots:
 
         const auto uid = Sink::Storage::uidFromKey(result.first());
 
-        //Delete entity
+        // Delete entity
         auto deleteCommand = deleteEntityCommand(uid, 1);
         pipeline.startTransaction();
         pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size());
         pipeline.commit();
 
-        //We have a new revision that indicates the deletion
+        // We have a new revision that indicates the deletion
         QCOMPARE(getKeys("org.kde.pipelinetest.instance1", "event.main").size(), 2);
 
-        //Cleanup old revisions
+        // Cleanup old revisions
         pipeline.startTransaction();
         pipeline.cleanupRevision(2);
         pipeline.commit();
 
-        //And all revisions are gone
+        // And all revisions are gone
         QCOMPARE(getKeys("org.kde.pipelinetest.instance1", "event.main").size(), 0);
     }
 
@@ -340,17 +342,17 @@ private slots:
         TestProcessor testProcessor;
 
         Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
-        pipeline.setPreprocessors("event", QVector<Sink::Preprocessor*>() << &testProcessor);
+        pipeline.setPreprocessors("event", QVector<Sink::Preprocessor *>() << &testProcessor);
         pipeline.startTransaction();
         pipeline.setAdaptorFactory("event", QSharedPointer<TestEventAdaptorFactory>::create());
 
-        //Actual test
+        // Actual test
         {
             auto command = createEntityCommand(createEvent(entityFbb));
             pipeline.newEntity(command.constData(), command.size());
             QCOMPARE(testProcessor.newUids.size(), 1);
             QCOMPARE(testProcessor.newRevisions.size(), 1);
-            //Key doesn't contain revision and is just the uid
+            // Key doesn't contain revision and is just the uid
             QCOMPARE(testProcessor.newUids.at(0), Sink::Storage::uidFromKey(testProcessor.newUids.at(0)));
         }
         pipeline.commit();
@@ -364,7 +366,7 @@ private slots:
             pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
             QCOMPARE(testProcessor.modifiedUids.size(), 1);
             QCOMPARE(testProcessor.modifiedRevisions.size(), 1);
-            //Key doesn't contain revision and is just the uid
+            // Key doesn't contain revision and is just the uid
             QCOMPARE(testProcessor.modifiedUids.at(0), Sink::Storage::uidFromKey(testProcessor.modifiedUids.at(0)));
         }
         pipeline.commit();
@@ -376,7 +378,7 @@ private slots:
             QCOMPARE(testProcessor.deletedUids.size(), 1);
             QCOMPARE(testProcessor.deletedUids.size(), 1);
             QCOMPARE(testProcessor.deletedSummaries.size(), 1);
-            //Key doesn't contain revision and is just the uid
+            // Key doesn't contain revision and is just the uid
             QCOMPARE(testProcessor.deletedUids.at(0), Sink::Storage::uidFromKey(testProcessor.deletedUids.at(0)));
             QCOMPARE(testProcessor.deletedSummaries.at(0), QByteArray("summary2"));
         }

@@ -12,8 +12,7 @@
 #include "pipeline.h"
 #include "log.h"
 
-static bool copyRecursively(const QString &srcFilePath,
-                            const QString &tgtFilePath)
+static bool copyRecursively(const QString &srcFilePath, const QString &tgtFilePath)
 {
     QFileInfo srcFileInfo(srcFilePath);
     if (srcFileInfo.isDir()) {
@@ -26,10 +25,8 @@ static bool copyRecursively(const QString &srcFilePath,
         QDir sourceDir(srcFilePath);
         QStringList fileNames = sourceDir.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
         foreach (const QString &fileName, fileNames) {
-            const QString newSrcFilePath
-                    = srcFilePath + QLatin1Char('/') + fileName;
-            const QString newTgtFilePath
-                    = tgtFilePath + QLatin1Char('/') + fileName;
+            const QString newSrcFilePath = srcFilePath + QLatin1Char('/') + fileName;
+            const QString newTgtFilePath = tgtFilePath + QLatin1Char('/') + fileName;
             if (!copyRecursively(newSrcFilePath, newTgtFilePath))
                 return false;
         }
@@ -44,7 +41,7 @@ static bool copyRecursively(const QString &srcFilePath,
 
 /**
  * Test of complete system using the maildir resource.
- * 
+ *
  * This test requires the maildir resource installed.
  */
 class MaildirResourceTest : public QObject
@@ -89,7 +86,7 @@ private slots:
         Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
@@ -104,7 +101,7 @@ private slots:
         query.resources << "org.kde.maildir.instance1";
         query.parentProperty = "parent";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
@@ -121,23 +118,18 @@ private slots:
     {
         using namespace Sink;
         using namespace Sink::ApplicationDomain;
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         auto query = Query::ResourceFilter("org.kde.maildir.instance1");
         Store::synchronize(query).exec().waitForFinished();
         ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
-        auto result = Store::fetchOne<Folder>(
-                Query::ResourceFilter("org.kde.maildir.instance1") + Query::RequestedProperties(QByteArrayList() << "name")
-            )
-            .then<QList<Mail::Ptr>, Folder>([](const Folder &folder) {
-                Trace() << "Found a folder" << folder.identifier();
-                return Store::fetchAll<Mail>(
-                    Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
-                );
-            })
-            .then<void, QList<Mail::Ptr> >([](const QList<Mail::Ptr> &mails) {
-                QVERIFY(mails.size() >= 1);
-            })
-            .exec();
+        auto result = Store::fetchOne<Folder>(Query::ResourceFilter("org.kde.maildir.instance1") + Query::RequestedProperties(QByteArrayList() << "name"))
+                          .then<QList<Mail::Ptr>, Folder>([](const Folder &folder) {
+                              Trace() << "Found a folder" << folder.identifier();
+                              return Store::fetchAll<Mail>(Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder"
+                                                                                                                                                 << "subject"));
+                          })
+                          .then<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) { QVERIFY(mails.size() >= 1); })
+                          .exec();
         result.waitForFinished();
         QVERIFY(!result.errorCode());
     }
@@ -146,9 +138,12 @@ private slots:
     {
         Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
-        query.requestedProperties << "folder" << "subject" << "mimeMessage" << "date";
+        query.requestedProperties << "folder"
+                                  << "subject"
+                                  << "mimeMessage"
+                                  << "date";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
@@ -171,7 +166,7 @@ private slots:
         query.resources << "org.kde.maildir.instance1";
         query.requestedProperties << "name";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
@@ -179,7 +174,7 @@ private slots:
         QDir dir(targetPath);
         QVERIFY(dir.rename("inbox", "newbox"));
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
@@ -193,13 +188,14 @@ private slots:
     {
         Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
-        query.requestedProperties << "folder" << "subject";
+        query.requestedProperties << "folder"
+                                  << "subject";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
@@ -212,9 +208,10 @@ private slots:
     {
         Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
-        query.requestedProperties << "folder" << "subject";
+        query.requestedProperties << "folder"
+                                  << "subject";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
@@ -222,7 +219,7 @@ private slots:
         QFile file(targetPath);
         QVERIFY(file.remove());
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
@@ -236,7 +233,7 @@ private slots:
         Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         Sink::ApplicationDomain::Folder folder("org.kde.maildir.instance1");
@@ -244,7 +241,7 @@ private slots:
 
         Sink::Store::create(folder).exec().waitForFinished();
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto targetPath = tempDir.path() + "/maildir1/testCreateFolder";
@@ -284,16 +281,16 @@ private slots:
         Sink::Query query;
         query.resources << "org.kde.maildir.instance1";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         Sink::ApplicationDomain::Mail mail("org.kde.maildir.instance1");
         mail.setProperty("name", "testCreateMail");
-        //FIXME instead of properties, ensure the mimeMessage property is used and the file is moved as expected
+        // FIXME instead of properties, ensure the mimeMessage property is used and the file is moved as expected
 
         Sink::Store::create(mail).exec().waitForFinished();
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto targetPath = tempDir.path() + "/maildir1/new";
@@ -312,25 +309,23 @@ private slots:
         ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto result = Store::fetchOne<Folder>(
-            Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name")
-        )
-        .then<void, KAsync::Job<void>, Folder>([query](const Folder &folder) {
-            return Store::fetchAll<Mail>(
-                Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
-            )
-            .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([query](const QList<Mail::Ptr> &mails) {
-                //Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
-                if (mails.size() != 1) {
-                    return KAsync::error<void>(1, "Wrong number of mails.");
-                }
-                auto mail = mails.first();
+                          Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name"))
+                          .then<void, KAsync::Job<void>, Folder>([query](const Folder &folder) {
+                              return Store::fetchAll<Mail>(Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder"
+                                                                                                                                                 << "subject"))
+                                  .then<void, KAsync::Job<void>, QList<Mail::Ptr>>([query](const QList<Mail::Ptr> &mails) {
+                                      // Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
+                                      if (mails.size() != 1) {
+                                          return KAsync::error<void>(1, "Wrong number of mails.");
+                                      }
+                                      auto mail = mails.first();
 
-                return Store::remove(*mail)
-                    .then(ResourceControl::flushReplayQueue(query.resources)) //The change needs to be replayed already
-                    .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::ExistenceInspection(*mail, false)));
-            });
-        })
-        .exec();
+                                      return Store::remove(*mail)
+                                          .then(ResourceControl::flushReplayQueue(query.resources)) // The change needs to be replayed already
+                                          .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::ExistenceInspection(*mail, false)));
+                                  });
+                          })
+                          .exec();
         result.waitForFinished();
         QVERIFY(!result.errorCode());
     }
@@ -347,61 +342,61 @@ private slots:
         Folder f;
 
         auto result = Store::fetchOne<Folder>(
-            Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name")
-        )
-        .then<void, KAsync::Job<void>, Folder>([query, &f](const Folder &folder) {
-            f = folder;
-            return Store::fetchAll<Mail>(
-                Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject")
-            )
-            .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([query](const QList<Mail::Ptr> &mails) {
-                //Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
-                if (mails.size() != 1) {
-                    return KAsync::error<void>(1, "Wrong number of mails.");
-                }
-                auto mail = mails.first();
-                mail->setProperty("unread", true);
-                return Store::modify(*mail)
-                .then<void>(ResourceControl::flushReplayQueue(query.resources)) //The change needs to be replayed already
-                .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::PropertyInspection(*mail, "unread", true)))
-                .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::PropertyInspection(*mail, "subject", mail->getProperty("subject"))));
-            });
-        })
-        .exec();
+                          Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name"))
+                          .then<void, KAsync::Job<void>, Folder>([query, &f](const Folder &folder) {
+                              f = folder;
+                              return Store::fetchAll<Mail>(Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("folder", folder) +
+                                                           Query::RequestedProperties(QByteArrayList() << "folder"
+                                                                                                       << "subject"))
+                                  .then<void, KAsync::Job<void>, QList<Mail::Ptr>>([query](const QList<Mail::Ptr> &mails) {
+                                      // Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
+                                      if (mails.size() != 1) {
+                                          return KAsync::error<void>(1, "Wrong number of mails.");
+                                      }
+                                      auto mail = mails.first();
+                                      mail->setProperty("unread", true);
+                                      return Store::modify(*mail)
+                                          .then<void>(ResourceControl::flushReplayQueue(query.resources)) // The change needs to be replayed already
+                                          .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::PropertyInspection(*mail, "unread", true)))
+                                          .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::PropertyInspection(*mail, "subject", mail->getProperty("subject"))));
+                                  });
+                          })
+                          .exec();
         result.waitForFinished();
         QVERIFY(!result.errorCode());
 
-        //Verify that we can still query for all relevant information
+        // Verify that we can still query for all relevant information
         auto result2 = Store::fetchAll<Mail>(
-            Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("folder", f) + Query::RequestedProperties(QByteArrayList() << "folder" << "subject" << "mimeMessage" << "unread")
-        )
-        .then<void, KAsync::Job<void>, QList<Mail::Ptr> >([](const QList<Mail::Ptr> &mails) {
-            //Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
-            if (mails.size() != 1) {
-                qWarning() << "Wrong number of mails";
-                return KAsync::error<void>(1, "Wrong number of mails.");
-            }
-            auto mail = mails.first();
-            if (mail->getProperty("subject").toString().isEmpty()) {
-                qWarning() << "Wrong subject";
-                return KAsync::error<void>(1, "Wrong subject.");
-            }
-            if (mail->getProperty("unread").toBool() != true) {
-                qWarning() << "Not unread";
-                return KAsync::error<void>(1, "Not unread.");
-            }
-            QFileInfo info(mail->getProperty("mimeMessage").toString());
-            if (!info.exists()) {
-                qWarning() << "Wrong subject";
-                return KAsync::error<void>(1, "Can't find mime message.");
-            }
-            return KAsync::null<void>();
-        })
-        .exec();
+                           Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("folder", f) + Query::RequestedProperties(QByteArrayList() << "folder"
+                                                                                                                                                                 << "subject"
+                                                                                                                                                                 << "mimeMessage"
+                                                                                                                                                                 << "unread"))
+                           .then<void, KAsync::Job<void>, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
+                               // Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
+                               if (mails.size() != 1) {
+                                   qWarning() << "Wrong number of mails";
+                                   return KAsync::error<void>(1, "Wrong number of mails.");
+                               }
+                               auto mail = mails.first();
+                               if (mail->getProperty("subject").toString().isEmpty()) {
+                                   qWarning() << "Wrong subject";
+                                   return KAsync::error<void>(1, "Wrong subject.");
+                               }
+                               if (mail->getProperty("unread").toBool() != true) {
+                                   qWarning() << "Not unread";
+                                   return KAsync::error<void>(1, "Not unread.");
+                               }
+                               QFileInfo info(mail->getProperty("mimeMessage").toString());
+                               if (!info.exists()) {
+                                   qWarning() << "Wrong subject";
+                                   return KAsync::error<void>(1, "Can't find mime message.");
+                               }
+                               return KAsync::null<void>();
+                           })
+                           .exec();
         result2.waitForFinished();
         QVERIFY(!result2.errorCode());
     }
-
 };
 
 QTEST_MAIN(MaildirResourceTest)

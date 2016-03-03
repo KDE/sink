@@ -21,14 +21,11 @@
 #include <pipeline.h>
 #include <index.h>
 
-class IndexUpdater : public Sink::Preprocessor {
+class IndexUpdater : public Sink::Preprocessor
+{
 public:
-    IndexUpdater(const QByteArray &index, const QByteArray &type, const QByteArray &property)
-        :mIndexIdentifier(index),
-        mBufferType(type),
-        mProperty(property)
+    IndexUpdater(const QByteArray &index, const QByteArray &type, const QByteArray &property) : mIndexIdentifier(index), mBufferType(type), mProperty(property)
     {
-
     }
 
     void newEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
@@ -36,7 +33,8 @@ public:
         add(newEntity.getProperty(mProperty), uid, transaction);
     }
 
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity,
+        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         remove(oldEntity.getProperty(mProperty), uid, transaction);
         add(newEntity.getProperty(mProperty), uid, transaction);
@@ -57,7 +55,7 @@ private:
 
     void remove(const QVariant &value, const QByteArray &uid, Sink::Storage::Transaction &transaction)
     {
-        //TODO hide notfound error
+        // TODO hide notfound error
         Index(mIndexIdentifier, transaction).remove(value.toByteArray(), uid);
     }
 
@@ -66,15 +64,17 @@ private:
     QByteArray mProperty;
 };
 
-template<typename DomainType>
-class DefaultIndexUpdater : public Sink::Preprocessor {
+template <typename DomainType>
+class DefaultIndexUpdater : public Sink::Preprocessor
+{
 public:
     void newEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         Sink::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
     }
 
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity,
+        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         Sink::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
         Sink::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);

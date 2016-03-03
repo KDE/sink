@@ -16,16 +16,13 @@ namespace async {
 *
 * WARNING: The nested eventloop can cause all sorts of trouble. Use only in testing code.
 */
-template<class T>
-class SyncListResult : public QList<T> {
+template <class T>
+class SyncListResult : public QList<T>
+{
 public:
-    SyncListResult(const QSharedPointer<Sink::ResultEmitter<T> > &emitter)
-        :QList<T>(),
-        mEmitter(emitter)
+    SyncListResult(const QSharedPointer<Sink::ResultEmitter<T>> &emitter) : QList<T>(), mEmitter(emitter)
     {
-        emitter->onAdded([this](const T &value) {
-            this->append(value);
-        });
+        emitter->onAdded([this](const T &value) { this->append(value); });
         emitter->onModified([this](const T &value) {
             for (auto it = this->begin(); it != this->end(); it++) {
                 if (**it == *value) {
@@ -46,16 +43,12 @@ public:
         emitter->onInitialResultSetComplete([this]() {
             if (eventLoopAborter) {
                 eventLoopAborter();
-                //Be safe in case of a second invocation of the complete handler
+                // Be safe in case of a second invocation of the complete handler
                 eventLoopAborter = std::function<void()>();
             }
         });
-        emitter->onComplete([this]() {
-            mEmitter.clear();
-        });
-        emitter->onClear([this]() {
-            this->clear();
-        });
+        emitter->onComplete([this]() { mEmitter.clear(); });
+        emitter->onClear([this]() { this->clear(); });
     }
 
     void exec()
@@ -66,8 +59,7 @@ public:
     }
 
 private:
-    QSharedPointer<Sink::ResultEmitter<T> > mEmitter;
+    QSharedPointer<Sink::ResultEmitter<T>> mEmitter;
     std::function<void()> eventLoopAborter;
 };
-
 }

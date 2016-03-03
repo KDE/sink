@@ -51,14 +51,13 @@ private slots:
         int errors = 0;
         for (int i = 0; i < count; i++) {
             auto result = resourceAccess.sendCommand(Sink::Commands::PingCommand)
-                .then<void>([&complete]() {
-                    complete++;
-                },
-                [&errors, &complete](int error, const QString &msg) {
-                    qWarning() << msg;
-                    errors++;
-                    complete++;
-                }).exec();
+                              .then<void>([&complete]() { complete++; },
+                                  [&errors, &complete](int error, const QString &msg) {
+                                      qWarning() << msg;
+                                      errors++;
+                                      complete++;
+                                  })
+                              .exec();
         }
         QTRY_COMPARE(complete, count);
         QVERIFY(!errors);
@@ -77,17 +76,18 @@ private slots:
         int errors = 0;
         for (int i = 0; i < count; i++) {
             resourceAccess.sendCommand(Sink::Commands::PingCommand)
-                .then<void>([&complete]() {
-                    complete++;
-                },
-                [&errors, &complete](int error, const QString &msg) {
-                    qWarning() << msg;
-                    errors++;
-                    complete++;
-                }).then<void>([&resourceAccess]() {
+                .then<void>([&complete]() { complete++; },
+                    [&errors, &complete](int error, const QString &msg) {
+                        qWarning() << msg;
+                        errors++;
+                        complete++;
+                    })
+                .then<void>([&resourceAccess]() {
                     resourceAccess.close();
                     resourceAccess.open();
-                }).exec().waitForFinished();
+                })
+                .exec()
+                .waitForFinished();
         }
         QTRY_COMPARE(complete, count);
         QVERIFY(!errors);

@@ -23,7 +23,7 @@
 
 /**
  * Benchmark read performance of the facade implementation.
- * 
+ *
  * The memory used should grow linearly with the number of retrieved entities.
  * The memory used should be independent from the database size, after accounting for the memory mapped db.
  */
@@ -39,7 +39,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
     void populateDatabase(int count)
     {
         Sink::Storage(Sink::storageLocation(), "identifier", Sink::Storage::ReadWrite).removeFromDisk();
-        //Setup
+        // Setup
         auto domainTypeAdaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
         {
             Sink::Storage storage(Sink::storageLocation(), identifier, Sink::Storage::ReadWrite);
@@ -57,7 +57,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
                 domainObject->setProperty("attachment", attachment);
                 flatbuffers::FlatBufferBuilder fbb;
                 domainTypeAdaptorFactory->createBuffer(*domainObject, fbb);
-                const auto buffer = QByteArray::fromRawData(reinterpret_cast<const char*>(fbb.GetBufferPointer()), fbb.GetSize());
+                const auto buffer = QByteArray::fromRawData(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
                 const auto key = QUuid::createUuid().toString().toLatin1();
                 db.write(key, buffer);
                 bufferSizeTotal += buffer.size();
@@ -72,15 +72,15 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
             auto size = db.getSize();
             auto onDisk = storage.diskUsage();
             auto writeAmplification = static_cast<double>(onDisk) / static_cast<double>(bufferSizeTotal);
-            std::cout << "Database size [kb]: " << size/1024 << std::endl;
-            std::cout << "On disk [kb]: " << onDisk/1024 << std::endl;
-            std::cout << "Buffer size total [kb]: " << bufferSizeTotal/1024 << std::endl;
-            std::cout << "Key size total [kb]: " << keysSizeTotal/1024 << std::endl;
-            std::cout << "Data size total [kb]: " << dataSizeTotal/1024 << std::endl;
+            std::cout << "Database size [kb]: " << size / 1024 << std::endl;
+            std::cout << "On disk [kb]: " << onDisk / 1024 << std::endl;
+            std::cout << "Buffer size total [kb]: " << bufferSizeTotal / 1024 << std::endl;
+            std::cout << "Key size total [kb]: " << keysSizeTotal / 1024 << std::endl;
+            std::cout << "Data size total [kb]: " << dataSizeTotal / 1024 << std::endl;
             std::cout << "Write amplification: " << writeAmplification << std::endl;
 
-            //The buffer has an overhead, but with a reasonable attachment size it should be relatively small
-            //A write amplification of 2 should be the worst case
+            // The buffer has an overhead, but with a reasonable attachment size it should be relatively small
+            // A write amplification of 2 should be the worst case
             QVERIFY(writeAmplification < 2);
         }
     }
@@ -91,13 +91,14 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
 
         Sink::Query query;
         query.liveQuery = false;
-        query.requestedProperties << "uid" << "summary";
+        query.requestedProperties << "uid"
+                                  << "summary";
 
-        //Benchmark
+        // Benchmark
         QTime time;
         time.start();
 
-        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr> >::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr>>::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         TestResourceFacade facade(identifier, resourceAccess);
 
@@ -105,13 +106,9 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         ret.first.exec().waitForFinished();
         auto emitter = ret.second;
         QList<Sink::ApplicationDomain::Event::Ptr> list;
-        emitter->onAdded([&list](const Sink::ApplicationDomain::Event::Ptr &event) {
-            list << event;
-        });
+        emitter->onAdded([&list](const Sink::ApplicationDomain::Event::Ptr &event) { list << event; });
         bool done = false;
-        emitter->onInitialResultSetComplete([&done](const Sink::ApplicationDomain::Event::Ptr &event) {
-            done = true;
-        });
+        emitter->onInitialResultSetComplete([&done](const Sink::ApplicationDomain::Event::Ptr &event) { done = true; });
         emitter->fetch(Sink::ApplicationDomain::Event::Ptr());
         QTRY_VERIFY(done);
         QCOMPARE(list.size(), count);
@@ -120,35 +117,35 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
 
         const auto finalRss = getCurrentRSS();
         const auto rssGrowth = finalRss - startingRss;
-        //Since the database is memory mapped it is attributted to the resident set size.
+        // Since the database is memory mapped it is attributted to the resident set size.
         const auto rssWithoutDb = finalRss - Sink::Storage(Sink::storageLocation(), identifier, Sink::Storage::ReadWrite).diskUsage();
-        const auto peakRss =  getPeakRSS();
-        //How much peak deviates from final rss in percent (should be around 0)
-        const auto percentageRssError = static_cast<double>(peakRss - finalRss)*100.0/static_cast<double>(finalRss);
-        auto rssGrowthPerEntity = rssGrowth/count;
+        const auto peakRss = getPeakRSS();
+        // How much peak deviates from final rss in percent (should be around 0)
+        const auto percentageRssError = static_cast<double>(peakRss - finalRss) * 100.0 / static_cast<double>(finalRss);
+        auto rssGrowthPerEntity = rssGrowth / count;
 
         std::cout << "Loaded " << list.size() << " results." << std::endl;
         std::cout << "The query took [ms]: " << elapsed << std::endl;
-        std::cout << "Current Rss usage [kb]: " << finalRss/1024 << std::endl;
-        std::cout << "Peak Rss usage [kb]: " << peakRss/1024 << std::endl;
-        std::cout << "Rss growth [kb]: " << rssGrowth/1024 << std::endl;
+        std::cout << "Current Rss usage [kb]: " << finalRss / 1024 << std::endl;
+        std::cout << "Peak Rss usage [kb]: " << peakRss / 1024 << std::endl;
+        std::cout << "Rss growth [kb]: " << rssGrowth / 1024 << std::endl;
         std::cout << "Rss growth per entity [byte]: " << rssGrowthPerEntity << std::endl;
-        std::cout << "Rss without db [kb]: " << rssWithoutDb/1024 << std::endl;
+        std::cout << "Rss without db [kb]: " << rssWithoutDb / 1024 << std::endl;
         std::cout << "Percentage error: " << percentageRssError << std::endl;
 
         HAWD::Dataset dataset("facade_query", mHawdState);
         HAWD::Dataset::Row row = dataset.row();
         row.setValue("rows", list.size());
-        row.setValue("queryResultPerMs", (qreal)list.size()/elapsed);
+        row.setValue("queryResultPerMs", (qreal)list.size() / elapsed);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
 
-        mTimePerEntity << static_cast<double>(elapsed)/static_cast<double>(count);
+        mTimePerEntity << static_cast<double>(elapsed) / static_cast<double>(count);
         mRssGrowthPerEntity << rssGrowthPerEntity;
 
         QVERIFY(percentageRssError < 10);
-        //TODO This is much more than it should it seems, although adding the attachment results in pretty exactly a 1k increase,
-        //so it doesn't look like that memory is being duplicated.
+        // TODO This is much more than it should it seems, although adding the attachment results in pretty exactly a 1k increase,
+        // so it doesn't look like that memory is being duplicated.
         QVERIFY(rssGrowthPerEntity < 3300);
 
         // Print memory layout, RSS is what is in memory

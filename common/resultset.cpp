@@ -20,56 +20,38 @@
 
 #include "common/log.h"
 
-ResultSet::ResultSet()
-    : mIt(nullptr)
+ResultSet::ResultSet() : mIt(nullptr)
 {
-
 }
 
-ResultSet::ResultSet(const ValueGenerator &generator, const SkipValue &skip)
-    : mIt(nullptr),
-    mValueGenerator(generator),
-    mSkip(skip)
+ResultSet::ResultSet(const ValueGenerator &generator, const SkipValue &skip) : mIt(nullptr), mValueGenerator(generator), mSkip(skip)
 {
-
 }
 
-ResultSet::ResultSet(const IdGenerator &generator)
-    : mIt(nullptr),
-    mGenerator(generator),
-    mSkip([this]() {
-        next();
-    })
+ResultSet::ResultSet(const IdGenerator &generator) : mIt(nullptr), mGenerator(generator), mSkip([this]() { next(); })
 {
-
 }
 
 ResultSet::ResultSet(const QVector<QByteArray> &resultSet)
     : mResultSet(resultSet),
-    mIt(mResultSet.constBegin()),
-    mSkip([this]() {
-        if (mIt != mResultSet.constEnd()) {
-            mIt++;
-        }
-    }),
-    mFirst(true)
+      mIt(mResultSet.constBegin()),
+      mSkip([this]() {
+          if (mIt != mResultSet.constEnd()) {
+              mIt++;
+          }
+      }),
+      mFirst(true)
 {
-
 }
 
-ResultSet::ResultSet(const ResultSet &other)
-    : mResultSet(other.mResultSet),
-    mIt(nullptr),
-    mFirst(true)
+ResultSet::ResultSet(const ResultSet &other) : mResultSet(other.mResultSet), mIt(nullptr), mFirst(true)
 {
     if (other.mValueGenerator) {
         mValueGenerator = other.mValueGenerator;
         mSkip = other.mSkip;
     } else if (other.mGenerator) {
         mGenerator = other.mGenerator;
-        mSkip = [this]() {
-            next();
-        };
+        mSkip = [this]() { next(); };
     } else {
         mResultSet = other.mResultSet;
         mIt = mResultSet.constBegin();
@@ -96,7 +78,7 @@ bool ResultSet::next()
             return true;
         }
     } else {
-        next([](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation){ return false; });
+        next([](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation) { return false; });
     }
     return false;
 }

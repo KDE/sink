@@ -25,6 +25,6 @@
 #include <QByteArray>
 
 namespace Sink {
-    QString SINK_EXPORT storageLocation();
-    QByteArray SINK_EXPORT resourceName(const QByteArray &instanceIdentifier);
+QString SINK_EXPORT storageLocation();
+QByteArray SINK_EXPORT resourceName(const QByteArray &instanceIdentifier);
 }

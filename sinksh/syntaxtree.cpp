@@ -29,10 +29,7 @@ Syntax::Syntax()
 }
 
 Syntax::Syntax(const QString &k, const QString &helpText, std::function<bool(const QStringList &, State &)> l, Interactivity inter)
-    : keyword(k),
-      help(helpText),
-      interactivity(inter),
-      lambda(l)
+    : keyword(k), help(helpText), interactivity(inter), lambda(l)
 {
 }
 
@@ -75,10 +72,10 @@ bool SyntaxTree::run(const QStringList &commands)
             m_state.printError(QObject::tr("Broken command... sorry :("), "st_broken");
         } else {
             QStringList keywordList;
-            for (auto syntax: command.first->children) {
+            for (auto syntax : command.first->children) {
                 keywordList << syntax.keyword;
             }
-            const QString keywords = keywordList.join(" " );
+            const QString keywords = keywordList.join(" ");
             m_state.printError(QObject::tr("Command requires additional arguments, one of: %1").arg(keywords));
         }
     } else {
@@ -129,9 +126,9 @@ Syntax::List SyntaxTree::nearestSyntax(const QStringList &words, const QString &
 {
     Syntax::List matches;
 
-    //qDebug() << "words are" << words;
+    // qDebug() << "words are" << words;
     if (words.isEmpty()) {
-        for (const Syntax &syntax: m_syntax) {
+        for (const Syntax &syntax : m_syntax) {
             if (syntax.keyword.startsWith(fragment)) {
                 matches.push_back(syntax);
             }
@@ -153,7 +150,7 @@ Syntax::List SyntaxTree::nearestSyntax(const QStringList &words, const QString &
             }
         }
 
-        //qDebug() << "exiting with" << lastFullSyntax.keyword << words.last();
+        // qDebug() << "exiting with" << lastFullSyntax.keyword << words.last();
         if (lastFullSyntax.keyword == words.last()) {
             syntaxIt = lastFullSyntax.children;
             while (syntaxIt.hasNext()) {
@@ -175,7 +172,7 @@ State &SyntaxTree::state()
 
 QStringList SyntaxTree::tokenize(const QString &text)
 {
-    //TODO: properly tokenize (e.g. "foo bar" should not become ['"foo', 'bar"']a
+    // TODO: properly tokenize (e.g. "foo bar" should not become ['"foo', 'bar"']a
     static const QVector<QChar> quoters = QVector<QChar>() << '"' << '\'';
     QStringList tokens;
     QString acc;
@@ -218,4 +215,3 @@ QStringList SyntaxTree::tokenize(const QString &text)
 
     return tokens;
 }
-

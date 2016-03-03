@@ -22,8 +22,7 @@
 #include "sink_export.h"
 #include <QString>
 
-namespace Sink
-{
+namespace Sink {
 
 /**
  * A notification
@@ -36,5 +35,4 @@ public:
     QString message;
     int code;
 };
-
 }

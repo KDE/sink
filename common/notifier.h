@@ -32,7 +32,8 @@ namespace Sink {
 class ResourceAccess;
 class Notification;
 
-class SINK_EXPORT Notifier {
+class SINK_EXPORT Notifier
+{
 public:
     Notifier(const QSharedPointer<ResourceAccess> &resourceAccess);
     Notifier(const QByteArray &resourceInstanceIdentifier);
@@ -42,5 +43,4 @@ private:
     class Private;
     QSharedPointer<Private> d;
 };
-
 }

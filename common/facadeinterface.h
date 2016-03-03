@@ -32,17 +32,21 @@ class Query;
 
 /**
  * Interface for the store facade.
- * 
+ *
  * All methods are synchronous.
  * Facades are stateful (they hold connections to resources and database).
- * 
+ *
  * TODO: would it make sense to split the write, read and notification parts? (we could potentially save some connections)
  */
-template<class DomainType>
-class StoreFacade {
+template <class DomainType>
+class StoreFacade
+{
 public:
     virtual ~StoreFacade(){};
-    QByteArray type() const { return ApplicationDomain::getTypeName<DomainType>(); }
+    QByteArray type() const
+    {
+        return ApplicationDomain::getTypeName<DomainType>();
+    }
 
     /**
      * Create an entity in the store.
@@ -68,11 +72,12 @@ public:
     /**
      * Load entities from the store.
      */
-    virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr > load(const Query &query) = 0;
+    virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Query &query) = 0;
 };
 
-template<class DomainType>
-class NullFacade : public StoreFacade<DomainType> {
+template <class DomainType>
+class NullFacade : public StoreFacade<DomainType>
+{
 public:
     virtual ~NullFacade(){};
     KAsync::Job<void> create(const DomainType &domainObject)
@@ -90,10 +95,9 @@ public:
         return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
-    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr > load(const Query &query)
+    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Query &query)
     {
         return qMakePair(KAsync::null<void>(), typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr());
     }
 };
-
 }

@@ -51,8 +51,7 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent
       m_clientBufferProcessesTimer(new QTimer(this)),
       m_messageId(0)
 {
-    connect(m_server, &QLocalServer::newConnection,
-             this, &Listener::acceptConnection);
+    connect(m_server, &QLocalServer::newConnection, this, &Listener::acceptConnection);
     Trace() << "Trying to open " << m_resourceInstanceIdentifier;
 
     if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
@@ -77,12 +76,11 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent
         }
     });
 
-    //TODO: experiment with different timeouts
+    // TODO: experiment with different timeouts
     //      or even just drop down to invoking the method queued? => invoke queued unless we need throttling
     m_clientBufferProcessesTimer->setInterval(0);
     m_clientBufferProcessesTimer->setSingleShot(true);
-    connect(m_clientBufferProcessesTimer, &QTimer::timeout,
-            this, &Listener::processClientBuffers);
+    connect(m_clientBufferProcessesTimer, &QTimer::timeout, this, &Listener::processClientBuffers);
 }
 
 Listener::~Listener()
@@ -91,7 +89,7 @@ Listener::~Listener()
 
 void Listener::closeAllConnections()
 {
-    for (Client &client: m_connections) {
+    for (Client &client : m_connections) {
         if (client.socket) {
             disconnect(client.socket, 0, this, 0);
             client.socket->close();
@@ -114,13 +112,11 @@ void Listener::acceptConnection()
     }
 
     m_connections << Client("Unknown Client", socket);
-    connect(socket, &QIODevice::readyRead,
-            this, &Listener::onDataAvailable);
-    connect(socket, &QLocalSocket::disconnected,
-            this, &Listener::clientDropped);
+    connect(socket, &QIODevice::readyRead, this, &Listener::onDataAvailable);
+    connect(socket, &QLocalSocket::disconnected, this, &Listener::clientDropped);
     m_checkConnectionsTimer->stop();
 
-    //If this is the first client, set the lower limit for revision cleanup
+    // If this is the first client, set the lower limit for revision cleanup
     if (m_connections.size() == 1) {
         loadResource()->setLowerBoundRevision(0);
     }
@@ -157,7 +153,7 @@ void Listener::clientDropped()
 
 void Listener::checkConnections()
 {
-    //If this was the last client, disengage the lower limit for revision cleanup
+    // If this was the last client, disengage the lower limit for revision cleanup
     if (m_connections.isEmpty()) {
         loadResource()->setLowerBoundRevision(std::numeric_limits<qint64>::max());
     }
@@ -176,7 +172,7 @@ void Listener::onDataAvailable()
 void Listener::readFromSocket(QLocalSocket *socket)
 {
     Trace() << "Reading from socket...";
-    for (Client &client: m_connections) {
+    for (Client &client : m_connections) {
         if (client.socket == socket) {
             client.commandBuffer += socket->readAll();
             if (!m_clientBufferProcessesTimer->isActive()) {
@@ -189,11 +185,11 @@ void Listener::readFromSocket(QLocalSocket *socket)
 
 void Listener::processClientBuffers()
 {
-    //TODO: we should not process all clients, but iterate async over them and process
+    // TODO: we should not process all clients, but iterate async over them and process
     //      one command from each in turn to ensure all clients get fair handling of
     //      commands?
     bool again = false;
-    for (Client &client: m_connections) {
+    for (Client &client : m_connections) {
         if (!client.socket || !client.socket->isValid() || client.commandBuffer.isEmpty()) {
             continue;
         }
@@ -237,9 +233,10 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                     job = job.then<void>(loadResource()->processAllMessages());
                 }
                 job.then<void>([callback, timer]() {
-                    Trace() << "Sync took " << Sink::Log::TraceTime(timer->elapsed());
-                    callback(true);
-                }).exec();
+                       Trace() << "Sync took " << Sink::Log::TraceTime(timer->elapsed());
+                       callback(true);
+                   })
+                    .exec();
                 return;
             } else {
                 Warning() << "received invalid command";
@@ -256,7 +253,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             break;
         case Sink::Commands::ShutdownCommand:
             Log() << QString("\tReceived shutdown command from %1").arg(client.name);
-            //Immediately reject new connections
+            // Immediately reject new connections
             m_server->close();
             QTimer::singleShot(0, this, &Listener::quit);
             break;
@@ -273,16 +270,14 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 Warning() << "received invalid command";
             }
             loadResource()->setLowerBoundRevision(lowerBoundRevision());
-        }
-            break;
+        } break;
         case Sink::Commands::RemoveFromDiskCommand: {
             Log() << QString("\tReceived a remove from disk command from %1").arg(client.name);
             m_resource->removeDataFromDisk();
             delete m_resource;
             m_resource = nullptr;
             loadResource()->setLowerBoundRevision(0);
-        }
-            break;
+        } break;
         default:
             if (commandId > Sink::Commands::CustomCommand) {
                 Log() << QString("\tReceived custom command from %1: ").arg(client.name) << commandId;
@@ -313,7 +308,7 @@ qint64 Listener::lowerBoundRevision()
 
 void Listener::quit()
 {
-    //Broadcast shutdown notifications to open clients, so they don't try to restart the resource
+    // Broadcast shutdown notifications to open clients, so they don't try to restart the resource
     auto command = Sink::Commands::CreateNotification(m_fbb, Sink::Commands::NotificationType::NotificationType_Shutdown);
     Sink::Commands::FinishNotificationBuffer(m_fbb, command);
     for (Client &client : m_connections) {
@@ -323,7 +318,7 @@ void Listener::quit()
     }
     m_fbb.Clear();
 
-    //Connections will be cleaned up later
+    // Connections will be cleaned up later
     emit noClients();
 }
 
@@ -334,12 +329,12 @@ bool Listener::processClientBuffer(Client &client)
         return false;
     }
 
-    const uint messageId = *(uint*)client.commandBuffer.constData();
-    const int commandId = *(int*)(client.commandBuffer.constData() + sizeof(uint));
-    const uint size = *(uint*)(client.commandBuffer.constData() + sizeof(int) + sizeof(uint));
+    const uint messageId = *(uint *)client.commandBuffer.constData();
+    const int commandId = *(int *)(client.commandBuffer.constData() + sizeof(uint));
+    const uint size = *(uint *)(client.commandBuffer.constData() + sizeof(int) + sizeof(uint));
     Trace() << "Received message. Id:" << messageId << " CommandId: " << commandId << " Size: " << size;
 
-    //TODO: reject messages above a certain size?
+    // TODO: reject messages above a certain size?
 
     const bool commandComplete = size <= uint(client.commandBuffer.size() - headerSize);
     if (commandComplete) {
@@ -386,7 +381,7 @@ void Listener::updateClientsWithRevision(qint64 revision)
     auto command = Sink::Commands::CreateRevisionUpdate(m_fbb, revision);
     Sink::Commands::FinishRevisionUpdateBuffer(m_fbb, command);
 
-    for (const Client &client: m_connections) {
+    for (const Client &client : m_connections) {
         if (!client.socket || !client.socket->isValid()) {
             continue;
         }
@@ -423,10 +418,8 @@ Sink::Resource *Listener::loadResource()
             m_resource = resourceFactory->createResource(m_resourceInstanceIdentifier);
             Trace() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
             Trace() << QString("\tResource: %1").arg((qlonglong)m_resource);
-            connect(m_resource, &Sink::Resource::revisionUpdated,
-                this, &Listener::refreshRevision);
-            connect(m_resource, &Sink::Resource::notify,
-                this, &Listener::notify);
+            connect(m_resource, &Sink::Resource::revisionUpdated, this, &Listener::refreshRevision);
+            connect(m_resource, &Sink::Resource::notify, this, &Listener::notify);
         } else {
             ErrorMsg() << "Failed to load resource " << m_resourceName;
             m_resource = new Sink::Resource;

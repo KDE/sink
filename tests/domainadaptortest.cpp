@@ -54,7 +54,7 @@ private slots:
 
     void testAdaptor()
     {
-        //Create entity buffer
+        // Create entity buffer
         flatbuffers::FlatBufferBuilder metadataFbb;
         auto metadataBuilder = Sink::MetadataBuilder(metadataFbb);
         metadataBuilder.add_revision(1);
@@ -75,19 +75,19 @@ private slots:
         Sink::ApplicationDomain::Buffer::FinishEventBuffer(m_fbb, buffer);
 
         flatbuffers::FlatBufferBuilder fbb;
-        Sink::EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), m_fbb.GetBufferPointer(), m_fbb.GetSize(), m_fbb.GetBufferPointer(), m_fbb.GetSize());
+        Sink::EntityBuffer::assembleEntityBuffer(
+            fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), m_fbb.GetBufferPointer(), m_fbb.GetSize(), m_fbb.GetBufferPointer(), m_fbb.GetSize());
 
-        //Extract entity buffer
+        // Extract entity buffer
         {
-            std::string data(reinterpret_cast<const char*>(fbb.GetBufferPointer()), fbb.GetSize());
-            Sink::EntityBuffer buffer((void*)(data.data()), data.size());
+            std::string data(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
+            Sink::EntityBuffer buffer((void *)(data.data()), data.size());
 
             TestFactory factory;
             auto adaptor = factory.createAdaptor(buffer.entity());
             QCOMPARE(adaptor->getProperty("summary").toString(), QString("summary1"));
         }
     }
-
 };
 
 QTEST_MAIN(DomainAdaptorTest)

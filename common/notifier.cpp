@@ -27,20 +27,18 @@
 
 using namespace Sink;
 
-class Sink::Notifier::Private {
+class Sink::Notifier::Private
+{
 public:
-    Private()
-        : context(new QObject)
+    Private() : context(new QObject)
     {
-
     }
-    QList<QSharedPointer<ResourceAccess> > resourceAccess;
-    QList<std::function<void(const Notification &)> > handler;
+    QList<QSharedPointer<ResourceAccess>> resourceAccess;
+    QList<std::function<void(const Notification &)>> handler;
     QSharedPointer<QObject> context;
 };
 
-Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess)
-    : d(new Sink::Notifier::Private)
+Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess) : d(new Sink::Notifier::Private)
 {
     QObject::connect(resourceAccess.data(), &ResourceAccess::notification, d->context.data(), [this](const Notification &notification) {
         for (const auto &handler : d->handler) {
@@ -50,8 +48,7 @@ Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess)
     d->resourceAccess << resourceAccess;
 }
 
-Notifier::Notifier(const QByteArray &instanceIdentifier)
-    : d(new Sink::Notifier::Private)
+Notifier::Notifier(const QByteArray &instanceIdentifier) : d(new Sink::Notifier::Private)
 {
     auto resourceAccess = Sink::ResourceAccess::Ptr::create(instanceIdentifier);
     resourceAccess->open();

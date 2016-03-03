@@ -14,7 +14,7 @@
 
 /**
  * Test of complete system using the dummy resource.
- * 
+ *
  * This test requires the dummy resource installed.
  */
 class DummyResourceTest : public QObject
@@ -65,7 +65,7 @@ private slots:
         Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("uid", "testuid");
@@ -89,7 +89,7 @@ private slots:
         Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("uid", "testuid");
@@ -117,7 +117,7 @@ private slots:
         Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         query.propertyFilter.insert("summary", "summaryValue2");
@@ -135,7 +135,7 @@ private slots:
         auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.dummy.instance1");
         DummyResource resource("org.kde.dummy.instance1", pipeline);
         auto job = resource.synchronizeWithSource();
-        //TODO pass in optional timeout?
+        // TODO pass in optional timeout?
         auto future = job.exec();
         future.waitForFinished();
         QVERIFY(!future.errorCode());
@@ -150,7 +150,7 @@ private slots:
         Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
@@ -167,7 +167,7 @@ private slots:
         Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
@@ -191,10 +191,10 @@ private slots:
         query.resources << "org.kde.dummy.instance1";
         query.propertyFilter.insert("uid", "testuid");
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        //Test create
+        // Test create
         Sink::ApplicationDomain::Event event2;
         {
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
@@ -210,10 +210,10 @@ private slots:
         event2.setProperty("summary", "summaryValue2");
         Sink::Store::modify<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        //Test modify
+        // Test modify
         {
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
@@ -225,10 +225,10 @@ private slots:
 
         Sink::Store::remove<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
-        //Ensure all local data is processed
+        // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        //Test remove
+        // Test remove
         {
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -253,7 +253,7 @@ private slots:
         event.setProperty("summary", "summaryValue");
         Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        //Test create
+        // Test create
         Sink::ApplicationDomain::Event event2;
         {
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
@@ -267,9 +267,9 @@ private slots:
         event2.setProperty("summary", "summaryValue2");
         Sink::Store::modify<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
-        //Test modify
+        // Test modify
         {
-            //TODO wait for a change signal
+            // TODO wait for a change signal
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
             auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
@@ -278,12 +278,11 @@ private slots:
 
         Sink::Store::remove<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
 
-        //Test remove
+        // Test remove
         {
             QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
         }
     }
-
 };
 
 QTEST_MAIN(DummyResourceTest)

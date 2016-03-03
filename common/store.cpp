@@ -38,8 +38,7 @@
 #undef DEBUG_AREA
 #define DEBUG_AREA "client.store"
 
-namespace Sink
-{
+namespace Sink {
 
 QString Store::storageLocation()
 {
@@ -48,7 +47,7 @@ QString Store::storageLocation()
 
 static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type)
 {
-    //Return the global resource (signified by an empty name) for types that don't eblong to a specific resource
+    // Return the global resource (signified by an empty name) for types that don't eblong to a specific resource
     if (type == "sinkresource") {
         return QList<QByteArray>() << "";
     }
@@ -56,7 +55,7 @@ static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, c
     const auto configuredResources = ResourceConfig::getResources();
     if (resourceFilter.isEmpty()) {
         for (const auto &res : configuredResources.keys()) {
-            //TODO filter by entity type
+            // TODO filter by entity type
             resources << res;
         }
     } else {
@@ -82,7 +81,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     Trace() << "  Ids: " << query.ids;
     Trace() << "  IsLive: " << query.liveQuery;
     Trace() << "  Sorting: " << query.sortProperty;
-    auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr> >::create(query, query.requestedProperties);
+    auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties);
 
     //* Client defines lifetime of model
     //* The model lifetime defines the duration of live-queries
@@ -95,120 +94,117 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     model->setEmitter(aggregatingEmitter);
     KAsync::iterate(resources)
-    .template each<void, QByteArray>([query, aggregatingEmitter](const QByteArray &resource, KAsync::Future<void> &future) {
-        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
-        if (facade) {
-            Trace() << "Trying to fetch from resource " << resource;
-            auto result = facade->load(query);
-            aggregatingEmitter->addEmitter(result.second);
-            result.first.template then<void>([&future](){future.setFinished();}).exec();
-        } else {
-            Trace() << "Couldn' find a facade for " << resource;
-            //Ignore the error and carry on
-            future.setFinished();
-        }
-    }).exec();
+        .template each<void, QByteArray>([query, aggregatingEmitter](const QByteArray &resource, KAsync::Future<void> &future) {
+            auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
+            if (facade) {
+                Trace() << "Trying to fetch from resource " << resource;
+                auto result = facade->load(query);
+                aggregatingEmitter->addEmitter(result.second);
+                result.first.template then<void>([&future]() { future.setFinished(); }).exec();
+            } else {
+                Trace() << "Couldn' find a facade for " << resource;
+                // Ignore the error and carry on
+                future.setFinished();
+            }
+        })
+        .exec();
     model->fetchMore(QModelIndex());
 
     return model;
 }
 
 template <class DomainType>
-static std::shared_ptr<StoreFacade<DomainType> > getFacade(const QByteArray &resourceInstanceIdentifier)
+static std::shared_ptr<StoreFacade<DomainType>> getFacade(const QByteArray &resourceInstanceIdentifier)
 {
     if (auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceInstanceIdentifier), resourceInstanceIdentifier)) {
         return facade;
     }
-    return std::make_shared<NullFacade<DomainType> >();
+    return std::make_shared<NullFacade<DomainType>>();
 }
 
 template <class DomainType>
-KAsync::Job<void> Store::create(const DomainType &domainObject) {
-    //Potentially move to separate thread as well
+KAsync::Job<void> Store::create(const DomainType &domainObject)
+{
+    // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->create(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
-        Warning() << "Failed to create";
-    });
+    return facade->create(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { Warning() << "Failed to create"; });
 }
 
 template <class DomainType>
 KAsync::Job<void> Store::modify(const DomainType &domainObject)
 {
-    //Potentially move to separate thread as well
+    // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->modify(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
-        Warning() << "Failed to modify";
-    });
+    return facade->modify(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { Warning() << "Failed to modify"; });
 }
 
 template <class DomainType>
 KAsync::Job<void> Store::remove(const DomainType &domainObject)
 {
-    //Potentially move to separate thread as well
+    // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->remove(domainObject).template then<void>([facade](){}, [](int errorCode, const QString &error) {
-        Warning() << "Failed to remove";
-    });
+    return facade->remove(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { Warning() << "Failed to remove"; });
 }
 
 KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 {
-    //All databases are going to become invalid, nuke the environments
-    //TODO: all clients should react to a notification the resource
+    // All databases are going to become invalid, nuke the environments
+    // TODO: all clients should react to a notification the resource
     Sink::Storage::clearEnv();
     Trace() << "Remove data from disk " << identifier;
     auto time = QSharedPointer<QTime>::create();
     time->start();
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier);
     resourceAccess->open();
-    return resourceAccess->sendCommand(Sink::Commands::RemoveFromDiskCommand).then<void>([resourceAccess, time]() {
-        Trace() << "Remove from disk complete." << Log::TraceTime(time->elapsed());
-    });
+    return resourceAccess->sendCommand(Sink::Commands::RemoveFromDiskCommand)
+        .then<void>([resourceAccess, time]() { Trace() << "Remove from disk complete." << Log::TraceTime(time->elapsed()); });
 }
 
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
     Trace() << "synchronize" << query.resources;
     return KAsync::iterate(query.resources)
-    .template each<void, QByteArray>([query](const QByteArray &resource, KAsync::Future<void> &future) {
-        Trace() << "Synchronizing " << resource;
-        auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource);
-        resourceAccess->open();
-        resourceAccess->synchronizeResource(true, false).then<void>([&future, resourceAccess]() {
-            future.setFinished();
-        }).exec();
-    });
+        .template each<void, QByteArray>([query](const QByteArray &resource, KAsync::Future<void> &future) {
+            Trace() << "Synchronizing " << resource;
+            auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource);
+            resourceAccess->open();
+            resourceAccess->synchronizeResource(true, false).then<void>([&future, resourceAccess]() { future.setFinished(); }).exec();
+        });
 }
 
 template <class DomainType>
 KAsync::Job<DomainType> Store::fetchOne(const Sink::Query &query)
 {
     return KAsync::start<DomainType>([query](KAsync::Future<DomainType> &future) {
-        //FIXME We could do this more elegantly if composed jobs would have the correct type (In that case we'd simply return the value from then continuation, and could avoid the outer job entirely)
+        // FIXME We could do this more elegantly if composed jobs would have the correct type (In that case we'd simply return the value from then continuation, and could avoid the
+        // outer job entirely)
         fetch<DomainType>(query, 1)
-            .template then<void, QList<typename DomainType::Ptr> >([&future](const QList<typename DomainType::Ptr> &list){
-                future.setValue(*list.first());
-                future.setFinished();
-            }, [&future](int errorCode, const QString &errorMessage) {
-                future.setError(errorCode, errorMessage);
-                future.setFinished();
-            }).exec();
+            .template then<void, QList<typename DomainType::Ptr>>(
+                [&future](const QList<typename DomainType::Ptr> &list) {
+                    future.setValue(*list.first());
+                    future.setFinished();
+                },
+                [&future](int errorCode, const QString &errorMessage) {
+                    future.setError(errorCode, errorMessage);
+                    future.setFinished();
+                })
+            .exec();
     });
 }
 
 template <class DomainType>
-KAsync::Job<QList<typename DomainType::Ptr> > Store::fetchAll(const Sink::Query &query)
+KAsync::Job<QList<typename DomainType::Ptr>> Store::fetchAll(const Sink::Query &query)
 {
     return fetch<DomainType>(query);
 }
 
 template <class DomainType>
-KAsync::Job<QList<typename DomainType::Ptr> > Store::fetch(const Sink::Query &query, int minimumAmount)
+KAsync::Job<QList<typename DomainType::Ptr>> Store::fetch(const Sink::Query &query, int minimumAmount)
 {
     auto model = loadModel<DomainType>(query);
-    auto list = QSharedPointer<QList<typename DomainType::Ptr> >::create();
+    auto list = QSharedPointer<QList<typename DomainType::Ptr>>::create();
     auto context = QSharedPointer<QObject>::create();
-    return KAsync::start<QList<typename DomainType::Ptr> >([model, list, context, minimumAmount](KAsync::Future<QList<typename DomainType::Ptr> > &future) {
+    return KAsync::start<QList<typename DomainType::Ptr>>([model, list, context, minimumAmount](KAsync::Future<QList<typename DomainType::Ptr>> &future) {
         if (model->rowCount() >= 1) {
             for (int i = 0; i < model->rowCount(); i++) {
                 list->append(model->index(i, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).template value<typename DomainType::Ptr>());
@@ -219,16 +215,17 @@ KAsync::Job<QList<typename DomainType::Ptr> > Store::fetch(const Sink::Query &qu
                     list->append(model->index(i, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).template value<typename DomainType::Ptr>());
                 }
             });
-            QObject::connect(model.data(), &QAbstractItemModel::dataChanged, context.data(), [model, &future, list, minimumAmount](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
-                if (roles.contains(ModelResult<DomainType, typename DomainType::Ptr>::ChildrenFetchedRole)) {
-                    if (list->size() < minimumAmount) {
-                        future.setError(1, "Not enough values.");
-                    } else {
-                        future.setValue(*list);
+            QObject::connect(model.data(), &QAbstractItemModel::dataChanged, context.data(),
+                [model, &future, list, minimumAmount](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
+                    if (roles.contains(ModelResult<DomainType, typename DomainType::Ptr>::ChildrenFetchedRole)) {
+                        if (list->size() < minimumAmount) {
+                            future.setError(1, "Not enough values.");
+                        } else {
+                            future.setValue(*list);
+                        }
+                        future.setFinished();
                     }
-                    future.setFinished();
-                }
-            });
+                });
         }
         if (model->data(QModelIndex(), ModelResult<DomainType, typename DomainType::Ptr>::ChildrenFetchedRole).toBool()) {
             if (list->size() < minimumAmount) {
@@ -241,13 +238,14 @@ KAsync::Job<QList<typename DomainType::Ptr> > Store::fetch(const Sink::Query &qu
     });
 }
 
-#define REGISTER_TYPE(T) template KAsync::Job<void> Store::remove<T>(const T &domainObject); \
-    template KAsync::Job<void> Store::create<T>(const T &domainObject); \
-    template KAsync::Job<void> Store::modify<T>(const T &domainObject); \
+#define REGISTER_TYPE(T)                                                          \
+    template KAsync::Job<void> Store::remove<T>(const T &domainObject);           \
+    template KAsync::Job<void> Store::create<T>(const T &domainObject);           \
+    template KAsync::Job<void> Store::modify<T>(const T &domainObject);           \
     template QSharedPointer<QAbstractItemModel> Store::loadModel<T>(Query query); \
-    template KAsync::Job<T> Store::fetchOne<T>(const Query &); \
-    template KAsync::Job<QList<T::Ptr> > Store::fetchAll<T>(const Query &); \
-    template KAsync::Job<QList<T::Ptr> > Store::fetch<T>(const Query &, int); \
+    template KAsync::Job<T> Store::fetchOne<T>(const Query &);                    \
+    template KAsync::Job<QList<T::Ptr>> Store::fetchAll<T>(const Query &);        \
+    template KAsync::Job<QList<T::Ptr>> Store::fetch<T>(const Query &, int);
 
 REGISTER_TYPE(ApplicationDomain::Event);
 REGISTER_TYPE(ApplicationDomain::Mail);
@@ -255,4 +253,3 @@ REGISTER_TYPE(ApplicationDomain::Folder);
 REGISTER_TYPE(ApplicationDomain::SinkResource);
 
 } // namespace Sink
-

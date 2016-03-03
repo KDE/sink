@@ -60,7 +60,8 @@ static QByteArray createEntityBuffer()
     return QByteArray(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
 
-class IndexUpdater : public Sink::Preprocessor {
+class IndexUpdater : public Sink::Preprocessor
+{
 public:
     void newEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
@@ -70,7 +71,8 @@ public:
         }
     }
 
-    void modifiedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity,
+        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
     }
 
@@ -117,7 +119,7 @@ private slots:
         }
         auto appendTime = time.elapsed();
 
-        //Wait until all messages have been processed
+        // Wait until all messages have been processed
         resource.processAllMessages().exec().waitForFinished();
 
         auto allProcessedTime = time.elapsed();
@@ -129,8 +131,8 @@ private slots:
         HAWD::Dataset::Row row = dataset.row();
 
         row.setValue("rows", num);
-        row.setValue("append", (qreal)num/appendTime);
-        row.setValue("total", (qreal)num/allProcessedTime);
+        row.setValue("append", (qreal)num / appendTime);
+        row.setValue("total", (qreal)num / allProcessedTime);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
     }
@@ -145,7 +147,7 @@ private slots:
         const QByteArray resourceIdentifier = "org.kde.test.instance1";
         auto indexer = QSharedPointer<IndexUpdater>::create();
 
-        pipeline->setPreprocessors("event", QVector<Sink::Preprocessor*>() << indexer.data());
+        pipeline->setPreprocessors("event", QVector<Sink::Preprocessor *>() << indexer.data());
         pipeline->setAdaptorFactory("event", eventFactory);
 
         TestResource resource("org.kde.test.instance1", pipeline);
@@ -160,7 +162,7 @@ private slots:
         }
         auto appendTime = time.elapsed();
 
-        //Wait until all messages have been processed
+        // Wait until all messages have been processed
         resource.processAllMessages().exec().waitForFinished();
 
         auto allProcessedTime = time.elapsed();
@@ -172,8 +174,8 @@ private slots:
         HAWD::Dataset::Row row = dataset.row();
 
         row.setValue("rows", num);
-        row.setValue("append", (qreal)num/appendTime);
-        row.setValue("total", (qreal)num/allProcessedTime);
+        row.setValue("append", (qreal)num / appendTime);
+        row.setValue("total", (qreal)num / allProcessedTime);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
     }
@@ -190,7 +192,7 @@ private slots:
 
             static flatbuffers::FlatBufferBuilder fbb;
             fbb.Clear();
-            //This is the resource buffer type and not the domain type
+            // This is the resource buffer type and not the domain type
             auto type = fbb.CreateString("event");
             // auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
             auto delta = Sink::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());

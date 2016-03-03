@@ -54,7 +54,8 @@
 //         }
 //     }
 //
-//     void modifiedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+//     void modifiedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity,
+//     Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
 //     {
 //     }
 //
@@ -66,7 +67,7 @@
 
 /**
  * Benchmark pipeline processing speed.
- * 
+ *
  * This benchmark especially highlights:
  * * Cost of an index in speed and size
  */
@@ -77,7 +78,7 @@ class PipelineBenchmark : public QObject
     QByteArray resourceIdentifier;
     HAWD::State mHawdState;
 
-    void populateDatabase(int count, const QVector<Sink::Preprocessor*> &preprocessors)
+    void populateDatabase(int count, const QVector<Sink::Preprocessor *> &preprocessors)
     {
         TestResource::removeFromDisk(resourceIdentifier);
 
@@ -112,18 +113,17 @@ class PipelineBenchmark : public QObject
         // Print memory layout, RSS is what is in memory
         // std::system("exec pmap -x \"$PPID\"");
         //
-        std::cout << "Size: " << Sink::Storage(Sink::storageLocation(), resourceIdentifier, Sink::Storage::ReadOnly).diskUsage()/1024 << " [kb]" << std::endl;
+        std::cout << "Size: " << Sink::Storage(Sink::storageLocation(), resourceIdentifier, Sink::Storage::ReadOnly).diskUsage() / 1024 << " [kb]" << std::endl;
         std::cout << "Time: " << allProcessedTime << " [ms]" << std::endl;
 
         HAWD::Dataset dataset("pipeline", mHawdState);
         HAWD::Dataset::Row row = dataset.row();
 
         row.setValue("rows", count);
-        row.setValue("append", (qreal)count/appendTime);
-        row.setValue("total", (qreal)count/allProcessedTime);
+        row.setValue("append", (qreal)count / appendTime);
+        row.setValue("total", (qreal)count / allProcessedTime);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
-
     }
 
 private slots:
@@ -136,15 +136,14 @@ private slots:
 
     void testWithoutIndex()
     {
-        populateDatabase(10000, QVector<Sink::Preprocessor*>());
+        populateDatabase(10000, QVector<Sink::Preprocessor *>());
     }
 
     void testWithIndex()
     {
-        auto indexer = QSharedPointer<DefaultIndexUpdater<Sink::ApplicationDomain::Mail> >::create();
-        populateDatabase(10000, QVector<Sink::Preprocessor*>() << indexer.data());
+        auto indexer = QSharedPointer<DefaultIndexUpdater<Sink::ApplicationDomain::Mail>>::create();
+        populateDatabase(10000, QVector<Sink::Preprocessor *>() << indexer.data());
     }
-
 };
 
 QTEST_MAIN(PipelineBenchmark)

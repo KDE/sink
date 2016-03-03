@@ -24,7 +24,7 @@ private:
         Sink::Storage storage(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = storage.createTransaction(Sink::Storage::ReadWrite);
         for (int i = 0; i < count; i++) {
-            //This should perhaps become an implementation detail of the db?
+            // This should perhaps become an implementation detail of the db?
             if (i % 10000 == 0) {
                 if (i > 0) {
                     transaction.commit();
@@ -41,19 +41,20 @@ private:
         bool success = true;
         bool keyMatch = true;
         const auto reference = keyPrefix + QByteArray::number(i);
-        storage.createTransaction(Sink::Storage::ReadOnly).openDatabase().scan(keyPrefix + QByteArray::number(i),
-            [&keyMatch, &reference](const QByteArray &key, const QByteArray &value) -> bool {
-                if (value != reference) {
-                    qDebug() << "Mismatch while reading";
-                    keyMatch = false;
-                }
-                return keyMatch;
-            },
-            [&success](const Sink::Storage::Error &error) {
-                qDebug() << error.message;
-                success = false;
-            }
-        );
+        storage.createTransaction(Sink::Storage::ReadOnly)
+            .openDatabase()
+            .scan(keyPrefix + QByteArray::number(i),
+                [&keyMatch, &reference](const QByteArray &key, const QByteArray &value) -> bool {
+                    if (value != reference) {
+                        qDebug() << "Mismatch while reading";
+                        keyMatch = false;
+                    }
+                    return keyMatch;
+                },
+                [&success](const Sink::Storage::Error &error) {
+                    qDebug() << error.message;
+                    success = false;
+                });
         return success && keyMatch;
     }
 
@@ -87,7 +88,7 @@ private slots:
 
         populate(count);
 
-        //ensure we can read everything back correctly
+        // ensure we can read everything back correctly
         {
             Sink::Storage storage(testDataPath, dbName);
             for (int i = 0; i < count; i++) {
@@ -101,31 +102,35 @@ private slots:
         const int count = 100;
         populate(count);
 
-        //ensure we can scan for values
+        // ensure we can scan for values
         {
             int hit = 0;
             Sink::Storage store(testDataPath, dbName);
-            store.createTransaction(Sink::Storage::ReadOnly).openDatabase().scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
-                if (key == "key50") {
-                    hit++;
-                }
-                return true;
-            });
+            store.createTransaction(Sink::Storage::ReadOnly)
+                .openDatabase()
+                .scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
+                    if (key == "key50") {
+                        hit++;
+                    }
+                    return true;
+                });
             QCOMPARE(hit, 1);
         }
 
-        //ensure we can read a single value
+        // ensure we can read a single value
         {
             int hit = 0;
             bool foundInvalidValue = false;
             Sink::Storage store(testDataPath, dbName);
-            store.createTransaction(Sink::Storage::ReadOnly).openDatabase().scan("key50", [&](const QByteArray &key, const QByteArray &value) -> bool {
-                if (key != "key50") {
-                    foundInvalidValue = true;
-                }
-                hit++;
-                return true;
-            });
+            store.createTransaction(Sink::Storage::ReadOnly)
+                .openDatabase()
+                .scan("key50", [&](const QByteArray &key, const QByteArray &value) -> bool {
+                    if (key != "key50") {
+                        foundInvalidValue = true;
+                    }
+                    hit++;
+                    return true;
+                });
             QVERIFY(!foundInvalidValue);
             QCOMPARE(hit, 1);
         }
@@ -137,9 +142,7 @@ private slots:
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         transaction.openDatabase().scan("key1", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            transaction.openDatabase().remove(key, [](const Sink::Storage::Error &) {
-                QVERIFY(false);
-            });
+            transaction.openDatabase().remove(key, [](const Sink::Storage::Error &) { QVERIFY(false); });
             return false;
         });
     }
@@ -148,12 +151,12 @@ private slots:
     {
         populate(3);
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
-        store.createTransaction(Sink::Storage::ReadOnly).openDatabase().scan("key1", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            store.createTransaction(Sink::Storage::ReadWrite).openDatabase().remove(key, [](const Sink::Storage::Error &) {
-                QVERIFY(false);
+        store.createTransaction(Sink::Storage::ReadOnly)
+            .openDatabase()
+            .scan("key1", [&](const QByteArray &key, const QByteArray &value) -> bool {
+                store.createTransaction(Sink::Storage::ReadWrite).openDatabase().remove(key, [](const Sink::Storage::Error &) { QVERIFY(false); });
+                return false;
             });
-            return false;
-        });
     }
 
     void testReadEmptyDb()
@@ -166,14 +169,15 @@ private slots:
             qDebug() << error.message;
             gotError = true;
         });
-        int numValues = db.scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            gotResult = true;
-            return false;
-        },
-        [&](const Sink::Storage::Error &error) {
-            qDebug() << error.message;
-            gotError = true;
-        });
+        int numValues = db.scan("",
+            [&](const QByteArray &key, const QByteArray &value) -> bool {
+                gotResult = true;
+                return false;
+            },
+            [&](const Sink::Storage::Error &error) {
+                qDebug() << error.message;
+                gotError = true;
+            });
         QCOMPARE(numValues, 0);
         QVERIFY(!gotResult);
         QVERIFY(!gotError);
@@ -181,20 +185,20 @@ private slots:
 
     void testConcurrentRead()
     {
-        //With a count of 10000 this test is more likely to expose problems, but also takes some time to execute.
+        // With a count of 10000 this test is more likely to expose problems, but also takes some time to execute.
         const int count = 1000;
 
         populate(count);
         // QTest::qWait(500);
 
-        //We repeat the test a bunch of times since failing is relatively random
+        // We repeat the test a bunch of times since failing is relatively random
         for (int tries = 0; tries < 10; tries++) {
             bool error = false;
-            //Try to concurrently read
-            QList<QFuture<void> > futures;
+            // Try to concurrently read
+            QList<QFuture<void>> futures;
             const int concurrencyLevel = 20;
             for (int num = 0; num < concurrencyLevel; num++) {
-                futures << QtConcurrent::run([this, count, &error](){
+                futures << QtConcurrent::run([this, count, &error]() {
                     Sink::Storage storage(testDataPath, dbName, Sink::Storage::ReadOnly);
                     Sink::Storage storage2(testDataPath, dbName + "2", Sink::Storage::ReadOnly);
                     for (int i = 0; i < count; i++) {
@@ -205,7 +209,7 @@ private slots:
                     }
                 });
             }
-            for(auto future : futures) {
+            for (auto future : futures) {
                 future.waitForFinished();
             }
             QVERIFY(!error);
@@ -226,17 +230,18 @@ private slots:
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("default", nullptr, false);
-        db.write("key","value");
-        db.write("key","value");
+        db.write("key", "value");
+        db.write("key", "value");
 
-        int numValues = db.scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            gotResult = true;
-            return true;
-        },
-        [&](const Sink::Storage::Error &error) {
-            qDebug() << error.message;
-            gotError = true;
-        });
+        int numValues = db.scan("",
+            [&](const QByteArray &key, const QByteArray &value) -> bool {
+                gotResult = true;
+                return true;
+            },
+            [&](const Sink::Storage::Error &error) {
+                qDebug() << error.message;
+                gotError = true;
+            });
 
         QCOMPARE(numValues, 1);
         QVERIFY(!gotError);
@@ -249,16 +254,17 @@ private slots:
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("default", nullptr, true);
-        db.write("key","value1");
-        db.write("key","value2");
-        int numValues = db.scan("key", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            gotResult = true;
-            return true;
-        },
-        [&](const Sink::Storage::Error &error) {
-            qDebug() << error.message;
-            gotError = true;
-        });
+        db.write("key", "value1");
+        db.write("key", "value2");
+        int numValues = db.scan("key",
+            [&](const QByteArray &key, const QByteArray &value) -> bool {
+                gotResult = true;
+                return true;
+            },
+            [&](const Sink::Storage::Error &error) {
+                qDebug() << error.message;
+                gotError = true;
+            });
 
         QCOMPARE(numValues, 2);
         QVERIFY(!gotError);
@@ -269,14 +275,17 @@ private slots:
         bool gotResult = false;
         bool gotError = false;
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadOnly);
-        int numValues = store.createTransaction(Sink::Storage::ReadOnly).openDatabase("test").scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            gotResult = true;
-            return false;
-        },
-        [&](const Sink::Storage::Error &error) {
-            qDebug() << error.message;
-            gotError = true;
-        });
+        int numValues = store.createTransaction(Sink::Storage::ReadOnly)
+                            .openDatabase("test")
+                            .scan("",
+                                [&](const QByteArray &key, const QByteArray &value) -> bool {
+                                    gotResult = true;
+                                    return false;
+                                },
+                                [&](const Sink::Storage::Error &error) {
+                                    qDebug() << error.message;
+                                    gotError = true;
+                                });
         QCOMPARE(numValues, 0);
         QVERIFY(!gotResult);
         QVERIFY(!gotError);
@@ -286,10 +295,12 @@ private slots:
     {
         bool gotError = false;
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
-        store.createTransaction(Sink::Storage::ReadWrite).openDatabase("test").write("key1", "value1", [&](const Sink::Storage::Error &error) {
-            qDebug() << error.message;
-            gotError = true;
-        });
+        store.createTransaction(Sink::Storage::ReadWrite)
+            .openDatabase("test")
+            .write("key1", "value1", [&](const Sink::Storage::Error &error) {
+                qDebug() << error.message;
+                gotError = true;
+            });
         QVERIFY(!gotError);
     }
 
@@ -297,24 +308,24 @@ private slots:
     {
         bool gotError = false;
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
-        store.createTransaction(Sink::Storage::ReadWrite).openDatabase("test", nullptr, true).write("key1", "value1", [&](const Sink::Storage::Error &error) {
-            qDebug() << error.message;
-            gotError = true;
-        });
+        store.createTransaction(Sink::Storage::ReadWrite)
+            .openDatabase("test", nullptr, true)
+            .write("key1", "value1", [&](const Sink::Storage::Error &error) {
+                qDebug() << error.message;
+                gotError = true;
+            });
         QVERIFY(!gotError);
     }
 
-    //By default we want only exact matches
+    // By default we want only exact matches
     void testSubstringKeys()
     {
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, true);
-        db.write("sub","value1");
-        db.write("subsub","value2");
-        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            return true;
-        });
+        db.write("sub", "value1");
+        db.write("subsub", "value2");
+        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool { return true; });
 
         QCOMPARE(numValues, 1);
     }
@@ -324,12 +335,10 @@ private slots:
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
-        db.write("sub","value1");
-        db.write("subsub","value2");
-        db.write("wubsub","value3");
-        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            return true;
-        }, nullptr, true);
+        db.write("sub", "value1");
+        db.write("subsub", "value2");
+        db.write("wubsub", "value3");
+        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool { return true; }, nullptr, true);
 
         QCOMPARE(numValues, 2);
     }
@@ -339,12 +348,10 @@ private slots:
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, true);
-        db.write("sub","value1");
-        db.write("subsub","value2");
-        db.write("wubsub","value3");
-        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            return true;
-        }, nullptr, true);
+        db.write("sub", "value1");
+        db.write("subsub", "value2");
+        db.write("wubsub", "value3");
+        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool { return true; }, nullptr, true);
 
         QCOMPARE(numValues, 2);
     }
@@ -354,9 +361,9 @@ private slots:
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
-        db.write("sub_2","value2");
-        db.write("sub_1","value1");
-        db.write("sub_3","value3");
+        db.write("sub_2", "value2");
+        db.write("sub_1", "value1");
+        db.write("sub_3", "value3");
         QList<QByteArray> results;
         int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
             results << value;
@@ -369,16 +376,14 @@ private slots:
         QCOMPARE(results.at(2), QByteArray("value3"));
     }
 
-    //Ensure we don't retrieve a key that is greater than the current key. We only want equal keys.
+    // Ensure we don't retrieve a key that is greater than the current key. We only want equal keys.
     void testKeyRange()
     {
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, true);
-        db.write("sub1","value1");
-        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool {
-            return true;
-        });
+        db.write("sub1", "value1");
+        int numValues = db.scan("sub", [&](const QByteArray &key, const QByteArray &value) -> bool { return true; });
 
         QCOMPARE(numValues, 0);
     }
@@ -388,14 +393,12 @@ private slots:
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
-        db.write("sub1","value1");
-        db.write("sub2","value2");
-        db.write("wub3","value3");
-        db.write("wub4","value4");
+        db.write("sub1", "value1");
+        db.write("sub2", "value2");
+        db.write("wub3", "value3");
+        db.write("wub4", "value4");
         QByteArray result;
-        db.findLatest("sub", [&](const QByteArray &key, const QByteArray &value) {
-            result = value;
-        });
+        db.findLatest("sub", [&](const QByteArray &key, const QByteArray &value) { result = value; });
 
         QCOMPARE(result, QByteArray("value2"));
     }
@@ -405,11 +408,9 @@ private slots:
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
-        db.write("sub2","value2");
+        db.write("sub2", "value2");
         QByteArray result;
-        db.findLatest("sub", [&](const QByteArray &key, const QByteArray &value) {
-            result = value;
-        });
+        db.findLatest("sub", [&](const QByteArray &key, const QByteArray &value) { result = value; });
 
         QCOMPARE(result, QByteArray("value2"));
     }
@@ -419,12 +420,10 @@ private slots:
         Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
-        db.write("sub2","value2");
-        db.write("wub3","value3");
+        db.write("sub2", "value2");
+        db.write("wub3", "value3");
         QByteArray result;
-        db.findLatest("wub", [&](const QByteArray &key, const QByteArray &value) {
-            result = value;
-        });
+        db.findLatest("wub", [&](const QByteArray &key, const QByteArray &value) { result = value; });
 
         QCOMPARE(result, QByteArray("value3"));
     }

@@ -24,10 +24,12 @@
 
 #include "utils.h"
 
-namespace SinkshUtils
-{
+namespace SinkshUtils {
 
-static QStringList s_types = QStringList() << "resource" << "folder" << "mail" << "event";
+static QStringList s_types = QStringList() << "resource"
+                                           << "folder"
+                                           << "mail"
+                                           << "event";
 
 bool isValidStoreType(const QString &type)
 {
@@ -50,9 +52,9 @@ StoreBase &getStore(const QString &type)
         return store;
     }
 
-    //TODO: reinstate the warning+assert
-    //Q_ASSERT(false);
-    //qWarning() << "Trying to get a store that doesn't exist, falling back to event";
+    // TODO: reinstate the warning+assert
+    // Q_ASSERT(false);
+    // qWarning() << "Trying to get a store that doesn't exist, falling back to event";
     static Store<Sink::ApplicationDomain::Event> store;
     return store;
 }
@@ -60,9 +62,12 @@ StoreBase &getStore(const QString &type)
 QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Sink::Query query)
 {
     if (type == "folder") {
-        query.requestedProperties << "name" << "parent";
+        query.requestedProperties << "name"
+                                  << "parent";
     } else if (type == "mail") {
-        query.requestedProperties << "subject" << "folder" << "date";
+        query.requestedProperties << "subject"
+                                  << "folder"
+                                  << "date";
     } else if (type == "event") {
         query.requestedProperties << "summary";
     } else if (type == "resource") {
@@ -80,7 +85,7 @@ QStringList resourceIds(State &state)
     query.liveQuery = false;
     auto model = SinkshUtils::loadModel("resource", query);
 
-    QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, &resources] (const QModelIndex &index, int start, int end) mutable {
+    QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, &resources](const QModelIndex &index, int start, int end) mutable {
         for (int i = start; i <= end; i++) {
             auto object = model->data(model->index(i, 0, index), Sink::Store::DomainObjectBaseRole).value<Sink::ApplicationDomain::ApplicationDomainType::Ptr>();
             resources << object->identifier();
@@ -105,7 +110,10 @@ QStringList resourceCompleter(const QStringList &, const QString &fragment, Stat
 
 QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &fragment, State &state)
 {
-    static QStringList types = QStringList() << "resource" << "folder" << "mail" << "event";
+    static QStringList types = QStringList() << "resource"
+                                             << "folder"
+                                             << "mail"
+                                             << "event";
     if (commands.count() == 1) {
         return Utils::filteredCompletions(s_types, fragment);
     }
@@ -120,7 +128,7 @@ QStringList typeCompleter(const QStringList &commands, const QString &fragment, 
 
 QMap<QString, QString> keyValueMapFromArgs(const QStringList &args)
 {
-    //TODO: this is not the most clever of algorithms. preserved during the port of commands
+    // TODO: this is not the most clever of algorithms. preserved during the port of commands
     // from sink_client ... we can probably do better, however ;)
     QMap<QString, QString> map;
     for (int i = 0; i + 2 <= args.size(); i += 2) {
@@ -129,6 +137,4 @@ QMap<QString, QString> keyValueMapFromArgs(const QStringList &args)
 
     return map;
 }
-
 }
-

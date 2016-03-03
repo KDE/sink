@@ -32,7 +32,8 @@ namespace Sink {
 class Query
 {
 public:
-    enum Flag {
+    enum Flag
+    {
         /** Leave the query running an contiously update the result set. */
         LiveQuery
     };
@@ -102,11 +103,11 @@ public:
         return query;
     }
 
-    Query(Flags flags = Flags())
-        : limit(0)
-    {}
+    Query(Flags flags = Flags()) : limit(0)
+    {
+    }
 
-    Query& operator+=(const Query& rhs)
+    Query &operator+=(const Query &rhs)
     {
         resources += rhs.resources;
         ids += rhs.ids;
@@ -121,7 +122,7 @@ public:
         return *this;
     }
 
-    friend Query operator+(Query lhs, const Query& rhs)
+    friend Query operator+(Query lhs, const Query &rhs)
     {
         lhs += rhs;
         return lhs;
@@ -136,7 +137,6 @@ public:
     bool liveQuery;
     int limit;
 };
-
 }
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Sink::Query::Flags)

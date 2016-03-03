@@ -21,10 +21,8 @@
 
 #include <QStringList>
 
-namespace Utils
-{
+namespace Utils {
 
 QStringList filteredCompletions(const QStringList &possibleCompletions, const QString &commandFragment, Qt::CaseSensitivity cs = Qt::CaseSensitive);
 
 } // namespace Utils
-

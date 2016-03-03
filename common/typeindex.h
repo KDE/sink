@@ -29,9 +29,9 @@ class TypeIndex
 public:
     TypeIndex(const QByteArray &type);
 
-    template<typename T>
+    template <typename T>
     void addProperty(const QByteArray &property);
-    template<typename T, typename S>
+    template <typename T, typename S>
     void addPropertyWithSorting(const QByteArray &property, const QByteArray &sortProperty);
 
     void add(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
@@ -44,7 +44,6 @@ private:
     QByteArray mType;
     QByteArrayList mProperties;
     QMap<QByteArray, QByteArray> mSortedProperties;
-    QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction)> > mIndexer;
-    QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::Transaction &transaction)> > mSortIndexer;
+    QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction)>> mIndexer;
+    QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::Transaction &transaction)>> mSortIndexer;
 };
-

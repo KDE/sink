@@ -6,8 +6,7 @@
 
 using namespace Sink;
 
-EntityBuffer::EntityBuffer(const void *dataValue, int dataSize)
-    : mEntity(nullptr)
+EntityBuffer::EntityBuffer(const void *dataValue, int dataSize) : mEntity(nullptr)
 {
     flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(dataValue), dataSize);
     // Q_ASSERT(Sink::VerifyEntity(verifyer));
@@ -18,10 +17,8 @@ EntityBuffer::EntityBuffer(const void *dataValue, int dataSize)
     }
 }
 
-EntityBuffer::EntityBuffer(const QByteArray &data)
-    : EntityBuffer(data.constData(), data.size())
+EntityBuffer::EntityBuffer(const QByteArray &data) : EntityBuffer(data.constData(), data.size())
 {
-
 }
 
 bool EntityBuffer::isValid() const
@@ -35,7 +32,7 @@ const Sink::Entity &EntityBuffer::entity()
     return *mEntity;
 }
 
-const uint8_t* EntityBuffer::resourceBuffer()
+const uint8_t *EntityBuffer::resourceBuffer()
 {
     if (!mEntity) {
         qDebug() << "no buffer";
@@ -44,7 +41,7 @@ const uint8_t* EntityBuffer::resourceBuffer()
     return mEntity->resource()->Data();
 }
 
-const uint8_t* EntityBuffer::metadataBuffer()
+const uint8_t *EntityBuffer::metadataBuffer()
 {
     if (!mEntity) {
         return nullptr;
@@ -52,7 +49,7 @@ const uint8_t* EntityBuffer::metadataBuffer()
     return mEntity->metadata()->Data();
 }
 
-const uint8_t* EntityBuffer::localBuffer()
+const uint8_t *EntityBuffer::localBuffer()
 {
     if (!mEntity) {
         return nullptr;
@@ -68,17 +65,18 @@ void EntityBuffer::extractResourceBuffer(void *dataValue, int dataSize, const st
     }
 }
 
-flatbuffers::Offset<flatbuffers::Vector<uint8_t> > EntityBuffer::appendAsVector(flatbuffers::FlatBufferBuilder &fbb, void const *data, size_t size)
+flatbuffers::Offset<flatbuffers::Vector<uint8_t>> EntityBuffer::appendAsVector(flatbuffers::FlatBufferBuilder &fbb, void const *data, size_t size)
 {
-    //Since we do memcpy trickery, this will only work on little endian
+    // Since we do memcpy trickery, this will only work on little endian
     assert(FLATBUFFERS_LITTLEENDIAN);
     uint8_t *rawDataPtr = Q_NULLPTR;
     const auto pos = fbb.CreateUninitializedVector<uint8_t>(size, &rawDataPtr);
-    std::memcpy((void*)rawDataPtr, data, size);
+    std::memcpy((void *)rawDataPtr, data, size);
     return pos;
 }
 
-void EntityBuffer::assembleEntityBuffer(flatbuffers::FlatBufferBuilder &fbb, void const *metadataData, size_t metadataSize, void const *resourceData, size_t resourceSize, void const *localData, size_t localSize)
+void EntityBuffer::assembleEntityBuffer(
+    flatbuffers::FlatBufferBuilder &fbb, void const *metadataData, size_t metadataSize, void const *resourceData, size_t resourceSize, void const *localData, size_t localSize)
 {
     auto metadata = appendAsVector(fbb, metadataData, metadataSize);
     auto resource = appendAsVector(fbb, resourceData, resourceSize);
@@ -86,4 +84,3 @@ void EntityBuffer::assembleEntityBuffer(flatbuffers::FlatBufferBuilder &fbb, voi
     auto entity = Sink::CreateEntity(fbb, metadata, resource, local);
     Sink::FinishEntityBuffer(fbb, entity);
 }
-

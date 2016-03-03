@@ -24,9 +24,10 @@
 #include "applicationdomaintype.h"
 
 namespace Sink {
-    namespace ResourceControl {
+namespace ResourceControl {
 
-struct Inspection {
+struct Inspection
+{
     static Inspection PropertyInspection(const Sink::ApplicationDomain::Entity &entity, const QByteArray &property, const QVariant &expectedValue)
     {
         Inspection inspection;
@@ -46,7 +47,8 @@ struct Inspection {
         return inspection;
     }
 
-    enum Type {
+    enum Type
+    {
         PropertyInspectionType,
         ExistenceInspectionType
     };
@@ -55,6 +57,5 @@ struct Inspection {
     QByteArray property;
     QVariant expectedValue;
 };
-
-    }
+}
 }

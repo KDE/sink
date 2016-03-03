@@ -38,7 +38,8 @@ namespace Sink {
  *
  * If we were to provide default implementations for certain capabilities. Here would be the place to do so.
  */
-class SINK_EXPORT FacadeFactory {
+class SINK_EXPORT FacadeFactory
+{
 public:
     typedef std::function<std::shared_ptr<void>(const QByteArray &)> FactoryFunction;
 
@@ -48,10 +49,10 @@ public:
 
     static QByteArray key(const QByteArray &resource, const QByteArray &type);
 
-    template<class DomainType, class Facade>
+    template <class DomainType, class Facade>
     void registerFacade(const QByteArray &resource)
     {
-        registerFacade(resource, [](const QByteArray &instanceIdentifier){ return std::make_shared<Facade>(instanceIdentifier); }, ApplicationDomain::getTypeName<DomainType>());
+        registerFacade(resource, [](const QByteArray &instanceIdentifier) { return std::make_shared<Facade>(instanceIdentifier); }, ApplicationDomain::getTypeName<DomainType>());
     }
 
     /*
@@ -59,7 +60,7 @@ public:
      *
      * Primarily for testing.
      */
-    template<class DomainType, class Facade>
+    template <class DomainType, class Facade>
     void registerFacade(const QByteArray &resource, const FactoryFunction &customFactoryFunction)
     {
         registerFacade(resource, customFactoryFunction, ApplicationDomain::getTypeName<DomainType>());
@@ -72,11 +73,11 @@ public:
      */
     void resetFactory();
 
-    template<class DomainType>
-    std::shared_ptr<StoreFacade<DomainType> > getFacade(const QByteArray &resource, const QByteArray &instanceIdentifier)
+    template <class DomainType>
+    std::shared_ptr<StoreFacade<DomainType>> getFacade(const QByteArray &resource, const QByteArray &instanceIdentifier)
     {
         const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
-        return std::static_pointer_cast<StoreFacade<DomainType> >(getFacade(resource, instanceIdentifier, typeName));
+        return std::static_pointer_cast<StoreFacade<DomainType>>(getFacade(resource, instanceIdentifier, typeName));
     }
 
 private:
@@ -87,6 +88,4 @@ private:
     QHash<QByteArray, FactoryFunction> mFacadeRegistry;
     static QMutex sMutex;
 };
-
 }
-

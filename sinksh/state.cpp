@@ -31,8 +31,7 @@ static bool s_hasEventLoop = false;
 class State::Private
 {
 public:
-    Private()
-        : outStream(stdout)
+    Private() : outStream(stdout)
     {
     }
 
@@ -51,8 +50,7 @@ public:
     QTextStream outStream;
 };
 
-State::State()
-    : d(new Private)
+State::State() : d(new Private)
 {
 }
 
@@ -141,4 +139,3 @@ QString State::loggingLevel() const
     QByteArray rv = Sink::Log::debugLevelName(Sink::Log::debugOutputLevel());
     return rv.toLower();
 }
-

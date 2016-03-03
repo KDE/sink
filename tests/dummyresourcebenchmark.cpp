@@ -44,40 +44,38 @@ private slots:
     {
     }
 
-    static KAsync::Job<void> waitForCompletion(QList<KAsync::Future<void> > &futures)
+    static KAsync::Job<void> waitForCompletion(QList<KAsync::Future<void>> &futures)
     {
         auto context = new QObject;
         return KAsync::start<void>([futures, context](KAsync::Future<void> &future) {
-            const auto total = futures.size();
-            auto count = QSharedPointer<int>::create();
-            int i = 0;
-            for (KAsync::Future<void> subFuture : futures) {
-                i++;
-                if (subFuture.isFinished()) {
-                    *count += 1;
-                    continue;
-                }
-                //FIXME bind lifetime all watcher to future (repectively the main job
-                auto watcher = QSharedPointer<KAsync::FutureWatcher<void> >::create();
-                QObject::connect(watcher.data(), &KAsync::FutureWatcher<void>::futureReady,
-                [count, total, &future](){
-                    *count += 1;
-                    if (*count == total) {
-                        future.setFinished();
-                    }
-                });
-                watcher->setFuture(subFuture);
-                context->setProperty(QString("future%1").arg(i).toLatin1().data(), QVariant::fromValue(watcher));
-            }
-        }).then<void>([context]() {
-            delete context;
-        });
+                   const auto total = futures.size();
+                   auto count = QSharedPointer<int>::create();
+                   int i = 0;
+                   for (KAsync::Future<void> subFuture : futures) {
+                       i++;
+                       if (subFuture.isFinished()) {
+                           *count += 1;
+                           continue;
+                       }
+                       // FIXME bind lifetime all watcher to future (repectively the main job
+                       auto watcher = QSharedPointer<KAsync::FutureWatcher<void>>::create();
+                       QObject::connect(watcher.data(), &KAsync::FutureWatcher<void>::futureReady, [count, total, &future]() {
+                           *count += 1;
+                           if (*count == total) {
+                               future.setFinished();
+                           }
+                       });
+                       watcher->setFuture(subFuture);
+                       context->setProperty(QString("future%1").arg(i).toLatin1().data(), QVariant::fromValue(watcher));
+                   }
+               })
+            .then<void>([context]() { delete context; });
     }
 
-    //Ensure we can process a command in less than 0.1s
+    // Ensure we can process a command in less than 0.1s
     void testCommandResponsiveness()
     {
-        //Test responsiveness including starting the process.
+        // Test responsiveness including starting the process.
         Sink::Store::removeDataFromDisk("org.kde.dummy.instance1").exec().waitForFinished();
 
         QTime time;
@@ -100,7 +98,7 @@ private slots:
 
         Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec();
 
-        //Wait for notification
+        // Wait for notification
         QTRY_VERIFY(gotNotification);
 
         QVERIFY2(duration < 100, QString::fromLatin1("Processing a create command took more than 100ms: %1").arg(duration).toLatin1());
@@ -114,7 +112,7 @@ private slots:
 
         QTime time;
         time.start();
-        QList<KAsync::Future<void> > waitCondition;
+        QList<KAsync::Future<void>> waitCondition;
         for (int i = 0; i < num; i++) {
             Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
             event.setProperty("uid", "testuid");
@@ -125,7 +123,7 @@ private slots:
         waitForCompletion(waitCondition).exec().waitForFinished();
         auto appendTime = time.elapsed();
 
-        //Ensure everything is processed
+        // Ensure everything is processed
         {
             Sink::Query query;
             query.resources << "org.kde.dummy.instance1";
@@ -137,13 +135,13 @@ private slots:
         HAWD::Dataset::Row row = dataset.row();
 
         row.setValue("rows", num);
-        row.setValue("append", (qreal)num/appendTime);
-        row.setValue("total", (qreal)num/allProcessedTime);
+        row.setValue("append", (qreal)num / appendTime);
+        row.setValue("total", (qreal)num / allProcessedTime);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
 
         auto diskUsage = DummyResource::diskUsage("org.kde.dummy.instance1");
-        qDebug() << "Database size [kb]: " << diskUsage/1024;
+        qDebug() << "Database size [kb]: " << diskUsage / 1024;
 
         // Print memory layout, RSS is what is in memory
         // std::system("exec pmap -x \"$PPID\"");
@@ -153,7 +151,7 @@ private slots:
     {
         QTime time;
         time.start();
-        //Measure query
+        // Measure query
         {
             time.start();
             Sink::Query query;
@@ -168,7 +166,7 @@ private slots:
         HAWD::Dataset dataset("dummy_query_by_uid", m_hawdState);
         HAWD::Dataset::Row row = dataset.row();
         row.setValue("rows", num);
-        row.setValue("read", (qreal)num/queryTime);
+        row.setValue("read", (qreal)num / queryTime);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
     }
@@ -220,7 +218,7 @@ private slots:
         }
         auto appendTime = time.elapsed();
 
-        //Wait until all messages have been processed
+        // Wait until all messages have been processed
         resource.processAllMessages().exec().waitForFinished();
 
         auto allProcessedTime = time.elapsed();
@@ -229,8 +227,8 @@ private slots:
         HAWD::Dataset::Row row = dataset.row();
 
         row.setValue("rows", num);
-        row.setValue("append", (qreal)num/appendTime);
-        row.setValue("total", (qreal)num/allProcessedTime);
+        row.setValue("append", (qreal)num / appendTime);
+        row.setValue("total", (qreal)num / allProcessedTime);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
 
@@ -250,7 +248,7 @@ private slots:
 
             static flatbuffers::FlatBufferBuilder fbb;
             fbb.Clear();
-            //This is the resource buffer type and not the domain type
+            // This is the resource buffer type and not the domain type
             auto entityId = fbb.CreateString("");
             auto type = fbb.CreateString("event");
             // auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
@@ -260,7 +258,7 @@ private slots:
         }
     }
 
-    //This allows to run individual parts without doing a cleanup, but still cleaning up normally
+    // This allows to run individual parts without doing a cleanup, but still cleaning up normally
     void testCleanupForCompleteTest()
     {
         Sink::Store::removeDataFromDisk("org.kde.dummy.instance1").exec().waitForFinished();

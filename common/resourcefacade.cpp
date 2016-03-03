@@ -24,15 +24,12 @@
 #include "storage.h"
 #include <QDir>
 
-ResourceFacade::ResourceFacade(const QByteArray &)
-    : Sink::StoreFacade<Sink::ApplicationDomain::SinkResource>()
+ResourceFacade::ResourceFacade(const QByteArray &) : Sink::StoreFacade<Sink::ApplicationDomain::SinkResource>()
 {
-
 }
 
 ResourceFacade::~ResourceFacade()
 {
-
 }
 
 KAsync::Job<void> ResourceFacade::create(const Sink::ApplicationDomain::SinkResource &resource)
@@ -40,14 +37,14 @@ KAsync::Job<void> ResourceFacade::create(const Sink::ApplicationDomain::SinkReso
     return KAsync::start<void>([resource, this]() {
         const QByteArray type = resource.getProperty("type").toByteArray();
         const QByteArray providedIdentifier = resource.getProperty("identifier").toByteArray();
-        //It is currently a requirement that the resource starts with the type
+        // It is currently a requirement that the resource starts with the type
         const QByteArray identifier = providedIdentifier.isEmpty() ? ResourceConfig::newIdentifier(type) : providedIdentifier;
         ResourceConfig::addResource(identifier, type);
         auto changedProperties = resource.changedProperties();
         changedProperties.removeOne("identifier");
         changedProperties.removeOne("type");
         if (!changedProperties.isEmpty()) {
-            //We have some configuration values
+            // We have some configuration values
             QMap<QByteArray, QVariant> configurationValues;
             for (const auto &property : changedProperties) {
                 configurationValues.insert(property, resource.getProperty(property));
@@ -69,7 +66,7 @@ KAsync::Job<void> ResourceFacade::modify(const Sink::ApplicationDomain::SinkReso
         changedProperties.removeOne("identifier");
         changedProperties.removeOne("type");
         if (!changedProperties.isEmpty()) {
-            //We have some configuration values
+            // We have some configuration values
             QMap<QByteArray, QVariant> configurationValues;
             for (const auto &property : changedProperties) {
                 configurationValues.insert(property, resource.getProperty(property));
@@ -88,7 +85,7 @@ KAsync::Job<void> ResourceFacade::remove(const Sink::ApplicationDomain::SinkReso
             return;
         }
         ResourceConfig::removeResource(identifier);
-        //TODO shutdown resource, or use the resource process with a --remove option to cleanup (so we can take advantage of the file locking)
+        // TODO shutdown resource, or use the resource process with a --remove option to cleanup (so we can take advantage of the file locking)
         QDir dir(Sink::storageLocation());
         for (const auto &folder : dir.entryList(QStringList() << identifier + "*")) {
             Sink::Storage(Sink::storageLocation(), folder, Sink::Storage::ReadWrite).removeFromDisk();
@@ -96,14 +93,12 @@ KAsync::Job<void> ResourceFacade::remove(const Sink::ApplicationDomain::SinkReso
     });
 }
 
-QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>::Ptr > ResourceFacade::load(const Sink::Query &query)
+QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>::Ptr> ResourceFacade::load(const Sink::Query &query)
 {
     auto resultProvider = new Sink::ResultProvider<typename Sink::ApplicationDomain::SinkResource::Ptr>();
     auto emitter = resultProvider->emitter();
     resultProvider->setFetcher([](const QSharedPointer<Sink::ApplicationDomain::SinkResource> &) {});
-    resultProvider->onDone([resultProvider]() {
-        delete resultProvider;
-    });
+    resultProvider->onDone([resultProvider]() { delete resultProvider; });
     auto job = KAsync::start<void>([query, resultProvider]() {
         const auto configuredResources = ResourceConfig::getResources();
         for (const auto &res : configuredResources.keys()) {
@@ -114,10 +109,9 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::S
                 resultProvider->add(resource);
             }
         }
-        //TODO initialResultSetComplete should be implicit
+        // TODO initialResultSetComplete should be implicit
         resultProvider->initialResultSetComplete(Sink::ApplicationDomain::SinkResource::Ptr());
         resultProvider->complete();
     });
     return qMakePair(job, emitter);
 }
-

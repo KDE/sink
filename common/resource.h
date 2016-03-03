@@ -24,8 +24,7 @@
 #include <Async/Async>
 #include "notification.h"
 
-namespace Sink
-{
+namespace Sink {
 class FacadeFactory;
 
 /**
@@ -66,7 +65,7 @@ signals:
 
 private:
     class Private;
-    Private * const d;
+    Private *const d;
 };
 
 /**
@@ -85,11 +84,9 @@ public:
 
 private:
     class Private;
-    Private * const d;
+    Private *const d;
 };
 
 } // namespace Sink
 
 Q_DECLARE_INTERFACE(Sink::ResourceFactory, "org.kde.sink.resourcefactory")
-
-

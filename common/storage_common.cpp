@@ -23,8 +23,7 @@
 
 #include "log.h"
 
-namespace Sink
-{
+namespace Sink {
 
 static const char *s_internalPrefix = "__internal";
 static const int s_internalPrefixSize = strlen(s_internalPrefix);
@@ -60,14 +59,16 @@ void Storage::setMaxRevision(Sink::Storage::Transaction &transaction, qint64 rev
 qint64 Storage::maxRevision(const Sink::Storage::Transaction &transaction)
 {
     qint64 r = 0;
-    transaction.openDatabase().scan("__internal_maxRevision", [&](const QByteArray &, const QByteArray &revision) -> bool {
-        r = revision.toLongLong();
-        return false;
-    }, [](const Error &error){
-        if (error.code != Sink::Storage::NotFound) {
-            Warning() << "Coultn'd find the maximum revision.";
-        }
-    });
+    transaction.openDatabase().scan("__internal_maxRevision",
+        [&](const QByteArray &, const QByteArray &revision) -> bool {
+            r = revision.toLongLong();
+            return false;
+        },
+        [](const Error &error) {
+            if (error.code != Sink::Storage::NotFound) {
+                Warning() << "Coultn'd find the maximum revision.";
+            }
+        });
     return r;
 }
 
@@ -79,44 +80,48 @@ void Storage::setCleanedUpRevision(Sink::Storage::Transaction &transaction, qint
 qint64 Storage::cleanedUpRevision(const Sink::Storage::Transaction &transaction)
 {
     qint64 r = 0;
-    transaction.openDatabase().scan("__internal_cleanedUpRevision", [&](const QByteArray &, const QByteArray &revision) -> bool {
-        r = revision.toLongLong();
-        return false;
-    }, [](const Error &error){
-        if (error.code != Sink::Storage::NotFound) {
-            Warning() << "Coultn'd find the maximum revision.";
-        }
-    });
+    transaction.openDatabase().scan("__internal_cleanedUpRevision",
+        [&](const QByteArray &, const QByteArray &revision) -> bool {
+            r = revision.toLongLong();
+            return false;
+        },
+        [](const Error &error) {
+            if (error.code != Sink::Storage::NotFound) {
+                Warning() << "Coultn'd find the maximum revision.";
+            }
+        });
     return r;
 }
 
 QByteArray Storage::getUidFromRevision(const Sink::Storage::Transaction &transaction, qint64 revision)
 {
     QByteArray uid;
-    transaction.openDatabase("revisions").scan(QByteArray::number(revision), [&](const QByteArray &, const QByteArray &value) -> bool {
-        uid = value;
-        return false;
-    }, [revision](const Error &error){
-        Warning() << "Coultn'd find uid for revision " << revision;
-    });
+    transaction.openDatabase("revisions")
+        .scan(QByteArray::number(revision),
+            [&](const QByteArray &, const QByteArray &value) -> bool {
+                uid = value;
+                return false;
+            },
+            [revision](const Error &error) { Warning() << "Coultn'd find uid for revision " << revision; });
     return uid;
 }
 
 QByteArray Storage::getTypeFromRevision(const Sink::Storage::Transaction &transaction, qint64 revision)
 {
     QByteArray type;
-    transaction.openDatabase("revisionType").scan(QByteArray::number(revision), [&](const QByteArray &, const QByteArray &value) -> bool {
-        type = value;
-        return false;
-    }, [revision](const Error &error){
-        Warning() << "Coultn'd find type for revision " << revision;
-    });
+    transaction.openDatabase("revisionType")
+        .scan(QByteArray::number(revision),
+            [&](const QByteArray &, const QByteArray &value) -> bool {
+                type = value;
+                return false;
+            },
+            [revision](const Error &error) { Warning() << "Coultn'd find type for revision " << revision; });
     return type;
 }
 
 void Storage::recordRevision(Sink::Storage::Transaction &transaction, qint64 revision, const QByteArray &uid, const QByteArray &type)
 {
-    //TODO use integerkeys
+    // TODO use integerkeys
     transaction.openDatabase("revisions").write(QByteArray::number(revision), uid);
     transaction.openDatabase("revisionType").write(QByteArray::number(revision), type);
 }
@@ -164,11 +169,12 @@ Storage::NamedDatabase Storage::mainDatabase(const Sink::Storage::Transaction &t
 bool Storage::NamedDatabase::contains(const QByteArray &uid)
 {
     bool found = false;
-    scan(uid, [&found](const QByteArray &, const QByteArray &) -> bool {
-        found = true;
-        return false;
-    }, [this](const Sink::Storage::Error &error) {
-    }, true);
+    scan(uid,
+        [&found](const QByteArray &, const QByteArray &) -> bool {
+            found = true;
+            return false;
+        },
+        [this](const Sink::Storage::Error &error) {}, true);
     return found;
 }
 

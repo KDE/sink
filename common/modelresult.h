@@ -28,11 +28,12 @@
 #include "query.h"
 #include "resultprovider.h"
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 class ModelResult : public QAbstractItemModel
 {
 public:
-    enum Roles {
+    enum Roles
+    {
         DomainObjectRole = Qt::UserRole + 1,
         ChildrenFetchedRole,
         DomainObjectBaseRole
@@ -46,7 +47,7 @@ public:
     int columnCount(const QModelIndex &parent = QModelIndex()) const;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const;
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
-    QModelIndex index(int row, int column, const QModelIndex & parent = QModelIndex()) const;
+    QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const;
     QModelIndex parent(const QModelIndex &index) const;
     bool hasChildren(const QModelIndex &parent = QModelIndex()) const;
 
@@ -66,7 +67,7 @@ private:
     QModelIndex createIndexFromId(const qint64 &id) const;
     void fetchEntities(const QModelIndex &parent);
 
-    //TODO we should be able to directly use T as index, with an appropriate hash function, and thus have a QMap<T, T> and QList<T>
+    // TODO we should be able to directly use T as index, with an appropriate hash function, and thus have a QMap<T, T> and QList<T>
     QMap<qint64 /* entity id */, Ptr> mEntities;
     QMap<qint64 /* parent entity id */, QList<qint64> /* child entity id*/> mTree;
     QMap<qint64 /* child entity id */, qint64 /* parent entity id*/> mParents;
@@ -77,4 +78,3 @@ private:
     std::function<void(const Ptr &)> loadEntities;
     typename Sink::ResultEmitter<Ptr>::Ptr mEmitter;
 };
-

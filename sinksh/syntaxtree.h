@@ -32,16 +32,15 @@ class Syntax
 public:
     typedef QVector<Syntax> List;
 
-    enum Interactivity {
+    enum Interactivity
+    {
         NotInteractive = 0,
         EventDriven
     };
 
     Syntax();
-    Syntax(const QString &keyword,
-            const QString &helpText = QString(),
-            std::function<bool(const QStringList &, State &)> lambda = std::function<bool(const QStringList &, State &)>(),
-            Interactivity interactivity = NotInteractive);
+    Syntax(const QString &keyword, const QString &helpText = QString(),
+        std::function<bool(const QStringList &, State &)> lambda = std::function<bool(const QStringList &, State &)>(), Interactivity interactivity = NotInteractive);
 
     QString keyword;
     QString help;

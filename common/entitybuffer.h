@@ -8,7 +8,8 @@
 namespace Sink {
 struct Entity;
 
-class SINK_EXPORT EntityBuffer {
+class SINK_EXPORT EntityBuffer
+{
 public:
     EntityBuffer(const void *dataValue, int size);
     EntityBuffer(const QByteArray &data);
@@ -25,9 +26,10 @@ public:
      * We can't use union's either (which would allow to have a field that stores a selection of tables), as we don't want to modify
      * the entity schema for each resource's buffers.
      */
-    static void assembleEntityBuffer(flatbuffers::FlatBufferBuilder &fbb, void const *metadataData, size_t metadataSize, void const *resourceData, size_t resourceSize, void const *localData, size_t localSize);
-    static flatbuffers::Offset<flatbuffers::Vector<uint8_t> > appendAsVector(flatbuffers::FlatBufferBuilder &fbb, void const *data, size_t size);
-    template<typename T>
+    static void assembleEntityBuffer(
+        flatbuffers::FlatBufferBuilder &fbb, void const *metadataData, size_t metadataSize, void const *resourceData, size_t resourceSize, void const *localData, size_t localSize);
+    static flatbuffers::Offset<flatbuffers::Vector<uint8_t>> appendAsVector(flatbuffers::FlatBufferBuilder &fbb, void const *data, size_t size);
+    template <typename T>
     static const T *readBuffer(const uint8_t *data, int size)
     {
         flatbuffers::Verifier verifier(data, size);
@@ -37,7 +39,7 @@ public:
         return nullptr;
     }
 
-    template<typename T>
+    template <typename T>
     static const T *readBuffer(const flatbuffers::Vector<uint8_t> *data)
     {
         if (data) {
@@ -50,6 +52,4 @@ public:
 private:
     const Entity *mEntity;
 };
-
 }
-

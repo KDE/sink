@@ -16,7 +16,7 @@
 
 /**
  * Test of the generic resource implementation.
- * 
+ *
  * This test relies on a working pipeline implementation, and writes to storage.
  */
 class GenericResourceTest : public QObject
@@ -30,7 +30,7 @@ private slots:
         Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
     }
 
-    ///Ensure the resource can process messages
+    /// Ensure the resource can process messages
     void testProcessCommand()
     {
         flatbuffers::FlatBufferBuilder eventFbb;
@@ -70,7 +70,7 @@ private slots:
             QVERIFY(Sink::Commands::VerifyCreateEntityBuffer(verifyer));
         }
 
-        //Actual test
+        // Actual test
         auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.test.instance1");
         QSignalSpy revisionSpy(pipeline.data(), SIGNAL(revisionUpdated(qint64)));
         QVERIFY(revisionSpy.isValid());

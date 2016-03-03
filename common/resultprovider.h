@@ -32,22 +32,19 @@ namespace Sink {
 /**
 * Query result set
 */
-template<class T>
+template <class T>
 class ResultEmitter;
 
-template<class T>
+template <class T>
 class ResultProviderInterface
 {
 public:
-    ResultProviderInterface()
-        : mRevision(0)
+    ResultProviderInterface() : mRevision(0)
     {
-
     }
 
     virtual ~ResultProviderInterface()
     {
-
     }
 
     virtual void add(const T &value) = 0;
@@ -75,17 +72,18 @@ private:
 /*
 * The promise side for the result emitter
 */
-template<class T>
-class ResultProvider : public ResultProviderInterface<T> {
+template <class T>
+class ResultProvider : public ResultProviderInterface<T>
+{
 private:
     void callInMainThreadOnEmitter(void (ResultEmitter<T>::*f)())
     {
-        //We use the eventloop to call the addHandler directly from the main eventloop.
-        //That way the result emitter implementation doesn't have to care about threadsafety at all.
-        //The alternative would be to make all handlers of the emitter threadsafe.
+        // We use the eventloop to call the addHandler directly from the main eventloop.
+        // That way the result emitter implementation doesn't have to care about threadsafety at all.
+        // The alternative would be to make all handlers of the emitter threadsafe.
         if (auto emitter = mResultEmitter.toStrongRef()) {
             auto weakEmitter = mResultEmitter;
-            //We don't want to keep the emitter alive here, so we only capture a weak reference
+            // We don't want to keep the emitter alive here, so we only capture a weak reference
             emitter->mThreadBoundary.callInMainThread([weakEmitter, f]() {
                 if (auto strongRef = weakEmitter.toStrongRef()) {
                     (strongRef.data()->*f)();
@@ -96,27 +94,27 @@ private:
 
     void callInMainThreadOnEmitter(const std::function<void()> &f)
     {
-        //We use the eventloop to call the addHandler directly from the main eventloop.
-        //That way the result emitter implementation doesn't have to care about threadsafety at all.
-        //The alternative would be to make all handlers of the emitter threadsafe.
+        // We use the eventloop to call the addHandler directly from the main eventloop.
+        // That way the result emitter implementation doesn't have to care about threadsafety at all.
+        // The alternative would be to make all handlers of the emitter threadsafe.
         if (auto emitter = mResultEmitter.toStrongRef()) {
             emitter->mThreadBoundary.callInMainThread(f);
         }
     }
 
 public:
-    typedef QSharedPointer<ResultProvider<T> > Ptr;
+    typedef QSharedPointer<ResultProvider<T>> Ptr;
 
     virtual ~ResultProvider()
     {
     }
 
-    //Called from worker thread
+    // Called from worker thread
     void add(const T &value)
     {
-        //Because I don't know how to use bind
+        // Because I don't know how to use bind
         auto weakEmitter = mResultEmitter;
-        callInMainThreadOnEmitter([weakEmitter, value](){
+        callInMainThreadOnEmitter([weakEmitter, value]() {
             if (auto strongRef = weakEmitter.toStrongRef()) {
                 strongRef->addHandler(value);
             }
@@ -125,9 +123,9 @@ public:
 
     void modify(const T &value)
     {
-        //Because I don't know how to use bind
+        // Because I don't know how to use bind
         auto weakEmitter = mResultEmitter;
-        callInMainThreadOnEmitter([weakEmitter, value](){
+        callInMainThreadOnEmitter([weakEmitter, value]() {
             if (auto strongRef = weakEmitter.toStrongRef()) {
                 strongRef->modifyHandler(value);
             }
@@ -136,9 +134,9 @@ public:
 
     void remove(const T &value)
     {
-        //Because I don't know how to use bind
+        // Because I don't know how to use bind
         auto weakEmitter = mResultEmitter;
-        callInMainThreadOnEmitter([weakEmitter, value](){
+        callInMainThreadOnEmitter([weakEmitter, value]() {
             if (auto strongRef = weakEmitter.toStrongRef()) {
                 strongRef->removeHandler(value);
             }
@@ -147,16 +145,16 @@ public:
 
     void initialResultSetComplete(const T &parent)
     {
-        //Because I don't know how to use bind
+        // Because I don't know how to use bind
         auto weakEmitter = mResultEmitter;
-        callInMainThreadOnEmitter([weakEmitter, parent](){
+        callInMainThreadOnEmitter([weakEmitter, parent]() {
             if (auto strongRef = weakEmitter.toStrongRef()) {
                 strongRef->initialResultSetComplete(parent);
             }
         });
     }
 
-    //Called from worker thread
+    // Called from worker thread
     void complete()
     {
         callInMainThreadOnEmitter(&ResultEmitter<T>::complete);
@@ -168,11 +166,14 @@ public:
     }
 
 
-    QSharedPointer<ResultEmitter<T> > emitter()
+    QSharedPointer<ResultEmitter<T>> emitter()
     {
         if (!mResultEmitter) {
-            //We have to go over a separate var and return that, otherwise we'd delete the emitter immediately again
-            auto sharedPtr = QSharedPointer<ResultEmitter<T> >(new ResultEmitter<T>, [this](ResultEmitter<T> *emitter){ mThreadBoundary->callInMainThread([this]() {done();}); delete emitter; });
+            // We have to go over a separate var and return that, otherwise we'd delete the emitter immediately again
+            auto sharedPtr = QSharedPointer<ResultEmitter<T>>(new ResultEmitter<T>, [this](ResultEmitter<T> *emitter) {
+                mThreadBoundary->callInMainThread([this]() { done(); });
+                delete emitter;
+            });
             mResultEmitter = sharedPtr;
             sharedPtr->setFetcher([this](const T &parent) {
                 Q_ASSERT(mFetcher);
@@ -192,7 +193,7 @@ public:
 
     bool isDone() const
     {
-        //The existance of the emitter currently defines wether we're done or not.
+        // The existance of the emitter currently defines wether we're done or not.
         return mResultEmitter.toStrongRef().isNull();
     }
 
@@ -208,12 +209,12 @@ private:
         if (mOnDoneCallback) {
             auto callback = mOnDoneCallback;
             mOnDoneCallback = std::function<void()>();
-            //This may delete this object
+            // This may delete this object
             callback();
         }
     }
 
-    QWeakPointer<ResultEmitter<T> > mResultEmitter;
+    QWeakPointer<ResultEmitter<T>> mResultEmitter;
     std::function<void()> mOnDoneCallback;
     QSharedPointer<async::ThreadBoundary> mThreadBoundary;
     std::function<void(const T &parent)> mFetcher;
@@ -231,32 +232,32 @@ private:
 * * build sync interfaces that block when accessing the value
 *
 */
-template<class DomainType>
-class ResultEmitter {
+template <class DomainType>
+class ResultEmitter
+{
 public:
-    typedef QSharedPointer<ResultEmitter<DomainType> > Ptr;
+    typedef QSharedPointer<ResultEmitter<DomainType>> Ptr;
 
     virtual ~ResultEmitter()
     {
-
     }
 
-    void onAdded(const std::function<void(const DomainType&)> &handler)
+    void onAdded(const std::function<void(const DomainType &)> &handler)
     {
         addHandler = handler;
     }
 
-    void onModified(const std::function<void(const DomainType&)> &handler)
+    void onModified(const std::function<void(const DomainType &)> &handler)
     {
         modifyHandler = handler;
     }
 
-    void onRemoved(const std::function<void(const DomainType&)> &handler)
+    void onRemoved(const std::function<void(const DomainType &)> &handler)
     {
         removeHandler = handler;
     }
 
-    void onInitialResultSetComplete(const std::function<void(const DomainType&)> &handler)
+    void onInitialResultSetComplete(const std::function<void(const DomainType &)> &handler)
     {
         initialResultSetCompleteHandler = handler;
     }
@@ -322,10 +323,10 @@ public:
 private:
     friend class ResultProvider<DomainType>;
 
-    std::function<void(const DomainType&)> addHandler;
-    std::function<void(const DomainType&)> modifyHandler;
-    std::function<void(const DomainType&)> removeHandler;
-    std::function<void(const DomainType&)> initialResultSetCompleteHandler;
+    std::function<void(const DomainType &)> addHandler;
+    std::function<void(const DomainType &)> modifyHandler;
+    std::function<void(const DomainType &)> removeHandler;
+    std::function<void(const DomainType &)> initialResultSetCompleteHandler;
     std::function<void(void)> completeHandler;
     std::function<void(void)> clearHandler;
 
@@ -333,37 +334,28 @@ private:
     async::ThreadBoundary mThreadBoundary;
 };
 
-template<class DomainType>
-class AggregatingResultEmitter : public ResultEmitter<DomainType> {
+template <class DomainType>
+class AggregatingResultEmitter : public ResultEmitter<DomainType>
+{
 public:
-    typedef QSharedPointer<AggregatingResultEmitter<DomainType> > Ptr;
+    typedef QSharedPointer<AggregatingResultEmitter<DomainType>> Ptr;
 
     void addEmitter(const typename ResultEmitter<DomainType>::Ptr &emitter)
     {
-        emitter->onAdded([this](const DomainType &value) {
-            this->add(value);
-        });
-        emitter->onModified([this](const DomainType &value) {
-            this->modify(value);
-        });
-        emitter->onRemoved([this](const DomainType &value) {
-            this->remove(value);
-        });
+        emitter->onAdded([this](const DomainType &value) { this->add(value); });
+        emitter->onModified([this](const DomainType &value) { this->modify(value); });
+        emitter->onRemoved([this](const DomainType &value) { this->remove(value); });
         auto ptr = emitter.data();
         emitter->onInitialResultSetComplete([this, ptr](const DomainType &parent) {
             auto hashValue = qHash(parent);
             mInitialResultSetInProgress.remove(hashValue, ptr);
-            //Normally a parent is only in a single resource, except the toplevel (invalid) parent
+            // Normally a parent is only in a single resource, except the toplevel (invalid) parent
             if (!mInitialResultSetInProgress.contains(hashValue)) {
                 this->initialResultSetComplete(parent);
             }
         });
-        emitter->onComplete([this]() {
-            this->complete();
-        });
-        emitter->onClear([this]() {
-            this->clear();
-        });
+        emitter->onComplete([this]() { this->complete(); });
+        emitter->onClear([this]() { this->clear(); });
         mEmitter << emitter;
     }
 
@@ -382,10 +374,6 @@ public:
 
 private:
     QList<typename ResultEmitter<DomainType>::Ptr> mEmitter;
-    QMultiMap<qint64, ResultEmitter<DomainType>*> mInitialResultSetInProgress;
+    QMultiMap<qint64, ResultEmitter<DomainType> *> mInitialResultSetInProgress;
 };
-
-
-
 }
-

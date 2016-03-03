@@ -30,44 +30,64 @@ namespace ApplicationDomain {
 /**
  * This class has to be implemented by resources and can be used as generic interface to access the buffer properties
  */
-class BufferAdaptor {
+class BufferAdaptor
+{
 public:
-    virtual ~BufferAdaptor() {}
-    virtual QVariant getProperty(const QByteArray &key) const { return QVariant(); }
-    virtual void setProperty(const QByteArray &key, const QVariant &value) {}
-    virtual QList<QByteArray> availableProperties() const { return QList<QByteArray>(); }
+    virtual ~BufferAdaptor()
+    {
+    }
+    virtual QVariant getProperty(const QByteArray &key) const
+    {
+        return QVariant();
+    }
+    virtual void setProperty(const QByteArray &key, const QVariant &value)
+    {
+    }
+    virtual QList<QByteArray> availableProperties() const
+    {
+        return QList<QByteArray>();
+    }
 };
 
-class MemoryBufferAdaptor : public BufferAdaptor {
+class MemoryBufferAdaptor : public BufferAdaptor
+{
 public:
-    MemoryBufferAdaptor()
-        : BufferAdaptor()
+    MemoryBufferAdaptor() : BufferAdaptor()
     {
     }
 
-    MemoryBufferAdaptor(const BufferAdaptor &buffer, const QList<QByteArray> &properties)
-        : BufferAdaptor()
+    MemoryBufferAdaptor(const BufferAdaptor &buffer, const QList<QByteArray> &properties) : BufferAdaptor()
     {
         if (properties.isEmpty()) {
-            for(const auto &property : buffer.availableProperties()) {
+            for (const auto &property : buffer.availableProperties()) {
                 mValues.insert(property, buffer.getProperty(property));
             }
         } else {
-            for(const auto &property : properties) {
+            for (const auto &property : properties) {
                 mValues.insert(property, buffer.getProperty(property));
             }
         }
     }
 
-    virtual ~MemoryBufferAdaptor() {}
+    virtual ~MemoryBufferAdaptor()
+    {
+    }
 
-    virtual QVariant getProperty(const QByteArray &key) const { return mValues.value(key); }
-    virtual void setProperty(const QByteArray &key, const QVariant &value) { mValues.insert(key, value); }
-    virtual QByteArrayList availableProperties() const { return mValues.keys(); }
+    virtual QVariant getProperty(const QByteArray &key) const
+    {
+        return mValues.value(key);
+    }
+    virtual void setProperty(const QByteArray &key, const QVariant &value)
+    {
+        mValues.insert(key, value);
+    }
+    virtual QByteArrayList availableProperties() const
+    {
+        return mValues.keys();
+    }
 
 private:
     QHash<QByteArray, QVariant> mValues;
 };
-
 }
 }

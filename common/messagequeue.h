@@ -16,14 +16,16 @@ class SINK_EXPORT MessageQueue : public QObject
 {
     Q_OBJECT
 public:
-    enum ErrorCodes {
+    enum ErrorCodes
+    {
         NoMessageFound
     };
     class Error
     {
     public:
-        Error(const QByteArray &s, int c, const QByteArray &m)
-            : store(s), message(m), code(c) {}
+        Error(const QByteArray &s, int c, const QByteArray &m) : store(s), message(m), code(c)
+        {
+        }
         QByteArray store;
         QByteArray message;
         int code;
@@ -35,11 +37,10 @@ public:
     void startTransaction();
     void enqueue(void const *msg, size_t size);
     void enqueue(const QByteArray &value);
-    //Dequeue a message. This will return a new message everytime called.
-    //Call the result handler with a success response to remove the message from the store.
-    //TODO track processing progress to avoid processing the same message with the same preprocessor twice?
-    void dequeue(const std::function<void(void *ptr, int size, std::function<void(bool success)>)> & resultHandler,
-              const std::function<void(const Error &error)> &errorHandler);
+    // Dequeue a message. This will return a new message everytime called.
+    // Call the result handler with a success response to remove the message from the store.
+    // TODO track processing progress to avoid processing the same message with the same preprocessor twice?
+    void dequeue(const std::function<void(void *ptr, int size, std::function<void(bool success)>)> &resultHandler, const std::function<void(const Error &error)> &errorHandler);
     KAsync::Job<void> dequeueBatch(int maxBatchSize, const std::function<KAsync::Job<void>(const QByteArray &)> &resultHandler);
     bool isEmpty();
 

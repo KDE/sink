@@ -30,13 +30,13 @@ static QByteArray getByteArray(const QVariant &value)
     if (value.isValid() && !value.toByteArray().isEmpty()) {
         return value.toByteArray();
     }
-    //LMDB can't handle empty keys, so use something different
+    // LMDB can't handle empty keys, so use something different
     return "toplevel";
 }
 
 static QByteArray toSortableByteArray(const QDateTime &date)
 {
-    //Sort invalid last
+    // Sort invalid last
     if (!date.isValid()) {
         return QByteArray::number(std::numeric_limits<unsigned int>::max());
     }
@@ -44,10 +44,8 @@ static QByteArray toSortableByteArray(const QDateTime &date)
 }
 
 
-TypeIndex::TypeIndex(const QByteArray &type)
-    : mType(type)
+TypeIndex::TypeIndex(const QByteArray &type) : mType(type)
 {
-
 }
 
 QByteArray TypeIndex::indexName(const QByteArray &property, const QByteArray &sortProperty) const
@@ -58,7 +56,7 @@ QByteArray TypeIndex::indexName(const QByteArray &property, const QByteArray &so
     return mType + ".index." + property + ".sort." + sortProperty;
 }
 
-template<>
+template <>
 void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
@@ -69,7 +67,7 @@ void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
     mProperties << property;
 }
 
-template<>
+template <>
 void TypeIndex::addProperty<QString>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
@@ -80,7 +78,7 @@ void TypeIndex::addProperty<QString>(const QByteArray &property)
     mProperties << property;
 }
 
-template<>
+template <>
 void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
@@ -94,7 +92,7 @@ void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
     mProperties << property;
 }
 
-template<>
+template <>
 void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &property, const QByteArray &sortProperty)
 {
     auto indexer = [=](const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::Transaction &transaction) {
@@ -102,7 +100,7 @@ void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &
         const auto propertyValue = getByteArray(value);
         Index(indexName(property, sortProperty), transaction).add(propertyValue + toSortableByteArray(date), identifier);
     };
-    mSortIndexer.insert(property+sortProperty, indexer);
+    mSortIndexer.insert(property + sortProperty, indexer);
     mSortedProperties.insert(property, sortProperty);
 }
 
@@ -116,7 +114,7 @@ void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain:
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
         const auto value = bufferAdaptor.getProperty(it.key());
         const auto sortValue = bufferAdaptor.getProperty(it.value());
-        auto indexer = mSortIndexer.value(it.key()+it.value());
+        auto indexer = mSortIndexer.value(it.key() + it.value());
         indexer(identifier, value, sortValue, transaction);
     }
 }
@@ -125,7 +123,7 @@ void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDoma
 {
     for (const auto &property : mProperties) {
         const auto value = bufferAdaptor.getProperty(property);
-        //FIXME don't always convert to byte array
+        // FIXME don't always convert to byte array
         Index(indexName(property), transaction).remove(getByteArray(value), identifier);
     }
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
@@ -147,12 +145,8 @@ ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFi
             Index index(indexName(it.key(), it.value()), transaction);
             const auto lookupKey = getByteArray(query.propertyFilter.value(it.key()));
             Trace() << "looking for " << lookupKey;
-            index.lookup(lookupKey, [&](const QByteArray &value) {
-                keys << value;
-            },
-            [it](const Index::Error &error) {
-                Warning() << "Error in index: " <<  error.message << it.key() << it.value();
-            }, true);
+            index.lookup(lookupKey, [&](const QByteArray &value) { keys << value; },
+                [it](const Index::Error &error) { Warning() << "Error in index: " << error.message << it.key() << it.value(); }, true);
             appliedFilters << it.key();
             appliedSorting = it.value();
             Trace() << "Index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
@@ -163,12 +157,8 @@ ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFi
         if (query.propertyFilter.contains(property)) {
             Index index(indexName(property), transaction);
             const auto lookupKey = getByteArray(query.propertyFilter.value(property));
-            index.lookup(lookupKey, [&](const QByteArray &value) {
-                keys << value;
-            },
-            [property](const Index::Error &error) {
-                Warning() << "Error in index: " <<  error.message << property;
-            });
+            index.lookup(
+                lookupKey, [&](const QByteArray &value) { keys << value; }, [property](const Index::Error &error) { Warning() << "Error in index: " << error.message << property; });
             appliedFilters << property;
             Trace() << "Index lookup on " << property << " found " << keys.size() << " keys.";
             return ResultSet(keys);
@@ -177,4 +167,3 @@ ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFi
     Trace() << "No matching index";
     return ResultSet(keys);
 }
-

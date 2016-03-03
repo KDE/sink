@@ -33,8 +33,9 @@ namespace Sink {
 
 /**
  * Default facade implementation for resources that are implemented in a separate process using the ResourceAccess class.
- * 
- * Ideally a basic resource has no implementation effort for the facades and can simply instanciate default implementations (meaning it only has to implement the factory with all supported types).
+ *
+ * Ideally a basic resource has no implementation effort for the facades and can simply instanciate default implementations (meaning it only has to implement the factory with all
+ * supported types).
  * A resource has to implement:
  * * A facade factory registering all available facades
  * * An adaptor factory if it uses special resource buffers (default implementation can be used otherwise)
@@ -43,16 +44,17 @@ namespace Sink {
  * Additionally a resource only has to provide a synchronizer plugin to execute the synchronization
  */
 template <typename DomainType>
-class SINK_EXPORT GenericFacade: public Sink::StoreFacade<DomainType>
+class SINK_EXPORT GenericFacade : public Sink::StoreFacade<DomainType>
 {
 public:
     /**
      * Create a new GenericFacade
-     * 
+     *
      * @param resourceIdentifier is the identifier of the resource instance
      * @param adaptorFactory is the adaptor factory used to generate the mappings from domain to resource types and vice versa
      */
-    GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr(), const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess = QSharedPointer<Sink::ResourceAccessInterface>());
+    GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr(),
+        const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess = QSharedPointer<Sink::ResourceAccessInterface>());
     ~GenericFacade();
 
     static QByteArray bufferTypeForDomainType();
@@ -63,10 +65,9 @@ public:
 
 protected:
     std::function<void(Sink::ApplicationDomain::ApplicationDomainType &domainObject)> mResultTransformation;
-    //TODO use one resource access instance per application & per resource
+    // TODO use one resource access instance per application & per resource
     QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
     QByteArray mResourceInstanceIdentifier;
 };
-
 }

@@ -28,34 +28,34 @@
  *
  * We'll eventually want to lazy load results in next().
  */
-class ResultSet {
-    public:
-        typedef std::function<bool(std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)>)> ValueGenerator;
-        typedef std::function<QByteArray()> IdGenerator;
-        typedef std::function<void()> SkipValue;
+class ResultSet
+{
+public:
+    typedef std::function<bool(std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)>)> ValueGenerator;
+    typedef std::function<QByteArray()> IdGenerator;
+    typedef std::function<void()> SkipValue;
 
-        ResultSet();
-        ResultSet(const ValueGenerator &generator, const SkipValue &skip);
-        ResultSet(const IdGenerator &generator);
-        ResultSet(const QVector<QByteArray> &resultSet);
-        ResultSet(const ResultSet &other);
+    ResultSet();
+    ResultSet(const ValueGenerator &generator, const SkipValue &skip);
+    ResultSet(const IdGenerator &generator);
+    ResultSet(const QVector<QByteArray> &resultSet);
+    ResultSet(const ResultSet &other);
 
-        bool next();
-        bool next(std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation)> callback);
+    bool next();
+    bool next(std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation)> callback);
 
-        void skip(int number);
+    void skip(int number);
 
-        QByteArray id();
+    QByteArray id();
 
-        bool isEmpty();
+    bool isEmpty();
 
-    private:
-        QVector<QByteArray> mResultSet;
-        QVector<QByteArray>::ConstIterator mIt;
-        QByteArray mCurrentValue;
-        IdGenerator mGenerator;
-        ValueGenerator mValueGenerator;
-        SkipValue mSkip;
-        bool mFirst;
+private:
+    QVector<QByteArray> mResultSet;
+    QVector<QByteArray>::ConstIterator mIt;
+    QByteArray mCurrentValue;
+    IdGenerator mGenerator;
+    ValueGenerator mValueGenerator;
+    SkipValue mSkip;
+    bool mFirst;
 };
-

@@ -16,67 +16,88 @@ static QSharedPointer<QSettings> config()
     return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/log.ini", QSettings::IniFormat);
 }
 
-class DebugStream: public QIODevice
+class DebugStream : public QIODevice
 {
 public:
     QString m_location;
-    DebugStream()
-        : QIODevice()
+    DebugStream() : QIODevice()
     {
         open(WriteOnly);
     }
     virtual ~DebugStream();
 
-    bool isSequential() const { return true; }
-    qint64 readData(char *, qint64) { return 0; /* eof */ }
-    qint64 readLineData(char *, qint64) { return 0; /* eof */ }
+    bool isSequential() const
+    {
+        return true;
+    }
+    qint64 readData(char *, qint64)
+    {
+        return 0; /* eof */
+    }
+    qint64 readLineData(char *, qint64)
+    {
+        return 0; /* eof */
+    }
     qint64 writeData(const char *data, qint64 len)
     {
         std::cout << data << std::endl;
         return len;
     }
+
 private:
     Q_DISABLE_COPY(DebugStream)
 };
 
-//Virtual method anchor
+// Virtual method anchor
 DebugStream::~DebugStream()
-{}
+{
+}
 
-class NullStream: public QIODevice
+class NullStream : public QIODevice
 {
 public:
-    NullStream()
-        : QIODevice()
+    NullStream() : QIODevice()
     {
         open(WriteOnly);
     }
     virtual ~NullStream();
 
-    bool isSequential() const { return true; }
-    qint64 readData(char *, qint64) { return 0; /* eof */ }
-    qint64 readLineData(char *, qint64) { return 0; /* eof */ }
+    bool isSequential() const
+    {
+        return true;
+    }
+    qint64 readData(char *, qint64)
+    {
+        return 0; /* eof */
+    }
+    qint64 readLineData(char *, qint64)
+    {
+        return 0; /* eof */
+    }
     qint64 writeData(const char *data, qint64 len)
     {
         return len;
     }
+
 private:
     Q_DISABLE_COPY(NullStream)
 };
 
-//Virtual method anchor
+// Virtual method anchor
 NullStream::~NullStream()
-{}
+{
+}
 
-    /*
-     * ANSI color codes:
-     * 0: reset colors/style
-     * 1: bold
-     * 4: underline
-     * 30 - 37: black, red, green, yellow, blue, magenta, cyan, and white text
-     * 40 - 47: black, red, green, yellow, blue, magenta, cyan, and white background
-     */
-enum ANSI_Colors {
+/*
+ * ANSI color codes:
+ * 0: reset colors/style
+ * 1: bold
+ * 4: underline
+ * 30 - 37: black, red, green, yellow, blue, magenta, cyan, and white text
+ * 40 - 47: black, red, green, yellow, blue, magenta, cyan, and white background
+ */
+enum ANSI_Colors
+{
     DoNothing = -1,
     Reset = 0,
     Bold = 1,
@@ -211,7 +232,7 @@ static bool caseInsensitiveContains(const QByteArray &pattern, const QByteArrayL
     return false;
 }
 
-QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char* file, const char* function, const char* debugArea)
+QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea)
 {
     static NullStream nullstream;
     if (debugLevel < debugOutputLevel()) {

@@ -18,7 +18,7 @@ using namespace flatbuffers;
 
 static QByteArray createEvent()
 {
-    static const size_t attachmentSize = 1024*2; // 2KB
+    static const size_t attachmentSize = 1024 * 2; // 2KB
     static uint8_t rawData[attachmentSize];
     static FlatBufferBuilder fbb;
     fbb.Clear();
@@ -26,13 +26,13 @@ static QByteArray createEvent()
         uint8_t *rawDataPtr = Q_NULLPTR;
         auto summary = fbb.CreateString("summary");
         auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize, &rawDataPtr);
-        //auto data = fbb.CreateVector(rawData, attachmentSize);
+        // auto data = fbb.CreateVector(rawData, attachmentSize);
         Calendar::EventBuilder eventBuilder(fbb);
         eventBuilder.add_summary(summary);
         eventBuilder.add_attachment(data);
         auto eventLocation = eventBuilder.Finish();
         Calendar::FinishEventBuffer(fbb, eventLocation);
-        memcpy((void*)rawDataPtr, rawData, attachmentSize);
+        memcpy((void *)rawDataPtr, rawData, attachmentSize);
     }
 
     return QByteArray::fromRawData(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
@@ -45,7 +45,7 @@ class StorageBenchmark : public QObject
 {
     Q_OBJECT
 private:
-    //This should point to a directory on disk and not a ramdisk (since we're measuring performance)
+    // This should point to a directory on disk and not a ramdisk (since we're measuring performance)
     QString testDataPath;
     QString dbName;
     QString filePath;
@@ -76,7 +76,7 @@ private slots:
 
         QTime time;
         time.start();
-        //Test db write time
+        // Test db write time
         {
             auto transaction = store->createTransaction(Sink::Storage::ReadWrite);
             for (int i = 0; i < count; i++) {
@@ -91,7 +91,7 @@ private slots:
         qreal dbWriteDuration = time.restart();
         qreal dbWriteOpsPerMs = count / dbWriteDuration;
 
-        //Test file write time
+        // Test file write time
         {
             std::ofstream myfile;
             myfile.open(filePath.toStdString());
@@ -103,7 +103,7 @@ private slots:
         qreal fileWriteDuration = time.restart();
         qreal fileWriteOpsPerMs = count / fileWriteDuration;
 
-        //Db read time
+        // Db read time
         {
             auto transaction = store->createTransaction(Sink::Storage::ReadOnly);
             auto db = transaction.openDatabase();
@@ -127,10 +127,10 @@ private slots:
     void testSizes()
     {
         Sink::Storage store(testDataPath, dbName);
-        qDebug() << "Database size [kb]: " << store.diskUsage()/1024;
+        qDebug() << "Database size [kb]: " << store.diskUsage() / 1024;
 
         QFileInfo fileInfo(filePath);
-        qDebug() << "File size [kb]: " << fileInfo.size()/1024;
+        qDebug() << "File size [kb]: " << fileInfo.size() / 1024;
     }
 
     void testScan()
@@ -139,13 +139,15 @@ private slots:
 
         QBENCHMARK {
             int hit = 0;
-            store->createTransaction(Sink::Storage::ReadOnly).openDatabase().scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
-                if (key == "key10000") {
-                    //qDebug() << "hit";
-                    hit++;
-                }
-                return true;
-            });
+            store->createTransaction(Sink::Storage::ReadOnly)
+                .openDatabase()
+                .scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
+                    if (key == "key10000") {
+                        // qDebug() << "hit";
+                        hit++;
+                    }
+                    return true;
+                });
             QCOMPARE(hit, 1);
         }
     }

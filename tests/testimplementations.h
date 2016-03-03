@@ -28,7 +28,7 @@
 #include <common/genericresource.h>
 #include <common/commands.h>
 
-//Replace with something different
+// Replace with something different
 #include "event_generated.h"
 #include "mail_generated.h"
 #include "createentity_generated.h"
@@ -36,37 +36,48 @@
 class TestEventAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event, Sink::ApplicationDomain::Buffer::Event, Sink::ApplicationDomain::Buffer::EventBuilder>
 {
 public:
-    TestEventAdaptorFactory()
-        : DomainTypeAdaptorFactory()
+    TestEventAdaptorFactory() : DomainTypeAdaptorFactory()
     {
     }
 
-    virtual ~TestEventAdaptorFactory() {};
+    virtual ~TestEventAdaptorFactory(){};
 };
 
 class TestMailAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail, Sink::ApplicationDomain::Buffer::Mail, Sink::ApplicationDomain::Buffer::MailBuilder>
 {
 public:
-    TestMailAdaptorFactory()
-        : DomainTypeAdaptorFactory()
+    TestMailAdaptorFactory() : DomainTypeAdaptorFactory()
     {
     }
 
-    virtual ~TestMailAdaptorFactory() {};
+    virtual ~TestMailAdaptorFactory(){};
 };
 
 class TestResourceAccess : public Sink::ResourceAccessInterface
 {
     Q_OBJECT
 public:
-    virtual ~TestResourceAccess() {};
-    KAsync::Job<void> sendCommand(int commandId) Q_DECL_OVERRIDE { return KAsync::null<void>(); }
-    KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE { return KAsync::null<void>(); }
-    KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) Q_DECL_OVERRIDE { return KAsync::null<void>(); }
+    virtual ~TestResourceAccess(){};
+    KAsync::Job<void> sendCommand(int commandId) Q_DECL_OVERRIDE
+    {
+        return KAsync::null<void>();
+    }
+    KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE
+    {
+        return KAsync::null<void>();
+    }
+    KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) Q_DECL_OVERRIDE
+    {
+        return KAsync::null<void>();
+    }
 
 public slots:
-    void open() Q_DECL_OVERRIDE {}
-    void close() Q_DECL_OVERRIDE {}
+    void open() Q_DECL_OVERRIDE
+    {
+    }
+    void close() Q_DECL_OVERRIDE
+    {
+    }
 };
 
 class TestResourceFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Event>
@@ -75,11 +86,9 @@ public:
     TestResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
         : Sink::GenericFacade<Sink::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<TestEventAdaptorFactory>::create(), resourceAccess)
     {
-
     }
     virtual ~TestResourceFacade()
     {
-
     }
 };
 
@@ -89,19 +98,16 @@ public:
     TestMailResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
         : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<TestMailAdaptorFactory>::create(), resourceAccess)
     {
-
     }
     virtual ~TestMailResourceFacade()
     {
-
     }
 };
 
 class TestResource : public Sink::GenericResource
 {
 public:
-    TestResource(const QByteArray &instanceIdentifier, QSharedPointer<Sink::Pipeline> pipeline)
-        : Sink::GenericResource(instanceIdentifier, pipeline)
+    TestResource(const QByteArray &instanceIdentifier, QSharedPointer<Sink::Pipeline> pipeline) : Sink::GenericResource(instanceIdentifier, pipeline)
     {
     }
 
@@ -126,4 +132,3 @@ QByteArray createCommand(const DomainType &domainObject, DomainTypeAdaptorFactor
     Sink::Commands::FinishCreateEntityBuffer(fbb, location);
     return QByteArray(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
-

@@ -51,7 +51,7 @@ template <>
 QVariant propertyToVariant<QString>(const flatbuffers::String *property)
 {
     if (property) {
-        //We have to copy the memory, otherwise it would become eventually invalid
+        // We have to copy the memory, otherwise it would become eventually invalid
         return QString::fromStdString(property->c_str());
     }
     return QVariant();
@@ -61,7 +61,7 @@ template <>
 QVariant propertyToVariant<QByteArray>(const flatbuffers::String *property)
 {
     if (property) {
-        //We have to copy the memory, otherwise it would become eventually invalid
+        // We have to copy the memory, otherwise it would become eventually invalid
         return QString::fromStdString(property->c_str()).toUtf8();
     }
     return QVariant();
@@ -71,7 +71,7 @@ template <>
 QVariant propertyToVariant<QByteArray>(const flatbuffers::Vector<uint8_t> *property)
 {
     if (property) {
-        //We have to copy the memory, otherwise it would become eventually invalid
+        // We have to copy the memory, otherwise it would become eventually invalid
         return QByteArray(reinterpret_cast<const char *>(property->Data()), property->Length());
     }
     return QVariant();
@@ -87,7 +87,7 @@ template <>
 QVariant propertyToVariant<QDateTime>(const flatbuffers::String *property)
 {
     if (property) {
-        //We have to copy the memory, otherwise it would become eventually invalid
+        // We have to copy the memory, otherwise it would become eventually invalid
         return QDateTime::fromString(QString::fromStdString(property->c_str()));
     }
     return QVariant();

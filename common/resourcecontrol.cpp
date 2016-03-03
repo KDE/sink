@@ -32,28 +32,31 @@
 #undef DEBUG_AREA
 #define DEBUG_AREA "client.resourcecontrol"
 
-namespace Sink
-{
+namespace Sink {
 
 KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
 {
     Trace() << "shutdown " << identifier;
     auto time = QSharedPointer<QTime>::create();
     time->start();
-    return ResourceAccess::connectToServer(identifier).then<void, QSharedPointer<QLocalSocket>>([identifier, time](QSharedPointer<QLocalSocket> socket, KAsync::Future<void> &future) {
-        //We can't currently reuse the socket
-        socket->close();
-        auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier);
-        resourceAccess->open();
-        resourceAccess->sendCommand(Sink::Commands::ShutdownCommand).then<void>([&future, resourceAccess, time]() {
-            Trace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
-            future.setFinished();
-        }).exec();
-    },
-    [](int, const QString &) {
-        Trace() << "Resource is already closed.";
-        //Resource isn't started, nothing to shutdown
-    });
+    return ResourceAccess::connectToServer(identifier)
+        .then<void, QSharedPointer<QLocalSocket>>(
+            [identifier, time](QSharedPointer<QLocalSocket> socket, KAsync::Future<void> &future) {
+                // We can't currently reuse the socket
+                socket->close();
+                auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier);
+                resourceAccess->open();
+                resourceAccess->sendCommand(Sink::Commands::ShutdownCommand)
+                    .then<void>([&future, resourceAccess, time]() {
+                        Trace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
+                        future.setFinished();
+                    })
+                    .exec();
+            },
+            [](int, const QString &) {
+                Trace() << "Resource is already closed.";
+                // Resource isn't started, nothing to shutdown
+            });
 }
 
 KAsync::Job<void> ResourceControl::start(const QByteArray &identifier)
@@ -63,23 +66,19 @@ KAsync::Job<void> ResourceControl::start(const QByteArray &identifier)
     time->start();
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier);
     resourceAccess->open();
-    return resourceAccess->sendCommand(Sink::Commands::PingCommand).then<void>([resourceAccess, time]() {
-        Trace() << "Start complete." << Log::TraceTime(time->elapsed());
-    });
+    return resourceAccess->sendCommand(Sink::Commands::PingCommand).then<void>([resourceAccess, time]() { Trace() << "Start complete." << Log::TraceTime(time->elapsed()); });
 }
 
 KAsync::Job<void> ResourceControl::flushMessageQueue(const QByteArrayList &resourceIdentifier)
 {
     Trace() << "flushMessageQueue" << resourceIdentifier;
     return KAsync::iterate(resourceIdentifier)
-    .template each<void, QByteArray>([](const QByteArray &resource, KAsync::Future<void> &future) {
-        Trace() << "Flushing message queue " << resource;
-        auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource);
-        resourceAccess->open();
-        resourceAccess->synchronizeResource(false, true).then<void>([&future, resourceAccess]() {
-            future.setFinished();
-        }).exec();
-    });
+        .template each<void, QByteArray>([](const QByteArray &resource, KAsync::Future<void> &future) {
+            Trace() << "Flushing message queue " << resource;
+            auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource);
+            resourceAccess->open();
+            resourceAccess->synchronizeResource(false, true).then<void>([&future, resourceAccess]() { future.setFinished(); }).exec();
+        });
 }
 
 KAsync::Job<void> ResourceControl::flushReplayQueue(const QByteArrayList &resourceIdentifier)
@@ -114,7 +113,7 @@ KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
         });
 }
 
-#define REGISTER_TYPE(T) template KAsync::Job<void> ResourceControl::inspect<T>(const Inspection &); \
+#define REGISTER_TYPE(T) template KAsync::Job<void> ResourceControl::inspect<T>(const Inspection &);
 
 REGISTER_TYPE(ApplicationDomain::Event);
 REGISTER_TYPE(ApplicationDomain::Mail);
@@ -122,4 +121,3 @@ REGISTER_TYPE(ApplicationDomain::Folder);
 REGISTER_TYPE(ApplicationDomain::SinkResource);
 
 } // namespace Sink
-

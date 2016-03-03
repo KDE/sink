@@ -34,11 +34,9 @@ static uint qHash(const Sink::ApplicationDomain::ApplicationDomainType &type)
     return qHash(type.resourceInstanceIdentifier() + type.identifier());
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns)
-    :QAbstractItemModel(),
-    mPropertyColumns(propertyColumns),
-    mQuery(query)
+    : QAbstractItemModel(), mPropertyColumns(propertyColumns), mQuery(query)
 {
 }
 
@@ -50,7 +48,7 @@ static qint64 getIdentifier(const QModelIndex &idx)
     return idx.internalId();
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 qint64 ModelResult<T, Ptr>::parentId(const Ptr &value)
 {
     if (!mQuery.parentProperty.isEmpty()) {
@@ -62,19 +60,19 @@ qint64 ModelResult<T, Ptr>::parentId(const Ptr &value)
     return 0;
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 int ModelResult<T, Ptr>::rowCount(const QModelIndex &parent) const
 {
     return mTree[getIdentifier(parent)].size();
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 int ModelResult<T, Ptr>::columnCount(const QModelIndex &parent) const
 {
     return mPropertyColumns.size();
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 QVariant ModelResult<T, Ptr>::headerData(int section, Qt::Orientation orientation, int role) const
 {
     if (role == Qt::DisplayRole) {
@@ -85,7 +83,7 @@ QVariant ModelResult<T, Ptr>::headerData(int section, Qt::Orientation orientatio
     return QVariant();
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
 {
     if (role == DomainObjectRole && index.isValid()) {
@@ -94,7 +92,7 @@ QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
     }
     if (role == DomainObjectBaseRole && index.isValid()) {
         Q_ASSERT(mEntities.contains(index.internalId()));
-        return QVariant::fromValue(mEntities.value(index.internalId()). template staticCast<Sink::ApplicationDomain::ApplicationDomainType>());
+        return QVariant::fromValue(mEntities.value(index.internalId()).template staticCast<Sink::ApplicationDomain::ApplicationDomainType>());
     }
     if (role == ChildrenFetchedRole) {
         return childrenFetched(index);
@@ -111,7 +109,7 @@ QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 QModelIndex ModelResult<T, Ptr>::index(int row, int column, const QModelIndex &parent) const
 {
     const auto id = getIdentifier(parent);
@@ -124,7 +122,7 @@ QModelIndex ModelResult<T, Ptr>::index(int row, int column, const QModelIndex &p
     return QModelIndex();
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 QModelIndex ModelResult<T, Ptr>::createIndexFromId(const qint64 &id) const
 {
     if (id == 0) {
@@ -135,7 +133,7 @@ QModelIndex ModelResult<T, Ptr>::createIndexFromId(const qint64 &id) const
     return createIndex(row, 0, id);
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 QModelIndex ModelResult<T, Ptr>::parent(const QModelIndex &index) const
 {
     auto id = getIdentifier(index);
@@ -143,7 +141,7 @@ QModelIndex ModelResult<T, Ptr>::parent(const QModelIndex &index) const
     return createIndexFromId(parentId);
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 bool ModelResult<T, Ptr>::hasChildren(const QModelIndex &parent) const
 {
     if (mQuery.parentProperty.isEmpty() && parent.isValid()) {
@@ -152,26 +150,26 @@ bool ModelResult<T, Ptr>::hasChildren(const QModelIndex &parent) const
     return QAbstractItemModel::hasChildren(parent);
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 {
     const auto id = parent.internalId();
     return !mEntityChildrenFetched.contains(id) || mEntityChildrenFetchComplete.contains(id);
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 void ModelResult<T, Ptr>::fetchMore(const QModelIndex &parent)
 {
     Trace() << "Fetching more: " << parent;
     fetchEntities(parent);
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 void ModelResult<T, Ptr>::add(const Ptr &value)
 {
     const auto childId = qHash(*value);
     const auto id = parentId(value);
-    //Ignore updates we get before the initial fetch is done
+    // Ignore updates we get before the initial fetch is done
     if (!mEntityChildrenFetched.contains(id)) {
         Trace() << "Too early" << id;
         return;
@@ -199,7 +197,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
 }
 
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 void ModelResult<T, Ptr>::remove(const Ptr &value)
 {
     auto childId = qHash(*value);
@@ -211,11 +209,11 @@ void ModelResult<T, Ptr>::remove(const Ptr &value)
     mEntities.remove(childId);
     mTree[id].removeAll(childId);
     mParents.remove(childId);
-    //TODO remove children
+    // TODO remove children
     endRemoveRows();
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 void ModelResult<T, Ptr>::fetchEntities(const QModelIndex &parent)
 {
     const auto id = getIdentifier(parent);
@@ -229,26 +227,20 @@ void ModelResult<T, Ptr>::fetchEntities(const QModelIndex &parent)
     }
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 void ModelResult<T, Ptr>::setFetcher(const std::function<void(const Ptr &parent)> &fetcher)
 {
     Trace() << "Setting fetcher";
     loadEntities = fetcher;
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Ptr &emitter)
 {
-    setFetcher([this](const Ptr &parent) {mEmitter->fetch(parent);});
-    emitter->onAdded([this](const Ptr &value) {
-        this->add(value);
-    });
-    emitter->onModified([this](const Ptr &value) {
-        this->modify(value);
-    });
-    emitter->onRemoved([this](const Ptr &value) {
-        this->remove(value);
-    });
+    setFetcher([this](const Ptr &parent) { mEmitter->fetch(parent); });
+    emitter->onAdded([this](const Ptr &value) { this->add(value); });
+    emitter->onModified([this](const Ptr &value) { this->modify(value); });
+    emitter->onRemoved([this](const Ptr &value) { this->remove(value); });
     emitter->onInitialResultSetComplete([this](const Ptr &parent) {
         const qint64 parentId = parent ? qHash(*parent) : 0;
         const auto parentIndex = createIndexFromId(parentId);
@@ -258,18 +250,18 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
     mEmitter = emitter;
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 bool ModelResult<T, Ptr>::childrenFetched(const QModelIndex &index) const
 {
     return mEntityChildrenFetchComplete.contains(getIdentifier(index));
 }
 
-template<class T, class Ptr>
+template <class T, class Ptr>
 void ModelResult<T, Ptr>::modify(const Ptr &value)
 {
     auto childId = qHash(*value);
     auto id = parentId(value);
-    //Ignore updates we get before the initial fetch is done
+    // Ignore updates we get before the initial fetch is done
     if (!mEntityChildrenFetched.contains(id)) {
         return;
     }
@@ -278,7 +270,7 @@ void ModelResult<T, Ptr>::modify(const Ptr &value)
     auto i = mTree[id].indexOf(childId);
     mEntities.remove(childId);
     mEntities.insert(childId, value);
-    //TODO check for change of parents
+    // TODO check for change of parents
     auto idx = index(i, 0, parent);
     emit dataChanged(idx, idx);
 }

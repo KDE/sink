@@ -32,31 +32,29 @@ using namespace Sink;
 #undef DEBUG_AREA
 #define DEBUG_AREA "client.facade"
 
-template<class DomainType>
-GenericFacade<DomainType>::GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory , const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
-    : Sink::StoreFacade<DomainType>(),
-    mResourceAccess(resourceAccess),
-    mDomainTypeAdaptorFactory(adaptorFactory),
-    mResourceInstanceIdentifier(resourceIdentifier)
+template <class DomainType>
+GenericFacade<DomainType>::GenericFacade(
+    const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory, const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
+    : Sink::StoreFacade<DomainType>(), mResourceAccess(resourceAccess), mDomainTypeAdaptorFactory(adaptorFactory), mResourceInstanceIdentifier(resourceIdentifier)
 {
     if (!mResourceAccess) {
         mResourceAccess = ResourceAccessFactory::instance().getAccess(resourceIdentifier);
     }
 }
 
-template<class DomainType>
+template <class DomainType>
 GenericFacade<DomainType>::~GenericFacade()
 {
 }
 
-template<class DomainType>
+template <class DomainType>
 QByteArray GenericFacade<DomainType>::bufferTypeForDomainType()
 {
-    //We happen to have a one to one mapping
+    // We happen to have a one to one mapping
     return Sink::ApplicationDomain::getTypeName<DomainType>();
 }
 
-template<class DomainType>
+template <class DomainType>
 KAsync::Job<void> GenericFacade<DomainType>::create(const DomainType &domainObject)
 {
     if (!mDomainTypeAdaptorFactory) {
@@ -68,7 +66,7 @@ KAsync::Job<void> GenericFacade<DomainType>::create(const DomainType &domainObje
     return mResourceAccess->sendCreateCommand(bufferTypeForDomainType(), BufferUtils::extractBuffer(entityFbb));
 }
 
-template<class DomainType>
+template <class DomainType>
 KAsync::Job<void> GenericFacade<DomainType>::modify(const DomainType &domainObject)
 {
     if (!mDomainTypeAdaptorFactory) {
@@ -80,16 +78,16 @@ KAsync::Job<void> GenericFacade<DomainType>::modify(const DomainType &domainObje
     return mResourceAccess->sendModifyCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType(), QByteArrayList(), BufferUtils::extractBuffer(entityFbb));
 }
 
-template<class DomainType>
+template <class DomainType>
 KAsync::Job<void> GenericFacade<DomainType>::remove(const DomainType &domainObject)
 {
     return mResourceAccess->sendDeleteCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType());
 }
 
-template<class DomainType>
+template <class DomainType>
 QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> GenericFacade<DomainType>::load(const Sink::Query &query)
 {
-    //The runner lives for the lifetime of the query
+    // The runner lives for the lifetime of the query
     auto runner = new QueryRunner<DomainType>(query, mResourceAccess, mResourceInstanceIdentifier, mDomainTypeAdaptorFactory, bufferTypeForDomainType());
     runner->setResultTransformation(mResultTransformation);
     return qMakePair(KAsync::null<void>(), runner->emitter());

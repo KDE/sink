@@ -61,9 +61,9 @@ class MailQueryBenchmark : public QObject
         auto pipeline = QSharedPointer<Sink::Pipeline>::create(resourceIdentifier);
 
         auto mailFactory = QSharedPointer<TestMailAdaptorFactory>::create();
-        auto indexer = QSharedPointer<DefaultIndexUpdater<Sink::ApplicationDomain::Mail> >::create();
+        auto indexer = QSharedPointer<DefaultIndexUpdater<Sink::ApplicationDomain::Mail>>::create();
 
-        pipeline->setPreprocessors("mail", QVector<Sink::Preprocessor*>() << indexer.data());
+        pipeline->setPreprocessors("mail", QVector<Sink::Preprocessor *>() << indexer.data());
         pipeline->setAdaptorFactory("mail", mailFactory);
 
         auto domainTypeAdaptorFactory = QSharedPointer<TestMailAdaptorFactory>::create();
@@ -88,11 +88,11 @@ class MailQueryBenchmark : public QObject
         const auto startingRss = getCurrentRSS();
 
 
-        //Benchmark
+        // Benchmark
         QTime time;
         time.start();
 
-        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Mail::Ptr> >::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Mail::Ptr>>::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         TestMailResourceFacade facade(resourceIdentifier, resourceAccess);
 
@@ -100,13 +100,9 @@ class MailQueryBenchmark : public QObject
         ret.first.exec().waitForFinished();
         auto emitter = ret.second;
         QList<Sink::ApplicationDomain::Mail::Ptr> list;
-        emitter->onAdded([&list](const Sink::ApplicationDomain::Mail::Ptr &mail) {
-            list << mail;
-        });
+        emitter->onAdded([&list](const Sink::ApplicationDomain::Mail::Ptr &mail) { list << mail; });
         bool done = false;
-        emitter->onInitialResultSetComplete([&done](const Sink::ApplicationDomain::Mail::Ptr &mail) {
-            done = true;
-        });
+        emitter->onInitialResultSetComplete([&done](const Sink::ApplicationDomain::Mail::Ptr &mail) { done = true; });
         emitter->fetch(Sink::ApplicationDomain::Mail::Ptr());
         QTRY_VERIFY(done);
         QCOMPARE(list.size(), query.limit);
@@ -115,32 +111,32 @@ class MailQueryBenchmark : public QObject
 
         const auto finalRss = getCurrentRSS();
         const auto rssGrowth = finalRss - startingRss;
-        //Since the database is memory mapped it is attributted to the resident set size.
+        // Since the database is memory mapped it is attributted to the resident set size.
         const auto rssWithoutDb = finalRss - Sink::Storage(Sink::storageLocation(), resourceIdentifier, Sink::Storage::ReadWrite).diskUsage();
-        const auto peakRss =  getPeakRSS();
-        //How much peak deviates from final rss in percent (should be around 0)
-        const auto percentageRssError = static_cast<double>(peakRss - finalRss)*100.0/static_cast<double>(finalRss);
-        auto rssGrowthPerEntity = rssGrowth/count;
+        const auto peakRss = getPeakRSS();
+        // How much peak deviates from final rss in percent (should be around 0)
+        const auto percentageRssError = static_cast<double>(peakRss - finalRss) * 100.0 / static_cast<double>(finalRss);
+        auto rssGrowthPerEntity = rssGrowth / count;
 
         std::cout << "Loaded " << list.size() << " results." << std::endl;
         std::cout << "The query took [ms]: " << elapsed << std::endl;
-        std::cout << "Current Rss usage [kb]: " << finalRss/1024 << std::endl;
-        std::cout << "Peak Rss usage [kb]: " << peakRss/1024 << std::endl;
-        std::cout << "Rss growth [kb]: " << rssGrowth/1024 << std::endl;
+        std::cout << "Current Rss usage [kb]: " << finalRss / 1024 << std::endl;
+        std::cout << "Peak Rss usage [kb]: " << peakRss / 1024 << std::endl;
+        std::cout << "Rss growth [kb]: " << rssGrowth / 1024 << std::endl;
         std::cout << "Rss growth per entity [byte]: " << rssGrowthPerEntity << std::endl;
-        std::cout << "Rss without db [kb]: " << rssWithoutDb/1024 << std::endl;
+        std::cout << "Rss without db [kb]: " << rssWithoutDb / 1024 << std::endl;
         std::cout << "Percentage error: " << percentageRssError << std::endl;
 
         HAWD::Dataset dataset("mail_query", mHawdState);
         HAWD::Dataset::Row row = dataset.row();
         row.setValue("rows", list.size());
-        row.setValue("queryResultPerMs", (qreal)list.size()/elapsed);
+        row.setValue("queryResultPerMs", (qreal)list.size() / elapsed);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
 
         QVERIFY(percentageRssError < 10);
-        //TODO This is much more than it should it seems, although adding the attachment results in pretty exactly a 1k increase,
-        //so it doesn't look like that memory is being duplicated.
+        // TODO This is much more than it should it seems, although adding the attachment results in pretty exactly a 1k increase,
+        // so it doesn't look like that memory is being duplicated.
         QVERIFY(rssGrowthPerEntity < 3300);
 
         // Print memory layout, RSS is what is in memory
@@ -159,7 +155,9 @@ private slots:
     {
         Sink::Query query;
         query.liveQuery = false;
-        query.requestedProperties << "uid" << "subject" << "date";
+        query.requestedProperties << "uid"
+                                  << "subject"
+                                  << "date";
         query.sortProperty = "date";
         query.propertyFilter.insert("folder", "folder1");
         query.limit = 1000;
@@ -167,7 +165,6 @@ private slots:
         populateDatabase(50000);
         testLoad(query, 50000);
     }
-
 };
 
 QTEST_MAIN(MailQueryBenchmark)

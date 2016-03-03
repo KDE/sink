@@ -40,7 +40,7 @@ KAsync::Job<void> SINK_EXPORT shutdown(const QByteArray &resourceIdentifier);
 
 /**
  * Start resource.
- * 
+ *
  * The resource is ready for operation once this command completes.
  * This command is only necessary if a resource was shutdown previously,
  * otherwise the resource process will automatically start as necessary.
@@ -56,7 +56,5 @@ KAsync::Job<void> SINK_EXPORT flushMessageQueue(const QByteArrayList &resourceId
  * Flushes any pending messages that haven't been replayed to the source.
  */
 KAsync::Job<void> SINK_EXPORT flushReplayQueue(const QByteArrayList &resourceIdentifier);
-
-    }
 }
-
+}

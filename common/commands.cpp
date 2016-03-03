@@ -22,15 +22,13 @@
 
 #include <QIODevice>
 
-namespace Sink
-{
+namespace Sink {
 
-namespace Commands
-{
+namespace Commands {
 
 QByteArray name(int commandId)
 {
-    switch(commandId) {
+    switch (commandId) {
         case UnknownCommand:
             return "Unknown";
         case CommandCompletionCommand:
@@ -85,9 +83,9 @@ void write(QIODevice *device, int messageId, int commandId, const char *buffer, 
         size = 0;
     }
 
-    device->write((const char*)&messageId, sizeof(int));
-    device->write((const char*)&commandId, sizeof(int));
-    device->write((const char*)&size, sizeof(uint));
+    device->write((const char *)&messageId, sizeof(int));
+    device->write((const char *)&commandId, sizeof(int));
+    device->write((const char *)&size, sizeof(uint));
     if (buffer) {
         device->write(buffer, size);
     }
@@ -96,10 +94,10 @@ void write(QIODevice *device, int messageId, int commandId, const char *buffer, 
 void write(QIODevice *device, int messageId, int commandId, flatbuffers::FlatBufferBuilder &fbb)
 {
     const int dataSize = fbb.GetSize();
-    device->write((const char*)&messageId, sizeof(int));
-    device->write((const char*)&commandId, sizeof(int));
-    device->write((const char*)&dataSize, sizeof(int));
-    device->write((const char*)fbb.GetBufferPointer(), dataSize);
+    device->write((const char *)&messageId, sizeof(int));
+    device->write((const char *)&commandId, sizeof(int));
+    device->write((const char *)&dataSize, sizeof(int));
+    device->write((const char *)fbb.GetBufferPointer(), dataSize);
 }
 
 } // namespace Commands

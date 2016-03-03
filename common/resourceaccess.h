@@ -30,8 +30,7 @@
 #include <flatbuffers/flatbuffers.h>
 #include "notification.h"
 
-namespace Sink
-{
+namespace Sink {
 
 struct QueuedCommand;
 
@@ -41,17 +40,37 @@ class SINK_EXPORT ResourceAccessInterface : public QObject
 public:
     typedef QSharedPointer<ResourceAccessInterface> Ptr;
 
-    ResourceAccessInterface() {}
-    virtual ~ResourceAccessInterface() {}
+    ResourceAccessInterface()
+    {
+    }
+    virtual ~ResourceAccessInterface()
+    {
+    }
     virtual KAsync::Job<void> sendCommand(int commandId) = 0;
     virtual KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) = 0;
     virtual KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) = 0;
 
-    virtual KAsync::Job<void> sendCreateCommand(const QByteArray &resourceBufferType, const QByteArray &buffer) { return KAsync::null<void>(); };
-    virtual KAsync::Job<void> sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer) { return KAsync::null<void>(); };
-    virtual KAsync::Job<void> sendDeleteCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType) { return KAsync::null<void>(); };
-    virtual KAsync::Job<void> sendRevisionReplayedCommand(qint64 revision) {return KAsync::null<void>(); };
-    virtual KAsync::Job<void> sendInspectionCommand(const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expecedValue) {return KAsync::null<void>(); };
+    virtual KAsync::Job<void> sendCreateCommand(const QByteArray &resourceBufferType, const QByteArray &buffer)
+    {
+        return KAsync::null<void>();
+    };
+    virtual KAsync::Job<void> sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer)
+    {
+        return KAsync::null<void>();
+    };
+    virtual KAsync::Job<void> sendDeleteCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType)
+    {
+        return KAsync::null<void>();
+    };
+    virtual KAsync::Job<void> sendRevisionReplayedCommand(qint64 revision)
+    {
+        return KAsync::null<void>();
+    };
+    virtual KAsync::Job<void>
+    sendInspectionCommand(const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expecedValue)
+    {
+        return KAsync::null<void>();
+    };
 
 signals:
     void ready(bool isReady);
@@ -79,21 +98,23 @@ public:
     KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE;
     KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) Q_DECL_OVERRIDE;
     KAsync::Job<void> sendCreateCommand(const QByteArray &resourceBufferType, const QByteArray &buffer) Q_DECL_OVERRIDE;
-    KAsync::Job<void> sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer) Q_DECL_OVERRIDE;
+    KAsync::Job<void>
+    sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer) Q_DECL_OVERRIDE;
     KAsync::Job<void> sendDeleteCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType) Q_DECL_OVERRIDE;
     KAsync::Job<void> sendRevisionReplayedCommand(qint64 revision) Q_DECL_OVERRIDE;
-    KAsync::Job<void> sendInspectionCommand(const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expecedValue) Q_DECL_OVERRIDE;
+    KAsync::Job<void>
+    sendInspectionCommand(const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expecedValue) Q_DECL_OVERRIDE;
     /**
      * Tries to connect to server, and returns a connected socket on success.
      */
-    static KAsync::Job<QSharedPointer<QLocalSocket> > connectToServer(const QByteArray &identifier);
+    static KAsync::Job<QSharedPointer<QLocalSocket>> connectToServer(const QByteArray &identifier);
 
 public slots:
     void open() Q_DECL_OVERRIDE;
     void close() Q_DECL_OVERRIDE;
 
 private slots:
-    //TODO: move these to the Private class
+    // TODO: move these to the Private class
     void disconnected();
     void connectionError(QLocalSocket::LocalSocketError error);
     void readResourceMessage();
@@ -108,23 +129,22 @@ private:
     void processPendingCommandQueue();
 
     class Private;
-    Private * const d;
+    Private *const d;
 };
 
 /**
  * A factory for resource access instances that caches the instance for some time.
- * 
+ *
  * This avoids constantly recreating connections, and should allow a single process to have one connection per resource.
  */
-class ResourceAccessFactory {
+class ResourceAccessFactory
+{
 public:
     static ResourceAccessFactory &instance();
     Sink::ResourceAccess::Ptr getAccess(const QByteArray &instanceIdentifier);
 
-    QHash<QByteArray, QWeakPointer<Sink::ResourceAccess> > mWeakCache;
+    QHash<QByteArray, QWeakPointer<Sink::ResourceAccess>> mWeakCache;
     QHash<QByteArray, Sink::ResourceAccess::Ptr> mCache;
-    QHash<QByteArray, QTimer*> mTimer;
+    QHash<QByteArray, QTimer *> mTimer;
 };
-
-
 }

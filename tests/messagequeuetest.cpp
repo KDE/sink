@@ -45,12 +45,7 @@ private slots:
         MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
         bool gotValue = false;
         bool gotError = false;
-        queue.dequeue([&](void *ptr, int size, std::function<void(bool success)> callback) {
-            gotValue = true;
-        },
-        [&](const MessageQueue::Error &error) {
-            gotError = true;
-        });
+        queue.dequeue([&](void *ptr, int size, std::function<void(bool success)> callback) { gotValue = true; }, [&](const MessageQueue::Error &error) { gotError = true; });
         QVERIFY(!gotValue);
         QVERIFY(!gotError);
     }
@@ -69,9 +64,7 @@ private slots:
         QSignalSpy spy(&queue, SIGNAL(drained()));
         queue.enqueue("value1");
 
-        queue.dequeue([](void *ptr, int size, std::function<void(bool success)> callback) {
-            callback(true);
-        }, [](const MessageQueue::Error &error) {});
+        queue.dequeue([](void *ptr, int size, std::function<void(bool success)> callback) { callback(true); }, [](const MessageQueue::Error &error) {});
         QCOMPARE(spy.size(), 1);
     }
 
@@ -91,15 +84,14 @@ private slots:
             const auto expected = values.dequeue();
             bool gotValue = false;
             bool gotError = false;
-            queue.dequeue([&](void *ptr, int size, std::function<void(bool success)> callback) {
-                if (QByteArray(static_cast<char*>(ptr), size) == expected) {
-                    gotValue = true;
-                }
-                callback(true);
-            },
-            [&](const MessageQueue::Error &error) {
-                gotError = true;
-            });
+            queue.dequeue(
+                [&](void *ptr, int size, std::function<void(bool success)> callback) {
+                    if (QByteArray(static_cast<char *>(ptr), size) == expected) {
+                        gotValue = true;
+                    }
+                    callback(true);
+                },
+                [&](const MessageQueue::Error &error) { gotError = true; });
             QVERIFY(gotValue);
             QVERIFY(!gotError);
         }
@@ -123,22 +115,21 @@ private slots:
             bool gotValue = false;
             bool gotError = false;
 
-            queue.dequeue([&](void *ptr, int size, std::function<void(bool success)> callback) {
-                if (QByteArray(static_cast<char*>(ptr), size) == expected) {
-                    gotValue = true;
-                }
-                auto timer = new QTimer();
-                timer->setSingleShot(true);
-                QObject::connect(timer, &QTimer::timeout, [timer, callback, &eventLoop]() {
-                    delete timer;
-                    callback(true);
-                    eventLoop.exit();
-                });
-                timer->start(0);
-            },
-            [&](const MessageQueue::Error &error) {
-                gotError = true;
-            });
+            queue.dequeue(
+                [&](void *ptr, int size, std::function<void(bool success)> callback) {
+                    if (QByteArray(static_cast<char *>(ptr), size) == expected) {
+                        gotValue = true;
+                    }
+                    auto timer = new QTimer();
+                    timer->setSingleShot(true);
+                    QObject::connect(timer, &QTimer::timeout, [timer, callback, &eventLoop]() {
+                        delete timer;
+                        callback(true);
+                        eventLoop.exit();
+                    });
+                    timer->start(0);
+                },
+                [&](const MessageQueue::Error &error) { gotError = true; });
             eventLoop.exec();
             QVERIFY(gotValue);
             QVERIFY(!gotError);
@@ -155,13 +146,12 @@ private slots:
         queue.enqueue("value1");
 
         bool gotError = false;
-        queue.dequeue([&](void *ptr, int size, std::function<void(bool success)> callback) {
-            queue.enqueue("value3");
-            callback(true);
-        },
-        [&](const MessageQueue::Error &error) {
-            gotError = true;
-        });
+        queue.dequeue(
+            [&](void *ptr, int size, std::function<void(bool success)> callback) {
+                queue.enqueue("value3");
+                callback(true);
+            },
+            [&](const MessageQueue::Error &error) { gotError = true; });
         QVERIFY(!gotError);
     }
 
@@ -174,15 +164,15 @@ private slots:
 
         int count = 0;
         queue.dequeueBatch(2, [&count](const QByteArray &data) {
-            count++;
-            return KAsync::null<void>();
-        }).exec().waitForFinished();
+                 count++;
+                 return KAsync::null<void>();
+             }).exec().waitForFinished();
         QCOMPARE(count, 2);
 
         queue.dequeueBatch(1, [&count](const QByteArray &data) {
-            count++;
-            return KAsync::null<void>();
-        }).exec().waitForFinished();
+                 count++;
+                 return KAsync::null<void>();
+             }).exec().waitForFinished();
         QCOMPARE(count, 3);
     }
 
@@ -203,7 +193,6 @@ private slots:
         QVERIFY(!queue.isEmpty());
         QCOMPARE(spy.count(), 1);
     }
-
 };
 
 QTEST_MAIN(MessageQueueTest)

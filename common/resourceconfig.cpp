@@ -101,4 +101,3 @@ QMap<QByteArray, QVariant> ResourceConfig::getConfiguration(const QByteArray &id
     }
     return configuration;
 }
-

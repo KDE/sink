@@ -56,17 +56,12 @@ class Storage::NamedDatabase::Private
 {
 public:
     Private(const QByteArray &_db, bool _allowDuplicates, const std::function<void(const Storage::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_txn *_txn)
-        : db(_db),
-        transaction(_txn),
-        allowDuplicates(_allowDuplicates),
-        defaultErrorHandler(_defaultErrorHandler),
-        name(_name)
+        : db(_db), transaction(_txn), allowDuplicates(_allowDuplicates), defaultErrorHandler(_defaultErrorHandler), name(_name)
     {
     }
 
     ~Private()
     {
-
     }
 
     QByteArray db;
@@ -88,7 +83,7 @@ public:
         if (const int rc = mdb_dbi_open(transaction, db.constData(), flags, &dbi)) {
             dbi = 0;
             transaction = 0;
-            //The database is not existing, ignore in read-only mode
+            // The database is not existing, ignore in read-only mode
             if (!(readOnly && rc == MDB_NOTFOUND)) {
                 Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening database: " + QByteArray(mdb_strerror(rc)));
                 errorHandler ? errorHandler(error) : defaultErrorHandler(error);
@@ -99,14 +94,11 @@ public:
     }
 };
 
-Storage::NamedDatabase::NamedDatabase()
-    : d(nullptr)
+Storage::NamedDatabase::NamedDatabase() : d(nullptr)
 {
-
 }
 
-Storage::NamedDatabase::NamedDatabase(NamedDatabase::Private *prv)
-    : d(prv)
+Storage::NamedDatabase::NamedDatabase(NamedDatabase::Private *prv) : d(prv)
 {
 }
 
@@ -138,9 +130,9 @@ bool Storage::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sVa
     int rc;
     MDB_val key, data;
     key.mv_size = keySize;
-    key.mv_data = const_cast<void*>(keyPtr);
+    key.mv_data = const_cast<void *>(keyPtr);
     data.mv_size = valueSize;
-    data.mv_data = const_cast<void*>(valuePtr);
+    data.mv_data = const_cast<void *>(valuePtr);
     rc = mdb_put(d->transaction, d->dbi, &key, &data, 0);
 
     if (rc) {
@@ -151,14 +143,12 @@ bool Storage::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sVa
     return !rc;
 }
 
-void Storage::NamedDatabase::remove(const QByteArray &k,
-                     const std::function<void(const Storage::Error &error)> &errorHandler)
+void Storage::NamedDatabase::remove(const QByteArray &k, const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     remove(k, QByteArray(), errorHandler);
 }
 
-void Storage::NamedDatabase::remove(const QByteArray &k, const QByteArray &value,
-                     const std::function<void(const Storage::Error &error)> &errorHandler)
+void Storage::NamedDatabase::remove(const QByteArray &k, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler)
 {
     if (!d || !d->transaction) {
         if (d) {
@@ -171,13 +161,13 @@ void Storage::NamedDatabase::remove(const QByteArray &k, const QByteArray &value
     int rc;
     MDB_val key;
     key.mv_size = k.size();
-    key.mv_data = const_cast<void*>(static_cast<const void*>(k.data()));
+    key.mv_data = const_cast<void *>(static_cast<const void *>(k.data()));
     if (value.isEmpty()) {
         rc = mdb_del(d->transaction, d->dbi, &key, 0);
     } else {
         MDB_val data;
         data.mv_size = value.size();
-        data.mv_data = const_cast<void*>(static_cast<const void*>(value.data()));
+        data.mv_data = const_cast<void *>(static_cast<const void *>(value.data()));
         rc = mdb_del(d->transaction, d->dbi, &key, &data);
     }
 
@@ -187,13 +177,11 @@ void Storage::NamedDatabase::remove(const QByteArray &k, const QByteArray &value
     }
 }
 
-int Storage::NamedDatabase::scan(const QByteArray &k,
-                  const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-                  const std::function<void(const Storage::Error &error)> &errorHandler,
-                  bool findSubstringKeys) const
+int Storage::NamedDatabase::scan(const QByteArray &k, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const Storage::Error &error)> &errorHandler, bool findSubstringKeys) const
 {
     if (!d || !d->transaction) {
-        //Not an error. We rely on this to read nothing from non-existing databases.
+        // Not an error. We rely on this to read nothing from non-existing databases.
         return 0;
     }
 
@@ -202,7 +190,7 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
     MDB_val data;
     MDB_cursor *cursor;
 
-    key.mv_data = (void*)k.constData();
+    key.mv_data = (void *)k.constData();
     key.mv_size = k.size();
 
     rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
@@ -220,21 +208,21 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
             op = MDB_SET_RANGE;
         }
         if ((rc = mdb_cursor_get(cursor, &key, &data, op)) == 0) {
-            //The first lookup will find a key that is equal or greather than our key
-            if (QByteArray::fromRawData((char*)key.mv_data, key.mv_size).startsWith(k)) {
+            // The first lookup will find a key that is equal or greather than our key
+            if (QByteArray::fromRawData((char *)key.mv_data, key.mv_size).startsWith(k)) {
                 numberOfRetrievedValues++;
-                if (resultHandler(QByteArray::fromRawData((char*)key.mv_data, key.mv_size), QByteArray::fromRawData((char*)data.mv_data, data.mv_size))) {
+                if (resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
                     if (findSubstringKeys) {
-                        //Reset the key to what we search for
-                        key.mv_data = (void*)k.constData();
+                        // Reset the key to what we search for
+                        key.mv_data = (void *)k.constData();
                         key.mv_size = k.size();
                     }
                     MDB_cursor_op nextOp = (d->allowDuplicates && !findSubstringKeys) ? MDB_NEXT_DUP : MDB_NEXT;
                     while ((rc = mdb_cursor_get(cursor, &key, &data, nextOp)) == 0) {
-                        //Every consequent lookup simply iterates through the list
-                        if (QByteArray::fromRawData((char*)key.mv_data, key.mv_size).startsWith(k)) {
+                        // Every consequent lookup simply iterates through the list
+                        if (QByteArray::fromRawData((char *)key.mv_data, key.mv_size).startsWith(k)) {
                             numberOfRetrievedValues++;
-                            if (!resultHandler(QByteArray::fromRawData((char*)key.mv_data, key.mv_size), QByteArray::fromRawData((char*)data.mv_data, data.mv_size))) {
+                            if (!resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
                                 break;
                             }
                         }
@@ -243,14 +231,14 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
             }
         }
 
-        //We never find the last value
+        // We never find the last value
         if (rc == MDB_NOTFOUND) {
             rc = 0;
         }
     } else {
         if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_SET)) == 0) {
             numberOfRetrievedValues++;
-            resultHandler(QByteArray::fromRawData((char*)key.mv_data, key.mv_size), QByteArray::fromRawData((char*)data.mv_data, data.mv_size));
+            resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size));
         }
     }
 
@@ -264,12 +252,11 @@ int Storage::NamedDatabase::scan(const QByteArray &k,
     return numberOfRetrievedValues;
 }
 
-void Storage::NamedDatabase::findLatest(const QByteArray &k,
-            const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
-            const std::function<void(const Storage::Error &error)> &errorHandler) const
+void Storage::NamedDatabase::findLatest(const QByteArray &k, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const Storage::Error &error)> &errorHandler) const
 {
     if (!d || !d->transaction) {
-        //Not an error. We rely on this to read nothing from non-existing databases.
+        // Not an error. We rely on this to read nothing from non-existing databases.
         return;
     }
 
@@ -278,7 +265,7 @@ void Storage::NamedDatabase::findLatest(const QByteArray &k,
     MDB_val data;
     MDB_cursor *cursor;
 
-    key.mv_data = (void*)k.constData();
+    key.mv_data = (void *)k.constData();
     key.mv_size = k.size();
 
     rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
@@ -290,10 +277,10 @@ void Storage::NamedDatabase::findLatest(const QByteArray &k,
 
     MDB_cursor_op op = MDB_SET_RANGE;
     if ((rc = mdb_cursor_get(cursor, &key, &data, op)) == 0) {
-        //The first lookup will find a key that is equal or greather than our key
-        if (QByteArray::fromRawData((char*)key.mv_data, key.mv_size).startsWith(k)) {
+        // The first lookup will find a key that is equal or greather than our key
+        if (QByteArray::fromRawData((char *)key.mv_data, key.mv_size).startsWith(k)) {
             bool advanced = false;
-            while (QByteArray::fromRawData((char*)key.mv_data, key.mv_size).startsWith(k)) {
+            while (QByteArray::fromRawData((char *)key.mv_data, key.mv_size).startsWith(k)) {
                 advanced = true;
                 MDB_cursor_op nextOp = MDB_NEXT;
                 rc = mdb_cursor_get(cursor, &key, &data, nextOp);
@@ -303,17 +290,17 @@ void Storage::NamedDatabase::findLatest(const QByteArray &k,
             }
             if (advanced) {
                 MDB_cursor_op prefOp = MDB_PREV;
-                //We read past the end above, just take the last value
+                // We read past the end above, just take the last value
                 if (rc == MDB_NOTFOUND) {
                     prefOp = MDB_LAST;
                 }
                 rc = mdb_cursor_get(cursor, &key, &data, prefOp);
-                resultHandler(QByteArray::fromRawData((char*)key.mv_data, key.mv_size), QByteArray::fromRawData((char*)data.mv_data, data.mv_size));
+                resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size));
             }
         }
     }
 
-    //We never find the last value
+    // We never find the last value
     if (rc == MDB_NOTFOUND) {
         rc = 0;
     }
@@ -350,25 +337,15 @@ qint64 Storage::NamedDatabase::getSize()
 }
 
 
-
-
 class Storage::Transaction::Private
 {
 public:
     Private(bool _requestRead, const std::function<void(const Storage::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
-        : env(_env),
-        requestedRead(_requestRead),
-        defaultErrorHandler(_defaultErrorHandler),
-        name(_name),
-        implicitCommit(false),
-        error(false),
-        modificationCounter(0)
+        : env(_env), requestedRead(_requestRead), defaultErrorHandler(_defaultErrorHandler), name(_name), implicitCommit(false), error(false), modificationCounter(0)
     {
-
     }
     ~Private()
     {
-
     }
 
     MDB_env *env;
@@ -391,14 +368,11 @@ public:
     }
 };
 
-Storage::Transaction::Transaction()
-    : d(nullptr)
+Storage::Transaction::Transaction() : d(nullptr)
 {
-
 }
 
-Storage::Transaction::Transaction(Transaction::Private *prv)
-    : d(prv)
+Storage::Transaction::Transaction(Transaction::Private *prv) : d(prv)
 {
     d->startTransaction();
 }
@@ -449,7 +423,7 @@ Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, 
     if (!d) {
         return Storage::NamedDatabase();
     }
-    //We don't now if anything changed
+    // We don't now if anything changed
     d->implicitCommit = true;
     auto p = new Storage::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
     if (!p->openDatabase(d->requestedRead, errorHandler)) {
@@ -475,9 +449,9 @@ QList<QByteArray> Storage::Transaction::getDatabaseNames() const
 
         mdb_cursor_open(d->transaction, d->dbi, &cursor);
         if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST)) == 0) {
-            list << QByteArray::fromRawData((char*)key.mv_data, key.mv_size);
+            list << QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
             while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-                list << QByteArray::fromRawData((char*)key.mv_data, key.mv_size);
+                list << QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
             }
         } else {
             Warning() << "Failed to get a value" << rc;
@@ -487,9 +461,6 @@ QList<QByteArray> Storage::Transaction::getDatabaseNames() const
     }
     return list;
 }
-
-
-
 
 
 class Storage::Private
@@ -504,17 +475,13 @@ public:
     MDB_env *env;
     AccessMode mode;
     static QMutex sMutex;
-    static QHash<QString, MDB_env*> sEnvironments;
+    static QHash<QString, MDB_env *> sEnvironments;
 };
 
 QMutex Storage::Private::sMutex;
-QHash<QString, MDB_env*> Storage::Private::sEnvironments;
+QHash<QString, MDB_env *> Storage::Private::sEnvironments;
 
-Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
-    : storageRoot(s),
-      name(n),
-      env(0),
-      mode(m)
+Storage::Private::Private(const QString &s, const QString &n, AccessMode m) : storageRoot(s), name(n), env(0), mode(m)
 {
     const QString fullPath(storageRoot + '/' + name);
     QFileInfo dirInfo(fullPath);
@@ -525,11 +492,11 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
     if (mode == ReadWrite && !dirInfo.permission(QFile::WriteOwner)) {
         qCritical() << fullPath << "does not have write permissions. Aborting";
     } else if (dirInfo.exists()) {
-        //Ensure the environment is only created once
+        // Ensure the environment is only created once
         QMutexLocker locker(&sMutex);
 
         /*
-        * It seems we can only ever have one environment open in the process. 
+        * It seems we can only ever have one environment open in the process.
         * Otherwise multi-threading breaks.
         */
         env = sEnvironments.value(fullPath);
@@ -549,8 +516,8 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
                     mdb_env_close(env);
                     env = 0;
                 } else {
-                    //FIXME: dynamic resize
-                    const size_t dbSize = (size_t)10485760 * (size_t)8000; //1MB * 8000
+                    // FIXME: dynamic resize
+                    const size_t dbSize = (size_t)10485760 * (size_t)8000; // 1MB * 8000
                     mdb_env_set_mapsize(env, dbSize);
                     sEnvironments.insert(fullPath, env);
                 }
@@ -561,7 +528,7 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m)
 
 Storage::Private::~Private()
 {
-    //Since we can have only one environment open per process, we currently leak the environments.
+    // Since we can have only one environment open per process, we currently leak the environments.
     // if (env) {
     //     //mdb_dbi_close should not be necessary and is potentially dangerous (see docs)
     //     mdb_dbi_close(env, dbi);
@@ -569,8 +536,7 @@ Storage::Private::~Private()
     // }
 }
 
-Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode)
-    : d(new Private(storageRoot, name, mode))
+Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode) : d(new Private(storageRoot, name, mode))
 {
 }
 

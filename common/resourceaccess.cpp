@@ -53,27 +53,20 @@ static void queuedInvoke(const std::function<void()> &f, QObject *context = 0)
 {
     auto timer = QSharedPointer<QTimer>::create();
     timer->setSingleShot(true);
-    QObject::connect(timer.data(), &QTimer::timeout, context, [f, timer]() {
-        f();
-    });
+    QObject::connect(timer.data(), &QTimer::timeout, context, [f, timer]() { f(); });
     timer->start(0);
 }
 
-namespace Sink
-{
+namespace Sink {
 
 struct QueuedCommand
 {
 public:
-    QueuedCommand(int commandId, const std::function<void(int, const QString &)> &callback)
-        : commandId(commandId),
-          callback(callback)
-    {}
+    QueuedCommand(int commandId, const std::function<void(int, const QString &)> &callback) : commandId(commandId), callback(callback)
+    {
+    }
 
-    QueuedCommand(int commandId, const QByteArray &b, const std::function<void(int, const QString &)> &callback)
-        : commandId(commandId),
-          buffer(b),
-          callback(callback)
+    QueuedCommand(int commandId, const QByteArray &b, const std::function<void(int, const QString &)> &callback) : commandId(commandId), buffer(b), callback(callback)
     {
     }
 
@@ -102,17 +95,14 @@ public:
     QByteArray partialMessageBuffer;
     QVector<QSharedPointer<QueuedCommand>> commandQueue;
     QMap<uint, QSharedPointer<QueuedCommand>> pendingCommands;
-    QMultiMap<uint, std::function<void(int error, const QString &errorMessage)> > resultHandler;
+    QMultiMap<uint, std::function<void(int error, const QString &errorMessage)>> resultHandler;
     QSet<uint> completeCommands;
     uint messageId;
     bool openingSocket;
 };
 
 ResourceAccess::Private::Private(const QByteArray &name, const QByteArray &instanceIdentifier, ResourceAccess *q)
-    : resourceName(name),
-      resourceInstanceIdentifier(instanceIdentifier),
-      messageId(0),
-      openingSocket(false)
+    : resourceName(name), resourceInstanceIdentifier(instanceIdentifier), messageId(0), openingSocket(false)
 {
 }
 
@@ -124,7 +114,7 @@ void ResourceAccess::Private::abortPendingOperations()
     }
     auto handlers = resultHandler.values();
     resultHandler.clear();
-    for(auto handler : handlers) {
+    for (auto handler : handlers) {
         handler(1, "The resource closed unexpectedly");
     }
 }
@@ -132,20 +122,20 @@ void ResourceAccess::Private::abortPendingOperations()
 void ResourceAccess::Private::callCallbacks()
 {
     for (auto id : completeCommands) {
-        //We remove the callbacks first because the handler can kill resourceaccess directly
+        // We remove the callbacks first because the handler can kill resourceaccess directly
         const auto callbacks = resultHandler.values(id);
         resultHandler.remove(id);
-        for(auto handler : callbacks) {
+        for (auto handler : callbacks) {
             handler(0, QString());
         }
     }
 }
 
-//Connects to server and returns connected socket on success
-KAsync::Job<QSharedPointer<QLocalSocket> > ResourceAccess::connectToServer(const QByteArray &identifier)
+// Connects to server and returns connected socket on success
+KAsync::Job<QSharedPointer<QLocalSocket>> ResourceAccess::connectToServer(const QByteArray &identifier)
 {
     auto s = QSharedPointer<QLocalSocket>::create();
-    return KAsync::start<QSharedPointer<QLocalSocket> >([identifier, s](KAsync::Future<QSharedPointer<QLocalSocket> > &future) {
+    return KAsync::start<QSharedPointer<QLocalSocket>>([identifier, s](KAsync::Future<QSharedPointer<QLocalSocket>> &future) {
         s->setServerName(identifier);
         auto context = new QObject;
         QObject::connect(s.data(), &QLocalSocket::connected, context, [&future, &s, context]() {
@@ -154,7 +144,7 @@ KAsync::Job<QSharedPointer<QLocalSocket> > ResourceAccess::connectToServer(const
             future.setValue(s);
             future.setFinished();
         });
-        QObject::connect(s.data(), static_cast<void(QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error), context, [&future, context](QLocalSocket::LocalSocketError) {
+        QObject::connect(s.data(), static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error), context, [&future, context](QLocalSocket::LocalSocketError) {
             delete context;
             future.setError(-1, "Failed to connect to server.");
         });
@@ -164,66 +154,67 @@ KAsync::Job<QSharedPointer<QLocalSocket> > ResourceAccess::connectToServer(const
 
 KAsync::Job<void> ResourceAccess::Private::tryToConnect()
 {
-    //We may have a socket from the last connection leftover
+    // We may have a socket from the last connection leftover
     socket.reset();
     auto counter = QSharedPointer<int>::create(0);
-    return KAsync::dowhile([this]() -> bool {
-        return !socket;
-    },
-    [this, counter](KAsync::Future<void> &future) {
-        TracePrivate() << "Loop";
-        connectToServer(resourceInstanceIdentifier)
-        .then<void, QSharedPointer<QLocalSocket> >([this, &future](const QSharedPointer<QLocalSocket> &s) {
-            Q_ASSERT(s);
-            socket = s;
-            future.setFinished();
-        }, [&future, counter, this](int errorCode, const QString &errorString) {
-            static int waitTime = 10;
-            static int timeout = 500;
-            static int maxRetries = timeout / waitTime;
-            if (*counter > maxRetries) {
-                TracePrivate() << "Giving up";
-                future.setError(-1, "Failed to connect to socket");
-            } else {
-                KAsync::wait(waitTime).then<void>([&future]() {
-                    future.setFinished();
-                }).exec();
-            }
-            *counter = *counter + 1;
-        })
-        .exec();
-    });
+    return KAsync::dowhile([this]() -> bool { return !socket; },
+        [this, counter](KAsync::Future<void> &future) {
+            TracePrivate() << "Loop";
+            connectToServer(resourceInstanceIdentifier)
+                .then<void, QSharedPointer<QLocalSocket>>(
+                    [this, &future](const QSharedPointer<QLocalSocket> &s) {
+                        Q_ASSERT(s);
+                        socket = s;
+                        future.setFinished();
+                    },
+                    [&future, counter, this](int errorCode, const QString &errorString) {
+                        static int waitTime = 10;
+                        static int timeout = 500;
+                        static int maxRetries = timeout / waitTime;
+                        if (*counter > maxRetries) {
+                            TracePrivate() << "Giving up";
+                            future.setError(-1, "Failed to connect to socket");
+                        } else {
+                            KAsync::wait(waitTime).then<void>([&future]() { future.setFinished(); }).exec();
+                        }
+                        *counter = *counter + 1;
+                    })
+                .exec();
+        });
 }
 
 KAsync::Job<void> ResourceAccess::Private::initializeSocket()
 {
     return KAsync::start<void>([this](KAsync::Future<void> &future) {
         TracePrivate() << "Trying to connect";
-        connectToServer(resourceInstanceIdentifier).then<void, QSharedPointer<QLocalSocket> >([this, &future](const QSharedPointer<QLocalSocket> &s) {
-            TracePrivate() << "Connected to resource, without having to start it.";
-            Q_ASSERT(s);
-            socket = s;
-            future.setFinished();
-        },
-        [this, &future](int errorCode, const QString &errorString) {
-            TracePrivate() << "Failed to connect, starting resource";
-            //We failed to connect, so let's start the resource
-            QStringList args;
-            args << resourceInstanceIdentifier;
-            qint64 pid = 0;
-            if (QProcess::startDetached("sink_synchronizer", args, QDir::homePath(), &pid)) {
-                TracePrivate() << "Started resource " << pid;
-                tryToConnect()
-                .then<void>([&future]() {
+        connectToServer(resourceInstanceIdentifier)
+            .then<void, QSharedPointer<QLocalSocket>>(
+                [this, &future](const QSharedPointer<QLocalSocket> &s) {
+                    TracePrivate() << "Connected to resource, without having to start it.";
+                    Q_ASSERT(s);
+                    socket = s;
                     future.setFinished();
-                }, [this, &future](int errorCode, const QString &errorString) {
-                    Warning() << "Failed to connect to started resource";
-                    future.setError(errorCode, errorString);
-                }).exec();
-            } else {
-                Warning() << "Failed to start resource";
-            }
-        }).exec();
+                },
+                [this, &future](int errorCode, const QString &errorString) {
+                    TracePrivate() << "Failed to connect, starting resource";
+                    // We failed to connect, so let's start the resource
+                    QStringList args;
+                    args << resourceInstanceIdentifier;
+                    qint64 pid = 0;
+                    if (QProcess::startDetached("sink_synchronizer", args, QDir::homePath(), &pid)) {
+                        TracePrivate() << "Started resource " << pid;
+                        tryToConnect()
+                            .then<void>([&future]() { future.setFinished(); },
+                                [this, &future](int errorCode, const QString &errorString) {
+                                    Warning() << "Failed to connect to started resource";
+                                    future.setError(errorCode, errorString);
+                                })
+                            .exec();
+                    } else {
+                        Warning() << "Failed to start resource";
+                    }
+                })
+            .exec();
     });
 }
 
@@ -235,8 +226,7 @@ static QByteArray getResourceName(const QByteArray &instanceIdentifier)
 }
 
 ResourceAccess::ResourceAccess(const QByteArray &resourceInstanceIdentifier)
-    : ResourceAccessInterface(),
-      d(new Private(getResourceName(resourceInstanceIdentifier), resourceInstanceIdentifier, this))
+    : ResourceAccessInterface(), d(new Private(getResourceName(resourceInstanceIdentifier), resourceInstanceIdentifier, this))
 {
     Log() << "Starting access";
 }
@@ -280,10 +270,10 @@ KAsync::Job<void> ResourceAccess::sendCommand(int commandId)
     });
 }
 
-KAsync::Job<void>  ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb)
+KAsync::Job<void> ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb)
 {
-    //The flatbuffer is transient, but we want to store it until the job is executed
-    QByteArray buffer(reinterpret_cast<const char*>(fbb.GetBufferPointer()), fbb.GetSize());
+    // The flatbuffer is transient, but we want to store it until the job is executed
+    QByteArray buffer(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
     return KAsync::start<void>([commandId, buffer, this](KAsync::Future<void> &f) {
         auto callback = [&f](int error, const QString &errorMessage) {
             if (error) {
@@ -313,7 +303,7 @@ KAsync::Job<void> ResourceAccess::synchronizeResource(bool sourceSync, bool loca
 KAsync::Job<void> ResourceAccess::sendCreateCommand(const QByteArray &resourceBufferType, const QByteArray &buffer)
 {
     flatbuffers::FlatBufferBuilder fbb;
-    //This is the resource buffer type and not the domain type
+    // This is the resource buffer type and not the domain type
     auto type = fbb.CreateString(resourceBufferType.constData());
     auto delta = Sink::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
     auto location = Sink::Commands::CreateCreateEntity(fbb, 0, type, delta);
@@ -322,13 +312,14 @@ KAsync::Job<void> ResourceAccess::sendCreateCommand(const QByteArray &resourceBu
     return sendCommand(Sink::Commands::CreateEntityCommand, fbb);
 }
 
-KAsync::Job<void> ResourceAccess::sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer)
+KAsync::Job<void>
+ResourceAccess::sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer)
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto entityId = fbb.CreateString(uid.constData());
-    //This is the resource buffer type and not the domain type
+    // This is the resource buffer type and not the domain type
     auto type = fbb.CreateString(resourceBufferType.constData());
-    //FIXME
+    // FIXME
     auto deletions = 0;
     auto delta = Sink::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
     auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta);
@@ -341,7 +332,7 @@ KAsync::Job<void> ResourceAccess::sendDeleteCommand(const QByteArray &uid, qint6
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto entityId = fbb.CreateString(uid.constData());
-    //This is the resource buffer type and not the domain type
+    // This is the resource buffer type and not the domain type
     auto type = fbb.CreateString(resourceBufferType.constData());
     auto location = Sink::Commands::CreateDeleteEntity(fbb, revision, entityId, type);
     Sink::Commands::FinishDeleteEntityBuffer(fbb, location);
@@ -358,7 +349,8 @@ KAsync::Job<void> ResourceAccess::sendRevisionReplayedCommand(qint64 revision)
     return sendCommand(Sink::Commands::RevisionReplayedCommand, fbb);
 }
 
-KAsync::Job<void> ResourceAccess::sendInspectionCommand(const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
+KAsync::Job<void>
+ResourceAccess::sendInspectionCommand(const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto id = fbb.CreateString(inspectionId.toStdString());
@@ -371,7 +363,7 @@ KAsync::Job<void> ResourceAccess::sendInspectionCommand(const QByteArray &inspec
     s << expectedValue;
 
     auto expected = fbb.CreateString(array.toStdString());
-    auto location = Sink::Commands::CreateInspection (fbb, id, 0, entity, domain, prop, expected);
+    auto location = Sink::Commands::CreateInspection(fbb, id, 0, entity, domain, prop, expected);
     Sink::Commands::FinishInspectionBuffer(fbb, location);
     open();
     return sendCommand(Sink::Commands::InspectionCommand, fbb);
@@ -389,21 +381,21 @@ void ResourceAccess::open()
     auto time = QSharedPointer<QTime>::create();
     time->start();
     d->openingSocket = true;
-    d->initializeSocket().then<void>([this, time]() {
-        Trace() << "Socket is initialized." << Log::TraceTime(time->elapsed());
-        d->openingSocket = false;
-        QObject::connect(d->socket.data(), &QLocalSocket::disconnected,
-                this, &ResourceAccess::disconnected);
-        QObject::connect(d->socket.data(), SIGNAL(error(QLocalSocket::LocalSocketError)),
-                this, SLOT(connectionError(QLocalSocket::LocalSocketError)));
-        QObject::connect(d->socket.data(), &QIODevice::readyRead,
-                this, &ResourceAccess::readResourceMessage);
-        connected();
-    },
-    [this](int error, const QString &errorString) {
-        d->openingSocket = false;
-        Warning() << "Failed to initialize socket " << errorString;
-    }).exec();
+    d->initializeSocket()
+        .then<void>(
+            [this, time]() {
+                Trace() << "Socket is initialized." << Log::TraceTime(time->elapsed());
+                d->openingSocket = false;
+                QObject::connect(d->socket.data(), &QLocalSocket::disconnected, this, &ResourceAccess::disconnected);
+                QObject::connect(d->socket.data(), SIGNAL(error(QLocalSocket::LocalSocketError)), this, SLOT(connectionError(QLocalSocket::LocalSocketError)));
+                QObject::connect(d->socket.data(), &QIODevice::readyRead, this, &ResourceAccess::readResourceMessage);
+                connected();
+            },
+            [this](int error, const QString &errorString) {
+                d->openingSocket = false;
+                Warning() << "Failed to initialize socket " << errorString;
+            })
+        .exec();
 }
 
 void ResourceAccess::close()
@@ -417,7 +409,7 @@ void ResourceAccess::close()
 void ResourceAccess::sendCommand(const QSharedPointer<QueuedCommand> &command)
 {
     Q_ASSERT(isReady());
-    //TODO: we should have a timeout for commands
+    // TODO: we should have a timeout for commands
     d->messageId++;
     const auto messageId = d->messageId;
     Log() << QString("Sending command \"%1\" with messageId %2").arg(QString(Sink::Commands::name(command->commandId))).arg(d->messageId);
@@ -427,17 +419,17 @@ void ResourceAccess::sendCommand(const QSharedPointer<QueuedCommand> &command)
         d->pendingCommands.remove(messageId);
         command->callback(errorCode, errorMessage);
     });
-    //Keep track of the command until we're sure it arrived
+    // Keep track of the command until we're sure it arrived
     d->pendingCommands.insert(d->messageId, command);
     Commands::write(d->socket.data(), d->messageId, command->commandId, command->buffer.constData(), command->buffer.size());
 }
 
 void ResourceAccess::processCommandQueue()
 {
-    //TODO: serialize instead of blast them all through the socket?
+    // TODO: serialize instead of blast them all through the socket?
     Trace() << "We have " << d->commandQueue.size() << " queued commands";
     Trace() << "Pending commands: " << d->pendingCommands.size();
-    for (auto command: d->commandQueue) {
+    for (auto command : d->commandQueue) {
         sendCommand(command);
     }
     d->commandQueue.clear();
@@ -446,7 +438,7 @@ void ResourceAccess::processCommandQueue()
 void ResourceAccess::processPendingCommandQueue()
 {
     Trace() << "We have " << d->pendingCommands.size() << " pending commands";
-    for (auto command: d->pendingCommands) {
+    for (auto command : d->pendingCommands) {
         Trace() << "Reenquing command " << command->commandId;
         d->commandQueue << command;
     }
@@ -471,9 +463,9 @@ void ResourceAccess::connected()
         Commands::write(d->socket.data(), ++d->messageId, Commands::HandshakeCommand, fbb);
     }
 
-    //Reenqueue pending commands, we failed to send them
+    // Reenqueue pending commands, we failed to send them
     processPendingCommandQueue();
-    //Send queued commands
+    // Send queued commands
     processCommandQueue();
 
     emit ready(true);
@@ -510,7 +502,8 @@ void ResourceAccess::readResourceMessage()
     d->partialMessageBuffer += d->socket->readAll();
 
     // should be scheduled rather than processed all at once
-    while (processMessageBuffer()) {}
+    while (processMessageBuffer()) {
+    }
 }
 
 bool ResourceAccess::processMessageBuffer()
@@ -521,9 +514,9 @@ bool ResourceAccess::processMessageBuffer()
         return false;
     }
 
-    //const uint messageId = *(int*)(d->partialMessageBuffer.constData());
-    const int commandId = *(int*)(d->partialMessageBuffer.constData() + sizeof(uint));
-    const uint size = *(int*)(d->partialMessageBuffer.constData() + sizeof(int) + sizeof(uint));
+    // const uint messageId = *(int*)(d->partialMessageBuffer.constData());
+    const int commandId = *(int *)(d->partialMessageBuffer.constData() + sizeof(uint));
+    const uint size = *(int *)(d->partialMessageBuffer.constData() + sizeof(int) + sizeof(uint));
 
     if (size > (uint)(d->partialMessageBuffer.size() - headerSize)) {
         Warning() << "command too small";
@@ -546,10 +539,8 @@ bool ResourceAccess::processMessageBuffer()
             Log() << QString("Command with messageId %1 completed %2").arg(buffer->id()).arg(buffer->success() ? "sucessfully" : "unsuccessfully");
 
             d->completeCommands << buffer->id();
-            //The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
-            queuedInvoke([=]() {
-                d->callCallbacks();
-            }, this);
+            // The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
+            queuedInvoke([=]() { d->callCallbacks(); }, this);
             break;
         }
         case Commands::NotificationCommand: {
@@ -563,21 +554,18 @@ bool ResourceAccess::processMessageBuffer()
                     Log() << "Received inspection notification.";
                     Notification n;
                     if (buffer->identifier()) {
-                        //Don't use fromRawData, the buffer is gone once we invoke emit notification
+                        // Don't use fromRawData, the buffer is gone once we invoke emit notification
                         n.id = BufferUtils::extractBufferCopy(buffer->identifier());
                     }
                     if (buffer->message()) {
-                        //Don't use fromRawData, the buffer is gone once we invoke emit notification
+                        // Don't use fromRawData, the buffer is gone once we invoke emit notification
                         n.message = BufferUtils::extractBufferCopy(buffer->message());
                     }
                     n.type = buffer->type();
                     n.code = buffer->code();
-                    //The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
-                    queuedInvoke([=]() {
-                        emit notification(n);
-                    }, this);
-                }
-                    break;
+                    // The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
+                    queuedInvoke([=]() { emit notification(n); }, this);
+                } break;
                 case Sink::Commands::NotificationType::NotificationType_Status:
                 case Sink::Commands::NotificationType::NotificationType_Warning:
                 case Sink::Commands::NotificationType::NotificationType_Progress:
@@ -608,7 +596,7 @@ ResourceAccessFactory &ResourceAccessFactory::instance()
 Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &instanceIdentifier)
 {
     if (!mCache.contains(instanceIdentifier)) {
-        //Reuse the pointer if something else kept the resourceaccess alive
+        // Reuse the pointer if something else kept the resourceaccess alive
         if (mWeakCache.contains(instanceIdentifier)) {
             auto sharedPointer = mWeakCache.value(instanceIdentifier).toStrongRef();
             if (sharedPointer) {
@@ -616,7 +604,7 @@ Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &ins
             }
         }
         if (!mCache.contains(instanceIdentifier)) {
-            //Create a new instance if necessary
+            // Create a new instance if necessary
             auto sharedPointer = Sink::ResourceAccess::Ptr::create(instanceIdentifier);
             QObject::connect(sharedPointer.data(), &Sink::ResourceAccess::ready, sharedPointer.data(), [this, instanceIdentifier](bool ready) {
                 if (!ready) {
@@ -629,10 +617,8 @@ Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &ins
     }
     if (!mTimer.contains(instanceIdentifier)) {
         auto timer = new QTimer;
-        //Drop connection after 3 seconds (which is a random value)
-        QObject::connect(timer, &QTimer::timeout, timer, [this, instanceIdentifier]() {
-            mCache.remove(instanceIdentifier);
-        });
+        // Drop connection after 3 seconds (which is a random value)
+        QObject::connect(timer, &QTimer::timeout, timer, [this, instanceIdentifier]() { mCache.remove(instanceIdentifier); });
         timer->setInterval(3000);
         mTimer.insert(instanceIdentifier, timer);
     }
@@ -640,7 +626,6 @@ Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &ins
     timer->start();
     return mCache.value(instanceIdentifier);
 }
-
 }
 
 #pragma clang diagnostic push

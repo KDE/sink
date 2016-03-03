@@ -29,33 +29,31 @@
 #undef DEBUG_AREA
 #define DEBUG_AREA "resource"
 
-void crashHandler(int sig) {
+void crashHandler(int sig)
+{
     std::fprintf(stderr, "Error: signal %d\n", sig);
 
     QString s;
     void *trace[256];
-    int n = backtrace( trace, 256 );
-    if ( n ) {
-        char **strings = backtrace_symbols( trace, n );
+    int n = backtrace(trace, 256);
+    if (n) {
+        char **strings = backtrace_symbols(trace, n);
 
-        s = QLatin1String( "[\n" );
+        s = QLatin1String("[\n");
 
-        for ( int i = 0; i < n; ++i ) {
-            s += QString::number( i ) +
-                QLatin1String( ": " ) +
-                QLatin1String( strings[i] ) + QLatin1String( "\n" );
+        for (int i = 0; i < n; ++i) {
+            s += QString::number(i) + QLatin1String(": ") + QLatin1String(strings[i]) + QLatin1String("\n");
         }
-        s += QLatin1String( "]\n" );
+        s += QLatin1String("]\n");
         std::fprintf(stderr, "Backtrace: %s\n", s.toLatin1().data());
 
-        if ( strings ) {
-            free( strings );
+        if (strings) {
+            free(strings);
         }
-
     }
 
     std::system("exec gdb -p \"$PPID\" -ex \"thread apply all bt\"");
-    //This only works if we actually have xterm and X11 available
+    // This only works if we actually have xterm and X11 available
     // std::system("exec xterm -e gdb -p \"$PPID\"");
 
     std::abort();
@@ -63,7 +61,7 @@ void crashHandler(int sig) {
 
 int main(int argc, char *argv[])
 {
-    //For crashes
+    // For crashes
     signal(SIGSEGV, crashHandler);
     QCoreApplication app(argc, argv);
 
@@ -84,10 +82,8 @@ int main(int argc, char *argv[])
 
     Listener *listener = new Listener(instanceIdentifier, &app);
 
-    QObject::connect(&app, &QCoreApplication::aboutToQuit,
-                     listener, &Listener::closeAllConnections);
-    QObject::connect(listener, &Listener::noClients,
-                     &app, &QCoreApplication::quit);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, listener, &Listener::closeAllConnections);
+    QObject::connect(listener, &Listener::noClients, &app, &QCoreApplication::quit);
 
     return app.exec();
 }

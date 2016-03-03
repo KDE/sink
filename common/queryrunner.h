@@ -70,18 +70,19 @@ private:
 
 /**
  * A QueryRunner runs a query and updates the corresponding result set.
- * 
+ *
  * The lifetime of the QueryRunner is defined by the resut set (otherwise it's doing useless work),
  * and by how long a result set must be updated. If the query is one off the runner dies after the execution,
  * otherwise it lives on the react to changes and updates the corresponding result set.
- * 
+ *
  * QueryRunner has to keep ResourceAccess alive in order to keep getting updates.
  */
-template<typename DomainType>
+template <typename DomainType>
 class QueryRunner : public QueryRunnerBase
 {
 public:
-    QueryRunner(const Sink::Query &query, const Sink::ResourceAccessInterface::Ptr &, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &, const QByteArray &bufferType);
+    QueryRunner(const Sink::Query &query, const Sink::ResourceAccessInterface::Ptr &, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &,
+        const QByteArray &bufferType);
     virtual ~QueryRunner();
 
     /**
@@ -94,9 +95,8 @@ public:
 
 private:
     QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
-    QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr> > mResultProvider;
+    QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr>> mResultProvider;
     ResultTransformation mResultTransformation;
     int mOffset;
     int mBatchSize;
 };
-

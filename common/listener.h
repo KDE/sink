@@ -26,10 +26,9 @@
 #include <QLocalSocket>
 #include <flatbuffers/flatbuffers.h>
 
-namespace Sink
-{
-    class Resource;
-    class Notification;
+namespace Sink {
+class Resource;
+class Notification;
 }
 
 class QTimer;
@@ -38,16 +37,11 @@ class QLocalServer;
 class Client
 {
 public:
-    Client()
-        : socket(nullptr),
-        currentRevision(0)
+    Client() : socket(nullptr), currentRevision(0)
     {
     }
 
-    Client(const QString &n, QLocalSocket *s)
-        : name(n),
-          socket(s),
-          currentRevision(0)
+    Client(const QString &n, QLocalSocket *s) : name(n), socket(s), currentRevision(0)
     {
     }
 

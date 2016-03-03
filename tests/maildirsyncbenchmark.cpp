@@ -16,8 +16,7 @@
 #include "log.h"
 
 
-static bool copyRecursively(const QString &srcFilePath,
-                            const QString &tgtFilePath)
+static bool copyRecursively(const QString &srcFilePath, const QString &tgtFilePath)
 {
     QFileInfo srcFileInfo(srcFilePath);
     if (srcFileInfo.isDir()) {
@@ -30,10 +29,8 @@ static bool copyRecursively(const QString &srcFilePath,
         QDir sourceDir(srcFilePath);
         QStringList fileNames = sourceDir.entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
         foreach (const QString &fileName, fileNames) {
-            const QString newSrcFilePath
-                    = srcFilePath + QLatin1Char('/') + fileName;
-            const QString newTgtFilePath
-                    = tgtFilePath + QLatin1Char('/') + fileName;
+            const QString newSrcFilePath = srcFilePath + QLatin1Char('/') + fileName;
+            const QString newTgtFilePath = tgtFilePath + QLatin1Char('/') + fileName;
             if (!copyRecursively(newSrcFilePath, newTgtFilePath))
                 return false;
         }
@@ -48,7 +45,7 @@ static bool copyRecursively(const QString &srcFilePath,
 
 /**
  * Test of complete system using the maildir resource.
- * 
+ *
  * This test requires the maildir resource installed.
  */
 class MaildirSyncBenchmark : public QObject
@@ -102,7 +99,6 @@ private slots:
         // row.setValue("totalTime", allProcessedTime);
         // dataset.insertRow(row);
         // HAWD::Formatter::print(dataset);
-
     }
 };
 

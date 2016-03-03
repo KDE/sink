@@ -23,13 +23,12 @@
 Q_DECLARE_METATYPE(std::function<void()>);
 
 namespace async {
-ThreadBoundary::ThreadBoundary()
-    : QObject()
+ThreadBoundary::ThreadBoundary() : QObject()
 {
-    qRegisterMetaType<std::function<void()> >("std::function<void()>");
+    qRegisterMetaType<std::function<void()>>("std::function<void()>");
 }
 
-ThreadBoundary:: ~ThreadBoundary()
+ThreadBoundary::~ThreadBoundary()
 {
 }
 
@@ -47,6 +46,4 @@ void ThreadBoundary::runInMainThread(std::function<void()> f)
 {
     f();
 }
-
 }
-
