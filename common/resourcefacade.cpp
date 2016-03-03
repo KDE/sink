@@ -103,11 +103,22 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::S
         const auto configuredResources = ResourceConfig::getResources();
         for (const auto &res : configuredResources.keys()) {
             const auto type = configuredResources.value(res);
-            if (!query.propertyFilter.contains("type") || query.propertyFilter.value("type").toByteArray() == type) {
-                auto resource = Sink::ApplicationDomain::SinkResource::Ptr::create("", res, 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-                resource->setProperty("type", type);
-                resultProvider->add(resource);
+            if (query.propertyFilter.contains("type") && query.propertyFilter.value("type").toByteArray() != type) {
+                continue;
             }
+            if (!query.ids.isEmpty() && !query.ids.contains(res)) {
+                continue;
+            }
+
+            auto resource = Sink::ApplicationDomain::SinkResource::Ptr::create("", res, 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+            resource->setProperty("type", type);
+
+            const auto configurationValues = ResourceConfig::getConfiguration(res);
+            for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
+                resource->setProperty(it.key(), it.value());
+            }
+
+            resultProvider->add(resource);
         }
         // TODO initialResultSetComplete should be implicit
         resultProvider->initialResultSetComplete(Sink::ApplicationDomain::SinkResource::Ptr());
