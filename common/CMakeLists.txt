@@ -63,6 +63,7 @@ set(command_SRCS
     domain/event.cpp
     domain/mail.cpp
     domain/folder.cpp
+    test.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})
@@ -113,6 +114,7 @@ install(FILES
     inspection.h
     notification.h
     bufferadaptor.h
+    test.h
     ${CMAKE_CURRENT_BINARY_DIR}/sink_export.h
     DESTINATION ${INCLUDE_INSTALL_DIR}/${PROJECT_NAME} COMPONENT Devel
 )
