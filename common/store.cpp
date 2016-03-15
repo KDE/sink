@@ -45,7 +45,7 @@ QString Store::storageLocation()
     return Sink::storageLocation();
 }
 
-static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type)
+static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type = QByteArray())
 {
     // Return the global resource (signified by an empty name) for types that don't eblong to a specific resource
     if (type == "sinkresource") {
@@ -163,7 +163,8 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
     Trace() << "synchronize" << query.resources;
-    return KAsync::iterate(query.resources)
+    auto resources = getResources(query.resources);
+    return KAsync::iterate(resources)
         .template each<void, QByteArray>([query](const QByteArray &resource, KAsync::Future<void> &future) {
             Trace() << "Synchronizing " << resource;
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource);
