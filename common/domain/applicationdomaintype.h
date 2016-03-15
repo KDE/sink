@@ -135,7 +135,7 @@ struct SINK_EXPORT Folder : public Entity {
 
 /**
  * Represents an sink resource.
- * 
+ *
  * This type is used for configuration of resources,
  * and for creating and removing resource instances.
  */
@@ -143,6 +143,12 @@ struct SINK_EXPORT SinkResource : public ApplicationDomainType {
     typedef QSharedPointer<SinkResource> Ptr;
     using ApplicationDomainType::ApplicationDomainType;
     virtual ~SinkResource();
+};
+
+struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
+    typedef QSharedPointer<SinkAccount> Ptr;
+    using ApplicationDomainType::ApplicationDomainType;
+    virtual ~SinkAccount();
 };
 
 /**
@@ -161,6 +167,9 @@ QByteArray SINK_EXPORT getTypeName<Todo>();
 
 template<>
 QByteArray SINK_EXPORT getTypeName<SinkResource>();
+
+template<>
+QByteArray SINK_EXPORT getTypeName<SinkAccount>();
 
 template<>
 QByteArray SINK_EXPORT getTypeName<Mail>();
@@ -192,3 +201,5 @@ Q_DECLARE_METATYPE(Sink::ApplicationDomain::Folder)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Folder::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkResource)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkResource::Ptr)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkAccount)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkAccount::Ptr)

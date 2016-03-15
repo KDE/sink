@@ -9,7 +9,7 @@ The definition of the domain model directly affects:
 The purpose of these domain types is strictly to be the interface and the types are not meant to be used by applications directly, or to be restricted by any other specifications (such as ical). By nature these types will be part of the evolving interface, and will need to be adjusted for every new property that an application accesses.
 
 ### Application Domain Types
-This is a proposed set of types that we will need to evolve into what we actually require. Hierarchical types are required to be able to query for a result set of mixed types.
+This is the currently defined set of types. Hierarchical types are required to be able to query for a result set of mixed types, but are not necessarily structured as such in the inheritance model.
 
 * Entity
     * Domain Object
@@ -34,40 +34,54 @@ This is a proposed set of types that we will need to evolve into what we actuall
             * Thread
     * Sink Resource
         * Maildir Resource
+        * IMAP Resource
+    * Account
 
 #### Properties
 ```no-highlight
 Entity: The smallest unit in the sink universe
-    id: unique identifier in the sink storage. Not persistant over db recreations and can therefore only be referenced from within the sink database.
+    id [QByteArray]: unique identifier in the sink storage. Not persistant over db recreations and can therefore only be referenced from within the sink database.
 ```
 ```no-highlight
 Domain Object:
-    uid: unique identifier of the domain object.
-    revision: revision of the entity
-    resource: reference to SinkResource:id of the parent resource.
+    uid [QByteArray}: unique identifier of the domain object.
+    revision [int]: revision of the entity
+    resource [SinkResource.id]: The parent resource.
 ```
 ```no-highlight
 Event:
-    summary: A string containing a short summary of the event.
-    startDate: The start date of the event.
-    startTime: The start time of the event. Optional.
+    summary [QString]: A string containing a short summary of the event.
+    startDate [QDateTime]: The start date of the event.
+    startTime [QDateTime]: The start time of the event. Optional.
 ```
 ```no-highlight
 Mail:
-    uid: The message id.
-    subject: The subject of the email.
-    folder: The identifier of the parent folder.
-    date: The date of the email.
-    mimeMessage: A string containing the path to the mime message
+    uid [QByteArray]: The message id.
+    subject [QString]: The subject of the email.
+    folder [MailFolder.id]: The parent folder.
+    date [QDateTime]: The date of the email.
+    mimeMessage [QString]: A string containing the path to the mime message
+```
+```no-highlight
+Mail Folder:
+    parent [MailFolder.id]: The parent folder.
+    name [QString]: The user visible name of the folder.
+    icon [QString]: The name of the icon of the folder.
 ```
 ```no-highlight
 Sink Resource:
-    type: The type of the resource.
-    name: The name of the resource.
+    type [QByteArray]: The type of the resource.
+    name [QString]: The name of the resource.
+    account [Account.id]: The identifier of the associated account.
 ```
 ```no-highlight
 Maildir Resource:
-    path: The path to the maildir.
+    path [QString]: The path to the maildir.
+```
+```no-highlight
+Account:
+    name [QString]: The name of the account.
+    icon [QString]: The name of the icon of the account.
 ```
 
 ### References/Hierachies

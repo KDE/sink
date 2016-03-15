@@ -141,6 +141,11 @@ SinkResource::~SinkResource()
 
 }
 
+SinkAccount::~SinkAccount()
+{
+
+}
+
 template<>
 QByteArray getTypeName<Event>()
 {
@@ -157,6 +162,12 @@ template<>
 QByteArray getTypeName<SinkResource>()
 {
     return "sinkresource";
+}
+
+template<>
+QByteArray getTypeName<SinkAccount>()
+{
+    return "sinkaccount";
 }
 
 template<>

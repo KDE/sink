@@ -40,3 +40,14 @@ public:
     KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkResource &resource) Q_DECL_OVERRIDE;
     QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 };
+
+class AccountFacade : public Sink::StoreFacade<Sink::ApplicationDomain::SinkAccount>
+{
+public:
+    AccountFacade(const QByteArray &instanceIdentifier);
+    virtual ~AccountFacade();
+    KAsync::Job<void> create(const Sink::ApplicationDomain::SinkAccount &resource) Q_DECL_OVERRIDE;
+    KAsync::Job<void> modify(const Sink::ApplicationDomain::SinkAccount &resource) Q_DECL_OVERRIDE;
+    KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkAccount &resource) Q_DECL_OVERRIDE;
+    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkAccount::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
+};

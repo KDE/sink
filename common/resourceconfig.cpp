@@ -23,19 +23,20 @@
 #include <QStandardPaths>
 #include <QFile>
 
-static QSharedPointer<QSettings> getSettings()
+static QSharedPointer<QSettings> getConfig(const QByteArray &identifier)
 {
-    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/resources.ini", QSettings::IniFormat);
+    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/" + identifier + ".ini", QSettings::IniFormat);
 }
 
-static QSharedPointer<QSettings> getResourceConfig(const QByteArray &identifier)
+static QSharedPointer<QSettings> getSettings()
 {
-    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/" + identifier, QSettings::IniFormat);
+    return getConfig("resources");
 }
+
 
 QByteArray ResourceConfig::newIdentifier(const QByteArray &type)
 {
-    auto settings = getSettings();
+    auto settings = getConfig("resources");
     const auto counter = settings->value("instanceCounter", 0).toInt() + 1;
     const QByteArray identifier = type + ".instance" + QByteArray::number(counter);
     settings->setValue("instanceCounter", counter);
@@ -45,7 +46,7 @@ QByteArray ResourceConfig::newIdentifier(const QByteArray &type)
 
 void ResourceConfig::addResource(const QByteArray &identifier, const QByteArray &type)
 {
-    auto settings = getSettings();
+    auto settings = getConfig("resources");
     settings->beginGroup(QString::fromLatin1(identifier));
     settings->setValue("type", type);
     settings->endGroup();
@@ -54,18 +55,18 @@ void ResourceConfig::addResource(const QByteArray &identifier, const QByteArray 
 
 void ResourceConfig::removeResource(const QByteArray &identifier)
 {
-    auto settings = getSettings();
+    auto settings = getConfig("resources");
     settings->beginGroup(QString::fromLatin1(identifier));
     settings->remove("");
     settings->endGroup();
     settings->sync();
-    QFile::remove(getResourceConfig(identifier)->fileName());
+    QFile::remove(getConfig(identifier)->fileName());
 }
 
 QMap<QByteArray, QByteArray> ResourceConfig::getResources()
 {
     QMap<QByteArray, QByteArray> resources;
-    auto settings = getSettings();
+    auto settings = getConfig("resources");
     for (const auto &identifier : settings->childGroups()) {
         settings->beginGroup(identifier);
         const auto type = settings->value("type").toByteArray();
@@ -84,7 +85,7 @@ void ResourceConfig::clear()
 
 void ResourceConfig::configureResource(const QByteArray &identifier, const QMap<QByteArray, QVariant> &configuration)
 {
-    auto config = getResourceConfig(identifier);
+    auto config = getConfig(identifier);
     config->clear();
     for (const auto &key : configuration.keys()) {
         config->setValue(key, configuration.value(key));
@@ -95,7 +96,77 @@ void ResourceConfig::configureResource(const QByteArray &identifier, const QMap<
 QMap<QByteArray, QVariant> ResourceConfig::getConfiguration(const QByteArray &identifier)
 {
     QMap<QByteArray, QVariant> configuration;
-    auto config = getResourceConfig(identifier);
+    auto config = getConfig(identifier);
+    for (const auto &key : config->allKeys()) {
+        configuration.insert(key.toLatin1(), config->value(key));
+    }
+    return configuration;
+}
+
+
+QByteArray AccountConfig::newIdentifier(const QByteArray &type)
+{
+    auto settings = getConfig("accounts");
+    const auto counter = settings->value("instanceCounter", 0).toInt() + 1;
+    const QByteArray identifier = type + ".instance" + QByteArray::number(counter);
+    settings->setValue("instanceCounter", counter);
+    settings->sync();
+    return identifier;
+}
+
+void AccountConfig::addAccount(const QByteArray &identifier, const QByteArray &type)
+{
+    auto settings = getConfig("accounts");
+    settings->beginGroup(QString::fromLatin1(identifier));
+    settings->setValue("type", type);
+    settings->endGroup();
+    settings->sync();
+}
+
+void AccountConfig::removeAccount(const QByteArray &identifier)
+{
+    auto settings = getConfig("accounts");
+    settings->beginGroup(QString::fromLatin1(identifier));
+    settings->remove("");
+    settings->endGroup();
+    settings->sync();
+    QFile::remove(getConfig(identifier)->fileName());
+}
+
+QMap<QByteArray, QByteArray> AccountConfig::getAccounts()
+{
+    QMap<QByteArray, QByteArray> accounts;
+    auto settings = getConfig("accounts");
+    for (const auto &identifier : settings->childGroups()) {
+        settings->beginGroup(identifier);
+        const auto type = settings->value("type").toByteArray();
+        accounts.insert(identifier.toLatin1(), type);
+        settings->endGroup();
+    }
+    return accounts;
+}
+
+void AccountConfig::clear()
+{
+    auto settings = getSettings();
+    settings->clear();
+    settings->sync();
+}
+
+void AccountConfig::configureAccount(const QByteArray &identifier, const QMap<QByteArray, QVariant> &configuration)
+{
+    auto config = getConfig(identifier);
+    config->clear();
+    for (const auto &key : configuration.keys()) {
+        config->setValue(key, configuration.value(key));
+    }
+    config->sync();
+}
+
+QMap<QByteArray, QVariant> AccountConfig::getConfiguration(const QByteArray &identifier)
+{
+    QMap<QByteArray, QVariant> configuration;
+    auto config = getConfig(identifier);
     for (const auto &key : config->allKeys()) {
         configuration.insert(key.toLatin1(), config->value(key));
     }
