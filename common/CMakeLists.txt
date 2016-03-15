@@ -115,6 +115,7 @@ install(FILES
     notification.h
     bufferadaptor.h
     test.h
+    log.h
     ${CMAKE_CURRENT_BINARY_DIR}/sink_export.h
     DESTINATION ${INCLUDE_INSTALL_DIR}/${PROJECT_NAME} COMPONENT Devel
 )

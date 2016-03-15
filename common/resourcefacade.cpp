@@ -202,9 +202,6 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::S
         const auto configuredAccounts = AccountConfig::getAccounts();
         for (const auto &res : configuredAccounts.keys()) {
             const auto type = configuredAccounts.value(res);
-            if (query.propertyFilter.contains("type") && query.propertyFilter.value("type").toByteArray() != type) {
-                continue;
-            }
             if (!query.ids.isEmpty() && !query.ids.contains(res)) {
                 continue;
             }

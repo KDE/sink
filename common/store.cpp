@@ -47,8 +47,8 @@ QString Store::storageLocation()
 
 static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type = QByteArray())
 {
-    // Return the global resource (signified by an empty name) for types that don't eblong to a specific resource
-    if (type == "sinkresource") {
+    // Return the global resource (signified by an empty name) for types that don't belong to a specific resource
+    if (type == "sinkresource" || type == "sinkaccount") {
         return QList<QByteArray>() << "";
     }
     QList<QByteArray> resources;
@@ -252,5 +252,6 @@ REGISTER_TYPE(ApplicationDomain::Event);
 REGISTER_TYPE(ApplicationDomain::Mail);
 REGISTER_TYPE(ApplicationDomain::Folder);
 REGISTER_TYPE(ApplicationDomain::SinkResource);
+REGISTER_TYPE(ApplicationDomain::SinkAccount);
 
 } // namespace Sink

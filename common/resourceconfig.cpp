@@ -22,17 +22,12 @@
 #include <QSharedPointer>
 #include <QStandardPaths>
 #include <QFile>
+#include <log.h>
 
 static QSharedPointer<QSettings> getConfig(const QByteArray &identifier)
 {
     return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/" + identifier + ".ini", QSettings::IniFormat);
 }
-
-static QSharedPointer<QSettings> getSettings()
-{
-    return getConfig("resources");
-}
-
 
 QByteArray ResourceConfig::newIdentifier(const QByteArray &type)
 {
@@ -78,7 +73,7 @@ QMap<QByteArray, QByteArray> ResourceConfig::getResources()
 
 void ResourceConfig::clear()
 {
-    auto settings = getSettings();
+    auto settings = getConfig("resources");
     settings->clear();
     settings->sync();
 }
@@ -148,7 +143,7 @@ QMap<QByteArray, QByteArray> AccountConfig::getAccounts()
 
 void AccountConfig::clear()
 {
-    auto settings = getSettings();
+    auto settings = getConfig("accounts");
     settings->clear();
     settings->sync();
 }

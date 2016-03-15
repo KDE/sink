@@ -279,3 +279,4 @@ template class ModelResult<Sink::ApplicationDomain::Folder, Sink::ApplicationDom
 template class ModelResult<Sink::ApplicationDomain::Mail, Sink::ApplicationDomain::Mail::Ptr>;
 template class ModelResult<Sink::ApplicationDomain::Event, Sink::ApplicationDomain::Event::Ptr>;
 template class ModelResult<Sink::ApplicationDomain::SinkResource, Sink::ApplicationDomain::SinkResource::Ptr>;
+template class ModelResult<Sink::ApplicationDomain::SinkAccount, Sink::ApplicationDomain::SinkAccount::Ptr>;
