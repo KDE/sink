@@ -128,6 +128,22 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::S
 }
 
 
+
+Q_GLOBAL_STATIC(ConfigNotifier, sConfig);
+
+static Sink::ApplicationDomain::SinkAccount::Ptr readAccountFromConfig(const QByteArray &id, const QByteArray &type)
+{
+    auto account = Sink::ApplicationDomain::SinkAccount::Ptr::create(id);
+
+    account->setProperty("type", type);
+    const auto configurationValues = AccountConfig::getConfiguration(id);
+    for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
+        account->setProperty(it.key(), it.value());
+    }
+    return account;
+}
+
+
 AccountFacade::AccountFacade(const QByteArray &) : Sink::StoreFacade<Sink::ApplicationDomain::SinkAccount>()
 {
 }
@@ -155,6 +171,7 @@ KAsync::Job<void> AccountFacade::create(const Sink::ApplicationDomain::SinkAccou
             }
             AccountConfig::configureAccount(identifier, configurationValues);
         }
+        sConfig->add(readAccountFromConfig(identifier, type));
     });
 }
 
@@ -177,6 +194,9 @@ KAsync::Job<void> AccountFacade::modify(const Sink::ApplicationDomain::SinkAccou
             }
             AccountConfig::configureAccount(identifier, configurationValues);
         }
+
+        const auto type = AccountConfig::getAccounts().value(identifier);
+        sConfig->modify(readAccountFromConfig(identifier, type));
     });
 }
 
@@ -189,16 +209,18 @@ KAsync::Job<void> AccountFacade::remove(const Sink::ApplicationDomain::SinkAccou
             return;
         }
         AccountConfig::removeAccount(identifier);
+        sConfig->remove(Sink::ApplicationDomain::SinkAccount::Ptr::create(account));
     });
 }
 
 QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkAccount::Ptr>::Ptr> AccountFacade::load(const Sink::Query &query)
 {
+    QObject *guard = new QObject;
     auto resultProvider = new Sink::ResultProvider<typename Sink::ApplicationDomain::SinkAccount::Ptr>();
     auto emitter = resultProvider->emitter();
     resultProvider->setFetcher([](const QSharedPointer<Sink::ApplicationDomain::SinkAccount> &) {});
-    resultProvider->onDone([resultProvider]() { delete resultProvider; });
-    auto job = KAsync::start<void>([query, resultProvider]() {
+    resultProvider->onDone([=]() { delete resultProvider; delete guard; });
+    auto job = KAsync::start<void>([=]() {
         const auto configuredAccounts = AccountConfig::getAccounts();
         for (const auto &res : configuredAccounts.keys()) {
             const auto type = configuredAccounts.value(res);
@@ -206,15 +228,18 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::S
                 continue;
             }
 
-            auto account = Sink::ApplicationDomain::SinkAccount::Ptr::create("", res, 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-            account->setProperty("type", type);
-
-            const auto configurationValues = AccountConfig::getConfiguration(res);
-            for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
-                account->setProperty(it.key(), it.value());
-            }
-
-            resultProvider->add(account);
+            resultProvider->add(readAccountFromConfig(res, type));
+        }
+        if (query.liveQuery) {
+            QObject::connect(sConfig, &ConfigNotifier::modified, guard, [resultProvider](const Sink::ApplicationDomain::SinkAccount::Ptr &account) {
+                resultProvider->modify(account);
+            });
+            QObject::connect(sConfig, &ConfigNotifier::added, guard, [resultProvider](const Sink::ApplicationDomain::SinkAccount::Ptr &account) {
+                resultProvider->add(account);
+            });
+            QObject::connect(sConfig, &ConfigNotifier::removed, guard,[resultProvider](const Sink::ApplicationDomain::SinkAccount::Ptr &account) {
+                resultProvider->remove(account);
+            });
         }
         // TODO initialResultSetComplete should be implicit
         resultProvider->initialResultSetComplete(Sink::ApplicationDomain::SinkAccount::Ptr());

@@ -51,3 +51,27 @@ public:
     KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkAccount &resource) Q_DECL_OVERRIDE;
     QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkAccount::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 };
+
+class ConfigNotifier : public QObject
+{
+    Q_OBJECT
+public:
+    void add(const Sink::ApplicationDomain::SinkAccount::Ptr &account)
+    {
+        emit added(account);
+    }
+
+    void remove(const Sink::ApplicationDomain::SinkAccount::Ptr &account)
+    {
+        emit removed(account);
+    }
+
+    void modify(const Sink::ApplicationDomain::SinkAccount::Ptr &account)
+    {
+        emit modified(account);
+    }
+signals:
+    void added(const Sink::ApplicationDomain::SinkAccount::Ptr &account);
+    void removed(const Sink::ApplicationDomain::SinkAccount::Ptr &account);
+    void modified(const Sink::ApplicationDomain::SinkAccount::Ptr &account);
+};
