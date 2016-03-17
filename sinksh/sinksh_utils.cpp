@@ -29,7 +29,8 @@ namespace SinkshUtils {
 static QStringList s_types = QStringList() << "resource"
                                            << "folder"
                                            << "mail"
-                                           << "event";
+                                           << "event"
+                                           << "account";
 
 bool isValidStoreType(const QString &type)
 {
@@ -49,6 +50,9 @@ StoreBase &getStore(const QString &type)
         return store;
     } else if (type == "resource") {
         static Store<Sink::ApplicationDomain::SinkResource> store;
+        return store;
+    } else if (type == "account") {
+        static Store<Sink::ApplicationDomain::SinkAccount> store;
         return store;
     }
 
@@ -113,7 +117,8 @@ QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &
     static QStringList types = QStringList() << "resource"
                                              << "folder"
                                              << "mail"
-                                             << "event";
+                                             << "event"
+                                             << "account";
     if (commands.count() == 1) {
         return Utils::filteredCompletions(s_types, fragment);
     }
