@@ -116,7 +116,15 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 template <class DomainType>
 static std::shared_ptr<StoreFacade<DomainType>> getFacade(const QByteArray &resourceInstanceIdentifier)
 {
-    if (auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resourceInstanceIdentifier), resourceInstanceIdentifier)) {
+
+    const auto type = ApplicationDomain::getTypeName<DomainType>();
+    if (type == "sinkresource" || type == "sinkaccount") {
+        if (auto facade = FacadeFactory::instance().getFacade<DomainType>("", "")) {
+            return facade;
+        }
+    }
+    const auto resourceType = resourceName(resourceInstanceIdentifier);
+    if (auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceType, resourceInstanceIdentifier)) {
         return facade;
     }
     return std::make_shared<NullFacade<DomainType>>();
