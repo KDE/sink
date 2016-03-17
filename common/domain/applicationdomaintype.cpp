@@ -136,7 +136,41 @@ Folder::~Folder()
 
 }
 
+SinkResource::SinkResource(const QByteArray &identifier)
+    : ApplicationDomainType("", identifier, 0, QSharedPointer<BufferAdaptor>(new MemoryBufferAdaptor()))
+{
+
+}
+
+SinkResource::SinkResource(const QByteArray &, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
+    : ApplicationDomainType("", identifier, 0, adaptor)
+{
+}
+
+SinkResource::SinkResource()
+    : ApplicationDomainType()
+{
+
+}
+
 SinkResource::~SinkResource()
+{
+
+}
+
+SinkAccount::SinkAccount(const QByteArray &identifier)
+    : ApplicationDomainType("", identifier, 0, QSharedPointer<BufferAdaptor>(new MemoryBufferAdaptor()))
+{
+
+}
+
+SinkAccount::SinkAccount(const QByteArray &, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
+    : ApplicationDomainType("", identifier, 0, adaptor)
+{
+}
+
+SinkAccount::SinkAccount()
+    : ApplicationDomainType()
 {
 
 }

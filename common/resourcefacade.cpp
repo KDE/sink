@@ -110,7 +110,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::S
                 continue;
             }
 
-            auto resource = Sink::ApplicationDomain::SinkResource::Ptr::create("", res, 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+            auto resource = Sink::ApplicationDomain::SinkResource::Ptr::create(res);
             resource->setProperty("type", type);
 
             const auto configurationValues = ResourceConfig::getConfiguration(res);
