@@ -39,6 +39,7 @@ KAsync::Job<void> ResourceFacade::create(const Sink::ApplicationDomain::SinkReso
         const QByteArray providedIdentifier = resource.getProperty("identifier").toByteArray();
         // It is currently a requirement that the resource starts with the type
         const QByteArray identifier = providedIdentifier.isEmpty() ? ResourceConfig::newIdentifier(type) : providedIdentifier;
+        Trace() << "Creating resource " << type << identifier;
         ResourceConfig::addResource(identifier, type);
         auto changedProperties = resource.changedProperties();
         changedProperties.removeOne("identifier");
@@ -66,12 +67,11 @@ KAsync::Job<void> ResourceFacade::modify(const Sink::ApplicationDomain::SinkReso
         changedProperties.removeOne("identifier");
         changedProperties.removeOne("type");
         if (!changedProperties.isEmpty()) {
-            // We have some configuration values
-            QMap<QByteArray, QVariant> configurationValues;
+            auto config = ResourceConfig::getConfiguration(identifier);
             for (const auto &property : changedProperties) {
-                configurationValues.insert(property, resource.getProperty(property));
+                config.insert(property, resource.getProperty(property));
             }
-            ResourceConfig::configureResource(identifier, configurationValues);
+            ResourceConfig::configureResource(identifier, config);
         }
     });
 }
@@ -84,6 +84,7 @@ KAsync::Job<void> ResourceFacade::remove(const Sink::ApplicationDomain::SinkReso
             Warning() << "We need an \"identifier\" property to identify the resource to configure";
             return;
         }
+        Trace() << "Removing resource " << identifier;
         ResourceConfig::removeResource(identifier);
         // TODO shutdown resource, or use the resource process with a --remove option to cleanup (so we can take advantage of the file locking)
         QDir dir(Sink::storageLocation());
@@ -91,6 +92,16 @@ KAsync::Job<void> ResourceFacade::remove(const Sink::ApplicationDomain::SinkReso
             Sink::Storage(Sink::storageLocation(), folder, Sink::Storage::ReadWrite).removeFromDisk();
         }
     });
+}
+
+static bool matchesFilter(const QHash<QByteArray, QVariant> &filter, const QMap<QByteArray, QVariant> &properties)
+{
+    for (const auto &filterProperty : filter.keys()) {
+        if (filter.value(filterProperty).toByteArray() != properties.value(filterProperty).toByteArray()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>::Ptr> ResourceFacade::load(const Sink::Query &query)
@@ -109,11 +120,13 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::S
             if (!query.ids.isEmpty() && !query.ids.contains(res)) {
                 continue;
             }
+            const auto configurationValues = ResourceConfig::getConfiguration(res);
+            if (!matchesFilter(query.propertyFilter, configurationValues)){
+                continue;
+            }
 
             auto resource = Sink::ApplicationDomain::SinkResource::Ptr::create(res);
             resource->setProperty("type", type);
-
-            const auto configurationValues = ResourceConfig::getConfiguration(res);
             for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
                 resource->setProperty(it.key(), it.value());
             }
