@@ -96,6 +96,12 @@ QByteArrayList ApplicationDomainType::changedProperties() const
     return mChangeSet.toList();
 }
 
+QByteArrayList ApplicationDomainType::availableProperties() const
+{
+    Q_ASSERT(mAdaptor);
+    return mAdaptor->availableProperties();
+}
+
 qint64 ApplicationDomainType::revision() const
 {
     return mRevision;

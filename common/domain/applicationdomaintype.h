@@ -62,6 +62,7 @@ public:
     void setProperty(const QByteArray &key, const QVariant &value);
     void setChangedProperties(const QSet<QByteArray> &changeset);
     QByteArrayList changedProperties() const;
+    QByteArrayList availableProperties() const;
     qint64 revision() const;
     QByteArray resourceInstanceIdentifier() const;
     QByteArray identifier() const;
