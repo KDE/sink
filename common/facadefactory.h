@@ -77,7 +77,12 @@ public:
     std::shared_ptr<StoreFacade<DomainType>> getFacade(const QByteArray &resource, const QByteArray &instanceIdentifier)
     {
         const QByteArray typeName = ApplicationDomain::getTypeName<DomainType>();
-        return std::static_pointer_cast<StoreFacade<DomainType>>(getFacade(resource, instanceIdentifier, typeName));
+        const auto ptr = getFacade(resource, instanceIdentifier, typeName);
+        //We have to check the pointer before the cast, otherwise a check would return true also for invalid instances.
+        if (!ptr) {
+            return std::shared_ptr<StoreFacade<DomainType>>();
+        }
+        return std::static_pointer_cast<StoreFacade<DomainType>>(ptr);
     }
 
 private:
