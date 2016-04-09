@@ -30,6 +30,9 @@ public:
     void printLine(const QString &message = QString(), unsigned int indentationLevel = 0) const;
     void printError(const QString &errorMessage, const QString &errorCode = QString()) const;
 
+    void stageTableLine(const QStringList &) const;
+    void flushTable() const;
+
     void setDebugLevel(unsigned int level);
     unsigned int debugLevel() const;
 
@@ -44,6 +47,9 @@ public:
 
     static void setHasEventLoop(bool evented);
     static bool hasEventLoop();
+
+private:
+    void printTable(const QList<QStringList> &) const;
 
 private:
     class Private;

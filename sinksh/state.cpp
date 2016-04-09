@@ -48,6 +48,7 @@ public:
     QEventLoop *event = 0;
     bool timing = false;
     QTextStream outStream;
+    QList<QStringList> table;
 };
 
 State::State() : d(new Private)
@@ -73,6 +74,43 @@ void State::printLine(const QString &message, unsigned int indentationLevel) con
 void State::printError(const QString &errorMessage, const QString &errorCode) const
 {
     printLine("ERROR" + (errorCode.isEmpty() ? "" : " " + errorCode) + ": " + errorMessage);
+}
+
+void State::stageTableLine(const QStringList &line) const
+{
+    d->table << line;
+}
+
+void State::printTable(const QList<QStringList> &table) const
+{
+    //First let's find out the maximum size for each column depending on the content
+    QVector<int> columnSizes;
+    columnSizes.fill(0, 10);
+    for (const auto &row : table) {
+        for (int columnIndex = 0; columnIndex < row.size(); columnIndex++) {
+            if (columnSizes.size() <= columnIndex) {
+                columnSizes.append(0);
+            }
+            columnSizes[columnIndex] = qMax(columnSizes[columnIndex], row[columnIndex].size());
+        }
+    }
+    //And now print the table
+    for (const auto &row : table) {
+        for (int columnIndex = 0; columnIndex < row.size(); columnIndex++) {
+            if (columnIndex > 0) {
+                d->outStream << " | ";
+            }
+            d->outStream << row[columnIndex].leftJustified(columnSizes[columnIndex], ' ', true);
+        }
+        d->outStream << "\n";
+    }
+    d->outStream.flush();
+}
+
+void State::flushTable() const
+{
+    printTable(d->table);
+    d->table.clear();
 }
 
 void State::setDebugLevel(unsigned int level)

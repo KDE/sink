@@ -69,28 +69,29 @@ bool list(const QStringList &args, State &state)
     }
 
     //qDebug() << "Listing";
-    int colSize = 38; //Necessary to display a complete UUID
-    state.print(QObject::tr("Resource").leftJustified(colSize, ' ', true) +
-                QObject::tr("Identifier").leftJustified(colSize, ' ', true));
+    QStringList line;
+    line << QObject::tr("Resource") << QObject::tr("Identifier");
     for (int i = 0; i < model->columnCount(QModelIndex()); i++) {
-        state.print(" | " + model->headerData(i, Qt::Horizontal).toString().leftJustified(colSize, ' ', true));
+        line << model->headerData(i, Qt::Horizontal).toString();
     }
-    state.printLine();
+    state.stageTableLine(line);
 
-    QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, colSize, state](const QModelIndex &index, int start, int end) {
+    QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, state](const QModelIndex &index, int start, int end) {
         for (int i = start; i <= end; i++) {
             auto object = model->data(model->index(i, 0, index), Sink::Store::DomainObjectBaseRole).value<Sink::ApplicationDomain::ApplicationDomainType::Ptr>();
-            state.print(object->resourceInstanceIdentifier().leftJustified(colSize, ' ', true));
-            state.print(object->identifier().leftJustified(colSize, ' ', true));
+            QStringList line;
+            line << object->resourceInstanceIdentifier();
+            line << object->identifier();
             for (int col = 0; col < model->columnCount(QModelIndex()); col++) {
-                state.print(" | " + model->data(model->index(i, col, index)).toString().leftJustified(colSize, ' ', true));
+                line << model->data(model->index(i, col, index)).toString();
             }
-            state.printLine();
+            state.stageTableLine(line);
         }
     });
 
     QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
         if (roles.contains(Sink::Store::ChildrenFetchedRole)) {
+            state.flushTable();
             state.commandFinished();
         }
     });
