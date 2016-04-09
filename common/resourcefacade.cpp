@@ -97,6 +97,9 @@ KAsync::Job<void> ResourceFacade::remove(const Sink::ApplicationDomain::SinkReso
 static bool matchesFilter(const QHash<QByteArray, QVariant> &filter, const QMap<QByteArray, QVariant> &properties)
 {
     for (const auto &filterProperty : filter.keys()) {
+        if (filterProperty == "type") {
+            continue;
+        }
         if (filter.value(filterProperty).toByteArray() != properties.value(filterProperty).toByteArray()) {
             return false;
         }
