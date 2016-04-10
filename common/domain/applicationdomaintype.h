@@ -24,6 +24,7 @@
 #include <QVariant>
 #include <QByteArray>
 #include <QDebug>
+#include <QUuid>
 #include "bufferadaptor.h"
 
 namespace Sink {
@@ -53,6 +54,14 @@ public:
         auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create(*(domainType.mAdaptor), properties);
         //The identifier still internal refers to the memory-mapped pointer, we need to copy the memory or it will become invalid
         return QSharedPointer<DomainType>::create(domainType.mResourceInstanceIdentifier, QByteArray(domainType.mIdentifier.constData(), domainType.mIdentifier.size()), domainType.mRevision, memoryAdaptor);
+    }
+
+    template <class DomainType>
+    static DomainType createEntity()
+    {
+        DomainType object;
+        object.mIdentifier = QUuid::createUuid().toByteArray();
+        return object;
     }
 
     virtual ~ApplicationDomainType();

@@ -54,6 +54,7 @@ auto_tests (
     dummyresourcewritebenchmark
     modelinteractivitytest
     inspectiontest
+    accountstest
 )
 target_link_libraries(dummyresourcetest sink_resource_dummy)
 target_link_libraries(dummyresourcebenchmark sink_resource_dummy)
