@@ -21,10 +21,20 @@
 #include "definitions.h"
 
 #include <QStandardPaths>
+#include <QDir>
 
 QString Sink::storageLocation()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/storage";
+}
+
+QString Sink::temporaryFileLocation()
+{
+    auto path = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/temporaryFiles";
+    //FIXME create in a singleton on startup?
+    QDir dir;
+    dir.mkpath(path);
+    return path;
 }
 
 QByteArray Sink::resourceName(const QByteArray &instanceIdentifier)

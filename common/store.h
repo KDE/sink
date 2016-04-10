@@ -43,6 +43,11 @@ namespace Store {
 
 QString SINK_EXPORT storageLocation();
 
+/**
+ * Returns a unique path for a writable file that can be used to write BLOB properties.
+ */
+QString SINK_EXPORT getTemporaryFilePath();
+
 enum Roles
 {
     DomainObjectRole = Qt::UserRole + 1, // Must be the same as in ModelResult
@@ -51,8 +56,8 @@ enum Roles
 };
 
 /**
-    * Asynchronusly load a dataset with tree structure information
-    */
+* Asynchronusly load a dataset with tree structure information
+*/
 template <class DomainType>
 QSharedPointer<QAbstractItemModel> SINK_EXPORT loadModel(Query query);
 

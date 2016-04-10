@@ -22,6 +22,7 @@
 
 #include <QTime>
 #include <QAbstractItemModel>
+#include <QUuid>
 #include <functional>
 #include <memory>
 
@@ -43,6 +44,11 @@ namespace Sink {
 QString Store::storageLocation()
 {
     return Sink::storageLocation();
+}
+
+QString Store::getTemporaryFilePath()
+{
+    return Sink::temporaryFileLocation() + "/" + QUuid::createUuid().toString();
 }
 
 static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type = QByteArray())
