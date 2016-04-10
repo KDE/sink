@@ -8,3 +8,4 @@ if (BUILD_MAILDIR)
     # a maildir resource implementation
     add_subdirectory(maildirresource)
 endif()
+add_subdirectory(mailtransportresource)
