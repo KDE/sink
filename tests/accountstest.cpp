@@ -5,6 +5,7 @@
 
 #include <test.h>
 #include <store.h>
+#include <log.h>
 
 class AccountsTest : public QObject
 {
@@ -14,6 +15,7 @@ private slots:
     void initTestCase()
     {
         Sink::Test::initTest();
+        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
     }
 
     void testLoad()
@@ -24,6 +26,8 @@ private slots:
         QString accountName("name");
         QString accountIcon("icon");
         auto account = ApplicationDomainType::createEntity<SinkAccount>();
+        //FIXME Get rid of this line
+        account.setProperty("identifier", account.identifier());
         account.setProperty("type", "maildir");
         account.setProperty("name", accountName);
         account.setProperty("icon", accountIcon);
@@ -38,6 +42,8 @@ private slots:
         QString smtpUsername("smtpUsername");
         QString smtpPassword("smtpPassword");
         auto resource = ApplicationDomainType::createEntity<SinkResource>();
+        //FIXME Get rid of this line
+        resource.setProperty("identifier", resource.identifier());
         resource.setProperty("type", "org.kde.mailtransport");
         resource.setProperty("account", account.identifier());
         resource.setProperty("server", smtpServer);

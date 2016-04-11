@@ -58,6 +58,7 @@ set(command_SRCS
     typeindex.cpp
     resourcefacade.cpp
     resourceconfig.cpp
+    configstore.cpp
     resultset.cpp
     domain/applicationdomaintype.cpp
     domain/event.cpp

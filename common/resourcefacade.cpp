@@ -152,7 +152,7 @@ static Sink::ApplicationDomain::SinkAccount::Ptr readAccountFromConfig(const QBy
     auto account = Sink::ApplicationDomain::SinkAccount::Ptr::create(id);
 
     account->setProperty("type", type);
-    const auto configurationValues = AccountConfig::getConfiguration(id);
+    const auto configurationValues = ConfigStore("accounts").get(id);
     for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
         account->setProperty(it.key(), it.value());
     }
@@ -160,7 +160,7 @@ static Sink::ApplicationDomain::SinkAccount::Ptr readAccountFromConfig(const QBy
 }
 
 
-AccountFacade::AccountFacade(const QByteArray &) : Sink::StoreFacade<Sink::ApplicationDomain::SinkAccount>()
+AccountFacade::AccountFacade(const QByteArray &) : Sink::StoreFacade<Sink::ApplicationDomain::SinkAccount>(), mConfigStore("accounts")
 {
 }
 
@@ -174,8 +174,8 @@ KAsync::Job<void> AccountFacade::create(const Sink::ApplicationDomain::SinkAccou
         const QByteArray type = account.getProperty("type").toByteArray();
         const QByteArray providedIdentifier = account.getProperty("identifier").toByteArray();
         // It is currently a requirement that the account starts with the type
-        const QByteArray identifier = providedIdentifier.isEmpty() ? AccountConfig::newIdentifier(type) : providedIdentifier;
-        AccountConfig::addAccount(identifier, type);
+        const QByteArray identifier = providedIdentifier.isEmpty() ? ResourceConfig::newIdentifier(type) : providedIdentifier;
+        mConfigStore.add(identifier, type);
         auto changedProperties = account.changedProperties();
         changedProperties.removeOne("identifier");
         changedProperties.removeOne("type");
@@ -185,7 +185,7 @@ KAsync::Job<void> AccountFacade::create(const Sink::ApplicationDomain::SinkAccou
             for (const auto &property : changedProperties) {
                 configurationValues.insert(property, account.getProperty(property));
             }
-            AccountConfig::configureAccount(identifier, configurationValues);
+            mConfigStore.modify(identifier, configurationValues);
         }
         sConfig->add(readAccountFromConfig(identifier, type));
     });
@@ -208,10 +208,10 @@ KAsync::Job<void> AccountFacade::modify(const Sink::ApplicationDomain::SinkAccou
             for (const auto &property : changedProperties) {
                 configurationValues.insert(property, account.getProperty(property));
             }
-            AccountConfig::configureAccount(identifier, configurationValues);
+            mConfigStore.modify(identifier, configurationValues);
         }
 
-        const auto type = AccountConfig::getAccounts().value(identifier);
+        const auto type = mConfigStore.getEntries().value(identifier);
         sConfig->modify(readAccountFromConfig(identifier, type));
     });
 }
@@ -224,7 +224,7 @@ KAsync::Job<void> AccountFacade::remove(const Sink::ApplicationDomain::SinkAccou
             Warning() << "We need an \"identifier\" property to identify the account to configure";
             return;
         }
-        AccountConfig::removeAccount(identifier);
+        mConfigStore.remove(identifier);
         sConfig->remove(Sink::ApplicationDomain::SinkAccount::Ptr::create(account));
     });
 }
@@ -237,7 +237,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::S
     resultProvider->setFetcher([](const QSharedPointer<Sink::ApplicationDomain::SinkAccount> &) {});
     resultProvider->onDone([=]() { delete resultProvider; delete guard; });
     auto job = KAsync::start<void>([=]() {
-        const auto configuredAccounts = AccountConfig::getAccounts();
+        const auto configuredAccounts = mConfigStore.getEntries();
         for (const auto &res : configuredAccounts.keys()) {
             const auto type = configuredAccounts.value(res);
             if (!query.ids.isEmpty() && !query.ids.contains(res)) {

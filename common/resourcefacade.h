@@ -24,6 +24,7 @@
 #include <Async/Async>
 #include "common/resultprovider.h"
 #include "common/domain/applicationdomaintype.h"
+#include "common/configstore.h"
 
 namespace Sink {
 class Query;
@@ -50,6 +51,8 @@ public:
     KAsync::Job<void> modify(const Sink::ApplicationDomain::SinkAccount &resource) Q_DECL_OVERRIDE;
     KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkAccount &resource) Q_DECL_OVERRIDE;
     QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkAccount::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
+private:
+    ConfigStore mConfigStore;
 };
 
 class ConfigNotifier : public QObject

@@ -36,15 +36,3 @@ public:
     static void configureResource(const QByteArray &identifier, const QMap<QByteArray, QVariant> &configuration);
     static QMap<QByteArray, QVariant> getConfiguration(const QByteArray &identifier);
 };
-
-class SINK_EXPORT AccountConfig
-{
-public:
-    static QMap<QByteArray, QByteArray> getAccounts();
-    static QByteArray newIdentifier(const QByteArray &type);
-    static void addAccount(const QByteArray &identifier, const QByteArray &type);
-    static void removeAccount(const QByteArray &identifier);
-    static void clear();
-    static void configureAccount(const QByteArray &identifier, const QMap<QByteArray, QVariant> &configuration);
-    static QMap<QByteArray, QVariant> getConfiguration(const QByteArray &identifier);
-};
