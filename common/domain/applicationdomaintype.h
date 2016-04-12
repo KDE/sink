@@ -165,6 +165,14 @@ struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
     virtual ~SinkAccount();
 };
 
+struct SINK_EXPORT Identity : public ApplicationDomainType {
+    typedef QSharedPointer<SinkAccount> Ptr;
+    Identity(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
+    Identity(const QByteArray &identifier);
+    Identity();
+    virtual ~Identity();
+};
+
 /**
  * All types need to be registered here an MUST return a different name.
  *

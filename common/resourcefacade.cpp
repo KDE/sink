@@ -202,3 +202,10 @@ AccountFacade::~AccountFacade()
 {
 }
 
+IdentityFacade::IdentityFacade(const QByteArray &) : LocalStorageFacade<Sink::ApplicationDomain::Identity>("identitys")
+{
+}
+
+IdentityFacade::~IdentityFacade()
+{
+}

@@ -79,9 +79,22 @@ Maildir Resource:
     path [QString]: The path to the maildir.
 ```
 ```no-highlight
+Mailtransport Resource:
+    server [QByteArray]: The server address.
+    username [QByteArray]: The username.
+    password [QByteArray]: The password.
+```
+```no-highlight
 Account:
     name [QString]: The name of the account.
     icon [QString]: The name of the icon of the account.
+```
+```no-highlight
+Identity:
+    name [QString]: The name of the identity.
+    username [QString]: The username.
+    address [QString]: The email address.
+    account [Account.id]: The identifier of the associated account.
 ```
 
 ### References/Hierachies

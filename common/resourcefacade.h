@@ -87,4 +87,10 @@ public:
     virtual ~AccountFacade();
 };
 
+class IdentityFacade : public LocalStorageFacade<Sink::ApplicationDomain::Identity>
+{
+public:
+    IdentityFacade(const QByteArray &instanceIdentifier);
+    virtual ~IdentityFacade();
+};
 

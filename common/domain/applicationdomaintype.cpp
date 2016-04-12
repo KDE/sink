@@ -186,6 +186,28 @@ SinkAccount::~SinkAccount()
 
 }
 
+Identity::Identity(const QByteArray &identifier)
+    : ApplicationDomainType("", identifier, 0, QSharedPointer<BufferAdaptor>(new MemoryBufferAdaptor()))
+{
+
+}
+
+Identity::Identity(const QByteArray &, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
+    : ApplicationDomainType("", identifier, 0, adaptor)
+{
+}
+
+Identity::Identity()
+    : ApplicationDomainType()
+{
+
+}
+
+Identity::~Identity()
+{
+
+}
+
 template<>
 QByteArray getTypeName<Event>()
 {
@@ -208,6 +230,12 @@ template<>
 QByteArray getTypeName<SinkAccount>()
 {
     return "sinkaccount";
+}
+
+template<>
+QByteArray getTypeName<Identity>()
+{
+    return "identity";
 }
 
 template<>

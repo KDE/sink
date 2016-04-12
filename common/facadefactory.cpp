@@ -56,6 +56,7 @@ void FacadeFactory::registerStaticFacades()
 {
     registerFacade<Sink::ApplicationDomain::SinkResource, ResourceFacade>(QByteArray());
     registerFacade<Sink::ApplicationDomain::SinkAccount, AccountFacade>(QByteArray());
+    registerFacade<Sink::ApplicationDomain::Identity, IdentityFacade>(QByteArray());
 }
 
 std::shared_ptr<void> FacadeFactory::getFacade(const QByteArray &resource, const QByteArray &instanceIdentifier, const QByteArray &typeName)
