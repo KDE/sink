@@ -55,6 +55,12 @@ public:
         registerFacade(resource, [](const QByteArray &instanceIdentifier) { return std::make_shared<Facade>(instanceIdentifier); }, ApplicationDomain::getTypeName<DomainType>());
     }
 
+    template <class DomainType, class Facade>
+    void registerFacade()
+    {
+        registerFacade(QByteArray(), [](const QByteArray &) { return std::make_shared<Facade>(); }, ApplicationDomain::getTypeName<DomainType>());
+    }
+
     /*
      * Allows the registrar to register a specific instance.
      *

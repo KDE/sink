@@ -173,7 +173,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>:
 }
 
 
-ResourceFacade::ResourceFacade(const QByteArray &) : LocalStorageFacade<Sink::ApplicationDomain::SinkResource>("resources")
+ResourceFacade::ResourceFacade() : LocalStorageFacade<Sink::ApplicationDomain::SinkResource>("resources")
 {
 }
 
@@ -194,7 +194,7 @@ KAsync::Job<void> ResourceFacade::remove(const Sink::ApplicationDomain::SinkReso
 }
 
 
-AccountFacade::AccountFacade(const QByteArray &) : LocalStorageFacade<Sink::ApplicationDomain::SinkAccount>("accounts")
+AccountFacade::AccountFacade() : LocalStorageFacade<Sink::ApplicationDomain::SinkAccount>("accounts")
 {
 }
 
@@ -202,7 +202,7 @@ AccountFacade::~AccountFacade()
 {
 }
 
-IdentityFacade::IdentityFacade(const QByteArray &) : LocalStorageFacade<Sink::ApplicationDomain::Identity>("identitys")
+IdentityFacade::IdentityFacade() : LocalStorageFacade<Sink::ApplicationDomain::Identity>("identities")
 {
 }
 

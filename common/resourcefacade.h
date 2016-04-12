@@ -75,7 +75,7 @@ private:
 class ResourceFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkResource>
 {
 public:
-    ResourceFacade(const QByteArray &instanceIdentifier);
+    ResourceFacade();
     virtual ~ResourceFacade();
     virtual KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkResource &resource) Q_DECL_OVERRIDE;
 };
@@ -83,14 +83,14 @@ public:
 class AccountFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkAccount>
 {
 public:
-    AccountFacade(const QByteArray &instanceIdentifier);
+    AccountFacade();
     virtual ~AccountFacade();
 };
 
 class IdentityFacade : public LocalStorageFacade<Sink::ApplicationDomain::Identity>
 {
 public:
-    IdentityFacade(const QByteArray &instanceIdentifier);
+    IdentityFacade();
     virtual ~IdentityFacade();
 };
 
