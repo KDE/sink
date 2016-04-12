@@ -166,7 +166,7 @@ struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
 };
 
 struct SINK_EXPORT Identity : public ApplicationDomainType {
-    typedef QSharedPointer<SinkAccount> Ptr;
+    typedef QSharedPointer<Identity> Ptr;
     Identity(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
     Identity(const QByteArray &identifier);
     Identity();
