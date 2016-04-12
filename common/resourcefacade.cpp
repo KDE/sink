@@ -24,6 +24,136 @@
 #include "storage.h"
 #include <QDir>
 
+template <typename DomainType>
+ConfigNotifier LocalStorageFacade<DomainType>::sConfigNotifier;
+
+template <typename DomainType>
+LocalStorageFacade<DomainType>::LocalStorageFacade(const QByteArray &identifier) : Sink::StoreFacade<DomainType>(), mConfigStore(identifier)
+{
+}
+
+template <typename DomainType>
+LocalStorageFacade<DomainType>::~LocalStorageFacade()
+{
+}
+
+template <typename DomainType>
+typename DomainType::Ptr LocalStorageFacade<DomainType>::readFromConfig(const QByteArray &id, const QByteArray &type)
+{
+    auto object = DomainType::Ptr::create(id);
+    object->setProperty("type", type);
+    const auto configurationValues = mConfigStore.get(id);
+    for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
+        object->setProperty(it.key(), it.value());
+    }
+    return object;
+}
+
+template <typename DomainType>
+KAsync::Job<void> LocalStorageFacade<DomainType>::create(const DomainType &domainObject)
+{
+    return KAsync::start<void>([domainObject, this]() {
+        const QByteArray type = domainObject.getProperty("type").toByteArray();
+        //FIXME use .identifier() instead
+        const QByteArray providedIdentifier = domainObject.getProperty("identifier").toByteArray();
+        const QByteArray identifier = providedIdentifier.isEmpty() ? ResourceConfig::newIdentifier(type) : providedIdentifier;
+        mConfigStore.add(identifier, type);
+        auto changedProperties = domainObject.changedProperties();
+        changedProperties.removeOne("identifier");
+        changedProperties.removeOne("type");
+        if (!changedProperties.isEmpty()) {
+            // We have some configuration values
+            QMap<QByteArray, QVariant> configurationValues;
+            for (const auto &property : changedProperties) {
+                configurationValues.insert(property, domainObject.getProperty(property));
+            }
+            mConfigStore.modify(identifier, configurationValues);
+        }
+        sConfigNotifier.add(readFromConfig(identifier, type));
+    });
+}
+
+template <typename DomainType>
+KAsync::Job<void> LocalStorageFacade<DomainType>::modify(const DomainType &domainObject)
+{
+    return KAsync::start<void>([domainObject, this]() {
+        const QByteArray identifier = domainObject.identifier();
+        if (identifier.isEmpty()) {
+            Warning() << "We need an \"identifier\" property to identify the entity to configure.";
+            return;
+        }
+        auto changedProperties = domainObject.changedProperties();
+        changedProperties.removeOne("identifier");
+        changedProperties.removeOne("type");
+        if (!changedProperties.isEmpty()) {
+            // We have some configuration values
+            QMap<QByteArray, QVariant> configurationValues;
+            for (const auto &property : changedProperties) {
+                configurationValues.insert(property, domainObject.getProperty(property));
+            }
+            mConfigStore.modify(identifier, configurationValues);
+        }
+
+        const auto type = mConfigStore.getEntries().value(identifier);
+        sConfigNotifier.modify(readFromConfig(identifier, type));
+    });
+}
+
+template <typename DomainType>
+KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domainObject)
+{
+    return KAsync::start<void>([domainObject, this]() {
+        const QByteArray identifier = domainObject.identifier();
+        if (identifier.isEmpty()) {
+            Warning() << "We need an \"identifier\" property to identify the entity to configure";
+            return;
+        }
+        mConfigStore.remove(identifier);
+        sConfigNotifier.remove(QSharedPointer<DomainType>::create(domainObject));
+    });
+}
+
+template <typename DomainType>
+QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> LocalStorageFacade<DomainType>::load(const Sink::Query &query)
+{
+    QObject *guard = new QObject;
+    auto resultProvider = new Sink::ResultProvider<typename DomainType::Ptr>();
+    auto emitter = resultProvider->emitter();
+    resultProvider->setFetcher([](const QSharedPointer<DomainType> &) {});
+    resultProvider->onDone([=]() { delete resultProvider; delete guard; });
+    auto job = KAsync::start<void>([=]() {
+        const auto entries = mConfigStore.getEntries();
+        for (const auto &res : entries.keys()) {
+            const auto type = entries.value(res);
+            if (!query.ids.isEmpty() && !query.ids.contains(res)) {
+                continue;
+            }
+            resultProvider->add(readFromConfig(res, type));
+        }
+        if (query.liveQuery) {
+            QObject::connect(&sConfigNotifier, &ConfigNotifier::modified, guard, [resultProvider](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &entry) {
+                resultProvider->modify(entry.staticCast<DomainType>());
+            });
+            QObject::connect(&sConfigNotifier, &ConfigNotifier::added, guard, [resultProvider](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &entry) {
+                resultProvider->add(entry.staticCast<DomainType>());
+            });
+            QObject::connect(&sConfigNotifier, &ConfigNotifier::removed, guard,[resultProvider](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &entry) {
+                resultProvider->remove(entry.staticCast<DomainType>());
+            });
+        }
+        // TODO initialResultSetComplete should be implicit
+        resultProvider->initialResultSetComplete(typename DomainType::Ptr());
+        resultProvider->complete();
+    });
+    return qMakePair(job, emitter);
+}
+
+
+
+
+
+
+
 ResourceFacade::ResourceFacade(const QByteArray &) : Sink::StoreFacade<Sink::ApplicationDomain::SinkResource>()
 {
 }
@@ -145,22 +275,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::S
 
 
 
-Q_GLOBAL_STATIC(ConfigNotifier, sConfig);
-
-static Sink::ApplicationDomain::SinkAccount::Ptr readAccountFromConfig(const QByteArray &id, const QByteArray &type)
-{
-    auto account = Sink::ApplicationDomain::SinkAccount::Ptr::create(id);
-
-    account->setProperty("type", type);
-    const auto configurationValues = ConfigStore("accounts").get(id);
-    for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
-        account->setProperty(it.key(), it.value());
-    }
-    return account;
-}
-
-
-AccountFacade::AccountFacade(const QByteArray &) : Sink::StoreFacade<Sink::ApplicationDomain::SinkAccount>(), mConfigStore("accounts")
+AccountFacade::AccountFacade(const QByteArray &) : LocalStorageFacade<Sink::ApplicationDomain::SinkAccount>("accounts")
 {
 }
 
@@ -168,98 +283,3 @@ AccountFacade::~AccountFacade()
 {
 }
 
-KAsync::Job<void> AccountFacade::create(const Sink::ApplicationDomain::SinkAccount &account)
-{
-    return KAsync::start<void>([account, this]() {
-        const QByteArray type = account.getProperty("type").toByteArray();
-        const QByteArray providedIdentifier = account.getProperty("identifier").toByteArray();
-        // It is currently a requirement that the account starts with the type
-        const QByteArray identifier = providedIdentifier.isEmpty() ? ResourceConfig::newIdentifier(type) : providedIdentifier;
-        mConfigStore.add(identifier, type);
-        auto changedProperties = account.changedProperties();
-        changedProperties.removeOne("identifier");
-        changedProperties.removeOne("type");
-        if (!changedProperties.isEmpty()) {
-            // We have some configuration values
-            QMap<QByteArray, QVariant> configurationValues;
-            for (const auto &property : changedProperties) {
-                configurationValues.insert(property, account.getProperty(property));
-            }
-            mConfigStore.modify(identifier, configurationValues);
-        }
-        sConfig->add(readAccountFromConfig(identifier, type));
-    });
-}
-
-KAsync::Job<void> AccountFacade::modify(const Sink::ApplicationDomain::SinkAccount &account)
-{
-    return KAsync::start<void>([account, this]() {
-        const QByteArray identifier = account.identifier();
-        if (identifier.isEmpty()) {
-            Warning() << "We need an \"identifier\" property to identify the account to configure.";
-            return;
-        }
-        auto changedProperties = account.changedProperties();
-        changedProperties.removeOne("identifier");
-        changedProperties.removeOne("type");
-        if (!changedProperties.isEmpty()) {
-            // We have some configuration values
-            QMap<QByteArray, QVariant> configurationValues;
-            for (const auto &property : changedProperties) {
-                configurationValues.insert(property, account.getProperty(property));
-            }
-            mConfigStore.modify(identifier, configurationValues);
-        }
-
-        const auto type = mConfigStore.getEntries().value(identifier);
-        sConfig->modify(readAccountFromConfig(identifier, type));
-    });
-}
-
-KAsync::Job<void> AccountFacade::remove(const Sink::ApplicationDomain::SinkAccount &account)
-{
-    return KAsync::start<void>([account, this]() {
-        const QByteArray identifier = account.identifier();
-        if (identifier.isEmpty()) {
-            Warning() << "We need an \"identifier\" property to identify the account to configure";
-            return;
-        }
-        mConfigStore.remove(identifier);
-        sConfig->remove(Sink::ApplicationDomain::SinkAccount::Ptr::create(account));
-    });
-}
-
-QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkAccount::Ptr>::Ptr> AccountFacade::load(const Sink::Query &query)
-{
-    QObject *guard = new QObject;
-    auto resultProvider = new Sink::ResultProvider<typename Sink::ApplicationDomain::SinkAccount::Ptr>();
-    auto emitter = resultProvider->emitter();
-    resultProvider->setFetcher([](const QSharedPointer<Sink::ApplicationDomain::SinkAccount> &) {});
-    resultProvider->onDone([=]() { delete resultProvider; delete guard; });
-    auto job = KAsync::start<void>([=]() {
-        const auto configuredAccounts = mConfigStore.getEntries();
-        for (const auto &res : configuredAccounts.keys()) {
-            const auto type = configuredAccounts.value(res);
-            if (!query.ids.isEmpty() && !query.ids.contains(res)) {
-                continue;
-            }
-
-            resultProvider->add(readAccountFromConfig(res, type));
-        }
-        if (query.liveQuery) {
-            QObject::connect(sConfig, &ConfigNotifier::modified, guard, [resultProvider](const Sink::ApplicationDomain::SinkAccount::Ptr &account) {
-                resultProvider->modify(account);
-            });
-            QObject::connect(sConfig, &ConfigNotifier::added, guard, [resultProvider](const Sink::ApplicationDomain::SinkAccount::Ptr &account) {
-                resultProvider->add(account);
-            });
-            QObject::connect(sConfig, &ConfigNotifier::removed, guard,[resultProvider](const Sink::ApplicationDomain::SinkAccount::Ptr &account) {
-                resultProvider->remove(account);
-            });
-        }
-        // TODO initialResultSetComplete should be implicit
-        resultProvider->initialResultSetComplete(Sink::ApplicationDomain::SinkAccount::Ptr());
-        resultProvider->complete();
-    });
-    return qMakePair(job, emitter);
-}

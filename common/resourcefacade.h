@@ -31,6 +31,47 @@ class Query;
 class Inspection;
 }
 
+class ConfigNotifier : public QObject
+{
+    Q_OBJECT
+public:
+    void add(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account)
+    {
+        emit added(account);
+    }
+
+    void remove(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account)
+    {
+        emit removed(account);
+    }
+
+    void modify(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account)
+    {
+        emit modified(account);
+    }
+signals:
+    void added(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account);
+    void removed(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account);
+    void modified(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account);
+};
+
+template <typename DomainType>
+class LocalStorageFacade : public Sink::StoreFacade<DomainType>
+{
+public:
+    LocalStorageFacade(const QByteArray &instanceIdentifier);
+    virtual ~LocalStorageFacade();
+    virtual KAsync::Job<void> create(const DomainType &resource) Q_DECL_OVERRIDE;
+    virtual KAsync::Job<void> modify(const DomainType &resource) Q_DECL_OVERRIDE;
+    virtual KAsync::Job<void> remove(const DomainType &resource) Q_DECL_OVERRIDE;
+    virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
+private:
+    typename DomainType::Ptr readFromConfig(const QByteArray &id, const QByteArray &type);
+
+    ConfigStore mConfigStore;
+    static ConfigNotifier sConfigNotifier;
+};
+
 class ResourceFacade : public Sink::StoreFacade<Sink::ApplicationDomain::SinkResource>
 {
 public:
@@ -42,39 +83,11 @@ public:
     QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 };
 
-class AccountFacade : public Sink::StoreFacade<Sink::ApplicationDomain::SinkAccount>
+class AccountFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkAccount>
 {
 public:
     AccountFacade(const QByteArray &instanceIdentifier);
     virtual ~AccountFacade();
-    KAsync::Job<void> create(const Sink::ApplicationDomain::SinkAccount &resource) Q_DECL_OVERRIDE;
-    KAsync::Job<void> modify(const Sink::ApplicationDomain::SinkAccount &resource) Q_DECL_OVERRIDE;
-    KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkAccount &resource) Q_DECL_OVERRIDE;
-    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkAccount::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
-private:
-    ConfigStore mConfigStore;
 };
 
-class ConfigNotifier : public QObject
-{
-    Q_OBJECT
-public:
-    void add(const Sink::ApplicationDomain::SinkAccount::Ptr &account)
-    {
-        emit added(account);
-    }
 
-    void remove(const Sink::ApplicationDomain::SinkAccount::Ptr &account)
-    {
-        emit removed(account);
-    }
-
-    void modify(const Sink::ApplicationDomain::SinkAccount::Ptr &account)
-    {
-        emit modified(account);
-    }
-signals:
-    void added(const Sink::ApplicationDomain::SinkAccount::Ptr &account);
-    void removed(const Sink::ApplicationDomain::SinkAccount::Ptr &account);
-    void modified(const Sink::ApplicationDomain::SinkAccount::Ptr &account);
-};

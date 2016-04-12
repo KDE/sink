@@ -1,11 +1,13 @@
 #include <QTest>
 #include <QDebug>
 #include <QSignalSpy>
+#include <QAbstractItemModel>
 #include <functional>
 
 #include <test.h>
 #include <store.h>
 #include <log.h>
+#include <configstore.h>
 
 class AccountsTest : public QObject
 {
@@ -16,6 +18,12 @@ private slots:
     {
         Sink::Test::initTest();
         Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
+    }
+
+    void init()
+    {
+        ConfigStore("accounts").clear();
+        ConfigStore("resources").clear();
     }
 
     void testLoad()
@@ -64,6 +72,32 @@ private slots:
         })
         .exec().waitForFinished();
     }
+
+    void testLiveQuery()
+    {
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
+
+        auto account = ApplicationDomainType::createEntity<SinkAccount>();
+        account.setProperty("type", "maildir");
+        account.setProperty("name", "name");
+        Store::create(account).exec().waitForFinished();
+
+        Query query;
+        query.liveQuery = true;
+        auto model = Store::loadModel<SinkAccount>(query);
+        QSignalSpy spy(model.data(), &QAbstractItemModel::rowsInserted);
+        QTRY_COMPARE(spy.count(), 1);
+        Store::create(account).exec().waitForFinished();
+        QTRY_COMPARE(spy.count(), 2);
+
+        //Ensure the notifier only affects one type
+        auto resource = ApplicationDomainType::createEntity<SinkResource>();
+        resource.setProperty("type", "org.kde.mailtransport");
+        Store::create(resource).exec().waitForFinished();
+        QTRY_COMPARE(spy.count(), 2);
+    }
+
 };
 
 QTEST_GUILESS_MAIN(AccountsTest)
