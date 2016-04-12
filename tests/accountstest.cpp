@@ -41,8 +41,12 @@ private slots:
         account.setProperty("icon", accountIcon);
         Store::create(account).exec().waitForFinished();
 
-        Store::fetchAll<SinkAccount>(Query()).then<void, QList<SinkAccount>>([](const QList<SinkAccount> &accounts) {
+        Store::fetchAll<SinkAccount>(Query()).then<void, QList<SinkAccount::Ptr>>([&](const QList<SinkAccount::Ptr> &accounts) {
             QCOMPARE(accounts.size(), 1);
+            auto account = accounts.first();
+            QCOMPARE(account->getProperty("type").toString(), QString("maildir"));
+            QCOMPARE(account->getProperty("name").toString(), accountName);
+            QCOMPARE(account->getProperty("icon").toString(), accountIcon);
         })
         .exec().waitForFinished();
 
@@ -60,8 +64,11 @@ private slots:
         Store::create(resource).exec().waitForFinished();
 
 
-        Store::fetchAll<SinkResource>(Query()).then<void, QList<SinkResource>>([](const QList<SinkResource> &resources) {
+        Store::fetchAll<SinkResource>(Query()).then<void, QList<SinkResource::Ptr>>([&](const QList<SinkResource::Ptr> &resources) {
             QCOMPARE(resources.size(), 1);
+            auto resource = resources.first();
+            QCOMPARE(resource->getProperty("type").toString(), QString("org.kde.mailtransport"));
+            QCOMPARE(resource->getProperty("server").toString(), smtpServer);
         })
         .exec().waitForFinished();
 
