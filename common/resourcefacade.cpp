@@ -108,6 +108,7 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domai
             Warning() << "We need an \"identifier\" property to identify the entity to configure";
             return;
         }
+        Trace() << "Removing: " << identifier;
         mConfigStore.remove(identifier);
         sConfigNotifier.remove(QSharedPointer<DomainType>::create(domainObject));
     });
@@ -150,6 +151,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>:
                 Trace() << "Skipping due to filter.";
                 continue;
             }
+            Trace() << "Found match " << res;
             resultProvider->add(readFromConfig(res, type));
         }
         if (query.liveQuery) {
