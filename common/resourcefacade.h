@@ -72,15 +72,12 @@ private:
     static ConfigNotifier sConfigNotifier;
 };
 
-class ResourceFacade : public Sink::StoreFacade<Sink::ApplicationDomain::SinkResource>
+class ResourceFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkResource>
 {
 public:
     ResourceFacade(const QByteArray &instanceIdentifier);
     virtual ~ResourceFacade();
-    KAsync::Job<void> create(const Sink::ApplicationDomain::SinkResource &resource) Q_DECL_OVERRIDE;
-    KAsync::Job<void> modify(const Sink::ApplicationDomain::SinkResource &resource) Q_DECL_OVERRIDE;
-    KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkResource &resource) Q_DECL_OVERRIDE;
-    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
+    virtual KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkResource &resource) Q_DECL_OVERRIDE;
 };
 
 class AccountFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkAccount>
