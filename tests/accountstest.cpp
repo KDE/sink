@@ -34,8 +34,6 @@ private slots:
         QString accountName("name");
         QString accountIcon("icon");
         auto account = ApplicationDomainType::createEntity<SinkAccount>();
-        //FIXME Get rid of this line
-        account.setProperty("identifier", account.identifier());
         account.setProperty("type", "maildir");
         account.setProperty("name", accountName);
         account.setProperty("icon", accountIcon);
@@ -54,8 +52,6 @@ private slots:
         QString smtpUsername("smtpUsername");
         QString smtpPassword("smtpPassword");
         auto resource = ApplicationDomainType::createEntity<SinkResource>();
-        //FIXME Get rid of this line
-        resource.setProperty("identifier", resource.identifier());
         resource.setProperty("type", "org.kde.mailtransport");
         resource.setProperty("account", account.identifier());
         resource.setProperty("server", smtpServer);
@@ -95,7 +91,11 @@ private slots:
         auto model = Store::loadModel<SinkAccount>(query);
         QSignalSpy spy(model.data(), &QAbstractItemModel::rowsInserted);
         QTRY_COMPARE(spy.count(), 1);
-        Store::create(account).exec().waitForFinished();
+
+        auto account2 = ApplicationDomainType::createEntity<SinkAccount>();
+        account2.setProperty("type", "maildir");
+        account2.setProperty("name", "name");
+        Store::create(account2).exec().waitForFinished();
         QTRY_COMPARE(spy.count(), 2);
 
         //Ensure the notifier only affects one type

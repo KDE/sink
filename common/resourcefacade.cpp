@@ -54,8 +54,7 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::create(const DomainType &domai
 {
     return KAsync::start<void>([domainObject, this]() {
         const QByteArray type = domainObject.getProperty("type").toByteArray();
-        //FIXME use .identifier() instead
-        const QByteArray providedIdentifier = domainObject.getProperty("identifier").toByteArray();
+        const QByteArray providedIdentifier = domainObject.identifier().isEmpty() ? domainObject.getProperty("identifier").toByteArray() : domainObject.identifier();
         const QByteArray identifier = providedIdentifier.isEmpty() ? ResourceConfig::newIdentifier(type) : providedIdentifier;
         mConfigStore.add(identifier, type);
         auto changedProperties = domainObject.changedProperties();
