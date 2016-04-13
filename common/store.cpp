@@ -267,5 +267,6 @@ REGISTER_TYPE(ApplicationDomain::Mail);
 REGISTER_TYPE(ApplicationDomain::Folder);
 REGISTER_TYPE(ApplicationDomain::SinkResource);
 REGISTER_TYPE(ApplicationDomain::SinkAccount);
+REGISTER_TYPE(ApplicationDomain::Identity);
 
 } // namespace Sink
