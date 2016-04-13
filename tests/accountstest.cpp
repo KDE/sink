@@ -68,6 +68,18 @@ private slots:
         })
         .exec().waitForFinished();
 
+        auto identity = ApplicationDomainType::createEntity<Identity>();
+        identity.setProperty("name", smtpServer);
+        identity.setProperty("address", smtpUsername);
+        identity.setProperty("account", account.identifier());
+        Store::create(identity).exec().waitForFinished();
+
+        Store::fetchAll<Identity>(Query()).then<void, QList<Identity::Ptr>>([&](const QList<Identity::Ptr> &identities) {
+            QCOMPARE(identities.size(), 1);
+        })
+        .exec().waitForFinished();
+
+
         Store::remove(resource).exec().waitForFinished();
 
         Store::fetchAll<SinkResource>(Query()).then<void, QList<SinkResource>>([](const QList<SinkResource> &resources) {

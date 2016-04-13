@@ -194,6 +194,9 @@ template<>
 QByteArray SINK_EXPORT getTypeName<SinkAccount>();
 
 template<>
+QByteArray SINK_EXPORT getTypeName<Identity>();
+
+template<>
 QByteArray SINK_EXPORT getTypeName<Mail>();
 
 template<>

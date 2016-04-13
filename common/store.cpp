@@ -54,7 +54,7 @@ QString Store::getTemporaryFilePath()
 static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type = QByteArray())
 {
     // Return the global resource (signified by an empty name) for types that don't belong to a specific resource
-    if (type == "sinkresource" || type == "sinkaccount") {
+    if (type == "sinkresource" || type == "sinkaccount" || type == "identity") {
         return QList<QByteArray>() << "";
     }
     QList<QByteArray> resources;
