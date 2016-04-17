@@ -273,6 +273,8 @@ ResultSet QueryWorker<DomainType>::loadIncrementalResultSet(qint64 baseRevision,
             const auto uid = Sink::Storage::getUidFromRevision(transaction, *revisionCounter);
             const auto type = Sink::Storage::getTypeFromRevision(transaction, *revisionCounter);
             // Trace() << "Revision" << *revisionCounter << type << uid;
+            Q_ASSERT(!uid.isEmpty());
+            Q_ASSERT(!type.isEmpty());
             if (type != bufferType) {
                 // Skip revision
                 *revisionCounter += 1;
