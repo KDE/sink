@@ -129,6 +129,7 @@ void Storage::recordRevision(Sink::Storage::Transaction &transaction, qint64 rev
 void Storage::removeRevision(Sink::Storage::Transaction &transaction, qint64 revision)
 {
     transaction.openDatabase("revisions").remove(QByteArray::number(revision));
+    transaction.openDatabase("revisionType").remove(QByteArray::number(revision));
 }
 
 bool Storage::isInternalKey(const char *key)
