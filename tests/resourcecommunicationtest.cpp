@@ -15,8 +15,8 @@ private slots:
     void testConnect()
     {
         const QByteArray resourceIdentifier("test");
-        Listener listener(resourceIdentifier);
-        Sink::ResourceAccess resourceAccess(resourceIdentifier);
+        Listener listener(resourceIdentifier, "");
+        Sink::ResourceAccess resourceAccess(resourceIdentifier, "");
 
         QSignalSpy spy(&resourceAccess, &Sink::ResourceAccess::ready);
         resourceAccess.open();
@@ -26,8 +26,8 @@ private slots:
     void testHandshake()
     {
         const QByteArray resourceIdentifier("test");
-        Listener listener(resourceIdentifier);
-        Sink::ResourceAccess resourceAccess(resourceIdentifier);
+        Listener listener(resourceIdentifier, "");
+        Sink::ResourceAccess resourceAccess(resourceIdentifier, "");
         resourceAccess.open();
 
         flatbuffers::FlatBufferBuilder fbb;
@@ -42,8 +42,8 @@ private slots:
     void testCommandLoop()
     {
         const QByteArray resourceIdentifier("test");
-        Listener listener(resourceIdentifier);
-        Sink::ResourceAccess resourceAccess(resourceIdentifier);
+        Listener listener(resourceIdentifier, "");
+        Sink::ResourceAccess resourceAccess(resourceIdentifier, "");
         resourceAccess.open();
 
         const int count = 500;
@@ -67,8 +67,8 @@ private slots:
     {
         qDebug();
         const QByteArray resourceIdentifier("test");
-        Listener listener(resourceIdentifier);
-        Sink::ResourceAccess resourceAccess(resourceIdentifier);
+        Listener listener(resourceIdentifier, "");
+        Sink::ResourceAccess resourceAccess(resourceIdentifier, "");
         resourceAccess.open();
 
         const int count = 10;

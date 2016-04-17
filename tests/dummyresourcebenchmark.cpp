@@ -86,7 +86,7 @@ private slots:
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
 
-        auto notifier = QSharedPointer<Sink::Notifier>::create("org.kde.dummy.instance1");
+        auto notifier = QSharedPointer<Sink::Notifier>::create("org.kde.dummy.instance1", "org.kde.dummy");
         bool gotNotification = false;
         int duration = 0;
         notifier->registerHandler([&gotNotification, &duration, &time](const Sink::Notification &notification) {

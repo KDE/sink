@@ -42,10 +42,10 @@
 #undef DEBUG_AREA
 #define DEBUG_AREA "resource.communication"
 
-Listener::Listener(const QByteArray &resourceInstanceIdentifier, QObject *parent)
+Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType, QObject *parent)
     : QObject(parent),
       m_server(new QLocalServer(this)),
-      m_resourceName(Sink::resourceName(resourceInstanceIdentifier)),
+      m_resourceName(resourceType),
       m_resourceInstanceIdentifier(resourceInstanceIdentifier),
       m_resource(0),
       m_clientBufferProcessesTimer(new QTimer(this)),

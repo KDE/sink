@@ -26,6 +26,7 @@
 #include "domainadaptor.h"
 #include "queryrunner.h"
 #include "bufferutils.h"
+#include "resourceconfig.h"
 
 using namespace Sink;
 
@@ -38,7 +39,7 @@ GenericFacade<DomainType>::GenericFacade(
     : Sink::StoreFacade<DomainType>(), mResourceAccess(resourceAccess), mDomainTypeAdaptorFactory(adaptorFactory), mResourceInstanceIdentifier(resourceIdentifier)
 {
     if (!mResourceAccess) {
-        mResourceAccess = ResourceAccessFactory::instance().getAccess(resourceIdentifier);
+        mResourceAccess = ResourceAccessFactory::instance().getAccess(resourceIdentifier, ResourceConfig::getResourceType(resourceIdentifier));
     }
 }
 

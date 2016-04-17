@@ -56,7 +56,7 @@ class SINK_EXPORT Listener : public QObject
     Q_OBJECT
 
 public:
-    Listener(const QByteArray &resourceName, QObject *parent = 0);
+    Listener(const QByteArray &resourceName, const QByteArray &resourceType, QObject *parent = 0);
     ~Listener();
 
 signals:

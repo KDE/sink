@@ -71,6 +71,11 @@ QMap<QByteArray, QByteArray> ResourceConfig::getResources()
     return resources;
 }
 
+QByteArray ResourceConfig::getResourceType(const QByteArray &identifier)
+{
+    return getResources().value(identifier);
+}
+
 void ResourceConfig::clear()
 {
     auto settings = getConfig("resources");

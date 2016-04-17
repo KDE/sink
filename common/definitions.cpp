@@ -36,13 +36,3 @@ QString Sink::temporaryFileLocation()
     dir.mkpath(path);
     return path;
 }
-
-QByteArray Sink::resourceName(const QByteArray &instanceIdentifier)
-{
-    auto split = instanceIdentifier.split('.');
-    if (split.size() <= 1) {
-        return instanceIdentifier;
-    }
-    split.removeLast();
-    return split.join('.');
-}

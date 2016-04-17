@@ -25,6 +25,7 @@
 #include <functional>
 
 #include "resourceaccess.h"
+#include "resourceconfig.h"
 #include "commands.h"
 #include "log.h"
 #include "notifier.h"
@@ -44,7 +45,7 @@ KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
             [identifier, time](QSharedPointer<QLocalSocket> socket, KAsync::Future<void> &future) {
                 // We can't currently reuse the socket
                 socket->close();
-                auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier);
+                auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
                 resourceAccess->open();
                 resourceAccess->sendCommand(Sink::Commands::ShutdownCommand)
                     .then<void>([&future, resourceAccess, time]() {
@@ -64,7 +65,7 @@ KAsync::Job<void> ResourceControl::start(const QByteArray &identifier)
     Trace() << "start " << identifier;
     auto time = QSharedPointer<QTime>::create();
     time->start();
-    auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier);
+    auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
     resourceAccess->open();
     return resourceAccess->sendCommand(Sink::Commands::PingCommand).then<void>([resourceAccess, time]() { Trace() << "Start complete." << Log::TraceTime(time->elapsed()); });
 }
@@ -75,7 +76,7 @@ KAsync::Job<void> ResourceControl::flushMessageQueue(const QByteArrayList &resou
     return KAsync::iterate(resourceIdentifier)
         .template each<void, QByteArray>([](const QByteArray &resource, KAsync::Future<void> &future) {
             Trace() << "Flushing message queue " << resource;
-            auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource);
+            auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
             resourceAccess->open();
             resourceAccess->synchronizeResource(false, true).then<void>([&future, resourceAccess]() { future.setFinished(); }).exec();
         });
@@ -94,7 +95,7 @@ KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
     auto time = QSharedPointer<QTime>::create();
     time->start();
     Trace() << "Sending inspection " << resource;
-    auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource);
+    auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
     resourceAccess->open();
     auto notifier = QSharedPointer<Sink::Notifier>::create(resourceAccess);
     auto id = QUuid::createUuid().toByteArray();

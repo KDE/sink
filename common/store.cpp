@@ -51,23 +51,27 @@ QString Store::getTemporaryFilePath()
     return Sink::temporaryFileLocation() + "/" + QUuid::createUuid().toString();
 }
 
-static QList<QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type = QByteArray())
+/*
+ * Returns a map of resource instance identifiers and resource type
+ */
+static QMap<QByteArray, QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type = QByteArray())
 {
+    QMap<QByteArray, QByteArray> resources;
     // Return the global resource (signified by an empty name) for types that don't belong to a specific resource
     if (type == "sinkresource" || type == "sinkaccount" || type == "identity") {
-        return QList<QByteArray>() << "";
+        resources.insert("", "");
+        return resources;
     }
-    QList<QByteArray> resources;
     const auto configuredResources = ResourceConfig::getResources();
     if (resourceFilter.isEmpty()) {
         for (const auto &res : configuredResources.keys()) {
             // TODO filter by entity type
-            resources << res;
+            resources.insert(res, configuredResources.value(res));
         }
     } else {
         for (const auto &res : resourceFilter) {
             if (configuredResources.contains(res)) {
-                resources << res;
+                resources.insert(res, configuredResources.value(res));
             } else {
                 qWarning() << "Resource is not existing: " << res;
             }
@@ -99,16 +103,17 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     auto resources = getResources(query.resources, ApplicationDomain::getTypeName<DomainType>());
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     model->setEmitter(aggregatingEmitter);
-    KAsync::iterate(resources)
-        .template each<void, QByteArray>([query, aggregatingEmitter](const QByteArray &resource, KAsync::Future<void> &future) {
-            auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceName(resource), resource);
+    KAsync::iterate(resources.keys())
+        .template each<void, QByteArray>([query, aggregatingEmitter, resources](const QByteArray &resourceInstanceIdentifier, KAsync::Future<void> &future) {
+            const auto resourceType = resources.value(resourceInstanceIdentifier);
+            auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceType, resourceInstanceIdentifier);
             if (facade) {
-                Trace() << "Trying to fetch from resource " << resource;
+                Trace() << "Trying to fetch from resource " << resourceInstanceIdentifier;
                 auto result = facade->load(query);
                 aggregatingEmitter->addEmitter(result.second);
                 result.first.template then<void>([&future]() { future.setFinished(); }).exec();
             } else {
-                Trace() << "Couldn' find a facade for " << resource;
+                Trace() << "Couldn' find a facade for " << resourceInstanceIdentifier;
                 // Ignore the error and carry on
                 future.setFinished();
             }
@@ -129,8 +134,7 @@ static std::shared_ptr<StoreFacade<DomainType>> getFacade(const QByteArray &reso
             return facade;
         }
     }
-    const auto resourceType = resourceName(resourceInstanceIdentifier);
-    if (auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceType, resourceInstanceIdentifier)) {
+    if (auto facade = FacadeFactory::instance().getFacade<DomainType>(ResourceConfig::getResourceType(resourceInstanceIdentifier), resourceInstanceIdentifier)) {
         return facade;
     }
     return std::make_shared<NullFacade<DomainType>>();
@@ -168,7 +172,7 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
     Trace() << "Remove data from disk " << identifier;
     auto time = QSharedPointer<QTime>::create();
     time->start();
-    auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier);
+    auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
     resourceAccess->open();
     return resourceAccess->sendCommand(Sink::Commands::RemoveFromDiskCommand)
         .then<void>([resourceAccess, time]() { Trace() << "Remove from disk complete." << Log::TraceTime(time->elapsed()); });
@@ -177,11 +181,11 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
     Trace() << "synchronize" << query.resources;
-    auto resources = getResources(query.resources);
+    auto resources = getResources(query.resources).keys();
     return KAsync::iterate(resources)
         .template each<void, QByteArray>([query](const QByteArray &resource, KAsync::Future<void> &future) {
             Trace() << "Synchronizing " << resource;
-            auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource);
+            auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
             resourceAccess->open();
             resourceAccess->synchronizeResource(true, false).then<void>([&future, resourceAccess]() { future.setFinished(); }).exec();
         });

@@ -65,12 +65,13 @@ int main(int argc, char *argv[])
     signal(SIGSEGV, crashHandler);
     QCoreApplication app(argc, argv);
 
-    if (argc < 2) {
+    if (argc < 3) {
         Warning() << "Not enough args passed, no resource loaded.";
         return app.exec();
     }
 
     const QByteArray instanceIdentifier = argv[1];
+    const QByteArray resourceType = argv[2];
     app.setApplicationName(instanceIdentifier);
 
     QLockFile lockfile(instanceIdentifier + ".lock");
@@ -80,7 +81,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    Listener *listener = new Listener(instanceIdentifier, &app);
+    Listener *listener = new Listener(instanceIdentifier, resourceType, &app);
 
     QObject::connect(&app, &QCoreApplication::aboutToQuit, listener, &Listener::closeAllConnections);
     QObject::connect(listener, &Listener::noClients, &app, &QCoreApplication::quit);

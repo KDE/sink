@@ -199,7 +199,7 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                     TracePrivate() << "Failed to connect, starting resource";
                     // We failed to connect, so let's start the resource
                     QStringList args;
-                    args << resourceInstanceIdentifier;
+                    args << resourceInstanceIdentifier << resourceName;
                     qint64 pid = 0;
                     if (QProcess::startDetached("sink_synchronizer", args, QDir::homePath(), &pid)) {
                         TracePrivate() << "Started resource " << pid;
@@ -218,15 +218,8 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
     });
 }
 
-static QByteArray getResourceName(const QByteArray &instanceIdentifier)
-{
-    auto split = instanceIdentifier.split('.');
-    split.removeLast();
-    return split.join('.');
-}
-
-ResourceAccess::ResourceAccess(const QByteArray &resourceInstanceIdentifier)
-    : ResourceAccessInterface(), d(new Private(getResourceName(resourceInstanceIdentifier), resourceInstanceIdentifier, this))
+ResourceAccess::ResourceAccess(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType)
+    : ResourceAccessInterface(), d(new Private(resourceType, resourceInstanceIdentifier, this))
 {
     Log() << "Starting access";
 }
@@ -593,7 +586,7 @@ ResourceAccessFactory &ResourceAccessFactory::instance()
     return *instance;
 }
 
-Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &instanceIdentifier)
+Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &instanceIdentifier, const QByteArray resourceType)
 {
     if (!mCache.contains(instanceIdentifier)) {
         // Reuse the pointer if something else kept the resourceaccess alive
@@ -605,7 +598,7 @@ Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &ins
         }
         if (!mCache.contains(instanceIdentifier)) {
             // Create a new instance if necessary
-            auto sharedPointer = Sink::ResourceAccess::Ptr::create(instanceIdentifier);
+            auto sharedPointer = Sink::ResourceAccess::Ptr::create(instanceIdentifier, resourceType);
             QObject::connect(sharedPointer.data(), &Sink::ResourceAccess::ready, sharedPointer.data(), [this, instanceIdentifier](bool ready) {
                 if (!ready) {
                     mCache.remove(instanceIdentifier);

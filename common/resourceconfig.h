@@ -29,6 +29,7 @@ class SINK_EXPORT ResourceConfig
 {
 public:
     static QMap<QByteArray, QByteArray> getResources();
+    static QByteArray getResourceType(const QByteArray &identifier);
     static QByteArray newIdentifier(const QByteArray &type);
     static void addResource(const QByteArray &identifier, const QByteArray &type);
     static void removeResource(const QByteArray &identifier);
