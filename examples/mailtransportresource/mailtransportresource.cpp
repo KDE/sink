@@ -29,6 +29,7 @@ MailtransportResourceFactory::MailtransportResourceFactory(QObject *parent)
 
 Sink::Resource *MailtransportResourceFactory::createResource(const QByteArray &instanceIdentifier)
 {
+    ErrorMsg() << "The mailtransport resource has no synchronizer process: " << instanceIdentifier;
     return nullptr;
 }
 

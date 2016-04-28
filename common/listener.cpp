@@ -416,6 +416,10 @@ Sink::Resource *Listener::loadResource()
     if (!m_resource) {
         if (Sink::ResourceFactory *resourceFactory = Sink::ResourceFactory::load(m_resourceName)) {
             m_resource = resourceFactory->createResource(m_resourceInstanceIdentifier);
+            if (!m_resource) {
+                ErrorMsg() << "Failed to instantiate the resource " << m_resourceName;
+                m_resource = new Sink::Resource;
+            }
             Trace() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
             Trace() << QString("\tResource: %1").arg((qlonglong)m_resource);
             connect(m_resource, &Sink::Resource::revisionUpdated, this, &Listener::refreshRevision);
