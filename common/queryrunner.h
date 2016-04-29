@@ -97,6 +97,6 @@ private:
     QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
     QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr>> mResultProvider;
     ResultTransformation mResultTransformation;
-    int mOffset;
+    QHash<QByteArray, qint64> mOffset;
     int mBatchSize;
 };

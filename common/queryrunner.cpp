@@ -77,7 +77,7 @@ private:
 template <class DomainType>
 QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::ResourceAccessInterface::Ptr &resourceAccess, const QByteArray &instanceIdentifier,
     const DomainTypeAdaptorFactoryInterface::Ptr &factory, const QByteArray &bufferType)
-    : QueryRunnerBase(), mResourceAccess(resourceAccess), mResultProvider(new ResultProvider<typename DomainType::Ptr>), mOffset(0), mBatchSize(query.limit)
+    : QueryRunnerBase(), mResourceAccess(resourceAccess), mResultProvider(new ResultProvider<typename DomainType::Ptr>), mBatchSize(query.limit)
 {
     Trace() << "Starting query";
     if (query.limit && query.sortProperty.isEmpty()) {
@@ -85,15 +85,16 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
     }
     // We delegate loading of initial data to the result provider, so it can decide for itself what it needs to load.
     mResultProvider->setFetcher([=](const typename DomainType::Ptr &parent) {
-        Trace() << "Running fetcher. Offset: " << mOffset << " Batchsize: " << mBatchSize;
+        const QByteArray parentId = parent ? parent->identifier() : QByteArray();
+        Trace() << "Running fetcher. Offset: " << mOffset[parentId] << " Batchsize: " << mBatchSize;
         auto resultProvider = mResultProvider;
         async::run<QPair<qint64, qint64> >([=]() {
             QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType, mResultTransformation);
-            const auto  newRevisionAndReplayedEntities = worker.executeInitialQuery(query, parent, *resultProvider, mOffset, mBatchSize);
+            const auto  newRevisionAndReplayedEntities = worker.executeInitialQuery(query, parent, *resultProvider, mOffset[parentId], mBatchSize);
             return newRevisionAndReplayedEntities;
         })
-            .template then<void, QPair<qint64, qint64>>([query, this](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
-                mOffset += newRevisionAndReplayedEntities.second;
+            .template then<void, QPair<qint64, qint64>>([=](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
+                mOffset[parentId] += newRevisionAndReplayedEntities.second;
                 // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
                 if (query.liveQuery) {
                     mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.first);
