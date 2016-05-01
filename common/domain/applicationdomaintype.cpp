@@ -20,6 +20,8 @@
 #include "applicationdomaintype.h"
 #include "log.h"
 #include "../bufferadaptor.h"
+#include "definitions.h"
+#include <QFile>
 
 namespace Sink {
 namespace ApplicationDomain {
@@ -84,6 +86,29 @@ void ApplicationDomainType::setProperty(const QByteArray &key, const QVariant &v
     Q_ASSERT(mAdaptor);
     mChangeSet.insert(key);
     mAdaptor->setProperty(key, value);
+}
+
+QByteArray ApplicationDomainType::getBlobProperty(const QByteArray &key) const
+{
+    const auto path = getProperty(key).toByteArray();
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        ErrorMsg() << "Failed to open the file: " << file.errorString() << path;
+        return QByteArray();
+    }
+    return file.readAll();
+}
+
+void ApplicationDomainType::setBlobProperty(const QByteArray &key, const QByteArray &value)
+{
+    const auto path = Sink::temporaryFileLocation() + "/" + QUuid::createUuid().toString();
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly)) {
+        ErrorMsg() << "Failed to open the file: " << file.errorString() << path;
+        return;
+    }
+    file.write(value);
+    setProperty(key, path);
 }
 
 void ApplicationDomainType::setChangedProperties(const QSet<QByteArray> &changeset)
