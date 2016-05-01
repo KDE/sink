@@ -382,9 +382,9 @@ QueryWorker<DomainType>::getFilter(const QSet<QByteArray> remainingFilters, cons
         for (const auto &filterProperty : remainingFilters) {
             const auto property = domainObject->getProperty(filterProperty);
             if (property.isValid()) {
-                // TODO implement other comparison operators than equality
-                if (property != query.propertyFilter.value(filterProperty)) {
-                    Trace() << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << query.propertyFilter.value(filterProperty);
+                const auto comparator = query.propertyFilter.value(filterProperty);
+                if (!comparator.matches(property)) {
+                    Trace() << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << comparator.value;
                     return false;
                 }
             } else {
@@ -445,10 +445,10 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeInitialQuery(
     if (!query.parentProperty.isEmpty()) {
         if (parent) {
             Trace() << "Running initial query for parent:" << parent->identifier();
-            modifiedQuery.propertyFilter.insert(query.parentProperty, parent->identifier());
+            modifiedQuery.propertyFilter.insert(query.parentProperty, Query::Comparator(parent->identifier()));
         } else {
             Trace() << "Running initial query for toplevel";
-            modifiedQuery.propertyFilter.insert(query.parentProperty, QVariant());
+            modifiedQuery.propertyFilter.insert(query.parentProperty, Query::Comparator(QVariant()));
         }
     }
     auto revisionAndReplayedEntities = load(modifiedQuery, [&](Sink::Storage::Transaction &transaction, QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting) -> ResultSet {

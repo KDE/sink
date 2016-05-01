@@ -12,6 +12,8 @@
 #include "pipeline.h"
 #include "log.h"
 
+using namespace Sink;
+
 /**
  * Test of complete system using the dummy resource.
  *
@@ -62,14 +64,12 @@ private slots:
         event.setProperty("summary", "summaryValue");
         Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        const auto query = Query::ResourceFilter("org.kde.dummy.instance1") ;
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        query.propertyFilter.insert("uid", "testuid");
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query + Query::PropertyFilter("uid", "testuid"));
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
@@ -86,15 +86,12 @@ private slots:
         event.setProperty("uid", "testuid2");
         Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        const auto query = Query::ResourceFilter("org.kde.dummy.instance1") ;
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        query.propertyFilter.insert("uid", "testuid");
-
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query + Query::PropertyFilter("uid", "testuid"));
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
 
@@ -114,15 +111,12 @@ private slots:
         event.setProperty("summary", "summaryValue2");
         Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        const auto query = Query::ResourceFilter("org.kde.dummy.instance1") ;
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        query.propertyFilter.insert("summary", "summaryValue2");
-
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query + Query::PropertyFilter("summary", "summaryValue2"));
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
 
@@ -147,8 +141,7 @@ private slots:
 
     void testSyncAndFacade()
     {
-        Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        const auto query = Query::ResourceFilter("org.kde.dummy.instance1");
 
         // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
@@ -164,8 +157,7 @@ private slots:
 
     void testSyncAndFacadeMail()
     {
-        Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        const auto query = Query::ResourceFilter("org.kde.dummy.instance1");
 
         // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
@@ -187,9 +179,7 @@ private slots:
         event.setProperty("summary", "summaryValue");
         Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
-        query.propertyFilter.insert("uid", "testuid");
+        const auto query = Query::ResourceFilter("org.kde.dummy.instance1") + Query::PropertyFilter("uid", "testuid");
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
@@ -238,11 +228,9 @@ private slots:
 
     void testWriteModifyDeleteLive()
     {
-
-        Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        auto query = Query::ResourceFilter("org.kde.dummy.instance1");
         query.liveQuery = true;
-        query.propertyFilter.insert("uid", "testuid");
+        query += Query::PropertyFilter("uid", "testuid");
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());

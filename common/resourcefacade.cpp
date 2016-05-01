@@ -113,13 +113,13 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domai
     });
 }
 
-static bool matchesFilter(const QHash<QByteArray, QVariant> &filter, const QMap<QByteArray, QVariant> &properties)
+static bool matchesFilter(const QHash<QByteArray, Sink::Query::Comparator> &filter, const QMap<QByteArray, QVariant> &properties)
 {
     for (const auto &filterProperty : filter.keys()) {
         if (filterProperty == "type") {
             continue;
         }
-        if (filter.value(filterProperty).toByteArray() != properties.value(filterProperty).toByteArray()) {
+        if (filter.value(filterProperty).matches(properties.value(filterProperty))) {
             return false;
         }
     }
@@ -138,7 +138,8 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>:
         const auto entries = mConfigStore.getEntries();
         for (const auto &res : entries.keys()) {
             const auto type = entries.value(res);
-            if (query.propertyFilter.contains("type") && query.propertyFilter.value("type").toByteArray() != type) {
+
+            if (query.propertyFilter.contains("type") && query.propertyFilter.value("type").value.toByteArray() != type) {
                 Trace() << "Skipping due to type.";
                 continue;
             }

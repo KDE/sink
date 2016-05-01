@@ -159,7 +159,7 @@ private slots:
                                   << "subject"
                                   << "date";
         query.sortProperty = "date";
-        query.propertyFilter.insert("folder", "folder1");
+        query += Sink::Query::PropertyFilter("folder", "folder1");
         query.limit = 1000;
 
         populateDatabase(50000);

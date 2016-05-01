@@ -19,6 +19,7 @@
  */
 #pragma once
 
+#include "sink_export.h"
 #include <QByteArrayList>
 #include <QHash>
 #include <QSet>
@@ -29,7 +30,7 @@ namespace Sink {
 /**
  * A query that matches a set of entities.
  */
-class Query
+class SINK_EXPORT Query
 {
 public:
     enum Flag
@@ -40,6 +41,13 @@ public:
     Q_DECLARE_FLAGS(Flags, Flag)
 
     static Query PropertyFilter(const QByteArray &key, const QVariant &value)
+    {
+        Query query;
+        query.propertyFilter.insert(key, value);
+        return query;
+    }
+
+    static Query PropertyContainsFilter(const QByteArray &key, const QVariant &value)
     {
         Query query;
         query.propertyFilter.insert(key, value);
@@ -68,6 +76,18 @@ public:
     static Query ResourceFilter(const ApplicationDomain::SinkResource &entity)
     {
         return ResourceFilter(entity.identifier());
+    }
+
+    static Query AccountFilter(const QByteArrayList &identifier)
+    {
+        Query query;
+        query.accounts = identifier;
+        return query;
+    }
+
+    static Query AccountFilter(const ApplicationDomain::SinkAccount &entity)
+    {
+        return AccountFilter(entity.identifier());
     }
 
     static Query IdentityFilter(const QByteArray &identifier)
@@ -110,6 +130,7 @@ public:
     Query &operator+=(const Query &rhs)
     {
         resources += rhs.resources;
+        accounts += rhs.accounts;
         ids += rhs.ids;
         for (auto it = rhs.propertyFilter.constBegin(); it != rhs.propertyFilter.constEnd(); it++) {
             propertyFilter.insert(it.key(), it.value());
@@ -128,9 +149,25 @@ public:
         return lhs;
     }
 
+    struct Comparator {
+        enum Comparators {
+            Invalid,
+            Equals,
+            Contains
+        };
+
+        Comparator();
+        Comparator(const QVariant &v);
+        bool matches(const QVariant &v) const;
+
+        QVariant value;
+        Comparators comparator;
+    };
+
     QByteArrayList resources;
+    QByteArrayList accounts;
     QByteArrayList ids;
-    QHash<QByteArray, QVariant> propertyFilter;
+    QHash<QByteArray, Comparator> propertyFilter;
     QByteArrayList requestedProperties;
     QByteArray parentProperty;
     QByteArray sortProperty;
@@ -138,5 +175,7 @@ public:
     int limit;
 };
 }
+
+QDebug operator<<(QDebug dbg, const Sink::Query::Comparator &c);
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Sink::Query::Flags)

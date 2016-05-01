@@ -143,7 +143,7 @@ ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFi
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
         if (query.propertyFilter.contains(it.key()) && query.sortProperty == it.value()) {
             Index index(indexName(it.key(), it.value()), transaction);
-            const auto lookupKey = getByteArray(query.propertyFilter.value(it.key()));
+            const auto lookupKey = getByteArray(query.propertyFilter.value(it.key()).value);
             Trace() << "looking for " << lookupKey;
             index.lookup(lookupKey, [&](const QByteArray &value) { keys << value; },
                 [it](const Index::Error &error) { Warning() << "Error in index: " << error.message << it.key() << it.value(); }, true);
@@ -156,7 +156,7 @@ ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFi
     for (const auto &property : mProperties) {
         if (query.propertyFilter.contains(property)) {
             Index index(indexName(property), transaction);
-            const auto lookupKey = getByteArray(query.propertyFilter.value(property));
+            const auto lookupKey = getByteArray(query.propertyFilter.value(property).value);
             index.lookup(
                 lookupKey, [&](const QByteArray &value) { keys << value; }, [property](const Index::Error &error) { Warning() << "Error in index: " << error.message << property; });
             appliedFilters << property;

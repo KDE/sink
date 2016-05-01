@@ -202,7 +202,7 @@ private slots:
         Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
         query.liveQuery = false;
-        query.propertyFilter.insert("uid", "test1");
+        query += Sink::Query::PropertyFilter("uid", "test1");
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
@@ -243,7 +243,7 @@ private slots:
         // Test
         Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.propertyFilter.insert("folder", folderEntity->identifier());
+        query += Sink::Query::PropertyFilter("folder", *folderEntity);
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
@@ -302,7 +302,7 @@ private slots:
         // Test
         Sink::Query query;
         query.resources << "org.kde.dummy.instance1";
-        query.propertyFilter.insert("folder", folderEntity->identifier());
+        query += Sink::Query::PropertyFilter("folder", *folderEntity);
         query.sortProperty = "date";
         query.limit = 1;
         query.liveQuery = false;

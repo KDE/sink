@@ -54,8 +54,16 @@ QString Store::getTemporaryFilePath()
 /*
  * Returns a map of resource instance identifiers and resource type
  */
-static QMap<QByteArray, QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QByteArray &type = QByteArray())
+static QMap<QByteArray, QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QList<QByteArray> &accountFilter,const QByteArray &type = QByteArray())
 {
+    const auto filterResource = [&](const QByteArray &res) {
+        const auto configuration = ResourceConfig::getConfiguration(res);
+        if (!accountFilter.isEmpty() && !accountFilter.contains(configuration.value("account").toByteArray())) {
+            return true;
+        }
+        return false;
+    };
+
     QMap<QByteArray, QByteArray> resources;
     // Return the global resource (signified by an empty name) for types that don't belong to a specific resource
     if (type == "sinkresource" || type == "sinkaccount" || type == "identity") {
@@ -65,15 +73,22 @@ static QMap<QByteArray, QByteArray> getResources(const QList<QByteArray> &resour
     const auto configuredResources = ResourceConfig::getResources();
     if (resourceFilter.isEmpty()) {
         for (const auto &res : configuredResources.keys()) {
+            const auto type = configuredResources.value(res);
+            if (filterResource(res)) {
+                continue;
+            }
             // TODO filter by entity type
-            resources.insert(res, configuredResources.value(res));
+            resources.insert(res, type);
         }
     } else {
         for (const auto &res : resourceFilter) {
             if (configuredResources.contains(res)) {
+                if (filterResource(res)) {
+                    continue;
+                }
                 resources.insert(res, configuredResources.value(res));
             } else {
-                qWarning() << "Resource is not existing: " << res;
+                Warning() << "Resource is not existing: " << res;
             }
         }
     }
@@ -100,7 +115,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     //* The result provider needs to live for as long as results are provided (until the last thread exits).
 
     // Query all resources and aggregate results
-    auto resources = getResources(query.resources, ApplicationDomain::getTypeName<DomainType>());
+    auto resources = getResources(query.resources, query.accounts, ApplicationDomain::getTypeName<DomainType>());
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     model->setEmitter(aggregatingEmitter);
     KAsync::iterate(resources.keys())
@@ -181,7 +196,7 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
     Trace() << "synchronize" << query.resources;
-    auto resources = getResources(query.resources).keys();
+    auto resources = getResources(query.resources, query.accounts).keys();
     return KAsync::iterate(resources)
         .template each<void, QByteArray>([query](const QByteArray &resource, KAsync::Future<void> &future) {
             Trace() << "Synchronizing " << resource;

@@ -65,6 +65,7 @@ set(command_SRCS
     domain/mail.cpp
     domain/folder.cpp
     test.cpp
+    query.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

@@ -265,7 +265,7 @@ private slots:
 
         Sink::Query folderQuery;
         folderQuery.resources << "org.kde.maildir.instance1";
-        folderQuery.propertyFilter.insert("name", "testCreateFolder");
+        folderQuery += Sink::Query::PropertyFilter("name", "testCreateFolder");
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(folderQuery);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(QModelIndex()), 1);

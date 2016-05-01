@@ -58,7 +58,7 @@ public:
             }
             Trace() << "-------------------------.";
             for (const auto &res : results) {
-                qDebug() << "Parent filter " << query.propertyFilter.value("parent").toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
+                qDebug() << "Parent filter " << query.propertyFilter.value("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
                 auto parentProperty = res->getProperty("parent").toByteArray();
                 if ((!parent && parentProperty.isEmpty()) || (parent && parentProperty == parent->identifier()) || query.parentProperty.isEmpty()) {
                     qDebug() << "Found a hit" << res->identifier();
@@ -132,7 +132,7 @@ private slots:
         Sink::Store::create(res).exec().waitForFinished();
         {
             Sink::Query query;
-            query.propertyFilter.insert("type", "dummyresource");
+            query.propertyFilter.insert("type", Sink::Query::Comparator("dummyresource"));
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         }
@@ -140,7 +140,7 @@ private slots:
         Sink::Store::remove(res).exec().waitForFinished();
         {
             Sink::Query query;
-            query.propertyFilter.insert("type", "dummyresource");
+            query.propertyFilter.insert("type", Sink::Query::Comparator("dummyresource"));
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
             QCOMPARE(model->rowCount(QModelIndex()), 0);
