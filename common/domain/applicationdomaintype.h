@@ -43,8 +43,8 @@ public:
     typedef QSharedPointer<ApplicationDomainType> Ptr;
 
     ApplicationDomainType();
-    ApplicationDomainType(const QByteArray &resourceInstanceIdentifier);
-    ApplicationDomainType(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
+    explicit ApplicationDomainType(const QByteArray &resourceInstanceIdentifier);
+    explicit ApplicationDomainType(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
     ApplicationDomainType(const ApplicationDomainType &other);
     ApplicationDomainType& operator=(const ApplicationDomainType &other);
 
@@ -70,6 +70,7 @@ public:
 
     QVariant getProperty(const QByteArray &key) const;
     void setProperty(const QByteArray &key, const QVariant &value);
+    void setProperty(const QByteArray &key, const ApplicationDomainType &value);
 
     QByteArray getBlobProperty(const QByteArray &key) const;
     void setBlobProperty(const QByteArray &key, const QByteArray &value);

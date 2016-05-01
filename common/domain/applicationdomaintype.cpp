@@ -88,6 +88,12 @@ void ApplicationDomainType::setProperty(const QByteArray &key, const QVariant &v
     mAdaptor->setProperty(key, value);
 }
 
+void ApplicationDomainType::setProperty(const QByteArray &key, const ApplicationDomainType &value)
+{
+    Q_ASSERT(!value.identifier().isEmpty());
+    setProperty(key, value.identifier());
+}
+
 QByteArray ApplicationDomainType::getBlobProperty(const QByteArray &key) const
 {
     const auto path = getProperty(key).toByteArray();
