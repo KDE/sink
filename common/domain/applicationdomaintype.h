@@ -157,24 +157,24 @@ struct SINK_EXPORT Folder : public Entity {
  */
 struct SINK_EXPORT SinkResource : public ApplicationDomainType {
     typedef QSharedPointer<SinkResource> Ptr;
-    SinkResource(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
-    SinkResource(const QByteArray &identifier);
+    explicit SinkResource(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
+    explicit SinkResource(const QByteArray &identifier);
     SinkResource();
     virtual ~SinkResource();
 };
 
 struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
     typedef QSharedPointer<SinkAccount> Ptr;
-    SinkAccount(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
-    SinkAccount(const QByteArray &identifier);
+    explicit SinkAccount(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
+    explicit SinkAccount(const QByteArray &identifier);
     SinkAccount();
     virtual ~SinkAccount();
 };
 
 struct SINK_EXPORT Identity : public ApplicationDomainType {
     typedef QSharedPointer<Identity> Ptr;
-    Identity(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
-    Identity(const QByteArray &identifier);
+    explicit Identity(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
+    explicit Identity(const QByteArray &identifier);
     Identity();
     virtual ~Identity();
 };

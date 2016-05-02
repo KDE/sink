@@ -78,6 +78,13 @@ public:
         return ResourceFilter(entity.identifier());
     }
 
+    static Query AccountFilter(const QByteArray &identifier)
+    {
+        Query query;
+        query.accounts.append(identifier);
+        return query;
+    }
+
     static Query AccountFilter(const QByteArrayList &identifier)
     {
         Query query;
