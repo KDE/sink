@@ -4,6 +4,7 @@ table Folder {
   name:string;
   parent:string;
   icon:string;
+  specialpurpose:[string];
 }
 
 root_type Folder;

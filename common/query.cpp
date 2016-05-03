@@ -48,7 +48,7 @@ bool Query::Comparator::matches(const QVariant &v) const
         case Equals:
             return v == value;
         case Contains:
-            return v.toList().contains(value);
+            return v.value<QByteArrayList>().contains(value.toByteArray());
         default:
             break;
     }
