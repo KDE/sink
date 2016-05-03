@@ -48,6 +48,21 @@ flatbuffers::uoffset_t variantToProperty<QDateTime>(const QVariant &property, fl
 }
 
 template <>
+flatbuffers::uoffset_t variantToProperty<QByteArrayList>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
+{
+    if (property.isValid()) {
+        const auto list = property.value<QByteArrayList>();
+        std::vector<flatbuffers::Offset<flatbuffers::String>> vector;
+        for (const auto value : list) {
+            auto offset = fbb.CreateString(value.toStdString());
+            vector.push_back(offset);
+        }
+        return fbb.CreateVector(vector).o;
+    }
+    return 0;
+}
+
+template <>
 QVariant propertyToVariant<QString>(const flatbuffers::String *property)
 {
     if (property) {
@@ -73,6 +88,21 @@ QVariant propertyToVariant<QByteArray>(const flatbuffers::Vector<uint8_t> *prope
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
         return QByteArray(reinterpret_cast<const char *>(property->Data()), property->Length());
+    }
+    return QVariant();
+}
+
+template <>
+QVariant propertyToVariant<QByteArrayList>(const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> *property)
+{
+    if (property) {
+        QByteArrayList list;
+        for (auto it = property->begin(); it != property->end();) {
+            // We have to copy the memory, otherwise it would become eventually invalid
+            list << QString::fromStdString((*it)->c_str()).toUtf8();
+            it.operator++();
+        }
+        return QVariant::fromValue(list);
     }
     return QVariant();
 }

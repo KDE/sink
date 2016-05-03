@@ -40,7 +40,8 @@ template <typename T>
 QVariant SINK_EXPORT propertyToVariant(uint8_t);
 template <typename T>
 QVariant SINK_EXPORT propertyToVariant(const flatbuffers::Vector<uint8_t> *);
-
+template <typename T>
+QVariant SINK_EXPORT propertyToVariant(const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> *);
 
 /**
  * The property mapper is a non-typesafe virtual dispatch.
@@ -100,6 +101,12 @@ public:
         addMapping(name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<T>((buffer->*f)()); });
     }
 
+    template <typename T, typename Buffer>
+    void addMapping(const QByteArray &name, const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> *(Buffer::*f)() const)
+    {
+        addMapping(name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<T>((buffer->*f)()); });
+    }
+
 private:
     QHash<QByteArray, std::function<QVariant(BufferType const *)>> mReadAccessors;
 };
@@ -153,6 +160,15 @@ public:
 
     template <typename T>
     void addMapping(const QByteArray &name, void (BufferBuilder::*f)(flatbuffers::Offset<flatbuffers::Vector<uint8_t>>))
+    {
+        addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+            auto offset = variantToProperty<T>(value, fbb);
+            return [offset, f](BufferBuilder &builder) { (builder.*f)(offset); };
+        });
+    }
+
+    template <typename T>
+    void addMapping(const QByteArray &name, void (BufferBuilder::*f)(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>>))
     {
         addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
             auto offset = variantToProperty<T>(value, fbb);
