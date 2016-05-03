@@ -64,6 +64,14 @@ public:
         return object;
     }
 
+    template <class DomainType>
+    static DomainType createEntity(const QByteArray &resourceInstanceIdentifier)
+    {
+        DomainType object(resourceInstanceIdentifier);
+        object.mIdentifier = QUuid::createUuid().toByteArray();
+        return object;
+    }
+
     virtual ~ApplicationDomainType();
 
     bool hasProperty(const QByteArray &key) const;
