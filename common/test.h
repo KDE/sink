@@ -21,6 +21,9 @@
 #pragma once
 
 #include "sink_export.h"
+#include "applicationdomaintype.h"
+
+#include <memory>
 
 namespace Sink {
 namespace Test {
@@ -31,5 +34,28 @@ namespace Test {
  * and clears all data directories.
  */
 void SINK_EXPORT initTest();
+
+class SINK_EXPORT TestAccount {
+public:
+    QByteArray identifier;
+    static TestAccount registerAccount();
+
+    template<typename DomainType>
+    void addEntity(const ApplicationDomain::ApplicationDomainType::Ptr &domainObject);
+
+    template<typename DomainType>
+    typename DomainType::Ptr createEntity();
+
+    template<typename DomainType>
+    QList<ApplicationDomain::ApplicationDomainType::Ptr> entities() const;
+
+private:
+    TestAccount(){};
+    TestAccount(const TestAccount &);
+    TestAccount &operator=(const TestAccount &);
+    QHash<QByteArray, QList<ApplicationDomain::ApplicationDomainType::Ptr> > mEntities;
+    QHash<QByteArray, std::shared_ptr<void> > mFacades;
+};
+
 }
 }
