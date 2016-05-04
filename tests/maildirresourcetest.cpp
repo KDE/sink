@@ -12,6 +12,18 @@
 #include "pipeline.h"
 #include "log.h"
 
+#define ASYNCCOMPARE(actual, expected) \
+do {\
+    if (!QTest::qCompare(actual, expected, #actual, #expected, __FILE__, __LINE__))\
+        return KAsync::error<void>(1, "Comparison failed.");\
+} while (0)
+
+#define ASYNCVERIFY(statement) \
+do {\
+    if (!QTest::qVerify((statement), #statement, "", __FILE__, __LINE__))\
+        return KAsync::error<void>(1, "Verify failed.");\
+} while (0)
+
 static bool copyRecursively(const QString &srcFilePath, const QString &tgtFilePath)
 {
     QFileInfo srcFileInfo(srcFilePath);
@@ -314,10 +326,7 @@ private slots:
                               return Store::fetchAll<Mail>(Query::PropertyFilter("folder", folder) + Query::RequestedProperties(QByteArrayList() << "folder"
                                                                                                                                                  << "subject"))
                                   .then<void, KAsync::Job<void>, QList<Mail::Ptr>>([query](const QList<Mail::Ptr> &mails) {
-                                      // Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
-                                      if (mails.size() != 1) {
-                                          return KAsync::error<void>(1, "Wrong number of mails.");
-                                      }
+                                      ASYNCCOMPARE(mails.size(), 1);
                                       auto mail = mails.first();
 
                                       return Store::remove(*mail)
@@ -349,10 +358,7 @@ private slots:
                                                            Query::RequestedProperties(QByteArrayList() << "folder"
                                                                                                        << "subject"))
                                   .then<void, KAsync::Job<void>, QList<Mail::Ptr>>([query](const QList<Mail::Ptr> &mails) {
-                                      // Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
-                                      if (mails.size() != 1) {
-                                          return KAsync::error<void>(1, "Wrong number of mails.");
-                                      }
+                                      ASYNCCOMPARE(mails.size(), 1);
                                       auto mail = mails.first();
                                       mail->setProperty("unread", true);
                                       return Store::modify(*mail)
@@ -372,25 +378,11 @@ private slots:
                                                                                                                                                                  << "mimeMessage"
                                                                                                                                                                  << "unread"))
                            .then<void, KAsync::Job<void>, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
-                               // Can't use QCOMPARE because it tries to return FIXME Implement ASYNCCOMPARE
-                               if (mails.size() != 1) {
-                                   qWarning() << "Wrong number of mails";
-                                   return KAsync::error<void>(1, "Wrong number of mails.");
-                               }
+                               ASYNCCOMPARE(mails.size(), 1);
                                auto mail = mails.first();
-                               if (mail->getProperty("subject").toString().isEmpty()) {
-                                   qWarning() << "Wrong subject";
-                                   return KAsync::error<void>(1, "Wrong subject.");
-                               }
-                               if (mail->getProperty("unread").toBool() != true) {
-                                   qWarning() << "Not unread";
-                                   return KAsync::error<void>(1, "Not unread.");
-                               }
-                               QFileInfo info(mail->getProperty("mimeMessage").toString());
-                               if (!info.exists()) {
-                                   qWarning() << "Wrong subject";
-                                   return KAsync::error<void>(1, "Can't find mime message.");
-                               }
+                               ASYNCVERIFY(!mail->getProperty("subject").toString().isEmpty());
+                               ASYNCCOMPARE(mail->getProperty("unread").toBool(), true);
+                               ASYNCVERIFY(QFileInfo(mail->getProperty("mimeMessage").toString()).exists());
                                return KAsync::null<void>();
                            })
                            .exec();
