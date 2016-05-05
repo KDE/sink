@@ -82,6 +82,7 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Folder>::BufferBuilder> > 
     auto propertyMapper = QSharedPointer<WritePropertyMapper<BufferBuilder> >::create();
     propertyMapper->addMapping<QByteArray>("parent", &BufferBuilder::add_parent);
     propertyMapper->addMapping<QString>("name", &BufferBuilder::add_name);
+    propertyMapper->addMapping<QByteArray>("icon", &BufferBuilder::add_icon);
     propertyMapper->addMapping<QByteArrayList>("specialpurpose", &BufferBuilder::add_specialpurpose);
     return propertyMapper;
 }
