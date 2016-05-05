@@ -706,6 +706,40 @@ QString Maildir::addEntry(const QByteArray& data)
     return uniqueKey;
 }
 
+QString Maildir::addEntryFromPath(const QString& path)
+{
+    QString uniqueKey;
+    QString key;
+    QString finalKey;
+    QString curKey;
+
+    // QUuid doesn't return globally unique identifiers, therefor we query until we
+    // get one that doesn't exists yet
+    do {
+      uniqueKey = createUniqueFileName() + d->hostName;
+      key = d->path + QLatin1String("/tmp/") + uniqueKey;
+      finalKey = d->path + QLatin1String("/new/") + uniqueKey;
+      curKey = d->path + QLatin1String("/cur/") + uniqueKey;
+    } while (QFile::exists(key) || QFile::exists(finalKey) || QFile::exists(curKey));
+
+    QFile f(path);
+    if (!f.open(QIODevice::ReadWrite)) {
+       qWarning() << f.errorString();
+       qWarning() << "Cannot open mail file: " << key;
+       return QString();
+    }
+
+    if (!f.rename(finalKey)) {
+        qWarning() << "Maildir: Failed to add entry: " << finalKey  << "! Error: " << f.errorString();
+        // d->lastError = i18n("Failed to create mail file %1. The error was: %2" , finalKey, f.errorString());
+        return QString();
+    }
+    // KeyCache *keyCache = KeyCache::self();
+    // keyCache->removeKey(d->path, key); //remove all keys, be it "cur" or "new" first
+    // keyCache->addNewKey(d->path, key); //and add a key for "new", as the mail was moved there
+    return uniqueKey;
+}
+
 bool Maildir::removeEntry(const QString& key)
 {
     QString realKey(d->findRealKey(key));

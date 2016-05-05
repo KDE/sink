@@ -290,7 +290,7 @@ KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, c
             }
             //FIXME move the mime message from the mimeMessage property to the proper place.
             Trace() << "Creating a new mail.";
-            const auto remoteId = maildir.addEntry("foobar");
+            const auto remoteId = maildir.addEntryFromPath(mail.getProperty("mimeMessage").toString());
             if (remoteId.isEmpty()) {
                 Warning() << "Failed to create mail: " << remoteId;
                 return KAsync::error<void>(1, "Failed to create mail.");

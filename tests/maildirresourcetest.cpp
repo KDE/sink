@@ -1,6 +1,7 @@
 #include <QtTest>
 
 #include <QString>
+#include <KMime/Message>
 
 #include "maildirresource/maildirresource.h"
 #include "store.h"
@@ -296,9 +297,12 @@ private slots:
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
+        auto message = KMime::Message::Ptr::create();
+        message->subject(true)->fromUnicodeString(QString::fromLatin1("Foobar"), "utf8");
+        message->assemble();
+
         Sink::ApplicationDomain::Mail mail("org.kde.maildir.instance1");
-        mail.setProperty("name", "testCreateMail");
-        // FIXME instead of properties, ensure the mimeMessage property is used and the file is moved as expected
+        mail.setBlobProperty("mimeMessage", message->encodedContent());
 
         Sink::Store::create(mail).exec().waitForFinished();
 
@@ -309,6 +313,12 @@ private slots:
         QDir dir(targetPath);
         dir.setFilter(QDir::Files);
         QTRY_COMPARE(dir.count(), static_cast<unsigned int>(1));
+        QFile file(targetPath + "/" + dir.entryList().first());
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        KMime::Message m;
+        m.setContent(file.readAll());
+        m.parse();
+        QCOMPARE(m.subject(true)->asUnicodeString(), QString::fromLatin1("Foobar"));
     }
 
     void testRemoveMail()

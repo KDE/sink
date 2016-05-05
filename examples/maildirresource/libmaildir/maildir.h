@@ -207,6 +207,7 @@ public:
      * Adds the given @p data to the maildir. Returns the key of the entry.
      */
     QString addEntry( const QByteArray& data );
+    QString addEntryFromPath(const QString& path);
 
     /**
      * Removes the entry with the given @p key. Returns success or failure.
