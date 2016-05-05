@@ -50,7 +50,7 @@ public:
     virtual KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) = 0;
     virtual KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) = 0;
 
-    virtual KAsync::Job<void> sendCreateCommand(const QByteArray &resourceBufferType, const QByteArray &buffer)
+    virtual KAsync::Job<void> sendCreateCommand(const QByteArray &uid, const QByteArray &resourceBufferType, const QByteArray &buffer)
     {
         return KAsync::null<void>();
     };
@@ -97,7 +97,7 @@ public:
     KAsync::Job<void> sendCommand(int commandId) Q_DECL_OVERRIDE;
     KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE;
     KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) Q_DECL_OVERRIDE;
-    KAsync::Job<void> sendCreateCommand(const QByteArray &resourceBufferType, const QByteArray &buffer) Q_DECL_OVERRIDE;
+    KAsync::Job<void> sendCreateCommand(const QByteArray &uid, const QByteArray &resourceBufferType, const QByteArray &buffer) Q_DECL_OVERRIDE;
     KAsync::Job<void>
     sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer) Q_DECL_OVERRIDE;
     KAsync::Job<void> sendDeleteCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType) Q_DECL_OVERRIDE;

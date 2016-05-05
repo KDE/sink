@@ -293,13 +293,14 @@ KAsync::Job<void> ResourceAccess::synchronizeResource(bool sourceSync, bool loca
     return sendCommand(Commands::SynchronizeCommand, fbb);
 }
 
-KAsync::Job<void> ResourceAccess::sendCreateCommand(const QByteArray &resourceBufferType, const QByteArray &buffer)
+KAsync::Job<void> ResourceAccess::sendCreateCommand(const QByteArray &uid, const QByteArray &resourceBufferType, const QByteArray &buffer)
 {
     flatbuffers::FlatBufferBuilder fbb;
+    auto entityId = fbb.CreateString(uid.constData());
     // This is the resource buffer type and not the domain type
     auto type = fbb.CreateString(resourceBufferType.constData());
     auto delta = Sink::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
-    auto location = Sink::Commands::CreateCreateEntity(fbb, 0, type, delta);
+    auto location = Sink::Commands::CreateCreateEntity(fbb, entityId, type, delta);
     Sink::Commands::FinishCreateEntityBuffer(fbb, location);
     open();
     return sendCommand(Sink::Commands::CreateEntityCommand, fbb);

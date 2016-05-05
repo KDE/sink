@@ -64,7 +64,7 @@ KAsync::Job<void> GenericFacade<DomainType>::create(const DomainType &domainObje
     }
     flatbuffers::FlatBufferBuilder entityFbb;
     mDomainTypeAdaptorFactory->createBuffer(domainObject, entityFbb);
-    return mResourceAccess->sendCreateCommand(bufferTypeForDomainType(), BufferUtils::extractBuffer(entityFbb));
+    return mResourceAccess->sendCreateCommand(domainObject.identifier(), bufferTypeForDomainType(), BufferUtils::extractBuffer(entityFbb));
 }
 
 template <class DomainType>
