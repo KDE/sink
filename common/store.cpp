@@ -256,8 +256,8 @@ KAsync::Job<QList<typename DomainType::Ptr>> Store::fetch(const Sink::Query &que
                             future.setError(1, "Not enough values.");
                         } else {
                             future.setValue(*list);
+                            future.setFinished();
                         }
-                        future.setFinished();
                     }
                 });
         }
