@@ -184,11 +184,11 @@ qint64 QueryWorker<DomainType>::replaySet(ResultSet &resultSet, Sink::ResultProv
 {
     Trace() << "Skipping over " << offset << " results";
     resultSet.skip(offset);
-    int counter;
-    for (counter = 0; !batchSize || (counter < batchSize); counter++) {
+    int counter = 0;
+    while (!batchSize || (counter < batchSize)) {
         const bool ret =
             resultSet.next([this, &resultProvider, &counter, &properties, batchSize](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation operation) -> bool {
-                // FIXME allow maildir resource to set the mimeMessage property
+                counter++;
                 auto valueCopy = Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*value, properties).template staticCast<DomainType>();
                 if (mResultTransformation) {
                     mResultTransformation(*valueCopy);
