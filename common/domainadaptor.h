@@ -178,6 +178,15 @@ public:
         Sink::EntityBuffer::assembleEntityBuffer(fbb, metadataData, metadataSize, resFbb.GetBufferPointer(), resFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
     }
 
+    virtual void createBuffer(const QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> &bufferAdaptor, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) Q_DECL_OVERRIDE
+    {
+        //TODO rewrite the unterlying functions so we don't have to wrap the bufferAdaptor
+        auto  newObject = Sink::ApplicationDomain::ApplicationDomainType("", "", 0, bufferAdaptor);
+        //Serialize all properties
+        newObject.setChangedProperties(bufferAdaptor->availableProperties().toSet());
+        createBuffer(newObject, fbb, metadataData, metadataSize);
+    }
+
 
 protected:
     QSharedPointer<ReadPropertyMapper<LocalBuffer>> mLocalMapper;

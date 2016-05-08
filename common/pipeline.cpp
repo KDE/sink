@@ -189,31 +189,23 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     auto metadataBuffer = metadataBuilder.Finish();
     FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
-    flatbuffers::FlatBufferBuilder fbb;
-    EntityBuffer::assembleEntityBuffer(
-        fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), entity->resource()->Data(), entity->resource()->size(), entity->local()->Data(), entity->local()->size());
-
-    d->storeNewRevision(newRevision, fbb, bufferType, key);
-
     auto adaptorFactory = d->adaptorFactory.value(bufferType);
     if (!adaptorFactory) {
         Warning() << "no adaptor factory for type " << bufferType;
         return KAsync::error<qint64>(0);
     }
 
+    auto adaptor = adaptorFactory->createAdaptor(*entity);
+    auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create(*(adaptor), adaptor->availableProperties());
+    for (auto processor : d->processors[bufferType]) {
+        processor->newEntity(key, newRevision, *memoryAdaptor, d->transaction);
+    }
+    flatbuffers::FlatBufferBuilder fbb;
+    adaptorFactory->createBuffer(memoryAdaptor, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
+
+    d->storeNewRevision(newRevision, fbb, bufferType, key);
+
     Log() << "Pipeline: wrote entity: " << key << newRevision << bufferType;
-    Storage::mainDatabase(d->transaction, bufferType)
-        .scan(Storage::assembleKey(key, newRevision),
-            [this, bufferType, newRevision, adaptorFactory, key](const QByteArray &, const QByteArray &value) -> bool {
-                auto entity = GetEntity(value);
-                Q_ASSERT(entity->resource() || entity->local());
-                auto adaptor = adaptorFactory->createAdaptor(*entity);
-                for (auto processor : d->processors[bufferType]) {
-                    processor->newEntity(key, newRevision, *adaptor, d->transaction);
-                }
-                return false;
-            },
-            [this](const Storage::Error &error) { ErrorMsg() << "Failed to find value in pipeline: " << error.message; });
     return KAsync::start<qint64>([newRevision]() { return newRevision; });
 }
 
@@ -281,9 +273,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         return KAsync::error<qint64>(0);
     }
 
-    // resource and uid don't matter at this point
-    const ApplicationDomain::ApplicationDomainType existingObject("", "", newRevision, current);
-    auto newObject = ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(existingObject);
+    auto newAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create(*(current), current->availableProperties());
 
     // Apply diff
     // FIXME only apply the properties that are available in the buffer
@@ -293,17 +283,19 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         changeset << property;
         const auto value = diff->getProperty(property);
         if (value.isValid()) {
-            newObject->setProperty(property, value);
+            newAdaptor->setProperty(property, value);
         }
     }
-    // Altough we only set some properties, we want all to be serialized
-    newObject->setChangedProperties(changeset);
 
     // Remove deletions
     if (modifyEntity->deletions()) {
         for (const auto &property : *modifyEntity->deletions()) {
-            newObject->setProperty(BufferUtils::extractBuffer(property), QVariant());
+            newAdaptor->setProperty(BufferUtils::extractBuffer(property), QVariant());
         }
+    }
+
+    for (auto processor : d->processors[bufferType]) {
+        processor->modifiedEntity(key, newRevision, *current, *newAdaptor, d->transaction);
     }
 
     // Add metadata buffer
@@ -316,24 +308,10 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
     flatbuffers::FlatBufferBuilder fbb;
-    adaptorFactory->createBuffer(*newObject, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
+    adaptorFactory->createBuffer(newAdaptor, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
     d->storeNewRevision(newRevision, fbb, bufferType, key);
     Log() << "Pipeline: modified entity: " << key << newRevision << bufferType;
-    Storage::mainDatabase(d->transaction, bufferType)
-        .scan(Storage::assembleKey(key, newRevision),
-            [this, bufferType, newRevision, adaptorFactory, current, key](const QByteArray &k, const QByteArray &value) -> bool {
-                if (value.isEmpty()) {
-                    ErrorMsg() << "Read buffer is empty.";
-                }
-                auto entity = GetEntity(value.data());
-                auto newEntity = adaptorFactory->createAdaptor(*entity);
-                for (auto processor : d->processors[bufferType]) {
-                    processor->modifiedEntity(key, newRevision, *current, *newEntity, d->transaction);
-                }
-                return false;
-            },
-            [this](const Storage::Error &error) { ErrorMsg() << "Failed to find value in pipeline: " << error.message; });
     return KAsync::start<qint64>([newRevision]() { return newRevision; });
 }
 

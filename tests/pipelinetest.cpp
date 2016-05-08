@@ -146,13 +146,13 @@ QByteArray deleteEntityCommand(const QByteArray &uid, qint64 revision)
 class TestProcessor : public Sink::Preprocessor
 {
 public:
-    void newEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         newUids << uid;
         newRevisions << revision;
     }
 
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity,
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
         Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         modifiedUids << uid;
@@ -198,6 +198,10 @@ private slots:
         auto command = createEntityCommand(createEvent(entityFbb));
 
         Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
+
+        auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
+        pipeline.setAdaptorFactory("event", adaptorFactory);
+
         pipeline.startTransaction();
         pipeline.newEntity(command.constData(), command.size());
         pipeline.commit();
