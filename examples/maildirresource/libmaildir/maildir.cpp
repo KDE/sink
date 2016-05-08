@@ -729,8 +729,8 @@ QString Maildir::addEntryFromPath(const QString& path)
        return QString();
     }
 
-    if (!f.rename(finalKey)) {
-        qWarning() << "Maildir: Failed to add entry: " << finalKey  << "! Error: " << f.errorString();
+    if (!f.rename(curKey)) {
+        qWarning() << "Maildir: Failed to add entry: " << curKey  << "! Error: " << f.errorString();
         // d->lastError = i18n("Failed to create mail file %1. The error was: %2" , finalKey, f.errorString());
         return QString();
     }

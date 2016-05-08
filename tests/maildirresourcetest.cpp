@@ -196,7 +196,7 @@ private slots:
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(model->rowCount(QModelIndex()), 3);
+        QCOMPARE(model->rowCount(QModelIndex()), 4);
         QCOMPARE(model->match(model->index(0, 0, QModelIndex()), Qt::DisplayRole, QStringLiteral("newbox"), 1).size(), 1);
     }
 
@@ -312,11 +312,11 @@ private slots:
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto targetPath = tempDir.path() + "/maildir1/new";
+        auto targetPath = tempDir.path() + "/maildir1/cur";
         QDir dir(targetPath);
         dir.setFilter(QDir::Files);
-        QTRY_COMPARE(dir.count(), static_cast<unsigned int>(1));
-        QFile file(targetPath + "/" + dir.entryList().first());
+        QTRY_COMPARE(dir.count(), static_cast<unsigned int>(2));
+        QFile file(targetPath + "/" + dir.entryList().last());
         QVERIFY(file.open(QIODevice::ReadOnly));
         KMime::Message m;
         m.setContent(file.readAll());
@@ -360,10 +360,10 @@ private slots:
         future2.waitForFinished();
         QVERIFY(!future2.errorCode());
 
-        auto targetPath = tempDir.path() + "/maildir1/newfolder/new";
+        auto targetPath = tempDir.path() + "/maildir1/newfolder/cur";
         QDir dir(targetPath);
         dir.setFilter(QDir::Files);
-        QTRY_COMPARE(dir.count(), static_cast<unsigned int>(1));
+        QCOMPARE(dir.count(), static_cast<unsigned int>(1));
     }
 
     void testRemoveMail()

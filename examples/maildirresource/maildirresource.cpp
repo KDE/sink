@@ -54,10 +54,43 @@ class FolderUpdater : public Sink::Preprocessor
 public:
     FolderUpdater(const QByteArray &drafts) : mDraftsFolder(drafts) {}
 
+    QString getPath(const QByteArray &folderIdentifier, Sink::Storage::Transaction &transaction)
+    {
+        if (folderIdentifier.isEmpty()) {
+            return mMaildirPath;
+        }
+        QString folderPath;
+        auto db = Sink::Storage::mainDatabase(transaction, ENTITY_TYPE_FOLDER);
+        db.findLatest(folderIdentifier, [&](const QByteArray &, const QByteArray &value) {
+            Sink::EntityBuffer buffer(value);
+            const Sink::Entity &entity = buffer.entity();
+            const auto adaptor = mFolderAdaptorFactory->createAdaptor(entity);
+            auto folderName = adaptor->getProperty("name").toString();
+            //TODO handle non toplevel folders
+            folderPath = mMaildirPath + "/" + folderName;
+        });
+        return folderPath;
+    }
+
     void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         if (newEntity.getProperty("draft").toBool()) {
             newEntity.setProperty("folder", mDraftsFolder);
+        }
+        const auto mimeMessage = newEntity.getProperty("mimeMessage");
+        if (mimeMessage.isValid()) {
+            const auto oldPath = newEntity.getProperty("mimeMessage").toString();
+            if (oldPath.startsWith(Sink::temporaryFileLocation())) {
+                auto folder = newEntity.getProperty("folder").toByteArray();
+                const auto path = getPath(folder, transaction);
+                KPIM::Maildir maildir(path, false);
+                if (!maildir.isValid(true)) {
+                    qWarning() << "Maildir is not existing: " << path;
+                }
+                auto identifier = maildir.addEntryFromPath(oldPath);
+                auto newPath = path + "/cur/" + identifier;
+                newEntity.setProperty("mimeMessage", QVariant::fromValue(newPath));
+            }
         }
     }
 
@@ -70,6 +103,33 @@ public:
     {
     }
     QByteArray mDraftsFolder;
+    QByteArray mResourceInstanceIdentifier;
+    QString mMaildirPath;
+    QSharedPointer<MaildirFolderAdaptorFactory> mFolderAdaptorFactory;
+};
+
+class FolderPreprocessor : public Sink::Preprocessor
+{
+public:
+    FolderPreprocessor() {}
+
+    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        auto folderName = newEntity.getProperty("name").toString();
+        const auto path = mMaildirPath + "/" + folderName;
+        KPIM::Maildir maildir(path, false);
+        maildir.create();
+    }
+
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
+        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+    }
+
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+    }
+    QString mMaildirPath;
 };
 
 MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
@@ -87,8 +147,9 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
     auto folderUpdater = new FolderUpdater(QByteArray());
     addType(ENTITY_TYPE_MAIL, mMailAdaptorFactory,
             QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail> << folderUpdater);
+    auto folderPreprocessor = new FolderPreprocessor;
     addType(ENTITY_TYPE_FOLDER, mFolderAdaptorFactory,
-            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
+            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder> << folderPreprocessor);
 
     KPIM::Maildir dir(mMaildirPath, true);
     mDraftsFolder = dir.addSubFolder("drafts");
@@ -103,6 +164,10 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
     synchronizationTransaction.commit();
 
     folderUpdater->mDraftsFolder = draftsFolderLocalId;
+    folderUpdater->mResourceInstanceIdentifier = mResourceInstanceIdentifier;
+    folderUpdater->mFolderAdaptorFactory = mFolderAdaptorFactory;
+    folderUpdater->mMaildirPath = mMaildirPath;
+    folderPreprocessor->mMaildirPath = mMaildirPath;
 }
 
 static QStringList listRecursive( const QString &root, const KPIM::Maildir &dir )
@@ -321,13 +386,8 @@ KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, c
                 parentFolderRemoteId = mMaildirPath.toUtf8();
             }
             const auto parentFolderPath = parentFolderRemoteId;
-            KPIM::Maildir maildir(parentFolderPath, false);
-            if (!maildir.isValid(true)) {
-                return KAsync::error<void>(1, "Invalid folder " + parentFolderPath);
-            }
-            //FIXME move the mime message from the mimeMessage property to the proper place.
-            Trace() << "Creating a new mail.";
-            const auto remoteId = maildir.addEntryFromPath(mail.getProperty("mimeMessage").toString());
+            const auto remoteId = mail.getProperty("mimeMessage").toString().split('/').last();
+            Trace() << "Creating a new mail." << remoteId;
             if (remoteId.isEmpty()) {
                 Warning() << "Failed to create mail: " << remoteId;
                 return KAsync::error<void>(1, "Failed to create mail.");
