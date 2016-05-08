@@ -44,6 +44,7 @@ void Index::lookup(const QByteArray &key, const std::function<void(const QByteAr
 QByteArray Index::lookup(const QByteArray &key)
 {
     QByteArray result;
-    lookup(key, [&result](const QByteArray &value) { result = value; }, [this](const Index::Error &error) { Trace() << "Error while retrieving value" << error.message; });
+    //We have to create a deep copy, otherwise the returned data may become invalid when the transaction ends.
+    lookup(key, [&result](const QByteArray &value) { result = QByteArray(value.constData(), value.size()); }, [this](const Index::Error &error) { Trace() << "Error while retrieving value" << error.message; });
     return result;
 }
