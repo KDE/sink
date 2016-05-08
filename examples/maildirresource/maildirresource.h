@@ -56,6 +56,7 @@ private:
     void synchronizeMails(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &folder);
     QStringList listAvailableFolders();
     QString mMaildirPath;
+    QString mDraftsFolder;
     QSharedPointer<MaildirMailAdaptorFactory> mMailAdaptorFactory;
     QSharedPointer<MaildirFolderAdaptorFactory> mFolderAdaptorFactory;
 };

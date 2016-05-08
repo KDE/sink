@@ -49,22 +49,72 @@
 #undef DEBUG_AREA
 #define DEBUG_AREA "resource.maildir"
 
+class FolderUpdater : public Sink::Preprocessor
+{
+public:
+    FolderUpdater(const QByteArray &drafts) : mDraftsFolder(drafts) {}
+
+    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        if (newEntity.getProperty("draft").toBool()) {
+            newEntity.setProperty("folder", mDraftsFolder);
+        }
+    }
+
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
+        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+    }
+
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+    }
+    QByteArray mDraftsFolder;
+};
+
 MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
     : Sink::GenericResource(instanceIdentifier, pipeline),
     mMailAdaptorFactory(QSharedPointer<MaildirMailAdaptorFactory>::create()),
     mFolderAdaptorFactory(QSharedPointer<MaildirFolderAdaptorFactory>::create())
 {
-    addType(ENTITY_TYPE_MAIL, mMailAdaptorFactory,
-            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
-    addType(ENTITY_TYPE_FOLDER, mFolderAdaptorFactory,
-            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
     auto config = ResourceConfig::getConfiguration(instanceIdentifier);
     mMaildirPath = QDir::cleanPath(QDir::fromNativeSeparators(config.value("path").toString()));
     //Chop a trailing slash if necessary
     if (mMaildirPath.endsWith("/")) {
         mMaildirPath.chop(1);
     }
+
+    auto folderUpdater = new FolderUpdater(QByteArray());
+    addType(ENTITY_TYPE_MAIL, mMailAdaptorFactory,
+            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail> << folderUpdater);
+    addType(ENTITY_TYPE_FOLDER, mFolderAdaptorFactory,
+            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
+
+    KPIM::Maildir dir(mMaildirPath, true);
+    mDraftsFolder = dir.addSubFolder("drafts");
     Trace() << "Started maildir resource for maildir: " << mMaildirPath;
+    auto mainStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier, Sink::Storage::ReadOnly);
+    auto syncStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadWrite);
+    auto transaction = mainStore->createTransaction(Sink::Storage::ReadOnly);
+    auto synchronizationTransaction = syncStore->createTransaction(Sink::Storage::ReadWrite);
+
+    auto folderPath = mDraftsFolder;
+    auto remoteId = folderPath.toUtf8();
+    auto bufferType = ENTITY_TYPE_FOLDER;
+    KPIM::Maildir md(folderPath, folderPath == mMaildirPath);
+    Sink::ApplicationDomain::Folder folder;
+    folder.setProperty("name", md.name());
+    folder.setProperty("icon", "folder");
+
+    if (!md.isRoot()) {
+        folder.setProperty("parent", resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path().toUtf8(), synchronizationTransaction));
+    }
+    createOrModify(transaction, synchronizationTransaction, *mFolderAdaptorFactory, bufferType, remoteId, folder);
+
+    auto draftsFolderLocalId = resolveRemoteId(ENTITY_TYPE_FOLDER, mDraftsFolder.toUtf8(), synchronizationTransaction);
+    synchronizationTransaction.commit();
+
+    folderUpdater->mDraftsFolder = draftsFolderLocalId;
 }
 
 static QStringList listRecursive( const QString &root, const KPIM::Maildir &dir )
