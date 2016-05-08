@@ -12,6 +12,7 @@
 #include "modelresult.h"
 #include "pipeline.h"
 #include "log.h"
+#include "test.h"
 
 #define ASYNCCOMPARE(actual, expected) \
 do {\
@@ -24,6 +25,8 @@ do {\
     if (!QTest::qVerify((statement), #statement, "", __FILE__, __LINE__))\
         return KAsync::error<void>(1, "Verify failed.");\
 } while (0)
+
+using namespace Sink;
 
 static bool copyRecursively(const QString &srcFilePath, const QString &tgtFilePath)
 {
@@ -105,7 +108,7 @@ private slots:
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(model->rowCount(QModelIndex()), 2);
+        QCOMPARE(model->rowCount(QModelIndex()), 3);
     }
 
     void testListFolderTree()
@@ -124,7 +127,7 @@ private slots:
         auto parentIndex = model->index(0, 0, QModelIndex());
         model->fetchMore(parentIndex);
         QTRY_VERIFY(model->data(parentIndex, Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(model->rowCount(parentIndex), 1);
+        QCOMPARE(model->rowCount(parentIndex), 2);
     }
 
     void testListMailsOfFolder()
@@ -193,7 +196,7 @@ private slots:
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(model->rowCount(QModelIndex()), 2);
+        QCOMPARE(model->rowCount(QModelIndex()), 3);
         QCOMPARE(model->match(model->index(0, 0, QModelIndex()), Qt::DisplayRole, QStringLiteral("newbox"), 1).size(), 1);
     }
 
@@ -321,6 +324,48 @@ private slots:
         QCOMPARE(m.subject(true)->asUnicodeString(), QString::fromLatin1("Foobar"));
     }
 
+    void testCreateMailInFolder()
+    {
+        auto query = Sink::Query::ResourceFilter("org.kde.maildir.instance1");
+
+        // Ensure all local data is processed
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        auto folder = Sink::ApplicationDomain::ApplicationDomainType::createEntity<Sink::ApplicationDomain::Folder>("org.kde.maildir.instance1");
+        folder.setProperty("name", "newfolder");
+
+        Sink::Store::create(folder).exec().waitForFinished();
+
+        auto message = KMime::Message::Ptr::create();
+        message->subject(true)->fromUnicodeString(QString::fromLatin1("Foobar"), "utf8");
+        message->assemble();
+
+        auto mail = Sink::ApplicationDomain::ApplicationDomainType::createEntity<Sink::ApplicationDomain::Mail>("org.kde.maildir.instance1");
+        mail.setBlobProperty("mimeMessage", message->encodedContent());
+        mail.setProperty("folder", folder);
+
+        Sink::Store::create(mail).exec().waitForFinished();
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        auto future = Sink::Store::fetchOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail.identifier()) + Query::RequestedProperties(QByteArrayList() << "mimeMessage" << "folder"))
+            .then<void, ApplicationDomain::Mail>([folder](const ApplicationDomain::Mail &mail) {
+                QCOMPARE(mail.getProperty("folder").toByteArray(), folder.identifier());
+            }).exec();
+        future.waitForFinished();
+        if (future.errorCode()) {
+            qWarning() << future.errorCode() << future.errorMessage();
+        }
+        QVERIFY(!future.errorCode());
+        auto future2 = ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, false)).exec();
+        future2.waitForFinished();
+        QVERIFY(!future2.errorCode());
+
+        auto targetPath = tempDir.path() + "/maildir1/newfolder/new";
+        QDir dir(targetPath);
+        dir.setFilter(QDir::Files);
+        QTRY_COMPARE(dir.count(), static_cast<unsigned int>(1));
+    }
+
     void testRemoveMail()
     {
         using namespace Sink;
@@ -398,6 +443,39 @@ private slots:
                            .exec();
         result2.waitForFinished();
         QVERIFY(!result2.errorCode());
+    }
+
+    void testCreateDraft()
+    {
+        Sink::Query query;
+        query.resources << "org.kde.maildir.instance1";
+
+        Sink::Store::synchronize(query).exec().waitForFinished();
+        // Ensure all local data is processed
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        auto message = KMime::Message::Ptr::create();
+        message->subject(true)->fromUnicodeString(QString::fromLatin1("Foobar"), "utf8");
+        message->assemble();
+
+        auto mail = Sink::ApplicationDomain::ApplicationDomainType::createEntity<Sink::ApplicationDomain::Mail>("org.kde.maildir.instance1");
+        mail.setBlobProperty("mimeMessage", message->encodedContent());
+        mail.setProperty("draft", true);
+
+        Sink::Store::create(mail).exec().waitForFinished();
+
+        // Ensure all local data is processed
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        auto future = Sink::Store::fetchOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail.identifier()) + Query::RequestedProperties(QByteArrayList() << "mimeMessage" << "folder"))
+            .then<void, ApplicationDomain::Mail>([](const ApplicationDomain::Mail &mail) {
+                QVERIFY(!mail.getProperty("folder").toByteArray().isEmpty());
+            }).exec();
+        future.waitForFinished();
+        if (future.errorCode()) {
+            qWarning() << future.errorCode() << future.errorMessage();
+        }
+        QVERIFY(!future.errorCode());
     }
 };
 
