@@ -379,7 +379,7 @@ KAsync::Job<void> GenericResource::inspect(
 void GenericResource::enableChangeReplay(bool enable)
 {
     if (enable) {
-        QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mSourceChangeReplay, &ChangeReplay::revisionChanged);
+        QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mSourceChangeReplay, &ChangeReplay::revisionChanged, Qt::QueuedConnection);
         QObject::connect(mSourceChangeReplay, &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
         mSourceChangeReplay->revisionChanged();
     } else {
