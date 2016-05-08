@@ -22,6 +22,7 @@
 #include <QVariant>
 #include <QByteArray>
 #include <QHash>
+#include <QDebug>
 
 namespace Sink {
 
@@ -38,10 +39,12 @@ public:
     }
     virtual QVariant getProperty(const QByteArray &key) const
     {
+        qFatal("Tried to get property: " + key);
         return QVariant();
     }
     virtual void setProperty(const QByteArray &key, const QVariant &value)
     {
+        qFatal("Tried to get property: " + key);
     }
     virtual QList<QByteArray> availableProperties() const
     {
