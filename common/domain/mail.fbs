@@ -10,6 +10,7 @@ table Mail {
   unread:bool = false;
   important:bool = false;
   mimeMessage:string;
+  draft:bool = false;
 }
 
 root_type Mail;
