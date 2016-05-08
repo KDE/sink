@@ -93,6 +93,13 @@ public:
     {
     }
 
+    virtual QVariant setProperty(const QByteArray &key, const QVariant &value) const
+    {
+        Q_ASSERT(false);
+        Warning() << "Can't set property " << key;
+        return QVariant();
+    }
+
     virtual QVariant getProperty(const QByteArray &key) const
     {
         if (mResourceBuffer && mResourceMapper->hasMapping(key)) {
