@@ -98,20 +98,8 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
     auto transaction = mainStore->createTransaction(Sink::Storage::ReadOnly);
     auto synchronizationTransaction = syncStore->createTransaction(Sink::Storage::ReadWrite);
 
-    auto folderPath = mDraftsFolder;
-    auto remoteId = folderPath.toUtf8();
-    auto bufferType = ENTITY_TYPE_FOLDER;
-    KPIM::Maildir md(folderPath, folderPath == mMaildirPath);
-    Sink::ApplicationDomain::Folder folder;
-    folder.setProperty("name", md.name());
-    folder.setProperty("icon", "folder");
-
-    if (!md.isRoot()) {
-        folder.setProperty("parent", resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path().toUtf8(), synchronizationTransaction));
-    }
-    createOrModify(transaction, synchronizationTransaction, *mFolderAdaptorFactory, bufferType, remoteId, folder);
-
-    auto draftsFolderLocalId = resolveRemoteId(ENTITY_TYPE_FOLDER, mDraftsFolder.toUtf8(), synchronizationTransaction);
+    auto remoteId = createFolder(mDraftsFolder, "folder", transaction, synchronizationTransaction);
+    auto draftsFolderLocalId = resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId, synchronizationTransaction);
     synchronizationTransaction.commit();
 
     folderUpdater->mDraftsFolder = draftsFolderLocalId;
@@ -130,6 +118,22 @@ static QStringList listRecursive( const QString &root, const KPIM::Maildir &dir 
         list += listRecursive(path, md );
     }
     return list;
+}
+
+QByteArray MaildirResource::createFolder(const QString &folderPath, const QByteArray &icon, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction)
+{
+    auto remoteId = folderPath.toUtf8();
+    auto bufferType = ENTITY_TYPE_FOLDER;
+    KPIM::Maildir md(folderPath, folderPath == mMaildirPath);
+    Sink::ApplicationDomain::Folder folder;
+    folder.setProperty("name", md.name());
+    folder.setProperty("icon", "folder");
+
+    if (!md.isRoot()) {
+        folder.setProperty("parent", resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path().toUtf8(), synchronizationTransaction));
+    }
+    createOrModify(transaction, synchronizationTransaction, *mFolderAdaptorFactory, bufferType, remoteId, folder);
+    return remoteId;
 }
 
 QStringList MaildirResource::listAvailableFolders()
@@ -168,17 +172,7 @@ void MaildirResource::synchronizeFolders(Sink::Storage::Transaction &transaction
     );
 
     for (const auto folderPath : folderList) {
-        const auto remoteId = folderPath.toUtf8();
-        Trace() << "Processing folder " << remoteId;
-        KPIM::Maildir md(folderPath, folderPath == mMaildirPath);
-
-        Sink::ApplicationDomain::Folder folder;
-        folder.setProperty("name", md.name());
-        folder.setProperty("icon", "folder");
-        if (!md.isRoot()) {
-            folder.setProperty("parent", resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path().toUtf8(), synchronizationTransaction));
-        }
-        createOrModify(transaction, synchronizationTransaction, *mFolderAdaptorFactory, bufferType, remoteId, folder);
+        createFolder(folderPath, "folder", transaction, synchronizationTransaction);
     }
 }
 

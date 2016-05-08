@@ -54,6 +54,7 @@ private:
 
     void synchronizeFolders(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction);
     void synchronizeMails(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &folder);
+    QByteArray createFolder(const QString &folderPath, const QByteArray &icon, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction);
     QStringList listAvailableFolders();
     QString mMaildirPath;
     QString mDraftsFolder;
