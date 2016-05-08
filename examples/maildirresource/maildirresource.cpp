@@ -281,17 +281,19 @@ KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, c
 {
     auto synchronizationTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
 
+    Sink::EntityBuffer buffer(value);
+    const Sink::Entity &entity = buffer.entity();
+    const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
+    Q_ASSERT(metadataBuffer);
+    if (!metadataBuffer->replayToSource()) {
+        Trace() << "Change is coming from the source";
+        return KAsync::null<void>();
+    }
+    const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
+    const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
+
     Trace() << "Replaying " << key << type;
     if (type == ENTITY_TYPE_FOLDER) {
-        Sink::EntityBuffer buffer(value);
-        const Sink::Entity &entity = buffer.entity();
-        const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
-        if (metadataBuffer && !metadataBuffer->replayToSource()) {
-            Trace() << "Change is coming from the source";
-            return KAsync::null<void>();
-        }
-        const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-        const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
         if (operation == Sink::Operation_Creation) {
             const Sink::ApplicationDomain::Folder folder(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, mFolderAdaptorFactory->createAdaptor(entity));
             auto folderName = folder.getProperty("name").toString();
@@ -315,15 +317,6 @@ KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, c
             Warning() << "Unkown operation" << operation;
         }
     } else if (type == ENTITY_TYPE_MAIL) {
-        Sink::EntityBuffer buffer(value);
-        const Sink::Entity &entity = buffer.entity();
-        const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
-        if (metadataBuffer && !metadataBuffer->replayToSource()) {
-            Trace() << "Change is coming from the source";
-            return KAsync::null<void>();
-        }
-        const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-        const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
         if (operation == Sink::Operation_Creation) {
             const Sink::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, mMailAdaptorFactory->createAdaptor(entity));
             auto parentFolder = mail.getProperty("folder").toByteArray();
