@@ -239,6 +239,28 @@ Identity::~Identity()
 
 }
 
+namespace MaildirResource {
+    SinkResource create(const QByteArray &account)
+    {
+        auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
+        resource.setProperty("type", "org.kde.maildir");
+        resource.setProperty("account", account);
+        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << "storage" << "drafts"));
+        return resource;
+    }
+}
+
+namespace MailtransportResource {
+    SinkResource create(const QByteArray &account)
+    {
+        auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
+        resource.setProperty("type", "org.kde.mailtransport");
+        resource.setProperty("account", account);
+        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << "transport"));
+        return resource;
+    }
+}
+
 template<>
 QByteArray getTypeName<Event>()
 {

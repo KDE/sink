@@ -42,6 +42,10 @@ Query::Comparator::Comparator(const QVariant &v) : value(v), comparator(Equals)
 {
 }
 
+Query::Comparator::Comparator(const QVariant &v, Comparators c) : value(v), comparator(c)
+{
+}
+
 bool Query::Comparator::matches(const QVariant &v) const
 {
     switch(comparator) {

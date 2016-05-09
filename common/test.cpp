@@ -127,6 +127,7 @@ Test::TestAccount Sink::Test::TestAccount::registerAccount()
     ResourceConfig::addResource(account.identifier, "testresource");
     QMap<QByteArray, QVariant> configuration;
     configuration.insert("account", account.identifier);
+    configuration.insert("capabilities", QVariant::fromValue(QByteArrayList() << "drafts" << "storage" << "transport"));
     ResourceConfig::configureResource(account.identifier, configuration);
     return account;
 }

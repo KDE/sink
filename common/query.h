@@ -35,7 +35,7 @@ class SINK_EXPORT Query
 public:
     enum Flag
     {
-        /** Leave the query running an contiously update the result set. */
+        /** Leave the query running and continuously update the result set. */
         LiveQuery
     };
     Q_DECLARE_FLAGS(Flags, Flag)
@@ -43,14 +43,14 @@ public:
     static Query PropertyFilter(const QByteArray &key, const QVariant &value)
     {
         Query query;
-        query.propertyFilter.insert(key, value);
+        query.propertyFilter.insert(key, Comparator(value));
         return query;
     }
 
     static Query PropertyContainsFilter(const QByteArray &key, const QVariant &value)
     {
         Query query;
-        query.propertyFilter.insert(key, value);
+        query.propertyFilter.insert(key, Comparator(value, Comparator::Contains));
         return query;
     }
 
@@ -82,6 +82,13 @@ public:
     {
         Query query;
         query.accounts.append(identifier);
+        return query;
+    }
+
+    static Query CapabilityFilter(const QByteArray &capability)
+    {
+        Query query;
+        query.propertyFilter.insert("capabilities", Comparator(capability, Comparator::Contains));
         return query;
     }
 
@@ -167,6 +174,7 @@ public:
 
         Comparator();
         Comparator(const QVariant &v);
+        Comparator(const QVariant &v, Comparators c);
         bool matches(const QVariant &v) const;
 
         QVariant value;

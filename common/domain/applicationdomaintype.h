@@ -187,6 +187,13 @@ struct SINK_EXPORT Identity : public ApplicationDomainType {
     virtual ~Identity();
 };
 
+namespace MaildirResource {
+    SinkResource SINK_EXPORT create(const QByteArray &account);
+};
+namespace MailtransportResource {
+    SinkResource SINK_EXPORT create(const QByteArray &account);
+};
+
 /**
  * All types need to be registered here an MUST return a different name.
  *
