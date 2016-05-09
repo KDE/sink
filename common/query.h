@@ -87,6 +87,7 @@ public:
 
     static Query AccountFilter(const QByteArrayList &identifier)
     {
+        Q_ASSERT(!identifier.isEmpty());
         Query query;
         query.accounts = identifier;
         return query;
@@ -99,6 +100,7 @@ public:
 
     static Query IdentityFilter(const QByteArray &identifier)
     {
+        Q_ASSERT(!identifier.isEmpty());
         Query query;
         query.ids << identifier;
         return query;
