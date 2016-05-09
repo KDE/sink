@@ -79,7 +79,7 @@ public:
         }
         const auto mimeMessage = newEntity.getProperty("mimeMessage");
         if (mimeMessage.isValid()) {
-            const auto oldPath = newEntity.getProperty("mimeMessage").toString();
+            const auto oldPath = mimeMessage.toString();
             if (oldPath.startsWith(Sink::temporaryFileLocation())) {
                 auto folder = newEntity.getProperty("folder").toByteArray();
                 const auto path = getPath(folder, transaction);
@@ -88,9 +88,31 @@ public:
                     qWarning() << "Maildir is not existing: " << path;
                 }
                 auto identifier = maildir.addEntryFromPath(oldPath);
-                auto newPath = path + "/cur/" + identifier;
-                newEntity.setProperty("mimeMessage", QVariant::fromValue(newPath));
+                newEntity.setProperty("mimeMessage", path + "/" + identifier);
             }
+        }
+
+        {
+            const auto mimeMessagePath = newEntity.getProperty("mimeMessage").toString();
+            auto parts = mimeMessagePath.split('/');
+            const auto key = parts.takeLast();
+            const auto path = parts.join("/") + "/cur/";
+
+            QDir dir(path);
+            const QFileInfoList list = dir.entryInfoList(QStringList() << (key+"*"), QDir::Files);
+            if (list.size() != 1) {
+                Warning() << "Failed to find message " << path << key << list.size();
+                return;
+            }
+
+            KMime::Message *msg = new KMime::Message;
+            msg->setHead(KMime::CRLFtoLF(KPIM::Maildir::readEntryHeadersFromFile(list.first().filePath())));
+            msg->parse();
+
+            newEntity.setProperty("subject", msg->subject(true)->asUnicodeString());
+            newEntity.setProperty("sender", msg->from(true)->asUnicodeString());
+            newEntity.setProperty("senderName", msg->from(true)->asUnicodeString());
+            newEntity.setProperty("date", msg->date(true)->dateTime());
         }
     }
 
@@ -287,20 +309,12 @@ void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, 
         const QString fileName = entryIterator->fileName();
         const auto remoteId = filePath.toUtf8();
 
-        KMime::Message *msg = new KMime::Message;
-        msg->setHead(KMime::CRLFtoLF(maildir.readEntryHeadersFromFile(filePath)));
-        msg->parse();
-
         const auto flags = maildir.readEntryFlags(fileName);
         const auto maildirKey = maildir.getKeyFromFile(fileName);
 
-        Trace() << "Found a mail " << filePath << " : " << fileName << msg->subject(true)->asUnicodeString();
+        Trace() << "Found a mail " << filePath << " : " << fileName;
 
         Sink::ApplicationDomain::Mail mail;
-        mail.setProperty("subject", msg->subject(true)->asUnicodeString());
-        mail.setProperty("sender", msg->from(true)->asUnicodeString());
-        mail.setProperty("senderName", msg->from(true)->asUnicodeString());
-        mail.setProperty("date", msg->date(true)->dateTime());
         mail.setProperty("folder", folderLocalId);
         //We only store the directory path + key, so we facade can add the changing bits (flags)
         mail.setProperty("mimeMessage", KPIM::Maildir::getDirectoryFromFile(filePath) + maildirKey);

@@ -307,7 +307,7 @@ private slots:
         message->subject(true)->fromUnicodeString(QString::fromLatin1("Foobar"), "utf8");
         message->assemble();
 
-        Sink::ApplicationDomain::Mail mail("org.kde.maildir.instance1");
+        auto mail = Sink::ApplicationDomain::ApplicationDomainType::createEntity<Sink::ApplicationDomain::Mail>("org.kde.maildir.instance1");
         mail.setBlobProperty("mimeMessage", message->encodedContent());
         //FIXME generate accessors
         // mail.setMimeMessage(message->encodedContent());
@@ -316,6 +316,13 @@ private slots:
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        //Ensure extracted properties are up to date.
+        auto future = Sink::Store::fetchOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail.identifier()) + Query::RequestedProperties(QByteArrayList() << "subject"))
+            .then<void, ApplicationDomain::Mail>([](const ApplicationDomain::Mail &mail) {
+                QCOMPARE(mail.getProperty("subject").toString(), QString::fromLatin1("Foobar"));
+            }).exec();
+        future.waitForFinished();
 
         auto targetPath = tempDir.path() + "/maildir1/cur";
         QDir dir(targetPath);
