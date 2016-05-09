@@ -46,8 +46,7 @@ bool list(const QStringList &args, State &state)
         return false;
     }
 
-    auto resources = args;
-    auto type = !resources.isEmpty() ? resources.takeFirst() : QString();
+    auto type = !args.isEmpty() ? args.at(0) : QString();
 
     if (!type.isEmpty() && !SinkshUtils::isValidStoreType(type)) {
         state.printError(QObject::tr("Unknown type: %1").arg(type));
@@ -55,9 +54,20 @@ bool list(const QStringList &args, State &state)
     }
 
     Sink::Query query;
-    for (const auto &res : resources) {
-        query.resources << res.toLatin1();
+
+    auto filterIndex = args.indexOf("--filter");
+    if (filterIndex >= 0) {
+        for (int i = 1; i < filterIndex; i++) {
+            query.resources << args.at(i).toLatin1();
+            query += Sink::Query::ResourceFilter(args.at(i).toLatin1());
+        }
+        for (int i = filterIndex + 1; i < args.size(); i++) {
+            auto filter = args.at(i).split("=");
+            query += Sink::Query::PropertyFilter(filter.at(0).toLatin1(), filter.at(1));
+        }
+
     }
+
     query.liveQuery = false;
 
     QTime time;
