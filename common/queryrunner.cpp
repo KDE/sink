@@ -237,7 +237,7 @@ void QueryWorker<DomainType>::readEntity(const Sink::Storage::NamedDatabase &db,
             resultCallback(DomainType::Ptr::create(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, adaptor), operation);
             return false;
         },
-        [](const Sink::Storage::Error &error) { Warning() << "Error during query: " << error.message; });
+        [&](const Sink::Storage::Error &error) { Warning() << "Error during query: " << error.message << key; });
 }
 
 template <class DomainType>
