@@ -125,7 +125,11 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
             if (facade) {
                 Trace() << "Trying to fetch from resource " << resourceInstanceIdentifier;
                 auto result = facade->load(query);
-                aggregatingEmitter->addEmitter(result.second);
+                if (result.second) {
+                    aggregatingEmitter->addEmitter(result.second);
+                } else {
+                    Warning() << "Null emitter for resource " << resourceInstanceIdentifier;
+                }
                 result.first.template then<void>([&future]() { future.setFinished(); }).exec();
             } else {
                 Trace() << "Couldn' find a facade for " << resourceInstanceIdentifier;

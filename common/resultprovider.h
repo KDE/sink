@@ -342,6 +342,7 @@ public:
 
     void addEmitter(const typename ResultEmitter<DomainType>::Ptr &emitter)
     {
+        Q_ASSERT(emitter);
         emitter->onAdded([this](const DomainType &value) { this->add(value); });
         emitter->onModified([this](const DomainType &value) { this->modify(value); });
         emitter->onRemoved([this](const DomainType &value) { this->remove(value); });
