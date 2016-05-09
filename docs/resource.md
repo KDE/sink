@@ -165,3 +165,18 @@ Resources have to be tested, which often requires inspections into the current s
 To alleviate this inspection commands are introduced. Inspection commands are special commands that the resource processes just like all other commands, and that have the sole purpose of inspecting the current resource state. Because the command is processed with the same mechanism as other commands we can rely on ordering of commands in a way that a prior command is guaranteed to be executed once the inspection command is processed.
 
 A typical inspection command could i.e. verify that a file has been created in the expected path after a create command.
+
+# Capabilities
+Resources can have various capabilities. Each capability is a contract that the resource guarantees to fullfil.
+
+## Storage
+* The storage capability guarantees that the resource stores entities (of a supported type) given to it.
+
+## Mailtransport
+* A mailtransport resource transports any mail that it receives to the indicated destination.
+* As long as the mail has not been transported it must be queryable, modifiabl and removable.
+* Once the mail has been transported it should be moved to the target sent mail folder and be removed from the resource.
+
+## Drafts
+* A resource that supports the drafts capability must store any mail that is marked as draft in a suitable drafts folder.
+* The resource must guarantee that storage succeeds (as soon as it accepts the request), so it must create a suitable folder if non is available.
