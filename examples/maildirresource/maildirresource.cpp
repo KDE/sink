@@ -146,10 +146,10 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
 
     auto folderUpdater = new FolderUpdater(QByteArray());
     addType(ENTITY_TYPE_MAIL, mMailAdaptorFactory,
-            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail> << folderUpdater);
+            QVector<Sink::Preprocessor*>() << folderUpdater << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     auto folderPreprocessor = new FolderPreprocessor;
     addType(ENTITY_TYPE_FOLDER, mFolderAdaptorFactory,
-            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder> << folderPreprocessor);
+            QVector<Sink::Preprocessor*>() << folderPreprocessor << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 
     KPIM::Maildir dir(mMaildirPath, true);
     mDraftsFolder = dir.addSubFolder("drafts");

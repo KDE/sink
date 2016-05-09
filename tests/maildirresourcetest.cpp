@@ -71,6 +71,9 @@ private slots:
     {
         targetPath = tempDir.path() + "/maildir1/";
 
+        //FIXME initTest only works for the current process,
+        //we also have to start resources in test-mode
+        // Sink::Test::initTest();
         Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
         MaildirResource::removeFromDisk("org.kde.maildir.instance1");
         Sink::ApplicationDomain::SinkResource resource;
@@ -306,6 +309,8 @@ private slots:
 
         Sink::ApplicationDomain::Mail mail("org.kde.maildir.instance1");
         mail.setBlobProperty("mimeMessage", message->encodedContent());
+        //FIXME generate accessors
+        // mail.setMimeMessage(message->encodedContent());
 
         Sink::Store::create(mail).exec().waitForFinished();
 
@@ -331,6 +336,11 @@ private slots:
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
+        //TODO
+        //create folder
+        //create mail in folder
+        //ensure mail is in folder
+        //
         auto folder = Sink::ApplicationDomain::ApplicationDomainType::createEntity<Sink::ApplicationDomain::Folder>("org.kde.maildir.instance1");
         folder.setProperty("name", "newfolder");
 
@@ -345,10 +355,14 @@ private slots:
         mail.setProperty("folder", folder);
 
         Sink::Store::create(mail).exec().waitForFinished();
+        // .then()
+        // .exec().waitForFinished();
+        //
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         auto future = Sink::Store::fetchOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail.identifier()) + Query::RequestedProperties(QByteArrayList() << "mimeMessage" << "folder"))
             .then<void, ApplicationDomain::Mail>([folder](const ApplicationDomain::Mail &mail) {
+                // qDebug() << "Retrieved draft: " << mail.getProperty("folder") << mail.identifier() << mail.getProperty("mimeMessage").toString();
                 QCOMPARE(mail.getProperty("folder").toByteArray(), folder.identifier());
             }).exec();
         future.waitForFinished();
@@ -459,6 +473,7 @@ private slots:
         message->assemble();
 
         auto mail = Sink::ApplicationDomain::ApplicationDomainType::createEntity<Sink::ApplicationDomain::Mail>("org.kde.maildir.instance1");
+        // Sink::ApplicationDomain::Mail::create("org.kde.maildir.instance1");
         mail.setBlobProperty("mimeMessage", message->encodedContent());
         mail.setProperty("draft", true);
 
@@ -467,15 +482,29 @@ private slots:
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
+        QByteArray folderIdentifier;
         auto future = Sink::Store::fetchOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail.identifier()) + Query::RequestedProperties(QByteArrayList() << "mimeMessage" << "folder"))
-            .then<void, ApplicationDomain::Mail>([](const ApplicationDomain::Mail &mail) {
-                QVERIFY(!mail.getProperty("folder").toByteArray().isEmpty());
+            .then<void, ApplicationDomain::Mail>([&](const ApplicationDomain::Mail &mail) {
+                folderIdentifier = mail.getProperty("folder").toByteArray();
+                QVERIFY(!folderIdentifier.isEmpty());
             }).exec();
         future.waitForFinished();
         if (future.errorCode()) {
             qWarning() << future.errorCode() << future.errorMessage();
         }
         QVERIFY(!future.errorCode());
+
+        //Ensure we can also query by folder
+        Sink::Store::fetchAll<ApplicationDomain::Mail>(Query::PropertyFilter("folder", folderIdentifier))
+            .then<void, QList<ApplicationDomain::Mail::Ptr> >([&](const QList<ApplicationDomain::Mail::Ptr> &mails) {
+                bool found = false;
+                for (const auto m : mails) {
+                    if (m->identifier() == mail.identifier()) {
+                        found = true;
+                    }
+                }
+                QVERIFY(found);
+            }).exec().waitForFinished();
     }
 };
 
