@@ -70,19 +70,19 @@ void TypeImplementation<Folder>::removeIndex(const QByteArray &identifier, const
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Folder>::Buffer> > TypeImplementation<Folder>::initializeReadPropertyMapper()
 {
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();
-    propertyMapper->addMapping<QByteArray, Buffer>("parent", &Buffer::parent);
-    propertyMapper->addMapping<QString, Buffer>("name", &Buffer::name);
-    propertyMapper->addMapping<QByteArray, Buffer>("icon", &Buffer::icon);
-    propertyMapper->addMapping<QByteArrayList, Buffer>("specialpurpose", &Buffer::specialpurpose);
+    propertyMapper->addMapping<Folder::Parent, Buffer>(&Buffer::parent);
+    propertyMapper->addMapping<Folder::Name, Buffer>(&Buffer::name);
+    propertyMapper->addMapping<Folder::Icon, Buffer>(&Buffer::icon);
+    propertyMapper->addMapping<Folder::SpecialPurpose, Buffer>(&Buffer::specialpurpose);
     return propertyMapper;
 }
 
 QSharedPointer<WritePropertyMapper<TypeImplementation<Folder>::BufferBuilder> > TypeImplementation<Folder>::initializeWritePropertyMapper()
 {
     auto propertyMapper = QSharedPointer<WritePropertyMapper<BufferBuilder> >::create();
-    propertyMapper->addMapping<QByteArray>("parent", &BufferBuilder::add_parent);
-    propertyMapper->addMapping<QString>("name", &BufferBuilder::add_name);
-    propertyMapper->addMapping<QByteArray>("icon", &BufferBuilder::add_icon);
-    propertyMapper->addMapping<QByteArrayList>("specialpurpose", &BufferBuilder::add_specialpurpose);
+    propertyMapper->addMapping<Folder::Parent>(&BufferBuilder::add_parent);
+    propertyMapper->addMapping<Folder::Name>(&BufferBuilder::add_name);
+    propertyMapper->addMapping<Folder::Icon>(&BufferBuilder::add_icon);
+    propertyMapper->addMapping<Folder::SpecialPurpose>(&BufferBuilder::add_specialpurpose);
     return propertyMapper;
 }

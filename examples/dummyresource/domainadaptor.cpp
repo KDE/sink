@@ -20,6 +20,7 @@
 #include "domainadaptor.h"
 
 #include "dummycalendar_generated.h"
+#include "applicationdomaintype.h"
 
 using namespace DummyCalendar;
 using namespace flatbuffers;
@@ -28,10 +29,8 @@ DummyEventAdaptorFactory::DummyEventAdaptorFactory()
     : DomainTypeAdaptorFactory()
 {
     //TODO turn this into initializeReadPropertyMapper as well?
-    mResourceMapper->addMapping<QString, DummyEvent>("summary", &DummyEvent::summary);
-    mResourceMapper->addMapping<QString, DummyEvent>("remoteId", &DummyEvent::remoteId);
-    mResourceWriteMapper->addMapping<QString>("summary", &DummyEventBuilder::add_summary);
-    mResourceWriteMapper->addMapping<QString>("remoteId", &DummyEventBuilder::add_remoteId);
+    mResourceMapper->addMapping<Sink::ApplicationDomain::Event::Summary, DummyEvent>(&DummyEvent::summary);
+    mResourceWriteMapper->addMapping<Sink::ApplicationDomain::Event::Summary>(&DummyEventBuilder::add_summary);
 }
 
 DummyMailAdaptorFactory::DummyMailAdaptorFactory()

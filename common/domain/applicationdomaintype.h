@@ -23,12 +23,56 @@
 #include <QSharedPointer>
 #include <QVariant>
 #include <QByteArray>
+#include <QDateTime>
 #include <QDebug>
 #include <QUuid>
 #include "bufferadaptor.h"
 
-namespace Sink {
+#define SINK_ENTITY(TYPE) \
+    typedef QSharedPointer<TYPE> Ptr; \
+    using Entity::Entity; \
+    virtual ~TYPE(); \
 
+
+#define SINK_PROPERTY(TYPE, NAME, LOWERCASENAME) \
+    struct NAME { \
+        static constexpr const char *name = #LOWERCASENAME; \
+        typedef TYPE Type; \
+    }; \
+    void set##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
+    TYPE get##NAME() const { return getProperty(NAME::name).value<TYPE>(); } \
+
+
+#define SINK_EXTRACTED_PROPERTY(TYPE, NAME, LOWERCASENAME) \
+    struct NAME { \
+        static constexpr const char *name = #LOWERCASENAME; \
+        typedef TYPE Type; \
+    }; \
+    void setExtracted##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
+    TYPE get##NAME() const { return getProperty(NAME::name).value<TYPE>(); } \
+
+
+#define SINK_BLOB_PROPERTY(NAME, LOWERCASENAME) \
+    struct NAME { \
+        static constexpr const char *name = #LOWERCASENAME; \
+        typedef QString Type; \
+    }; \
+    void set##NAME(const QByteArray &value) { setBlobProperty(NAME::name, value); } \
+    void set##NAME##Path(const QString &path) { setProperty(NAME::name, QVariant::fromValue(path)); } \
+    QByteArray get##NAME() const { return getBlobProperty(NAME::name); } \
+    QString get##NAME##Path() const { return getProperty(NAME::name).value<QString>(); } \
+
+#define SINK_REFERENCE_PROPERTY(TYPE, NAME, LOWERCASENAME) \
+    struct NAME { \
+        static constexpr const char *name = #LOWERCASENAME; \
+        typedef QByteArray Type; \
+    }; \
+    void set##NAME(const ApplicationDomain::TYPE &value) { setProperty(NAME::name, value); } \
+    void set##NAME(const QByteArray &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
+    QByteArray get##NAME() const { return getProperty(NAME::name).value<QByteArray>(); } \
+
+
+namespace Sink {
 namespace ApplicationDomain {
 
 /**
@@ -128,33 +172,41 @@ struct SINK_EXPORT Entity : public ApplicationDomainType {
 };
 
 struct SINK_EXPORT Event : public Entity {
-    typedef QSharedPointer<Event> Ptr;
-    using Entity::Entity;
-    virtual ~Event();
+    SINK_ENTITY(Event);
+    SINK_PROPERTY(QString, Uid, uid);
+    SINK_PROPERTY(QString, Summary, summary);
+    SINK_PROPERTY(QString, Description, description);
+    SINK_PROPERTY(QByteArray, Attachment, attachment);
 };
 
 struct SINK_EXPORT Todo : public Entity {
-    typedef QSharedPointer<Todo> Ptr;
-    using Entity::Entity;
-    virtual ~Todo();
+    SINK_ENTITY(Todo);
 };
 
 struct SINK_EXPORT Calendar : public Entity {
-    typedef QSharedPointer<Calendar> Ptr;
-    using Entity::Entity;
-    virtual ~Calendar();
-};
-
-struct SINK_EXPORT Mail : public Entity {
-    typedef QSharedPointer<Mail> Ptr;
-    using Entity::Entity;
-    virtual ~Mail();
+    SINK_ENTITY(Calendar);
 };
 
 struct SINK_EXPORT Folder : public Entity {
-    typedef QSharedPointer<Folder> Ptr;
-    using Entity::Entity;
-    virtual ~Folder();
+    SINK_ENTITY(Folder);
+    SINK_REFERENCE_PROPERTY(Folder, Parent, parent);
+    SINK_PROPERTY(QString, Name, name);
+    SINK_PROPERTY(QByteArray, Icon, icon);
+    SINK_PROPERTY(QByteArrayList, SpecialPurpose, specialpurpose);
+};
+
+struct SINK_EXPORT Mail : public Entity {
+    SINK_ENTITY(Mail);
+    SINK_PROPERTY(QString, Uid, uid);
+    SINK_EXTRACTED_PROPERTY(QString, Sender, sender);
+    SINK_EXTRACTED_PROPERTY(QString, SenderName, senderName);
+    SINK_EXTRACTED_PROPERTY(QString, Subject, subject);
+    SINK_EXTRACTED_PROPERTY(QDateTime, Date, date);
+    SINK_PROPERTY(bool, Unread, unread);
+    SINK_PROPERTY(bool, Important, important);
+    SINK_REFERENCE_PROPERTY(Folder, Folder, folder);
+    SINK_BLOB_PROPERTY(MimeMessage, mimeMessage);
+    SINK_PROPERTY(bool, Draft, draft);
 };
 
 /**
@@ -234,6 +286,12 @@ class SINK_EXPORT TypeImplementation;
 
 }
 }
+
+#undef SINK_ENTITY
+#undef SINK_PROPERTY
+#undef SINK_EXTRACTED_PROPERTY
+#undef SINK_BLOB_PROPERTY
+#undef SINK_REFERENCE_PROPERTY
 
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType::Ptr)

@@ -78,33 +78,33 @@ public:
     }
 
     template <typename T, typename Buffer>
-    void addMapping(const QByteArray &name, const flatbuffers::String *(Buffer::*f)() const)
+    void addMapping(const flatbuffers::String *(Buffer::*f)() const)
     {
-        addMapping(name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<T>((buffer->*f)()); });
+        addMapping(T::name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<typename T::Type>((buffer->*f)()); });
     }
 
     template <typename T, typename Buffer>
-    void addMapping(const QByteArray &name, uint8_t (Buffer::*f)() const)
+    void addMapping(uint8_t (Buffer::*f)() const)
     {
-        addMapping(name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<T>((buffer->*f)()); });
+        addMapping(T::name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<typename T::Type>((buffer->*f)()); });
     }
 
     template <typename T, typename Buffer>
-    void addMapping(const QByteArray &name, bool (Buffer::*f)() const)
+    void addMapping(bool (Buffer::*f)() const)
     {
-        addMapping(name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<T>((buffer->*f)()); });
+        addMapping(T::name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<typename T::Type>((buffer->*f)()); });
     }
 
     template <typename T, typename Buffer>
-    void addMapping(const QByteArray &name, const flatbuffers::Vector<uint8_t> *(Buffer::*f)() const)
+    void addMapping(const flatbuffers::Vector<uint8_t> *(Buffer::*f)() const)
     {
-        addMapping(name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<T>((buffer->*f)()); });
+        addMapping(T::name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<typename T::Type>((buffer->*f)()); });
     }
 
     template <typename T, typename Buffer>
-    void addMapping(const QByteArray &name, const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> *(Buffer::*f)() const)
+    void addMapping(const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> *(Buffer::*f)() const)
     {
-        addMapping(name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<T>((buffer->*f)()); });
+        addMapping(T::name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<typename T::Type>((buffer->*f)()); });
     }
 
 private:
@@ -134,44 +134,44 @@ public:
     }
 
     template <typename T>
-    void addMapping(const QByteArray &name, void (BufferBuilder::*f)(uint8_t))
+    void addMapping(void (BufferBuilder::*f)(uint8_t))
     {
-        addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-            return [value, f](BufferBuilder &builder) { (builder.*f)(value.value<T>()); };
+        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+            return [value, f](BufferBuilder &builder) { (builder.*f)(value.value<typename T::Type>()); };
         });
     }
 
     template <typename T>
-    void addMapping(const QByteArray &name, void (BufferBuilder::*f)(bool))
+    void addMapping(void (BufferBuilder::*f)(bool))
     {
-        addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-            return [value, f](BufferBuilder &builder) { (builder.*f)(value.value<T>()); };
+        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+            return [value, f](BufferBuilder &builder) { (builder.*f)(value.value<typename T::Type>()); };
         });
     }
 
     template <typename T>
-    void addMapping(const QByteArray &name, void (BufferBuilder::*f)(flatbuffers::Offset<flatbuffers::String>))
+    void addMapping(void (BufferBuilder::*f)(flatbuffers::Offset<flatbuffers::String>))
     {
-        addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-            auto offset = variantToProperty<T>(value, fbb);
+        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+            auto offset = variantToProperty<typename T::Type>(value, fbb);
             return [offset, f](BufferBuilder &builder) { (builder.*f)(offset); };
         });
     }
 
     template <typename T>
-    void addMapping(const QByteArray &name, void (BufferBuilder::*f)(flatbuffers::Offset<flatbuffers::Vector<uint8_t>>))
+    void addMapping(void (BufferBuilder::*f)(flatbuffers::Offset<flatbuffers::Vector<uint8_t>>))
     {
-        addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-            auto offset = variantToProperty<T>(value, fbb);
+        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+            auto offset = variantToProperty<typename T::Type>(value, fbb);
             return [offset, f](BufferBuilder &builder) { (builder.*f)(offset); };
         });
     }
 
     template <typename T>
-    void addMapping(const QByteArray &name, void (BufferBuilder::*f)(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>>))
+    void addMapping(void (BufferBuilder::*f)(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>>))
     {
-        addMapping(name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-            auto offset = variantToProperty<T>(value, fbb);
+        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+            auto offset = variantToProperty<typename T::Type>(value, fbb);
             return [offset, f](BufferBuilder &builder) { (builder.*f)(offset); };
         });
     }

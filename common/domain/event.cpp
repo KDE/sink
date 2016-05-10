@@ -68,19 +68,19 @@ void TypeImplementation<Event>::removeIndex(const QByteArray &identifier, const 
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Event>::Buffer> > TypeImplementation<Event>::initializeReadPropertyMapper()
 {
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();
-    propertyMapper->addMapping<QString, Buffer>("summary", &Buffer::summary);
-    propertyMapper->addMapping<QString, Buffer>("description", &Buffer::description);
-    propertyMapper->addMapping<QString, Buffer>("uid", &Buffer::uid);
-    propertyMapper->addMapping<QByteArray, Buffer>("attachment", &Buffer::attachment);
+    propertyMapper->addMapping<Event::Summary, Buffer>(&Buffer::summary);
+    propertyMapper->addMapping<Event::Description, Buffer>(&Buffer::description);
+    propertyMapper->addMapping<Event::Uid, Buffer>(&Buffer::uid);
+    propertyMapper->addMapping<Event::Attachment, Buffer>(&Buffer::attachment);
     return propertyMapper;
 }
 
 QSharedPointer<WritePropertyMapper<TypeImplementation<Event>::BufferBuilder> > TypeImplementation<Event>::initializeWritePropertyMapper()
 {
     auto propertyMapper = QSharedPointer<WritePropertyMapper<BufferBuilder> >::create();
-    propertyMapper->addMapping<QString>("summary", &BufferBuilder::add_summary);
-    propertyMapper->addMapping<QString>("description", &BufferBuilder::add_description);
-    propertyMapper->addMapping<QString>("uid", &BufferBuilder::add_uid);
-    propertyMapper->addMapping<QByteArray>("attachment", &BufferBuilder::add_attachment);
+    propertyMapper->addMapping<Event::Summary>(&BufferBuilder::add_summary);
+    propertyMapper->addMapping<Event::Description>(&BufferBuilder::add_description);
+    propertyMapper->addMapping<Event::Uid>(&BufferBuilder::add_uid);
+    propertyMapper->addMapping<Event::Attachment>(&BufferBuilder::add_attachment);
     return propertyMapper;
 }
