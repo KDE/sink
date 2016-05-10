@@ -119,7 +119,7 @@ static bool matchesFilter(const QHash<QByteArray, Sink::Query::Comparator> &filt
         if (filterProperty == "type") {
             continue;
         }
-        if (filter.value(filterProperty).matches(properties.value(filterProperty))) {
+        if (!filter.value(filterProperty).matches(properties.value(filterProperty))) {
             return false;
         }
     }

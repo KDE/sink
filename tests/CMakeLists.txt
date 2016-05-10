@@ -40,6 +40,7 @@ manual_tests (
 
 auto_tests (
     clientapitest
+    resourceconfigtest
     storagetest
     dummyresourcetest
     domainadaptortest

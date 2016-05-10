@@ -119,34 +119,6 @@ private slots:
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
     }
 
-    // TODO: This test doesn't belong to this testsuite
-    void resourceManagement()
-    {
-        ResourceConfig::clear();
-        Sink::FacadeFactory::instance().registerStaticFacades();
-
-        Sink::ApplicationDomain::SinkResource res("", "dummyresource.identifier1", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        res.setProperty("identifier", "dummyresource.identifier1");
-        res.setProperty("type", "dummyresource");
-
-        Sink::Store::create(res).exec().waitForFinished();
-        {
-            Sink::Query query;
-            query.propertyFilter.insert("type", Sink::Query::Comparator("dummyresource"));
-            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(query);
-            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-        }
-
-        Sink::Store::remove(res).exec().waitForFinished();
-        {
-            Sink::Query query;
-            query.propertyFilter.insert("type", Sink::Query::Comparator("dummyresource"));
-            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(QModelIndex()), 0);
-        }
-    }
-
     void testModelSingle()
     {
         auto facade = DummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
