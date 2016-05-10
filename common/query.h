@@ -139,6 +139,40 @@ public:
         return query;
     }
 
+    template <typename T>
+    Query &request()
+    {
+        requestedProperties << T::name;
+        return *this;
+    }
+
+    template <typename T>
+    Query &sort()
+    {
+        sortProperty = T::name;
+        return *this;
+    }
+
+    template <typename T>
+    Query &filter(const QVariant &value)
+    {
+        propertyFilter.insert(T::name, value);
+        return *this;
+    }
+
+    template <typename T>
+    Query &filter(const ApplicationDomain::Entity &value)
+    {
+        propertyFilter.insert(T::name, QVariant::fromValue(value.identifier()));
+        return *this;
+    }
+
+    Query(const ApplicationDomain::Entity &value) : limit(0)
+    {
+        ids << value.identifier();
+        resources << value.resourceInstanceIdentifier();
+    }
+
     Query(Flags flags = Flags()) : limit(0)
     {
     }
