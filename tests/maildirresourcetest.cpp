@@ -466,6 +466,64 @@ private slots:
         QVERIFY(!result2.errorCode());
     }
 
+    void testEditMail()
+    {
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
+
+        auto query = Query::ResourceFilter("org.kde.maildir.instance1");
+        Store::synchronize(query).exec().waitForFinished();
+        ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        Folder f;
+
+        auto result = Store::fetchOne<Folder>(
+                          Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("name", "maildir1") + Query::RequestedProperties(QByteArrayList() << "name"))
+                          .then<void, KAsync::Job<void>, Folder>([query, &f](const Folder &folder) {
+                              f = folder;
+                              return Store::fetchAll<Mail>(Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("folder", folder) +
+                                                           Query::RequestedProperties(QByteArrayList() << "folder"
+                                                                                                       << "subject" << "mimeMessage"))
+                                  .then<void, KAsync::Job<void>, QList<Mail::Ptr>>([query](const QList<Mail::Ptr> &mails) {
+                                      ASYNCCOMPARE(mails.size(), 1);
+                                      auto mail = mails.first();
+                                      auto message = KMime::Message::Ptr::create();
+                                      message->subject(true)->fromUnicodeString("Test1", "utf8");
+                                      message->assemble();
+                                      mail->setMimeMessage(message->encodedContent());
+                                      return Store::modify(*mail);
+                                  });
+                          })
+                          .exec();
+        result.waitForFinished();
+        QVERIFY(!result.errorCode());
+
+        ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        // Verify that we can still query for all relevant information
+        auto result2 = Store::fetchAll<Mail>(
+                           Query::ResourceFilter("org.kde.maildir.instance1") + Query::PropertyFilter("folder", f) + Query::RequestedProperties(QByteArrayList() << "folder"
+                                                                                                                                                                 << "subject"
+                                                                                                                                                                 << "mimeMessage"
+                                                                                                                                                                 << "unread"))
+                           .then<void, KAsync::Job<void>, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
+                               ASYNCCOMPARE(mails.size(), 1);
+                               auto mail = mails.first();
+                               ASYNCCOMPARE(mail->getProperty("subject").toString(), QString("Test1"));
+                               ASYNCVERIFY(QFileInfo(mail->getMimeMessagePath()).exists());
+                               return KAsync::null<void>();
+                           })
+                           .exec();
+        result2.waitForFinished();
+        QVERIFY(!result2.errorCode());
+
+        //Ensure we didn't leave a stale message behind
+        auto targetPath = tempDir.path() + "/maildir1/cur";
+        QDir dir(targetPath);
+        dir.setFilter(QDir::Files);
+        QTRY_COMPARE(dir.count(), static_cast<unsigned int>(1));
+    }
+
     void testCreateDraft()
     {
         Sink::Query query;

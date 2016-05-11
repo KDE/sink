@@ -65,11 +65,53 @@ public:
             Sink::EntityBuffer buffer(value);
             const Sink::Entity &entity = buffer.entity();
             const auto adaptor = mFolderAdaptorFactory->createAdaptor(entity);
-            auto folderName = adaptor->getProperty("name").toString();
-            //TODO handle non toplevel folders
-            folderPath = mMaildirPath + "/" + folderName;
+            auto parentFolder = adaptor->getProperty("parent").toString();
+            if (mMaildirPath.endsWith(adaptor->getProperty("name").toString())) {
+                folderPath = mMaildirPath;
+            } else {
+                auto folderName = adaptor->getProperty("name").toString();
+                //TODO handle non toplevel folders
+                folderPath = mMaildirPath + "/" + folderName;
+            }
         });
         return folderPath;
+    }
+    
+    QString moveMessage(const QString &oldPath, const QByteArray &folder, Sink::Storage::Transaction &transaction)
+    {
+        if (oldPath.startsWith(Sink::temporaryFileLocation())) {
+            const auto path = getPath(folder, transaction);
+            KPIM::Maildir maildir(path, false);
+            if (!maildir.isValid(true)) {
+                qWarning() << "Maildir is not existing: " << path;
+            }
+            auto identifier = maildir.addEntryFromPath(oldPath);
+            return path + "/" + identifier;
+        }
+        return oldPath;
+    }
+    void updatedIndexedProperties(Sink::ApplicationDomain::BufferAdaptor &newEntity)
+    {
+        const auto mimeMessagePath = newEntity.getProperty("mimeMessage").toString();
+        auto parts = mimeMessagePath.split('/');
+        const auto key = parts.takeLast();
+        const auto path = parts.join("/") + "/cur/";
+
+        QDir dir(path);
+        const QFileInfoList list = dir.entryInfoList(QStringList() << (key+"*"), QDir::Files);
+        if (list.size() != 1) {
+            Warning() << "Failed to find message " << path << key << list.size();
+            return;
+        }
+
+        KMime::Message *msg = new KMime::Message;
+        msg->setHead(KMime::CRLFtoLF(KPIM::Maildir::readEntryHeadersFromFile(list.first().filePath())));
+        msg->parse();
+
+        newEntity.setProperty("subject", msg->subject(true)->asUnicodeString());
+        newEntity.setProperty("sender", msg->from(true)->asUnicodeString());
+        newEntity.setProperty("senderName", msg->from(true)->asUnicodeString());
+        newEntity.setProperty("date", msg->date(true)->dateTime());
     }
 
     void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
@@ -79,46 +121,20 @@ public:
         }
         const auto mimeMessage = newEntity.getProperty("mimeMessage");
         if (mimeMessage.isValid()) {
-            const auto oldPath = mimeMessage.toString();
-            if (oldPath.startsWith(Sink::temporaryFileLocation())) {
-                auto folder = newEntity.getProperty("folder").toByteArray();
-                const auto path = getPath(folder, transaction);
-                KPIM::Maildir maildir(path, false);
-                if (!maildir.isValid(true)) {
-                    qWarning() << "Maildir is not existing: " << path;
-                }
-                auto identifier = maildir.addEntryFromPath(oldPath);
-                newEntity.setProperty("mimeMessage", path + "/" + identifier);
-            }
+            newEntity.setProperty("mimeMessage", moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray(), transaction));
         }
-
-        {
-            const auto mimeMessagePath = newEntity.getProperty("mimeMessage").toString();
-            auto parts = mimeMessagePath.split('/');
-            const auto key = parts.takeLast();
-            const auto path = parts.join("/") + "/cur/";
-
-            QDir dir(path);
-            const QFileInfoList list = dir.entryInfoList(QStringList() << (key+"*"), QDir::Files);
-            if (list.size() != 1) {
-                Warning() << "Failed to find message " << path << key << list.size();
-                return;
-            }
-
-            KMime::Message *msg = new KMime::Message;
-            msg->setHead(KMime::CRLFtoLF(KPIM::Maildir::readEntryHeadersFromFile(list.first().filePath())));
-            msg->parse();
-
-            newEntity.setProperty("subject", msg->subject(true)->asUnicodeString());
-            newEntity.setProperty("sender", msg->from(true)->asUnicodeString());
-            newEntity.setProperty("senderName", msg->from(true)->asUnicodeString());
-            newEntity.setProperty("date", msg->date(true)->dateTime());
-        }
+        updatedIndexedProperties(newEntity);
     }
 
     void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
         Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
+        //TODO deal with moves
+        const auto mimeMessage = newEntity.getProperty("mimeMessage");
+        if (mimeMessage.isValid()) {
+            newEntity.setProperty("mimeMessage", moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray(), transaction));
+        }
+        updatedIndexedProperties(newEntity);
     }
 
     void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
@@ -419,22 +435,33 @@ KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, c
             const auto uid = Sink::Storage::uidFromKey(key);
             const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, uid, synchronizationTransaction);
             Trace() << "Modifying a mail: " << remoteId;
-            auto parts = remoteId.split('/');
-            const auto filename = parts.takeLast(); //filename
-            parts.removeLast(); //cur/new folder
-            auto maildirPath = parts.join('/');
 
+            const auto maildirPath = KPIM::Maildir::getDirectoryFromFile(remoteId);
             KPIM::Maildir maildir(maildirPath, false);
 
             const Sink::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, mMailAdaptorFactory->createAdaptor(entity));
+            auto newIdentifier = mail.getMimeMessagePath().split("/").last();
+            QString identifier;
+            if (newIdentifier != KPIM::Maildir::getKeyFromFile(remoteId)) {
+                //Remove the old mime message if it changed
+                Trace() << "Removing old mime message: " << remoteId;
+                QFile(remoteId).remove();
+                identifier = newIdentifier;
+            } else {
+                //The identifier needs to contain the flags for changeEntryFlags to work
+                identifier = remoteId.split('/').last();
+            }
 
             //get flags from
             KPIM::Maildir::Flags flags;
-            if (!mail.getProperty("unread").toBool()) {
+            if (!mail.getUnread()) {
                 flags |= KPIM::Maildir::Seen;
             }
+            if (mail.getImportant()) {
+                flags |= KPIM::Maildir::Flagged;
+            }
 
-            auto newRemoteId = maildir.changeEntryFlags(filename, flags);
+            const auto newRemoteId = maildir.changeEntryFlags(identifier, flags);
             updateRemoteId(ENTITY_TYPE_MAIL, uid, QString(maildirPath + "/cur/" + newRemoteId).toUtf8(), synchronizationTransaction);
         } else {
             Warning() << "Unkown operation" << operation;

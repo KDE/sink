@@ -749,7 +749,7 @@ bool Maildir::removeEntry(const QString& key)
     }
     // KeyCache *keyCache = KeyCache::self();
     // keyCache->removeKey(d->path, key);
-    qWarning() << "Real key";
+    qWarning() << "Real key" << realKey;
     QFile file(realKey);
     if (!file.remove()) {
         qWarning() << file.errorString() << file.error();
