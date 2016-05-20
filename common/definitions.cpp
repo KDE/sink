@@ -36,3 +36,8 @@ QString Sink::temporaryFileLocation()
     dir.mkpath(path);
     return path;
 }
+
+QString Sink::resourceStorageLocation(const QByteArray &resourceInstanceIdentifier)
+{
+    return storageLocation() + "/" + resourceInstanceIdentifier + "/data";
+}
