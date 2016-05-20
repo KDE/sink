@@ -147,7 +147,9 @@ typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr QueryRunner<DomainTy
 static inline ResultSet fullScan(const Sink::Storage::Transaction &transaction, const QByteArray &bufferType)
 {
     // TODO use a result set with an iterator, to read values on demand
-    QVector<QByteArray> keys;
+    Trace() << "Looking for : " << bufferType;
+    //The scan can return duplicate results if we have multiple revisions, so we use a set to deduplicate.
+    QSet<QByteArray> keys;
     Storage::mainDatabase(transaction, bufferType)
         .scan(QByteArray(),
             [&](const QByteArray &key, const QByteArray &value) -> bool {
@@ -155,13 +157,17 @@ static inline ResultSet fullScan(const Sink::Storage::Transaction &transaction, 
                 if (Sink::Storage::isInternalKey(key)) {
                     return true;
                 }
+                if (keys.contains(Sink::Storage::uidFromKey(key))) {
+                    //Not something that should persist if the replay works, so we keep a message for now.
+                    Trace() << "Multiple revisions for key: " << key;
+                }
                 keys << Sink::Storage::uidFromKey(key);
                 return true;
             },
             [](const Sink::Storage::Error &error) { Warning() << "Error during query: " << error.message; });
 
     Trace() << "Full scan retrieved " << keys.size() << " results.";
-    return ResultSet(keys);
+    return ResultSet(keys.toList().toVector());
 }
 
 
