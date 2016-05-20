@@ -230,7 +230,7 @@ QByteArray MaildirResource::createFolder(const QString &folderPath, const QByteA
     KPIM::Maildir md(folderPath, folderPath == mMaildirPath);
     Sink::ApplicationDomain::Folder folder;
     folder.setProperty("name", md.name());
-    folder.setProperty("icon", "folder");
+    folder.setProperty("icon", icon);
 
     if (!md.isRoot()) {
         folder.setProperty("parent", resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path().toUtf8(), synchronizationTransaction));
