@@ -252,6 +252,9 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 job.then<void>([callback, timer]() {
                        Trace() << "Sync took " << Sink::Log::TraceTime(timer->elapsed());
                        callback(true);
+                   }, [callback](int errorCode, const QString &msg) {
+                       Warning() << "Sync failed: " << msg;
+                       callback(false);
                    })
                     .exec();
                 return;

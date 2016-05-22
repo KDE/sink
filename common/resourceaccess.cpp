@@ -96,7 +96,7 @@ public:
     QVector<QSharedPointer<QueuedCommand>> commandQueue;
     QMap<uint, QSharedPointer<QueuedCommand>> pendingCommands;
     QMultiMap<uint, std::function<void(int error, const QString &errorMessage)>> resultHandler;
-    QSet<uint> completeCommands;
+    QHash<uint, bool> completeCommands;
     uint messageId;
     bool openingSocket;
 };
@@ -121,12 +121,17 @@ void ResourceAccess::Private::abortPendingOperations()
 
 void ResourceAccess::Private::callCallbacks()
 {
-    for (auto id : completeCommands) {
+    for (auto id : completeCommands.keys()) {
+        const bool success = completeCommands.value(id);
         // We remove the callbacks first because the handler can kill resourceaccess directly
         const auto callbacks = resultHandler.values(id);
         resultHandler.remove(id);
         for (auto handler : callbacks) {
-            handler(0, QString());
+            if (success) {
+                handler(0, QString());
+            } else {
+                handler(1, "Command failed.");
+            }
         }
     }
 }
@@ -536,7 +541,7 @@ bool ResourceAccess::processMessageBuffer()
             auto buffer = Commands::GetCommandCompletion(d->partialMessageBuffer.constData() + headerSize);
             Log() << QString("Command with messageId %1 completed %2").arg(buffer->id()).arg(buffer->success() ? "sucessfully" : "unsuccessfully");
 
-            d->completeCommands << buffer->id();
+            d->completeCommands.insert(buffer->id(), buffer->success());
             // The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
             queuedInvoke([=]() { d->callCallbacks(); }, this);
             break;

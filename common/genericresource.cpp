@@ -459,16 +459,20 @@ void GenericResource::processCommand(int commandId, const QByteArray &data)
 
 KAsync::Job<void> GenericResource::synchronizeWithSource()
 {
-    return KAsync::start<void>([this]() {
+    return KAsync::start<void>([this](KAsync::Future<void> &future) {
         Log() << " Synchronizing";
         // Changereplay would deadlock otherwise when trying to open the synchronization store
         enableChangeReplay(false);
         auto mainStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier, Sink::Storage::ReadOnly);
         auto syncStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadWrite);
         synchronizeWithSource(*mainStore, *syncStore)
-            .then<void>([this, mainStore, syncStore]() {
+            .then<void>([this, mainStore, syncStore, &future]() {
                 Log() << "Done Synchronizing";
                 enableChangeReplay(true);
+                future.setFinished();
+            }, [this, &future](int errorCode, const QString &error) {
+                enableChangeReplay(true);
+                future.setError(errorCode, error);
             })
             .exec();
     });
