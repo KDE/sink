@@ -201,12 +201,22 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
     Trace() << "synchronize" << query.resources;
     auto resources = getResources(query.resources, query.accounts).keys();
+    //FIXME only necessary because each doesn't propagate errors
+    auto error = new bool;
     return KAsync::iterate(resources)
-        .template each<void, QByteArray>([query](const QByteArray &resource, KAsync::Future<void> &future) {
+        .template each<void, QByteArray>([query, error](const QByteArray &resource, KAsync::Future<void> &future) {
             Trace() << "Synchronizing " << resource;
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
             resourceAccess->open();
-            resourceAccess->synchronizeResource(true, false).then<void>([&future, resourceAccess]() { future.setFinished(); }).exec();
+            resourceAccess->synchronizeResource(true, false).then<void>([resourceAccess, &future]() {Trace() << "synced."; future.setFinished(); },
+                    [&future, error](int errorCode, QString msg) { *error = true; Warning() << "Error during sync."; future.setError(errorCode, msg); }).exec();
+        }).then<void>([error](KAsync::Future<void> &future) {
+            if (*error) {
+                future.setError(1, "Error during sync.");
+            } else {
+                future.setFinished();
+            }
+            delete error;
         });
 }
 
