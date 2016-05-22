@@ -87,6 +87,23 @@ Listener::~Listener()
 {
 }
 
+void Listener::emergencyAbortAllConnections()
+{
+    for (Client &client : m_connections) {
+        if (client.socket) {
+            Warning() << "Sending panic";
+            client.socket->write("PANIC");
+            client.socket->waitForBytesWritten();
+            disconnect(client.socket, 0, this, 0);
+            client.socket->abort();
+            delete client.socket;
+            client.socket = 0;
+        }
+    }
+
+    m_connections.clear();
+}
+
 void Listener::closeAllConnections()
 {
     for (Client &client : m_connections) {

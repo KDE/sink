@@ -474,7 +474,11 @@ void ResourceAccess::disconnected()
 
 void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
 {
-    if (error == QLocalSocket::PeerClosedError) {
+    const bool resourceCrashed = d->partialMessageBuffer.contains("PANIC");
+    if (resourceCrashed) {
+        ErrorMsg() << "The resource crashed!";
+        d->abortPendingOperations();
+    } else if (error == QLocalSocket::PeerClosedError) {
         Log() << "The resource closed the connection.";
         d->abortPendingOperations();
     } else {

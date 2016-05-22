@@ -64,6 +64,7 @@ signals:
 
 public slots:
     void closeAllConnections();
+    void emergencyAbortAllConnections();
 
 private slots:
     void acceptConnection();

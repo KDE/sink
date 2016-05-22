@@ -22,6 +22,9 @@
 
 #include <signal.h>
 #include <execinfo.h>
+#include <csignal>
+#include <iostream>
+#include <cstdlib>
 
 #include "listener.h"
 #include "log.h"
@@ -29,10 +32,10 @@
 #undef DEBUG_AREA
 #define DEBUG_AREA "resource"
 
-void crashHandler(int sig)
-{
-    std::fprintf(stderr, "Error: signal %d\n", sig);
+Listener *listener = nullptr;
 
+void printStacktrace()
+{
     QString s;
     void *trace[256];
     int n = backtrace(trace, 256);
@@ -51,18 +54,73 @@ void crashHandler(int sig)
             free(strings);
         }
     }
+}
 
-    std::system("exec gdb -p \"$PPID\" -ex \"thread apply all bt\"");
+int sCounter = 0;
+
+void crashHandler(int signal)
+{
+    //Guard against crashing in here
+    if (sCounter > 1) {
+        std::_Exit(EXIT_FAILURE);
+        return;
+    }
+    sCounter++;
+
+    if (signal == SIGABRT) {
+        std::cerr << "SIGABRT received\n";
+    } else if (signal == SIGSEGV) {
+        std::cerr << "SIGSEV received\n";
+    } else {
+        std::cerr << "Unexpected signal " << signal << " received\n";
+    }
+
+    printStacktrace();
+
+    //Get the word out that we're going down
+    listener->emergencyAbortAllConnections();
+
+    // std::system("exec gdb -p \"$PPID\" -ex \"thread apply all bt\"");
     // This only works if we actually have xterm and X11 available
     // std::system("exec xterm -e gdb -p \"$PPID\"");
 
+    std::_Exit(EXIT_FAILURE);
+    return;
+}
+
+void terminateHandler()
+{
+    std::exception_ptr exptr = std::current_exception();
+    if (exptr != 0)
+    {
+        // the only useful feature of std::exception_ptr is that it can be rethrown...
+        try
+        {
+            std::rethrow_exception(exptr);
+        }
+        catch (std::exception &ex)
+        {
+            std::fprintf(stderr, "Terminated due to exception: %s\n", ex.what());
+        }
+        catch (...)
+        {
+            std::fprintf(stderr, "Terminated due to unknown exception\n");
+        }
+    }
+    else
+    {
+        std::fprintf(stderr, "Terminated due to unknown reason :(\n");
+    }
     std::abort();
 }
 
 int main(int argc, char *argv[])
 {
     // For crashes
-    signal(SIGSEGV, crashHandler);
+    std::signal(SIGSEGV, crashHandler);
+    std::signal(SIGABRT, crashHandler);
+    std::set_terminate(terminateHandler);
+
     QCoreApplication app(argc, argv);
 
     if (argc < 3) {
@@ -81,7 +139,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    Listener *listener = new Listener(instanceIdentifier, resourceType, &app);
+    listener = new Listener(instanceIdentifier, resourceType, &app);
 
     QObject::connect(&app, &QCoreApplication::aboutToQuit, listener, &Listener::closeAllConnections);
     QObject::connect(listener, &Listener::noClients, &app, &QCoreApplication::quit);
