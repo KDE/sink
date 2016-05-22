@@ -261,6 +261,17 @@ namespace MailtransportResource {
     }
 }
 
+namespace ImapResource {
+    SinkResource create(const QByteArray &account)
+    {
+        auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
+        resource.setProperty("type", "org.kde.imap");
+        resource.setProperty("account", account);
+        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << "storage" << "drafts"));
+        return resource;
+    }
+}
+
 template<>
 QByteArray getTypeName<Event>()
 {
