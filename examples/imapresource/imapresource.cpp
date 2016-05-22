@@ -49,6 +49,7 @@
 #undef DEBUG_AREA
 #define DEBUG_AREA "resource.imap"
 
+using namespace Imap;
 
 ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
     : Sink::GenericResource(instanceIdentifier, pipeline),
@@ -71,20 +72,22 @@ QByteArray ImapResource::createFolder(const QString &folderPath, const QByteArra
     auto remoteId = folderPath.toUtf8();
     auto bufferType = ENTITY_TYPE_FOLDER;
     Sink::ApplicationDomain::Folder folder;
-    folder.setProperty("name", folderPath.split('/').last());
+    auto folderPathParts = folderPath.split('/');
+    const auto name = folderPathParts.takeLast();
+    folder.setProperty("name", name);
     folder.setProperty("icon", icon);
 
-    // if (!md.isRoot()) {
-    //     folder.setProperty("parent", resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path().toUtf8(), synchronizationTransaction));
-    // }
+    if (!folderPathParts.isEmpty()) {
+        folder.setProperty("parent", resolveRemoteId(ENTITY_TYPE_FOLDER, folderPathParts.join('/').toUtf8(), synchronizationTransaction));
+    }
     createOrModify(transaction, synchronizationTransaction, *mFolderAdaptorFactory, bufferType, remoteId, folder);
     return remoteId;
 }
 
-void ImapResource::synchronizeFolders(const QStringList &folderList, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction)
+void ImapResource::synchronizeFolders(const QVector<Folder> &folderList, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction)
 {
     const QByteArray bufferType = ENTITY_TYPE_FOLDER;
-    Trace() << "Found folders " << folderList;
+    Trace() << "Found folders " << folderList.size();
 
     scanForRemovals(transaction, synchronizationTransaction, bufferType,
         [&bufferType, &transaction](const std::function<void(const QByteArray &)> &callback) {
@@ -99,12 +102,18 @@ void ImapResource::synchronizeFolders(const QStringList &folderList, Sink::Stora
             });
         },
         [&folderList](const QByteArray &remoteId) -> bool {
-            return folderList.contains(remoteId);
+            //folderList.contains(remoteId)
+            for (const auto folderPath : folderList) {
+                if (folderPath.pathParts.join('/') == remoteId) {
+                    return true;
+                }
+            }
+            return false;
         }
     );
 
     for (const auto folderPath : folderList) {
-        createFolder(folderPath, "folder", transaction, synchronizationTransaction);
+        createFolder(folderPath.pathParts.join('/'), "folder", transaction, synchronizationTransaction);
     }
 }
 
@@ -176,9 +185,8 @@ KAsync::Job<void> ImapResource::synchronizeWithSource(Sink::Storage &mainStore, 
     Log() << " Synchronizing";
     return KAsync::start<void>([this, &mainStore, &synchronizationStore](KAsync::Future<void> future) {
         ImapServerProxy imap(mServer, mPort);
-        QStringList folderList;
-        // QList<KAsync::Future<void>> waitCondition;
-        auto folderFuture = imap.fetchFolders([this, &imap, &mainStore, &synchronizationStore, &folderList](const QStringList &folders) {
+        QVector<Folder> folderList;
+        auto folderFuture = imap.fetchFolders([this, &imap, &mainStore, &synchronizationStore, &folderList](const QVector<Folder> &folders) {
             auto transaction = mainStore.createTransaction(Sink::Storage::ReadOnly);
             auto syncTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
             synchronizeFolders(folders, transaction, syncTransaction);
@@ -215,16 +223,17 @@ KAsync::Job<void> ImapResource::synchronizeWithSource(Sink::Storage &mainStore, 
             auto messagesFuture = imap.fetchMessages(folder, [this, &mainStore, &synchronizationStore, folder](const QVector<Message> &messages) {
                 auto transaction = mainStore.createTransaction(Sink::Storage::ReadOnly);
                 auto syncTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
-                Trace() << "Synchronizing mails" << folder;
-                synchronizeMails(transaction, syncTransaction, folder, messages);
+                Trace() << "Synchronizing mails" << folder.pathParts.join('/');
+                synchronizeMails(transaction, syncTransaction, folder.pathParts.join('/'), messages);
                 transaction.commit();
                 syncTransaction.commit();
             });
             messagesFuture.waitForFinished();
             if (messagesFuture.errorCode()) {
-                future.setError(1, "Folder sync failed: " + folder);
+                future.setError(1, "Folder sync failed: " + folder.pathParts.join('/'));
                 return;
             }
+            Trace() << "Folder synchronized: " << folder.pathParts.join('/');
         }
 
 

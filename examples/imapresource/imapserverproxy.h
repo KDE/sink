@@ -26,12 +26,18 @@
 #include <KIMAP/KIMAP/Session>
 #include <KIMAP/KIMAP/FetchJob>
 
+namespace Imap {
+
 struct Message {
     qint64 uid;
     qint64 size;
     QPair<QByteArray, QVariant> attributes;
     QList<QByteArray> flags;
     KMime::Message::Ptr msg;
+};
+
+struct Folder {
+    QList<QString> pathParts;
 };
 
 class ImapServerProxy {
@@ -43,6 +49,7 @@ public:
     KAsync::Job<void> login(const QString &username, const QString &password);
     KAsync::Job<void> select(const QString &mailbox);
     KAsync::Job<void> append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags = QList<QByteArray>(), const QDateTime &internalDate = QDateTime());
+    KAsync::Job<void> create(const QString &mailbox);
 
     typedef std::function<void(const QString &,
                         const QMap<qint64,qint64> &,
@@ -57,6 +64,8 @@ public:
     //Composed calls that do login etc.
     KAsync::Job<QList<qint64>> fetchHeaders(const QString &mailbox);
 
-    KAsync::Future<void> fetchFolders(std::function<void(const QStringList &)> callback);
-    KAsync::Future<void> fetchMessages(const QString &folder, std::function<void(const QVector<Message> &)> callback);
+    KAsync::Future<void> fetchFolders(std::function<void(const QVector<Folder> &)> callback);
+    KAsync::Future<void> fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback);
 };
+
+}

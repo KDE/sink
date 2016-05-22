@@ -23,11 +23,14 @@
 #include <KIMAP/KIMAP/LoginJob>
 #include <KIMAP/KIMAP/SelectJob>
 #include <KIMAP/KIMAP/AppendJob>
+#include <KIMAP/KIMAP/CreateJob>
 
 #include <KIMAP/KIMAP/SessionUiProxy>
 #include <KCoreAddons/KJob>
 
 #include "log.h"
+
+using namespace Imap;
 
 static KAsync::Job<void> runJob(KJob *job)
 {
@@ -94,6 +97,16 @@ KAsync::Job<void> ImapServerProxy::append(const QString &mailbox, const QByteArr
     return runJob(append);
 }
 
+KAsync::Job<void> ImapServerProxy::create(const QString &mailbox)
+{
+    if (mSession->state() == KIMAP::Session::State::Disconnected) {
+        return KAsync::error<void>(1, "Not connected");
+    }
+    auto create = new KIMAP::CreateJob(mSession);
+    create->setMailBox(mailbox);
+    return runJob(create);
+}
+
 KAsync::Job<void> ImapServerProxy::fetch(const KIMAP::ImapSet &set, KIMAP::FetchJob::FetchScope scope, FetchCallback callback)
 {
     if (mSession->state() == KIMAP::Session::State::Disconnected) {
@@ -154,14 +167,14 @@ KAsync::Job<void> ImapServerProxy::list(KIMAP::ListJob::Option option, const std
     return runJob(listJob);
 }
 
-KAsync::Future<void> ImapServerProxy::fetchFolders(std::function<void(const QStringList &)> callback)
+KAsync::Future<void> ImapServerProxy::fetchFolders(std::function<void(const QVector<Folder> &)> callback)
 {
     Trace() << "Fetching folders";
     auto job =  login("doe", "doe").then<void>(list(KIMAP::ListJob::IncludeUnsubscribed, [callback](const QList<KIMAP::MailBoxDescriptor> &mailboxes, const QList<QList<QByteArray> > &flags){
-        QStringList list;
+        QVector<Folder> list;
         for (const auto &mailbox : mailboxes) {
             Trace() << "Found mailbox: " << mailbox.name;
-            list << mailbox.name;
+            list << Folder{mailbox.name.split(mailbox.separator)};
         }
         callback(list);
     }),
@@ -171,10 +184,11 @@ KAsync::Future<void> ImapServerProxy::fetchFolders(std::function<void(const QStr
     return job.exec();
 }
 
-KAsync::Future<void> ImapServerProxy::fetchMessages(const QString &folder, std::function<void(const QVector<Message> &)> callback)
+KAsync::Future<void> ImapServerProxy::fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback)
 {
-    auto job = login("doe", "doe").then<void>(select(folder)).then<void, KAsync::Job<void>>([this, callback, folder]() -> KAsync::Job<void> {
-        return fetchHeaders(folder).then<void, KAsync::Job<void>, QList<qint64>>([this, callback](const QList<qint64> &uidsToFetch){
+    //TODO use the right separator
+    auto job = login("doe", "doe").then<void>(select(folder.pathParts.join('.'))).then<void, KAsync::Job<void>>([this, callback, folder]() -> KAsync::Job<void> {
+        return fetchHeaders(folder.pathParts.join('.')).then<void, KAsync::Job<void>, QList<qint64>>([this, callback](const QList<qint64> &uidsToFetch){
             Trace() << "Uids to fetch: " << uidsToFetch;
             if (uidsToFetch.isEmpty()) {
                 Trace() << "Nothing to fetch";

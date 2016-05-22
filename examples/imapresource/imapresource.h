@@ -30,7 +30,11 @@
 
 class ImapMailAdaptorFactory;
 class ImapFolderAdaptorFactory;
+
+namespace Imap {
 struct Message;
+struct Folder;
+}
 
 /**
  * An imap resource.
@@ -46,8 +50,8 @@ private:
     KAsync::Job<void> replay(Sink::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
 
     QByteArray createFolder(const QString &folderPath, const QByteArray &icon, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction);
-    void synchronizeFolders(const QStringList &folderList, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction);
-    void synchronizeMails(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &path, const QVector<Message> &messages);
+    void synchronizeFolders(const QVector<Imap::Folder> &folderList, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction);
+    void synchronizeMails(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &path, const QVector<Imap::Message> &messages);
 
     QSharedPointer<ImapMailAdaptorFactory> mMailAdaptorFactory;
     QSharedPointer<ImapFolderAdaptorFactory> mFolderAdaptorFactory;

@@ -36,6 +36,8 @@ do {\
         return;\
 } while (0)
 
+using namespace Imap;
+
 /**
  */
 class ImapServerProxyTest : public QObject
@@ -77,7 +79,7 @@ private slots:
     void testFetchFolders()
     {
         ImapServerProxy imap("localhost", 993);
-        auto future = imap.fetchFolders([](const QStringList &){});
+        auto future = imap.fetchFolders([](const QVector<Folder> &){});
         future.waitForFinished();
         QVERIFY(!future.errorCode());
     }
@@ -85,7 +87,7 @@ private slots:
     void testFetchFoldersFailure()
     {
         ImapServerProxy imap("foobar", 993);
-        auto future = imap.fetchFolders([](const QStringList &){});
+        auto future = imap.fetchFolders([](const QVector<Folder> &){});
         auto future2 = future;
         future2.waitForFinished();
         QVERIFY(future2.errorCode());

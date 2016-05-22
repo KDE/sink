@@ -100,7 +100,32 @@ private slots:
                 names << folder->getName();
             }
             QVERIFY(names.contains("INBOX"));
-            QVERIFY(names.contains("INBOX.test"));
+            QVERIFY(names.contains("test"));
+        });
+        VERIFYEXEC(job);
+    }
+
+    void testListFolderHierarchy()
+    {
+        Sink::Query query;
+        query.resources << "org.kde.imap.instance1";
+        query.request<Folder::Name>().request<Folder::Parent>();
+
+        Imap::ImapServerProxy imap("localhost", 993);
+        VERIFYEXEC(imap.login("doe", "doe"));
+        VERIFYEXEC(imap.create("INBOX.test.sub"));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Store::synchronize(query));
+        ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        auto job = Store::fetchAll<Folder>(query).then<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
+            QCOMPARE(folders.size(), 3);
+            QHash<QString, Folder::Ptr> map;
+            for (const auto &folder : folders) {
+                map.insert(folder->getName(), folder);
+            }
+            QCOMPARE(map.value("sub")->getParent(), map.value("test")->identifier());
         });
         VERIFYEXEC(job);
     }
