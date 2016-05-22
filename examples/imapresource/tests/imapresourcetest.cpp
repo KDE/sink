@@ -156,6 +156,21 @@ private slots:
         });
         VERIFYEXEC(job);
     }
+
+    void testFailingSync()
+    {
+        auto resource = ApplicationDomain::ImapResource::create("account1");
+        resource.setProperty("server", "foobar");
+        resource.setProperty("port", 993);
+        Sink::Store::create(resource).exec().waitForFinished();
+        Sink::Query query;
+        query.resources << resource.identifier();
+
+        // Ensure sync fails if resource is misconfigured
+        auto future = Store::synchronize(query).exec();
+        future.waitForFinished();
+        QVERIFY(future.errorCode());
+    }
 };
 
 QTEST_MAIN(ImapResourceTest)
