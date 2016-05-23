@@ -24,6 +24,9 @@
 #include <KIMAP/KIMAP/SelectJob>
 #include <KIMAP/KIMAP/AppendJob>
 #include <KIMAP/KIMAP/CreateJob>
+#include <KIMAP/KIMAP/DeleteJob>
+#include <KIMAP/KIMAP/StoreJob>
+#include <KIMAP/KIMAP/ExpungeJob>
 
 #include <KIMAP/KIMAP/SessionUiProxy>
 #include <KCoreAddons/KJob>
@@ -32,10 +35,15 @@
 
 using namespace Imap;
 
+const char* Imap::Flags::Seen = "\\Seen";
+const char* Imap::Flags::Deleted = "\\Deleted";
+const char* Imap::Flags::Answered = "\\Answered";
+const char* Imap::Flags::Flagged = "\\Flagged";
+
 static KAsync::Job<void> runJob(KJob *job)
 {
     return KAsync::start<void>([job](KAsync::Future<void> &future) {
-        QObject::connect(job, &KJob::result, job, [&future](KJob *job) {
+        QObject::connect(job, &KJob::result, [&future](KJob *job) {
             if (job->error()) {
                 Warning() << "Job failed: " << job->errorString();
                 future.setError(job->error(), job->errorString());
@@ -62,9 +70,6 @@ ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port) : mSession(
 
 KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString &password)
 {
-    if (mSession->state() == KIMAP::Session::State::Authenticated || mSession->state() == KIMAP::Session::State::Selected) {
-        return KAsync::null<void>();
-    }
     auto loginJob = new KIMAP::LoginJob(mSession);
     loginJob->setUserName(username);
     loginJob->setPassword(password);
@@ -75,9 +80,6 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
 
 KAsync::Job<void> ImapServerProxy::select(const QString &mailbox)
 {
-    if (mSession->state() == KIMAP::Session::State::Disconnected) {
-        return KAsync::error<void>(1, "Not connected");
-    }
     auto select = new KIMAP::SelectJob(mSession);
     select->setMailBox(mailbox);
     // select->setCondstoreEnabled(serverSupportsCondstore());
@@ -86,9 +88,6 @@ KAsync::Job<void> ImapServerProxy::select(const QString &mailbox)
 
 KAsync::Job<void> ImapServerProxy::append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags, const QDateTime &internalDate)
 {
-    if (mSession->state() == KIMAP::Session::State::Disconnected) {
-        return KAsync::error<void>(1, "Not connected");
-    }
     auto append = new KIMAP::AppendJob(mSession);
     append->setMailBox(mailbox);
     append->setContent(content);
@@ -97,21 +96,38 @@ KAsync::Job<void> ImapServerProxy::append(const QString &mailbox, const QByteArr
     return runJob(append);
 }
 
+KAsync::Job<void> ImapServerProxy::store(const KIMAP::ImapSet &set, const QList<QByteArray> &flags)
+{
+    auto store = new KIMAP::StoreJob(mSession);
+    store->setUidBased(true);
+    store->setSequenceSet(set);
+    store->setFlags(flags);
+    store->setMode(KIMAP::StoreJob::AppendFlags);
+    return runJob(store);
+}
+
 KAsync::Job<void> ImapServerProxy::create(const QString &mailbox)
 {
-    if (mSession->state() == KIMAP::Session::State::Disconnected) {
-        return KAsync::error<void>(1, "Not connected");
-    }
     auto create = new KIMAP::CreateJob(mSession);
     create->setMailBox(mailbox);
     return runJob(create);
 }
 
+KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox)
+{
+    auto job = new KIMAP::DeleteJob(mSession);
+    job->setMailBox(mailbox);
+    return runJob(job);
+}
+
+KAsync::Job<void> ImapServerProxy::expunge()
+{
+    auto job = new KIMAP::ExpungeJob(mSession);
+    return runJob(job);
+}
+
 KAsync::Job<void> ImapServerProxy::fetch(const KIMAP::ImapSet &set, KIMAP::FetchJob::FetchScope scope, FetchCallback callback)
 {
-    if (mSession->state() == KIMAP::Session::State::Disconnected) {
-        return KAsync::error<void>(1, "Not connected");
-    }
     auto fetch = new KIMAP::FetchJob(mSession);
     fetch->setSequenceSet(set);
     fetch->setUidBased(true);
@@ -164,34 +180,48 @@ KAsync::Job<void> ImapServerProxy::list(KIMAP::ListJob::Option option, const std
     // listJob->setQueriedNamespaces(serverNamespaces());
     QObject::connect(listJob, &KIMAP::ListJob::mailBoxesReceived,
             listJob, callback);
+    //Figure out the separator character on the first list issued.
+    if (mSeparatorCharacter.isNull()) {
+        QObject::connect(listJob, &KIMAP::ListJob::mailBoxesReceived,
+                listJob, [this](const QList<KIMAP::MailBoxDescriptor> &mailboxes,const QList<QList<QByteArray> > &flags) {
+                if (!mailboxes.isEmpty() && mSeparatorCharacter.isNull()) {
+                    mSeparatorCharacter = mailboxes.first().separator;
+                }
+            }
+        );
+    }
     return runJob(listJob);
+}
+
+KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox, const QByteArray &imapSet)
+{
+    const auto set = KIMAP::ImapSet::fromImapSequenceSet(imapSet);
+    return select(mailbox).then<void>(store(set, QByteArrayList() << Flags::Deleted)).then<void>(expunge());
 }
 
 KAsync::Future<void> ImapServerProxy::fetchFolders(std::function<void(const QVector<Folder> &)> callback)
 {
     Trace() << "Fetching folders";
-    auto job =  login("doe", "doe").then<void>(list(KIMAP::ListJob::IncludeUnsubscribed, [callback](const QList<KIMAP::MailBoxDescriptor> &mailboxes, const QList<QList<QByteArray> > &flags){
+    auto job = list(KIMAP::ListJob::IncludeUnsubscribed, [callback](const QList<KIMAP::MailBoxDescriptor> &mailboxes, const QList<QList<QByteArray> > &flags){
         QVector<Folder> list;
         for (const auto &mailbox : mailboxes) {
             Trace() << "Found mailbox: " << mailbox.name;
             list << Folder{mailbox.name.split(mailbox.separator)};
         }
         callback(list);
-    }),
-    [](int errorCode, const QString &errorString) {
-        Warning() << "Failed to list folders: " << errorCode << errorString;
     });
     return job.exec();
 }
 
 KAsync::Future<void> ImapServerProxy::fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback)
 {
-    //TODO use the right separator
-    auto job = login("doe", "doe").then<void>(select(folder.pathParts.join('.'))).then<void, KAsync::Job<void>>([this, callback, folder]() -> KAsync::Job<void> {
-        return fetchHeaders(folder.pathParts.join('.')).then<void, KAsync::Job<void>, QList<qint64>>([this, callback](const QList<qint64> &uidsToFetch){
+    Q_ASSERT(!mSeparatorCharacter.isNull());
+    auto job = select(folder.pathParts.join(mSeparatorCharacter)).then<void, KAsync::Job<void>>([this, callback, folder]() -> KAsync::Job<void> {
+        return fetchHeaders(folder.pathParts.join(mSeparatorCharacter)).then<void, KAsync::Job<void>, QList<qint64>>([this, callback](const QList<qint64> &uidsToFetch){
             Trace() << "Uids to fetch: " << uidsToFetch;
             if (uidsToFetch.isEmpty()) {
                 Trace() << "Nothing to fetch";
+                callback(QVector<Message>());
                 return KAsync::null<void>();
             }
             KIMAP::FetchJob::FetchScope scope;

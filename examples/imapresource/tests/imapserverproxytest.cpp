@@ -79,6 +79,7 @@ private slots:
     void testFetchFolders()
     {
         ImapServerProxy imap("localhost", 993);
+        VERIFYEXEC(imap.login("doe", "doe"));
         auto future = imap.fetchFolders([](const QVector<Folder> &){});
         future.waitForFinished();
         QVERIFY(!future.errorCode());
@@ -91,6 +92,55 @@ private slots:
         auto future2 = future;
         future2.waitForFinished();
         QVERIFY(future2.errorCode());
+    }
+
+    void testFetchMail()
+    {
+        ImapServerProxy imap("localhost", 993);
+        VERIFYEXEC(imap.login("doe", "doe"));
+
+        KIMAP::FetchJob::FetchScope scope;
+        scope.mode = KIMAP::FetchJob::FetchScope::Headers;
+        int count = 0;
+        auto job = imap.select("INBOX.test").then<void>(imap.fetch(KIMAP::ImapSet::fromImapSequenceSet("1:*"), scope,
+                    [&count](const QString &mailbox,
+                            const QMap<qint64,qint64> &uids,
+                            const QMap<qint64,qint64> &sizes,
+                            const QMap<qint64,KIMAP::MessageAttribute> &attrs,
+                            const QMap<qint64,KIMAP::MessageFlags> &flags,
+                            const QMap<qint64,KIMAP::MessagePtr> &messages) {
+                        Trace() << "Received " << uids.size() << " messages from " << mailbox;
+                        Trace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
+                        count += uids.size();
+                    }));
+
+        VERIFYEXEC(job);
+        QCOMPARE(count, 1);
+    }
+
+    void testRemoveMail()
+    {
+        ImapServerProxy imap("localhost", 993);
+        VERIFYEXEC(imap.login("doe", "doe"));
+        VERIFYEXEC(imap.remove("INBOX.test", "1:*"));
+
+        KIMAP::FetchJob::FetchScope scope;
+        scope.mode = KIMAP::FetchJob::FetchScope::Headers;
+        int count = 0;
+        auto job = imap.select("INBOX.test").then<void>(imap.fetch(KIMAP::ImapSet::fromImapSequenceSet("1:*"), scope,
+                    [&count](const QString &mailbox,
+                            const QMap<qint64,qint64> &uids,
+                            const QMap<qint64,qint64> &sizes,
+                            const QMap<qint64,KIMAP::MessageAttribute> &attrs,
+                            const QMap<qint64,KIMAP::MessageFlags> &flags,
+                            const QMap<qint64,KIMAP::MessagePtr> &messages) {
+                        Trace() << "Received " << uids.size() << " messages from " << mailbox;
+                        Trace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
+                        count += uids.size();
+                    }));
+
+        VERIFYEXEC(job);
+        QCOMPARE(count, 0);
     }
 
 };

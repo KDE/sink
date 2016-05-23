@@ -65,6 +65,8 @@ private slots:
         resource.setProperty("identifier", "org.kde.imap.instance1");
         resource.setProperty("type", "org.kde.imap");
         resource.setProperty("server", "localhost");
+        resource.setProperty("user", "doe");
+        resource.setProperty("password", "doe");
         resource.setProperty("port", 993);
         Sink::Store::create(resource).exec().waitForFinished();
     }
@@ -164,8 +166,8 @@ private slots:
         VERIFYEXEC(Store::synchronize(query));
         ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        ImapServerProxy imap("localhost", 993);
-        imap.login("doe", "doe").exec().waitForFinished();
+        Imap::ImapServerProxy imap("localhost", 993);
+        VERIFYEXEC(imap.login("doe", "doe"));
 
         auto msg = KMime::Message::Ptr::create();
         msg->subject(true)->fromUnicodeString("Foobar", "utf8");
@@ -178,6 +180,30 @@ private slots:
 
         auto job = Store::fetchAll<Mail>(query).then<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
             QCOMPARE(mails.size(), 2);
+        });
+        VERIFYEXEC(job);
+    }
+
+    void testFetchRemovedMessages()
+    {
+        Sink::Query query;
+        query.resources << "org.kde.imap.instance1";
+        query.request<Mail::Subject>().request<Mail::MimeMessage>();
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Store::synchronize(query));
+        ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        Imap::ImapServerProxy imap("localhost", 993);
+        VERIFYEXEC(imap.login("doe", "doe"));
+
+        VERIFYEXEC(imap.remove("INBOX.test", "2:*"));
+
+        Store::synchronize(query).exec().waitForFinished();
+        ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        auto job = Store::fetchAll<Mail>(query).then<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
+            QCOMPARE(mails.size(), 1);
         });
         VERIFYEXEC(job);
     }

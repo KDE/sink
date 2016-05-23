@@ -59,6 +59,8 @@ ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPo
     auto config = ResourceConfig::getConfiguration(instanceIdentifier);
     mServer = config.value("server").toString();
     mPort = config.value("port").toInt();
+    mUser = config.value("user").toString();
+    mPassword = config.value("password").toString();
 
     // auto folderUpdater = new FolderUpdater(QByteArray());
     addType(ENTITY_TYPE_MAIL, mMailAdaptorFactory,
@@ -117,6 +119,15 @@ void ImapResource::synchronizeFolders(const QVector<Folder> &folderList, Sink::S
     }
 }
 
+static QByteArray remoteIdForMessage(const QString &path, qint64 uid)
+{
+    return path.toUtf8() + "/" + QByteArray::number(uid);
+}
+
+static qint64 uidFromMessageRemoteId(const QByteArray &remoteId)
+{
+    return remoteId.split('/').last().toLongLong();
+}
 void ImapResource::synchronizeMails(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &path, const QVector<Message> &messages)
 {
     auto time = QSharedPointer<QTime>::create();
@@ -129,23 +140,6 @@ void ImapResource::synchronizeMails(Sink::Storage::Transaction &transaction, Sin
     // Trace() << "Looking into " << listingPath;
 
     const auto folderLocalId = resolveRemoteId(ENTITY_TYPE_FOLDER, path.toUtf8(), synchronizationTransaction);
-
-    //This is not a full listing
-    // auto property = "folder";
-    // scanForRemovals(transaction, synchronizationTransaction, bufferType,
-    //     [&](const std::function<void(const QByteArray &)> &callback) {
-    //         Index index(bufferType + ".index." + property, transaction);
-    //         index.lookup(folderLocalId, [&](const QByteArray &sinkId) {
-    //             callback(sinkId);
-    //         },
-    //         [&](const Index::Error &error) {
-    //             Warning() << "Error in index: " <<  error.message << property;
-    //         });
-    //     },
-    //     [](const QByteArray &remoteId) -> bool {
-    //         return QFile(remoteId).exists();
-    //     }
-    // );
 
     mSynchronizerQueue.startTransaction();
     int count = 0;
@@ -170,8 +164,8 @@ void ImapResource::synchronizeMails(Sink::Storage::Transaction &transaction, Sin
         file.write(content);
         mail.setMimeMessagePath(filePath);
         //FIXME  Not sure if these are the actual flags
-        mail.setUnread(message.flags.contains("\\SEEN"));
-        mail.setImportant(message.flags.contains("\\FLAGGED"));
+        mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
+        mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
 
         createOrModify(transaction, synchronizationTransaction, *mMailAdaptorFactory, bufferType, remoteId, mail);
     }
@@ -180,11 +174,56 @@ void ImapResource::synchronizeMails(Sink::Storage::Transaction &transaction, Sin
     Log() << "Synchronized " << count << " mails in " << path << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
 }
 
+void ImapResource::synchronizeRemovals(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &path, const QSet<qint64> &messages)
+{
+    auto time = QSharedPointer<QTime>::create();
+    time->start();
+    const QByteArray bufferType = ENTITY_TYPE_MAIL;
+
+    Trace() << "Finding removed mail.";
+
+    const auto folderLocalId = resolveRemoteId(ENTITY_TYPE_FOLDER, path.toUtf8(), synchronizationTransaction);
+
+    int count = 0;
+    auto property = Sink::ApplicationDomain::Mail::Folder::name;
+    scanForRemovals(transaction, synchronizationTransaction, bufferType,
+        [&](const std::function<void(const QByteArray &)> &callback) {
+            Index index(bufferType + ".index." + property, transaction);
+            index.lookup(folderLocalId, [&](const QByteArray &sinkId) {
+                callback(sinkId);
+            },
+            [&](const Index::Error &error) {
+                Warning() << "Error in index: " <<  error.message << property;
+            });
+        },
+        [messages, path, &count](const QByteArray &remoteId) -> bool {
+            if (messages.contains(uidFromMessageRemoteId(remoteId))) {
+                return true;
+            }
+            count++;
+            return false;
+        }
+    );
+
+    const auto elapsed = time->elapsed();
+    Log() << "Removed " << count << " mails in " << path << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
+}
+
 KAsync::Job<void> ImapResource::synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore)
 {
     Log() << " Synchronizing";
     return KAsync::start<void>([this, &mainStore, &synchronizationStore](KAsync::Future<void> future) {
         ImapServerProxy imap(mServer, mPort);
+        auto loginFuture = imap.login(mUser, mPassword).exec();
+        loginFuture.waitForFinished();
+        if (loginFuture.errorCode()) {
+            Warning() << "Login failed.";
+            future.setError(1, "Login failed");
+            return;
+        } else {
+            Trace() << "Login was successful";
+        }
+
         QVector<Folder> folderList;
         auto folderFuture = imap.fetchFolders([this, &imap, &mainStore, &synchronizationStore, &folderList](const QVector<Folder> &folders) {
             auto transaction = mainStore.createTransaction(Sink::Storage::ReadOnly);
@@ -197,8 +236,11 @@ KAsync::Job<void> ImapResource::synchronizeWithSource(Sink::Storage &mainStore, 
         });
         folderFuture.waitForFinished();
         if (folderFuture.errorCode()) {
+            Warning() << "Folder sync failed.";
             future.setError(1, "Folder list sync failed");
             return;
+        } else {
+            Trace() << "Folder sync was successful";
         }
 
         for (const auto &folder : folderList) {
@@ -220,29 +262,31 @@ KAsync::Job<void> ImapResource::synchronizeWithSource(Sink::Storage &mainStore, 
             // transaction.commit();
             // syncTransaction.commit();
 
-            auto messagesFuture = imap.fetchMessages(folder, [this, &mainStore, &synchronizationStore, folder](const QVector<Message> &messages) {
+            QSet<qint64> uids;
+            auto messagesFuture = imap.fetchMessages(folder, [this, &mainStore, &synchronizationStore, folder, &uids](const QVector<Message> &messages) {
                 auto transaction = mainStore.createTransaction(Sink::Storage::ReadOnly);
                 auto syncTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
-                Trace() << "Synchronizing mails" << folder.pathParts.join('/');
-                synchronizeMails(transaction, syncTransaction, folder.pathParts.join('/'), messages);
+                Trace() << "Synchronizing mails" << folder.normalizedPath();
+                for (const auto &msg : messages) {
+                    uids << msg.uid;
+                }
+                synchronizeMails(transaction, syncTransaction, folder.normalizedPath(), messages);
                 transaction.commit();
                 syncTransaction.commit();
             });
             messagesFuture.waitForFinished();
             if (messagesFuture.errorCode()) {
-                future.setError(1, "Folder sync failed: " + folder.pathParts.join('/'));
+                future.setError(1, "Folder sync failed: " + folder.normalizedPath());
                 return;
             }
-            Trace() << "Folder synchronized: " << folder.pathParts.join('/');
+            //Remove what there is to remove
+            auto transaction = mainStore.createTransaction(Sink::Storage::ReadOnly);
+            auto syncTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
+            synchronizeRemovals(transaction, syncTransaction, folder.normalizedPath(), uids);
+            transaction.commit();
+            syncTransaction.commit();
+            Trace() << "Folder synchronized: " << folder.normalizedPath();
         }
-
-
-        // auto transaction = mainStore.createTransaction(Sink::Storage::ReadWrite);
-        // auto mainDatabase = Sink::Storage::mainDatabase(transaction, ENTITY_TYPE_FOLDER);
-        // mainDatabase.scan("", [&](const QByteArray &key, const QByteArray &data) {
-        //     return true;
-        // });
-        //TODO now fetch all folders and iterate over them and synchronize each one
 
         Log() << "Done Synchronizing";
         future.setFinished();

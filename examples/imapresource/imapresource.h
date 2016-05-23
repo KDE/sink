@@ -52,12 +52,15 @@ private:
     QByteArray createFolder(const QString &folderPath, const QByteArray &icon, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction);
     void synchronizeFolders(const QVector<Imap::Folder> &folderList, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction);
     void synchronizeMails(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &path, const QVector<Imap::Message> &messages);
+    void synchronizeRemovals(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &path, const QSet<qint64> &messages);
 
     QSharedPointer<ImapMailAdaptorFactory> mMailAdaptorFactory;
     QSharedPointer<ImapFolderAdaptorFactory> mFolderAdaptorFactory;
 private:
     QString mServer;
     int mPort;
+    QString mUser;
+    QString mPassword;
 };
 
 class ImapResourceFactory : public Sink::ResourceFactory

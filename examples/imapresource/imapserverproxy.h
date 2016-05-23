@@ -28,6 +28,18 @@
 
 namespace Imap {
 
+namespace Flags
+{
+    /// The flag for a message being seen (i.e. opened by user).
+    extern const char* Seen;
+    /// The flag for a message being deleted by the user.
+    extern const char* Deleted;
+    /// The flag for a message being replied to by the user.
+    extern const char* Answered;
+    /// The flag for a message being marked as flagged.
+    extern const char* Flagged;
+}
+
 struct Message {
     qint64 uid;
     qint64 size;
@@ -37,11 +49,17 @@ struct Message {
 };
 
 struct Folder {
+    QString normalizedPath() const
+    {
+        return pathParts.join('/');
+    }
+
     QList<QString> pathParts;
 };
 
 class ImapServerProxy {
     KIMAP::Session *mSession;
+    QChar mSeparatorCharacter;
 public:
     ImapServerProxy(const QString &serverUrl, int port);
 
@@ -49,7 +67,10 @@ public:
     KAsync::Job<void> login(const QString &username, const QString &password);
     KAsync::Job<void> select(const QString &mailbox);
     KAsync::Job<void> append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags = QList<QByteArray>(), const QDateTime &internalDate = QDateTime());
+    KAsync::Job<void> store(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
     KAsync::Job<void> create(const QString &mailbox);
+    KAsync::Job<void> remove(const QString &mailbox);
+    KAsync::Job<void> expunge();
 
     typedef std::function<void(const QString &,
                         const QMap<qint64,qint64> &,
@@ -63,6 +84,7 @@ public:
 
     //Composed calls that do login etc.
     KAsync::Job<QList<qint64>> fetchHeaders(const QString &mailbox);
+    KAsync::Job<void> remove(const QString &mailbox, const QByteArray &imapSet);
 
     KAsync::Future<void> fetchFolders(std::function<void(const QVector<Folder> &)> callback);
     KAsync::Future<void> fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback);
