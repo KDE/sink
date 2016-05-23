@@ -132,6 +132,57 @@ private slots:
         VERIFYEXEC(job);
     }
 
+    void testListNewFolders()
+    {
+        Sink::Query query;
+        query.resources << "org.kde.imap.instance1";
+        query.request<Folder::Name>();
+
+        Imap::ImapServerProxy imap("localhost", 993);
+        VERIFYEXEC(imap.login("doe", "doe"));
+        VERIFYEXEC(imap.create("INBOX.test.sub1"));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Store::synchronize(query));
+        ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        auto job = Store::fetchAll<Folder>(query).then<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
+            QStringList names;
+            for (const auto &folder : folders) {
+                names << folder->getName();
+            }
+            QVERIFY(names.contains("sub1"));
+        });
+        VERIFYEXEC(job);
+    }
+
+    void testListRemovedFolders()
+    {
+        Sink::Query query;
+        query.resources << "org.kde.imap.instance1";
+        query.request<Folder::Name>();
+
+        VERIFYEXEC(Store::synchronize(query));
+        ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        Imap::ImapServerProxy imap("localhost", 993);
+        VERIFYEXEC(imap.login("doe", "doe"));
+        VERIFYEXEC(imap.remove("INBOX.test.sub1"));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Store::synchronize(query));
+        ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        auto job = Store::fetchAll<Folder>(query).then<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
+            QStringList names;
+            for (const auto &folder : folders) {
+                names << folder->getName();
+            }
+            QVERIFY(!names.contains("sub1"));
+        });
+        VERIFYEXEC(job);
+    }
+
     void testListMails()
     {
         Sink::Query query;
