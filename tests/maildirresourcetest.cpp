@@ -71,9 +71,7 @@ private slots:
     {
         targetPath = tempDir.path() + "/maildir1/";
 
-        //FIXME initTest only works for the current process,
-        //we also have to start resources in test-mode
-        // Sink::Test::initTest();
+        Sink::Test::initTest();
         Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
         MaildirResource::removeFromDisk("org.kde.maildir.instance1");
         Sink::ApplicationDomain::SinkResource resource;
