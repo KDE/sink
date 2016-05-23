@@ -53,10 +53,7 @@ class ImapResourceTest : public QObject
 private slots:
     void initTestCase()
     {
-
-        //FIXME initTest only works for the current process,
-        //we also have to start resources in test-mode
-        // Sink::Test::initTest();
+        Sink::Test::initTest();
         Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
         ::ImapResource::removeFromDisk("org.kde.imap.instance1");
         system("resetmailbox.sh");

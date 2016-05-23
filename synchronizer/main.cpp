@@ -28,6 +28,7 @@
 
 #include "listener.h"
 #include "log.h"
+#include "test.h"
 
 #undef DEBUG_AREA
 #define DEBUG_AREA "resource"
@@ -123,13 +124,23 @@ int main(int argc, char *argv[])
 
     QCoreApplication app(argc, argv);
 
-    if (argc < 3) {
+    QByteArrayList arguments;
+    for (int i = 0; i < argc; i++) {
+        arguments << argv[i];
+    }
+    if (arguments.contains("--test")) {
+        Log() << "Running in test-mode";
+        arguments.removeAll("--test");
+        Sink::Test::setTestModeEnabled(true);
+    }
+
+    if (arguments.count() < 3) {
         Warning() << "Not enough args passed, no resource loaded.";
         return app.exec();
     }
 
-    const QByteArray instanceIdentifier = argv[1];
-    const QByteArray resourceType = argv[2];
+    const QByteArray instanceIdentifier = arguments.at(1);
+    const QByteArray resourceType = arguments.at(2);
     app.setApplicationName(instanceIdentifier);
 
     QLockFile lockfile(instanceIdentifier + ".lock");

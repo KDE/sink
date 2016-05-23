@@ -32,7 +32,7 @@ using namespace Sink;
 
 void Sink::Test::initTest()
 {
-    QStandardPaths::setTestModeEnabled(true);
+    setTestModeEnabled(true);
     // qDebug() << "Removing " << QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
     QDir(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).removeRecursively();
     // qDebug() << "Removing " << QStandardPaths::writableLocation(QStandardPaths::DataLocation);
@@ -47,6 +47,20 @@ void Sink::Test::initTest()
     QDir(QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation)).removeRecursively();
 }
 
+void Sink::Test::setTestModeEnabled(bool enabled)
+{
+    QStandardPaths::setTestModeEnabled(enabled);
+    if (enabled) {
+        qputenv("SINK_TESTMODE", "TRUE");
+    } else {
+        qunsetenv("SINK_TESTMODE");
+    }
+}
+
+bool Sink::Test::testModeEnabled()
+{
+    return !qEnvironmentVariableIsEmpty("SINK_TESTMODE");
+}
 
 template <typename T>
 class TestFacade : public Sink::StoreFacade<T>

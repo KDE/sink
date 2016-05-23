@@ -34,6 +34,8 @@ namespace Test {
  * and clears all data directories.
  */
 void SINK_EXPORT initTest();
+void SINK_EXPORT setTestModeEnabled(bool);
+bool SINK_EXPORT testModeEnabled();
 
 class SINK_EXPORT TestAccount {
 public:

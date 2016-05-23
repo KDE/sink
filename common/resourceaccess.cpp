@@ -33,6 +33,7 @@
 #include "common/inspection_generated.h"
 #include "common/entitybuffer.h"
 #include "common/bufferutils.h"
+#include "common/test.h"
 #include "log.h"
 
 #include <QCoreApplication>
@@ -204,6 +205,9 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                     TracePrivate() << "Failed to connect, starting resource";
                     // We failed to connect, so let's start the resource
                     QStringList args;
+                    if (Sink::Test::testModeEnabled()) {
+                        args << "--test";
+                    }
                     args << resourceInstanceIdentifier << resourceName;
                     qint64 pid = 0;
                     if (QProcess::startDetached("sink_synchronizer", args, QDir::homePath(), &pid)) {
