@@ -156,6 +156,10 @@ void MailTest::testCreateModifyDeleteMail()
                 QCOMPARE(mail.getSubject(), subject);
                 QCOMPARE(mail.getFolder(), folder.identifier());
                 QVERIFY(QFile(mail.getMimeMessagePath()).exists());
+                KMime::Message m;
+                m.setContent(mail.getMimeMessage());
+                m.parse();
+                QCOMPARE(m.subject(true)->asUnicodeString(), subject);
             });
         VERIFYEXEC(job);
     }
@@ -172,14 +176,17 @@ void MailTest::testCreateModifyDeleteMail()
     VERIFYEXEC(Store::modify(mail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
     {
-        auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name))
+        auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name << Mail::MimeMessage::name))
             .then<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
                 QCOMPARE(mails.size(), 1);
                 auto mail = *mails.first();
+                QCOMPARE(mail.getSubject(), subject2);
                 QCOMPARE(mail.getFolder(), folder.identifier());
-                // QCOMPARE(mail.getSubject(), subject);
-                // TODO test access to modified mime message
-
+                QVERIFY(QFile(mail.getMimeMessagePath()).exists());
+                KMime::Message m;
+                m.setContent(mail.getMimeMessage());
+                m.parse();
+                QCOMPARE(m.subject(true)->asUnicodeString(), subject2);
             });
         VERIFYEXEC(job);
     }
@@ -222,7 +229,7 @@ void MailTest::testMarkMailAsRead()
         .then<void, KAsync::Job<void>, QList<Mail::Ptr>>([this](const QList<Mail::Ptr> &mails) {
             ASYNCCOMPARE(mails.size(), 1);
             auto mail = mails.first();
-            mail->setProperty("unread", true);
+            mail->setUnread(true);
             return Store::modify(*mail)
                 .then<void>(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier)) // The change needs to be replayed already
                 .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::PropertyInspection(*mail, Mail::Unread::name, true)))
