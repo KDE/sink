@@ -153,13 +153,13 @@ void MailTest::testCreateModifyDeleteMail()
     VERIFYEXEC(Store::create(mail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(query.resources));
     {
-        auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name))
+        auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name << Mail::MimeMessage::name))
             .then<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
                 QCOMPARE(mails.size(), 1);
                 auto mail = *mails.first();
-                // QCOMPARE(mail.getSubject(), subject);
+                QCOMPARE(mail.getSubject(), subject);
                 QCOMPARE(mail.getFolder(), folder.identifier());
-                // TODO test access to mime message
+                QVERIFY(QFile(mail.getMimeMessagePath()).exists());
 
                 // return Store::remove(*mail)
                 //     .then(ResourceControl::flushReplayQueue(query.resources)) // The change needs to be replayed already

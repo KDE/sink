@@ -51,6 +51,53 @@
 
 using namespace Imap;
 
+class FolderUpdater : public Sink::Preprocessor
+{
+public:
+    FolderUpdater(const QByteArray &drafts) {}
+
+    void updatedIndexedProperties(Sink::ApplicationDomain::BufferAdaptor &newEntity)
+    {
+        const auto mimeMessagePath = newEntity.getProperty("mimeMessage").toString();
+        QFile f(mimeMessagePath);
+        if (!f.open(QIODevice::ReadOnly)) {
+            Warning() << "Failed to open the file: " << mimeMessagePath;
+            return;
+        }
+        auto mapped = f.map(0, qMin((qint64)8000, f.size()));
+        if (!mapped) {
+            Warning() << "Failed to map file";
+            return;
+        }
+
+        KMime::Message *msg = new KMime::Message;
+        msg->setHead(KMime::CRLFtoLF(QByteArray::fromRawData(reinterpret_cast<const char*>(mapped), f.size())));
+        msg->parse();
+
+        newEntity.setProperty("subject", msg->subject(true)->asUnicodeString());
+        newEntity.setProperty("sender", msg->from(true)->asUnicodeString());
+        newEntity.setProperty("senderName", msg->from(true)->asUnicodeString());
+        newEntity.setProperty("date", msg->date(true)->dateTime());
+    }
+
+    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        updatedIndexedProperties(newEntity);
+    }
+
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
+        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        updatedIndexedProperties(newEntity);
+    }
+
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+    }
+
+    QSharedPointer<ImapFolderAdaptorFactory> mFolderAdaptorFactory;
+};
+
 ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
     : Sink::GenericResource(instanceIdentifier, pipeline),
     mMailAdaptorFactory(QSharedPointer<ImapMailAdaptorFactory>::create()),
@@ -62,9 +109,11 @@ ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPo
     mUser = config.value("user").toString();
     mPassword = config.value("password").toString();
 
-    // auto folderUpdater = new FolderUpdater(QByteArray());
+    auto folderUpdater = new FolderUpdater(QByteArray());
+    folderUpdater->mFolderAdaptorFactory = mFolderAdaptorFactory;
+
     addType(ENTITY_TYPE_MAIL, mMailAdaptorFactory,
-            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+            QVector<Sink::Preprocessor*>() << folderUpdater << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     addType(ENTITY_TYPE_FOLDER, mFolderAdaptorFactory,
             QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 }
