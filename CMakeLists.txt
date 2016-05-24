@@ -9,6 +9,7 @@ find_package(ECM 0.0.10 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH
         ${ECM_MODULE_PATH}
         ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests
         ${CMAKE_MODULE_PATH})
 
 include(FeatureSummary)

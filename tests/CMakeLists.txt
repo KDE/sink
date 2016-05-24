@@ -16,24 +16,7 @@ add_library(sink_test SHARED testimplementations.cpp getrssusage.cpp mailtest.cp
 qt5_use_modules(sink_test Core Test Concurrent)
 target_link_libraries(sink_test sink libhawd KF5::Mime)
 
-macro(manual_tests)
-    foreach(_testname ${ARGN})
-        add_executable(${_testname} ${_testname}.cpp)
-        generate_flatbuffers(${_testname} calendar)
-        qt5_use_modules(${_testname} Core Test Concurrent)
-        target_link_libraries(${_testname} sink libhawd sink_test)
-    endforeach(_testname)
-endmacro(manual_tests)
-
-macro(auto_tests)
-    foreach(_testname ${ARGN})
-        add_executable(${_testname} ${_testname}.cpp)
-        generate_flatbuffers(${_testname} calendar)
-        add_test(${_testname} ${_testname})
-        qt5_use_modules(${_testname} Core Test Concurrent)
-        target_link_libraries(${_testname} sink libhawd  sink_test)
-    endforeach(_testname)
-endmacro(auto_tests)
+include(SinkTest)
 
 manual_tests (
     storagebenchmark
@@ -64,6 +47,7 @@ auto_tests (
     accountstest
     testaccounttest
 )
+generate_flatbuffers(dummyresourcetest calendar)
 target_link_libraries(dummyresourcetest sink_resource_dummy)
 target_link_libraries(dummyresourcebenchmark sink_resource_dummy)
 target_link_libraries(dummyresourcewritebenchmark sink_resource_dummy)

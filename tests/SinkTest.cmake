@@ -1,0 +1,17 @@
+
+macro(auto_tests)
+    foreach(_testname ${ARGN})
+        add_executable(${_testname} ${_testname}.cpp)
+        add_test(${_testname} ${_testname})
+        qt5_use_modules(${_testname} Core Test Concurrent)
+        target_link_libraries(${_testname} sink libhawd sink_test)
+    endforeach(_testname)
+endmacro(auto_tests)
+
+macro(manual_tests)
+    foreach(_testname ${ARGN})
+        add_executable(${_testname} ${_testname}.cpp)
+        qt5_use_modules(${_testname} Core Test Concurrent)
+        target_link_libraries(${_testname} sink libhawd sink_test)
+    endforeach(_testname)
+endmacro(manual_tests)
