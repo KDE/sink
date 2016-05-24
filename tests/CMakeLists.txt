@@ -10,22 +10,28 @@ include_directories(
 
 add_definitions(-DTESTDATAPATH="${CMAKE_CURRENT_SOURCE_DIR}/data")
 
+find_package(KF5 COMPONENTS REQUIRED Mime)
+
+add_library(sink_test SHARED testimplementations.cpp getrssusage.cpp mailtest.cpp)
+qt5_use_modules(sink_test Core Test Concurrent)
+target_link_libraries(sink_test sink libhawd KF5::Mime)
+
 macro(manual_tests)
     foreach(_testname ${ARGN})
-        add_executable(${_testname} ${_testname}.cpp testimplementations.cpp getrssusage.cpp)
+        add_executable(${_testname} ${_testname}.cpp)
         generate_flatbuffers(${_testname} calendar)
         qt5_use_modules(${_testname} Core Test Concurrent)
-        target_link_libraries(${_testname} sink libhawd)
+        target_link_libraries(${_testname} sink libhawd sink_test)
     endforeach(_testname)
 endmacro(manual_tests)
 
 macro(auto_tests)
     foreach(_testname ${ARGN})
-        add_executable(${_testname} ${_testname}.cpp testimplementations.cpp getrssusage.cpp)
+        add_executable(${_testname} ${_testname}.cpp)
         generate_flatbuffers(${_testname} calendar)
         add_test(${_testname} ${_testname})
         qt5_use_modules(${_testname} Core Test Concurrent)
-        target_link_libraries(${_testname} sink libhawd)
+        target_link_libraries(${_testname} sink libhawd  sink_test)
     endforeach(_testname)
 endmacro(auto_tests)
 
