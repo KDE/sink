@@ -13,3 +13,4 @@ target_link_libraries(${PROJECT_NAME} sink maildir KF5::Mime)
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
 
 add_subdirectory(libmaildir)
+add_subdirectory(tests)

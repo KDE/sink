@@ -60,6 +60,16 @@ void MailTest::init()
 
 void MailTest::testCreateModifyDeleteFolder()
 {
+    int baseCount = 0;
+    //First figure out how many folders we have by default
+    {
+        auto job = Store::fetchAll<Folder>(Query())
+            .then<void, QList<Folder::Ptr>>([&](const QList<Folder::Ptr> &folders) {
+                baseCount = folders.size();
+            });
+        VERIFYEXEC(job);
+    }
+
     QString name = "name";
     QByteArray icon = "icon";
 
@@ -72,8 +82,13 @@ void MailTest::testCreateModifyDeleteFolder()
     {
         auto job = Store::fetchAll<Folder>(Query::RequestedProperties(QByteArrayList() << Folder::Name::name << Folder::Icon::name))
             .then<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
-                QCOMPARE(folders.size(), 1);
-                auto folder = *folders.first();
+                QCOMPARE(folders.size(), baseCount + 1);
+                QHash<QString, Folder::Ptr> foldersByName;
+                for (const auto &folder : folders) {
+                    foldersByName.insert(folder->getName(), folder);
+                }
+                QVERIFY(foldersByName.contains(name));
+                auto folder = *foldersByName.value(name);
                 QCOMPARE(folder.getName(), name);
                 QCOMPARE(folder.getIcon(), icon);
             });
@@ -90,8 +105,13 @@ void MailTest::testCreateModifyDeleteFolder()
     {
         auto job = Store::fetchAll<Folder>(Query::RequestedProperties(QByteArrayList() << Folder::Name::name << Folder::Icon::name))
             .then<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
-                QCOMPARE(folders.size(), 1);
-                auto folder = *folders.first();
+                QCOMPARE(folders.size(), baseCount + 1);
+                QHash<QString, Folder::Ptr> foldersByName;
+                for (const auto &folder : folders) {
+                    foldersByName.insert(folder->getName(), folder);
+                }
+                QVERIFY(foldersByName.contains(name2));
+                auto folder = *foldersByName.value(name2);
                 QCOMPARE(folder.getName(), name2);
                 QCOMPARE(folder.getIcon(), icon2);
             });
@@ -103,7 +123,7 @@ void MailTest::testCreateModifyDeleteFolder()
     {
         auto job = Store::fetchAll<Folder>(Query::RequestedProperties(QByteArrayList() << Folder::Name::name << Folder::Icon::name))
             .then<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
-                QCOMPARE(folders.size(), 0);
+                QCOMPARE(folders.size(), baseCount);
             });
         VERIFYEXEC(job);
     }
