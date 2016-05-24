@@ -275,6 +275,7 @@ void Storage::NamedDatabase::findLatest(const QByteArray &k, const std::function
         return;
     }
 
+    bool foundValue = false;
     MDB_cursor_op op = MDB_SET_RANGE;
     if ((rc = mdb_cursor_get(cursor, &key, &data, op)) == 0) {
         // The first lookup will find a key that is equal or greather than our key
@@ -295,6 +296,7 @@ void Storage::NamedDatabase::findLatest(const QByteArray &k, const std::function
                     prefOp = MDB_LAST;
                 }
                 rc = mdb_cursor_get(cursor, &key, &data, prefOp);
+                foundValue = true;
                 resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size));
             }
         }
@@ -309,6 +311,9 @@ void Storage::NamedDatabase::findLatest(const QByteArray &k, const std::function
 
     if (rc) {
         Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Key: ") + k + " : " + QByteArray(mdb_strerror(rc)));
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+    } else if (!foundValue) {
+        Error error(d->name.toLatin1(), 1, QByteArray("Key: ") + k + " : No value found");
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     }
 
