@@ -32,6 +32,7 @@
     typedef QSharedPointer<TYPE> Ptr; \
     using Entity::Entity; \
     virtual ~TYPE(); \
+    static TYPE create(const QByteArray &resource) { return createEntity<TYPE>(resource); }; \
 
 
 #define SINK_PROPERTY(TYPE, NAME, LOWERCASENAME) \
