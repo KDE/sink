@@ -35,6 +35,7 @@ struct Inspection
         inspection.entityIdentifier = entity.identifier();
         inspection.property = property;
         inspection.expectedValue = expectedValue;
+        inspection.type = PropertyInspectionType;
         return inspection;
     }
 
@@ -44,18 +45,30 @@ struct Inspection
         inspection.resourceIdentifier = entity.resourceInstanceIdentifier();
         inspection.entityIdentifier = entity.identifier();
         inspection.expectedValue = exists;
+        inspection.type = ExistenceInspectionType;
+        return inspection;
+    }
+
+    static Inspection CacheIntegrityInspection(const Sink::ApplicationDomain::Entity &entity)
+    {
+        Inspection inspection;
+        inspection.resourceIdentifier = entity.resourceInstanceIdentifier();
+        inspection.entityIdentifier = entity.identifier();
+        inspection.type = CacheIntegrityInspectionType;
         return inspection;
     }
 
     enum Type
     {
         PropertyInspectionType,
-        ExistenceInspectionType
+        ExistenceInspectionType,
+        CacheIntegrityInspectionType
     };
     QByteArray resourceIdentifier;
     QByteArray entityIdentifier;
     QByteArray property;
     QVariant expectedValue;
+    int type;
 };
 }
 }

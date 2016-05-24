@@ -353,7 +353,7 @@ KAsync::Job<void> ResourceAccess::sendRevisionReplayedCommand(qint64 revision)
 }
 
 KAsync::Job<void>
-ResourceAccess::sendInspectionCommand(const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
+ResourceAccess::sendInspectionCommand(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto id = fbb.CreateString(inspectionId.toStdString());
@@ -366,7 +366,7 @@ ResourceAccess::sendInspectionCommand(const QByteArray &inspectionId, const QByt
     s << expectedValue;
 
     auto expected = fbb.CreateString(array.toStdString());
-    auto location = Sink::Commands::CreateInspection(fbb, id, 0, entity, domain, prop, expected);
+    auto location = Sink::Commands::CreateInspection(fbb, id, inspectionType, entity, domain, prop, expected);
     Sink::Commands::FinishInspectionBuffer(fbb, location);
     open();
     return sendCommand(Sink::Commands::InspectionCommand, fbb);

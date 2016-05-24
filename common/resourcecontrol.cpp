@@ -99,7 +99,7 @@ KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
     resourceAccess->open();
     auto notifier = QSharedPointer<Sink::Notifier>::create(resourceAccess);
     auto id = QUuid::createUuid().toByteArray();
-    return resourceAccess->sendInspectionCommand(id, ApplicationDomain::getTypeName<DomainType>(), inspectionCommand.entityIdentifier, inspectionCommand.property, inspectionCommand.expectedValue)
+    return resourceAccess->sendInspectionCommand(inspectionCommand.type, id, ApplicationDomain::getTypeName<DomainType>(), inspectionCommand.entityIdentifier, inspectionCommand.property, inspectionCommand.expectedValue)
         .template then<void>([resourceAccess, notifier, id, time](KAsync::Future<void> &future) {
             notifier->registerHandler([&future, id, time](const Notification &notification) {
                 if (notification.id == id) {
