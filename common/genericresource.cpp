@@ -643,7 +643,7 @@ void GenericResource::scanForRemovals(Sink::Storage::Transaction &transaction, S
     });
 }
 
-static QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory)
+QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> GenericResource::getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory)
 {
     QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
     db.findLatest(uid,

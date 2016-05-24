@@ -51,6 +51,7 @@ class MailTest : public QObject
 
 protected:
     QByteArray mResourceInstanceIdentifier;
+    QByteArrayList mCapabilities;
 
     virtual void resetTestEnvironment() = 0;
     virtual Sink::ApplicationDomain::SinkResource createResource() = 0;
@@ -63,6 +64,8 @@ private slots:
 
     void testCreateModifyDeleteFolder();
     void testCreateModifyDeleteMail();
+    void testMarkMailAsRead();
+    void testCreateDraft();
 };
 
 }
