@@ -334,7 +334,7 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
                         emit notify(n);
                     },
                     [=](int code, const QString &message) {
-                        Log() << "Inspection failed: " << inspectionType << inspectionId << entityId << message;
+                        Warning_area("resource.inspection") << "Inspection failed: " << inspectionType << inspectionId << entityId << message;
                         Sink::Notification n;
                         n.type = Sink::Commands::NotificationType_Inspection;
                         n.message = message;
