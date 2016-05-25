@@ -19,6 +19,10 @@
 #include <QDataStream>
 #include <QTime>
 
+//This is the resources entity type, and not the domain type
+#define ENTITY_TYPE_MAIL "mail"
+#define ENTITY_TYPE_FOLDER "folder"
+
 static int sBatchSize = 100;
 // This interval directly affects the roundtrip time of single commands
 static int sCommitInterval = 10;
@@ -392,11 +396,72 @@ void GenericResource::addType(const QByteArray &type, DomainTypeAdaptorFactoryIn
 {
     mPipeline->setPreprocessors(type, preprocessors);
     mPipeline->setAdaptorFactory(type, factory);
+    mAdaptorFactories.insert(type, factory);
 }
 
 KAsync::Job<void> GenericResource::replay(Sink::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value)
 {
-    return KAsync::null<void>();
+    Sink::EntityBuffer buffer(value);
+    const Sink::Entity &entity = buffer.entity();
+    const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
+    Q_ASSERT(metadataBuffer);
+    if (!metadataBuffer->replayToSource()) {
+        Trace() << "Change is coming from the source";
+        return KAsync::null<void>();
+    }
+    const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
+    const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
+    const auto uid = Sink::Storage::uidFromKey(key);
+    QByteArray oldRemoteId;
+
+    if (operation != Sink::Operation_Creation) {
+        auto synchronizationTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadOnly);
+        oldRemoteId = resolveLocalId(type, uid, synchronizationTransaction);
+    }
+    Trace() << "Replaying " << key << type;
+
+    KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
+    if (type == ENTITY_TYPE_FOLDER) {
+        const Sink::ApplicationDomain::Folder folder(mResourceInstanceIdentifier, uid, revision, mAdaptorFactories.value(type)->createAdaptor(entity));
+        job = replay(folder, operation, oldRemoteId);
+    } else if (type == ENTITY_TYPE_MAIL) {
+        const Sink::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, uid, revision, mAdaptorFactories.value(type)->createAdaptor(entity));
+        job = replay(mail, operation, oldRemoteId);
+    }
+
+    return job.then<void, QByteArray>([=, &synchronizationStore](const QByteArray &remoteId) {
+        auto synchronizationTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
+        Trace() << "Replayed change with remote id: " << remoteId;
+        if (operation == Sink::Operation_Creation) {
+            if (remoteId.isEmpty()) {
+                Warning() << "Returned an empty remoteId from the creation";
+            } else {
+                recordRemoteId(type, uid, remoteId, synchronizationTransaction);
+            }
+        } else if (operation == Sink::Operation_Modification) {
+            if (remoteId.isEmpty()) {
+                Warning() << "Returned an empty remoteId from the creation";
+            } else {
+                updateRemoteId(type, uid, remoteId, synchronizationTransaction);
+            }
+        } else if (operation == Sink::Operation_Removal) {
+            removeRemoteId(type, uid, remoteId, synchronizationTransaction);
+        } else {
+            Warning() << "Unkown operation" << operation;
+        }
+    }, [](int errorCode, const QString &errorMessage) {
+        Warning() << "Failed to replay change: " << errorMessage;
+    });
+}
+
+KAsync::Job<QByteArray> GenericResource::replay(const ApplicationDomain::Mail &, Sink::Operation, const QByteArray &)
+{
+    return KAsync::null<QByteArray>();
+}
+
+KAsync::Job<QByteArray> GenericResource::replay(const ApplicationDomain::Folder &, Sink::Operation, const QByteArray &)
+{
+    return KAsync::null<QByteArray>();
 }
 
 void GenericResource::removeDataFromDisk()

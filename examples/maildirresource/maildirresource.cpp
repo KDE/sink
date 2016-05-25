@@ -49,6 +49,8 @@
 #undef DEBUG_AREA
 #define DEBUG_AREA "resource.maildir"
 
+using namespace Sink;
+
 static QString getFilePathFromMimeMessagePath(const QString &mimeMessagePath)
 {
     auto parts = mimeMessagePath.split('/');
@@ -373,108 +375,86 @@ KAsync::Job<void> MaildirResource::synchronizeWithSource(Sink::Storage &mainStor
     });
 }
 
-KAsync::Job<void> MaildirResource::replay(Sink::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value)
+KAsync::Job<QByteArray> MaildirResource::replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId)
 {
-    auto synchronizationTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
+    if (operation == Sink::Operation_Creation) {
+        const auto remoteId = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
+        Trace() << "Mail created: " << remoteId;
+        return KAsync::start<QByteArray>([=]() -> QByteArray {
+            return remoteId.toUtf8();
+        });
+    } else if (operation == Sink::Operation_Removal) {
+        Trace() << "Removing a mail: " << oldRemoteId;
+        QFile::remove(oldRemoteId);
+        return KAsync::null<QByteArray>();
+    } else if (operation == Sink::Operation_Modification) {
+        Trace() << "Modifying a mail: " << oldRemoteId;
 
-    Sink::EntityBuffer buffer(value);
-    const Sink::Entity &entity = buffer.entity();
-    const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
-    Q_ASSERT(metadataBuffer);
-    if (!metadataBuffer->replayToSource()) {
-        Trace() << "Change is coming from the source";
-        return KAsync::null<void>();
-    }
-    const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-    const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
+        const auto filePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
+        const auto maildirPath = KPIM::Maildir::getDirectoryFromFile(filePath);
+        KPIM::Maildir maildir(maildirPath, false);
 
-    Trace() << "Replaying " << key << type;
-    if (type == ENTITY_TYPE_FOLDER) {
-        if (operation == Sink::Operation_Creation) {
-            const Sink::ApplicationDomain::Folder folder(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, mFolderAdaptorFactory->createAdaptor(entity));
-            auto folderName = folder.getProperty("name").toString();
-            //TODO handle non toplevel folders
-            auto path = mMaildirPath + "/" + folderName;
-            Trace() << "Creating a new folder: " << path;
-            KPIM::Maildir maildir(path, false);
-            maildir.create();
-            recordRemoteId(ENTITY_TYPE_FOLDER, folder.identifier(), path.toUtf8(), synchronizationTransaction);
-        } else if (operation == Sink::Operation_Removal) {
-            const auto uid = Sink::Storage::uidFromKey(key);
-            const auto remoteId = resolveLocalId(ENTITY_TYPE_FOLDER, uid, synchronizationTransaction);
-            const auto path = remoteId;
-            Trace() << "Removing a folder: " << path;
-            KPIM::Maildir maildir(path, false);
-            maildir.remove();
-            removeRemoteId(ENTITY_TYPE_FOLDER, uid, remoteId, synchronizationTransaction);
-        } else if (operation == Sink::Operation_Modification) {
-            Warning() << "Folder modifications are not implemented";
-        } else {
-            Warning() << "Unkown operation" << operation;
+        const auto messagePathParts = filePath.split("/");
+        if (messagePathParts.isEmpty()) {
+            Warning() << "No message path available: " << oldRemoteId;
+            return KAsync::error<QByteArray>(1, "No message path available.");
         }
-    } else if (type == ENTITY_TYPE_MAIL) {
-        if (operation == Sink::Operation_Creation) {
-            const Sink::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, mMailAdaptorFactory->createAdaptor(entity));
-            const auto remoteId = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
-            Trace() << "Creating a new mail." << remoteId;
-            if (remoteId.isEmpty()) {
-                Warning() << "Failed to create mail: " << remoteId;
-                return KAsync::error<void>(1, "Failed to create mail.");
-            } else {
-                Trace() << "Mail created: " << remoteId;
-                recordRemoteId(ENTITY_TYPE_MAIL, mail.identifier(), remoteId.toUtf8(), synchronizationTransaction);
-            }
-        } else if (operation == Sink::Operation_Removal) {
-            const auto uid = Sink::Storage::uidFromKey(key);
-            const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, uid, synchronizationTransaction);
-            Trace() << "Removing a mail: " << remoteId;
-            QFile::remove(remoteId);
-            removeRemoteId(ENTITY_TYPE_MAIL, uid, remoteId, synchronizationTransaction);
-        } else if (operation == Sink::Operation_Modification) {
-            const auto uid = Sink::Storage::uidFromKey(key);
-            const auto remoteId = resolveLocalId(ENTITY_TYPE_MAIL, uid, synchronizationTransaction);
-            Trace() << "Modifying a mail: " << remoteId;
-
-            const Sink::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, mMailAdaptorFactory->createAdaptor(entity));
-
-            const auto filePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
-            const auto maildirPath = KPIM::Maildir::getDirectoryFromFile(filePath);
-            KPIM::Maildir maildir(maildirPath, false);
-
-            const auto messagePathParts = filePath.split("/");
-            if (messagePathParts.isEmpty()) {
-                Warning() << "No message path available: " << remoteId;
-                return KAsync::error<void>(1, "No message path available.");
-            }
-            const auto newIdentifier = messagePathParts.last();
-            QString identifier;
-            if (newIdentifier != KPIM::Maildir::getKeyFromFile(remoteId)) {
-                //Remove the old mime message if it changed
-                Trace() << "Removing old mime message: " << remoteId;
-                QFile(remoteId).remove();
-                identifier = newIdentifier;
-            } else {
-                //The identifier needs to contain the flags for changeEntryFlags to work
-                Q_ASSERT(!remoteId.split('/').isEmpty());
-                identifier = remoteId.split('/').last();
-            }
-
-            //get flags from
-            KPIM::Maildir::Flags flags;
-            if (!mail.getUnread()) {
-                flags |= KPIM::Maildir::Seen;
-            }
-            if (mail.getImportant()) {
-                flags |= KPIM::Maildir::Flagged;
-            }
-
-            const auto newRemoteId = maildir.changeEntryFlags(identifier, flags);
-            updateRemoteId(ENTITY_TYPE_MAIL, uid, QString(maildirPath + "/cur/" + newRemoteId).toUtf8(), synchronizationTransaction);
+        const auto newIdentifier = messagePathParts.last();
+        QString identifier;
+        if (newIdentifier != KPIM::Maildir::getKeyFromFile(oldRemoteId)) {
+            //Remove the old mime message if it changed
+            Trace() << "Removing old mime message: " << oldRemoteId;
+            QFile(oldRemoteId).remove();
+            identifier = newIdentifier;
         } else {
-            Warning() << "Unkown operation" << operation;
+            //The identifier needs to contain the flags for changeEntryFlags to work
+            Q_ASSERT(!oldRemoteId.split('/').isEmpty());
+            identifier = oldRemoteId.split('/').last();
         }
+
+        //get flags from
+        KPIM::Maildir::Flags flags;
+        if (!mail.getUnread()) {
+            flags |= KPIM::Maildir::Seen;
+        }
+        if (mail.getImportant()) {
+            flags |= KPIM::Maildir::Flagged;
+        }
+
+        const auto newRemoteId = maildir.changeEntryFlags(identifier, flags);
+        Warning() << "New remote id: " << QString(maildirPath + "/cur/" + newRemoteId);
+        return KAsync::start<QByteArray>([=]() -> QByteArray {
+            return QString(maildirPath + "/cur/" + newRemoteId).toUtf8();
+        });
     }
-    return KAsync::null<void>();
+    return KAsync::null<QByteArray>();
+}
+
+KAsync::Job<QByteArray> MaildirResource::replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId)
+{
+    if (operation == Sink::Operation_Creation) {
+        auto folderName = folder.getName();
+        //FIXME handle non toplevel folders
+        auto path = mMaildirPath + "/" + folderName;
+        Trace() << "Creating a new folder: " << path;
+        KPIM::Maildir maildir(path, false);
+        maildir.create();
+        return KAsync::start<QByteArray>([=]() -> QByteArray {
+            return path.toUtf8();
+        });
+    } else if (operation == Sink::Operation_Removal) {
+        const auto path = oldRemoteId;
+        Trace() << "Removing a folder: " << path;
+        KPIM::Maildir maildir(path, false);
+        maildir.remove();
+        return KAsync::null<QByteArray>();
+    } else if (operation == Sink::Operation_Modification) {
+        Warning() << "Folder modifications are not implemented";
+        return KAsync::start<QByteArray>([=]() -> QByteArray {
+            return oldRemoteId;
+        });
+    }
+    return KAsync::null<QByteArray>();
 }
 
 void MaildirResource::removeFromDisk(const QByteArray &instanceIdentifier)

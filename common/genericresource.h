@@ -61,8 +61,15 @@ private slots:
 
 protected:
     void enableChangeReplay(bool);
+
     void addType(const QByteArray &type, DomainTypeAdaptorFactoryInterface::Ptr factory, const QVector<Sink::Preprocessor *> &preprocessors);
+
+    ///Base implementation call the replay$Type calls
     virtual KAsync::Job<void> replay(Sink::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value);
+    ///Implement to write back changes to the server
+    virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Mail &, Sink::Operation, const QByteArray &oldRemoteId);
+    virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Folder &, Sink::Operation, const QByteArray &oldRemoteId);
+
     void onProcessorError(int errorCode, const QString &errorMessage);
     void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);
 
@@ -127,5 +134,6 @@ private:
     int mError;
     QTimer mCommitQueueTimer;
     qint64 mClientLowerBoundRevision;
+    QHash<QByteArray, DomainTypeAdaptorFactoryInterface::Ptr> mAdaptorFactories;
 };
 }
