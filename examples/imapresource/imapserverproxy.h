@@ -80,6 +80,7 @@ public:
                         const QMap<qint64,KIMAP::MessagePtr> &)> FetchCallback;
 
     KAsync::Job<void> fetch(const KIMAP::ImapSet &set, KIMAP::FetchJob::FetchScope scope, FetchCallback callback);
+    KAsync::Job<void> fetch(const KIMAP::ImapSet &set, KIMAP::FetchJob::FetchScope scope, const std::function<void(const QVector<Message> &)> &callback);
     KAsync::Job<void> list(KIMAP::ListJob::Option option, const std::function<void(const QList<KIMAP::MailBoxDescriptor> &mailboxes,const QList<QList<QByteArray> > &flags)> &callback);
 
     //Composed calls that do login etc.

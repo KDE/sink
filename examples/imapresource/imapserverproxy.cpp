@@ -142,6 +142,23 @@ KAsync::Job<void> ImapServerProxy::fetch(const KIMAP::ImapSet &set, KIMAP::Fetch
     return runJob(fetch);
 }
 
+KAsync::Job<void> ImapServerProxy::fetch(const KIMAP::ImapSet &set, KIMAP::FetchJob::FetchScope scope, const std::function<void(const QVector<Message> &)> &callback)
+{
+    return fetch(set, scope,
+                    [callback](const QString &mailbox,
+                            const QMap<qint64,qint64> &uids,
+                            const QMap<qint64,qint64> &sizes,
+                            const QMap<qint64,KIMAP::MessageAttribute> &attrs,
+                            const QMap<qint64,KIMAP::MessageFlags> &flags,
+                            const QMap<qint64,KIMAP::MessagePtr> &messages) {
+                        QVector<Message> list;
+                        for (const auto &id : uids.keys()) {
+                            list << Message{uids.value(id), sizes.value(id), attrs.value(id), flags.value(id), messages.value(id)};
+                        }
+                        callback(list);
+                    });
+}
+
 KAsync::Job<QList<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbox)
 {
     auto list = QSharedPointer<QList<qint64>>::create();
@@ -230,22 +247,7 @@ KAsync::Future<void> ImapServerProxy::fetchMessages(const Folder &folder, std::f
 
             KIMAP::ImapSet set;
             set.add(uidsToFetch.toVector());
-            return fetch(set, scope,
-                    [callback](const QString &mailbox,
-                            const QMap<qint64,qint64> &uids,
-                            const QMap<qint64,qint64> &sizes,
-                            const QMap<qint64,KIMAP::MessageAttribute> &attrs,
-                            const QMap<qint64,KIMAP::MessageFlags> &flags,
-                            const QMap<qint64,KIMAP::MessagePtr> &messages) {
-                        Trace() << "Received " << uids.size() << " messages from " << mailbox;
-                        Trace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
-
-                        QVector<Message> list;
-                        for (const auto &id : uids.keys()) {
-                            list << Message{uids.value(id), sizes.value(id), attrs.value(id), flags.value(id), messages.value(id)};
-                        }
-                        callback(list);
-                    });
+            return fetch(set, scope, callback);
         });
 
     });
