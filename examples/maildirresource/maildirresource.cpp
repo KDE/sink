@@ -531,7 +531,11 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
     }
     if (domainType == ENTITY_TYPE_FOLDER) {
         const auto remoteId = resolveLocalId(ENTITY_TYPE_FOLDER, entityId, synchronizationTransaction);
+        auto mainDatabase = Sink::Storage::mainDatabase(transaction, ENTITY_TYPE_FOLDER);
+        auto bufferAdaptor = getLatest(mainDatabase, entityId, *mMailAdaptorFactory);
+        Q_ASSERT(bufferAdaptor);
 
+        const Sink::ApplicationDomain::Folder folder(mResourceInstanceIdentifier, entityId, 0, bufferAdaptor);
         if (inspectionType == Sink::ResourceControl::Inspection::CacheIntegrityInspectionType) {
             if (!QDir(remoteId).exists()) {
                 return KAsync::error<void>(1, "The directory is not existing: " + remoteId);
@@ -550,6 +554,14 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
             const QFileInfoList list = dir.entryInfoList(QDir::Files);
             if (list.size() != expectedCount) {
                 return KAsync::error<void>(1, QString("Wrong number of files; found %1 instead of %2.").arg(list.size()).arg(expectedCount));
+            }
+            if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
+                if (!remoteId.endsWith(folder.getName().toUtf8())) {
+                    return KAsync::error<void>(1, "Wrong folder name: " + remoteId);
+                }
+                if (QDir(remoteId).exists() != expectedValue.toBool()) {
+                    return KAsync::error<void>(1, "Wrong folder existence: " + remoteId);
+                }
             }
         }
     }

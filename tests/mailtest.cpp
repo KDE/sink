@@ -95,6 +95,7 @@ void MailTest::testCreateModifyDeleteFolder()
             });
         VERIFYEXEC(job);
     }
+    VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, true)));
 
     QString name2 = "name2";
     QByteArray icon2 = "icon2";
@@ -118,6 +119,7 @@ void MailTest::testCreateModifyDeleteFolder()
             });
         VERIFYEXEC(job);
     }
+    VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, true)));
 
     VERIFYEXEC(Store::remove(folder));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
@@ -128,6 +130,7 @@ void MailTest::testCreateModifyDeleteFolder()
             });
         VERIFYEXEC(job);
     }
+    VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, false)));
 }
 
 void MailTest::testCreateModifyDeleteMail()

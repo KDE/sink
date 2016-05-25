@@ -245,54 +245,6 @@ private slots:
         QCOMPARE(mailModel->rowCount(QModelIndex()), 2);
     }
 
-    void testCreateFolder()
-    {
-        Sink::Query query;
-        query.resources << "org.kde.maildir.instance1";
-
-        // Ensure all local data is processed
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
-
-        Sink::ApplicationDomain::Folder folder("org.kde.maildir.instance1");
-        folder.setProperty("name", "testCreateFolder");
-
-        Sink::Store::create(folder).exec().waitForFinished();
-
-        // Ensure all local data is processed
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
-
-        auto targetPath = tempDir.path() + "/maildir1/testCreateFolder";
-        QFileInfo file(targetPath);
-        QTRY_VERIFY(file.exists());
-        QVERIFY(file.isDir());
-    }
-
-    void testRemoveFolder()
-    {
-        Sink::Query query;
-        query.resources << "org.kde.maildir.instance1";
-
-        auto targetPath = tempDir.path() + "/maildir1/testCreateFolder";
-
-        Sink::ApplicationDomain::Folder folder("org.kde.maildir.instance1");
-        folder.setProperty("name", "testCreateFolder");
-        Sink::Store::create(folder).exec().waitForFinished();
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
-        QTRY_VERIFY(QFileInfo(targetPath).exists());
-
-        Sink::Query folderQuery;
-        folderQuery.resources << "org.kde.maildir.instance1";
-        folderQuery += Sink::Query::PropertyFilter("name", "testCreateFolder");
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(folderQuery);
-        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(model->rowCount(QModelIndex()), 1);
-        auto createdFolder = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>();
-
-        Sink::Store::remove(*createdFolder).exec().waitForFinished();
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
-        QTRY_VERIFY(!QFileInfo(targetPath).exists());
-    }
-
 };
 
 QTEST_MAIN(MaildirResourceTest)
