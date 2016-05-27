@@ -80,6 +80,7 @@ public:
         if (allowDuplicates) {
             flags |= MDB_DUPSORT;
         }
+        Q_ASSERT(transaction);
         if (const int rc = mdb_dbi_open(transaction, db.constData(), flags, &dbi)) {
             dbi = 0;
             transaction = 0;
@@ -428,6 +429,7 @@ Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, 
     if (!d) {
         return Storage::NamedDatabase();
     }
+    Q_ASSERT(d->transaction);
     // We don't now if anything changed
     d->implicitCommit = true;
     auto p = new Storage::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
@@ -559,14 +561,14 @@ Storage::Transaction Storage::createTransaction(AccessMode type, const std::func
 {
     auto errorHandler = errorHandlerArg ? errorHandlerArg : defaultErrorHandler();
     if (!d->env) {
-        errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Missing database environment"));
+        errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Failed to create transaction: Missing database environment"));
         return Transaction();
     }
 
     bool requestedRead = type == ReadOnly;
 
     if (d->mode == ReadOnly && !requestedRead) {
-        errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Requested read/write transaction in read-only mode."));
+        errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Failed to create transaction: Requested read/write transaction in read-only mode."));
         return Transaction();
     }
 
