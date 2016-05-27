@@ -24,14 +24,16 @@
 #include <messagequeue.h>
 #include <flatbuffers/flatbuffers.h>
 #include <domainadaptor.h>
+#include "changereplay.h"
+
 #include <QTimer>
 
 class CommandProcessor;
-class ChangeReplay;
 
 namespace Sink {
 class Pipeline;
 class Preprocessor;
+class Synchronizer;
 
 /**
  * Generic Resource implementation.
@@ -39,7 +41,7 @@ class Preprocessor;
 class SINK_EXPORT GenericResource : public Resource
 {
 public:
-    GenericResource(const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline = QSharedPointer<Pipeline>());
+    GenericResource(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline, const QSharedPointer<ChangeReplay> &changeReplay, const QSharedPointer<Synchronizer> &synchronizer);
     virtual ~GenericResource();
 
     virtual void processCommand(int commandId, const QByteArray &data) Q_DECL_OVERRIDE;
@@ -64,41 +66,90 @@ protected:
 
     void addType(const QByteArray &type, DomainTypeAdaptorFactoryInterface::Ptr factory, const QVector<Sink::Preprocessor *> &preprocessors);
 
-    ///Base implementation call the replay$Type calls
-    virtual KAsync::Job<void> replay(Sink::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value);
-    ///Implement to write back changes to the server
-    virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Mail &, Sink::Operation, const QByteArray &oldRemoteId);
-    virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Folder &, Sink::Operation, const QByteArray &oldRemoteId);
-
     void onProcessorError(int errorCode, const QString &errorMessage);
     void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);
 
-    static void createEntity(const QByteArray &localId, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject,
-        DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback);
-    static void modifyEntity(const QByteArray &localId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject,
-        DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback);
-    static void deleteEntity(const QByteArray &localId, qint64 revision, const QByteArray &bufferType, std::function<void(const QByteArray &)> callback);
+    MessageQueue mUserQueue;
+    MessageQueue mSynchronizerQueue;
+    QByteArray mResourceType;
+    QByteArray mResourceInstanceIdentifier;
+    QSharedPointer<Pipeline> mPipeline;
+
+private:
+    CommandProcessor *mProcessor;
+    QSharedPointer<ChangeReplay> mChangeReplay;
+    QSharedPointer<Synchronizer> mSynchronizer;
+    int mError;
+    QTimer mCommitQueueTimer;
+    qint64 mClientLowerBoundRevision;
+    QHash<QByteArray, DomainTypeAdaptorFactoryInterface::Ptr> mAdaptorFactories;
+};
+
+class SINK_EXPORT SyncStore
+{
+public:
+    SyncStore(Sink::Storage::Transaction &);
 
     /**
      * Records a localId to remoteId mapping
      */
-    void recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Sink::Storage::Transaction &transaction);
-    void removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Sink::Storage::Transaction &transaction);
-    void updateRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Sink::Storage::Transaction &transaction);
+    void recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId);
+    void removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId);
+    void updateRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId);
 
     /**
      * Tries to find a local id for the remote id, and creates a new local id otherwise.
      *
      * The new local id is recorded in the local to remote id mapping.
      */
-    QByteArray resolveRemoteId(const QByteArray &type, const QByteArray &remoteId, Sink::Storage::Transaction &transaction);
+    QByteArray resolveRemoteId(const QByteArray &type, const QByteArray &remoteId);
 
     /**
      * Tries to find a remote id for a local id.
      *
      * This can fail if the entity hasn't been written back to the server yet.
      */
-    QByteArray resolveLocalId(const QByteArray &bufferType, const QByteArray &localId, Sink::Storage::Transaction &transaction);
+    QByteArray resolveLocalId(const QByteArray &bufferType, const QByteArray &localId);
+
+private:
+    Sink::Storage::Transaction &mTransaction;
+};
+
+class SINK_EXPORT EntityStore
+{
+public:
+    EntityStore(const QByteArray &resourceType, const QByteArray &mResourceInstanceIdentifier, Sink::Storage::Transaction &transaction);
+
+    template<typename T>
+    T read(const QByteArray &identifier) const;
+
+    static QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory);
+private:
+    QByteArray mResourceType;
+    QByteArray mResourceInstanceIdentifier;
+    Sink::Storage::Transaction &mTransaction;
+};
+
+/**
+ * Synchronize and add what we don't already have to local queue
+ */
+class SINK_EXPORT Synchronizer
+{
+public:
+    Synchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier);
+
+    void setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback);
+    KAsync::Job<void> synchronize();
+
+protected:
+    ///Calls the callback to enqueue the command
+    void enqueueCommand(int commandId, const QByteArray &data);
+
+    static void createEntity(const QByteArray &localId, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject,
+        DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback);
+    static void modifyEntity(const QByteArray &localId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject,
+        DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback);
+    static void deleteEntity(const QByteArray &localId, qint64 revision, const QByteArray &bufferType, std::function<void(const QByteArray &)> callback);
 
     /**
     * A synchronous algorithm to remove entities that are no longer existing.
@@ -110,7 +161,7 @@ protected:
     *
     * All functions are called synchronously, and both @param entryGenerator and @param exists need to be synchronous.
     */
-    void scanForRemovals(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QByteArray &bufferType,
+    void scanForRemovals(const QByteArray &bufferType,
         const std::function<void(const std::function<void(const QByteArray &key)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists);
 
     /**
@@ -118,22 +169,60 @@ protected:
      *
      * Depending on whether the entity is locally available, or has changed.
      */
-    void createOrModify(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory,
-        const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
+    void createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
 
-    static QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory);
+    //Read only access to main storage
+    EntityStore &store();
 
-    MessageQueue mUserQueue;
-    MessageQueue mSynchronizerQueue;
-    QByteArray mResourceInstanceIdentifier;
-    QSharedPointer<Pipeline> mPipeline;
+    //Read/Write access to sync storage
+    SyncStore &syncStore();
+
+    virtual KAsync::Job<void> synchronizeWithSource() = 0;
 
 private:
-    CommandProcessor *mProcessor;
-    ChangeReplay *mSourceChangeReplay;
-    int mError;
-    QTimer mCommitQueueTimer;
-    qint64 mClientLowerBoundRevision;
-    QHash<QByteArray, DomainTypeAdaptorFactoryInterface::Ptr> mAdaptorFactories;
+    QSharedPointer<SyncStore> mSyncStore;
+    QSharedPointer<EntityStore> mEntityStore;
+    Sink::Storage mStorage;
+    Sink::Storage mSyncStorage;
+    QByteArray mResourceType;
+    QByteArray mResourceInstanceIdentifier;
+    Sink::Storage::Transaction mTransaction;
+    Sink::Storage::Transaction mSyncTransaction;
+    std::function<void(int commandId, const QByteArray &data)> mEnqueue;
 };
+
+/**
+ * Replay changes to the source
+ */
+class SINK_EXPORT SourceWriteBack : public ChangeReplay
+{
+public:
+    SourceWriteBack(const QByteArray &resourceType,const QByteArray &resourceInstanceIdentifier);
+
+protected:
+    ///Base implementation calls the replay$Type calls
+    virtual KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
+
+protected:
+    ///Implement to write back changes to the server
+    virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Mail &, Sink::Operation, const QByteArray &oldRemoteId);
+    virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Folder &, Sink::Operation, const QByteArray &oldRemoteId);
+
+    //Read only access to main storage
+    EntityStore &store();
+
+    //Read/Write access to sync storage
+    SyncStore &syncStore();
+
+private:
+    Sink::Storage mSyncStorage;
+    QSharedPointer<SyncStore> mSyncStore;
+    QSharedPointer<EntityStore> mEntityStore;
+    Sink::Storage::Transaction mTransaction;
+    Sink::Storage::Transaction mSyncTransaction;
+    QByteArray mResourceType;
+    QByteArray mResourceInstanceIdentifier;
+};
+
+
 }

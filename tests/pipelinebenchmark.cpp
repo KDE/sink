@@ -33,6 +33,7 @@
 #include <common/pipeline.h>
 #include <common/index.h>
 #include <common/indexupdater.h>
+#include <common/adaptorfactoryregistry.h>
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
@@ -83,10 +84,8 @@ class PipelineBenchmark : public QObject
         TestResource::removeFromDisk(resourceIdentifier);
 
         auto pipeline = QSharedPointer<Sink::Pipeline>::create(resourceIdentifier);
-
-        auto mailFactory = QSharedPointer<TestMailAdaptorFactory>::create();
         pipeline->setPreprocessors("mail", preprocessors);
-        pipeline->setAdaptorFactory("mail", mailFactory);
+        pipeline->setResourceType("test");
 
         QTime time;
         time.start();
@@ -131,6 +130,7 @@ private slots:
     void init()
     {
         Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
+        Sink::AdaptorFactoryRegistry::instance().registerFactory<Sink::ApplicationDomain::Mail, TestMailAdaptorFactory>("test");
         resourceIdentifier = "org.kde.test.instance1";
     }
 

@@ -107,7 +107,7 @@ public:
 class TestResource : public Sink::GenericResource
 {
 public:
-    TestResource(const QByteArray &instanceIdentifier, QSharedPointer<Sink::Pipeline> pipeline) : Sink::GenericResource(instanceIdentifier, pipeline)
+    TestResource(const QByteArray &instanceIdentifier, QSharedPointer<Sink::Pipeline> pipeline) : Sink::GenericResource("test", instanceIdentifier, pipeline, QSharedPointer<Sink::ChangeReplay>(), QSharedPointer<Sink::Synchronizer>())
     {
     }
 

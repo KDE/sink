@@ -74,5 +74,6 @@ public:
 
     Sink::Resource *createResource(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
     void registerFacades(Sink::FacadeFactory &factory) Q_DECL_OVERRIDE;
+    void registerDomainTypeAdaptors(Sink::AdaptorFactory &factory) Q_DECL_OVERRIDE;
 };
 

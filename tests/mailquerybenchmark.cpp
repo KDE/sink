@@ -33,6 +33,7 @@
 #include <common/pipeline.h>
 #include <common/index.h>
 #include <common/indexupdater.h>
+#include <common/adaptorfactoryregistry.h>
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
@@ -59,12 +60,11 @@ class MailQueryBenchmark : public QObject
         TestResource::removeFromDisk(resourceIdentifier);
 
         auto pipeline = QSharedPointer<Sink::Pipeline>::create(resourceIdentifier);
+        pipeline->setResourceType("test");
 
-        auto mailFactory = QSharedPointer<TestMailAdaptorFactory>::create();
         auto indexer = QSharedPointer<DefaultIndexUpdater<Sink::ApplicationDomain::Mail>>::create();
 
         pipeline->setPreprocessors("mail", QVector<Sink::Preprocessor *>() << indexer.data());
-        pipeline->setAdaptorFactory("mail", mailFactory);
 
         auto domainTypeAdaptorFactory = QSharedPointer<TestMailAdaptorFactory>::create();
 
@@ -149,6 +149,7 @@ private slots:
     void init()
     {
         resourceIdentifier = "org.kde.test.instance1";
+        Sink::AdaptorFactoryRegistry::instance().registerFactory<Sink::ApplicationDomain::Mail, TestMailAdaptorFactory>("test");
     }
 
     void test50k()

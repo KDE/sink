@@ -46,12 +46,11 @@ public:
 
     Storage &storage() const;
 
+    void setResourceType(const QByteArray &resourceType);
     void setPreprocessors(const QString &entityType, const QVector<Preprocessor *> &preprocessors);
     void startTransaction();
     void commit();
     Storage::Transaction &transaction();
-
-    void setAdaptorFactory(const QString &entityType, DomainTypeAdaptorFactoryInterface::Ptr factory);
 
     KAsync::Job<qint64> newEntity(void const *command, size_t size);
     KAsync::Job<qint64> modifiedEntity(void const *command, size_t size);

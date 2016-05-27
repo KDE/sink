@@ -66,6 +66,8 @@ set(command_SRCS
     domain/folder.cpp
     test.cpp
     query.cpp
+    changereplay.cpp
+    adaptorfactoryregistry.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

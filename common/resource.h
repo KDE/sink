@@ -26,6 +26,7 @@
 
 namespace Sink {
 class FacadeFactory;
+class AdaptorFactoryRegistry;
 
 /**
  * Resource interface
@@ -81,6 +82,7 @@ public:
 
     virtual Resource *createResource(const QByteArray &instanceIdentifier) = 0;
     virtual void registerFacades(FacadeFactory &factory) = 0;
+    virtual void registerAdaptorFactories(AdaptorFactoryRegistry &registry) {};
 
 private:
     class Private;

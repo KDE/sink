@@ -1,3 +1,22 @@
+/*
+ * Copyright (C) 2016 Christian Mollekopf <mollekopf@kolabsys.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) version 3, or any
+ * later version accepted by the membership of KDE e.V. (or its
+ * successor approved by the membership of KDE e.V.), which shall
+ * act as a proxy defined in Section 6 of version 3 of the license.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
 #include "genericresource.h"
 
 #include "entitybuffer.h"
@@ -14,6 +33,7 @@
 #include "log.h"
 #include "definitions.h"
 #include "bufferutils.h"
+#include "adaptorfactoryregistry.h"
 
 #include <QUuid>
 #include <QDataStream>
@@ -30,96 +50,6 @@ static int sCommitInterval = 10;
 using namespace Sink;
 
 #undef DEBUG_AREA
-#define DEBUG_AREA "resource.changereplay"
-
-/**
- * Replays changes from the storage one by one.
- *
- * Uses a local database to:
- * * Remember what changes have been replayed already.
- * * store a mapping of remote to local buffers
- */
-class ChangeReplay : public QObject
-{
-    Q_OBJECT
-public:
-    typedef std::function<KAsync::Job<void>(const QByteArray &type, const QByteArray &key, const QByteArray &value)> ReplayFunction;
-
-    ChangeReplay(const QString &resourceName, const ReplayFunction &replayFunction)
-        : mStorage(storageLocation(), resourceName, Storage::ReadOnly), mChangeReplayStore(storageLocation(), resourceName + ".changereplay", Storage::ReadWrite), mReplayFunction(replayFunction)
-    {
-    }
-
-    qint64 getLastReplayedRevision()
-    {
-        qint64 lastReplayedRevision = 0;
-        auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadOnly);
-        replayStoreTransaction.openDatabase().scan("lastReplayedRevision",
-            [&lastReplayedRevision](const QByteArray &key, const QByteArray &value) -> bool {
-                lastReplayedRevision = value.toLongLong();
-                return false;
-            },
-            [](const Storage::Error &) {});
-        return lastReplayedRevision;
-    }
-
-    bool allChangesReplayed()
-    {
-        const qint64 topRevision = Storage::maxRevision(mStorage.createTransaction(Storage::ReadOnly));
-        const qint64 lastReplayedRevision = getLastReplayedRevision();
-        Trace() << "All changes replayed " << topRevision << lastReplayedRevision;
-        return (lastReplayedRevision >= topRevision);
-    }
-
-signals:
-    void changesReplayed();
-
-public slots:
-    void revisionChanged()
-    {
-        auto mainStoreTransaction = mStorage.createTransaction(Storage::ReadOnly);
-        auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadWrite);
-        qint64 lastReplayedRevision = 1;
-        replayStoreTransaction.openDatabase().scan("lastReplayedRevision",
-            [&lastReplayedRevision](const QByteArray &key, const QByteArray &value) -> bool {
-                lastReplayedRevision = value.toLongLong();
-                return false;
-            },
-            [](const Storage::Error &) {});
-        const qint64 topRevision = Storage::maxRevision(mainStoreTransaction);
-
-        Trace() << "Changereplay from " << lastReplayedRevision << " to " << topRevision;
-        if (lastReplayedRevision <= topRevision) {
-            qint64 revision = lastReplayedRevision;
-            for (; revision <= topRevision; revision++) {
-                const auto uid = Storage::getUidFromRevision(mainStoreTransaction, revision);
-                const auto type = Storage::getTypeFromRevision(mainStoreTransaction, revision);
-                const auto key = Storage::assembleKey(uid, revision);
-                Storage::mainDatabase(mainStoreTransaction, type)
-                    .scan(key,
-                        [&lastReplayedRevision, type, this](const QByteArray &key, const QByteArray &value) -> bool {
-                            mReplayFunction(type, key, value).exec();
-                            // TODO make for loop async, and pass to async replay function together with type
-                            Trace() << "Replaying " << key;
-                            return false;
-                        },
-                        [key](const Storage::Error &) { ErrorMsg() << "Failed to replay change " << key; });
-            }
-            revision--;
-            replayStoreTransaction.openDatabase().write("lastReplayedRevision", QByteArray::number(revision));
-            replayStoreTransaction.commit();
-            Trace() << "Replayed until " << revision;
-        }
-        emit changesReplayed();
-    }
-
-private:
-    Sink::Storage mStorage;
-    Sink::Storage mChangeReplayStore;
-    ReplayFunction mReplayFunction;
-};
-
-#undef DEBUG_AREA
 #define DEBUG_AREA "resource.commandprocessor"
 
 /**
@@ -133,10 +63,9 @@ class CommandProcessor : public QObject
 public:
     CommandProcessor(Sink::Pipeline *pipeline, QList<MessageQueue *> commandQueues) : QObject(), mPipeline(pipeline), mCommandQueues(commandQueues), mProcessingLock(false)
     {
-        mPipeline->startTransaction();
-        // FIXME Should be initialized to the current value of the change replay queue
-        mLowerBoundRevision = Storage::maxRevision(mPipeline->transaction());
-        mPipeline->commit();
+        mLowerBoundRevision = Storage::maxRevision(mPipeline->storage().createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
+            Warning() << error.message;
+        }));
 
         for (auto queue : mCommandQueues) {
             const bool ret = connect(queue, &MessageQueue::messageReady, this, &CommandProcessor::process);
@@ -303,15 +232,22 @@ private:
 #undef DEBUG_AREA
 #define DEBUG_AREA "resource"
 
-GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline)
+GenericResource::GenericResource(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline, const QSharedPointer<ChangeReplay> &changeReplay, const QSharedPointer<Synchronizer> &synchronizer)
     : Sink::Resource(),
       mUserQueue(Sink::storageLocation(), resourceInstanceIdentifier + ".userqueue"),
       mSynchronizerQueue(Sink::storageLocation(), resourceInstanceIdentifier + ".synchronizerqueue"),
+      mResourceType(resourceType),
       mResourceInstanceIdentifier(resourceInstanceIdentifier),
       mPipeline(pipeline ? pipeline : QSharedPointer<Sink::Pipeline>::create(resourceInstanceIdentifier)),
+      mChangeReplay(changeReplay),
+      mSynchronizer(synchronizer),
       mError(0),
       mClientLowerBoundRevision(std::numeric_limits<qint64>::max())
 {
+    mPipeline->setResourceType(mResourceType);
+    mSynchronizer->setup([this](int commandId, const QByteArray &data) {
+        enqueueCommand(mSynchronizerQueue, commandId, data);
+    });
     mProcessor = new CommandProcessor(mPipeline.data(), QList<MessageQueue *>() << &mUserQueue << &mSynchronizerQueue);
     mProcessor->setInspectionCommand([this](void const *command, size_t size) {
         flatbuffers::Verifier verifier((const uint8_t *)command, size);
@@ -353,14 +289,9 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
     });
     QObject::connect(mProcessor, &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
-    mSourceChangeReplay = new ChangeReplay(resourceInstanceIdentifier, [this](const QByteArray &type, const QByteArray &key, const QByteArray &value) {
-        // This results in a deadlock when a sync is in progress and we try to create a second writing transaction (which is why we turn changereplay off during the sync)
-        auto synchronizationStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadWrite);
-        return this->replay(*synchronizationStore, type, key, value).then<void>([synchronizationStore]() {});
-    });
     enableChangeReplay(true);
     mClientLowerBoundRevision = mPipeline->cleanedUpRevision();
-    mProcessor->setOldestUsedRevision(mSourceChangeReplay->getLastReplayedRevision());
+    mProcessor->setOldestUsedRevision(mChangeReplay->getLastReplayedRevision());
 
     mCommitQueueTimer.setInterval(sCommitInterval);
     mCommitQueueTimer.setSingleShot(true);
@@ -370,7 +301,6 @@ GenericResource::GenericResource(const QByteArray &resourceInstanceIdentifier, c
 GenericResource::~GenericResource()
 {
     delete mProcessor;
-    delete mSourceChangeReplay;
 }
 
 KAsync::Job<void> GenericResource::inspect(
@@ -383,86 +313,20 @@ KAsync::Job<void> GenericResource::inspect(
 void GenericResource::enableChangeReplay(bool enable)
 {
     if (enable) {
-        QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mSourceChangeReplay, &ChangeReplay::revisionChanged, Qt::QueuedConnection);
-        QObject::connect(mSourceChangeReplay, &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
-        mSourceChangeReplay->revisionChanged();
+        QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mChangeReplay.data(), &ChangeReplay::revisionChanged, Qt::QueuedConnection);
+        QObject::connect(mChangeReplay.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
+        mChangeReplay->revisionChanged();
     } else {
-        QObject::disconnect(mPipeline.data(), &Pipeline::revisionUpdated, mSourceChangeReplay, &ChangeReplay::revisionChanged);
-        QObject::disconnect(mSourceChangeReplay, &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
+        QObject::disconnect(mPipeline.data(), &Pipeline::revisionUpdated, mChangeReplay.data(), &ChangeReplay::revisionChanged);
+        QObject::disconnect(mChangeReplay.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
     }
 }
 
 void GenericResource::addType(const QByteArray &type, DomainTypeAdaptorFactoryInterface::Ptr factory, const QVector<Sink::Preprocessor *> &preprocessors)
 {
     mPipeline->setPreprocessors(type, preprocessors);
-    mPipeline->setAdaptorFactory(type, factory);
-    mAdaptorFactories.insert(type, factory);
 }
 
-KAsync::Job<void> GenericResource::replay(Sink::Storage &synchronizationStore, const QByteArray &type, const QByteArray &key, const QByteArray &value)
-{
-    Sink::EntityBuffer buffer(value);
-    const Sink::Entity &entity = buffer.entity();
-    const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
-    Q_ASSERT(metadataBuffer);
-    if (!metadataBuffer->replayToSource()) {
-        Trace() << "Change is coming from the source";
-        return KAsync::null<void>();
-    }
-    const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-    const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
-    const auto uid = Sink::Storage::uidFromKey(key);
-    QByteArray oldRemoteId;
-
-    if (operation != Sink::Operation_Creation) {
-        auto synchronizationTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadOnly);
-        oldRemoteId = resolveLocalId(type, uid, synchronizationTransaction);
-    }
-    Trace() << "Replaying " << key << type;
-
-    KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
-    if (type == ENTITY_TYPE_FOLDER) {
-        const Sink::ApplicationDomain::Folder folder(mResourceInstanceIdentifier, uid, revision, mAdaptorFactories.value(type)->createAdaptor(entity));
-        job = replay(folder, operation, oldRemoteId);
-    } else if (type == ENTITY_TYPE_MAIL) {
-        const Sink::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, uid, revision, mAdaptorFactories.value(type)->createAdaptor(entity));
-        job = replay(mail, operation, oldRemoteId);
-    }
-
-    return job.then<void, QByteArray>([=, &synchronizationStore](const QByteArray &remoteId) {
-        auto synchronizationTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
-        Trace() << "Replayed change with remote id: " << remoteId;
-        if (operation == Sink::Operation_Creation) {
-            if (remoteId.isEmpty()) {
-                Warning() << "Returned an empty remoteId from the creation";
-            } else {
-                recordRemoteId(type, uid, remoteId, synchronizationTransaction);
-            }
-        } else if (operation == Sink::Operation_Modification) {
-            if (remoteId.isEmpty()) {
-                Warning() << "Returned an empty remoteId from the creation";
-            } else {
-                updateRemoteId(type, uid, remoteId, synchronizationTransaction);
-            }
-        } else if (operation == Sink::Operation_Removal) {
-            removeRemoteId(type, uid, remoteId, synchronizationTransaction);
-        } else {
-            Warning() << "Unkown operation" << operation;
-        }
-    }, [](int errorCode, const QString &errorMessage) {
-        Warning() << "Failed to replay change: " << errorMessage;
-    });
-}
-
-KAsync::Job<QByteArray> GenericResource::replay(const ApplicationDomain::Mail &, Sink::Operation, const QByteArray &)
-{
-    return KAsync::null<QByteArray>();
-}
-
-KAsync::Job<QByteArray> GenericResource::replay(const ApplicationDomain::Folder &, Sink::Operation, const QByteArray &)
-{
-    return KAsync::null<QByteArray>();
-}
 
 void GenericResource::removeDataFromDisk()
 {
@@ -528,10 +392,8 @@ KAsync::Job<void> GenericResource::synchronizeWithSource()
         Log() << " Synchronizing";
         // Changereplay would deadlock otherwise when trying to open the synchronization store
         enableChangeReplay(false);
-        auto mainStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier, Sink::Storage::ReadOnly);
-        auto syncStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadWrite);
-        synchronizeWithSource(*mainStore, *syncStore)
-            .then<void>([this, mainStore, syncStore, &future]() {
+        mSynchronizer->synchronize()
+            .then<void>([this, &future]() {
                 Log() << "Done Synchronizing";
                 enableChangeReplay(true);
                 future.setFinished();
@@ -576,11 +438,11 @@ KAsync::Job<void> GenericResource::processAllMessages()
         .then<void>([this](KAsync::Future<void> &f) { waitForDrained(f, mSynchronizerQueue); })
         .then<void>([this](KAsync::Future<void> &f) { waitForDrained(f, mUserQueue); })
         .then<void>([this](KAsync::Future<void> &f) {
-            if (mSourceChangeReplay->allChangesReplayed()) {
+            if (mChangeReplay->allChangesReplayed()) {
                 f.setFinished();
             } else {
                 auto context = new QObject;
-                QObject::connect(mSourceChangeReplay, &ChangeReplay::changesReplayed, context, [&f, context]() {
+                QObject::connect(mChangeReplay.data(), &ChangeReplay::changesReplayed, context, [&f, context]() {
                     delete context;
                     f.setFinished();
                 });
@@ -590,7 +452,7 @@ KAsync::Job<void> GenericResource::processAllMessages()
 
 void GenericResource::updateLowerBoundRevision()
 {
-    mProcessor->setOldestUsedRevision(qMin(mClientLowerBoundRevision, mSourceChangeReplay->getLastReplayedRevision()));
+    mProcessor->setOldestUsedRevision(qMin(mClientLowerBoundRevision, mChangeReplay->getLastReplayedRevision()));
 }
 
 void GenericResource::setLowerBoundRevision(qint64 revision)
@@ -599,7 +461,139 @@ void GenericResource::setLowerBoundRevision(qint64 revision)
     updateLowerBoundRevision();
 }
 
-void GenericResource::createEntity(const QByteArray &sinkId, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject,
+
+
+
+EntityStore::EntityStore(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Sink::Storage::Transaction &transaction)
+    : mResourceType(resourceType), mResourceInstanceIdentifier(resourceInstanceIdentifier),
+    mTransaction(transaction)
+{
+
+}
+
+template<typename T>
+T EntityStore::read(const QByteArray &identifier) const
+{
+    auto typeName = ApplicationDomain::getTypeName<T>();
+    auto mainDatabase = Storage::mainDatabase(mTransaction, typeName);
+    auto bufferAdaptor = getLatest(mainDatabase, identifier, *Sink::AdaptorFactoryRegistry::instance().getFactory<T>(mResourceType));
+    Q_ASSERT(bufferAdaptor);
+    return T(mResourceInstanceIdentifier, identifier, 0, bufferAdaptor);
+}
+
+QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityStore::getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory)
+{
+    QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
+    db.findLatest(uid,
+        [&current, &adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
+            Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+            if (!buffer.isValid()) {
+                Warning() << "Read invalid buffer from disk";
+            } else {
+                Trace() << "Found value " << key;
+                current = adaptorFactory.createAdaptor(buffer.entity());
+            }
+            return false;
+        },
+        [](const Sink::Storage::Error &error) { Warning() << "Failed to read current value from storage: " << error.message; });
+    return current;
+}
+
+
+
+SyncStore::SyncStore(Sink::Storage::Transaction &transaction)
+    : mTransaction(transaction)
+{
+
+}
+
+void SyncStore::recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId)
+{
+    Index("rid.mapping." + bufferType, mTransaction).add(remoteId, localId);
+    Index("localid.mapping." + bufferType, mTransaction).add(localId, remoteId);
+}
+
+void SyncStore::removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId)
+{
+    Index("rid.mapping." + bufferType, mTransaction).remove(remoteId, localId);
+    Index("localid.mapping." + bufferType, mTransaction).remove(localId, remoteId);
+}
+
+void SyncStore::updateRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId)
+{
+    const auto oldRemoteId = Index("localid.mapping." + bufferType, mTransaction).lookup(localId);
+    removeRemoteId(bufferType, localId, oldRemoteId);
+    recordRemoteId(bufferType, localId, remoteId);
+}
+
+QByteArray SyncStore::resolveRemoteId(const QByteArray &bufferType, const QByteArray &remoteId)
+{
+    // Lookup local id for remote id, or insert a new pair otherwise
+    Index index("rid.mapping." + bufferType, mTransaction);
+    QByteArray sinkId = index.lookup(remoteId);
+    if (sinkId.isEmpty()) {
+        sinkId = QUuid::createUuid().toString().toUtf8();
+        index.add(remoteId, sinkId);
+        Index("localid.mapping." + bufferType, mTransaction).add(sinkId, remoteId);
+    }
+    return sinkId;
+}
+
+QByteArray SyncStore::resolveLocalId(const QByteArray &bufferType, const QByteArray &localId)
+{
+    QByteArray remoteId = Index("localid.mapping." + bufferType, mTransaction).lookup(localId);
+    if (remoteId.isEmpty()) {
+        Warning() << "Couldn't find the remote id for " << localId;
+        return QByteArray();
+    }
+    return remoteId;
+}
+
+
+
+
+
+
+
+
+Synchronizer::Synchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier)
+    : mStorage(Sink::storageLocation(), resourceInstanceIdentifier, Sink::Storage::ReadOnly),
+    mSyncStorage(Sink::storageLocation(), resourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadWrite),
+    mResourceType(resourceType),
+    mResourceInstanceIdentifier(resourceInstanceIdentifier)
+{
+    Trace() << "Starting synchronizer: " << resourceType << resourceInstanceIdentifier;
+
+}
+
+void Synchronizer::setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback)
+{
+    mEnqueue = enqueueCommandCallback;
+}
+
+void Synchronizer::enqueueCommand(int commandId, const QByteArray &data)
+{
+    Q_ASSERT(mEnqueue);
+    mEnqueue(commandId, data);
+}
+
+EntityStore &Synchronizer::store()
+{
+    if (!mEntityStore) {
+        mEntityStore = QSharedPointer<EntityStore>::create(mResourceType, mResourceInstanceIdentifier, mTransaction);
+    }
+    return *mEntityStore;
+}
+
+SyncStore &Synchronizer::syncStore()
+{
+    if (!mSyncStore) {
+        mSyncStore = QSharedPointer<SyncStore>::create(mSyncTransaction);
+    }
+    return *mSyncStore;
+}
+
+void Synchronizer::createEntity(const QByteArray &sinkId, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject,
     DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
 {
     // These changes are coming from the source
@@ -616,7 +610,7 @@ void GenericResource::createEntity(const QByteArray &sinkId, const QByteArray &b
     callback(BufferUtils::extractBuffer(fbb));
 }
 
-void GenericResource::modifyEntity(const QByteArray &sinkId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject,
+void Synchronizer::modifyEntity(const QByteArray &sinkId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject,
     DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
 {
     // These changes are coming from the source
@@ -634,7 +628,7 @@ void GenericResource::modifyEntity(const QByteArray &sinkId, qint64 revision, co
     callback(BufferUtils::extractBuffer(fbb));
 }
 
-void GenericResource::deleteEntity(const QByteArray &sinkId, qint64 revision, const QByteArray &bufferType, std::function<void(const QByteArray &)> callback)
+void Synchronizer::deleteEntity(const QByteArray &sinkId, qint64 revision, const QByteArray &bufferType, std::function<void(const QByteArray &)> callback)
 {
     // These changes are coming from the source
     const auto replayToSource = false;
@@ -647,96 +641,36 @@ void GenericResource::deleteEntity(const QByteArray &sinkId, qint64 revision, co
     callback(BufferUtils::extractBuffer(fbb));
 }
 
-void GenericResource::recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Sink::Storage::Transaction &transaction)
+void Synchronizer::scanForRemovals(const QByteArray &bufferType, const std::function<void(const std::function<void(const QByteArray &key)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists)
 {
-    Index("rid.mapping." + bufferType, transaction).add(remoteId, localId);
-    ;
-    Index("localid.mapping." + bufferType, transaction).add(localId, remoteId);
-}
-
-void GenericResource::removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Sink::Storage::Transaction &transaction)
-{
-    Index("rid.mapping." + bufferType, transaction).remove(remoteId, localId);
-    Index("localid.mapping." + bufferType, transaction).remove(localId, remoteId);
-}
-
-void GenericResource::updateRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId, Sink::Storage::Transaction &transaction)
-{
-    const auto oldRemoteId = Index("localid.mapping." + bufferType, transaction).lookup(localId);
-    removeRemoteId(bufferType, localId, oldRemoteId, transaction);
-    recordRemoteId(bufferType, localId, remoteId, transaction);
-}
-
-QByteArray GenericResource::resolveRemoteId(const QByteArray &bufferType, const QByteArray &remoteId, Sink::Storage::Transaction &transaction)
-{
-    // Lookup local id for remote id, or insert a new pair otherwise
-    Index index("rid.mapping." + bufferType, transaction);
-    QByteArray sinkId = index.lookup(remoteId);
-    if (sinkId.isEmpty()) {
-        sinkId = QUuid::createUuid().toString().toUtf8();
-        index.add(remoteId, sinkId);
-        Index("localid.mapping." + bufferType, transaction).add(sinkId, remoteId);
-    }
-    return sinkId;
-}
-
-QByteArray GenericResource::resolveLocalId(const QByteArray &bufferType, const QByteArray &localId, Sink::Storage::Transaction &transaction)
-{
-    QByteArray remoteId = Index("localid.mapping." + bufferType, transaction).lookup(localId);
-    if (remoteId.isEmpty()) {
-        Warning() << "Couldn't find the remote id for " << localId;
-        return QByteArray();
-    }
-    return remoteId;
-}
-
-void GenericResource::scanForRemovals(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QByteArray &bufferType,
-    const std::function<void(const std::function<void(const QByteArray &key)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists)
-{
-    entryGenerator([this, &transaction, bufferType, &synchronizationTransaction, &exists](const QByteArray &key) {
+    entryGenerator([this, bufferType, &exists](const QByteArray &key) {
         auto sinkId = Sink::Storage::uidFromKey(key);
         Trace() << "Checking for removal " << key;
-        const auto remoteId = resolveLocalId(bufferType, sinkId, synchronizationTransaction);
+        const auto remoteId = syncStore().resolveLocalId(bufferType, sinkId);
         // If we have no remoteId, the entity hasn't been replayed to the source yet
         if (!remoteId.isEmpty()) {
             if (!exists(remoteId)) {
                 Trace() << "Found a removed entity: " << sinkId;
-                deleteEntity(sinkId, Sink::Storage::maxRevision(transaction), bufferType,
-                    [this](const QByteArray &buffer) { enqueueCommand(mSynchronizerQueue, Sink::Commands::DeleteEntityCommand, buffer); });
+                deleteEntity(sinkId, Sink::Storage::maxRevision(mTransaction), bufferType,
+                    [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::DeleteEntityCommand, buffer); });
             }
         }
     });
 }
 
-QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> GenericResource::getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory)
+void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
-    QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
-    db.findLatest(uid,
-        [&current, &adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
-            Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
-            if (!buffer.isValid()) {
-                Warning() << "Read invalid buffer from disk";
-            } else {
-                current = adaptorFactory.createAdaptor(buffer.entity());
-            }
-            return false;
-        },
-        [](const Sink::Storage::Error &error) { Warning() << "Failed to read current value from storage: " << error.message; });
-    return current;
-}
-
-void GenericResource::createOrModify(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction,
-    DomainTypeAdaptorFactoryInterface &adaptorFactory, const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
-{
-    auto mainDatabase = Storage::mainDatabase(transaction, bufferType);
-    const auto sinkId = resolveRemoteId(bufferType, remoteId, synchronizationTransaction);
+    Trace() << "Create or modify" << bufferType << remoteId;
+    auto mainDatabase = Storage::mainDatabase(mTransaction, bufferType);
+    const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
     const auto found = mainDatabase.contains(sinkId);
+    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(mResourceType, bufferType);
     if (!found) {
         Trace() << "Found a new entity: " << remoteId;
         createEntity(
-            sinkId, bufferType, entity, adaptorFactory, [this](const QByteArray &buffer) { enqueueCommand(mSynchronizerQueue, Sink::Commands::CreateEntityCommand, buffer); });
+            sinkId, bufferType, entity, *adaptorFactory, [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::CreateEntityCommand, buffer); });
     } else { // modification
-        if (auto current = getLatest(mainDatabase, sinkId, adaptorFactory)) {
+        if (auto current = store().getLatest(mainDatabase, sinkId, *adaptorFactory)) {
             bool changed = false;
             for (const auto &property : entity.changedProperties()) {
                 if (entity.getProperty(property) != current->getProperty(property)) {
@@ -746,13 +680,125 @@ void GenericResource::createOrModify(Sink::Storage::Transaction &transaction, Si
             }
             if (changed) {
                 Trace() << "Found a modified entity: " << remoteId;
-                modifyEntity(sinkId, Sink::Storage::maxRevision(transaction), bufferType, entity, adaptorFactory,
-                    [this](const QByteArray &buffer) { enqueueCommand(mSynchronizerQueue, Sink::Commands::ModifyEntityCommand, buffer); });
+                modifyEntity(sinkId, Sink::Storage::maxRevision(mTransaction), bufferType, entity, *adaptorFactory,
+                    [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::ModifyEntityCommand, buffer); });
             }
         } else {
             Warning() << "Failed to get current entity";
         }
     }
+}
+
+KAsync::Job<void> Synchronizer::synchronize()
+{
+    mTransaction = mStorage.createTransaction(Sink::Storage::ReadOnly);
+    mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::ReadWrite);
+    return synchronizeWithSource().then<void>([this]() {
+        mTransaction.abort();
+        mSyncTransaction.commit();
+        mSyncStore.clear();
+        mEntityStore.clear();
+    });
+}
+
+
+
+SourceWriteBack::SourceWriteBack(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier)
+    : ChangeReplay(resourceInstanceIdentifier),
+    mSyncStorage(Sink::storageLocation(), resourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadWrite),
+    mResourceType(resourceType),
+    mResourceInstanceIdentifier(resourceInstanceIdentifier)
+{
+
+}
+
+EntityStore &SourceWriteBack::store()
+{
+    if (!mEntityStore) {
+        mEntityStore = QSharedPointer<EntityStore>::create(mResourceType, mResourceInstanceIdentifier, mTransaction);
+    }
+    return *mEntityStore;
+}
+
+SyncStore &SourceWriteBack::syncStore()
+{
+    if (!mSyncStore) {
+        mSyncStore = QSharedPointer<SyncStore>::create(mSyncTransaction);
+    }
+    return *mSyncStore;
+}
+
+KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
+{
+    mTransaction = mStorage.createTransaction(Sink::Storage::ReadOnly);
+    mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::ReadWrite);
+
+    Sink::EntityBuffer buffer(value);
+    const Sink::Entity &entity = buffer.entity();
+    const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
+    Q_ASSERT(metadataBuffer);
+    if (!metadataBuffer->replayToSource()) {
+        Trace() << "Change is coming from the source";
+        return KAsync::null<void>();
+    }
+    const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
+    const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
+    const auto uid = Sink::Storage::uidFromKey(key);
+    QByteArray oldRemoteId;
+
+    if (operation != Sink::Operation_Creation) {
+        oldRemoteId = syncStore().resolveLocalId(type, uid);
+    }
+    Trace() << "Replaying " << key << type;
+
+    KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
+    if (type == ENTITY_TYPE_FOLDER) {
+        auto folder = store().read<ApplicationDomain::Folder>(uid);
+        // const Sink::ApplicationDomain::Folder folder(mResourceInstanceIdentifier, uid, revision, mAdaptorFactories.value(type)->createAdaptor(entity));
+        job = replay(folder, operation, oldRemoteId);
+    } else if (type == ENTITY_TYPE_MAIL) {
+        auto mail = store().read<ApplicationDomain::Mail>(uid);
+        // const Sink::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, uid, revision, mAdaptorFactories.value(type)->createAdaptor(entity));
+        job = replay(mail, operation, oldRemoteId);
+    }
+
+    return job.then<void, QByteArray>([this, operation, type, uid](const QByteArray &remoteId) {
+        Trace() << "Replayed change with remote id: " << remoteId;
+        if (operation == Sink::Operation_Creation) {
+            if (remoteId.isEmpty()) {
+                Warning() << "Returned an empty remoteId from the creation";
+            } else {
+                syncStore().recordRemoteId(type, uid, remoteId);
+            }
+        } else if (operation == Sink::Operation_Modification) {
+            if (remoteId.isEmpty()) {
+                Warning() << "Returned an empty remoteId from the creation";
+            } else {
+               syncStore().updateRemoteId(type, uid, remoteId);
+            }
+        } else if (operation == Sink::Operation_Removal) {
+            syncStore().removeRemoteId(type, uid, remoteId);
+        } else {
+            Warning() << "Unkown operation" << operation;
+        }
+
+        mTransaction.abort();
+        mSyncTransaction.commit();
+        mSyncStore.clear();
+        mEntityStore.clear();
+    }, [](int errorCode, const QString &errorMessage) {
+        Warning() << "Failed to replay change: " << errorMessage;
+    });
+}
+
+KAsync::Job<QByteArray> SourceWriteBack::replay(const ApplicationDomain::Mail &, Sink::Operation, const QByteArray &)
+{
+    return KAsync::null<QByteArray>();
+}
+
+KAsync::Job<QByteArray> SourceWriteBack::replay(const ApplicationDomain::Folder &, Sink::Operation, const QByteArray &)
+{
+    return KAsync::null<QByteArray>();
 }
 
 

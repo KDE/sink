@@ -34,6 +34,7 @@
 #include "entitybuffer.h"
 #include "log.h"
 #include "domain/applicationdomaintype.h"
+#include "adaptorfactoryregistry.h"
 #include "definitions.h"
 #include "bufferutils.h"
 
@@ -52,11 +53,11 @@ public:
     Storage storage;
     Storage::Transaction transaction;
     QHash<QString, QVector<Preprocessor *>> processors;
-    QHash<QString, DomainTypeAdaptorFactoryInterface::Ptr> adaptorFactory;
     bool revisionChanged;
     void storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid);
     QTime transactionTime;
     int transactionItemCount;
+    QByteArray resourceType;
 };
 
 void Pipeline::Private::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid)
@@ -84,9 +85,9 @@ void Pipeline::setPreprocessors(const QString &entityType, const QVector<Preproc
     d->processors[entityType] = processors;
 }
 
-void Pipeline::setAdaptorFactory(const QString &entityType, DomainTypeAdaptorFactoryInterface::Ptr factory)
+void Pipeline::setResourceType(const QByteArray &resourceType)
 {
-    d->adaptorFactory.insert(entityType, factory);
+    d->resourceType = resourceType;
 }
 
 void Pipeline::startTransaction()
@@ -102,7 +103,9 @@ void Pipeline::startTransaction()
     Trace() << "Starting transaction.";
     d->transactionTime.start();
     d->transactionItemCount = 0;
-    d->transaction = std::move(storage().createTransaction(Storage::ReadWrite));
+    d->transaction = std::move(storage().createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
+        Warning() << error.message;
+    }));
 }
 
 void Pipeline::commit()
@@ -189,7 +192,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     auto metadataBuffer = metadataBuilder.Finish();
     FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
-    auto adaptorFactory = d->adaptorFactory.value(bufferType);
+    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceType, bufferType);
     if (!adaptorFactory) {
         Warning() << "no adaptor factory for type " << bufferType;
         return KAsync::error<qint64>(0);
@@ -244,7 +247,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     }
 
     // TODO use only readPropertyMapper and writePropertyMapper
-    auto adaptorFactory = d->adaptorFactory.value(bufferType);
+    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceType, bufferType);
     if (!adaptorFactory) {
         Warning() << "no adaptor factory for type " << bufferType;
         return KAsync::error<qint64>(0);
@@ -373,7 +376,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), 0, 0, 0, 0);
 
-    auto adaptorFactory = d->adaptorFactory.value(bufferType);
+    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceType, bufferType);
     if (!adaptorFactory) {
         Warning() << "no adaptor factory for type " << bufferType;
         return KAsync::error<qint64>(0);

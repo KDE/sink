@@ -9,6 +9,7 @@
 #include "resourceconfig.h"
 #include "log.h"
 #include "modelresult.h"
+#include "test.h"
 
 /**
  * Test of the query system using the dummy resource.
@@ -21,6 +22,7 @@ class QueryTest : public QObject
 private slots:
     void initTestCase()
     {
+        Sink::Test::initTest();
         Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
         auto factory = Sink::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);

@@ -19,6 +19,7 @@
 #include "log.h"
 #include "domainadaptor.h"
 #include "definitions.h"
+#include "adaptorfactoryregistry.h"
 
 static void removeFromDisk(const QString &name)
 {
@@ -185,6 +186,7 @@ private slots:
     void initTestCase()
     {
         Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
+        Sink::AdaptorFactoryRegistry::instance().registerFactory<Sink::ApplicationDomain::Event, TestEventAdaptorFactory>("test");
     }
 
     void init()
@@ -198,9 +200,7 @@ private slots:
         auto command = createEntityCommand(createEvent(entityFbb));
 
         Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
-
-        auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
-        pipeline.setAdaptorFactory("event", adaptorFactory);
+        pipeline.setResourceType("test");
 
         pipeline.startTransaction();
         pipeline.newEntity(command.constData(), command.size());
@@ -216,9 +216,9 @@ private slots:
         auto command = createEntityCommand(createEvent(entityFbb, "summary", "description"));
 
         Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
+        pipeline.setResourceType("test");
 
         auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
-        pipeline.setAdaptorFactory("event", adaptorFactory);
 
         // Create the initial revision
         pipeline.startTransaction();
@@ -265,9 +265,9 @@ private slots:
         auto command = createEntityCommand(createEvent(entityFbb));
 
         Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
+        pipeline.setResourceType("test");
 
         auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
-        pipeline.setAdaptorFactory("event", adaptorFactory);
 
         // Create the initial revision
         pipeline.startTransaction();
@@ -309,7 +309,7 @@ private slots:
         flatbuffers::FlatBufferBuilder entityFbb;
         auto command = createEntityCommand(createEvent(entityFbb));
         Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
-        pipeline.setAdaptorFactory("event", QSharedPointer<TestEventAdaptorFactory>::create());
+        pipeline.setResourceType("test");
 
         // Create the initial revision
         pipeline.startTransaction();
@@ -346,9 +346,9 @@ private slots:
         TestProcessor testProcessor;
 
         Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
+        pipeline.setResourceType("test");
         pipeline.setPreprocessors("event", QVector<Sink::Preprocessor *>() << &testProcessor);
         pipeline.startTransaction();
-        pipeline.setAdaptorFactory("event", QSharedPointer<TestEventAdaptorFactory>::create());
 
         // Actual test
         {

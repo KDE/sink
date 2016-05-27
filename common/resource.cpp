@@ -26,6 +26,7 @@
 #include <QPointer>
 
 #include "facadefactory.h"
+#include "adaptorfactoryregistry.h"
 
 namespace Sink {
 
@@ -110,6 +111,7 @@ ResourceFactory *ResourceFactory::load(const QString &resourceName)
                         if (factory) {
                             Private::s_loadedFactories.insert(resourceName, factory);
                             factory->registerFacades(FacadeFactory::instance());
+                            factory->registerAdaptorFactories(AdaptorFactoryRegistry::instance());
                             // TODO: if we need more data on it const QJsonObject json = loader.metaData()[QStringLiteral("MetaData")].toObject();
                             return factory;
                         } else {

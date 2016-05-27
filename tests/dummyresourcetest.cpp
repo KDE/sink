@@ -11,6 +11,7 @@
 #include "modelresult.h"
 #include "pipeline.h"
 #include "log.h"
+#include "test.h"
 
 using namespace Sink;
 
@@ -28,6 +29,7 @@ class DummyResourceTest : public QObject
 private slots:
     void initTestCase()
     {
+        Sink::Test::initTest();
         Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
         auto factory = Sink::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
