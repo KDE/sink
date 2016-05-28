@@ -68,6 +68,10 @@ set(command_SRCS
     query.cpp
     changereplay.cpp
     adaptorfactoryregistry.cpp
+    synchronizer.cpp
+    entitystore.cpp
+    remoteidmap.cpp
+    sourcewriteback.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

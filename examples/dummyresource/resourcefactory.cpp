@@ -36,6 +36,8 @@
 #include "facadefactory.h"
 #include "indexupdater.h"
 #include "adaptorfactoryregistry.h"
+#include "synchronizer.h"
+#include "remoteidmap.h"
 #include <QDate>
 #include <QUuid>
 
