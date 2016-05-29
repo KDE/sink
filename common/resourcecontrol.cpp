@@ -49,6 +49,7 @@ KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
                 resourceAccess->open();
                 resourceAccess->sendCommand(Sink::Commands::ShutdownCommand)
                     .then<void>([&future, resourceAccess, time]() {
+                        resourceAccess->close();
                         Trace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
                         future.setFinished();
                     })
