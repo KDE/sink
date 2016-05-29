@@ -587,6 +587,7 @@ QString Maildir::getKeyFromFile(const QString& file)
 QString Maildir::getDirectoryFromFile( const QString& file )
 {
     auto parts = file.split('/');
+    Q_ASSERT(parts.size() >= 2);
     parts.removeLast(); //File
     parts.removeLast(); //cur/new/tmp
     return parts.join('/') + "/";

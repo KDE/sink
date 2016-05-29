@@ -46,21 +46,15 @@ class MaildirResource : public Sink::GenericResource
 {
 public:
     MaildirResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
-    KAsync::Job<void> synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore) Q_DECL_OVERRIDE;
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
     static void removeFromDisk(const QByteArray &instanceIdentifier);
 private:
-    KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Mail &, Sink::Operation, const QByteArray &oldRemoteId) Q_DECL_OVERRIDE;
-    KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Folder &, Sink::Operation, const QByteArray &oldRemoteId) Q_DECL_OVERRIDE;
+    // KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Mail &, Sink::Operation, const QByteArray &oldRemoteId) Q_DECL_OVERRIDE;
+    // KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Folder &, Sink::Operation, const QByteArray &oldRemoteId) Q_DECL_OVERRIDE;
 
-    void synchronizeFolders(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction);
-    void synchronizeMails(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &folder);
-    QByteArray createFolder(const QString &folderPath, const QByteArray &icon, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction);
     QStringList listAvailableFolders();
     QString mMaildirPath;
     QString mDraftsFolder;
-    QSharedPointer<MaildirMailAdaptorFactory> mMailAdaptorFactory;
-    QSharedPointer<MaildirFolderAdaptorFactory> mFolderAdaptorFactory;
 };
 
 class MaildirResourceFactory : public Sink::ResourceFactory
@@ -74,6 +68,6 @@ public:
 
     Sink::Resource *createResource(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
     void registerFacades(Sink::FacadeFactory &factory) Q_DECL_OVERRIDE;
-    void registerDomainTypeAdaptors(Sink::AdaptorFactory &factory) Q_DECL_OVERRIDE;
+    void registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry) Q_DECL_OVERRIDE;
 };
 

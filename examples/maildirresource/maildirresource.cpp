@@ -36,6 +36,9 @@
 #include "indexupdater.h"
 #include "libmaildir/maildir.h"
 #include "inspection.h"
+#include "synchronizer.h"
+#include "sourcewriteback.h"
+#include "adaptorfactoryregistry.h"
 #include <QDate>
 #include <QUuid>
 #include <QDir>
@@ -82,13 +85,13 @@ public:
         db.findLatest(folderIdentifier, [&](const QByteArray &, const QByteArray &value) {
             Sink::EntityBuffer buffer(value);
             const Sink::Entity &entity = buffer.entity();
-            const auto adaptor = mFolderAdaptorFactory->createAdaptor(entity);
+            const auto adaptor = Sink::AdaptorFactoryRegistry::instance().getFactory<Sink::ApplicationDomain::Folder>(PLUGIN_NAME)->createAdaptor(entity);
             auto parentFolder = adaptor->getProperty("parent").toString();
             if (mMaildirPath.endsWith(adaptor->getProperty("name").toString())) {
                 folderPath = mMaildirPath;
             } else {
                 auto folderName = adaptor->getProperty("name").toString();
-                //TODO handle non toplevel folders
+                //FIXME handle non toplevel folders
                 folderPath = mMaildirPath + "/" + folderName;
             }
         });
@@ -140,19 +143,42 @@ public:
     {
         //TODO deal with moves
         const auto mimeMessage = newEntity.getProperty("mimeMessage");
-        if (mimeMessage.isValid()) {
+        if (mimeMessage.isValid() && mimeMessage.toString() != oldEntity.getProperty("mimeMessage").toString()) {
+            //Remove the olde mime message if there is a new one
+            const auto filePath = getFilePathFromMimeMessagePath(oldEntity.getProperty("mimeMessage").toString());
+            QFile::remove(filePath);
+
             newEntity.setProperty("mimeMessage", moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray(), transaction));
+            Trace() << "Modified message: " << filePath << oldEntity.getProperty("mimeMessage").toString();
         }
+
+        auto mimeMessagePath = newEntity.getProperty("mimeMessage").toString();
+        const auto maildirPath = getPath(newEntity.getProperty("folder").toByteArray(), transaction);
+        KPIM::Maildir maildir(maildirPath, false);
+        QString identifier = KPIM::Maildir::getKeyFromFile(mimeMessagePath);
+
+        //get flags from
+        KPIM::Maildir::Flags flags;
+        if (!newEntity.getProperty("unread").toBool()) {
+            flags |= KPIM::Maildir::Seen;
+        }
+        if (newEntity.getProperty("important").toBool()) {
+            flags |= KPIM::Maildir::Flagged;
+        }
+
+        const auto newRemoteId = maildir.changeEntryFlags(identifier, flags);
+
         updatedIndexedProperties(newEntity);
     }
 
     void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
+        const auto filePath = getFilePathFromMimeMessagePath(oldEntity.getProperty("mimeMessage").toString());
+        QFile::remove(filePath);
     }
     QByteArray mDraftsFolder;
     QByteArray mResourceInstanceIdentifier;
     QString mMaildirPath;
-    QSharedPointer<MaildirFolderAdaptorFactory> mFolderAdaptorFactory;
 };
 
 class FolderPreprocessor : public Sink::Preprocessor
@@ -179,10 +205,238 @@ public:
     QString mMaildirPath;
 };
 
+
+class MaildirSynchronizer : public Sink::Synchronizer {
+public:
+    MaildirSynchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier)
+        : Sink::Synchronizer(resourceType, resourceInstanceIdentifier)
+    {
+
+    }
+
+    static QStringList listRecursive( const QString &root, const KPIM::Maildir &dir )
+    {
+        QStringList list;
+        foreach (const QString &sub, dir.subFolderList()) {
+            const KPIM::Maildir md = dir.subFolder(sub);
+            if (!md.isValid()) {
+                continue;
+            }
+            QString path = root + "/" + sub;
+            list << path;
+            list += listRecursive(path, md );
+        }
+        return list;
+    }
+
+    QByteArray createFolder(const QString &folderPath, const QByteArray &icon)
+    {
+        auto remoteId = folderPath.toUtf8();
+        auto bufferType = ENTITY_TYPE_FOLDER;
+        KPIM::Maildir md(folderPath, folderPath == mMaildirPath);
+        Sink::ApplicationDomain::Folder folder;
+        folder.setProperty("name", md.name());
+        folder.setProperty("icon", icon);
+
+        if (!md.isRoot()) {
+            folder.setProperty("parent", syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path().toUtf8()));
+        }
+        createOrModify(bufferType, remoteId, folder);
+        return remoteId;
+    }
+
+    QStringList listAvailableFolders()
+    {
+        KPIM::Maildir dir(mMaildirPath, true);
+        if (!dir.isValid()) {
+            return QStringList();
+        }
+        QStringList folderList;
+        folderList << mMaildirPath;
+        folderList += listRecursive(mMaildirPath, dir);
+        return folderList;
+    }
+
+    void synchronizeFolders()
+    {
+        const QByteArray bufferType = ENTITY_TYPE_FOLDER;
+        QStringList folderList = listAvailableFolders();
+        Trace() << "Found folders " << folderList;
+
+        scanForRemovals(bufferType,
+            [this, &bufferType](const std::function<void(const QByteArray &)> &callback) {
+                //TODO Instead of iterating over all entries in the database, which can also pick up the same item multiple times,
+                //we should rather iterate over an index that contains every uid exactly once. The remoteId index would be such an index,
+                //but we currently fail to iterate over all entries in an index it seems.
+                // auto remoteIds = synchronizationTransaction.openDatabase("rid.mapping." + bufferType, std::function<void(const Sink::Storage::Error &)>(), true);
+                auto mainDatabase = Sink::Storage::mainDatabase(transaction(), bufferType);
+                mainDatabase.scan("", [&](const QByteArray &key, const QByteArray &) {
+                    callback(key);
+                    return true;
+                });
+            },
+            [&folderList](const QByteArray &remoteId) -> bool {
+                return folderList.contains(remoteId);
+            }
+        );
+
+        for (const auto folderPath : folderList) {
+            createFolder(folderPath, "folder");
+        }
+    }
+
+    void synchronizeMails(const QString &path)
+    {
+        Trace() << "Synchronizing mails" << path;
+        auto time = QSharedPointer<QTime>::create();
+        time->start();
+        const QByteArray bufferType = ENTITY_TYPE_MAIL;
+
+        KPIM::Maildir maildir(path, true);
+        if (!maildir.isValid()) {
+            Warning() << "Failed to sync folder " << maildir.lastError();
+            return;
+        }
+
+        Trace() << "Importing new mail.";
+        maildir.importNewMails();
+
+        auto listingPath = maildir.pathToCurrent();
+        auto entryIterator = QSharedPointer<QDirIterator>::create(listingPath, QDir::Files);
+        Trace() << "Looking into " << listingPath;
+
+        const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, path.toUtf8());
+
+        auto property = "folder";
+        scanForRemovals(bufferType,
+            [&](const std::function<void(const QByteArray &)> &callback) {
+                Index index(bufferType + ".index." + property, transaction());
+                index.lookup(folderLocalId, [&](const QByteArray &sinkId) {
+                    callback(sinkId);
+                },
+                [&](const Index::Error &error) {
+                    Warning() << "Error in index: " <<  error.message << property;
+                });
+            },
+            [](const QByteArray &remoteId) -> bool {
+                return QFile(remoteId).exists();
+            }
+        );
+
+        int count = 0;
+        while (entryIterator->hasNext()) {
+            count++;
+            const QString filePath = QDir::fromNativeSeparators(entryIterator->next());
+            const QString fileName = entryIterator->fileName();
+            const auto remoteId = filePath.toUtf8();
+
+            const auto flags = maildir.readEntryFlags(fileName);
+            const auto maildirKey = maildir.getKeyFromFile(fileName);
+
+            Trace() << "Found a mail " << filePath << " : " << fileName;
+
+            Sink::ApplicationDomain::Mail mail;
+            mail.setProperty("folder", folderLocalId);
+            //We only store the directory path + key, so we facade can add the changing bits (flags)
+            mail.setProperty("mimeMessage", KPIM::Maildir::getDirectoryFromFile(filePath) + maildirKey);
+            mail.setProperty("unread", !flags.testFlag(KPIM::Maildir::Seen));
+            mail.setProperty("important", flags.testFlag(KPIM::Maildir::Flagged));
+
+            createOrModify(bufferType, remoteId, mail);
+        }
+        commitSync();
+        const auto elapsed = time->elapsed();
+        Log() << "Synchronized " << count << " mails in " << listingPath << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
+    }
+
+    KAsync::Job<void> synchronizeWithSource()
+    {
+        Log() << " Synchronizing";
+        return KAsync::start<void>([this]() {
+            {
+                synchronizeFolders();
+                //The next sync needs the folders available
+                commit();
+                commitSync();
+            }
+            for (const auto &folder : listAvailableFolders()) {
+                synchronizeMails(folder);
+                //Don't let the transaction grow too much
+                commit();
+                commitSync();
+            }
+            Log() << "Done Synchronizing";
+        });
+    }
+
+public:
+    QString mMaildirPath;
+};
+
+class MaildirWriteback : public Sink::SourceWriteBack
+{
+public:
+    MaildirWriteback(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : Sink::SourceWriteBack(resourceType, resourceInstanceIdentifier)
+    {
+
+    }
+
+    KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId)
+    {
+        if (operation == Sink::Operation_Creation) {
+            const auto remoteId = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
+            Trace() << "Mail created: " << remoteId;
+            return KAsync::start<QByteArray>([=]() -> QByteArray {
+                return remoteId.toUtf8();
+            });
+        } else if (operation == Sink::Operation_Removal) {
+            Trace() << "Removing a mail: " << oldRemoteId;
+            // QFile::remove(oldRemoteId);
+            return KAsync::null<QByteArray>();
+        } else if (operation == Sink::Operation_Modification) {
+            Trace() << "Modifying a mail: " << oldRemoteId;
+            const auto remoteId = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
+            return KAsync::start<QByteArray>([=]() -> QByteArray {
+                return remoteId.toUtf8();
+            });
+        }
+        return KAsync::null<QByteArray>();
+    }
+
+    KAsync::Job<QByteArray> replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId)
+    {
+        if (operation == Sink::Operation_Creation) {
+            auto folderName = folder.getName();
+            //FIXME handle non toplevel folders
+            auto path = mMaildirPath + "/" + folderName;
+            Trace() << "Creating a new folder: " << path;
+            KPIM::Maildir maildir(path, false);
+            maildir.create();
+            return KAsync::start<QByteArray>([=]() -> QByteArray {
+                return path.toUtf8();
+            });
+        } else if (operation == Sink::Operation_Removal) {
+            const auto path = oldRemoteId;
+            Trace() << "Removing a folder: " << path;
+            KPIM::Maildir maildir(path, false);
+            maildir.remove();
+            return KAsync::null<QByteArray>();
+        } else if (operation == Sink::Operation_Modification) {
+            Warning() << "Folder modifications are not implemented";
+            return KAsync::start<QByteArray>([=]() -> QByteArray {
+                return oldRemoteId;
+            });
+        }
+        return KAsync::null<QByteArray>();
+    }
+
+public:
+    QString mMaildirPath;
+};
+
+
 MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
-    : Sink::GenericResource(instanceIdentifier, pipeline),
-    mMailAdaptorFactory(QSharedPointer<MaildirMailAdaptorFactory>::create()),
-    mFolderAdaptorFactory(QSharedPointer<MaildirFolderAdaptorFactory>::create())
+    : Sink::GenericResource(PLUGIN_NAME, instanceIdentifier, pipeline)
 {
     auto config = ResourceConfig::getConfiguration(instanceIdentifier);
     mMaildirPath = QDir::cleanPath(QDir::fromNativeSeparators(config.value("path").toString()));
@@ -191,270 +445,31 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
         mMaildirPath.chop(1);
     }
 
+    auto synchronizer = QSharedPointer<MaildirSynchronizer>::create(PLUGIN_NAME, instanceIdentifier);
+    synchronizer->mMaildirPath = mMaildirPath;
+    setupSynchronizer(synchronizer);
+    auto changereplay = QSharedPointer<MaildirWriteback>::create(PLUGIN_NAME, instanceIdentifier);
+    changereplay->mMaildirPath = mMaildirPath;
+    setupChangereplay(changereplay);
+
     auto folderUpdater = new FolderUpdater(QByteArray());
-    addType(ENTITY_TYPE_MAIL, mMailAdaptorFactory,
-            QVector<Sink::Preprocessor*>() << folderUpdater << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << folderUpdater << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     auto folderPreprocessor = new FolderPreprocessor;
-    addType(ENTITY_TYPE_FOLDER, mFolderAdaptorFactory,
-            QVector<Sink::Preprocessor*>() << folderPreprocessor << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
+    setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << folderPreprocessor << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 
     KPIM::Maildir dir(mMaildirPath, true);
     mDraftsFolder = dir.addSubFolder("drafts");
     Trace() << "Started maildir resource for maildir: " << mMaildirPath;
-    auto mainStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier, Sink::Storage::ReadOnly);
-    auto syncStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadWrite);
-    auto transaction = mainStore->createTransaction(Sink::Storage::ReadOnly);
-    auto synchronizationTransaction = syncStore->createTransaction(Sink::Storage::ReadWrite);
 
-    auto remoteId = createFolder(mDraftsFolder, "folder", transaction, synchronizationTransaction);
-    auto draftsFolderLocalId = resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId, synchronizationTransaction);
-    synchronizationTransaction.commit();
+    auto remoteId = synchronizer->createFolder(mDraftsFolder, "folder");
+    auto draftsFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
+    synchronizer->commit();
+    synchronizer->commitSync();
 
     folderUpdater->mDraftsFolder = draftsFolderLocalId;
     folderUpdater->mResourceInstanceIdentifier = mResourceInstanceIdentifier;
-    folderUpdater->mFolderAdaptorFactory = mFolderAdaptorFactory;
     folderUpdater->mMaildirPath = mMaildirPath;
     folderPreprocessor->mMaildirPath = mMaildirPath;
-}
-
-static QStringList listRecursive( const QString &root, const KPIM::Maildir &dir )
-{
-    QStringList list;
-    foreach (const QString &sub, dir.subFolderList()) {
-        const KPIM::Maildir md = dir.subFolder(sub);
-        if (!md.isValid()) {
-            continue;
-        }
-        QString path = root + "/" + sub;
-        list << path;
-        list += listRecursive(path, md );
-    }
-    return list;
-}
-
-QByteArray MaildirResource::createFolder(const QString &folderPath, const QByteArray &icon, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction)
-{
-    auto remoteId = folderPath.toUtf8();
-    auto bufferType = ENTITY_TYPE_FOLDER;
-    KPIM::Maildir md(folderPath, folderPath == mMaildirPath);
-    Sink::ApplicationDomain::Folder folder;
-    folder.setProperty("name", md.name());
-    folder.setProperty("icon", icon);
-
-    if (!md.isRoot()) {
-        folder.setProperty("parent", resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path().toUtf8(), synchronizationTransaction));
-    }
-    createOrModify(transaction, synchronizationTransaction, *mFolderAdaptorFactory, bufferType, remoteId, folder);
-    return remoteId;
-}
-
-QStringList MaildirResource::listAvailableFolders()
-{
-    KPIM::Maildir dir(mMaildirPath, true);
-    if (!dir.isValid()) {
-        return QStringList();
-    }
-    QStringList folderList;
-    folderList << mMaildirPath;
-    folderList += listRecursive(mMaildirPath, dir);
-    return folderList;
-}
-
-void MaildirResource::synchronizeFolders(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction)
-{
-    const QByteArray bufferType = ENTITY_TYPE_FOLDER;
-    QStringList folderList = listAvailableFolders();
-    Trace() << "Found folders " << folderList;
-
-    scanForRemovals(transaction, synchronizationTransaction, bufferType,
-        [&bufferType, &transaction](const std::function<void(const QByteArray &)> &callback) {
-            //TODO Instead of iterating over all entries in the database, which can also pick up the same item multiple times,
-            //we should rather iterate over an index that contains every uid exactly once. The remoteId index would be such an index,
-            //but we currently fail to iterate over all entries in an index it seems.
-            // auto remoteIds = synchronizationTransaction.openDatabase("rid.mapping." + bufferType, std::function<void(const Sink::Storage::Error &)>(), true);
-            auto mainDatabase = Sink::Storage::mainDatabase(transaction, bufferType);
-            mainDatabase.scan("", [&](const QByteArray &key, const QByteArray &) {
-                callback(key);
-                return true;
-            });
-        },
-        [&folderList](const QByteArray &remoteId) -> bool {
-            return folderList.contains(remoteId);
-        }
-    );
-
-    for (const auto folderPath : folderList) {
-        createFolder(folderPath, "folder", transaction, synchronizationTransaction);
-    }
-}
-
-void MaildirResource::synchronizeMails(Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, const QString &path)
-{
-    Trace() << "Synchronizing mails" << path;
-    auto time = QSharedPointer<QTime>::create();
-    time->start();
-    const QByteArray bufferType = ENTITY_TYPE_MAIL;
-
-    KPIM::Maildir maildir(path, true);
-    if (!maildir.isValid()) {
-        Warning() << "Failed to sync folder " << maildir.lastError();
-        return;
-    }
-
-    Trace() << "Importing new mail.";
-    maildir.importNewMails();
-
-    auto listingPath = maildir.pathToCurrent();
-    auto entryIterator = QSharedPointer<QDirIterator>::create(listingPath, QDir::Files);
-    Trace() << "Looking into " << listingPath;
-
-    const auto folderLocalId = resolveRemoteId(ENTITY_TYPE_FOLDER, path.toUtf8(), synchronizationTransaction);
-
-    auto property = "folder";
-    scanForRemovals(transaction, synchronizationTransaction, bufferType,
-        [&](const std::function<void(const QByteArray &)> &callback) {
-            Index index(bufferType + ".index." + property, transaction);
-            index.lookup(folderLocalId, [&](const QByteArray &sinkId) {
-                callback(sinkId);
-            },
-            [&](const Index::Error &error) {
-                Warning() << "Error in index: " <<  error.message << property;
-            });
-        },
-        [](const QByteArray &remoteId) -> bool {
-            return QFile(remoteId).exists();
-        }
-    );
-
-    mSynchronizerQueue.startTransaction();
-    int count = 0;
-    while (entryIterator->hasNext()) {
-        count++;
-        const QString filePath = QDir::fromNativeSeparators(entryIterator->next());
-        const QString fileName = entryIterator->fileName();
-        const auto remoteId = filePath.toUtf8();
-
-        const auto flags = maildir.readEntryFlags(fileName);
-        const auto maildirKey = maildir.getKeyFromFile(fileName);
-
-        Trace() << "Found a mail " << filePath << " : " << fileName;
-
-        Sink::ApplicationDomain::Mail mail;
-        mail.setProperty("folder", folderLocalId);
-        //We only store the directory path + key, so we facade can add the changing bits (flags)
-        mail.setProperty("mimeMessage", KPIM::Maildir::getDirectoryFromFile(filePath) + maildirKey);
-        mail.setProperty("unread", !flags.testFlag(KPIM::Maildir::Seen));
-        mail.setProperty("important", flags.testFlag(KPIM::Maildir::Flagged));
-
-        createOrModify(transaction, synchronizationTransaction, *mMailAdaptorFactory, bufferType, remoteId, mail);
-    }
-    mSynchronizerQueue.commit();
-    const auto elapsed = time->elapsed();
-    Log() << "Synchronized " << count << " mails in " << listingPath << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
-
-}
-
-KAsync::Job<void> MaildirResource::synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore)
-{
-    Log() << " Synchronizing";
-    return KAsync::start<void>([this, &mainStore, &synchronizationStore]() {
-        auto transaction = mainStore.createTransaction(Sink::Storage::ReadOnly);
-        {
-            auto synchronizationTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
-            synchronizeFolders(transaction, synchronizationTransaction);
-            //The next sync needs the folders available
-            synchronizationTransaction.commit();
-        }
-        for (const auto &folder : listAvailableFolders()) {
-            auto synchronizationTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadWrite);
-            synchronizeMails(transaction, synchronizationTransaction, folder);
-            //Don't let the transaction grow too much
-            synchronizationTransaction.commit();
-        }
-        Log() << "Done Synchronizing";
-    });
-}
-
-KAsync::Job<QByteArray> MaildirResource::replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId)
-{
-    if (operation == Sink::Operation_Creation) {
-        const auto remoteId = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
-        Trace() << "Mail created: " << remoteId;
-        return KAsync::start<QByteArray>([=]() -> QByteArray {
-            return remoteId.toUtf8();
-        });
-    } else if (operation == Sink::Operation_Removal) {
-        Trace() << "Removing a mail: " << oldRemoteId;
-        QFile::remove(oldRemoteId);
-        return KAsync::null<QByteArray>();
-    } else if (operation == Sink::Operation_Modification) {
-        Trace() << "Modifying a mail: " << oldRemoteId;
-
-        const auto filePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
-        const auto maildirPath = KPIM::Maildir::getDirectoryFromFile(filePath);
-        KPIM::Maildir maildir(maildirPath, false);
-
-        const auto messagePathParts = filePath.split("/");
-        if (messagePathParts.isEmpty()) {
-            Warning() << "No message path available: " << oldRemoteId;
-            return KAsync::error<QByteArray>(1, "No message path available.");
-        }
-        const auto newIdentifier = messagePathParts.last();
-        QString identifier;
-        if (newIdentifier != KPIM::Maildir::getKeyFromFile(oldRemoteId)) {
-            //Remove the old mime message if it changed
-            Trace() << "Removing old mime message: " << oldRemoteId;
-            QFile(oldRemoteId).remove();
-            identifier = newIdentifier;
-        } else {
-            //The identifier needs to contain the flags for changeEntryFlags to work
-            Q_ASSERT(!oldRemoteId.split('/').isEmpty());
-            identifier = oldRemoteId.split('/').last();
-        }
-
-        //get flags from
-        KPIM::Maildir::Flags flags;
-        if (!mail.getUnread()) {
-            flags |= KPIM::Maildir::Seen;
-        }
-        if (mail.getImportant()) {
-            flags |= KPIM::Maildir::Flagged;
-        }
-
-        const auto newRemoteId = maildir.changeEntryFlags(identifier, flags);
-        Warning() << "New remote id: " << QString(maildirPath + "/cur/" + newRemoteId);
-        return KAsync::start<QByteArray>([=]() -> QByteArray {
-            return QString(maildirPath + "/cur/" + newRemoteId).toUtf8();
-        });
-    }
-    return KAsync::null<QByteArray>();
-}
-
-KAsync::Job<QByteArray> MaildirResource::replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId)
-{
-    if (operation == Sink::Operation_Creation) {
-        auto folderName = folder.getName();
-        //FIXME handle non toplevel folders
-        auto path = mMaildirPath + "/" + folderName;
-        Trace() << "Creating a new folder: " << path;
-        KPIM::Maildir maildir(path, false);
-        maildir.create();
-        return KAsync::start<QByteArray>([=]() -> QByteArray {
-            return path.toUtf8();
-        });
-    } else if (operation == Sink::Operation_Removal) {
-        const auto path = oldRemoteId;
-        Trace() << "Removing a folder: " << path;
-        KPIM::Maildir maildir(path, false);
-        maildir.remove();
-        return KAsync::null<QByteArray>();
-    } else if (operation == Sink::Operation_Modification) {
-        Warning() << "Folder modifications are not implemented";
-        return KAsync::start<QByteArray>([=]() -> QByteArray {
-            return oldRemoteId;
-        });
-    }
-    return KAsync::null<QByteArray>();
 }
 
 void MaildirResource::removeFromDisk(const QByteArray &instanceIdentifier)
@@ -471,14 +486,13 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
     auto mainStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier, Sink::Storage::ReadOnly);
     auto transaction = mainStore->createTransaction(Sink::Storage::ReadOnly);
 
+    auto entityStore = QSharedPointer<EntityStore>::create(mResourceType, mResourceInstanceIdentifier, transaction);
+    auto syncStore = QSharedPointer<RemoteIdMap>::create(synchronizationTransaction);
+
     Trace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
 
     if (domainType == ENTITY_TYPE_MAIL) {
-        auto mainDatabase = Sink::Storage::mainDatabase(transaction, ENTITY_TYPE_MAIL);
-        auto bufferAdaptor = getLatest(mainDatabase, entityId, *mMailAdaptorFactory);
-        Q_ASSERT(bufferAdaptor);
-
-        const Sink::ApplicationDomain::Mail mail(mResourceInstanceIdentifier, entityId, 0, bufferAdaptor);
+        auto mail = entityStore->read<Sink::ApplicationDomain::Mail>(entityId);
         const auto filePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
 
         if (inspectionType == Sink::ResourceControl::Inspection::PropertyInspectionType) {
@@ -510,13 +524,11 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
         }
     }
     if (domainType == ENTITY_TYPE_FOLDER) {
-        const auto remoteId = resolveLocalId(ENTITY_TYPE_FOLDER, entityId, synchronizationTransaction);
-        auto mainDatabase = Sink::Storage::mainDatabase(transaction, ENTITY_TYPE_FOLDER);
-        auto bufferAdaptor = getLatest(mainDatabase, entityId, *mMailAdaptorFactory);
-        Q_ASSERT(bufferAdaptor);
+        const auto remoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, entityId);
+        auto folder = entityStore->read<Sink::ApplicationDomain::Folder>(entityId);
 
-        const Sink::ApplicationDomain::Folder folder(mResourceInstanceIdentifier, entityId, 0, bufferAdaptor);
         if (inspectionType == Sink::ResourceControl::Inspection::CacheIntegrityInspectionType) {
+            Trace() << "Inspecting cache integrity" << remoteId;
             if (!QDir(remoteId).exists()) {
                 return KAsync::error<void>(1, "The directory is not existing: " + remoteId);
             }
@@ -533,20 +545,26 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
             QDir dir(remoteId + "/cur");
             const QFileInfoList list = dir.entryInfoList(QDir::Files);
             if (list.size() != expectedCount) {
+                for (const auto &fileInfo : list) {
+                    Warning() << "Found in cache: " << fileInfo.fileName();
+                }
                 return KAsync::error<void>(1, QString("Wrong number of files; found %1 instead of %2.").arg(list.size()).arg(expectedCount));
             }
             if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
                 if (!remoteId.endsWith(folder.getName().toUtf8())) {
                     return KAsync::error<void>(1, "Wrong folder name: " + remoteId);
                 }
+                //TODO we shouldn't use the remoteId here to figure out the path, it could be gone/changed already
                 if (QDir(remoteId).exists() != expectedValue.toBool()) {
                     return KAsync::error<void>(1, "Wrong folder existence: " + remoteId);
                 }
             }
         }
+
     }
     return KAsync::null<void>();
 }
+
 
 MaildirResourceFactory::MaildirResourceFactory(QObject *parent)
     : Sink::ResourceFactory(parent)
@@ -563,5 +581,11 @@ void MaildirResourceFactory::registerFacades(Sink::FacadeFactory &factory)
 {
     factory.registerFacade<Sink::ApplicationDomain::Mail, MaildirResourceMailFacade>(PLUGIN_NAME);
     factory.registerFacade<Sink::ApplicationDomain::Folder, MaildirResourceFolderFacade>(PLUGIN_NAME);
+}
+
+void MaildirResourceFactory::registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry)
+{
+    registry.registerFactory<Sink::ApplicationDomain::Mail, MaildirMailAdaptorFactory>(PLUGIN_NAME);
+    registry.registerFactory<Sink::ApplicationDomain::Folder, MaildirFolderAdaptorFactory>(PLUGIN_NAME);
 }
 
