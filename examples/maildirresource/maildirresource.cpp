@@ -70,6 +70,41 @@ static QString getFilePathFromMimeMessagePath(const QString &mimeMessagePath)
     return list.first().filePath();
 }
 
+class MailPropertyExtractor : public Sink::Preprocessor
+{
+public:
+    MailPropertyExtractor() {}
+
+    void updatedIndexedProperties(Sink::ApplicationDomain::BufferAdaptor &newEntity)
+    {
+        const auto filePath = getFilePathFromMimeMessagePath(newEntity.getProperty("mimeMessage").toString());
+
+        KMime::Message *msg = new KMime::Message;
+        msg->setHead(KMime::CRLFtoLF(KPIM::Maildir::readEntryHeadersFromFile(filePath)));
+        msg->parse();
+
+        newEntity.setProperty("subject", msg->subject(true)->asUnicodeString());
+        newEntity.setProperty("sender", msg->from(true)->asUnicodeString());
+        newEntity.setProperty("senderName", msg->from(true)->asUnicodeString());
+        newEntity.setProperty("date", msg->date(true)->dateTime());
+    }
+
+    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        updatedIndexedProperties(newEntity);
+    }
+
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
+        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        updatedIndexedProperties(newEntity);
+    }
+
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+    }
+};
+
 class FolderUpdater : public Sink::Preprocessor
 {
 public:
@@ -112,20 +147,6 @@ public:
         return oldPath;
     }
 
-    void updatedIndexedProperties(Sink::ApplicationDomain::BufferAdaptor &newEntity)
-    {
-        const auto filePath = getFilePathFromMimeMessagePath(newEntity.getProperty("mimeMessage").toString());
-
-        KMime::Message *msg = new KMime::Message;
-        msg->setHead(KMime::CRLFtoLF(KPIM::Maildir::readEntryHeadersFromFile(filePath)));
-        msg->parse();
-
-        newEntity.setProperty("subject", msg->subject(true)->asUnicodeString());
-        newEntity.setProperty("sender", msg->from(true)->asUnicodeString());
-        newEntity.setProperty("senderName", msg->from(true)->asUnicodeString());
-        newEntity.setProperty("date", msg->date(true)->dateTime());
-    }
-
     void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         if (newEntity.getProperty("draft").toBool()) {
@@ -135,7 +156,6 @@ public:
         if (mimeMessage.isValid()) {
             newEntity.setProperty("mimeMessage", moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray(), transaction));
         }
-        updatedIndexedProperties(newEntity);
     }
 
     void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
@@ -166,9 +186,7 @@ public:
             flags |= KPIM::Maildir::Flagged;
         }
 
-        const auto newRemoteId = maildir.changeEntryFlags(identifier, flags);
-
-        updatedIndexedProperties(newEntity);
+        maildir.changeEntryFlags(identifier, flags);
     }
 
     void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
@@ -453,7 +471,7 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
     setupChangereplay(changereplay);
 
     auto folderUpdater = new FolderUpdater(QByteArray());
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << folderUpdater << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << folderUpdater << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     auto folderPreprocessor = new FolderPreprocessor;
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << folderPreprocessor << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 
