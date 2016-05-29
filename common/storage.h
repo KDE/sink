@@ -157,10 +157,7 @@ public:
             return *this;
         }
 
-        operator bool() const
-        {
-            return (d != nullptr);
-        }
+        operator bool() const;
 
     private:
         Transaction(Transaction &other);

@@ -41,12 +41,11 @@ class Synchronizer;
 class SINK_EXPORT GenericResource : public Resource
 {
 public:
-    GenericResource(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline, const QSharedPointer<ChangeReplay> &changeReplay, const QSharedPointer<Synchronizer> &synchronizer);
+    GenericResource(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline);
     virtual ~GenericResource();
 
     virtual void processCommand(int commandId, const QByteArray &data) Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE;
-    virtual KAsync::Job<void> synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore);
     virtual KAsync::Job<void> processAllMessages() Q_DECL_OVERRIDE;
     virtual void setLowerBoundRevision(qint64 revision) Q_DECL_OVERRIDE;
     virtual KAsync::Job<void>
@@ -64,7 +63,9 @@ private slots:
 protected:
     void enableChangeReplay(bool);
 
-    void addType(const QByteArray &type, DomainTypeAdaptorFactoryInterface::Ptr factory, const QVector<Sink::Preprocessor *> &preprocessors);
+    void setupPreprocessors(const QByteArray &type, const QVector<Sink::Preprocessor *> &preprocessors);
+    void setupSynchronizer(const QSharedPointer<Synchronizer> &synchronizer);
+    void setupChangereplay(const QSharedPointer<ChangeReplay> &changeReplay);
 
     void onProcessorError(int errorCode, const QString &errorMessage);
     void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);

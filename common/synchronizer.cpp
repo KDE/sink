@@ -54,7 +54,7 @@ void Synchronizer::enqueueCommand(int commandId, const QByteArray &data)
 EntityStore &Synchronizer::store()
 {
     if (!mEntityStore) {
-        mEntityStore = QSharedPointer<EntityStore>::create(mResourceType, mResourceInstanceIdentifier, mTransaction);
+        mEntityStore = QSharedPointer<EntityStore>::create(mResourceType, mResourceInstanceIdentifier, transaction());
     }
     return *mEntityStore;
 }
@@ -62,7 +62,7 @@ EntityStore &Synchronizer::store()
 RemoteIdMap &Synchronizer::syncStore()
 {
     if (!mSyncStore) {
-        mSyncStore = QSharedPointer<RemoteIdMap>::create(mSyncTransaction);
+        mSyncStore = QSharedPointer<RemoteIdMap>::create(syncTransaction());
     }
     return *mSyncStore;
 }
@@ -125,7 +125,7 @@ void Synchronizer::scanForRemovals(const QByteArray &bufferType, const std::func
         if (!remoteId.isEmpty()) {
             if (!exists(remoteId)) {
                 Trace() << "Found a removed entity: " << sinkId;
-                deleteEntity(sinkId, Sink::Storage::maxRevision(mTransaction), bufferType,
+                deleteEntity(sinkId, Sink::Storage::maxRevision(transaction()), bufferType,
                     [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::DeleteEntityCommand, buffer); });
             }
         }
@@ -135,7 +135,7 @@ void Synchronizer::scanForRemovals(const QByteArray &bufferType, const std::func
 void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
     Trace() << "Create or modify" << bufferType << remoteId;
-    auto mainDatabase = Storage::mainDatabase(mTransaction, bufferType);
+    auto mainDatabase = Storage::mainDatabase(transaction(), bufferType);
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
     const auto found = mainDatabase.contains(sinkId);
     auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(mResourceType, bufferType);
@@ -154,7 +154,7 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
             }
             if (changed) {
                 Trace() << "Found a modified entity: " << remoteId;
-                modifyEntity(sinkId, Sink::Storage::maxRevision(mTransaction), bufferType, entity, *adaptorFactory,
+                modifyEntity(sinkId, Sink::Storage::maxRevision(transaction()), bufferType, entity, *adaptorFactory,
                     [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::ModifyEntityCommand, buffer); });
             }
         } else {
@@ -165,12 +165,37 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
 
 KAsync::Job<void> Synchronizer::synchronize()
 {
-    mTransaction = mStorage.createTransaction(Sink::Storage::ReadOnly);
-    mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::ReadWrite);
+    Trace() << "Synchronizing";
     return synchronizeWithSource().then<void>([this]() {
-        mTransaction.abort();
-        mSyncTransaction.commit();
         mSyncStore.clear();
         mEntityStore.clear();
     });
+}
+
+void Synchronizer::commit()
+{
+    mTransaction.abort();
+}
+
+void Synchronizer::commitSync()
+{
+    mSyncTransaction.commit();
+}
+
+Sink::Storage::Transaction &Synchronizer::transaction()
+{
+    if (!mTransaction) {
+        Trace() << "Starting transaction";
+        mTransaction = mStorage.createTransaction(Sink::Storage::ReadOnly);
+    }
+    return mTransaction;
+}
+
+Sink::Storage::Transaction &Synchronizer::syncTransaction()
+{
+    if (!mSyncTransaction) {
+        Trace() << "Starting transaction";
+        mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::ReadWrite);
+    }
+    return mSyncTransaction;
 }

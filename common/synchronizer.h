@@ -41,6 +41,17 @@ public:
     void setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback);
     KAsync::Job<void> synchronize();
 
+    //Read only access to main storage
+    EntityStore &store();
+
+    //Read/Write access to sync storage
+    RemoteIdMap &syncStore();
+
+    void commit();
+    void commitSync();
+    Sink::Storage::Transaction &transaction();
+    Sink::Storage::Transaction &syncTransaction();
+
 protected:
     ///Calls the callback to enqueue the command
     void enqueueCommand(int commandId, const QByteArray &data);
@@ -70,12 +81,6 @@ protected:
      * Depending on whether the entity is locally available, or has changed.
      */
     void createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
-
-    //Read only access to main storage
-    EntityStore &store();
-
-    //Read/Write access to sync storage
-    RemoteIdMap &syncStore();
 
     virtual KAsync::Job<void> synchronizeWithSource() = 0;
 

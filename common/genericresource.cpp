@@ -233,22 +233,17 @@ private:
 #undef DEBUG_AREA
 #define DEBUG_AREA "resource"
 
-GenericResource::GenericResource(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline, const QSharedPointer<ChangeReplay> &changeReplay, const QSharedPointer<Synchronizer> &synchronizer)
+GenericResource::GenericResource(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline )
     : Sink::Resource(),
       mUserQueue(Sink::storageLocation(), resourceInstanceIdentifier + ".userqueue"),
       mSynchronizerQueue(Sink::storageLocation(), resourceInstanceIdentifier + ".synchronizerqueue"),
       mResourceType(resourceType),
       mResourceInstanceIdentifier(resourceInstanceIdentifier),
       mPipeline(pipeline ? pipeline : QSharedPointer<Sink::Pipeline>::create(resourceInstanceIdentifier)),
-      mChangeReplay(changeReplay),
-      mSynchronizer(synchronizer),
       mError(0),
       mClientLowerBoundRevision(std::numeric_limits<qint64>::max())
 {
     mPipeline->setResourceType(mResourceType);
-    mSynchronizer->setup([this](int commandId, const QByteArray &data) {
-        enqueueCommand(mSynchronizerQueue, commandId, data);
-    });
     mProcessor = new CommandProcessor(mPipeline.data(), QList<MessageQueue *>() << &mUserQueue << &mSynchronizerQueue);
     mProcessor->setInspectionCommand([this](void const *command, size_t size) {
         flatbuffers::Verifier verifier((const uint8_t *)command, size);
@@ -290,9 +285,7 @@ GenericResource::GenericResource(const QByteArray &resourceType, const QByteArra
     });
     QObject::connect(mProcessor, &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
-    enableChangeReplay(true);
     mClientLowerBoundRevision = mPipeline->cleanedUpRevision();
-    mProcessor->setOldestUsedRevision(mChangeReplay->getLastReplayedRevision());
 
     mCommitQueueTimer.setInterval(sCommitInterval);
     mCommitQueueTimer.setSingleShot(true);
@@ -313,6 +306,7 @@ KAsync::Job<void> GenericResource::inspect(
 
 void GenericResource::enableChangeReplay(bool enable)
 {
+    Q_ASSERT(mChangeReplay);
     if (enable) {
         QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mChangeReplay.data(), &ChangeReplay::revisionChanged, Qt::QueuedConnection);
         QObject::connect(mChangeReplay.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
@@ -323,11 +317,25 @@ void GenericResource::enableChangeReplay(bool enable)
     }
 }
 
-void GenericResource::addType(const QByteArray &type, DomainTypeAdaptorFactoryInterface::Ptr factory, const QVector<Sink::Preprocessor *> &preprocessors)
+void GenericResource::setupPreprocessors(const QByteArray &type, const QVector<Sink::Preprocessor *> &preprocessors)
 {
     mPipeline->setPreprocessors(type, preprocessors);
 }
 
+void GenericResource::setupSynchronizer(const QSharedPointer<Synchronizer> &synchronizer)
+{
+    mSynchronizer = synchronizer;
+    mSynchronizer->setup([this](int commandId, const QByteArray &data) {
+        enqueueCommand(mSynchronizerQueue, commandId, data);
+    });
+}
+
+void GenericResource::setupChangereplay(const QSharedPointer<ChangeReplay> &changeReplay)
+{
+    mChangeReplay = changeReplay;
+    mProcessor->setOldestUsedRevision(mChangeReplay->getLastReplayedRevision());
+    enableChangeReplay(true);
+}
 
 void GenericResource::removeDataFromDisk()
 {
@@ -404,11 +412,6 @@ KAsync::Job<void> GenericResource::synchronizeWithSource()
             })
             .exec();
     });
-}
-
-KAsync::Job<void> GenericResource::synchronizeWithSource(Sink::Storage &mainStore, Sink::Storage &synchronizationStore)
-{
-    return KAsync::null<void>();
 }
 
 static void waitForDrained(KAsync::Future<void> &f, MessageQueue &queue)

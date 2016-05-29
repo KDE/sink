@@ -85,9 +85,9 @@ void ChangeReplay::revisionChanged()
             Storage::mainDatabase(mainStoreTransaction, type)
                 .scan(key,
                     [&lastReplayedRevision, type, this](const QByteArray &key, const QByteArray &value) -> bool {
+                        Trace() << "Replaying " << key;
                         replay(type, key, value).exec();
                         // TODO make for loop async, and pass to async replay function together with type
-                        Trace() << "Replaying " << key;
                         return false;
                     },
                     [key](const Storage::Error &) { ErrorMsg() << "Failed to replay change " << key; });

@@ -347,7 +347,7 @@ class Storage::Transaction::Private
 {
 public:
     Private(bool _requestRead, const std::function<void(const Storage::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
-        : env(_env), requestedRead(_requestRead), defaultErrorHandler(_defaultErrorHandler), name(_name), implicitCommit(false), error(false), modificationCounter(0)
+        : env(_env), transaction(nullptr), requestedRead(_requestRead), defaultErrorHandler(_defaultErrorHandler), name(_name), implicitCommit(false), error(false), modificationCounter(0)
     {
     }
     ~Private()
@@ -366,8 +366,15 @@ public:
 
     void startTransaction()
     {
-        // qDebug() << "Opening transaction " << requestedRead;
+        Q_ASSERT(!transaction);
+        // auto f = [](const char *msg, void *ctx) -> int {
+        //     qDebug() << msg;
+        //     return 0;
+        // };
+        // mdb_reader_list(env, f, nullptr);
+        // Trace_area("storage." + name.toLatin1()) << "Opening transaction " << requestedRead;
         const int rc = mdb_txn_begin(env, NULL, requestedRead ? MDB_RDONLY : 0, &transaction);
+        // Trace_area("storage." + name.toLatin1()) << "Started transaction " << mdb_txn_id(transaction) << transaction;
         if (rc) {
             defaultErrorHandler(Error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening transaction: " + QByteArray(mdb_strerror(rc))));
         }
@@ -387,14 +394,18 @@ Storage::Transaction::~Transaction()
 {
     if (d && d->transaction) {
         if (d->implicitCommit && !d->error) {
-            // qDebug() << "implicit commit";
             commit();
         } else {
-            // qDebug() << "Aorting transaction";
+            // Trace_area("storage." + d->name.toLatin1()) << "Aborting transaction" << mdb_txn_id(d->transaction) << d->transaction;
             mdb_txn_abort(d->transaction);
         }
     }
     delete d;
+}
+
+Storage::Transaction::operator bool() const
+{
+    return (d && d->transaction);
 }
 
 bool Storage::Transaction::commit(const std::function<void(const Storage::Error &error)> &errorHandler)
@@ -403,6 +414,7 @@ bool Storage::Transaction::commit(const std::function<void(const Storage::Error 
         return false;
     }
 
+    // Trace_area("storage." + d->name.toLatin1()) << "Committing transaction" << mdb_txn_id(d->transaction) << d->transaction;
     const int rc = mdb_txn_commit(d->transaction);
     if (rc) {
         mdb_txn_abort(d->transaction);
@@ -420,6 +432,7 @@ void Storage::Transaction::abort()
         return;
     }
 
+    // Trace_area("storage." + d->name.toLatin1()) << "Aborting transaction" << mdb_txn_id(d->transaction) << d->transaction;
     mdb_txn_abort(d->transaction);
     d->transaction = nullptr;
 }

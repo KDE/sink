@@ -54,8 +54,7 @@ RemoteIdMap &SourceWriteBack::syncStore()
 
 KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
 {
-    mTransaction = mStorage.createTransaction(Sink::Storage::ReadOnly);
-    mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::ReadWrite);
+    Trace() << "Replaying" << type << key;
 
     Sink::EntityBuffer buffer(value);
     const Sink::Entity &entity = buffer.entity();
@@ -65,7 +64,14 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
         Trace() << "Change is coming from the source";
         return KAsync::null<void>();
     }
-    const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
+    Q_ASSERT(!mSyncStore);
+    Q_ASSERT(!mEntityStore);
+    Q_ASSERT(!mTransaction);
+    Q_ASSERT(!mSyncTransaction);
+    mTransaction = mStorage.createTransaction(Sink::Storage::ReadOnly);
+    mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::ReadWrite);
+
+    // const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
     const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
     const auto uid = Sink::Storage::uidFromKey(key);
     QByteArray oldRemoteId;
@@ -84,32 +90,38 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
         job = replay(mail, operation, oldRemoteId);
     }
 
-    return job.then<void, QByteArray>([this, operation, type, uid](const QByteArray &remoteId) {
-        Trace() << "Replayed change with remote id: " << remoteId;
+    return job.then<void, QByteArray>([this, operation, type, uid, oldRemoteId](const QByteArray &remoteId) {
         if (operation == Sink::Operation_Creation) {
+            Trace() << "Replayed creation with remote id: " << remoteId;
             if (remoteId.isEmpty()) {
                 Warning() << "Returned an empty remoteId from the creation";
             } else {
                 syncStore().recordRemoteId(type, uid, remoteId);
             }
         } else if (operation == Sink::Operation_Modification) {
+            Trace() << "Replayed modification with remote id: " << remoteId;
             if (remoteId.isEmpty()) {
                 Warning() << "Returned an empty remoteId from the creation";
             } else {
                syncStore().updateRemoteId(type, uid, remoteId);
             }
         } else if (operation == Sink::Operation_Removal) {
-            syncStore().removeRemoteId(type, uid, remoteId);
+            Trace() << "Replayed removal with remote id: " << oldRemoteId;
+            syncStore().removeRemoteId(type, uid, oldRemoteId);
         } else {
-            Warning() << "Unkown operation" << operation;
+            ErrorMsg() << "Unkown operation" << operation;
         }
 
-        mTransaction.abort();
-        mSyncTransaction.commit();
         mSyncStore.clear();
         mEntityStore.clear();
-    }, [](int errorCode, const QString &errorMessage) {
+        mTransaction.abort();
+        mSyncTransaction.commit();
+    }, [this](int errorCode, const QString &errorMessage) {
         Warning() << "Failed to replay change: " << errorMessage;
+        mSyncStore.clear();
+        mEntityStore.clear();
+        mTransaction.abort();
+        mSyncTransaction.commit();
     });
 }
 

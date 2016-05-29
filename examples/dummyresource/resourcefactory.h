@@ -47,10 +47,6 @@ private:
     Sink::ApplicationDomain::Mail::Ptr createMail(const QByteArray &rid, const QMap<QString, QVariant> &data, Sink::Storage::Transaction &);
     Sink::ApplicationDomain::Folder::Ptr createFolder(const QByteArray &rid, const QMap<QString, QVariant> &data, Sink::Storage::Transaction &);
     void synchronize(const QByteArray &bufferType, const QMap<QString, QMap<QString, QVariant> > &data, Sink::Storage::Transaction &transaction, Sink::Storage::Transaction &synchronizationTransaction, DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<Sink::ApplicationDomain::ApplicationDomainType::Ptr(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data, Sink::Storage::Transaction &)> createEntity);
-
-    QSharedPointer<DummyEventAdaptorFactory> mEventAdaptorFactory;
-    QSharedPointer<DummyMailAdaptorFactory> mMailAdaptorFactory;
-    QSharedPointer<DummyFolderAdaptorFactory> mFolderAdaptorFactory;
 };
 
 class DummyResourceFactory : public Sink::ResourceFactory

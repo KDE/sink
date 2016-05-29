@@ -126,16 +126,15 @@ class DummySynchronizer : public Sink::Synchronizer {
 };
 
 DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
-    : Sink::GenericResource(PLUGIN_NAME, instanceIdentifier, pipeline, QSharedPointer<Sink::NullChangeReplay>::create(), QSharedPointer<DummySynchronizer>::create(PLUGIN_NAME, instanceIdentifier)),
-    mEventAdaptorFactory(QSharedPointer<DummyEventAdaptorFactory>::create()),
-    mMailAdaptorFactory(QSharedPointer<DummyMailAdaptorFactory>::create()),
-    mFolderAdaptorFactory(QSharedPointer<DummyFolderAdaptorFactory>::create())
+    : Sink::GenericResource(PLUGIN_NAME, instanceIdentifier, pipeline)
 {
-    addType(ENTITY_TYPE_MAIL, mMailAdaptorFactory,
+    setupSynchronizer(QSharedPointer<DummySynchronizer>::create(PLUGIN_NAME, instanceIdentifier));
+    setupChangereplay(QSharedPointer<Sink::NullChangeReplay>::create());
+    setupPreprocessors(ENTITY_TYPE_MAIL,
             QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
-    addType(ENTITY_TYPE_FOLDER, mFolderAdaptorFactory,
+    setupPreprocessors(ENTITY_TYPE_FOLDER,
             QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
-    addType(ENTITY_TYPE_EVENT, mEventAdaptorFactory,
+    setupPreprocessors(ENTITY_TYPE_EVENT,
             QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Event>);
 }
 
