@@ -367,7 +367,7 @@ public:
         Log() << "Synchronized " << count << " mails in " << listingPath << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
 
-    KAsync::Job<void> synchronizeWithSource()
+    KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
     {
         Log() << " Synchronizing";
         return KAsync::start<void>([this]() {
