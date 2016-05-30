@@ -339,6 +339,11 @@ void GenericResource::setupChangereplay(const QSharedPointer<ChangeReplay> &chan
 
 void GenericResource::removeDataFromDisk()
 {
+    Log() << "Removing the resource from disk: " << mResourceInstanceIdentifier;
+    //Ensure we have no transaction or databases open
+    mSynchronizer.clear();
+    mChangeReplay.clear();
+    mPipeline.clear();
     removeFromDisk(mResourceInstanceIdentifier);
 }
 
