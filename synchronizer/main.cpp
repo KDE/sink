@@ -142,6 +142,7 @@ int main(int argc, char *argv[])
     const QByteArray instanceIdentifier = arguments.at(1);
     const QByteArray resourceType = arguments.at(2);
     app.setApplicationName(instanceIdentifier);
+    Log() << "Starting: " << instanceIdentifier;
 
     QLockFile lockfile(instanceIdentifier + ".lock");
     lockfile.setStaleLockTime(500);
@@ -155,5 +156,7 @@ int main(int argc, char *argv[])
     QObject::connect(&app, &QCoreApplication::aboutToQuit, listener, &Listener::closeAllConnections);
     QObject::connect(listener, &Listener::noClients, &app, &QCoreApplication::quit);
 
-    return app.exec();
+    auto ret = app.exec();
+    Log() << "Exiting: " << instanceIdentifier;
+    return ret;
 }
