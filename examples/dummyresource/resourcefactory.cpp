@@ -143,17 +143,6 @@ DummyResource::~DummyResource()
 
 }
 
-void DummyResource::removeDataFromDisk()
-{
-    removeFromDisk(mResourceInstanceIdentifier);
-}
-
-void DummyResource::removeFromDisk(const QByteArray &instanceIdentifier)
-{
-    GenericResource::removeFromDisk(instanceIdentifier);
-    Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::ReadWrite).removeFromDisk();
-}
-
 KAsync::Job<void> DummyResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
 
