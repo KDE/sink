@@ -408,9 +408,19 @@ QPair<qint64, qint64> QueryWorker<DomainType>::load(const Sink::Query &query, co
     QTime time;
     time.start();
 
-    Sink::Storage storage(Sink::storageLocation(), mResourceInstanceIdentifier);
-    storage.setDefaultErrorHandler([](const Sink::Storage::Error &error) { Warning() << "Error during query: " << error.store << error.message; });
-    auto transaction = storage.createTransaction(Sink::Storage::ReadOnly);
+    Sink::Storage::Transaction transaction;
+    {
+        Sink::Storage storage(Sink::storageLocation(), mResourceInstanceIdentifier);
+        storage.setDefaultErrorHandler([](const Sink::Storage::Error &error) { Warning() << "Error during query: " << error.store << error.message; });
+        transaction = storage.createTransaction(Sink::Storage::ReadOnly);
+    }
+
+    //FIXME this is a temporary measure to recover from a failure to open the named databases correctly.
+    //Once the actual problem is fixed it will be enough to simply crash if we open the wrong database (which we check in openDatabase already).
+    while (!transaction.validateNamedDatabases()) {
+        Sink::Storage storage(Sink::storageLocation(), mResourceInstanceIdentifier);
+        transaction = storage.createTransaction(Sink::Storage::ReadOnly);
+    }
     auto db = Storage::mainDatabase(transaction, mBufferType);
 
     QSet<QByteArray> remainingFilters;

@@ -141,6 +141,7 @@ public:
         void abort();
 
         QList<QByteArray> getDatabaseNames() const;
+        bool validateNamedDatabases();
 
         NamedDatabase openDatabase(const QByteArray &name = QByteArray("default"),
             const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool allowDuplicates = false) const;

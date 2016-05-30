@@ -437,6 +437,43 @@ void Storage::Transaction::abort()
     d->transaction = nullptr;
 }
 
+//Ensure that we opened the correct database by comparing the expected identifier with the one
+//we write to the database on first open.
+static bool ensureCorrectDb(Storage::NamedDatabase &database, const QByteArray &db, bool readOnly)
+{
+    bool openedTheWrongDatabase = false;
+    auto count = database.scan("__internal_dbname", [db, &openedTheWrongDatabase](const QByteArray &key, const QByteArray &value) ->bool {
+        if (value != db) {
+            Warning() << "Opened the wrong database, got " << value << " instead of " << db;
+            openedTheWrongDatabase = true;
+        }
+        return false;
+    },
+    [](const Storage::Error &error) -> bool{
+        return false;
+    }, false);
+    //This is the first time we open this database in a write transaction, write the db name
+    if (!count) {
+        if (!readOnly) {
+            database.write("__internal_dbname", db);
+        }
+    }
+    return !openedTheWrongDatabase;
+}
+
+bool Storage::Transaction::validateNamedDatabases()
+{
+    auto databases = getDatabaseNames();
+    for (const auto &dbName : databases) {
+        auto db = openDatabase(dbName);
+        if (!db) {
+            Warning() << "Failed to open the database: " << dbName;
+            return false;
+        }
+    }
+    return true;
+}
+
 Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, const std::function<void(const Storage::Error &error)> &errorHandler, bool allowDuplicates) const
 {
     if (!d) {
@@ -450,7 +487,12 @@ Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, 
         delete p;
         return Storage::NamedDatabase();
     }
-    return Storage::NamedDatabase(p);
+    auto database = Storage::NamedDatabase(p);
+    if (!ensureCorrectDb(database, db, d->requestedRead)) {
+        Warning() << "Failed to open the database";
+        return Storage::NamedDatabase();
+    }
+    return database;
 }
 
 QList<QByteArray> Storage::Transaction::getDatabaseNames() const
