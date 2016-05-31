@@ -12,7 +12,7 @@ add_definitions(-DTESTDATAPATH="${CMAKE_CURRENT_SOURCE_DIR}/data")
 
 find_package(KF5 COMPONENTS REQUIRED Mime)
 
-add_library(sink_test SHARED testimplementations.cpp getrssusage.cpp mailtest.cpp)
+add_library(sink_test SHARED testimplementations.cpp getrssusage.cpp mailtest.cpp mailsynctest.cpp)
 qt5_use_modules(sink_test Core Test Concurrent)
 target_link_libraries(sink_test sink libhawd KF5::Mime)
 
