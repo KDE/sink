@@ -374,12 +374,10 @@ public:
     {
         Log() << " Synchronizing";
         return KAsync::start<void>([this]() {
-            {
-                synchronizeFolders();
-                //The next sync needs the folders available
-                commit();
-                commitSync();
-            }
+            synchronizeFolders();
+            //The next sync needs the folders available
+            commit();
+            commitSync();
             for (const auto &folder : listAvailableFolders()) {
                 synchronizeMails(folder);
                 //Don't let the transaction grow too much
