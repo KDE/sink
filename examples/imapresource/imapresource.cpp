@@ -63,6 +63,7 @@ public:
     void updatedIndexedProperties(Sink::ApplicationDomain::BufferAdaptor &newEntity)
     {
         const auto mimeMessagePath = newEntity.getProperty("mimeMessage").toString();
+        Trace() << "Updating indexed properties " << mimeMessagePath;
         QFile f(mimeMessagePath);
         if (!f.open(QIODevice::ReadOnly)) {
             Warning() << "Failed to open the file: " << mimeMessagePath;
@@ -178,10 +179,7 @@ public:
         time->start();
         const QByteArray bufferType = ENTITY_TYPE_MAIL;
 
-
-        Trace() << "Importing new mail.";
-
-        // Trace() << "Looking into " << listingPath;
+        Trace() << "Importing new mail." << path;
 
         const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, path.toUtf8());
 
@@ -195,14 +193,18 @@ public:
             Sink::ApplicationDomain::Mail mail;
             mail.setFolder(folderLocalId);
 
-            auto filePath = Sink::resourceStorageLocation(mResourceInstanceIdentifier) + "/" + remoteId;
-            QDir().mkpath(Sink::resourceStorageLocation(mResourceInstanceIdentifier) + "/" + path.toUtf8());
+            const auto directory = Sink::resourceStorageLocation(mResourceInstanceIdentifier) + "/" + path.toUtf8();
+            QDir().mkpath(directory);
+            auto filePath = directory + "/" + QByteArray::number(message.uid);
             QFile file(filePath);
             if (!file.open(QIODevice::WriteOnly)) {
                 Warning() << "Failed to open file for writing: " << file.errorString();
             }
             const auto content = message.msg->encodedContent();
             file.write(content);
+            //Close before calling createOrModify, to ensure the file is available
+            file.close();
+
             mail.setMimeMessagePath(filePath);
             mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
             mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
