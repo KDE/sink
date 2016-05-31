@@ -59,8 +59,8 @@ private:
 
 class NullChangeReplay : public ChangeReplay
 {
-    public:
-    NullChangeReplay() : ChangeReplay("null") {}
+public:
+    NullChangeReplay(const QByteArray &resourceName) : ChangeReplay(resourceName) {}
     KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE { return KAsync::null<void>(); }
 };
 

@@ -129,7 +129,7 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
     : Sink::GenericResource(PLUGIN_NAME, instanceIdentifier, pipeline)
 {
     setupSynchronizer(QSharedPointer<DummySynchronizer>::create(PLUGIN_NAME, instanceIdentifier));
-    setupChangereplay(QSharedPointer<Sink::NullChangeReplay>::create());
+    setupChangereplay(QSharedPointer<Sink::NullChangeReplay>::create(instanceIdentifier));
     setupPreprocessors(ENTITY_TYPE_MAIL,
             QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     setupPreprocessors(ENTITY_TYPE_FOLDER,

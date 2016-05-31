@@ -152,6 +152,9 @@ public:
                 // auto remoteIds = synchronizationTransaction.openDatabase("rid.mapping." + bufferType, std::function<void(const Sink::Storage::Error &)>(), true);
                 auto mainDatabase = Sink::Storage::mainDatabase(transaction(), bufferType);
                 mainDatabase.scan("", [&](const QByteArray &key, const QByteArray &) {
+                    if (Sink::Storage::isInternalKey(key)) {
+                        return true;
+                    }
                     callback(key);
                     return true;
                 });
@@ -364,7 +367,7 @@ ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPo
     synchronizer->mPassword = mPassword;
     synchronizer->mResourceInstanceIdentifier = instanceIdentifier;
     setupSynchronizer(synchronizer);
-    auto changereplay = QSharedPointer<Sink::NullChangeReplay>::create();
+    auto changereplay = QSharedPointer<Sink::NullChangeReplay>::create(instanceIdentifier);
     // auto changereplay = QSharedPointer<ImapWriteback>::create(PLUGIN_NAME, instanceIdentifier);
     // changereplay->mServer = mServer;
     // changereplay->mPort = mPort;
