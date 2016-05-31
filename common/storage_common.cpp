@@ -102,7 +102,7 @@ QByteArray Storage::getUidFromRevision(const Sink::Storage::Transaction &transac
                 uid = value;
                 return false;
             },
-            [revision](const Error &error) { Warning() << "Coultn'd find uid for revision " << revision; });
+            [revision](const Error &error) { Warning() << "Coultn'd find uid for revision: " << revision << error.message; });
     return uid;
 }
 

@@ -489,7 +489,7 @@ Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, 
     }
     auto database = Storage::NamedDatabase(p);
     if (!ensureCorrectDb(database, db, d->requestedRead)) {
-        Warning() << "Failed to open the database";
+        Warning() << "Failed to open the database" << db;
         return Storage::NamedDatabase();
     }
     return database;
