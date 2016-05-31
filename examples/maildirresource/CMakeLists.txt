@@ -11,5 +11,7 @@ target_link_libraries(${PROJECT_NAME} sink maildir KF5::Mime)
 
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
 
+add_definitions(-DTESTDATAPATH="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
+
 add_subdirectory(libmaildir)
 add_subdirectory(tests)

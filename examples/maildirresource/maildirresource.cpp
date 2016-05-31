@@ -373,7 +373,11 @@ public:
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
     {
         Log() << " Synchronizing";
-        return KAsync::start<void>([this]() {
+        return KAsync::start<void, KAsync::Job<void> >([this]() {
+            KPIM::Maildir maildir(mMaildirPath, true);
+            if (!maildir.isValid(false)) {
+                return KAsync::error<void>(1, "Maildir path doesn't point to a valid maildir: " + mMaildirPath);
+            }
             synchronizeFolders();
             //The next sync needs the folders available
             commit();
@@ -385,6 +389,7 @@ public:
                 commitSync();
             }
             Log() << "Done Synchronizing";
+            return KAsync::null<void>();
         });
     }
 
@@ -410,7 +415,6 @@ public:
             });
         } else if (operation == Sink::Operation_Removal) {
             Trace() << "Removing a mail: " << oldRemoteId;
-            // QFile::remove(oldRemoteId);
             return KAsync::null<QByteArray>();
         } else if (operation == Sink::Operation_Modification) {
             Trace() << "Modifying a mail: " << oldRemoteId;

@@ -45,6 +45,13 @@ do {\
 
 namespace Sink {
 
+/**
+ * Tests if the resource can synchronize (read-only) emails.
+ * 
+ * The default testenvironment is:
+ * * INBOX
+ * * INBOX.test
+ */
 class MailSyncTest : public QObject
 {
     Q_OBJECT
@@ -59,8 +66,8 @@ protected:
     virtual void removeResourceFromDisk(const QByteArray &mResourceInstanceIdentifier) = 0;
     virtual void createFolder(const QStringList &folderPath) = 0;
     virtual void removeFolder(const QStringList &folderPath) = 0;
-    virtual void createMessage(const QStringList &folderPath, const QByteArray &message) = 0;
-    virtual void removeMessage(const QStringList &folderPath, const QByteArray &message) = 0;
+    virtual QByteArray createMessage(const QStringList &folderPath, const QByteArray &message) = 0;
+    virtual void removeMessage(const QStringList &folderPath, const QByteArray &messageIdentifier) = 0;
 
 private slots:
     void initTestCase();
@@ -68,13 +75,14 @@ private slots:
     void cleanup();
 
     void testListFolders();
+    void testListNewFolder();
+    void testListRemovedFolder();
     void testListFolderHierarchy();
-    void testListNewFolders();
-    void testListRemovedFolders();
+    void testListNewSubFolder();
+    void testListRemovedSubFolder();
 
     void testListMails();
-    void testFetchNewMessages();
-    void testFetchRemovedMessages();
+    void testFetchNewRemovedMessages();
 
     void testFailingSync();
 };
