@@ -63,18 +63,6 @@ public:
     void updatedIndexedProperties(Sink::ApplicationDomain::BufferAdaptor &newEntity)
     {
         const auto mimeMessagePath = newEntity.getProperty("mimeMessage").toString();
-        // auto parts = mimeMessagePath.split('/');
-        // const auto key = parts.takeLast();
-        // const auto path = parts.join("/") + "/cur/";
-        //
-        // QDir dir(path);
-        // const QFileInfoList list = dir.entryInfoList(QStringList() << (key+"*"), QDir::Files);
-        // if (list.size() != 1) {
-        //     Warning() << "Failed to find message " << path << key << list.size();
-        //     return;
-        // }
-
-        // QString file;
         QFile f(mimeMessagePath);
         if (!f.open(QIODevice::ReadOnly)) {
             Warning() << "Failed to open the file: " << mimeMessagePath;
@@ -90,7 +78,6 @@ public:
         msg->setHead(KMime::CRLFtoLF(QByteArray::fromRawData(reinterpret_cast<const char*>(mapped), f.size())));
         msg->parse();
 
-        newEntity.setProperty("subject", msg->subject(true)->asUnicodeString());
         newEntity.setProperty("subject", msg->subject(true)->asUnicodeString());
         newEntity.setProperty("sender", msg->from(true)->asUnicodeString());
         newEntity.setProperty("senderName", msg->from(true)->asUnicodeString());
@@ -207,8 +194,6 @@ public:
 
             Sink::ApplicationDomain::Mail mail;
             mail.setFolder(folderLocalId);
-            //FIXME this should come from the mime message, extracted in the pipeline
-            mail.setExtractedSubject(message.msg->subject(true)->asUnicodeString());
 
             auto filePath = Sink::resourceStorageLocation(mResourceInstanceIdentifier) + "/" + remoteId;
             QDir().mkpath(Sink::resourceStorageLocation(mResourceInstanceIdentifier) + "/" + path.toUtf8());
@@ -219,7 +204,6 @@ public:
             const auto content = message.msg->encodedContent();
             file.write(content);
             mail.setMimeMessagePath(filePath);
-            //FIXME  Not sure if these are the actual flags
             mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
             mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
 
@@ -298,24 +282,6 @@ public:
             }
 
             for (const auto &folder : folderList) {
-                // auto transaction = mainStore.createTransaction(Sink::Storage::ReadOnly);
-                // auto syncTransaction = synchronizationStore.createTransaction(Sink::Storage::ReadOnly);
-
-                //TODO load entity to read sync settings should we have some (if the folder is existing already)
-                //Note that this will not work if we change any of those settings in the pipeline
-                //
-                // auto mainDatabase = Sink::Storage::mainDatabase(transaction, ENTITY_TYPE_FOLDER);
-                // const auto sinkId = resolveRemoteId(ENTITY_TYPE_FOLDER, folder.toUtf8(), syncTransaction);
-                // const auto found = mainDatabase.contains(sinkId);
-                // if (found) {
-                //     if (auto current = getLatest(mainDatabase, sinkId, mFolderAdaptorFactory)) {
-                //
-                //     }
-                // }
-
-                // transaction.commit();
-                // syncTransaction.commit();
-
                 QSet<qint64> uids;
                 auto messagesFuture = imap.fetchMessages(folder, [this, folder, &uids](const QVector<Message> &messages) {
                     Trace() << "Synchronizing mails" << folder.normalizedPath();
