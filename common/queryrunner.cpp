@@ -70,9 +70,12 @@ private:
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
     QByteArray mResourceInstanceIdentifier;
     QByteArray mBufferType;
+    QByteArray mId; //Used for identification in debug output
     Sink::Query mQuery;
 };
 
+#undef Trace
+#define Trace() Trace_area(DEBUG_AREA)
 
 template <class DomainType>
 QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::ResourceAccessInterface::Ptr &resourceAccess, const QByteArray &instanceIdentifier,
@@ -170,11 +173,13 @@ static inline ResultSet fullScan(const Sink::Storage::Transaction &transaction, 
     return ResultSet(keys.toList().toVector());
 }
 
+#undef Trace
+#define Trace() Trace_area("client.queryrunner." + mId)
 
 template <class DomainType>
 QueryWorker<DomainType>::QueryWorker(const Sink::Query &query, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &factory,
     const QByteArray &bufferType, const QueryRunnerBase::ResultTransformation &transformation)
-    : QObject(), mResultTransformation(transformation), mDomainTypeAdaptorFactory(factory), mResourceInstanceIdentifier(instanceIdentifier), mBufferType(bufferType), mQuery(query)
+    : QObject(), mResultTransformation(transformation), mDomainTypeAdaptorFactory(factory), mResourceInstanceIdentifier(instanceIdentifier), mBufferType(bufferType), mId(QUuid::createUuid().toByteArray()), mQuery(query)
 {
     Trace() << "Starting query worker";
 }
@@ -274,7 +279,7 @@ ResultSet QueryWorker<DomainType>::loadIncrementalResultSet(qint64 baseRevision,
     const auto bufferType = mBufferType;
     auto revisionCounter = QSharedPointer<qint64>::create(baseRevision);
     remainingFilters = query.propertyFilter.keys().toSet();
-    return ResultSet([bufferType, revisionCounter, &transaction]() -> QByteArray {
+    return ResultSet([this, bufferType, revisionCounter, &transaction]() -> QByteArray {
         const qint64 topRevision = Sink::Storage::maxRevision(transaction);
         // Spit out the revision keys one by one.
         while (*revisionCounter <= topRevision) {
@@ -379,7 +384,7 @@ template <class DomainType>
 std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)>
 QueryWorker<DomainType>::getFilter(const QSet<QByteArray> remainingFilters, const Sink::Query &query)
 {
-    return [remainingFilters, query](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
+    return [this, remainingFilters, query](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
         if (!query.ids.isEmpty()) {
             if (!query.ids.contains(domainObject->identifier())) {
                 return false;
