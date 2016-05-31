@@ -82,6 +82,7 @@ private slots:
     void testListRemovedSubFolder();
 
     void testListMails();
+    void testResyncMails();
     void testFetchNewRemovedMessages();
 
     void testFailingSync();

@@ -54,14 +54,3 @@ target_link_libraries(dummyresourcewritebenchmark sink_resource_dummy)
 target_link_libraries(querytest sink_resource_dummy)
 target_link_libraries(modelinteractivitytest sink_resource_dummy)
 target_link_libraries(inspectiontest sink_resource_dummy)
-
-if (BUILD_MAILDIR)
-    auto_tests (
-        maildirresourcetest
-    )
-    manual_tests (
-        maildirsyncbenchmark
-    )
-    target_link_libraries(maildirresourcetest sink_resource_maildir)
-    target_link_libraries(maildirsyncbenchmark sink_resource_maildir)
-endif()

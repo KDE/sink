@@ -249,7 +249,7 @@ void MailSyncTest::testListMails()
 {
     Sink::Query query;
     query.resources << mResourceInstanceIdentifier;
-    query.request<Mail::Subject>().request<Mail::MimeMessage>();
+    query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
@@ -265,6 +265,27 @@ void MailSyncTest::testListMails()
         m.setContent(data);
         m.parse();
         QCOMPARE(mails.first()->getSubject(), m.subject(true)->asUnicodeString());
+        QVERIFY(!mails.first()->getFolder().isEmpty());
+        QVERIFY(mails.first()->getDate().isValid());
+    });
+    VERIFYEXEC(job);
+}
+
+void MailSyncTest::testResyncMails()
+{
+    Sink::Query query;
+    query.resources << mResourceInstanceIdentifier;
+
+    // Ensure all local data is processed
+    VERIFYEXEC(Store::synchronize(query));
+    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+    // Ensure all local data is processed
+    VERIFYEXEC(Store::synchronize(query));
+    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+    auto job = Store::fetchAll<Mail>(query).then<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
+        QCOMPARE(mails.size(), 1);
     });
     VERIFYEXEC(job);
 }
@@ -293,7 +314,6 @@ void MailSyncTest::testFetchNewRemovedMessages()
         });
         VERIFYEXEC(job);
     }
-
 
     removeMessage(QStringList() << "test", messageIdentifier);
 
