@@ -175,11 +175,13 @@ KAsync::Job<void> Synchronizer::synchronize()
 void Synchronizer::commit()
 {
     mTransaction.abort();
+    mEntityStore.clear();
 }
 
 void Synchronizer::commitSync()
 {
     mSyncTransaction.commit();
+    mSyncStore.clear();
 }
 
 Sink::Storage::Transaction &Synchronizer::transaction()
