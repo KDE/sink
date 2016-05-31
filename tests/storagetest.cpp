@@ -436,6 +436,20 @@ private slots:
         QCOMPARE(Sink::Storage::getTypeFromRevision(transaction, 1), QByteArray("type"));
         QCOMPARE(Sink::Storage::getUidFromRevision(transaction, 1), QByteArray("uid"));
     }
+
+    void testRecordRevisionSorting()
+    {
+        Sink::Storage store(testDataPath, dbName, Sink::Storage::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::ReadWrite);
+        QByteArray result;
+        auto db = transaction.openDatabase("test", nullptr, false);
+        const auto uid = "{c5d06a9f-1534-4c52-b8ea-415db68bdadf}";
+        //Ensure we can sort 1 and 10 properly (by default string comparison 10 comes before 6)
+        db.write(Sink::Storage::assembleKey(uid, 6), "value1");
+        db.write(Sink::Storage::assembleKey(uid, 10), "value2");
+        db.findLatest(uid, [&](const QByteArray &key, const QByteArray &value) { result = value; });
+        QCOMPARE(result, QByteArray("value2"));
+    }
 };
 
 QTEST_MAIN(StorageTest)

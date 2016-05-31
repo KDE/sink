@@ -153,8 +153,9 @@ bool Storage::isInternalKey(const QByteArray &key)
 
 QByteArray Storage::assembleKey(const QByteArray &key, qint64 revision)
 {
+    Q_ASSERT(revision <= 9999);
     Q_ASSERT(key.size() == 38);
-    return key + QByteArray::number(revision);
+    return key + QByteArray::number(revision).rightJustified(4, '0', false);
 }
 
 QByteArray Storage::uidFromKey(const QByteArray &key)
