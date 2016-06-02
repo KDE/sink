@@ -24,6 +24,7 @@
 #include <KIMAP/KIMAP/SelectJob>
 #include <KIMAP/KIMAP/AppendJob>
 #include <KIMAP/KIMAP/CreateJob>
+#include <KIMAP/KIMAP/RenameJob>
 #include <KIMAP/KIMAP/DeleteJob>
 #include <KIMAP/KIMAP/StoreJob>
 #include <KIMAP/KIMAP/ExpungeJob>
@@ -111,6 +112,14 @@ KAsync::Job<void> ImapServerProxy::create(const QString &mailbox)
     auto create = new KIMAP::CreateJob(mSession);
     create->setMailBox(mailbox);
     return runJob(create);
+}
+
+KAsync::Job<void> ImapServerProxy::rename(const QString &mailbox, const QString &newMailbox)
+{
+    auto rename = new KIMAP::RenameJob(mSession);
+    rename->setSourceMailBox(mailbox);
+    rename->setDestinationMailBox(newMailbox);
+    return runJob(rename);
 }
 
 KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox)
@@ -216,10 +225,10 @@ KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox, const QByteArr
     return select(mailbox).then<void>(store(set, QByteArrayList() << Flags::Deleted)).then<void>(expunge());
 }
 
-KAsync::Future<void> ImapServerProxy::fetchFolders(std::function<void(const QVector<Folder> &)> callback)
+KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const QVector<Folder> &)> callback)
 {
     Trace() << "Fetching folders";
-    auto job = list(KIMAP::ListJob::IncludeUnsubscribed, [callback](const QList<KIMAP::MailBoxDescriptor> &mailboxes, const QList<QList<QByteArray> > &flags){
+    return list(KIMAP::ListJob::IncludeUnsubscribed, [callback](const QList<KIMAP::MailBoxDescriptor> &mailboxes, const QList<QList<QByteArray> > &flags){
         QVector<Folder> list;
         for (const auto &mailbox : mailboxes) {
             Trace() << "Found mailbox: " << mailbox.name;
@@ -227,13 +236,12 @@ KAsync::Future<void> ImapServerProxy::fetchFolders(std::function<void(const QVec
         }
         callback(list);
     });
-    return job.exec();
 }
 
-KAsync::Future<void> ImapServerProxy::fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback)
+KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback)
 {
     Q_ASSERT(!mSeparatorCharacter.isNull());
-    auto job = select(folder.pathParts.join(mSeparatorCharacter)).then<void, KAsync::Job<void>>([this, callback, folder]() -> KAsync::Job<void> {
+    return select(folder.pathParts.join(mSeparatorCharacter)).then<void, KAsync::Job<void>>([this, callback, folder]() -> KAsync::Job<void> {
         return fetchHeaders(folder.pathParts.join(mSeparatorCharacter)).then<void, KAsync::Job<void>, QList<qint64>>([this, callback](const QList<qint64> &uidsToFetch){
             Trace() << "Uids to fetch: " << uidsToFetch;
             if (uidsToFetch.isEmpty()) {
@@ -251,5 +259,4 @@ KAsync::Future<void> ImapServerProxy::fetchMessages(const Folder &folder, std::f
         });
 
     });
-    return job.exec();
 }

@@ -54,6 +54,7 @@
 #define DEBUG_AREA "resource.imap"
 
 using namespace Imap;
+using namespace Sink;
 
 class MailPropertyExtractor : public Sink::Preprocessor
 {
@@ -273,7 +274,7 @@ public:
                 commitSync();
                 folderList << folders;
 
-            });
+            }).exec();
             folderFuture.waitForFinished();
             if (folderFuture.errorCode()) {
                 Warning() << "Folder sync failed.";
@@ -293,7 +294,7 @@ public:
                     synchronizeMails(folder.normalizedPath(), messages);
                     commit();
                     commitSync();
-                });
+                }).exec();
                 messagesFuture.waitForFinished();
                 if (messagesFuture.errorCode()) {
                     future.setError(1, "Folder sync failed: " + folder.normalizedPath());

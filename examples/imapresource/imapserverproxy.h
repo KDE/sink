@@ -69,6 +69,7 @@ public:
     KAsync::Job<void> append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags = QList<QByteArray>(), const QDateTime &internalDate = QDateTime());
     KAsync::Job<void> store(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
     KAsync::Job<void> create(const QString &mailbox);
+    KAsync::Job<void> rename(const QString &mailbox, const QString &newMailbox);
     KAsync::Job<void> remove(const QString &mailbox);
     KAsync::Job<void> expunge();
 
@@ -87,8 +88,8 @@ public:
     KAsync::Job<QList<qint64>> fetchHeaders(const QString &mailbox);
     KAsync::Job<void> remove(const QString &mailbox, const QByteArray &imapSet);
 
-    KAsync::Future<void> fetchFolders(std::function<void(const QVector<Folder> &)> callback);
-    KAsync::Future<void> fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback);
+    KAsync::Job<void> fetchFolders(std::function<void(const QVector<Folder> &)> callback);
+    KAsync::Job<void> fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback);
 };
 
 }

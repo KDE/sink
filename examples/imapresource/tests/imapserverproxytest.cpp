@@ -80,18 +80,13 @@ private slots:
     {
         ImapServerProxy imap("localhost", 993);
         VERIFYEXEC(imap.login("doe", "doe"));
-        auto future = imap.fetchFolders([](const QVector<Folder> &){});
-        future.waitForFinished();
-        QVERIFY(!future.errorCode());
+        VERIFYEXEC(imap.fetchFolders([](const QVector<Folder> &){}));
     }
 
     void testFetchFoldersFailure()
     {
         ImapServerProxy imap("foobar", 993);
-        auto future = imap.fetchFolders([](const QVector<Folder> &){});
-        auto future2 = future;
-        future2.waitForFinished();
-        QVERIFY(future2.errorCode());
+        VERIFYEXEC_FAIL(imap.fetchFolders([](const QVector<Folder> &){}));
     }
 
     void testFetchMail()
