@@ -320,6 +320,73 @@ public:
     QByteArray mResourceInstanceIdentifier;
 };
 
+class ImapWriteback : public Sink::SourceWriteBack
+{
+public:
+    ImapWriteback(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : Sink::SourceWriteBack(resourceType, resourceInstanceIdentifier)
+    {
+
+    }
+
+    KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId)
+    {
+        return KAsync::null<QByteArray>();
+    }
+
+    QString buildPath(const ApplicationDomain::Folder &folder)
+    {
+        //Don't use entityStore in here, it can produce wrong results we're replaying an older revision than the latest one
+        QChar separator = '/';
+        QString path;
+        auto parent = folder.getParent();
+        if (!parent.isEmpty()) {
+            auto parentRemoteId = syncStore().resolveLocalId("folder", parent);
+            return parentRemoteId + separator.toLatin1() + folder.getName().toUtf8();
+        }
+        return separator + folder.getName();
+    }
+
+    KAsync::Job<QByteArray> replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId)
+    {
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+        auto login = imap->login(mUser, mPassword);
+        if (operation == Sink::Operation_Creation) {
+            auto folderPath = buildPath(folder);
+            auto imapPath = "INBOX" + folderPath.replace('/', '.');
+            Trace() << "Creating a new folder: " << imapPath;
+            return login.then<void>(imap->create(imapPath))
+                .then<QByteArray>([imapPath, imap]() {
+                    Trace() << "Finished creating a new folder: " << imapPath;
+                    return imapPath.toUtf8();
+                });
+        } else if (operation == Sink::Operation_Removal) {
+            Trace() << "Removing a folder: " << oldRemoteId;
+            return login.then<void>(imap->remove(oldRemoteId))
+                .then<QByteArray>([oldRemoteId, imap]() {
+                    Trace() << "Finished removing a folder: " << oldRemoteId;
+                    return QByteArray();
+                });
+        } else if (operation == Sink::Operation_Modification) {
+            auto newFolderPath = buildPath(folder);
+            auto newImapPath = "INBOX" + newFolderPath.replace('/', '.');
+            Trace() << "Renaming a folder: " << oldRemoteId << newImapPath;
+            return login.then<void>(imap->rename(oldRemoteId, newImapPath))
+                .then<QByteArray>([newImapPath, imap]() {
+                    Trace() << "Finished renaming a folder: " << newImapPath;
+                    return newImapPath.toUtf8();
+                });
+        }
+        return KAsync::null<QByteArray>();
+    }
+
+public:
+    QString mServer;
+    int mPort;
+    QString mUser;
+    QString mPassword;
+    QByteArray mResourceInstanceIdentifier;
+};
+
 ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
     : Sink::GenericResource(PLUGIN_NAME, instanceIdentifier, pipeline)
 {
@@ -336,12 +403,11 @@ ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPo
     synchronizer->mPassword = mPassword;
     synchronizer->mResourceInstanceIdentifier = instanceIdentifier;
     setupSynchronizer(synchronizer);
-    auto changereplay = QSharedPointer<Sink::NullChangeReplay>::create(instanceIdentifier);
-    // auto changereplay = QSharedPointer<ImapWriteback>::create(PLUGIN_NAME, instanceIdentifier);
-    // changereplay->mServer = mServer;
-    // changereplay->mPort = mPort;
-    // changereplay->mUser = mUser;
-    // changereplay->mPassword = mPassword;
+    auto changereplay = QSharedPointer<ImapWriteback>::create(PLUGIN_NAME, instanceIdentifier);
+    changereplay->mServer = mServer;
+    changereplay->mPort = mPort;
+    changereplay->mUser = mUser;
+    changereplay->mPassword = mPassword;
     setupChangereplay(changereplay);
 
     setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
@@ -356,7 +422,7 @@ void ImapResource::removeFromDisk(const QByteArray &instanceIdentifier)
 
 KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
-      auto synchronizationStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadOnly);
+    auto synchronizationStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadOnly);
     auto synchronizationTransaction = synchronizationStore->createTransaction(Sink::Storage::ReadOnly);
 
     auto mainStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier, Sink::Storage::ReadOnly);
@@ -367,87 +433,58 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
 
     Trace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
 
-    // if (domainType == ENTITY_TYPE_MAIL) {
-    //     const auto mail = entityStore->read<Sink::ApplicationDomain::Mail>(entityId);
-    //     const auto folder = entityStore->read<Sink::ApplicationDomain::Folder>(mail.getFolder());
-    //     const auto folderRemoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
-    //     const auto mailRemoteId = syncStore->resolveLocalId(ENTITY_TYPE_MAIL, mail.identifier());
-    //     // const auto filePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
-    //     ImapServerProxy imap(mServer, mPort);
-    //     imap.login(mUser, mPassword).exec().waitForFinished();
-    //     imap.select(folderRemoteId).exec().waitForFinished();
-    //     KIMAP::ImapSet set;
-    //     set.add(mailRemoteId.toLongLong());
-    //     KIMAP::FetchJob::FetchScope scope;
-    //     scope.mode = KIMAP::FetchJob::FetchScope::Full;
-    //     imap.fetch(set, scope, [](const QVector<Imap::Message> &messages) {
-    //
-    //     }).exec().waitForFinished();
-    //
-    //     if (inspectionType == Sink::ResourceControl::Inspection::PropertyInspectionType) {
-    //         if (property == "unread") {
-    //             // const auto flags = KPIM::Maildir::readEntryFlags(filePath.split('/').last());
-    //             // if (expectedValue.toBool() && (flags & KPIM::Maildir::Seen)) {
-    //             //     return KAsync::error<void>(1, "Expected unread but couldn't find it.");
-    //             // }
-    //             // if (!expectedValue.toBool() && !(flags & KPIM::Maildir::Seen)) {
-    //             //     return KAsync::error<void>(1, "Expected read but couldn't find it.");
-    //             // }
-    //             return KAsync::null<void>();
-    //         }
-    //         if (property == "subject") {
-    //             // KMime::Message *msg = new KMime::Message;
-    //             // msg->setHead(KMime::CRLFtoLF(KPIM::Maildir::readEntryHeadersFromFile(filePath)));
-    //             // msg->parse();
-    //             //
-    //             // if (msg->subject(true)->asUnicodeString() != expectedValue.toString()) {
-    //             //     return KAsync::error<void>(1, "Subject not as expected: " + msg->subject(true)->asUnicodeString());
-    //             // }
-    //             return KAsync::null<void>();
-    //         }
-    //     }
-    //     if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
-    //         // if (QFileInfo(filePath).exists() != expectedValue.toBool()) {
-    //         //     return KAsync::error<void>(1, "Wrong file existence: " + filePath);
-    //         // }
-    //     }
-    // }
-    // if (domainType == ENTITY_TYPE_FOLDER) {
-    //     const auto remoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, entityId);
-    //     const auto folder = entityStore->read<Sink::ApplicationDomain::Folder>(entityId);
-    //
-    //     if (inspectionType == Sink::ResourceControl::Inspection::CacheIntegrityInspectionType) {
-    //         // Warning() << "Inspecting cache integrity" << remoteId;
-    //         // if (!QDir(remoteId).exists()) {
-    //         //     return KAsync::error<void>(1, "The directory is not existing: " + remoteId);
-    //         // }
-    //         //
-    //         // int expectedCount = 0;
-    //         // Index index("mail.index.folder", transaction);
-    //         // index.lookup(entityId, [&](const QByteArray &sinkId) {
-    //         //         expectedCount++;
-    //         // },
-    //         // [&](const Index::Error &error) {
-    //         //     Warning() << "Error in index: " <<  error.message << property;
-    //         // });
-    //         //
-    //         // QDir dir(remoteId + "/cur");
-    //         // const QFileInfoList list = dir.entryInfoList(QDir::Files);
-    //         // if (list.size() != expectedCount) {
-    //         //     return KAsync::error<void>(1, QString("Wrong number of files; found %1 instead of %2.").arg(list.size()).arg(expectedCount));
-    //         // }
-    //         // if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
-    //         //     if (!remoteId.endsWith(folder.getName().toUtf8())) {
-    //         //         return KAsync::error<void>(1, "Wrong folder name: " + remoteId);
-    //         //     }
-    //         //     //TODO we shouldn't use the remoteId here to figure out the path, it could be gone/changed already
-    //         //     if (QDir(remoteId).exists() != expectedValue.toBool()) {
-    //         //         return KAsync::error<void>(1, "Wrong folder existence: " + remoteId);
-    //         //     }
-    //         // }
-    //     }
-    //
-    // }
+    if (domainType == ENTITY_TYPE_MAIL) {
+        const auto mail = entityStore->read<Sink::ApplicationDomain::Mail>(entityId);
+        const auto folder = entityStore->read<Sink::ApplicationDomain::Folder>(mail.getFolder());
+        const auto folderRemoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
+        const auto mailRemoteId = syncStore->resolveLocalId(ENTITY_TYPE_MAIL, mail.identifier());
+        if (mailRemoteId.isEmpty() || folderRemoteId.isEmpty()) {
+            KAsync::error<void>();
+        }
+        Trace() << "Mail remote id: " << folderRemoteId << mailRemoteId << mail.identifier() << folder.identifier();
+
+        if (inspectionType == Sink::ResourceControl::Inspection::PropertyInspectionType) {
+            if (property == "unread") {
+                return KAsync::null<void>();
+            }
+            if (property == "subject") {
+                return KAsync::null<void>();
+            }
+        }
+        if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
+        }
+    }
+    if (domainType == ENTITY_TYPE_FOLDER) {
+        const auto remoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, entityId);
+        const auto folder = entityStore->read<Sink::ApplicationDomain::Folder>(entityId);
+
+        if (inspectionType == Sink::ResourceControl::Inspection::CacheIntegrityInspectionType) {
+        }
+        if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
+            auto  folderByPath = QSharedPointer<QSet<QString>>::create();
+            auto  folderByName = QSharedPointer<QSet<QString>>::create();
+
+            auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+            auto inspectionJob = imap->login(mUser, mPassword)
+                .then<void>(imap->fetchFolders([=](const QVector<Imap::Folder> &folders) {
+                    for (const auto &f : folders) {
+                        *folderByPath << f.normalizedPath();
+                        *folderByName << f.pathParts.last();
+                    }
+                }))
+                .then<void, KAsync::Job<void>>([folderByName, folderByPath, folder, remoteId, imap]() {
+                    if (!folderByName->contains(folder.getName())) {
+                        Warning() << "Existing folders are: " << *folderByPath;
+                        Warning() << "We're looking for: " << folder.getName();
+                        return KAsync::error<void>(1, "Wrong folder name: " + remoteId);
+                    }
+                    return KAsync::null<void>();
+                });
+
+            return inspectionJob;
+        }
+
+    }
     return KAsync::null<void>();
 }
 
