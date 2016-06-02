@@ -310,7 +310,7 @@ void GenericResource::enableChangeReplay(bool enable)
     if (enable) {
         QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mChangeReplay.data(), &ChangeReplay::revisionChanged, Qt::QueuedConnection);
         QObject::connect(mChangeReplay.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
-        mChangeReplay->revisionChanged();
+        QMetaObject::invokeMethod(mChangeReplay.data(), "revisionChanged", Qt::QueuedConnection);
     } else {
         QObject::disconnect(mPipeline.data(), &Pipeline::revisionUpdated, mChangeReplay.data(), &ChangeReplay::revisionChanged);
         QObject::disconnect(mChangeReplay.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
