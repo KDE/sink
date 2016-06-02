@@ -54,7 +54,9 @@ protected:
     Sink::Storage mStorage;
 
 private:
+    KAsync::Job<void> replayNextRevision();
     Sink::Storage mChangeReplayStore;
+    bool mReplayInProgress;
 };
 
 class NullChangeReplay : public ChangeReplay

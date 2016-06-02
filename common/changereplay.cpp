@@ -30,7 +30,7 @@ using namespace Sink;
 #define DEBUG_AREA "resource.changereplay"
 
 ChangeReplay::ChangeReplay(const QByteArray &resourceName)
-    : mStorage(storageLocation(), resourceName, Storage::ReadOnly), mChangeReplayStore(storageLocation(), resourceName + ".changereplay", Storage::ReadWrite)
+    : mStorage(storageLocation(), resourceName, Storage::ReadOnly), mChangeReplayStore(storageLocation(), resourceName + ".changereplay", Storage::ReadWrite), mReplayInProgress(false)
 {
     Trace() << "Created change replay: " << resourceName;
 }
@@ -58,15 +58,16 @@ bool ChangeReplay::allChangesReplayed()
     return (lastReplayedRevision >= topRevision);
 }
 
-void ChangeReplay::revisionChanged()
+KAsync::Job<void> ChangeReplay::replayNextRevision()
 {
+    mReplayInProgress = true;
     auto mainStoreTransaction = mStorage.createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
         Warning() << error.message;
     });
-    auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
+    auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
         Warning() << error.message;
     });
-    qint64 lastReplayedRevision = 1;
+    qint64 lastReplayedRevision = 0;
     replayStoreTransaction.openDatabase().scan("lastReplayedRevision",
         [&lastReplayedRevision](const QByteArray &key, const QByteArray &value) -> bool {
             lastReplayedRevision = value.toLongLong();
@@ -75,28 +76,45 @@ void ChangeReplay::revisionChanged()
         [](const Storage::Error &) {});
     const qint64 topRevision = Storage::maxRevision(mainStoreTransaction);
 
-    Trace() << "Changereplay from " << lastReplayedRevision << " to " << topRevision;
-    if (lastReplayedRevision <= topRevision) {
-        qint64 revision = lastReplayedRevision;
-        for (; revision <= topRevision; revision++) {
-            const auto uid = Storage::getUidFromRevision(mainStoreTransaction, revision);
-            const auto type = Storage::getTypeFromRevision(mainStoreTransaction, revision);
-            const auto key = Storage::assembleKey(uid, revision);
-            Storage::mainDatabase(mainStoreTransaction, type)
-                .scan(key,
-                    [&lastReplayedRevision, type, this](const QByteArray &key, const QByteArray &value) -> bool {
-                        Trace() << "Replaying " << key;
-                        replay(type, key, value).exec();
-                        // TODO make for loop async, and pass to async replay function together with type
-                        return false;
-                    },
-                    [key](const Storage::Error &) { ErrorMsg() << "Failed to replay change " << key; });
-        }
-        revision--;
-        replayStoreTransaction.openDatabase().write("lastReplayedRevision", QByteArray::number(revision));
-        replayStoreTransaction.commit();
-        Trace() << "Replayed until " << revision;
+    if (lastReplayedRevision < topRevision) {
+        Trace() << "Changereplay from " << lastReplayedRevision << " to " << topRevision;
+        qint64 revision = lastReplayedRevision + 1;
+        const auto uid = Storage::getUidFromRevision(mainStoreTransaction, revision);
+        const auto type = Storage::getTypeFromRevision(mainStoreTransaction, revision);
+        const auto key = Storage::assembleKey(uid, revision);
+        KAsync::Job<void> replayJob = KAsync::null<void>();
+        Storage::mainDatabase(mainStoreTransaction, type)
+            .scan(key,
+                [&lastReplayedRevision, type, this, &replayJob](const QByteArray &key, const QByteArray &value) -> bool {
+                    Trace() << "Replaying " << key;
+                    replayJob = replay(type, key, value);
+                    // TODO make for loop async, and pass to async replay function together with type
+                    return false;
+                },
+                [key](const Storage::Error &) { ErrorMsg() << "Failed to replay change " << key; });
+        return replayJob.then<void>([this, revision]() {
+            auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
+                Warning() << error.message;
+            });
+            replayStoreTransaction.openDatabase().write("lastReplayedRevision", QByteArray::number(revision));
+            replayStoreTransaction.commit();
+            Trace() << "Replayed until " << revision;
+        }).then<void>([this]() {
+            //replay until we're done
+            replayNextRevision().exec();
+        });
+    } else {
+        Trace() << "No changes to replay";
+        mReplayInProgress = false;
+        emit changesReplayed();
     }
-    emit changesReplayed();
+    return KAsync::null<void>();
+}
+
+void ChangeReplay::revisionChanged()
+{
+    if (!mReplayInProgress) {
+        replayNextRevision().exec();
+    }
 }
 
