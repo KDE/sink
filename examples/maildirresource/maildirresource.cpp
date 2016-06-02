@@ -573,14 +573,14 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
                 }
                 return KAsync::error<void>(1, QString("Wrong number of files; found %1 instead of %2.").arg(list.size()).arg(expectedCount));
             }
-            if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
-                if (!remoteId.endsWith(folder.getName().toUtf8())) {
-                    return KAsync::error<void>(1, "Wrong folder name: " + remoteId);
-                }
-                //TODO we shouldn't use the remoteId here to figure out the path, it could be gone/changed already
-                if (QDir(remoteId).exists() != expectedValue.toBool()) {
-                    return KAsync::error<void>(1, "Wrong folder existence: " + remoteId);
-                }
+        }
+        if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
+            if (!remoteId.endsWith(folder.getName().toUtf8())) {
+                return KAsync::error<void>(1, "Wrong folder name: " + remoteId);
+            }
+            //TODO we shouldn't use the remoteId here to figure out the path, it could be gone/changed already
+            if (QDir(remoteId).exists() != expectedValue.toBool()) {
+                return KAsync::error<void>(1, "Wrong folder existence: " + remoteId);
             }
         }
 
