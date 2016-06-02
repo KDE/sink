@@ -79,14 +79,14 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
     if (operation != Sink::Operation_Creation) {
         oldRemoteId = syncStore().resolveLocalId(type, uid);
     }
-    Trace() << "Replaying " << key << type;
+    Trace() << "Replaying " << key << type << oldRemoteId;
 
     KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
     if (type == ENTITY_TYPE_FOLDER) {
-        auto folder = store().read<ApplicationDomain::Folder>(uid);
+        auto folder = store().readFromKey<ApplicationDomain::Folder>(key);
         job = replay(folder, operation, oldRemoteId);
     } else if (type == ENTITY_TYPE_MAIL) {
-        auto mail = store().read<ApplicationDomain::Mail>(uid);
+        auto mail = store().readFromKey<ApplicationDomain::Mail>(key);
         job = replay(mail, operation, oldRemoteId);
     }
 
