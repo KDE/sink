@@ -38,12 +38,28 @@ public:
         auto typeName = ApplicationDomain::getTypeName<T>();
         auto mainDatabase = Storage::mainDatabase(mTransaction, typeName);
         auto bufferAdaptor = getLatest(mainDatabase, identifier, *Sink::AdaptorFactoryRegistry::instance().getFactory<T>(mResourceType));
-        Q_ASSERT(bufferAdaptor);
+        if (!bufferAdaptor) {
+            return T();
+        }
+        return T(mResourceInstanceIdentifier, identifier, 0, bufferAdaptor);
+    }
+
+    template<typename T>
+    T readFromKey(const QByteArray &key) const
+    {
+        auto typeName = ApplicationDomain::getTypeName<T>();
+        auto mainDatabase = Storage::mainDatabase(mTransaction, typeName);
+        auto bufferAdaptor = get(mainDatabase, key, *Sink::AdaptorFactoryRegistry::instance().getFactory<T>(mResourceType));
+        const auto identifier = Storage::uidFromKey(key);
+        if (!bufferAdaptor) {
+            return T();
+        }
         return T(mResourceInstanceIdentifier, identifier, 0, bufferAdaptor);
     }
 
 
     static QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory);
+    static QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> get(const Sink::Storage::NamedDatabase &db, const QByteArray &key, DomainTypeAdaptorFactoryInterface &adaptorFactory);
 private:
     QByteArray mResourceType;
     QByteArray mResourceInstanceIdentifier;

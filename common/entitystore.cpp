@@ -46,3 +46,19 @@ QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityStore::getLatest(co
     return current;
 }
 
+QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityStore::get(const Sink::Storage::NamedDatabase &db, const QByteArray &key, DomainTypeAdaptorFactoryInterface &adaptorFactory)
+{
+    QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
+    db.scan(key,
+        [&current, &adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
+            Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+            if (!buffer.isValid()) {
+                Warning() << "Read invalid buffer from disk";
+            } else {
+                current = adaptorFactory.createAdaptor(buffer.entity());
+            }
+            return false;
+        },
+        [](const Sink::Storage::Error &error) { Warning() << "Failed to read current value from storage: " << error.message; });
+    return current;
+}
