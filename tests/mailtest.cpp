@@ -95,6 +95,7 @@ void MailTest::testCreateModifyDeleteFolder()
             });
         VERIFYEXEC(job);
     }
+    VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, true)));
 
     QString name2 = "name2";
@@ -119,6 +120,7 @@ void MailTest::testCreateModifyDeleteFolder()
             });
         VERIFYEXEC(job);
     }
+    VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, true)));
 
     VERIFYEXEC(Store::remove(folder));
@@ -130,7 +132,9 @@ void MailTest::testCreateModifyDeleteFolder()
             });
         VERIFYEXEC(job);
     }
-    VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, false)));
+    VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
+    //This is not currently possible to check. The local folder and mapping has already been removed.
+    // VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, false)));
 }
 
 void MailTest::testCreateModifyDeleteMail()
