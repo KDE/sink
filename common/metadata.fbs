@@ -6,6 +6,7 @@ table Metadata {
     revision: ulong;
     replayToSource: bool = true;
     operation: Operation = Modification;
+    modifiedProperties: [string];
 }
 
 root_type Metadata;

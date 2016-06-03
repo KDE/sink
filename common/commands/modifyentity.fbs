@@ -7,6 +7,7 @@ table ModifyEntity {
     domainType: string;
     delta: [ubyte]; //Contains an entity buffer with all changed properties set
     replayToSource: bool = true;
+    modifiedProperties: [string];
 }
 
 root_type ModifyEntity;

@@ -316,16 +316,16 @@ KAsync::Job<void> ResourceAccess::sendCreateCommand(const QByteArray &uid, const
 }
 
 KAsync::Job<void>
-ResourceAccess::sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer)
+ResourceAccess::sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer, const QByteArrayList &changedProperties)
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto entityId = fbb.CreateString(uid.constData());
     // This is the resource buffer type and not the domain type
     auto type = fbb.CreateString(resourceBufferType.constData());
-    // FIXME
-    auto deletions = 0;
+    auto modifiedProperties = BufferUtils::toVector(fbb, changedProperties);
+    auto deletions = BufferUtils::toVector(fbb, deletedProperties);
     auto delta = Sink::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
-    auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta);
+    auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta, true, modifiedProperties);
     Sink::Commands::FinishModifyEntityBuffer(fbb, location);
     open();
     return sendCommand(Sink::Commands::ModifyEntityCommand, fbb);

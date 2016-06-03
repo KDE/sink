@@ -228,7 +228,8 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     }
     auto modifyEntity = Commands::GetModifyEntity(command);
     Q_ASSERT(modifyEntity);
-
+    Q_ASSERT(modifyEntity->modifiedProperties());
+    auto changeset = BufferUtils::fromVector(*modifyEntity->modifiedProperties());
     const qint64 baseRevision = modifyEntity->revision();
     const bool replayToSource = modifyEntity->replayToSource();
     // TODO rename modifyEntity->domainType to bufferType
@@ -281,9 +282,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     // Apply diff
     // FIXME only apply the properties that are available in the buffer
     Trace() << "Applying changed properties: " << diff->availableProperties();
-    QSet<QByteArray> changeset;
-    for (const auto &property : diff->availableProperties()) {
-        changeset << property;
+    for (const auto &property : changeset) {
         const auto value = diff->getProperty(property);
         if (value.isValid()) {
             newAdaptor->setProperty(property, value);
@@ -303,12 +302,16 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     // Add metadata buffer
     flatbuffers::FlatBufferBuilder metadataFbb;
-    auto metadataBuilder = MetadataBuilder(metadataFbb);
-    metadataBuilder.add_revision(newRevision);
-    metadataBuilder.add_operation(Operation_Modification);
-    metadataBuilder.add_replayToSource(replayToSource);
-    auto metadataBuffer = metadataBuilder.Finish();
-    FinishMetadataBuffer(metadataFbb, metadataBuffer);
+    {
+        auto modifiedProperties = BufferUtils::toVector(metadataFbb, changeset);
+        auto metadataBuilder = MetadataBuilder(metadataFbb);
+        metadataBuilder.add_revision(newRevision);
+        metadataBuilder.add_operation(Operation_Modification);
+        metadataBuilder.add_replayToSource(replayToSource);
+        metadataBuilder.add_modifiedProperties(modifiedProperties);
+        auto metadataBuffer = metadataBuilder.Finish();
+        FinishMetadataBuffer(metadataFbb, metadataBuffer);
+    }
 
     flatbuffers::FlatBufferBuilder fbb;
     adaptorFactory->createBuffer(newAdaptor, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());

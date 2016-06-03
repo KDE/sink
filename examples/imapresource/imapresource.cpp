@@ -328,7 +328,7 @@ public:
 
     }
 
-    KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId)
+    KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
         auto login = imap->login(mUser, mPassword);
@@ -372,10 +372,8 @@ public:
             auto uid = ridParts.takeLast().toLongLong();
             //FIXME don't hardcode the separator
             auto mailbox = ridParts.join('.');
-            Trace() << "Modifying a mail: " << oldRemoteId << " in the mailbox: " << mailbox;
-            //TODO if the message changed, remove old message and create a new one,
-            //otherwise only change flags
- 
+            Trace() << "Modifying a mail: " << oldRemoteId << " in the mailbox: " << mailbox << changedProperties;
+
             QByteArrayList flags;
             if (!mail.getUnread()) {
                 flags << Imap::Flags::Seen;
@@ -384,7 +382,7 @@ public:
                 flags << Imap::Flags::Flagged;
             }
 
-            bool messageChanged = false;
+            const bool messageChanged = changedProperties.contains(Sink::ApplicationDomain::Mail::MimeMessage::name);
             if (messageChanged) {
                 QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
                 QDateTime internalDate = mail.getDate();
@@ -431,7 +429,7 @@ public:
         return separator + folder.getName();
     }
 
-    KAsync::Job<QByteArray> replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId)
+    KAsync::Job<QByteArray> replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
         auto login = imap->login(mUser, mPassword);

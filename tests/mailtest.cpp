@@ -221,7 +221,7 @@ void MailTest::testCreateModifyDeleteMail()
 void MailTest::testMarkMailAsRead()
 {
     auto folder = Folder::create(mResourceInstanceIdentifier);
-    folder.setName("folder");
+    folder.setName("anotherfolder");
     VERIFYEXEC(Store::create(folder));
 
     auto message = KMime::Message::Ptr::create();

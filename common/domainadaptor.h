@@ -111,6 +111,9 @@ public:
         return QVariant();
     }
 
+    /**
+     * Returns all available properties for which a mapping exists (no matter what the buffer contains)
+     */
     virtual QList<QByteArray> availableProperties() const
     {
         return mResourceMapper->availableProperties() + mLocalMapper->availableProperties();

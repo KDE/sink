@@ -21,6 +21,7 @@
 
 #include "definitions.h"
 #include "log.h"
+#include "bufferutils.h"
 
 #define ENTITY_TYPE_MAIL "mail"
 #define ENTITY_TYPE_FOLDER "folder"
@@ -74,20 +75,25 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
     // const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
     const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
     const auto uid = Sink::Storage::uidFromKey(key);
+    const auto modifiedProperties = metadataBuffer->modifiedProperties() ? BufferUtils::fromVector(*metadataBuffer->modifiedProperties()) : QByteArrayList();
     QByteArray oldRemoteId;
 
     if (operation != Sink::Operation_Creation) {
         oldRemoteId = syncStore().resolveLocalId(type, uid);
+        if (oldRemoteId.isEmpty()) {
+            Warning() << "Couldn't find the remote id for: " << type << uid;
+            return KAsync::error<void>(1, "Couldn't find the remote id.");
+        }
     }
-    Trace() << "Replaying " << key << type << oldRemoteId;
+    Trace() << "Replaying " << key << type << uid << oldRemoteId;
 
     KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
     if (type == ENTITY_TYPE_FOLDER) {
         auto folder = store().readFromKey<ApplicationDomain::Folder>(key);
-        job = replay(folder, operation, oldRemoteId);
+        job = replay(folder, operation, oldRemoteId, modifiedProperties);
     } else if (type == ENTITY_TYPE_MAIL) {
         auto mail = store().readFromKey<ApplicationDomain::Mail>(key);
-        job = replay(mail, operation, oldRemoteId);
+        job = replay(mail, operation, oldRemoteId, modifiedProperties);
     }
 
     return job.then<void, QByteArray>([this, operation, type, uid, oldRemoteId](const QByteArray &remoteId) {
@@ -125,12 +131,12 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
     });
 }
 
-KAsync::Job<QByteArray> SourceWriteBack::replay(const ApplicationDomain::Mail &, Sink::Operation, const QByteArray &)
+KAsync::Job<QByteArray> SourceWriteBack::replay(const ApplicationDomain::Mail &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)
 {
     return KAsync::null<QByteArray>();
 }
 
-KAsync::Job<QByteArray> SourceWriteBack::replay(const ApplicationDomain::Folder &, Sink::Operation, const QByteArray &)
+KAsync::Job<QByteArray> SourceWriteBack::replay(const ApplicationDomain::Folder &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)
 {
     return KAsync::null<QByteArray>();
 }

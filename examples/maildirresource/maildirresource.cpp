@@ -405,7 +405,7 @@ public:
 
     }
 
-    KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId)
+    KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
         if (operation == Sink::Operation_Creation) {
             const auto remoteId = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
@@ -426,7 +426,7 @@ public:
         return KAsync::null<QByteArray>();
     }
 
-    KAsync::Job<QByteArray> replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId)
+    KAsync::Job<QByteArray> replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
         if (operation == Sink::Operation_Creation) {
             auto folderName = folder.getName();
