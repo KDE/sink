@@ -45,13 +45,13 @@ protected:
     virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Mail &, Sink::Operation, const QByteArray &oldRemoteId);
     virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Folder &, Sink::Operation, const QByteArray &oldRemoteId);
 
-    //Read only access to main storage
-    EntityStore &store();
-
     //Read/Write access to sync storage
     RemoteIdMap &syncStore();
 
 private:
+    //Read only access to main storage
+    EntityStore &store();
+
     Sink::Storage mSyncStorage;
     QSharedPointer<RemoteIdMap> mSyncStore;
     QSharedPointer<EntityStore> mEntityStore;
