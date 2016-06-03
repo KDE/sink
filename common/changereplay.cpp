@@ -76,6 +76,14 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
         [](const Storage::Error &) {});
     const qint64 topRevision = Storage::maxRevision(mainStoreTransaction);
 
+    auto recordReplayedRevision = [this](qint64 revision) {
+        auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
+            Warning() << error.message;
+        });
+        replayStoreTransaction.openDatabase().write("lastReplayedRevision", QByteArray::number(revision));
+        replayStoreTransaction.commit();
+    };
+
     if (lastReplayedRevision < topRevision) {
         Trace() << "Changereplay from " << lastReplayedRevision << " to " << topRevision;
         qint64 revision = lastReplayedRevision + 1;
@@ -92,14 +100,15 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                     return false;
                 },
                 [key](const Storage::Error &) { ErrorMsg() << "Failed to replay change " << key; });
-        return replayJob.then<void>([this, revision]() {
-            auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
-                Warning() << error.message;
-            });
-            replayStoreTransaction.openDatabase().write("lastReplayedRevision", QByteArray::number(revision));
-            replayStoreTransaction.commit();
+        return replayJob.then<void>([this, revision, recordReplayedRevision]() {
             Trace() << "Replayed until " << revision;
-        }).then<void>([this]() {
+            recordReplayedRevision(revision);
+            //replay until we're done
+            replayNextRevision().exec();
+        },
+        [this, revision, recordReplayedRevision](int, QString) {
+            Trace() << "Change replay failed" << revision;
+            recordReplayedRevision(revision);
             //replay until we're done
             replayNextRevision().exec();
         });
