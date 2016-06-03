@@ -28,6 +28,7 @@
 #include <KIMAP/KIMAP/DeleteJob>
 #include <KIMAP/KIMAP/StoreJob>
 #include <KIMAP/KIMAP/ExpungeJob>
+#include <KIMAP/KIMAP/CapabilitiesJob>
 
 #include <KIMAP/KIMAP/SessionUiProxy>
 #include <KCoreAddons/KJob>
@@ -40,6 +41,22 @@ const char* Imap::Flags::Seen = "\\Seen";
 const char* Imap::Flags::Deleted = "\\Deleted";
 const char* Imap::Flags::Answered = "\\Answered";
 const char* Imap::Flags::Flagged = "\\Flagged";
+
+template <typename T>
+static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
+{
+    return KAsync::start<T>([job, f](KAsync::Future<T> &future) {
+        QObject::connect(job, &KJob::result, [&future, f](KJob *job) {
+            if (job->error()) {
+                future.setError(job->error(), job->errorString());
+            } else {
+                future.setValue(f(job));
+                future.setFinished();
+            }
+        });
+        job->start();
+    });
+}
 
 static KAsync::Job<void> runJob(KJob *job)
 {
@@ -76,7 +93,21 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     loginJob->setPassword(password);
     loginJob->setAuthenticationMode(KIMAP::LoginJob::Plain);
     loginJob->setEncryptionMode(KIMAP::LoginJob::EncryptionMode::AnySslVersion);
-    return runJob(loginJob);
+
+    auto capabilitiesJob = new KIMAP::CapabilitiesJob(mSession);
+    QObject::connect(capabilitiesJob, &KIMAP::CapabilitiesJob::capabilitiesReceived, [this](const QStringList &capabilities) {
+        mCapabilities = capabilities;
+    });
+    return runJob(loginJob).then(runJob(capabilitiesJob)).then<void>([this](){
+        Trace() << "Supported capabilities: " << mCapabilities;
+        QStringList requiredExtensions = QStringList() << "UIDPLUS";
+        for (const auto &requiredExtension : requiredExtensions) {
+            if (!mCapabilities.contains(requiredExtension)) {
+                Warning() << "Server doesn't support required capability: " << requiredExtension;
+                //TODO fail the job
+            }
+        }
+    });
 }
 
 KAsync::Job<void> ImapServerProxy::select(const QString &mailbox)
@@ -87,14 +118,16 @@ KAsync::Job<void> ImapServerProxy::select(const QString &mailbox)
     return runJob(select);
 }
 
-KAsync::Job<void> ImapServerProxy::append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags, const QDateTime &internalDate)
+KAsync::Job<qint64> ImapServerProxy::append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags, const QDateTime &internalDate)
 {
     auto append = new KIMAP::AppendJob(mSession);
     append->setMailBox(mailbox);
     append->setContent(content);
     append->setFlags(flags);
     append->setInternalDate(internalDate);
-    return runJob(append);
+    return runJob<qint64>(append, [](KJob *job) -> qint64{
+        return static_cast<KIMAP::AppendJob*>(job)->uid();
+    });
 }
 
 KAsync::Job<void> ImapServerProxy::store(const KIMAP::ImapSet &set, const QList<QByteArray> &flags)
@@ -131,6 +164,13 @@ KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox)
 
 KAsync::Job<void> ImapServerProxy::expunge()
 {
+    auto job = new KIMAP::ExpungeJob(mSession);
+    return runJob(job);
+}
+
+KAsync::Job<void> ImapServerProxy::expunge(const KIMAP::ImapSet &set)
+{
+    //FIXME implement UID EXPUNGE
     auto job = new KIMAP::ExpungeJob(mSession);
     return runJob(job);
 }
@@ -219,10 +259,15 @@ KAsync::Job<void> ImapServerProxy::list(KIMAP::ListJob::Option option, const std
     return runJob(listJob);
 }
 
+KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox, const KIMAP::ImapSet &set)
+{
+    return select(mailbox).then<void>(store(set, QByteArrayList() << Flags::Deleted)).then<void>(expunge(set));
+}
+
 KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox, const QByteArray &imapSet)
 {
     const auto set = KIMAP::ImapSet::fromImapSequenceSet(imapSet);
-    return select(mailbox).then<void>(store(set, QByteArrayList() << Flags::Deleted)).then<void>(expunge());
+    return remove(mailbox, set);
 }
 
 KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const QVector<Folder> &)> callback)

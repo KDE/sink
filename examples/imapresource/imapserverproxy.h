@@ -60,18 +60,20 @@ struct Folder {
 class ImapServerProxy {
     KIMAP::Session *mSession;
     QChar mSeparatorCharacter;
+    QStringList mCapabilities;
 public:
     ImapServerProxy(const QString &serverUrl, int port);
 
     //Standard IMAP calls
     KAsync::Job<void> login(const QString &username, const QString &password);
     KAsync::Job<void> select(const QString &mailbox);
-    KAsync::Job<void> append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags = QList<QByteArray>(), const QDateTime &internalDate = QDateTime());
+    KAsync::Job<qint64> append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags = QList<QByteArray>(), const QDateTime &internalDate = QDateTime());
     KAsync::Job<void> store(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
     KAsync::Job<void> create(const QString &mailbox);
     KAsync::Job<void> rename(const QString &mailbox, const QString &newMailbox);
     KAsync::Job<void> remove(const QString &mailbox);
     KAsync::Job<void> expunge();
+    KAsync::Job<void> expunge(const KIMAP::ImapSet &set);
 
     typedef std::function<void(const QString &,
                         const QMap<qint64,qint64> &,
@@ -86,6 +88,7 @@ public:
 
     //Composed calls that do login etc.
     KAsync::Job<QList<qint64>> fetchHeaders(const QString &mailbox);
+    KAsync::Job<void> remove(const QString &mailbox, const KIMAP::ImapSet &set);
     KAsync::Job<void> remove(const QString &mailbox, const QByteArray &imapSet);
 
     KAsync::Job<void> fetchFolders(std::function<void(const QVector<Folder> &)> callback);

@@ -171,7 +171,9 @@ void MailTest::testCreateModifyDeleteMail()
         VERIFYEXEC(job);
     }
 
+    VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, true)));
+    VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::PropertyInspection(mail, Mail::Subject::name, subject)));
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::CacheIntegrityInspection(folder)));
 
     const auto subject2 = QString::fromLatin1("Foobar2");
@@ -197,7 +199,9 @@ void MailTest::testCreateModifyDeleteMail()
             });
         VERIFYEXEC(job);
     }
+    VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, true)));
+    VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::PropertyInspection(mail, Mail::Subject::name, subject2)));
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::CacheIntegrityInspection(folder)));
 
     VERIFYEXEC(Store::remove(mail));
@@ -209,7 +213,8 @@ void MailTest::testCreateModifyDeleteMail()
             });
         VERIFYEXEC(job);
     }
-    VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, false)));
+    VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
+    // VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, false)));
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::CacheIntegrityInspection(folder)));
 }
 

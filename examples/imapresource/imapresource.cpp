@@ -330,6 +330,76 @@ public:
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId)
     {
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+        auto login = imap->login(mUser, mPassword);
+        if (operation == Sink::Operation_Creation) {
+            auto parentRemoteId = syncStore().resolveLocalId("folder", mail.getFolder());
+            QString mailbox = parentRemoteId;
+            QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
+            QByteArrayList flags;
+            if (!mail.getUnread()) {
+                flags << Imap::Flags::Seen;
+            }
+            if (mail.getImportant()) {
+                flags << Imap::Flags::Flagged;
+            }
+            QDateTime internalDate = mail.getDate();
+            auto rid = QSharedPointer<QByteArray>::create();
+            return login.then(imap->append(mailbox, content, flags, internalDate))
+                .then<void, qint64>([imap, mailbox, rid](qint64 uid) {
+                    const auto remoteId = mailbox.toUtf8() + "/" + QByteArray::number(uid);
+                    //FIXME this get's called after the final error ahndler? WTF?
+                    Trace() << "Finished creating a new mail: " << remoteId;
+                    *rid = remoteId;
+                }).then<QByteArray>([rid, imap]() { //FIXME fix KJob so we don't need this extra clause
+                   return *rid; 
+                });
+        } else if (operation == Sink::Operation_Removal) {
+            auto ridParts = oldRemoteId.split('/');
+            auto uid = ridParts.takeLast().toLongLong();
+            //FIXME don't hardcode the separator
+            auto mailbox = ridParts.join('.');
+            Trace() << "Removing a mail: " << oldRemoteId << "in the mailbox: " << mailbox;
+            KIMAP::ImapSet set;
+            set.add(uid);
+            return login.then(imap->remove(mailbox, set))
+                .then<QByteArray>([imap, oldRemoteId]() {
+                    Trace() << "Finished removing a mail: " << oldRemoteId;
+                    return QByteArray();
+                });
+        } else if (operation == Sink::Operation_Modification) {
+            auto ridParts = oldRemoteId.split('/');
+            auto uid = ridParts.takeLast().toLongLong();
+            //FIXME don't hardcode the separator
+            auto mailbox = ridParts.join('.');
+            Trace() << "Modifying a mail: " << oldRemoteId << " in the mailbox: " << mailbox;
+            //TODO if the message changed, remove old message and create a new one,
+            //otherwise only change flags
+ 
+            QByteArrayList flags;
+            if (!mail.getUnread()) {
+                flags << Imap::Flags::Seen;
+            }
+            if (mail.getImportant()) {
+                flags << Imap::Flags::Flagged;
+            }
+
+            QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
+            QDateTime internalDate = mail.getDate();
+            auto rid = QSharedPointer<QByteArray>::create();
+            KIMAP::ImapSet set;
+            set.add(uid);
+            return login.then(imap->append(mailbox, content, flags, internalDate))
+                .then<void, qint64>([imap, mailbox, rid](qint64 uid) {
+                    const auto remoteId = mailbox + "/" + QByteArray::number(uid);
+                    Trace() << "Finished creating a modified mail: " << remoteId;
+                    *rid = remoteId;
+                })
+                .then(imap->remove(mailbox, set))
+                .then<QByteArray>([rid, imap]() {
+                   return *rid; 
+                });
+        }
         return KAsync::null<QByteArray>();
     }
 
@@ -439,19 +509,61 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
         const auto folderRemoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
         const auto mailRemoteId = syncStore->resolveLocalId(ENTITY_TYPE_MAIL, mail.identifier());
         if (mailRemoteId.isEmpty() || folderRemoteId.isEmpty()) {
-            KAsync::error<void>();
+            Warning() << "Missing remote id for folder or mail. " << mailRemoteId << folderRemoteId;
+            return KAsync::error<void>();
         }
+        auto uid = mailRemoteId.split('/').last().toLongLong();
         Trace() << "Mail remote id: " << folderRemoteId << mailRemoteId << mail.identifier() << folder.identifier();
+
+        KIMAP::ImapSet set;
+        set.add(uid);
+        if (set.isEmpty()) {
+            return KAsync::error<void>(1, "Couldn't determine uid of mail.");
+        }
+        KIMAP::FetchJob::FetchScope scope;
+        scope.mode = KIMAP::FetchJob::FetchScope::Full;
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+        auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
+        auto inspectionJob = imap->login(mUser, mPassword)
+            .then<void>(imap->select(folderRemoteId))
+            .then<void>(imap->fetch(set, scope, [imap, messageByUid](const QVector<Imap::Message> &messages) {
+                for (const auto &m : messages) {
+                    messageByUid->insert(m.uid, m);
+                }
+            }));
 
         if (inspectionType == Sink::ResourceControl::Inspection::PropertyInspectionType) {
             if (property == "unread") {
-                return KAsync::null<void>();
+                return inspectionJob.then<void, KAsync::Job<void>>([=]() {
+                    auto msg = messageByUid->value(uid);
+                    if (expectedValue.toBool() && msg.flags.contains(Imap::Flags::Seen)) {
+                        return KAsync::error<void>(1, "Expected unread but couldn't find it.");
+                    }
+                    if (!expectedValue.toBool() && !msg.flags.contains(Imap::Flags::Seen)) {
+                        return KAsync::error<void>(1, "Expected read but couldn't find it.");
+                    }
+                    return KAsync::null<void>();
+                });
             }
             if (property == "subject") {
-                return KAsync::null<void>();
+                return inspectionJob.then<void, KAsync::Job<void>>([=]() {
+                    auto msg = messageByUid->value(uid);
+                    if (msg.msg->subject(true)->asUnicodeString() != expectedValue.toString()) {
+                        return KAsync::error<void>(1, "Subject not as expected: " + msg.msg->subject(true)->asUnicodeString());
+                    }
+                    return KAsync::null<void>();
+                });
             }
         }
         if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
+            return inspectionJob.then<void, KAsync::Job<void>>([=]() {
+                if (!messageByUid->contains(uid)) {
+                    Warning() << "Existing messages are: " << messageByUid->keys();
+                    Warning() << "We're looking for: " << uid;
+                    return KAsync::error<void>(1, "Couldn't find message: " + mailRemoteId);
+                }
+                return KAsync::null<void>();
+            });
         }
     }
     if (domainType == ENTITY_TYPE_FOLDER) {
@@ -459,6 +571,36 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
         const auto folder = entityStore->read<Sink::ApplicationDomain::Folder>(entityId);
 
         if (inspectionType == Sink::ResourceControl::Inspection::CacheIntegrityInspectionType) {
+            Warning() << "Inspecting cache integrity" << remoteId;
+
+            int expectedCount = 0;
+            Index index("mail.index.folder", transaction);
+            index.lookup(entityId, [&](const QByteArray &sinkId) {
+                expectedCount++;
+            },
+            [&](const Index::Error &error) {
+                Warning() << "Error in index: " <<  error.message << property;
+            });
+
+            auto set = KIMAP::ImapSet::fromImapSequenceSet("1:*");
+            KIMAP::FetchJob::FetchScope scope;
+            scope.mode = KIMAP::FetchJob::FetchScope::Headers;
+            auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+            auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
+            auto inspectionJob = imap->login(mUser, mPassword)
+                .then<void>(imap->select(remoteId))
+                .then<void>(imap->fetch(set, scope, [=](const QVector<Imap::Message> &messages) {
+                    for (const auto &m : messages) {
+                        messageByUid->insert(m.uid, m);
+                    }
+                }))
+                .then<void, KAsync::Job<void>>([imap, messageByUid, expectedCount]() {
+                    if (messageByUid->size() != expectedCount) {
+                        return KAsync::error<void>(1, QString("Wrong number of files; found %1 instead of %2.").arg(messageByUid->size()).arg(expectedCount));
+                    }
+                    return KAsync::null<void>();
+                });
+            return inspectionJob;
         }
         if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
             auto  folderByPath = QSharedPointer<QSet<QString>>::create();
