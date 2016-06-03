@@ -7,6 +7,6 @@ set(sinksynchronizer_SRCS
 )
 
 add_executable(${PROJECT_NAME} ${sinksynchronizer_SRCS})
-target_link_libraries(${PROJECT_NAME} sink KF5::Async)
+target_link_libraries(${PROJECT_NAME} sink KF5::Async dl)
 qt5_use_modules(${PROJECT_NAME} Widgets Network)
 install(TARGETS ${PROJECT_NAME} ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})

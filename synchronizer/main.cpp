@@ -25,6 +25,10 @@
 #include <csignal>
 #include <iostream>
 #include <cstdlib>
+#include <cxxabi.h>
+#include <dlfcn.h>
+#include <ostream>
+#include <sstream>
 
 #include "listener.h"
 #include "log.h"
@@ -35,26 +39,43 @@
 
 Listener *listener = nullptr;
 
+//Print a demangled stacktrace
 void printStacktrace()
 {
-    QString s;
-    void *trace[256];
-    int n = backtrace(trace, 256);
-    if (n) {
-        char **strings = backtrace_symbols(trace, n);
+    int skip = 1;
+	void *callstack[128];
+	const int nMaxFrames = sizeof(callstack) / sizeof(callstack[0]);
+	char buf[1024];
+	int nFrames = backtrace(callstack, nMaxFrames);
+	char **symbols = backtrace_symbols(callstack, nFrames);
 
-        s = QLatin1String("[\n");
-
-        for (int i = 0; i < n; ++i) {
-            s += QString::number(i) + QLatin1String(": ") + QLatin1String(strings[i]) + QLatin1String("\n");
-        }
-        s += QLatin1String("]\n");
-        std::fprintf(stderr, "Backtrace: %s\n", s.toLatin1().data());
-
-        if (strings) {
-            free(strings);
-        }
+	std::ostringstream trace_buf;
+	for (int i = skip; i < nFrames; i++) {
+		// printf("%s\n", symbols[i]);
+		Dl_info info;
+		if (dladdr(callstack[i], &info) && info.dli_sname) {
+			char *demangled = NULL;
+			int status = -1;
+			if (info.dli_sname[0] == '_') {
+				demangled = abi::__cxa_demangle(info.dli_sname, NULL, 0, &status);
+            }
+			snprintf(buf, sizeof(buf), "%-3d %*p %s + %zd\n",
+					 i, int(2 + sizeof(void*) * 2), callstack[i],
+					 status == 0 ? demangled :
+					 info.dli_sname == 0 ? symbols[i] : info.dli_sname,
+					 (char *)callstack[i] - (char *)info.dli_saddr);
+			free(demangled);
+		} else {
+			snprintf(buf, sizeof(buf), "%-3d %*p %s\n",
+					 i, int(2 + sizeof(void*) * 2), callstack[i], symbols[i]);
+		}
+		trace_buf << buf;
+	}
+	free(symbols);
+	if (nFrames == nMaxFrames) {
+		trace_buf << "[truncated]\n";
     }
+    std::cerr << trace_buf.str();
 }
 
 int sCounter = 0;
