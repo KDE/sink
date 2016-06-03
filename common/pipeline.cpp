@@ -228,8 +228,12 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     }
     auto modifyEntity = Commands::GetModifyEntity(command);
     Q_ASSERT(modifyEntity);
-    Q_ASSERT(modifyEntity->modifiedProperties());
-    auto changeset = BufferUtils::fromVector(*modifyEntity->modifiedProperties());
+    QList<QByteArray> changeset;
+    if (modifyEntity->modifiedProperties()) {
+        changeset = BufferUtils::fromVector(*modifyEntity->modifiedProperties());
+    } else {
+        Warning() << "No changeset available";
+    }
     const qint64 baseRevision = modifyEntity->revision();
     const bool replayToSource = modifyEntity->replayToSource();
     // TODO rename modifyEntity->domainType to bufferType

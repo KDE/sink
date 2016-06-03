@@ -34,6 +34,9 @@ static QList<QByteArray> getKeys(const QByteArray &dbEnv, const QByteArray &name
     auto db = transaction.openDatabase(name, nullptr, false);
     QList<QByteArray> result;
     db.scan("", [&](const QByteArray &key, const QByteArray &value) {
+        if (Sink::Storage::isInternalKey(key)) {
+            return true;
+        }
         result << key;
         return true;
     });
@@ -106,13 +109,18 @@ QByteArray modifyEntityCommand(const flatbuffers::FlatBufferBuilder &entityFbb, 
     flatbuffers::FlatBufferBuilder fbb;
     auto type = fbb.CreateString(Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>().toStdString().data());
     auto id = fbb.CreateString(std::string(uid.constData(), uid.size()));
+    auto summaryProperty = fbb.CreateString("summary");
+    std::vector<flatbuffers::Offset<flatbuffers::String>> modified;
+    modified.push_back(summaryProperty);
     auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
+    auto modifiedProperties = fbb.CreateVector(modified);
     // auto delta = Sink::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
     Sink::Commands::ModifyEntityBuilder builder(fbb);
     builder.add_domainType(type);
     builder.add_delta(delta);
     builder.add_revision(revision);
     builder.add_entityId(id);
+    builder.add_modifiedProperties(modifiedProperties);
     auto location = builder.Finish();
     Sink::Commands::FinishModifyEntityBuffer(fbb, location);
 
@@ -207,6 +215,7 @@ private slots:
         pipeline.commit();
 
         auto result = getKeys("org.kde.pipelinetest.instance1", "event.main");
+        qDebug() << result;
         QCOMPARE(result.size(), 1);
     }
 
@@ -349,6 +358,7 @@ private slots:
         pipeline.setResourceType("test");
         pipeline.setPreprocessors("event", QVector<Sink::Preprocessor *>() << &testProcessor);
         pipeline.startTransaction();
+        // pipeline.setAdaptorFactory("event", QSharedPointer<TestEventAdaptorFactory>::create());
 
         // Actual test
         {
