@@ -163,6 +163,11 @@ QByteArray Storage::uidFromKey(const QByteArray &key)
     return key.mid(0, 38);
 }
 
+qint64 Storage::revisionFromKey(const QByteArray &key)
+{
+    return key.mid(39).toLongLong();
+}
+
 Storage::NamedDatabase Storage::mainDatabase(const Sink::Storage::Transaction &t, const QByteArray &type)
 {
     return t.openDatabase(type + ".main");

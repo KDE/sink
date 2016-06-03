@@ -28,17 +28,18 @@ EntityStore::EntityStore(const QByteArray &resourceType, const QByteArray &resou
 
 }
 
-QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityStore::getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory)
+QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityStore::getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision)
 {
     QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
     db.findLatest(uid,
-        [&current, &adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
+        [&current, &adaptorFactory, &retrievedRevision](const QByteArray &key, const QByteArray &data) -> bool {
             Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
             if (!buffer.isValid()) {
                 Warning() << "Read invalid buffer from disk";
             } else {
                 Trace() << "Found value " << key;
                 current = adaptorFactory.createAdaptor(buffer.entity());
+                retrievedRevision = Sink::Storage::revisionFromKey(key);
             }
             return false;
         },
@@ -46,19 +47,36 @@ QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityStore::getLatest(co
     return current;
 }
 
-QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityStore::get(const Sink::Storage::NamedDatabase &db, const QByteArray &key, DomainTypeAdaptorFactoryInterface &adaptorFactory)
+QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityStore::get(const Sink::Storage::NamedDatabase &db, const QByteArray &key, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision)
 {
     QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
     db.scan(key,
-        [&current, &adaptorFactory](const QByteArray &key, const QByteArray &data) -> bool {
+        [&current, &adaptorFactory, &retrievedRevision](const QByteArray &key, const QByteArray &data) -> bool {
             Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
             if (!buffer.isValid()) {
                 Warning() << "Read invalid buffer from disk";
             } else {
                 current = adaptorFactory.createAdaptor(buffer.entity());
+                retrievedRevision = Sink::Storage::revisionFromKey(key);
             }
             return false;
         },
         [](const Sink::Storage::Error &error) { Warning() << "Failed to read current value from storage: " << error.message; });
     return current;
+}
+
+QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityStore::getPrevious(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, qint64 revision, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision)
+{
+    QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> current;
+    qint64 latestRevision = 0;
+    db.scan(uid,
+        [&current, &latestRevision, revision](const QByteArray &key, const QByteArray &) -> bool {
+            auto foundRevision = Sink::Storage::revisionFromKey(key);
+            if (foundRevision < revision && foundRevision > latestRevision) {
+                latestRevision = foundRevision;
+            }
+            return true;
+        },
+        [](const Sink::Storage::Error &error) { Warning() << "Failed to read current value from storage: " << error.message; }, true);
+    return get(db, Sink::Storage::assembleKey(uid, latestRevision), adaptorFactory, retrievedRevision);
 }

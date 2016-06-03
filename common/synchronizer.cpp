@@ -119,8 +119,8 @@ void Synchronizer::scanForRemovals(const QByteArray &bufferType, const std::func
 {
     entryGenerator([this, bufferType, &exists](const QByteArray &key) {
         auto sinkId = Sink::Storage::uidFromKey(key);
-        Trace() << "Checking for removal " << key;
         const auto remoteId = syncStore().resolveLocalId(bufferType, sinkId);
+        Trace() << "Checking for removal " << key << remoteId;
         // If we have no remoteId, the entity hasn't been replayed to the source yet
         if (!remoteId.isEmpty()) {
             if (!exists(remoteId)) {
@@ -144,7 +144,8 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
         createEntity(
             sinkId, bufferType, entity, *adaptorFactory, [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::CreateEntityCommand, buffer); });
     } else { // modification
-        if (auto current = store().getLatest(mainDatabase, sinkId, *adaptorFactory)) {
+        qint64 retrievedRevision = 0;
+        if (auto current = store().getLatest(mainDatabase, sinkId, *adaptorFactory, retrievedRevision)) {
             bool changed = false;
             for (const auto &property : entity.changedProperties()) {
                 if (entity.getProperty(property) != current->getProperty(property)) {

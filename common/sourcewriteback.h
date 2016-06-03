@@ -48,6 +48,12 @@ protected:
     //Read/Write access to sync storage
     RemoteIdMap &syncStore();
 
+    template <typename T>
+    T getPrevious(const T &entity)
+    {
+        return store().readPrevious<T>(entity.identifier(), entity.revision());
+    }
+
 private:
     //Read only access to main storage
     EntityStore &store();
