@@ -132,11 +132,35 @@ KAsync::Job<qint64> ImapServerProxy::append(const QString &mailbox, const QByteA
 
 KAsync::Job<void> ImapServerProxy::store(const KIMAP::ImapSet &set, const QList<QByteArray> &flags)
 {
+    return storeFlags(set, flags);
+}
+
+KAsync::Job<void> ImapServerProxy::storeFlags(const KIMAP::ImapSet &set, const QList<QByteArray> &flags)
     auto store = new KIMAP::StoreJob(mSession);
     store->setUidBased(true);
+    store->setMode(KIMAP::StoreJob::SetFlags);
     store->setSequenceSet(set);
     store->setFlags(flags);
+    return runJob(store);
+}
+
+KAsync::Job<void> ImapServerProxy::addFlags(const KIMAP::ImapSet &set, const QList<QByteArray> &flags)
+{
+    auto store = new KIMAP::StoreJob(mSession);
+    store->setUidBased(true);
     store->setMode(KIMAP::StoreJob::AppendFlags);
+    store->setSequenceSet(set);
+    store->setFlags(flags);
+    return runJob(store);
+}
+
+KAsync::Job<void> ImapServerProxy::removeFlags(const KIMAP::ImapSet &set, const QList<QByteArray> &flags)
+{
+    auto store = new KIMAP::StoreJob(mSession);
+    store->setUidBased(true);
+    store->setMode(KIMAP::StoreJob::RemoveFlags);
+    store->setSequenceSet(set);
+    store->setFlags(flags);
     return runJob(store);
 }
 

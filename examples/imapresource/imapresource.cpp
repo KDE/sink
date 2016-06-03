@@ -384,21 +384,36 @@ public:
                 flags << Imap::Flags::Flagged;
             }
 
-            QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
-            QDateTime internalDate = mail.getDate();
-            auto rid = QSharedPointer<QByteArray>::create();
-            KIMAP::ImapSet set;
-            set.add(uid);
-            return login.then(imap->append(mailbox, content, flags, internalDate))
-                .then<void, qint64>([imap, mailbox, rid](qint64 uid) {
-                    const auto remoteId = mailbox + "/" + QByteArray::number(uid);
-                    Trace() << "Finished creating a modified mail: " << remoteId;
-                    *rid = remoteId;
-                })
-                .then(imap->remove(mailbox, set))
-                .then<QByteArray>([rid, imap]() {
-                   return *rid; 
-                });
+            bool messageChanged = false;
+            if (messageChanged) {
+                QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
+                QDateTime internalDate = mail.getDate();
+                auto rid = QSharedPointer<QByteArray>::create();
+                KIMAP::ImapSet set;
+                set.add(uid);
+                return login.then(imap->append(mailbox, content, flags, internalDate))
+                    .then<void, qint64>([imap, mailbox, rid](qint64 uid) {
+                        const auto remoteId = mailbox + "/" + QByteArray::number(uid);
+                        Trace() << "Finished creating a modified mail: " << remoteId;
+                        *rid = remoteId;
+                    })
+                    .then(imap->remove(mailbox, set))
+                    .then<QByteArray>([rid, imap]() {
+                        return *rid; 
+                    });
+            } else {
+                KIMAP::ImapSet set;
+                set.add(uid);
+                return login.then(imap->select(mailbox))
+                    .then(imap->storeFlags(set, flags))
+                    .then<void, qint64>([imap, mailbox](qint64 uid) {
+                        const auto remoteId = mailbox + "/" + QByteArray::number(uid);
+                        Trace() << "Finished modifying mail: " << remoteId;
+                    })
+                    .then<QByteArray>([oldRemoteId, imap]() {
+                        return oldRemoteId; 
+                    });
+            }
         }
         return KAsync::null<QByteArray>();
     }

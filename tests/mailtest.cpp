@@ -231,7 +231,7 @@ void MailTest::testMarkMailAsRead()
     auto mail = Mail::create(mResourceInstanceIdentifier);
     mail.setMimeMessage(message->encodedContent());
     mail.setFolder(folder);
-    mail.setUnread(false);
+    mail.setUnread(true);
     VERIFYEXEC(Store::create(mail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
@@ -241,10 +241,10 @@ void MailTest::testMarkMailAsRead()
         .then<void, KAsync::Job<void>, QList<Mail::Ptr>>([this](const QList<Mail::Ptr> &mails) {
             ASYNCCOMPARE(mails.size(), 1);
             auto mail = mails.first();
-            mail->setUnread(true);
+            mail->setUnread(false);
             return Store::modify(*mail)
                 .then<void>(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier)) // The change needs to be replayed already
-                .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::PropertyInspection(*mail, Mail::Unread::name, true)))
+                .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::PropertyInspection(*mail, Mail::Unread::name, false)))
                 .then(ResourceControl::inspect<Mail>(ResourceControl::Inspection::PropertyInspection(*mail, Mail::Subject::name, mail->getSubject())));
         });
     VERIFYEXEC(job);
@@ -259,7 +259,7 @@ void MailTest::testMarkMailAsRead()
             ASYNCCOMPARE(mails.size(), 1);
             auto mail = mails.first();
             ASYNCVERIFY(!mail->getSubject().isEmpty());
-            ASYNCCOMPARE(mail->getUnread(), true);
+            ASYNCCOMPARE(mail->getUnread(), false);
             ASYNCVERIFY(QFileInfo(mail->getMimeMessagePath()).exists());
             return KAsync::null<void>();
         });

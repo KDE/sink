@@ -69,6 +69,9 @@ public:
     KAsync::Job<void> select(const QString &mailbox);
     KAsync::Job<qint64> append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags = QList<QByteArray>(), const QDateTime &internalDate = QDateTime());
     KAsync::Job<void> store(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
+    KAsync::Job<void> storeFlags(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
+    KAsync::Job<void> addFlags(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
+    KAsync::Job<void> removeFlags(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
     KAsync::Job<void> create(const QString &mailbox);
     KAsync::Job<void> rename(const QString &mailbox, const QString &newMailbox);
     KAsync::Job<void> remove(const QString &mailbox);
