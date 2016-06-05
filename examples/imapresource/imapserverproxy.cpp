@@ -136,6 +136,7 @@ KAsync::Job<void> ImapServerProxy::store(const KIMAP::ImapSet &set, const QList<
 }
 
 KAsync::Job<void> ImapServerProxy::storeFlags(const KIMAP::ImapSet &set, const QList<QByteArray> &flags)
+{
     auto store = new KIMAP::StoreJob(mSession);
     store->setUidBased(true);
     store->setMode(KIMAP::StoreJob::SetFlags);
