@@ -156,10 +156,6 @@ static inline ResultSet fullScan(const Sink::Storage::Transaction &transaction, 
     Storage::mainDatabase(transaction, bufferType)
         .scan(QByteArray(),
             [&](const QByteArray &key, const QByteArray &value) -> bool {
-                // Skip internals
-                if (Sink::Storage::isInternalKey(key)) {
-                    return true;
-                }
                 if (keys.contains(Sink::Storage::uidFromKey(key))) {
                     //Not something that should persist if the replay works, so we keep a message for now.
                     Trace() << "Multiple revisions for key: " << key;

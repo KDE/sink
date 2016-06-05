@@ -34,9 +34,6 @@ static QList<QByteArray> getKeys(const QByteArray &dbEnv, const QByteArray &name
     auto db = transaction.openDatabase(name, nullptr, false);
     QList<QByteArray> result;
     db.scan("", [&](const QByteArray &key, const QByteArray &value) {
-        if (Sink::Storage::isInternalKey(key)) {
-            return true;
-        }
         result << key;
         return true;
     });

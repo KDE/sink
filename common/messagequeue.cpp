@@ -112,7 +112,7 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
             .openDatabase()
             .scan("",
                 [this, resultHandler, resultCount, &count, maxBatchSize, &waitCondition](const QByteArray &key, const QByteArray &value) -> bool {
-                    if (Sink::Storage::isInternalKey(key) || mPendingRemoval.contains(key)) {
+                    if (mPendingRemoval.contains(key)) {
                         return true;
                     }
                     *resultCount += 1;
@@ -158,7 +158,7 @@ bool MessageQueue::isEmpty()
     if (db) {
         db.scan("",
             [&count, this](const QByteArray &key, const QByteArray &value) -> bool {
-                if (!Sink::Storage::isInternalKey(key) && !mPendingRemoval.contains(key)) {
+                if (!mPendingRemoval.contains(key)) {
                     count++;
                     return false;
                 }

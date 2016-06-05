@@ -141,9 +141,6 @@ public:
                 // auto remoteIds = synchronizationTransaction.openDatabase("rid.mapping." + bufferType, std::function<void(const Sink::Storage::Error &)>(), true);
                 auto mainDatabase = Sink::Storage::mainDatabase(transaction(), bufferType);
                 mainDatabase.scan("", [&](const QByteArray &key, const QByteArray &) {
-                    if (Sink::Storage::isInternalKey(key)) {
-                        return true;
-                    }
                     callback(key);
                     return true;
                 });
