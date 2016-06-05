@@ -98,30 +98,32 @@ void MailTest::testCreateModifyDeleteFolder()
     VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, true)));
 
-    QString name2 = "name2";
-    QByteArray icon2 = "icon2";
-    folder.setName(name2);
-    folder.setIcon(icon2);
+    if (!mCapabilities.contains("-folder.rename")) {
+        QString name2 = "name2";
+        QByteArray icon2 = "icon2";
+        folder.setName(name2);
+        folder.setIcon(icon2);
 
-    VERIFYEXEC(Store::modify(folder));
-    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
-    {
-        auto job = Store::fetchAll<Folder>(Query::RequestedProperties(QByteArrayList() << Folder::Name::name << Folder::Icon::name))
-            .then<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
-                QCOMPARE(folders.size(), baseCount + 1);
-                QHash<QString, Folder::Ptr> foldersByName;
-                for (const auto &folder : folders) {
-                    foldersByName.insert(folder->getName(), folder);
-                }
-                QVERIFY(foldersByName.contains(name2));
-                auto folder = *foldersByName.value(name2);
-                QCOMPARE(folder.getName(), name2);
-                QCOMPARE(folder.getIcon(), icon2);
-            });
-        VERIFYEXEC(job);
+        VERIFYEXEC(Store::modify(folder));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
+        {
+            auto job = Store::fetchAll<Folder>(Query::RequestedProperties(QByteArrayList() << Folder::Name::name << Folder::Icon::name))
+                .then<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
+                    QCOMPARE(folders.size(), baseCount + 1);
+                    QHash<QString, Folder::Ptr> foldersByName;
+                    for (const auto &folder : folders) {
+                        foldersByName.insert(folder->getName(), folder);
+                    }
+                    QVERIFY(foldersByName.contains(name2));
+                    auto folder = *foldersByName.value(name2);
+                    QCOMPARE(folder.getName(), name2);
+                    QCOMPARE(folder.getIcon(), icon2);
+                });
+            VERIFYEXEC(job);
+        }
+        VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
+        VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, true)));
     }
-    VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
-    VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, true)));
 
     VERIFYEXEC(Store::remove(folder));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));

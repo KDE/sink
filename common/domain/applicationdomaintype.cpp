@@ -245,7 +245,7 @@ namespace MaildirResource {
         auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
         resource.setProperty("type", "org.kde.maildir");
         resource.setProperty("account", account);
-        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << "storage" << "drafts"));
+        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << "storage" << "drafts" << "-folder.rename"));
         return resource;
     }
 }
