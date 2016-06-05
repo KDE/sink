@@ -245,6 +245,7 @@ private slots:
 
         QCOMPARE(numValues, 1);
         QVERIFY(!gotError);
+        QVERIFY(gotResult);
     }
 
     void testDuplicates()

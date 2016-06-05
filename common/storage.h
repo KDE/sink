@@ -87,7 +87,7 @@ public:
         * @return The number of values retrieved.
         */
         int scan(const QByteArray &key, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-            const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool findSubstringKeys = false) const;
+            const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool findSubstringKeys = false, bool skipInternalKeys = true) const;
 
         /**
          * Finds the last value in a series matched by prefix.

@@ -179,7 +179,7 @@ void Storage::NamedDatabase::remove(const QByteArray &k, const QByteArray &value
 }
 
 int Storage::NamedDatabase::scan(const QByteArray &k, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-    const std::function<void(const Storage::Error &error)> &errorHandler, bool findSubstringKeys) const
+    const std::function<void(const Storage::Error &error)> &errorHandler, bool findSubstringKeys, bool skipInternalKeys) const
 {
     if (!d || !d->transaction) {
         // Not an error. We rely on this to read nothing from non-existing databases.
@@ -209,10 +209,14 @@ int Storage::NamedDatabase::scan(const QByteArray &k, const std::function<bool(c
             op = MDB_SET_RANGE;
         }
         if ((rc = mdb_cursor_get(cursor, &key, &data, op)) == 0) {
+            const auto current = QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
             // The first lookup will find a key that is equal or greather than our key
-            if (QByteArray::fromRawData((char *)key.mv_data, key.mv_size).startsWith(k)) {
-                numberOfRetrievedValues++;
-                if (resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
+            if (current.startsWith(k)) {
+                const bool callResultHandler =  !(skipInternalKeys && isInternalKey(current));
+                if (callResultHandler) {
+                    numberOfRetrievedValues++;
+                }
+                if (!callResultHandler || resultHandler(current, QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
                     if (findSubstringKeys) {
                         // Reset the key to what we search for
                         key.mv_data = (void *)k.constData();
@@ -220,11 +224,15 @@ int Storage::NamedDatabase::scan(const QByteArray &k, const std::function<bool(c
                     }
                     MDB_cursor_op nextOp = (d->allowDuplicates && !findSubstringKeys) ? MDB_NEXT_DUP : MDB_NEXT;
                     while ((rc = mdb_cursor_get(cursor, &key, &data, nextOp)) == 0) {
-                        // Every consequent lookup simply iterates through the list
-                        if (QByteArray::fromRawData((char *)key.mv_data, key.mv_size).startsWith(k)) {
-                            numberOfRetrievedValues++;
-                            if (!resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
-                                break;
+                        const auto current = QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
+                        // Every consequitive lookup simply iterates through the list
+                        if (current.startsWith(k)) {
+                            const bool callResultHandler =  !(skipInternalKeys && isInternalKey(current));
+                            if (callResultHandler) {
+                                numberOfRetrievedValues++;
+                                if (!resultHandler(current, QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
+                                    break;
+                                }
                             }
                         }
                     }
