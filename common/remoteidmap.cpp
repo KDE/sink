@@ -56,7 +56,7 @@ QByteArray RemoteIdMap::resolveRemoteId(const QByteArray &bufferType, const QByt
     Index index("rid.mapping." + bufferType, mTransaction);
     QByteArray sinkId = index.lookup(remoteId);
     if (sinkId.isEmpty()) {
-        sinkId = QUuid::createUuid().toString().toUtf8();
+        sinkId = Sink::Storage::generateUid();
         index.add(remoteId, sinkId);
         Index("localid.mapping." + bufferType, mTransaction).add(sinkId, remoteId);
     }

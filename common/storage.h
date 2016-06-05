@@ -220,6 +220,8 @@ public:
 
     static NamedDatabase mainDatabase(const Sink::Storage::Transaction &, const QByteArray &type);
 
+    static QByteArray generateUid();
+
 private:
     std::function<void(const Storage::Error &error)> mErrorHandler;
 

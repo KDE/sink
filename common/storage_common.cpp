@@ -22,6 +22,7 @@
 #include "storage.h"
 
 #include "log.h"
+#include <QUuid>
 
 namespace Sink {
 
@@ -166,6 +167,11 @@ QByteArray Storage::uidFromKey(const QByteArray &key)
 qint64 Storage::revisionFromKey(const QByteArray &key)
 {
     return key.mid(39).toLongLong();
+}
+
+QByteArray Storage::generateUid()
+{
+    return QUuid::createUuid().toByteArray();
 }
 
 Storage::NamedDatabase Storage::mainDatabase(const Sink::Storage::Transaction &t, const QByteArray &type)

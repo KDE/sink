@@ -110,7 +110,7 @@ KAsync::Job<void> MailtransportFacade::create(const Sink::ApplicationDomain::Mai
     return KAsync::start<void>([mail, this]() {
         auto config = ResourceConfig::getConfiguration(mIdentifier);
 
-        auto identifier = QUuid::createUuid().toByteArray();
+        auto identifier = Sink::Storage::generateUid();
         Trace() << "Sending new message: " << identifier;
         Trace() << config.value("server").toByteArray() << config.value("username").toByteArray() << config.value("cacert").toByteArray();
 

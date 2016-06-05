@@ -178,7 +178,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     }
 
     if (key.isEmpty()) {
-        key = QUuid::createUuid().toString().toUtf8();
+        key = Sink::Storage::generateUid();
     }
     Q_ASSERT(!key.isEmpty());
     const qint64 newRevision = Storage::maxRevision(d->transaction) + 1;

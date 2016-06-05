@@ -58,7 +58,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
                 flatbuffers::FlatBufferBuilder fbb;
                 domainTypeAdaptorFactory->createBuffer(*domainObject, fbb);
                 const auto buffer = QByteArray::fromRawData(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
-                const auto key = QUuid::createUuid().toString().toLatin1();
+                const auto key = Sink::Storage::generateUid();
                 db.write(key, buffer);
                 bufferSizeTotal += buffer.size();
                 keysSizeTotal += key.size();
