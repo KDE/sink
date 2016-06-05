@@ -144,6 +144,7 @@ int main(int argc, char *argv[])
     std::set_terminate(terminateHandler);
 
     QCoreApplication app(argc, argv);
+    app.setQuitLockEnabled(false);
 
     QByteArrayList arguments;
     for (int i = 0; i < argc; i++) {
