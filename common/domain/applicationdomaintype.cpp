@@ -21,6 +21,7 @@
 #include "log.h"
 #include "../bufferadaptor.h"
 #include "definitions.h"
+#include "storage.h" //for generateUid()
 #include <QFile>
 
 namespace Sink {
@@ -64,6 +65,11 @@ ApplicationDomainType& ApplicationDomainType::operator=(const ApplicationDomainT
 
 ApplicationDomainType::~ApplicationDomainType()
 {
+}
+
+QByteArray ApplicationDomainType::generateUid()
+{
+    return Sink::Storage::generateUid();
 }
 
 bool ApplicationDomainType::hasProperty(const QByteArray &key) const

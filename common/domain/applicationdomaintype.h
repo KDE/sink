@@ -27,7 +27,6 @@
 #include <QDebug>
 #include <QUuid>
 #include "bufferadaptor.h"
-#include "storage.h" //for generateUid()
 
 #define SINK_ENTITY(TYPE) \
     typedef QSharedPointer<TYPE> Ptr; \
@@ -102,11 +101,13 @@ public:
         return QSharedPointer<DomainType>::create(domainType.mResourceInstanceIdentifier, QByteArray(domainType.mIdentifier.constData(), domainType.mIdentifier.size()), domainType.mRevision, memoryAdaptor);
     }
 
+    static QByteArray generateUid();
+
     template <class DomainType>
     static DomainType createEntity()
     {
         DomainType object;
-        object.mIdentifier = Sink::Storage::generateUid();
+        object.mIdentifier = generateUid();
         return object;
     }
 
@@ -114,7 +115,7 @@ public:
     static DomainType createEntity(const QByteArray &resourceInstanceIdentifier)
     {
         DomainType object(resourceInstanceIdentifier);
-        object.mIdentifier = Sink::Storage::generateUid();
+        object.mIdentifier = generateUid();
         return object;
     }
 
