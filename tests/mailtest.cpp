@@ -270,7 +270,7 @@ void MailTest::testMarkMailAsRead()
 
 void MailTest::testCreateDraft()
 {
-    if (!mCapabilities.contains("drafts")) {
+    if (!mCapabilities.contains(ResourceCapabilities::Mail::drafts)) {
         QSKIP("Resource doesn't have the drafts capability");
     }
 

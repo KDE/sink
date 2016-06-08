@@ -252,6 +252,16 @@ namespace ImapResource {
     SinkResource SINK_EXPORT create(const QByteArray &account);
 };
 
+namespace ResourceCapabilities {
+namespace Mail {
+    static constexpr const char *storage = "mail.storage";
+    static constexpr const char *drafts = "mail.drafts";
+    static constexpr const char *trash = "mail.trash";
+    static constexpr const char *transport = "mail.transport";
+    static constexpr const char *folderhierarchy = "mail.folderhierarchy";
+};
+};
+
 /**
  * All types need to be registered here an MUST return a different name.
  *

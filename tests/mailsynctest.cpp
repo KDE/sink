@@ -95,7 +95,7 @@ void MailSyncTest::testListFolders()
         if (names.contains("maildir1")) {
             names.removeAll("maildir1");
         }
-        if (mCapabilities.contains("drafts")) {
+        if (mCapabilities.contains(ResourceCapabilities::Mail::drafts)) {
             QVERIFY(names.contains("drafts"));
             names.removeAll("drafts");
         }
@@ -155,7 +155,7 @@ void MailSyncTest::testListRemovedFolder()
 
 void MailSyncTest::testListFolderHierarchy()
 {
-    if (!mCapabilities.contains("folder.hierarchy")) {
+    if (!mCapabilities.contains(ResourceCapabilities::Mail::folderhierarchy)) {
         QSKIP("Missing capability folder.hierarchy");
     }
     Sink::Query query;
@@ -182,7 +182,7 @@ void MailSyncTest::testListFolderHierarchy()
         if (names.contains("maildir1")) {
             names.removeAll("maildir1");
         }
-        if (mCapabilities.contains("drafts")) {
+        if (mCapabilities.contains(ResourceCapabilities::Mail::drafts)) {
             QVERIFY(names.contains("drafts"));
             names.removeAll("drafts");
         }
@@ -194,7 +194,7 @@ void MailSyncTest::testListFolderHierarchy()
 
 void MailSyncTest::testListNewSubFolder()
 {
-    if (!mCapabilities.contains("folder.hierarchy")) {
+    if (!mCapabilities.contains(ResourceCapabilities::Mail::folderhierarchy)) {
         QSKIP("Missing capability folder.hierarchy");
     }
     Sink::Query query;
@@ -219,7 +219,7 @@ void MailSyncTest::testListNewSubFolder()
 
 void MailSyncTest::testListRemovedSubFolder()
 {
-    if (!mCapabilities.contains("folder.hierarchy")) {
+    if (!mCapabilities.contains(ResourceCapabilities::Mail::folderhierarchy)) {
         QSKIP("Missing capability folder.hierarchy");
     }
     Sink::Query query;

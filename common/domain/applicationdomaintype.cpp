@@ -251,7 +251,7 @@ namespace MaildirResource {
         auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
         resource.setProperty("type", "org.kde.maildir");
         resource.setProperty("account", account);
-        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << "storage" << "drafts" << "-folder.rename"));
+        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << "-folder.rename"));
         return resource;
     }
 }
@@ -262,7 +262,7 @@ namespace MailtransportResource {
         auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
         resource.setProperty("type", "org.kde.mailtransport");
         resource.setProperty("account", account);
-        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << "transport"));
+        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::transport));
         return resource;
     }
 }
@@ -273,7 +273,7 @@ namespace ImapResource {
         auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
         resource.setProperty("type", "org.kde.imap");
         resource.setProperty("account", account);
-        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << "storage" << "folder.hierarchy"));
+        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << ResourceCapabilities::Mail::folderhierarchy));
         return resource;
     }
 }
