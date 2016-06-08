@@ -54,13 +54,29 @@ struct Folder {
         return pathParts.join('/');
     }
 
+    QString parentPath() const
+    {
+        auto parts = pathParts;
+        parts.removeLast();
+        return parts.join(separator);
+    }
+
     QList<QString> pathParts;
+    QString path;
+    QChar separator;
 };
 
 class ImapServerProxy {
     KIMAP::Session *mSession;
-    QChar mSeparatorCharacter;
     QStringList mCapabilities;
+
+    QSet<QString> mPersonalNamespaces;
+    QChar mPersonalNamespaceSeparator;
+    QSet<QString> mSharedNamespaces;
+    QChar mSharedNamespaceSeparator;
+    QSet<QString> mUserNamespaces;
+    QChar mUserNamespaceSeparator;
+
 public:
     ImapServerProxy(const QString &serverUrl, int port);
 
@@ -93,6 +109,10 @@ public:
     KAsync::Job<QList<qint64>> fetchHeaders(const QString &mailbox);
     KAsync::Job<void> remove(const QString &mailbox, const KIMAP::ImapSet &set);
     KAsync::Job<void> remove(const QString &mailbox, const QByteArray &imapSet);
+    KAsync::Job<QString> createSubfolder(const QString &parentMailbox, const QString &folderName);
+    KAsync::Job<QString> renameSubfolder(const QString &mailbox, const QString &newName);
+
+    QString mailboxFromFolder(const Folder &) const;
 
     KAsync::Job<void> fetchFolders(std::function<void(const QVector<Folder> &)> callback);
     KAsync::Job<void> fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback);

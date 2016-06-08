@@ -21,6 +21,7 @@
 #include <QDir>
 #include <QFile>
 #include <KIMAP/KIMAP/LoginJob>
+#include <kimap/namespacejob.h>
 #include <KIMAP/KIMAP/SelectJob>
 #include <KIMAP/KIMAP/AppendJob>
 #include <KIMAP/KIMAP/CreateJob>
@@ -98,15 +99,33 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     QObject::connect(capabilitiesJob, &KIMAP::CapabilitiesJob::capabilitiesReceived, [this](const QStringList &capabilities) {
         mCapabilities = capabilities;
     });
+    auto namespaceJob = new KIMAP::NamespaceJob(mSession);
+
     return runJob(loginJob).then(runJob(capabilitiesJob)).then<void>([this](){
         Trace() << "Supported capabilities: " << mCapabilities;
-        QStringList requiredExtensions = QStringList() << "UIDPLUS";
+        QStringList requiredExtensions = QStringList() << "UIDPLUS" << "NAMESPACE";
         for (const auto &requiredExtension : requiredExtensions) {
             if (!mCapabilities.contains(requiredExtension)) {
                 Warning() << "Server doesn't support required capability: " << requiredExtension;
                 //TODO fail the job
             }
         }
+    }).then(runJob(namespaceJob)).then<void>([this, namespaceJob](){
+        for (const auto &ns :namespaceJob->personalNamespaces()) {
+            mPersonalNamespaces << ns.name;
+            mPersonalNamespaceSeparator = ns.separator;
+        }
+        for (const auto &ns :namespaceJob->sharedNamespaces()) {
+            mSharedNamespaces << ns.name;
+            mSharedNamespaceSeparator = ns.separator;
+        }
+        for (const auto &ns :namespaceJob->userNamespaces()) {
+            mUserNamespaces << ns.name;
+            mUserNamespaceSeparator = ns.separator;
+        }
+        Trace() << "Found personal namespaces: " << mPersonalNamespaces << mPersonalNamespaceSeparator;
+        Trace() << "Found shared namespaces: " << mSharedNamespaces << mSharedNamespaceSeparator;
+        Trace() << "Found user namespaces: " << mUserNamespaces << mUserNamespaceSeparator;
     });
 }
 
@@ -271,16 +290,6 @@ KAsync::Job<void> ImapServerProxy::list(KIMAP::ListJob::Option option, const std
     // listJob->setQueriedNamespaces(serverNamespaces());
     QObject::connect(listJob, &KIMAP::ListJob::mailBoxesReceived,
             listJob, callback);
-    //Figure out the separator character on the first list issued.
-    if (mSeparatorCharacter.isNull()) {
-        QObject::connect(listJob, &KIMAP::ListJob::mailBoxesReceived,
-                listJob, [this](const QList<KIMAP::MailBoxDescriptor> &mailboxes,const QList<QList<QByteArray> > &flags) {
-                if (!mailboxes.isEmpty() && mSeparatorCharacter.isNull()) {
-                    mSeparatorCharacter = mailboxes.first().separator;
-                }
-            }
-        );
-    }
     return runJob(listJob);
 }
 
@@ -295,6 +304,40 @@ KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox, const QByteArr
     return remove(mailbox, set);
 }
 
+KAsync::Job<QString> ImapServerProxy::createSubfolder(const QString &parentMailbox, const QString &folderName)
+{
+    auto folder = QSharedPointer<QString>::create();
+    return KAsync::start<void, KAsync::Job<void>>([this, parentMailbox, folderName, folder]() {
+        Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
+        if (parentMailbox.isEmpty()) {
+            *folder = mPersonalNamespaces.toList().first() + folderName;
+        } else {
+            *folder = parentMailbox + mPersonalNamespaceSeparator + folderName;
+        }
+        Trace() << "Creating subfolder: " << *folder;
+        return create(*folder);
+    })
+    .then<QString>([=]() {
+        return *folder;
+    });
+}
+
+KAsync::Job<QString> ImapServerProxy::renameSubfolder(const QString &oldMailbox, const QString &newName)
+{
+    auto folder = QSharedPointer<QString>::create();
+    return KAsync::start<void, KAsync::Job<void>>([this, oldMailbox, newName, folder]() {
+        Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
+        auto parts = oldMailbox.split(mPersonalNamespaceSeparator);
+        parts.removeLast();
+        *folder = parts.join(mPersonalNamespaceSeparator) + mPersonalNamespaceSeparator + newName;
+        Trace() << "Renaming subfolder: " << oldMailbox << *folder;
+        return rename(oldMailbox, *folder);
+    })
+    .then<QString>([=]() {
+        return *folder;
+    });
+}
+
 KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const QVector<Folder> &)> callback)
 {
     Trace() << "Fetching folders";
@@ -302,17 +345,23 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const QVector
         QVector<Folder> list;
         for (const auto &mailbox : mailboxes) {
             Trace() << "Found mailbox: " << mailbox.name;
-            list << Folder{mailbox.name.split(mailbox.separator)};
+            list << Folder{mailbox.name.split(mailbox.separator), mailbox.name, mailbox.separator};
         }
         callback(list);
     });
 }
 
+QString ImapServerProxy::mailboxFromFolder(const Folder &folder) const
+{
+    Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
+    return folder.pathParts.join(mPersonalNamespaceSeparator);
+}
+
 KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback)
 {
-    Q_ASSERT(!mSeparatorCharacter.isNull());
-    return select(folder.pathParts.join(mSeparatorCharacter)).then<void, KAsync::Job<void>>([this, callback, folder]() -> KAsync::Job<void> {
-        return fetchHeaders(folder.pathParts.join(mSeparatorCharacter)).then<void, KAsync::Job<void>, QList<qint64>>([this, callback](const QList<qint64> &uidsToFetch){
+    Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
+    return select(mailboxFromFolder(folder)).then<void, KAsync::Job<void>>([this, callback, folder]() -> KAsync::Job<void> {
+        return fetchHeaders(mailboxFromFolder(folder)).then<void, KAsync::Job<void>, QList<qint64>>([this, callback](const QList<qint64> &uidsToFetch){
             Trace() << "Uids to fetch: " << uidsToFetch;
             if (uidsToFetch.isEmpty()) {
                 Trace() << "Nothing to fetch";

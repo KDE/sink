@@ -103,6 +103,31 @@ public:
 
 };
 
+static qint64 uidFromMailRid(const QByteArray &remoteId)
+{
+    auto ridParts = remoteId.split(':');
+    Q_ASSERT(ridParts.size() == 2);
+    return ridParts.last().toLongLong();
+}
+
+static QByteArray folderIdFromMailRid(const QByteArray &remoteId)
+{
+    auto ridParts = remoteId.split(':');
+    Q_ASSERT(ridParts.size() == 2);
+    return ridParts.first();
+}
+
+static QByteArray assembleMailRid(const QByteArray &folderLocalId, qint64 imapUid)
+{
+    return folderLocalId + ':' + QByteArray::number(imapUid);
+}
+
+static QByteArray assembleMailRid(const ApplicationDomain::Mail &mail, qint64 imapUid)
+{
+    return assembleMailRid(mail.getFolder(), imapUid);
+}
+
+
 class ImapSynchronizer : public Sink::Synchronizer {
 public:
     ImapSynchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier)
@@ -111,18 +136,17 @@ public:
 
     }
 
-    QByteArray createFolder(const QString &folderPath, const QByteArray &icon)
+    QByteArray createFolder(const QString &folderName, const QString &folderPath, const QString &parentFolderRid, const QByteArray &icon)
     {
-        auto remoteId = folderPath.toUtf8();
-        auto bufferType = ENTITY_TYPE_FOLDER;
+        Trace() << "Creating folder: " << folderName << parentFolderRid;
+        const auto remoteId = folderPath.toUtf8();
+        const auto bufferType = ENTITY_TYPE_FOLDER;
         Sink::ApplicationDomain::Folder folder;
-        auto folderPathParts = folderPath.split('/');
-        const auto name = folderPathParts.takeLast();
-        folder.setProperty("name", name);
+        folder.setProperty("name", folderName);
         folder.setProperty("icon", icon);
 
-        if (!folderPathParts.isEmpty()) {
-            folder.setProperty("parent", syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderPathParts.join('/').toUtf8()));
+        if (!parentFolderRid.isEmpty()) {
+            folder.setProperty("parent", syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, parentFolderRid.toUtf8()));
         }
         createOrModify(bufferType, remoteId, folder);
         return remoteId;
@@ -146,9 +170,9 @@ public:
                 });
             },
             [&folderList](const QByteArray &remoteId) -> bool {
-                //folderList.contains(remoteId)
+                // folderList.contains(remoteId)
                 for (const auto folderPath : folderList) {
-                    if (folderPath.pathParts.join('/') == remoteId) {
+                    if (folderPath.path == remoteId) {
                         return true;
                     }
                 }
@@ -156,19 +180,9 @@ public:
             }
         );
 
-        for (const auto folderPath : folderList) {
-            createFolder(folderPath.pathParts.join('/'), "folder");
+        for (const auto &f : folderList) {
+            createFolder(f.pathParts.last(), f.path, f.parentPath(), "folder");
         }
-    }
-
-    static QByteArray remoteIdForMessage(const QString &path, qint64 uid)
-    {
-        return path.toUtf8() + "/" + QByteArray::number(uid);
-    }
-
-    static qint64 uidFromMessageRemoteId(const QByteArray &remoteId)
-    {
-        return remoteId.split('/').last().toLongLong();
     }
 
     void synchronizeMails(const QString &path, const QVector<Message> &messages)
@@ -184,7 +198,7 @@ public:
         int count = 0;
         for (const auto &message : messages) {
             count++;
-            const auto remoteId = path.toUtf8() + "/" + QByteArray::number(message.uid);
+            const auto remoteId = assembleMailRid(folderLocalId, message.uid);
 
             Trace() << "Found a mail " << remoteId << message.msg->subject(true)->asUnicodeString() << message.flags;
 
@@ -237,7 +251,7 @@ public:
                 });
             },
             [messages, path, &count](const QByteArray &remoteId) -> bool {
-                if (messages.contains(uidFromMessageRemoteId(remoteId))) {
+                if (messages.contains(uidFromMailRid(remoteId))) {
                     return true;
                 }
                 count++;
@@ -330,8 +344,7 @@ public:
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
         auto login = imap->login(mUser, mPassword);
         if (operation == Sink::Operation_Creation) {
-            auto parentRemoteId = syncStore().resolveLocalId("folder", mail.getFolder());
-            QString mailbox = parentRemoteId;
+            QString mailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
             QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
             QByteArrayList flags;
             if (!mail.getUnread()) {
@@ -343,19 +356,18 @@ public:
             QDateTime internalDate = mail.getDate();
             auto rid = QSharedPointer<QByteArray>::create();
             return login.then(imap->append(mailbox, content, flags, internalDate))
-                .then<void, qint64>([imap, mailbox, rid](qint64 uid) {
-                    const auto remoteId = mailbox.toUtf8() + "/" + QByteArray::number(uid);
-                    //FIXME this get's called after the final error ahndler? WTF?
+                .then<void, qint64>([imap, mailbox, rid, mail](qint64 uid) {
+                    const auto remoteId = assembleMailRid(mail, uid);
+                    //FIXME this get's called after the final error handler? WTF?
                     Trace() << "Finished creating a new mail: " << remoteId;
                     *rid = remoteId;
                 }).then<QByteArray>([rid, imap]() { //FIXME fix KJob so we don't need this extra clause
-                   return *rid; 
+                   return *rid;
                 });
         } else if (operation == Sink::Operation_Removal) {
-            auto ridParts = oldRemoteId.split('/');
-            auto uid = ridParts.takeLast().toLongLong();
-            //FIXME don't hardcode the separator
-            auto mailbox = ridParts.join('.');
+            const auto folderId = folderIdFromMailRid(oldRemoteId);
+            const QString mailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, folderId);
+            const auto uid = uidFromMailRid(oldRemoteId);
             Trace() << "Removing a mail: " << oldRemoteId << "in the mailbox: " << mailbox;
             KIMAP::ImapSet set;
             set.add(uid);
@@ -365,10 +377,9 @@ public:
                     return QByteArray();
                 });
         } else if (operation == Sink::Operation_Modification) {
-            auto ridParts = oldRemoteId.split('/');
-            auto uid = ridParts.takeLast().toLongLong();
-            //FIXME don't hardcode the separator
-            auto mailbox = ridParts.join('.');
+            const QString mailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
+            const auto uid = uidFromMailRid(oldRemoteId);
+
             Trace() << "Modifying a mail: " << oldRemoteId << " in the mailbox: " << mailbox << changedProperties;
 
             QByteArrayList flags;
@@ -387,14 +398,14 @@ public:
                 KIMAP::ImapSet set;
                 set.add(uid);
                 return login.then(imap->append(mailbox, content, flags, internalDate))
-                    .then<void, qint64>([imap, mailbox, rid](qint64 uid) {
-                        const auto remoteId = mailbox + "/" + QByteArray::number(uid);
+                    .then<void, qint64>([imap, mailbox, rid, mail](qint64 uid) {
+                        const auto remoteId = assembleMailRid(mail, uid);
                         Trace() << "Finished creating a modified mail: " << remoteId;
                         *rid = remoteId;
                     })
                     .then(imap->remove(mailbox, set))
                     .then<QByteArray>([rid, imap]() {
-                        return *rid; 
+                        return *rid;
                     });
             } else {
                 KIMAP::ImapSet set;
@@ -402,28 +413,14 @@ public:
                 return login.then(imap->select(mailbox))
                     .then(imap->storeFlags(set, flags))
                     .then<void, qint64>([imap, mailbox](qint64 uid) {
-                        const auto remoteId = mailbox + "/" + QByteArray::number(uid);
-                        Trace() << "Finished modifying mail: " << remoteId;
+                        Trace() << "Finished modifying mail: " << uid;
                     })
                     .then<QByteArray>([oldRemoteId, imap]() {
-                        return oldRemoteId; 
+                        return oldRemoteId;
                     });
             }
         }
         return KAsync::null<QByteArray>();
-    }
-
-    QString buildPath(const ApplicationDomain::Folder &folder)
-    {
-        //Don't use entityStore in here, it can produce wrong results we're replaying an older revision than the latest one
-        QChar separator = '/';
-        QString path;
-        auto parent = folder.getParent();
-        if (!parent.isEmpty()) {
-            auto parentRemoteId = syncStore().resolveLocalId("folder", parent);
-            return parentRemoteId + separator.toLatin1() + folder.getName().toUtf8();
-        }
-        return separator + folder.getName();
     }
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
@@ -431,13 +428,19 @@ public:
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
         auto login = imap->login(mUser, mPassword);
         if (operation == Sink::Operation_Creation) {
-            auto folderPath = buildPath(folder);
-            auto imapPath = "INBOX" + folderPath.replace('/', '.');
-            Trace() << "Creating a new folder: " << imapPath;
-            return login.then<void>(imap->create(imapPath))
-                .then<QByteArray>([imapPath, imap]() {
-                    Trace() << "Finished creating a new folder: " << imapPath;
-                    return imapPath.toUtf8();
+            QString parentFolder;
+            if (!folder.getParent().isEmpty()) {
+                parentFolder = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, folder.getParent());
+            }
+            Trace() << "Creating a new folder: " << parentFolder << folder.getName();
+            auto rid = QSharedPointer<QByteArray>::create();
+            return login.then<QString>(imap->createSubfolder(parentFolder, folder.getName()))
+                .then<void, QString>([imap, rid](const QString &createdFolder) {
+                    Trace() << "Finished creating a new folder: " << createdFolder;
+                    *rid = createdFolder.toUtf8();
+                })
+                .then<QByteArray>([rid](){
+                    return *rid;
                 });
         } else if (operation == Sink::Operation_Removal) {
             Trace() << "Removing a folder: " << oldRemoteId;
@@ -447,13 +450,15 @@ public:
                     return QByteArray();
                 });
         } else if (operation == Sink::Operation_Modification) {
-            auto newFolderPath = buildPath(folder);
-            auto newImapPath = "INBOX" + newFolderPath.replace('/', '.');
-            Trace() << "Renaming a folder: " << oldRemoteId << newImapPath;
-            return login.then<void>(imap->rename(oldRemoteId, newImapPath))
-                .then<QByteArray>([newImapPath, imap]() {
-                    Trace() << "Finished renaming a folder: " << newImapPath;
-                    return newImapPath.toUtf8();
+            Trace() << "Renaming a folder: " << oldRemoteId << folder.getName();
+            auto rid = QSharedPointer<QByteArray>::create();
+            return login.then<QString>(imap->renameSubfolder(oldRemoteId, folder.getName()))
+                .then<void, QString>([imap, rid](const QString &createdFolder) {
+                    Trace() << "Finished renaming a folder: " << createdFolder;
+                    *rid = createdFolder.toUtf8();
+                })
+                .then<QByteArray>([rid](){
+                    return *rid;
                 });
         }
         return KAsync::null<QByteArray>();
@@ -522,7 +527,7 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
             Warning() << "Missing remote id for folder or mail. " << mailRemoteId << folderRemoteId;
             return KAsync::error<void>();
         }
-        auto uid = mailRemoteId.split('/').last().toLongLong();
+        const auto uid = uidFromMailRid(mailRemoteId);
         Trace() << "Mail remote id: " << folderRemoteId << mailRemoteId << mail.identifier() << folder.identifier();
 
         KIMAP::ImapSet set;
@@ -606,7 +611,7 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
                 }))
                 .then<void, KAsync::Job<void>>([imap, messageByUid, expectedCount]() {
                     if (messageByUid->size() != expectedCount) {
-                        return KAsync::error<void>(1, QString("Wrong number of files; found %1 instead of %2.").arg(messageByUid->size()).arg(expectedCount));
+                        return KAsync::error<void>(1, QString("Wrong number of messages on the server; found %1 instead of %2.").arg(messageByUid->size()).arg(expectedCount));
                     }
                     return KAsync::null<void>();
                 });
