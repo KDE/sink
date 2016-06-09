@@ -40,6 +40,23 @@ public:
     };
     Q_DECLARE_FLAGS(Flags, Flag)
 
+    struct Comparator {
+        enum Comparators {
+            Invalid,
+            Equals,
+            Contains
+        };
+
+        Comparator();
+        Comparator(const QVariant &v);
+        Comparator(const QVariant &v, Comparators c);
+        bool matches(const QVariant &v) const;
+
+        QVariant value;
+        Comparators comparator;
+    };
+
+
     static Query PropertyFilter(const QByteArray &key, const QVariant &value)
     {
         Query query;
@@ -161,6 +178,13 @@ public:
     }
 
     template <typename T>
+    Query &filter(const Comparator &comparator)
+    {
+        propertyFilter.insert(T::name, comparator);
+        return *this;
+    }
+
+    template <typename T>
     Query &filter(const ApplicationDomain::Entity &value)
     {
         propertyFilter.insert(T::name, QVariant::fromValue(value.identifier()));
@@ -198,22 +222,6 @@ public:
         lhs += rhs;
         return lhs;
     }
-
-    struct Comparator {
-        enum Comparators {
-            Invalid,
-            Equals,
-            Contains
-        };
-
-        Comparator();
-        Comparator(const QVariant &v);
-        Comparator(const QVariant &v, Comparators c);
-        bool matches(const QVariant &v) const;
-
-        QVariant value;
-        Comparators comparator;
-    };
 
     QByteArrayList resources;
     QByteArrayList accounts;

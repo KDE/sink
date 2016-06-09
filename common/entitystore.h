@@ -24,6 +24,7 @@
 
 #include "storage.h"
 #include "adaptorfactoryregistry.h"
+#include "entityreader.h"
 
 namespace Sink {
 
@@ -35,48 +36,24 @@ public:
     template<typename T>
     T read(const QByteArray &identifier) const
     {
-        auto typeName = ApplicationDomain::getTypeName<T>();
-        auto mainDatabase = Storage::mainDatabase(mTransaction, typeName);
-        qint64 retrievedRevision = 0;
-        auto bufferAdaptor = getLatest(mainDatabase, identifier, *Sink::AdaptorFactoryRegistry::instance().getFactory<T>(mResourceType), retrievedRevision);
-        if (!bufferAdaptor) {
-            return T();
-        }
-        return T(mResourceInstanceIdentifier, identifier, retrievedRevision, bufferAdaptor);
+        EntityReader<T> reader(mResourceType, mResourceInstanceIdentifier, mTransaction);
+        return reader.read(identifier);
     }
 
     template<typename T>
     T readFromKey(const QByteArray &key) const
     {
-        auto typeName = ApplicationDomain::getTypeName<T>();
-        auto mainDatabase = Storage::mainDatabase(mTransaction, typeName);
-        qint64 retrievedRevision = 0;
-        auto bufferAdaptor = get(mainDatabase, key, *Sink::AdaptorFactoryRegistry::instance().getFactory<T>(mResourceType), retrievedRevision);
-        const auto identifier = Storage::uidFromKey(key);
-        if (!bufferAdaptor) {
-            return T();
-        }
-        return T(mResourceInstanceIdentifier, identifier, retrievedRevision, bufferAdaptor);
+        EntityReader<T> reader(mResourceType, mResourceInstanceIdentifier, mTransaction);
+        return reader.readFromKey(key);
     }
 
     template<typename T>
     T readPrevious(const QByteArray &uid, qint64 revision) const
     {
-        auto typeName = ApplicationDomain::getTypeName<T>();
-        auto mainDatabase = Storage::mainDatabase(mTransaction, typeName);
-        qint64 retrievedRevision = 0;
-        auto bufferAdaptor = getPrevious(mainDatabase, uid, revision, *Sink::AdaptorFactoryRegistry::instance().getFactory<T>(mResourceType), retrievedRevision);
-        if (!bufferAdaptor) {
-            return T();
-        }
-        return T(mResourceInstanceIdentifier, uid, retrievedRevision, bufferAdaptor);
+        EntityReader<T> reader(mResourceType, mResourceInstanceIdentifier, mTransaction);
+        return reader.readPrevious(uid, revision);
     }
 
-
-
-    static QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision);
-    static QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> get(const Sink::Storage::NamedDatabase &db, const QByteArray &key, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision);
-    static QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getPrevious(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, qint64 revision, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision);
 private:
     QByteArray mResourceType;
     QByteArray mResourceInstanceIdentifier;

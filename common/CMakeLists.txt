@@ -72,6 +72,7 @@ set(command_SRCS
     entitystore.cpp
     remoteidmap.cpp
     sourcewriteback.cpp
+    entityreader.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

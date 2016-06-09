@@ -145,7 +145,7 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
             sinkId, bufferType, entity, *adaptorFactory, [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::CreateEntityCommand, buffer); });
     } else { // modification
         qint64 retrievedRevision = 0;
-        if (auto current = store().getLatest(mainDatabase, sinkId, *adaptorFactory, retrievedRevision)) {
+        if (auto current = EntityReaderUtils::getLatest(mainDatabase, sinkId, *adaptorFactory, retrievedRevision)) {
             bool changed = false;
             for (const auto &property : entity.changedProperties()) {
                 if (entity.getProperty(property) != current->getProperty(property)) {
