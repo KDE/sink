@@ -537,6 +537,7 @@ public:
                                 *rid = f.toUtf8();
                                 return KAsync::null<void>();
                             }
+                        }
                         Trace() << "No match found for merging, creating a new folder";
                         return imap->createSubfolder(parentFolder, folder.getName())
                             .then<void, QString>([imap, rid](const QString &createdFolder) {
