@@ -23,6 +23,7 @@
 #include <QObject>
 #include <Async/Async>
 #include <domainadaptor.h>
+#include <query.h>
 
 #include "storage.h"
 
@@ -81,6 +82,8 @@ protected:
      * Depending on whether the entity is locally available, or has changed.
      */
     void createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
+    template <typename DomainType>
+    void createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const DomainType &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria);
 
     virtual KAsync::Job<void> synchronizeWithSource() = 0;
 

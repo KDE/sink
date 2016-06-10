@@ -80,7 +80,7 @@ void MailSyncTest::testListFolders()
 
     Sink::Query query;
     query.resources << mResourceInstanceIdentifier;
-    query.request<Folder::Name>();
+    query.request<Folder::Name>().request<Folder::SpecialPurpose>();
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
@@ -88,16 +88,21 @@ void MailSyncTest::testListFolders()
 
     auto job = Store::fetchAll<Folder>(query).then<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
         QStringList names;
+        QHash<QByteArray, QByteArray> specialPurposeFolders;
         for (const auto &folder : folders) {
             names << folder->getName();
+            for (const auto &purpose : folder->getSpecialPurpose()) {
+                specialPurposeFolders.insert(purpose, folder->identifier());
+            }
         }
         //Workaround for maildir
         if (names.contains("maildir1")) {
             names.removeAll("maildir1");
         }
         if (mCapabilities.contains(ResourceCapabilities::Mail::drafts)) {
-            QVERIFY(names.contains("drafts"));
-            names.removeAll("drafts");
+            QVERIFY(names.contains("Drafts"));
+            names.removeAll("Drafts");
+            QVERIFY(specialPurposeFolders.contains("drafts"));
         }
         QCOMPARE(names.size(), 2);
         QVERIFY(names.contains("INBOX"));
@@ -183,8 +188,8 @@ void MailSyncTest::testListFolderHierarchy()
             names.removeAll("maildir1");
         }
         if (mCapabilities.contains(ResourceCapabilities::Mail::drafts)) {
-            QVERIFY(names.contains("drafts"));
-            names.removeAll("drafts");
+            QVERIFY(names.contains("Drafts"));
+            names.removeAll("Drafts");
         }
         QCOMPARE(names.size(), 3);
         QCOMPARE(map.value("sub")->getParent(), map.value("test")->identifier());
@@ -195,7 +200,7 @@ void MailSyncTest::testListFolderHierarchy()
 void MailSyncTest::testListNewSubFolder()
 {
     if (!mCapabilities.contains(ResourceCapabilities::Mail::folderhierarchy)) {
-        QSKIP("Missing capability folder.hierarchy");
+        QSKIP("Missing capability mail.folderhierarchy");
     }
     Sink::Query query;
     query.resources << mResourceInstanceIdentifier;

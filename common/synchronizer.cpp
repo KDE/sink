@@ -164,6 +164,59 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
     }
 }
 
+template<typename DomainType>
+void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const DomainType &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria)
+{
+
+    Trace() << "Create or modify" << bufferType << remoteId;
+    auto mainDatabase = Storage::mainDatabase(transaction(), bufferType);
+    const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
+    const auto found = mainDatabase.contains(sinkId);
+    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(mResourceType, bufferType);
+    if (!found) {
+        if (!mergeCriteria.isEmpty()) {
+            Sink::Query query;
+            query.propertyFilter = mergeCriteria;
+            bool merge = false;
+            Sink::EntityReader<DomainType> reader(mResourceInstanceIdentifier, mResourceType, transaction());
+            reader.query(query,
+                [this, bufferType, remoteId, &merge](const DomainType &o) -> bool{
+                    merge = true;
+                    Trace() << "Merging local entity with remote entity: " << o.identifier() << remoteId;
+                    syncStore().recordRemoteId(bufferType, o.identifier(), remoteId);
+                    return false;
+                });
+            if (!merge) {
+                Trace() << "Found a new entity: " << remoteId;
+                createEntity(
+                    sinkId, bufferType, entity, *adaptorFactory, [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::CreateEntityCommand, buffer); });
+            }
+        } else {
+            Trace() << "Found a new entity: " << remoteId;
+            createEntity(
+                sinkId, bufferType, entity, *adaptorFactory, [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::CreateEntityCommand, buffer); });
+        }
+    } else { // modification
+        qint64 retrievedRevision = 0;
+        if (auto current = EntityReaderUtils::getLatest(mainDatabase, sinkId, *adaptorFactory, retrievedRevision)) {
+            bool changed = false;
+            for (const auto &property : entity.changedProperties()) {
+                if (entity.getProperty(property) != current->getProperty(property)) {
+                    Trace() << "Property changed " << sinkId << property;
+                    changed = true;
+                }
+            }
+            if (changed) {
+                Trace() << "Found a modified entity: " << remoteId;
+                modifyEntity(sinkId, Sink::Storage::maxRevision(transaction()), bufferType, entity, *adaptorFactory,
+                    [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::ModifyEntityCommand, buffer); });
+            }
+        } else {
+            Warning() << "Failed to get current entity";
+        }
+    }
+}
+
 KAsync::Job<void> Synchronizer::synchronize()
 {
     Trace() << "Synchronizing";
@@ -202,3 +255,11 @@ Sink::Storage::Transaction &Synchronizer::syncTransaction()
     }
     return mSyncTransaction;
 }
+
+#define REGISTER_TYPE(T)                                                          \
+    template void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const T &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria)
+
+REGISTER_TYPE(ApplicationDomain::Event);
+REGISTER_TYPE(ApplicationDomain::Mail);
+REGISTER_TYPE(ApplicationDomain::Folder);
+

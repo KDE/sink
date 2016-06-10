@@ -39,12 +39,14 @@
 #include "sourcewriteback.h"
 #include "entitystore.h"
 #include "remoteidmap.h"
+#include "query.h"
 #include <QDate>
 #include <QUuid>
 #include <QDir>
 #include <QDirIterator>
 
 #include "imapserverproxy.h"
+#include "entityreader.h"
 
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_MAIL "mail"
@@ -55,6 +57,77 @@
 
 using namespace Imap;
 using namespace Sink;
+
+static QHash<QByteArray, QString> specialPurposeFolders()
+{
+    QHash<QByteArray, QString> hash;
+        //FIXME localize
+    hash.insert("drafts", "Drafts");
+    return hash;
+}
+
+static QHash<QString, QByteArray> specialPurposeNames()
+{
+    QHash<QString, QByteArray> hash;
+    for (const auto &value : specialPurposeFolders().values()) {
+        hash.insert(value.toLower(), specialPurposeFolders().key(value));
+    }
+    return hash;
+}
+
+//specialpurpose, name
+static QHash<QByteArray, QString> sSpecialPurposeFolders = specialPurposeFolders();
+//Lowercase-name, specialpurpose
+static QHash<QString, QByteArray> sSpecialPurposeNames = specialPurposeNames();
+
+class DraftsProcessor : public Sink::Preprocessor
+{
+public:
+    DraftsProcessor() {}
+
+    QByteArray ensureDraftsFolder(Sink::Storage::Transaction &transaction)
+    {
+        if (mDraftsFolder.isEmpty()) {
+            //Try to find an existing drafts folder
+            Sink::EntityReader<ApplicationDomain::Folder> reader(mResourceInstanceIdentifier, mResourceType, transaction);
+            reader.query(Sink::Query().filter<ApplicationDomain::Folder::SpecialPurpose>(Query::Comparator("drafts", Query::Comparator::Contains)),
+                [this](const ApplicationDomain::Folder &f) -> bool{
+                    mDraftsFolder = f.identifier();
+                    return false;
+                });
+            if (mDraftsFolder.isEmpty()) {
+                Trace() << "Failed to find a drafts folder, creating a new one";
+                auto folder = ApplicationDomain::Folder::create(mResourceInstanceIdentifier);
+                folder.setSpecialPurpose(QByteArrayList() << "drafts");
+                folder.setName(sSpecialPurposeFolders.value("drafts"));
+                folder.setIcon("folder");
+                //This processes the pipeline synchronously
+                createEntity(folder);
+                mDraftsFolder = folder.identifier();
+            }
+        }
+        return mDraftsFolder;
+    }
+
+    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        if (newEntity.getProperty("draft").toBool()) {
+            newEntity.setProperty("folder", ensureDraftsFolder(transaction));
+        }
+    }
+
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
+        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        if (newEntity.getProperty("draft").toBool()) {
+            newEntity.setProperty("folder", ensureDraftsFolder(transaction));
+        }
+    }
+
+    QByteArray mDraftsFolder;
+    QByteArray mResourceInstanceIdentifier;
+    QByteArray mResourceType;
+};
 
 class MailPropertyExtractor : public Sink::Preprocessor
 {
@@ -95,10 +168,6 @@ public:
         Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
         updatedIndexedProperties(newEntity);
-    }
-
-    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
     }
 
 };
@@ -142,13 +211,19 @@ public:
         const auto remoteId = folderPath.toUtf8();
         const auto bufferType = ENTITY_TYPE_FOLDER;
         Sink::ApplicationDomain::Folder folder;
-        folder.setProperty("name", folderName);
-        folder.setProperty("icon", icon);
+        folder.setProperty(ApplicationDomain::Folder::Name::name, folderName);
+        folder.setProperty(ApplicationDomain::Folder::Icon::name, icon);
+        QHash<QByteArray, Query::Comparator> mergeCriteria;
+        if (sSpecialPurposeNames.contains(folderName.toLower())) {
+            auto type = sSpecialPurposeNames.value(folderName.toLower());
+            folder.setProperty(ApplicationDomain::Folder::SpecialPurpose::name, QVariant::fromValue(QByteArrayList() << type));
+            mergeCriteria.insert(ApplicationDomain::Folder::SpecialPurpose::name, Query::Comparator(type, Query::Comparator::Contains));
+        }
 
         if (!parentFolderRid.isEmpty()) {
             folder.setProperty("parent", syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, parentFolderRid.toUtf8()));
         }
-        createOrModify(bufferType, remoteId, folder);
+        createOrModify(bufferType, remoteId, folder, mergeCriteria);
         return remoteId;
     }
 
@@ -434,14 +509,47 @@ public:
             }
             Trace() << "Creating a new folder: " << parentFolder << folder.getName();
             auto rid = QSharedPointer<QByteArray>::create();
-            return login.then<QString>(imap->createSubfolder(parentFolder, folder.getName()))
+            auto createFolder = login.then<QString>(imap->createSubfolder(parentFolder, folder.getName()))
                 .then<void, QString>([imap, rid](const QString &createdFolder) {
                     Trace() << "Finished creating a new folder: " << createdFolder;
                     *rid = createdFolder.toUtf8();
-                })
+                });
+            if (folder.getSpecialPurpose().isEmpty()) {
+                return createFolder
+                    .then<QByteArray>([rid](){
+                        return *rid;
+                    });
+            } else { //We try to merge special purpose folders first
+                auto  specialPurposeFolders = QSharedPointer<QHash<QByteArray, QString>>::create();
+                auto mergeJob = imap->login(mUser, mPassword)
+                    .then<void>(imap->fetchFolders([=](const QVector<Imap::Folder> &folders) {
+                        for (const auto &f : folders) {
+                            if (sSpecialPurposeNames.contains(f.pathParts.last().toLower())) {
+                                specialPurposeFolders->insert(sSpecialPurposeNames.value(f.pathParts.last().toLower()), f.path);
+                            };
+                        }
+                    }))
+                    .then<void, KAsync::Job<void>>([specialPurposeFolders, folder, imap, parentFolder, rid]() -> KAsync::Job<void> {
+                        for (const auto &purpose : folder.getSpecialPurpose()) {
+                            if (specialPurposeFolders->contains(purpose)) {
+                                auto f = specialPurposeFolders->value(purpose);
+                                Trace() << "Merging specialpurpose folder with: " << f << " with purpose: " << purpose;
+                                *rid = f.toUtf8();
+                                return KAsync::null<void>();
+                            }
+                        Trace() << "No match found for merging, creating a new folder";
+                        return imap->createSubfolder(parentFolder, folder.getName())
+                            .then<void, QString>([imap, rid](const QString &createdFolder) {
+                                Trace() << "Finished creating a new folder: " << createdFolder;
+                                *rid = createdFolder.toUtf8();
+                            });
+
+                    })
                 .then<QByteArray>([rid](){
                     return *rid;
                 });
+                return mergeJob;
+            }
         } else if (operation == Sink::Operation_Removal) {
             Trace() << "Removing a folder: " << oldRemoteId;
             return login.then<void>(imap->remove(oldRemoteId))
@@ -495,7 +603,7 @@ ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPo
     changereplay->mPassword = mPassword;
     setupChangereplay(changereplay);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new DraftsProcessor << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 }
 
