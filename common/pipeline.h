@@ -82,15 +82,26 @@ public:
     virtual ~Preprocessor();
 
     virtual void startBatch();
-    virtual void newEntity(const QByteArray &key, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) = 0;
+    virtual void newEntity(const QByteArray &key, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) {};
     virtual void modifiedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity,
-        Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) = 0;
-    virtual void deletedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) = 0;
+        Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) {};
+    virtual void deletedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) {};
     virtual void finalize();
 
+protected:
+    template <typename DomainType>
+    void createEntity(const DomainType &entity)
+    {
+        createEntity(entity, Sink::ApplicationDomain::getTypeName<DomainType>());
+    }
+    void createEntity(const Sink::ApplicationDomain::ApplicationDomainType &entity, const QByteArray &type);
+
 private:
+    friend class Pipeline;
     class Private;
     Private *const d;
+    Pipeline *pipeline;
+    QByteArray resourceType;
 };
 
 } // namespace Sink

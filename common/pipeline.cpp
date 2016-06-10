@@ -181,6 +181,21 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
         key = Sink::Storage::generateUid();
     }
     Q_ASSERT(!key.isEmpty());
+
+    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceType, bufferType);
+    if (!adaptorFactory) {
+        Warning() << "no adaptor factory for type " << bufferType;
+        return KAsync::error<qint64>(0);
+    }
+
+    auto adaptor = adaptorFactory->createAdaptor(*entity);
+    auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create(*(adaptor), adaptor->availableProperties());
+    for (auto processor : d->processors[bufferType]) {
+        processor->resourceType = d->resourceType;
+        processor->pipeline = this;
+        processor->newEntity(key, Storage::maxRevision(d->transaction) + 1, *memoryAdaptor, d->transaction);
+    }
+    //The maxRevision may have changed meanwhile if the entity created sub-entities
     const qint64 newRevision = Storage::maxRevision(d->transaction) + 1;
 
     // Add metadata buffer
@@ -192,17 +207,6 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     auto metadataBuffer = metadataBuilder.Finish();
     FinishMetadataBuffer(metadataFbb, metadataBuffer);
 
-    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceType, bufferType);
-    if (!adaptorFactory) {
-        Warning() << "no adaptor factory for type " << bufferType;
-        return KAsync::error<qint64>(0);
-    }
-
-    auto adaptor = adaptorFactory->createAdaptor(*entity);
-    auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create(*(adaptor), adaptor->availableProperties());
-    for (auto processor : d->processors[bufferType]) {
-        processor->newEntity(key, newRevision, *memoryAdaptor, d->transaction);
-    }
     flatbuffers::FlatBufferBuilder fbb;
     adaptorFactory->createBuffer(memoryAdaptor, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
@@ -459,6 +463,25 @@ void Preprocessor::startBatch()
 
 void Preprocessor::finalize()
 {
+}
+
+void Preprocessor::createEntity(const Sink::ApplicationDomain::ApplicationDomainType &entity, const QByteArray &typeName)
+{
+    flatbuffers::FlatBufferBuilder entityFbb;
+    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(resourceType, typeName);
+    adaptorFactory->createBuffer(entity, entityFbb);
+    const auto entityBuffer = BufferUtils::extractBuffer(entityFbb);
+
+    flatbuffers::FlatBufferBuilder fbb;
+    auto entityId = fbb.CreateString(entity.identifier());
+    // This is the resource buffer type and not the domain type
+    auto type = fbb.CreateString(typeName);
+    auto delta = Sink::EntityBuffer::appendAsVector(fbb, entityBuffer.constData(), entityBuffer.size());
+    auto location = Sink::Commands::CreateCreateEntity(fbb, entityId, type, delta);
+    Sink::Commands::FinishCreateEntityBuffer(fbb, location);
+
+    const auto data = BufferUtils::extractBuffer(fbb);
+    pipeline->newEntity(data, data.size()).exec();
 }
 
 } // namespace Sink
