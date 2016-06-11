@@ -169,6 +169,46 @@ public:
     }
 };
 
+class MimeMessageMover : public Sink::EntityPreprocessor<ApplicationDomain::Mail>
+{
+public:
+    MimeMessageMover(const QByteArray &resourceInstanceIdentifier) : Sink::EntityPreprocessor<ApplicationDomain::Mail>(), mResourceInstanceIdentifier(resourceInstanceIdentifier) {}
+
+    QString moveMessage(const QString &oldPath, const Sink::ApplicationDomain::Mail &mail)
+    {
+        const auto directory = Sink::resourceStorageLocation(mResourceInstanceIdentifier) + "/" + mail.getFolder();
+        const auto filePath = directory + "/" + mail.identifier();
+        if (oldPath != filePath) {
+            QDir().mkpath(directory);
+            QFile::remove(filePath);
+            QFile::rename(oldPath, filePath);
+            return filePath;
+        }
+        return oldPath;
+    }
+
+    void newEntity(Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        if (!mail.getMimeMessagePath().isEmpty()) {
+            mail.setMimeMessagePath(moveMessage(mail.getMimeMessagePath(), mail));
+        }
+    }
+
+    void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        if (!newMail.getMimeMessagePath().isEmpty()) {
+            newMail.setMimeMessagePath(moveMessage(newMail.getMimeMessagePath(), newMail));
+        }
+        if (oldMail.getFolder() != newMail.getFolder()) {
+            newMail.setMimeMessagePath(moveMessage(oldMail.getMimeMessagePath(), newMail));
+        }
+    }
+
+    void deletedEntity(const Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        QFile::remove(mail.getMimeMessagePath());
+    }
+    QByteArray mResourceInstanceIdentifier;
 };
 
 static qint64 uidFromMailRid(const QByteArray &remoteId)
@@ -276,22 +316,9 @@ public:
 
             Trace() << "Found a mail " << remoteId << message.msg->subject(true)->asUnicodeString() << message.flags;
 
-            Sink::ApplicationDomain::Mail mail;
+            auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
             mail.setFolder(folderLocalId);
-
-            const auto directory = Sink::resourceStorageLocation(mResourceInstanceIdentifier) + "/" + path.toUtf8();
-            QDir().mkpath(directory);
-            auto filePath = directory + "/" + QByteArray::number(message.uid);
-            QFile file(filePath);
-            if (!file.open(QIODevice::WriteOnly)) {
-                Warning() << "Failed to open file for writing: " << file.errorString();
-            }
-            const auto content = message.msg->encodedContent();
-            file.write(content);
-            //Close before calling createOrModify, to ensure the file is available
-            file.close();
-
-            mail.setMimeMessagePath(filePath);
+            mail.setMimeMessage(message.msg->encodedContent());
             mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
             mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
 
@@ -603,7 +630,7 @@ ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPo
     changereplay->mPassword = mPassword;
     setupChangereplay(changereplay);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new DraftsProcessor << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new DraftsProcessor << new MimeMessageMover(mResourceInstanceIdentifier) << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 }
 
