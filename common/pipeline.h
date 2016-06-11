@@ -82,10 +82,10 @@ public:
     virtual ~Preprocessor();
 
     virtual void startBatch();
-    virtual void newEntity(const QByteArray &key, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) {};
-    virtual void modifiedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity,
+    virtual void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) {};
+    virtual void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity,
         Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) {};
-    virtual void deletedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) {};
+    virtual void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) {};
     virtual void finalize();
 
 protected:
@@ -102,6 +102,34 @@ private:
     Private *const d;
     Pipeline *pipeline;
     QByteArray resourceType;
+};
+
+template<typename DomainType>
+class SINK_EXPORT EntityPreprocessor: public Preprocessor
+{
+public:
+    virtual void newEntity(DomainType &, Sink::Storage::Transaction &transaction) {};
+    virtual void modifiedEntity(const DomainType &oldEntity, DomainType &newEntity, Sink::Storage::Transaction &transaction) {};
+    virtual void deletedEntity(const DomainType &oldEntity, Sink::Storage::Transaction &transaction) {};
+
+private:
+    static void nullDeleter(Sink::ApplicationDomain::BufferAdaptor *) {}
+    virtual void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)  Q_DECL_OVERRIDE
+    {
+        auto o = DomainType("", uid, revision, QSharedPointer<Sink::ApplicationDomain::BufferAdaptor>(&bufferAdaptor, nullDeleter));
+        newEntity(o, transaction);
+    }
+
+    virtual void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity,
+        Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        auto o = DomainType("", uid, revision, QSharedPointer<Sink::ApplicationDomain::BufferAdaptor>(&bufferAdaptor, nullDeleter));
+        modifiedEntity(DomainType("", uid, 0, QSharedPointer<Sink::ApplicationDomain::BufferAdaptor>(const_cast<Sink::ApplicationDomain::BufferAdaptor*>(&oldEntity), nullDeleter)), o, transaction);
+    }
+    virtual void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    {
+        deletedEntity(DomainType("", uid, revision, QSharedPointer<Sink::ApplicationDomain::BufferAdaptor>(const_cast<Sink::ApplicationDomain::BufferAdaptor*>(&bufferAdaptor), nullDeleter)), transaction);
+    }
 };
 
 } // namespace Sink
