@@ -129,14 +129,13 @@ public:
     QByteArray mResourceType;
 };
 
-class MailPropertyExtractor : public Sink::Preprocessor
+class MailPropertyExtractor : public Sink::EntityPreprocessor<ApplicationDomain::Mail>
 {
 public:
-    MailPropertyExtractor() {}
 
-    void updatedIndexedProperties(Sink::ApplicationDomain::BufferAdaptor &newEntity)
+    void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail)
     {
-        const auto mimeMessagePath = newEntity.getProperty("mimeMessage").toString();
+        const auto mimeMessagePath = mail.getMimeMessagePath();
         Trace() << "Updating indexed properties " << mimeMessagePath;
         QFile f(mimeMessagePath);
         if (!f.open(QIODevice::ReadOnly)) {
@@ -153,22 +152,22 @@ public:
         msg->setHead(KMime::CRLFtoLF(QByteArray::fromRawData(reinterpret_cast<const char*>(mapped), f.size())));
         msg->parse();
 
-        newEntity.setProperty("subject", msg->subject(true)->asUnicodeString());
-        newEntity.setProperty("sender", msg->from(true)->asUnicodeString());
-        newEntity.setProperty("senderName", msg->from(true)->asUnicodeString());
-        newEntity.setProperty("date", msg->date(true)->dateTime());
+        mail.setExtractedSubject(msg->subject(true)->asUnicodeString());
+        mail.setExtractedSender(msg->from(true)->asUnicodeString());
+        mail.setExtractedSenderName(msg->from(true)->asUnicodeString());
+        mail.setExtractedDate(msg->date(true)->dateTime());
     }
 
-    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void newEntity(Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        updatedIndexedProperties(newEntity);
+        updatedIndexedProperties(mail);
     }
 
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
-        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail,Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        updatedIndexedProperties(newEntity);
+        updatedIndexedProperties(newMail);
     }
+};
 
 };
 
