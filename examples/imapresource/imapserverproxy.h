@@ -93,6 +93,7 @@ public:
     KAsync::Job<void> remove(const QString &mailbox);
     KAsync::Job<void> expunge();
     KAsync::Job<void> expunge(const KIMAP::ImapSet &set);
+    KAsync::Job<void> copy(const KIMAP::ImapSet &set, const QString &newMailbox);
 
     typedef std::function<void(const QString &,
                         const QMap<qint64,qint64> &,
@@ -109,6 +110,7 @@ public:
     KAsync::Job<QList<qint64>> fetchHeaders(const QString &mailbox);
     KAsync::Job<void> remove(const QString &mailbox, const KIMAP::ImapSet &set);
     KAsync::Job<void> remove(const QString &mailbox, const QByteArray &imapSet);
+    KAsync::Job<void> move(const QString &mailbox, const KIMAP::ImapSet &set, const QString &newMailbox);
     KAsync::Job<QString> createSubfolder(const QString &parentMailbox, const QString &folderName);
     KAsync::Job<QString> renameSubfolder(const QString &mailbox, const QString &newName);
 

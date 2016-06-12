@@ -220,6 +220,61 @@ void MailTest::testCreateModifyDeleteMail()
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::CacheIntegrityInspection(folder)));
 }
 
+void MailTest::testMoveMail()
+{
+    const auto subject = QString::fromLatin1("Foobar");
+
+    auto folder = Folder::create(mResourceInstanceIdentifier);
+    folder.setName("folder2");
+    VERIFYEXEC(Store::create(folder));
+
+    auto folder1 = Folder::create(mResourceInstanceIdentifier);
+    folder1.setName("folder3");
+    VERIFYEXEC(Store::create(folder1));
+
+    auto message = KMime::Message::Ptr::create();
+    message->subject(true)->fromUnicodeString(subject, "utf8");
+    message->assemble();
+
+    auto mail = Mail::create(mResourceInstanceIdentifier);
+    mail.setMimeMessage(message->encodedContent());
+    mail.setFolder(folder);
+
+    VERIFYEXEC(Store::create(mail));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
+    {
+        auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name << Mail::MimeMessage::name))
+            .then<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
+                QCOMPARE(mails.size(), 1);
+                auto mail = *mails.first();
+                QCOMPARE(mail.getFolder(), folder.identifier());
+                Warning() << "path: " << mail.getMimeMessagePath();
+                QVERIFY(QFile(mail.getMimeMessagePath()).exists());
+            });
+        VERIFYEXEC(job);
+    }
+
+    VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::CacheIntegrityInspection(folder)));
+
+    mail.setFolder(folder1);
+
+    VERIFYEXEC(Store::modify(mail));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
+    {
+        auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name << Mail::MimeMessage::name))
+            .then<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
+                QCOMPARE(mails.size(), 1);
+                auto mail = *mails.first();
+                QCOMPARE(mail.getFolder(), folder1.identifier());
+                QVERIFY(QFile(mail.getMimeMessagePath()).exists());
+                Trace() << "Mime message path: " << mail.getMimeMessagePath();
+            });
+        VERIFYEXEC(job);
+    }
+    VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::CacheIntegrityInspection(folder)));
+    VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::CacheIntegrityInspection(folder1)));
+}
+
 void MailTest::testMarkMailAsRead()
 {
     auto folder = Folder::create(mResourceInstanceIdentifier);

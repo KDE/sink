@@ -491,8 +491,11 @@ public:
                 flags << Imap::Flags::Flagged;
             }
 
-            const bool messageChanged = changedProperties.contains(Sink::ApplicationDomain::Mail::MimeMessage::name);
-            if (messageChanged) {
+            const bool messageMoved = changedProperties.contains(ApplicationDomain::Mail::Folder::name);
+            const bool messageChanged = changedProperties.contains(ApplicationDomain::Mail::MimeMessage::name);
+            if (messageChanged || messageMoved) {
+                const auto folderId = folderIdFromMailRid(oldRemoteId);
+                const QString oldMailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, folderId);
                 QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
                 QDateTime internalDate = mail.getDate();
                 auto rid = QSharedPointer<QByteArray>::create();
@@ -504,7 +507,7 @@ public:
                         Trace() << "Finished creating a modified mail: " << remoteId;
                         *rid = remoteId;
                     })
-                    .then(imap->remove(mailbox, set))
+                    .then(imap->remove(oldMailbox, set))
                     .then<QByteArray>([rid, imap]() {
                         return *rid;
                     });

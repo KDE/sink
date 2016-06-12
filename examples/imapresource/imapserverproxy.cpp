@@ -25,6 +25,7 @@
 #include <KIMAP/KIMAP/SelectJob>
 #include <KIMAP/KIMAP/AppendJob>
 #include <KIMAP/KIMAP/CreateJob>
+#include <KIMAP/KIMAP/CopyJob>
 #include <KIMAP/KIMAP/RenameJob>
 #include <KIMAP/KIMAP/DeleteJob>
 #include <KIMAP/KIMAP/StoreJob>
@@ -219,6 +220,15 @@ KAsync::Job<void> ImapServerProxy::expunge(const KIMAP::ImapSet &set)
     return runJob(job);
 }
 
+KAsync::Job<void> ImapServerProxy::copy(const KIMAP::ImapSet &set, const QString &newMailbox)
+{
+    auto copy = new KIMAP::CopyJob(mSession);
+    copy->setSequenceSet(set);
+    copy->setUidBased(true);
+    copy->setMailBox(newMailbox);
+    return runJob(copy);
+}
+
 KAsync::Job<void> ImapServerProxy::fetch(const KIMAP::ImapSet &set, KIMAP::FetchJob::FetchScope scope, FetchCallback callback)
 {
     auto fetch = new KIMAP::FetchJob(mSession);
@@ -302,6 +312,12 @@ KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox, const QByteArr
 {
     const auto set = KIMAP::ImapSet::fromImapSequenceSet(imapSet);
     return remove(mailbox, set);
+}
+
+
+KAsync::Job<void> ImapServerProxy::move(const QString &mailbox, const KIMAP::ImapSet &set, const QString &newMailbox)
+{
+    return select(mailbox).then<void>(copy(set, newMailbox)).then<void>(store(set, QByteArrayList() << Flags::Deleted)).then<void>(expunge(set));
 }
 
 KAsync::Job<QString> ImapServerProxy::createSubfolder(const QString &parentMailbox, const QString &folderName)
