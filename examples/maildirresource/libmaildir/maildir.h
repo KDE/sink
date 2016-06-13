@@ -256,18 +256,6 @@ public:
      */
     static QString subDirNameForFolderName( const QString &folderName );
 
-    /** Removes the listed keys from the key cache */
-    void removeCachedKeys(const QStringList & keys);
-
-
-    /** Reloads the keys associated with the maildir in the key cache*/
-    void refreshKeyCache();
-
-    /** Return the last error message string. The error might not come from the last performed operation,
-     if that was sucessful. The caller should always check the return value of the methods before
-     querying the last error string. */
-    QString lastError() const;
-
     /**
      * Returns the key from the file identified by the full path @param file.
      */

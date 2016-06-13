@@ -343,7 +343,7 @@ public:
 
         KPIM::Maildir maildir(path, true);
         if (!maildir.isValid()) {
-            Warning() << "Failed to sync folder " << maildir.lastError();
+            Warning() << "Failed to sync folder.";
             return;
         }
 
