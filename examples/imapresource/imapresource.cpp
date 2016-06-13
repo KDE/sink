@@ -83,13 +83,13 @@ static QHash<QString, QByteArray> sSpecialPurposeNames = specialPurposeNames();
 class DraftsProcessor : public Sink::Preprocessor
 {
 public:
-    DraftsProcessor() {}
+    DraftsProcessor(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : mResourceType(resourceType), mResourceInstanceIdentifier(resourceInstanceIdentifier) {}
 
     QByteArray ensureDraftsFolder(Sink::Storage::Transaction &transaction)
     {
         if (mDraftsFolder.isEmpty()) {
             //Try to find an existing drafts folder
-            Sink::EntityReader<ApplicationDomain::Folder> reader(mResourceInstanceIdentifier, mResourceType, transaction);
+            Sink::EntityReader<ApplicationDomain::Folder> reader(mResourceType, mResourceInstanceIdentifier, transaction);
             reader.query(Sink::Query().filter<ApplicationDomain::Folder::SpecialPurpose>(Query::Comparator("drafts", Query::Comparator::Contains)),
                 [this](const ApplicationDomain::Folder &f) -> bool{
                     mDraftsFolder = f.identifier();
@@ -125,8 +125,8 @@ public:
     }
 
     QByteArray mDraftsFolder;
-    QByteArray mResourceInstanceIdentifier;
     QByteArray mResourceType;
+    QByteArray mResourceInstanceIdentifier;
 };
 
 class MailPropertyExtractor : public Sink::EntityPreprocessor<ApplicationDomain::Mail>
@@ -142,14 +142,19 @@ public:
             Warning() << "Failed to open the file: " << mimeMessagePath;
             return;
         }
-        auto mapped = f.map(0, qMin((qint64)8000, f.size()));
+        if (!f.size()) {
+            Warning() << "The file is empty.";
+            return;
+        }
+        const auto mappedSize = qMin((qint64)8000, f.size());
+        auto mapped = f.map(0, mappedSize);
         if (!mapped) {
-            Warning() << "Failed to map file";
+            Warning() << "Failed to map the file: " << f.errorString();
             return;
         }
 
         KMime::Message *msg = new KMime::Message;
-        msg->setHead(KMime::CRLFtoLF(QByteArray::fromRawData(reinterpret_cast<const char*>(mapped), f.size())));
+        msg->setHead(KMime::CRLFtoLF(QByteArray::fromRawData(reinterpret_cast<const char*>(mapped), mappedSize)));
         msg->parse();
 
         mail.setExtractedSubject(msg->subject(true)->asUnicodeString());
@@ -176,12 +181,21 @@ public:
 
     QString moveMessage(const QString &oldPath, const Sink::ApplicationDomain::Mail &mail)
     {
-        const auto directory = Sink::resourceStorageLocation(mResourceInstanceIdentifier) + "/" + mail.getFolder();
+        const auto directory = Sink::resourceStorageLocation(mResourceInstanceIdentifier);
         const auto filePath = directory + "/" + mail.identifier();
         if (oldPath != filePath) {
-            QDir().mkpath(directory);
+            if (!QDir().mkpath(directory)) {
+                Warning() << "Failed to create the directory: " << directory;
+            }
             QFile::remove(filePath);
-            QFile::rename(oldPath, filePath);
+            QFile origFile(oldPath);
+            if (!origFile.open(QIODevice::ReadWrite)) {
+                Warning() << "Failed to open the original file with write rights: " << origFile.errorString();
+            }
+            if (!origFile.rename(filePath)) {
+                Warning() << "Failed to move the file from: " << oldPath << " to " << filePath << ". " << origFile.errorString();
+            }
+            origFile.close();
             return filePath;
         }
         return oldPath;
@@ -633,7 +647,7 @@ ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPo
     changereplay->mPassword = mPassword;
     setupChangereplay(changereplay);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new DraftsProcessor << new MimeMessageMover(mResourceInstanceIdentifier) << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new DraftsProcessor(mResourceType, mResourceInstanceIdentifier) << new MimeMessageMover(mResourceInstanceIdentifier) << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 }
 

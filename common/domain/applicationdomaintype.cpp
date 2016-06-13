@@ -120,6 +120,8 @@ void ApplicationDomainType::setBlobProperty(const QByteArray &key, const QByteAr
         return;
     }
     file.write(value);
+    //Ensure that the file is written to disk immediately
+    file.close();
     setProperty(key, path);
 }
 

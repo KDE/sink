@@ -85,7 +85,9 @@ EntityReader<DomainType>::EntityReader(const QByteArray &resourceType, const QBy
     mDomainTypeAdaptorFactoryPtr(Sink::AdaptorFactoryRegistry::instance().getFactory<DomainType>(resourceType)),
     mDomainTypeAdaptorFactory(*mDomainTypeAdaptorFactoryPtr)
 {
-
+    Q_ASSERT(!resourceType.isEmpty());
+    Trace() << "resourceType " << resourceType;
+    Q_ASSERT(mDomainTypeAdaptorFactoryPtr);
 }
 
 template <class DomainType>
@@ -159,6 +161,7 @@ void EntityReader<DomainType>::readEntity(const Sink::Storage::NamedDatabase &db
             const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
             const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
             auto adaptor = mDomainTypeAdaptorFactory.createAdaptor(entity);
+            Q_ASSERT(adaptor);
             resultCallback(DomainType::Ptr::create(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, adaptor), operation);
             return false;
         },

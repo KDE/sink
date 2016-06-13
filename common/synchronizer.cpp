@@ -139,6 +139,7 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
     const auto found = mainDatabase.contains(sinkId);
     auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(mResourceType, bufferType);
+    Q_ASSERT(adaptorFactory);
     if (!found) {
         Trace() << "Found a new entity: " << remoteId;
         createEntity(
@@ -178,7 +179,7 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
             Sink::Query query;
             query.propertyFilter = mergeCriteria;
             bool merge = false;
-            Sink::EntityReader<DomainType> reader(mResourceInstanceIdentifier, mResourceType, transaction());
+            Sink::EntityReader<DomainType> reader(mResourceType, mResourceInstanceIdentifier, transaction());
             reader.query(query,
                 [this, bufferType, remoteId, &merge](const DomainType &o) -> bool{
                     merge = true;

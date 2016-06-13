@@ -221,8 +221,6 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     Trace() << "Pipeline: Modified Entity";
     d->transactionItemCount++;
 
-    const qint64 newRevision = Storage::maxRevision(d->transaction) + 1;
-
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
         if (!Commands::VerifyModifyEntityBuffer(verifyer)) {
@@ -305,13 +303,18 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     }
 
     for (auto processor : d->processors[bufferType]) {
-        processor->modifiedEntity(key, newRevision, *current, *newAdaptor, d->transaction);
+        processor->resourceType = d->resourceType;
+        processor->pipeline = this;
+        processor->modifiedEntity(key, Storage::maxRevision(d->transaction) + 1, *current, *newAdaptor, d->transaction);
     }
+    //The maxRevision may have changed meanwhile if the entity created sub-entities
+    const qint64 newRevision = Storage::maxRevision(d->transaction) + 1;
 
     // Add metadata buffer
     flatbuffers::FlatBufferBuilder metadataFbb;
     {
-        auto modifiedProperties = BufferUtils::toVector(metadataFbb, changeset);
+        //We add availableProperties to account for the properties that have been changed by the preprocessors
+        auto modifiedProperties = BufferUtils::toVector(metadataFbb, changeset + newAdaptor->availableProperties());
         auto metadataBuilder = MetadataBuilder(metadataFbb);
         metadataBuilder.add_revision(newRevision);
         metadataBuilder.add_operation(Operation_Modification);

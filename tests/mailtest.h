@@ -66,7 +66,9 @@ private slots:
     void testCreateModifyDeleteMail();
     void testMoveMail();
     void testMarkMailAsRead();
+
     void testCreateDraft();
+    void testModifyMailToDraft();
 };
 
 }
