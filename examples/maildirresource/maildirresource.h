@@ -49,8 +49,6 @@ public:
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
     static void removeFromDisk(const QByteArray &instanceIdentifier);
 private:
-    // KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Mail &, Sink::Operation, const QByteArray &oldRemoteId) Q_DECL_OVERRIDE;
-    // KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Folder &, Sink::Operation, const QByteArray &oldRemoteId) Q_DECL_OVERRIDE;
 
     QStringList listAvailableFolders();
     QString mMaildirPath;

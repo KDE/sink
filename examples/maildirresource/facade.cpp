@@ -48,6 +48,7 @@ MaildirResourceMailFacade::MaildirResourceMailFacade(const QByteArray &instanceI
                 value.setProperty("mimeMessage", list.at(0).filePath());
             }
         }
+        value.setChangedProperties(QSet<QByteArray>());
     };
 }
 

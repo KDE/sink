@@ -139,9 +139,29 @@ public:
             const auto path = getPath(folder, transaction);
             KPIM::Maildir maildir(path, false);
             if (!maildir.isValid(true)) {
-                qWarning() << "Maildir is not existing: " << path;
+                Warning() << "Maildir is not existing: " << path;
             }
             auto identifier = maildir.addEntryFromPath(oldPath);
+            return path + "/" + identifier;
+        } else {
+            //Handle moves
+            const auto path = getPath(folder, transaction);
+            KPIM::Maildir maildir(path, false);
+            if (!maildir.isValid(true)) {
+                Warning() << "Maildir is not existing: " << path;
+            }
+            auto oldIdentifier = KPIM::Maildir::getKeyFromFile(oldPath);
+            auto pathParts = oldPath.split('/');
+            pathParts.takeLast();
+            auto oldDirectory = pathParts.join('/');
+            if (oldDirectory == path) {
+                return oldPath;
+            }
+            KPIM::Maildir oldMaildir(oldDirectory, false);
+            if (!oldMaildir.isValid(false)) {
+                Warning() << "Maildir is not existing: " << path;
+            }
+            auto identifier = oldMaildir.moveEntryTo(oldIdentifier, maildir);
             return path + "/" + identifier;
         }
         return oldPath;
@@ -161,21 +181,29 @@ public:
     void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
         Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        //TODO deal with moves
+        if (newEntity.getProperty("draft").toBool()) {
+            newEntity.setProperty("folder", mDraftsFolder);
+        }
         const auto mimeMessage = newEntity.getProperty("mimeMessage");
-        if (mimeMessage.isValid() && mimeMessage.toString() != oldEntity.getProperty("mimeMessage").toString()) {
-            //Remove the olde mime message if there is a new one
-            const auto filePath = getFilePathFromMimeMessagePath(oldEntity.getProperty("mimeMessage").toString());
-            QFile::remove(filePath);
-
-            newEntity.setProperty("mimeMessage", moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray(), transaction));
-            Trace() << "Modified message: " << filePath << oldEntity.getProperty("mimeMessage").toString();
+        const auto newFolder = newEntity.getProperty("folder");
+        const bool mimeMessageChanged = mimeMessage.isValid() && mimeMessage.toString() != oldEntity.getProperty("mimeMessage").toString();
+        const bool folderChanged = newFolder.isValid() && newFolder.toString() != oldEntity.getProperty("mimeMessage").toString();
+        if (mimeMessageChanged || folderChanged) {
+            Trace() << "Moving mime message: " << mimeMessageChanged << folderChanged;
+            auto newPath = moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray(), transaction);
+            if (newPath != oldEntity.getProperty("mimeMessage").toString()) {
+                const auto oldPath = getFilePathFromMimeMessagePath(oldEntity.getProperty("mimeMessage").toString());
+                newEntity.setProperty("mimeMessage", newPath);
+                //Remove the olde mime message if there is a new one
+                QFile::remove(oldPath);
+            }
         }
 
         auto mimeMessagePath = newEntity.getProperty("mimeMessage").toString();
         const auto maildirPath = getPath(newEntity.getProperty("folder").toByteArray(), transaction);
         KPIM::Maildir maildir(maildirPath, false);
-        QString identifier = KPIM::Maildir::getKeyFromFile(mimeMessagePath);
+        const auto file = getFilePathFromMimeMessagePath(mimeMessagePath);
+        QString identifier = KPIM::Maildir::getKeyFromFile(file);
 
         //get flags from
         KPIM::Maildir::Flags flags;
@@ -247,14 +275,17 @@ public:
         return list;
     }
 
-    QByteArray createFolder(const QString &folderPath, const QByteArray &icon)
+    QByteArray createFolder(const QString &folderPath, const QByteArray &icon, const QByteArrayList &specialpurpose = QByteArrayList())
     {
         auto remoteId = folderPath.toUtf8();
         auto bufferType = ENTITY_TYPE_FOLDER;
         KPIM::Maildir md(folderPath, folderPath == mMaildirPath);
         Sink::ApplicationDomain::Folder folder;
-        folder.setProperty("name", md.name());
-        folder.setProperty("icon", icon);
+        folder.setName(md.name());
+        folder.setIcon(icon);
+        if (!specialpurpose.isEmpty()) {
+            folder.setSpecialPurpose(specialpurpose);
+        }
 
         if (!md.isRoot()) {
             folder.setProperty("parent", syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path().toUtf8()));
@@ -478,10 +509,10 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << folderPreprocessor << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 
     KPIM::Maildir dir(mMaildirPath, true);
-    mDraftsFolder = dir.addSubFolder("drafts");
     Trace() << "Started maildir resource for maildir: " << mMaildirPath;
+    mDraftsFolder = dir.addSubFolder("Drafts");
 
-    auto remoteId = synchronizer->createFolder(mDraftsFolder, "folder");
+    auto remoteId = synchronizer->createFolder(mDraftsFolder, "folder", QByteArrayList() << "drafts");
     auto draftsFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
     synchronizer->commit();
     synchronizer->commitSync();

@@ -141,6 +141,10 @@ public:
 
     QString findRealKey(const QString& key) const
     {
+        if (key.isEmpty()) {
+            qWarning() << "Empty key: " << key;
+            return key;
+        }
         // KeyCache* keyCache = KeyCache::self();
         // if (keyCache->isNewKey(path, key)) {
         if (QFile::exists(path + QString::fromLatin1("/new/") + key)) {
@@ -670,7 +674,7 @@ QString Maildir::addEntry(const QByteArray& data)
     do {
       uniqueKey = createUniqueFileName() + d->hostName;
       key = d->path + QLatin1String("/tmp/") + uniqueKey;
-      finalKey = d->path + QLatin1String("/new/") + uniqueKey;
+      finalKey = d->path + QLatin1String("/cur/") + uniqueKey;
       curKey = d->path + QLatin1String("/cur/") + uniqueKey;
     } while (QFile::exists(key) || QFile::exists(finalKey) || QFile::exists(curKey));
 
@@ -911,7 +915,7 @@ QString Maildir::moveEntryTo(const QString &key, const Maildir &destination)
   }
   QFile f(realKey);
   // ### is this safe regarding the maildir locking scheme?
-  const QString targetKey = destination.path() + QDir::separator() + QLatin1String("new") + QDir::separator() + key;
+  const QString targetKey = destination.path() + QDir::separator() + QLatin1String("cur") + QDir::separator() + key;
   if (!f.rename(targetKey)) {
     qDebug() << "Failed to rename" << realKey << "to" << targetKey << "! Error: " << f.errorString();;
     d->lastError = f.errorString();
