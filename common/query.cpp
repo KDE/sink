@@ -50,8 +50,14 @@ bool Query::Comparator::matches(const QVariant &v) const
 {
     switch(comparator) {
         case Equals:
+            if (!v.isValid()) {
+                return false;
+            }
             return v == value;
         case Contains:
+            if (!v.isValid()) {
+                return false;
+            }
             return v.value<QByteArrayList>().contains(value.toByteArray());
         default:
             break;

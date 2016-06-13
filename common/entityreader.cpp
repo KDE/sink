@@ -375,14 +375,10 @@ EntityReader<DomainType>::getFilter(const QSet<QByteArray> remainingFilters, con
         }
         for (const auto &filterProperty : remainingFilters) {
             const auto property = domainObject->getProperty(filterProperty);
-            if (property.isValid()) {
-                const auto comparator = query.propertyFilter.value(filterProperty);
-                if (!comparator.matches(property)) {
-                    Trace() << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << comparator.value;
-                    return false;
-                }
-            } else {
-                Warning() << "Ignored property filter because value is invalid: " << filterProperty;
+            const auto comparator = query.propertyFilter.value(filterProperty);
+            if (!comparator.matches(property)) {
+                Trace() << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << comparator.value;
+                return false;
             }
         }
         return true;
