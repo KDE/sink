@@ -10,16 +10,16 @@
 #include "facadefactory.h"
 
 template <typename T>
-class DummyResourceFacade : public Sink::StoreFacade<T>
+class TestDummyResourceFacade : public Sink::StoreFacade<T>
 {
 public:
-    static std::shared_ptr<DummyResourceFacade<T>> registerFacade(const QByteArray &instanceIdentifier = QByteArray())
+    static std::shared_ptr<TestDummyResourceFacade<T>> registerFacade(const QByteArray &instanceIdentifier = QByteArray())
     {
-        static QMap<QByteArray, std::shared_ptr<DummyResourceFacade<T>>> map;
-        auto facade = std::make_shared<DummyResourceFacade<T>>();
+        static QMap<QByteArray, std::shared_ptr<TestDummyResourceFacade<T>>> map;
+        auto facade = std::make_shared<TestDummyResourceFacade<T>>();
         map.insert(instanceIdentifier, facade);
         bool alwaysReturnFacade = instanceIdentifier.isEmpty();
-        Sink::FacadeFactory::instance().registerFacade<T, DummyResourceFacade<T>>("dummyresource", [alwaysReturnFacade](const QByteArray &instanceIdentifier) {
+        Sink::FacadeFactory::instance().registerFacade<T, TestDummyResourceFacade<T>>("dummyresource", [alwaysReturnFacade](const QByteArray &instanceIdentifier) {
             if (alwaysReturnFacade) {
                 return map.value(QByteArray());
             }
@@ -27,7 +27,7 @@ public:
         });
         return facade;
     }
-    ~DummyResourceFacade(){};
+    ~TestDummyResourceFacade(){};
     KAsync::Job<void> create(const T &domainObject) Q_DECL_OVERRIDE
     {
         return KAsync::null<void>();
@@ -96,7 +96,7 @@ private slots:
 
     void testLoad()
     {
-        auto facade = DummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade();
+        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade();
         facade->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
@@ -121,7 +121,7 @@ private slots:
 
     void testModelSingle()
     {
-        auto facade = DummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
+        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
         facade->results << QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
@@ -135,7 +135,7 @@ private slots:
 
     void testModelNested()
     {
-        auto facade = DummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
+        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
         auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         auto subfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         subfolder->setProperty("parent", "id");
@@ -158,7 +158,7 @@ private slots:
 
     void testModelSignals()
     {
-        auto facade = DummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
+        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
         auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         auto subfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         subfolder->setProperty("parent", "id");
@@ -180,7 +180,7 @@ private slots:
 
     void testModelNestedLive()
     {
-        auto facade = DummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
+        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
         auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("dummyresource.instance1", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         auto subfolder =
             QSharedPointer<Sink::ApplicationDomain::Folder>::create("dummyresource.instance1", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
@@ -234,9 +234,9 @@ private slots:
 
     void testLoadMultiResource()
     {
-        auto facade1 = DummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade("dummyresource.instance1");
+        auto facade1 = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade("dummyresource.instance1");
         facade1->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource1", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        auto facade2 = DummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade("dummyresource.instance2");
+        auto facade2 = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade("dummyresource.instance2");
         facade2->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource2", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
         ResourceConfig::addResource("dummyresource.instance2", "dummyresource");
@@ -260,7 +260,7 @@ private slots:
 
     void testImperativeLoad()
     {
-        auto facade = DummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade();
+        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade();
         facade->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
