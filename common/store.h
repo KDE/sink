@@ -101,5 +101,11 @@ KAsync::Job<QList<typename DomainType::Ptr>> SINK_EXPORT fetchAll(const Sink::Qu
 
 template <class DomainType>
 KAsync::Job<QList<typename DomainType::Ptr>> SINK_EXPORT fetch(const Sink::Query &query, int minimumAmount = 0);
+
+template <class DomainType>
+DomainType SINK_EXPORT readOne(const Sink::Query &query);
+
+template <class DomainType>
+QList<DomainType> SINK_EXPORT read(const Sink::Query &query);
 }
 }

@@ -286,6 +286,51 @@ KAsync::Job<QList<typename DomainType::Ptr>> Store::fetch(const Sink::Query &que
     });
 }
 
+template <class DomainType>
+DomainType Store::readOne(const Sink::Query &query)
+{
+    const auto list = read<DomainType>(query);
+    if (!list.isEmpty()) {
+        return list.first();
+    }
+    return DomainType();
+}
+
+template <class DomainType>
+QList<DomainType> Store::read(const Sink::Query &q)
+{
+    auto query = q;
+    query.synchronousQuery = true;
+    query.liveQuery = false;
+    QList<DomainType> list;
+    auto resources = getResources(query.resources, query.accounts, ApplicationDomain::getTypeName<DomainType>());
+    auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
+    aggregatingEmitter->onAdded([&list](const typename DomainType::Ptr &value){
+        Trace() << "Found value: " << value->identifier();
+        list << *value;
+    });
+    for (const auto resourceInstanceIdentifier : resources.keys()) {
+        const auto resourceType = resources.value(resourceInstanceIdentifier);
+        Trace() << "Looking for " << resourceType << resourceInstanceIdentifier;
+        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceType, resourceInstanceIdentifier);
+        if (facade) {
+            Trace() << "Trying to fetch from resource " << resourceInstanceIdentifier;
+            auto result = facade->load(query);
+            if (result.second) {
+                aggregatingEmitter->addEmitter(result.second);
+            } else {
+                Warning() << "Null emitter for resource " << resourceInstanceIdentifier;
+            }
+            result.first.exec();
+            aggregatingEmitter->fetch(typename DomainType::Ptr());
+        } else {
+            Trace() << "Couldn't find a facade for " << resourceInstanceIdentifier;
+            // Ignore the error and carry on
+        }
+    }
+    return list;
+}
+
 #define REGISTER_TYPE(T)                                                          \
     template KAsync::Job<void> Store::remove<T>(const T &domainObject);           \
     template KAsync::Job<void> Store::create<T>(const T &domainObject);           \
@@ -293,7 +338,9 @@ KAsync::Job<QList<typename DomainType::Ptr>> Store::fetch(const Sink::Query &que
     template QSharedPointer<QAbstractItemModel> Store::loadModel<T>(Query query); \
     template KAsync::Job<T> Store::fetchOne<T>(const Query &);                    \
     template KAsync::Job<QList<T::Ptr>> Store::fetchAll<T>(const Query &);        \
-    template KAsync::Job<QList<T::Ptr>> Store::fetch<T>(const Query &, int);
+    template KAsync::Job<QList<T::Ptr>> Store::fetch<T>(const Query &, int);      \
+    template T Store::readOne<T>(const Query &);                                  \
+    template QList<T> Store::read<T>(const Query &);
 
 REGISTER_TYPE(ApplicationDomain::Event);
 REGISTER_TYPE(ApplicationDomain::Mail);

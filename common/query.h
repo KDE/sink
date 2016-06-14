@@ -36,7 +36,9 @@ public:
     enum Flag
     {
         /** Leave the query running and continuously update the result set. */
-        LiveQuery
+        LiveQuery,
+        /** Run the query synchronously. */
+        SynchronousQuery
     };
     Q_DECLARE_FLAGS(Flags, Flag)
 
@@ -139,7 +141,9 @@ public:
 
     static Query IdentityFilter(const ApplicationDomain::Entity &entity)
     {
-        return IdentityFilter(entity.identifier());
+        auto query = IdentityFilter(entity.identifier());
+        query.resources << entity.resourceInstanceIdentifier();
+        return query;
     }
 
     static Query RequestedProperties(const QByteArrayList &properties)
@@ -191,13 +195,13 @@ public:
         return *this;
     }
 
-    Query(const ApplicationDomain::Entity &value) : limit(0)
+    Query(const ApplicationDomain::Entity &value) : limit(0), liveQuery(false), synchronousQuery(false)
     {
         ids << value.identifier();
         resources << value.resourceInstanceIdentifier();
     }
 
-    Query(Flags flags = Flags()) : limit(0)
+    Query(Flags flags = Flags()) : limit(0), liveQuery(false), synchronousQuery(false)
     {
     }
 
@@ -230,8 +234,9 @@ public:
     QByteArrayList requestedProperties;
     QByteArray parentProperty;
     QByteArray sortProperty;
-    bool liveQuery;
     int limit;
+    bool liveQuery;
+    bool synchronousQuery;
 };
 }
 
