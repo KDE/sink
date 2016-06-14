@@ -11,6 +11,7 @@ table Mail {
   important:bool = false;
   mimeMessage:string;
   draft:bool = false;
+  trash:bool = false;
 }
 
 root_type Mail;

@@ -69,6 +69,8 @@ private slots:
 
     void testCreateDraft();
     void testModifyMailToDraft();
+
+    void testModifyMailToTrash();
 };
 
 }
