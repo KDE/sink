@@ -59,6 +59,7 @@ bool Query::Comparator::matches(const QVariant &v) const
                 return false;
             }
             return v.value<QByteArrayList>().contains(value.toByteArray());
+        case Invalid:
         default:
             break;
     }

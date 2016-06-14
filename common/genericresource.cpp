@@ -40,10 +40,6 @@
 #include <QDataStream>
 #include <QTime>
 
-//This is the resources entity type, and not the domain type
-#define ENTITY_TYPE_MAIL "mail"
-#define ENTITY_TYPE_FOLDER "folder"
-
 static int sBatchSize = 100;
 // This interval directly affects the roundtrip time of single commands
 static int sCommitInterval = 10;

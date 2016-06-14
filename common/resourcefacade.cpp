@@ -209,3 +209,8 @@ IdentityFacade::IdentityFacade() : LocalStorageFacade<Sink::ApplicationDomain::I
 IdentityFacade::~IdentityFacade()
 {
 }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#include "resourcefacade.moc"
+#pragma clang diagnostic pop

@@ -127,3 +127,7 @@ void ChangeReplay::revisionChanged()
     }
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#include "changereplay.moc"
+#pragma clang diagnostic pop

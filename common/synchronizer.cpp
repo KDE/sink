@@ -40,6 +40,11 @@ Synchronizer::Synchronizer(const QByteArray &resourceType, const QByteArray &res
     Trace() << "Starting synchronizer: " << resourceType << resourceInstanceIdentifier;
 }
 
+Synchronizer::~Synchronizer()
+{
+
+}
+
 void Synchronizer::setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback)
 {
     mEnqueue = enqueueCommandCallback;

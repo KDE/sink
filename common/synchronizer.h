@@ -38,6 +38,7 @@ class SINK_EXPORT Synchronizer
 {
 public:
     Synchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier);
+    virtual ~Synchronizer();
 
     void setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback);
     KAsync::Job<void> synchronize();
