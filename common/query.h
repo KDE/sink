@@ -216,7 +216,6 @@ public:
         requestedProperties += rhs.requestedProperties;
         parentProperty = rhs.parentProperty;
         sortProperty = rhs.sortProperty;
-        liveQuery = rhs.liveQuery;
         limit = rhs.limit;
         return *this;
     }
