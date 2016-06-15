@@ -28,7 +28,7 @@ template <typename DomainType>
 ConfigNotifier LocalStorageFacade<DomainType>::sConfigNotifier;
 
 template <typename DomainType>
-LocalStorageFacade<DomainType>::LocalStorageFacade(const QByteArray &identifier) : Sink::StoreFacade<DomainType>(), mConfigStore(identifier)
+LocalStorageFacade<DomainType>::LocalStorageFacade(const QByteArray &identifier) : Sink::StoreFacade<DomainType>(), mConfigStore(identifier), mResourceInstanceIdentifier(identifier)
 {
 }
 
@@ -38,15 +38,21 @@ LocalStorageFacade<DomainType>::~LocalStorageFacade()
 }
 
 template <typename DomainType>
-typename DomainType::Ptr LocalStorageFacade<DomainType>::readFromConfig(const QByteArray &id, const QByteArray &type)
+typename DomainType::Ptr LocalStorageFacade<DomainType>::readFromConfig(ConfigStore &configStore, const QByteArray &id, const QByteArray &type)
 {
     auto object = DomainType::Ptr::create(id);
     object->setProperty("type", type);
-    const auto configurationValues = mConfigStore.get(id);
+    const auto configurationValues = configStore.get(id);
     for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
         object->setProperty(it.key(), it.value());
     }
     return object;
+}
+
+template <typename DomainType>
+typename DomainType::Ptr LocalStorageFacade<DomainType>::readFromConfig(const QByteArray &id, const QByteArray &type)
+{
+    return readFromConfig(mConfigStore, id, type);
 }
 
 template <typename DomainType>
@@ -132,9 +138,9 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>:
     QObject *guard = new QObject;
     auto resultProvider = new Sink::ResultProvider<typename DomainType::Ptr>();
     auto emitter = resultProvider->emitter();
-    resultProvider->setFetcher([](const QSharedPointer<DomainType> &) {});
-    resultProvider->onDone([=]() { delete resultProvider; delete guard; });
-    auto job = KAsync::start<void>([=]() {
+    auto identifier = mResourceInstanceIdentifier;
+    resultProvider->setFetcher([identifier, query, guard, resultProvider](const QSharedPointer<DomainType> &) {
+        ConfigStore mConfigStore(identifier);
         const auto entries = mConfigStore.getEntries();
         for (const auto &res : entries.keys()) {
             const auto type = entries.value(res);
@@ -152,7 +158,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>:
                 continue;
             }
             Trace() << "Found match " << res;
-            resultProvider->add(readFromConfig(res, type));
+            resultProvider->add(readFromConfig(mConfigStore, res, type));
         }
         if (query.liveQuery) {
             QObject::connect(&sConfigNotifier, &ConfigNotifier::modified, guard, [resultProvider](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &entry) {
@@ -169,7 +175,9 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>:
         resultProvider->initialResultSetComplete(typename DomainType::Ptr());
         resultProvider->complete();
     });
-    return qMakePair(job, emitter);
+    resultProvider->onDone([=]() { delete resultProvider; delete guard; });
+
+    return qMakePair(KAsync::null<void>(), emitter);
 }
 
 

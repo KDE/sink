@@ -67,9 +67,11 @@ public:
     virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 private:
     typename DomainType::Ptr readFromConfig(const QByteArray &id, const QByteArray &type);
+    static typename DomainType::Ptr readFromConfig(ConfigStore &store, const QByteArray &id, const QByteArray &type);
 
     ConfigStore mConfigStore;
     static ConfigNotifier sConfigNotifier;
+    QByteArray mResourceInstanceIdentifier;
 };
 
 class ResourceFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkResource>

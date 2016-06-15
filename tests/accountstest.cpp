@@ -101,20 +101,19 @@ private slots:
         Query query;
         query.liveQuery = true;
         auto model = Store::loadModel<SinkAccount>(query);
-        QSignalSpy spy(model.data(), &QAbstractItemModel::rowsInserted);
-        QTRY_COMPARE(spy.count(), 1);
+        QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
 
         auto account2 = ApplicationDomainType::createEntity<SinkAccount>();
         account2.setProperty("type", "maildir");
         account2.setProperty("name", "name");
         Store::create(account2).exec().waitForFinished();
-        QTRY_COMPARE(spy.count(), 2);
+        QTRY_COMPARE(model->rowCount(QModelIndex()), 2);
 
         //Ensure the notifier only affects one type
         auto resource = ApplicationDomainType::createEntity<SinkResource>();
         resource.setProperty("type", "org.kde.mailtransport");
         Store::create(resource).exec().waitForFinished();
-        QTRY_COMPARE(spy.count(), 2);
+        QTRY_COMPARE(model->rowCount(QModelIndex()), 2);
     }
 
 };
