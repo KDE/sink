@@ -63,6 +63,7 @@ static QHash<QByteArray, QString> specialPurposeFolders()
     QHash<QByteArray, QString> hash;
         //FIXME localize
     hash.insert("drafts", "Drafts");
+    hash.insert("trash", "Trash");
     return hash;
 }
 
@@ -80,51 +81,57 @@ static QHash<QByteArray, QString> sSpecialPurposeFolders = specialPurposeFolders
 //Lowercase-name, specialpurpose
 static QHash<QString, QByteArray> sSpecialPurposeNames = specialPurposeNames();
 
-class DraftsProcessor : public Sink::Preprocessor
+class SpecialPurposeProcessor : public Sink::Preprocessor
 {
 public:
-    DraftsProcessor(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : mResourceType(resourceType), mResourceInstanceIdentifier(resourceInstanceIdentifier) {}
+    SpecialPurposeProcessor(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : mResourceType(resourceType), mResourceInstanceIdentifier(resourceInstanceIdentifier) {}
 
-    QByteArray ensureDraftsFolder(Sink::Storage::Transaction &transaction)
+    QByteArray ensureFolder(Sink::Storage::Transaction &transaction, const QByteArray &specialPurpose)
     {
-        if (mDraftsFolder.isEmpty()) {
+        if (!mSpecialPurposeFolders.contains(specialPurpose)) {
             //Try to find an existing drafts folder
             Sink::EntityReader<ApplicationDomain::Folder> reader(mResourceType, mResourceInstanceIdentifier, transaction);
             reader.query(Sink::Query().filter<ApplicationDomain::Folder::SpecialPurpose>(Query::Comparator("drafts", Query::Comparator::Contains)),
-                [this](const ApplicationDomain::Folder &f) -> bool{
-                    mDraftsFolder = f.identifier();
+                [this, specialPurpose](const ApplicationDomain::Folder &f) -> bool{
+                    mSpecialPurposeFolders.insert(specialPurpose, f.identifier());
                     return false;
                 });
-            if (mDraftsFolder.isEmpty()) {
+            if (!mSpecialPurposeFolders.contains(specialPurpose)) {
                 Trace() << "Failed to find a drafts folder, creating a new one";
                 auto folder = ApplicationDomain::Folder::create(mResourceInstanceIdentifier);
-                folder.setSpecialPurpose(QByteArrayList() << "drafts");
-                folder.setName(sSpecialPurposeFolders.value("drafts"));
+                folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
+                folder.setName(sSpecialPurposeFolders.value(specialPurpose));
                 folder.setIcon("folder");
                 //This processes the pipeline synchronously
                 createEntity(folder);
-                mDraftsFolder = folder.identifier();
+                mSpecialPurposeFolders.insert(specialPurpose, folder.identifier());
             }
         }
-        return mDraftsFolder;
+        return mSpecialPurposeFolders.value(specialPurpose);
+    }
+
+    void moveToFolder(Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction)
+    {
+        if (newEntity.getProperty("trash").toBool()) {
+            newEntity.setProperty("folder", ensureFolder(transaction, "trash"));
+            return;
+        }
+        if (newEntity.getProperty("draft").toBool()) {
+            newEntity.setProperty("folder", ensureFolder(transaction, "drafts"));
+        }
     }
 
     void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        if (newEntity.getProperty("draft").toBool()) {
-            newEntity.setProperty("folder", ensureDraftsFolder(transaction));
-        }
+        moveToFolder(newEntity, transaction);
     }
 
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
-        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        if (newEntity.getProperty("draft").toBool()) {
-            newEntity.setProperty("folder", ensureDraftsFolder(transaction));
-        }
+        moveToFolder(newEntity, transaction);
     }
 
-    QByteArray mDraftsFolder;
+    QHash<QByteArray, QByteArray> mSpecialPurposeFolders;
     QByteArray mResourceType;
     QByteArray mResourceInstanceIdentifier;
 };
@@ -647,7 +654,7 @@ ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPo
     changereplay->mPassword = mPassword;
     setupChangereplay(changereplay);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new DraftsProcessor(mResourceType, mResourceInstanceIdentifier) << new MimeMessageMover(mResourceInstanceIdentifier) << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(mResourceType, mResourceInstanceIdentifier) << new MimeMessageMover(mResourceInstanceIdentifier) << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 }
 

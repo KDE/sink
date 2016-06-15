@@ -85,6 +85,7 @@ QSharedPointer<ReadPropertyMapper<TypeImplementation<Mail>::Buffer> > TypeImplem
     propertyMapper->addMapping<Mail::Folder, Buffer>(&Buffer::folder);
     propertyMapper->addMapping<Mail::MimeMessage, Buffer>(&Buffer::mimeMessage);
     propertyMapper->addMapping<Mail::Draft, Buffer>(&Buffer::draft);
+    propertyMapper->addMapping<Mail::Trash, Buffer>(&Buffer::trash);
     return propertyMapper;
 }
 
@@ -102,5 +103,6 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Mail>::BufferBuilder> > Ty
     propertyMapper->addMapping<Mail::Folder>(&BufferBuilder::add_folder);
     propertyMapper->addMapping<Mail::MimeMessage>(&BufferBuilder::add_mimeMessage);
     propertyMapper->addMapping<Mail::Draft>(&BufferBuilder::add_draft);
+    propertyMapper->addMapping<Mail::Trash>(&BufferBuilder::add_trash);
     return propertyMapper;
 }

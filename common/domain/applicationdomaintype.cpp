@@ -275,7 +275,7 @@ namespace ImapResource {
         auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
         resource.setProperty("type", "org.kde.imap");
         resource.setProperty("account", account);
-        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << ResourceCapabilities::Mail::folderhierarchy));
+        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << ResourceCapabilities::Mail::folderhierarchy << ResourceCapabilities::Mail::trash));
         return resource;
     }
 }
