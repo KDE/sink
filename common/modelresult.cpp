@@ -193,7 +193,6 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
     }
     if (mEntities.contains(childId)) {
         Warning() << "Entity already in model " << value->identifier();
-        Q_ASSERT(false);
         return;
     }
     // qDebug() << "Inserting rows " << index << parent;
