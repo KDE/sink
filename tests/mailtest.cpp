@@ -426,7 +426,7 @@ void MailTest::testModifyMailToTrash()
     }
 
     auto folder = Folder::create(mResourceInstanceIdentifier);
-    folder.setName("sdljldskjf");
+    folder.setName("sdljldskjf2");
     VERIFYEXEC(Store::create(folder));
 
     auto message = KMime::Message::Ptr::create();
