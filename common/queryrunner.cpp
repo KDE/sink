@@ -94,6 +94,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                     if (query.liveQuery) {
                         mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.first);
                     }
+                    resultProvider->setRevision(newRevisionAndReplayedEntities.first);
                     resultProvider->initialResultSetComplete(parent);
                 })
                 .exec();
@@ -111,9 +112,10 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                        const auto newRevisionAndReplayedEntities = worker.executeIncrementalQuery(query, *resultProvider);
                        return newRevisionAndReplayedEntities;
                    })
-                .template then<void, QPair<qint64, qint64> >([query, this](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
+                .template then<void, QPair<qint64, qint64> >([query, this, resultProvider](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
                     // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
                     mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.first);
+                    resultProvider->setRevision(newRevisionAndReplayedEntities.first);
                 });
         });
         // Ensure the connection is open, if it wasn't already opened
