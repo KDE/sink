@@ -19,6 +19,7 @@
  */
 
 #include "threadboundary.h"
+#include <QThread>
 
 Q_DECLARE_METATYPE(std::function<void()>);
 
@@ -39,7 +40,11 @@ void ThreadBoundary::callInMainThread(std::function<void()> f)
      * than the target thread is able to execute the function calls. In that case any captures will equally pile up, resulting
      * in significant memory usage i.e. due to Emitter::addHandler calls that each capture a domain object.
      */
-    QMetaObject::invokeMethod(this, "runInMainThread", Qt::QueuedConnection, QGenericReturnArgument(), Q_ARG(std::function<void()>, f));
+    if (QThread::currentThread() == this->thread()) {
+        f();
+    } else {
+        QMetaObject::invokeMethod(this, "runInMainThread", Qt::QueuedConnection, QGenericReturnArgument(), Q_ARG(std::function<void()>, f));
+    }
 }
 
 void ThreadBoundary::runInMainThread(std::function<void()> f)

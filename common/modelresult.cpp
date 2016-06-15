@@ -20,9 +20,11 @@
 #include "modelresult.h"
 
 #include <QDebug>
+#include <QThread>
 
 #include "domain/folder.h"
 #include "log.h"
+#include "threadboundary.h"
 
 #undef DEBUG_AREA
 #define DEBUG_AREA "client.modelresult"
@@ -63,12 +65,14 @@ qint64 ModelResult<T, Ptr>::parentId(const Ptr &value)
 template <class T, class Ptr>
 int ModelResult<T, Ptr>::rowCount(const QModelIndex &parent) const
 {
+    Q_ASSERT(QThread::currentThread() == this->thread());
     return mTree[getIdentifier(parent)].size();
 }
 
 template <class T, class Ptr>
 int ModelResult<T, Ptr>::columnCount(const QModelIndex &parent) const
 {
+    Q_ASSERT(QThread::currentThread() == this->thread());
     return mPropertyColumns.size();
 }
 
@@ -86,6 +90,7 @@ QVariant ModelResult<T, Ptr>::headerData(int section, Qt::Orientation orientatio
 template <class T, class Ptr>
 QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
 {
+    Q_ASSERT(QThread::currentThread() == this->thread());
     if (role == DomainObjectRole && index.isValid()) {
         Q_ASSERT(mEntities.contains(index.internalId()));
         return QVariant::fromValue(mEntities.value(index.internalId()));
@@ -112,6 +117,7 @@ QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
 template <class T, class Ptr>
 QModelIndex ModelResult<T, Ptr>::index(int row, int column, const QModelIndex &parent) const
 {
+    Q_ASSERT(QThread::currentThread() == this->thread());
     const auto id = getIdentifier(parent);
     const auto list = mTree.value(id);
     if (list.size() > row) {
@@ -119,12 +125,14 @@ QModelIndex ModelResult<T, Ptr>::index(int row, int column, const QModelIndex &p
         return createIndex(row, column, childId);
     }
     Warning() << "Index not available " << row << column << parent;
+    Q_ASSERT(false);
     return QModelIndex();
 }
 
 template <class T, class Ptr>
 QModelIndex ModelResult<T, Ptr>::createIndexFromId(const qint64 &id) const
 {
+    Q_ASSERT(QThread::currentThread() == this->thread());
     if (id == 0) {
         return QModelIndex();
     }
@@ -185,6 +193,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
     }
     if (mEntities.contains(childId)) {
         Warning() << "Entity already in model " << value->identifier();
+        Q_ASSERT(false);
         return;
     }
     // qDebug() << "Inserting rows " << index << parent;
@@ -216,6 +225,7 @@ void ModelResult<T, Ptr>::remove(const Ptr &value)
 template <class T, class Ptr>
 void ModelResult<T, Ptr>::fetchEntities(const QModelIndex &parent)
 {
+    Q_ASSERT(QThread::currentThread() == this->thread());
     const auto id = getIdentifier(parent);
     mEntityChildrenFetchComplete.remove(id);
     mEntityChildrenFetched.insert(id);
@@ -237,11 +247,26 @@ void ModelResult<T, Ptr>::setFetcher(const std::function<void(const Ptr &parent)
 template <class T, class Ptr>
 void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Ptr &emitter)
 {
+    static async::ThreadBoundary threadBoundary;
     setFetcher([this](const Ptr &parent) { mEmitter->fetch(parent); });
-    emitter->onAdded([this](const Ptr &value) { this->add(value); });
-    emitter->onModified([this](const Ptr &value) { this->modify(value); });
-    emitter->onRemoved([this](const Ptr &value) { this->remove(value); });
+
+    emitter->onAdded([this](const Ptr &value) {
+        threadBoundary.callInMainThread([this, value]() {
+            add(value);
+        });
+    });
+    emitter->onModified([this](const Ptr &value) {
+        threadBoundary.callInMainThread([this, value]() {
+            modify(value);
+        });
+    });
+    emitter->onRemoved([this](const Ptr &value) {
+        threadBoundary.callInMainThread([this, value]() {
+            remove(value);
+        });
+    });
     emitter->onInitialResultSetComplete([this](const Ptr &parent) {
+        Trace() << "Initial result set complete";
         const qint64 parentId = parent ? qHash(*parent) : 0;
         const auto parentIndex = createIndexFromId(parentId);
         mEntityChildrenFetchComplete.insert(parentId);

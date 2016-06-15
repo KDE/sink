@@ -20,10 +20,8 @@
 
 #pragma once
 
-#include <QThread>
 #include <functional>
 #include <memory>
-#include "threadboundary.h"
 #include "resultset.h"
 #include "log.h"
 
@@ -75,33 +73,6 @@ private:
 template <class T>
 class ResultProvider : public ResultProviderInterface<T>
 {
-private:
-    void callInMainThreadOnEmitter(void (ResultEmitter<T>::*f)())
-    {
-        // We use the eventloop to call the addHandler directly from the main eventloop.
-        // That way the result emitter implementation doesn't have to care about threadsafety at all.
-        // The alternative would be to make all handlers of the emitter threadsafe.
-        if (auto emitter = mResultEmitter.toStrongRef()) {
-            auto weakEmitter = mResultEmitter;
-            // We don't want to keep the emitter alive here, so we only capture a weak reference
-            emitter->mThreadBoundary.callInMainThread([weakEmitter, f]() {
-                if (auto strongRef = weakEmitter.toStrongRef()) {
-                    (strongRef.data()->*f)();
-                }
-            });
-        }
-    }
-
-    void callInMainThreadOnEmitter(const std::function<void()> &f)
-    {
-        // We use the eventloop to call the addHandler directly from the main eventloop.
-        // That way the result emitter implementation doesn't have to care about threadsafety at all.
-        // The alternative would be to make all handlers of the emitter threadsafe.
-        if (auto emitter = mResultEmitter.toStrongRef()) {
-            emitter->mThreadBoundary.callInMainThread(f);
-        }
-    }
-
 public:
     typedef QSharedPointer<ResultProvider<T>> Ptr;
 
@@ -112,57 +83,45 @@ public:
     // Called from worker thread
     void add(const T &value)
     {
-        // Because I don't know how to use bind
-        auto weakEmitter = mResultEmitter;
-        callInMainThreadOnEmitter([weakEmitter, value]() {
-            if (auto strongRef = weakEmitter.toStrongRef()) {
-                strongRef->addHandler(value);
-            }
-        });
+        if (auto strongRef = mResultEmitter.toStrongRef()) {
+            strongRef->addHandler(value);
+        }
     }
 
     void modify(const T &value)
     {
-        // Because I don't know how to use bind
-        auto weakEmitter = mResultEmitter;
-        callInMainThreadOnEmitter([weakEmitter, value]() {
-            if (auto strongRef = weakEmitter.toStrongRef()) {
-                strongRef->modifyHandler(value);
-            }
-        });
+        if (auto strongRef = mResultEmitter.toStrongRef()) {
+            strongRef->modifyHandler(value);
+        }
     }
 
     void remove(const T &value)
     {
-        // Because I don't know how to use bind
-        auto weakEmitter = mResultEmitter;
-        callInMainThreadOnEmitter([weakEmitter, value]() {
-            if (auto strongRef = weakEmitter.toStrongRef()) {
-                strongRef->removeHandler(value);
-            }
-        });
+        if (auto strongRef = mResultEmitter.toStrongRef()) {
+            strongRef->removeHandler(value);
+        }
     }
 
     void initialResultSetComplete(const T &parent)
     {
-        // Because I don't know how to use bind
-        auto weakEmitter = mResultEmitter;
-        callInMainThreadOnEmitter([weakEmitter, parent]() {
-            if (auto strongRef = weakEmitter.toStrongRef()) {
-                strongRef->initialResultSetComplete(parent);
-            }
-        });
+        if (auto strongRef = mResultEmitter.toStrongRef()) {
+            strongRef->initialResultSetComplete(parent);
+        }
     }
 
     // Called from worker thread
     void complete()
     {
-        callInMainThreadOnEmitter(&ResultEmitter<T>::complete);
+        if (auto strongRef = mResultEmitter.toStrongRef()) {
+            strongRef->complete();
+        }
     }
 
     void clear()
     {
-        callInMainThreadOnEmitter(&ResultEmitter<T>::clear);
+        if (auto strongRef = mResultEmitter.toStrongRef()) {
+            strongRef->clear();
+        }
     }
 
 
@@ -171,7 +130,7 @@ public:
         if (!mResultEmitter) {
             // We have to go over a separate var and return that, otherwise we'd delete the emitter immediately again
             auto sharedPtr = QSharedPointer<ResultEmitter<T>>(new ResultEmitter<T>, [this](ResultEmitter<T> *emitter) {
-                mThreadBoundary->callInMainThread([this]() { done(); });
+                done();
                 delete emitter;
             });
             mResultEmitter = sharedPtr;
@@ -187,7 +146,6 @@ public:
 
     void onDone(const std::function<void()> &callback)
     {
-        mThreadBoundary = QSharedPointer<async::ThreadBoundary>::create();
         mOnDoneCallback = callback;
     }
 
@@ -205,7 +163,6 @@ public:
 private:
     void done()
     {
-        qWarning() << "done";
         if (mOnDoneCallback) {
             auto callback = mOnDoneCallback;
             mOnDoneCallback = std::function<void()>();
@@ -216,7 +173,6 @@ private:
 
     QWeakPointer<ResultEmitter<T>> mResultEmitter;
     std::function<void()> mOnDoneCallback;
-    QSharedPointer<async::ThreadBoundary> mThreadBoundary;
     std::function<void(const T &parent)> mFetcher;
 };
 
@@ -331,7 +287,6 @@ private:
     std::function<void(void)> clearHandler;
 
     std::function<void(const DomainType &parent)> mFetcher;
-    async::ThreadBoundary mThreadBoundary;
 };
 
 template <class DomainType>
@@ -350,31 +305,43 @@ public:
         emitter->onInitialResultSetComplete([this, ptr](const DomainType &parent) {
             auto hashValue = qHash(parent);
             mInitialResultSetInProgress.remove(hashValue, ptr);
-            // Normally a parent is only in a single resource, except the toplevel (invalid) parent
-            if (!mInitialResultSetInProgress.contains(hashValue)) {
-                this->initialResultSetComplete(parent);
-            }
+            callInitialResultCompleteIfDone(parent);
         });
         emitter->onComplete([this]() { this->complete(); });
         emitter->onClear([this]() { this->clear(); });
         mEmitter << emitter;
     }
 
+    void callInitialResultCompleteIfDone(const DomainType &parent)
+    {
+        auto hashValue = qHash(parent);
+        // Normally a parent is only in a single resource, except the toplevel (invalid) parent
+        if (!mInitialResultSetInProgress.contains(hashValue) && mAllResultsFetched && !mResultEmitted) {
+            mResultEmitted = true;
+            this->initialResultSetComplete(parent);
+        }
+    }
+
     void fetch(const DomainType &parent) Q_DECL_OVERRIDE
     {
         if (mEmitter.isEmpty()) {
-            Trace() << "No child emitters, the result is complete";
             this->initialResultSetComplete(parent);
         } else {
+            mResultEmitted = false;
+            mAllResultsFetched = false;
             for (const auto &emitter : mEmitter) {
                 mInitialResultSetInProgress.insert(qHash(parent), emitter.data());
                 emitter->fetch(parent);
             }
+            mAllResultsFetched = true;
+            callInitialResultCompleteIfDone(parent);
         }
     }
 
 private:
     QList<typename ResultEmitter<DomainType>::Ptr> mEmitter;
     QMultiMap<qint64, ResultEmitter<DomainType> *> mInitialResultSetInProgress;
+    bool mAllResultsFetched;
+    bool mResultEmitted;
 };
 }

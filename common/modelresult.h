@@ -54,15 +54,14 @@ public:
     bool canFetchMore(const QModelIndex &parent) const;
     void fetchMore(const QModelIndex &parent);
 
+    void setFetcher(const std::function<void(const Ptr &parent)> &fetcher);
+
+private:
     void add(const Ptr &value);
     void modify(const Ptr &value);
     void remove(const Ptr &value);
-
-    void setFetcher(const std::function<void(const Ptr &parent)> &fetcher);
-
     bool childrenFetched(const QModelIndex &) const;
 
-private:
     qint64 parentId(const Ptr &value);
     QModelIndex createIndexFromId(const qint64 &id) const;
     void fetchEntities(const QModelIndex &parent);
