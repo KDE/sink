@@ -344,37 +344,29 @@ void MailTest::testCreateDraft()
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     QByteArray folderIdentifier;
-    auto job = Store::fetchOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail.identifier()) + Query::RequestedProperties(QByteArrayList() << Mail::MimeMessage::name << Mail::Folder::name))
-        .then<void, ApplicationDomain::Mail>([&](const ApplicationDomain::Mail &mail) {
-            folderIdentifier = mail.getProperty("folder").toByteArray();
-            QVERIFY(!folderIdentifier.isEmpty());
-        });
-    VERIFYEXEC(job);
+
+    auto createdDraft = Store::readOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail).request<Mail::Folder>());
+    folderIdentifier = createdDraft.getFolder();
+    QVERIFY(!folderIdentifier.isEmpty());
 
     //Ensure we can also query by folder
     {
-        auto job = Store::fetchAll<ApplicationDomain::Mail>(Query::PropertyFilter("folder", folderIdentifier))
-            .then<void, QList<ApplicationDomain::Mail::Ptr> >([&](const QList<ApplicationDomain::Mail::Ptr> &mails) {
-                bool found = false;
-                for (const auto m : mails) {
-                    if (m->identifier() == mail.identifier()) {
-                        found = true;
-                    }
-                }
-                QVERIFY(found);
-            });
-        VERIFYEXEC(job);
+        auto mails = Store::read<ApplicationDomain::Mail>(Query::Query().filter<Mail::Folder>(folderIdentifier));
+        bool found = false;
+        for (const auto m : mails) {
+            if (m.identifier() == mail.identifier()) {
+                found = true;
+            }
+        }
+        QVERIFY(found);
     }
 
     //Ensure the folder is also existing
     {
         ApplicationDomain::Folder folder;
-        auto job = Store::fetchAll<ApplicationDomain::Folder>(Query::IdentityFilter(folderIdentifier))
-            .then<void, QList<ApplicationDomain::Folder::Ptr> >([&](const QList<ApplicationDomain::Folder::Ptr> &folders) {
-                QCOMPARE(folders.size(), 1);
-                folder = *folders.first();
-            });
-        VERIFYEXEC(job);
+        auto folders = Store::read<ApplicationDomain::Folder>(Query::IdentityFilter(folderIdentifier));
+        QCOMPARE(folders.size(), 1);
+        folder = folders.first();
         VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, true)));
     }
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, true)));
@@ -402,41 +394,26 @@ void MailTest::testModifyMailToDraft()
     VERIFYEXEC(Store::create(mail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
-    auto modifiedMail = Store::readOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail).request<Mail::MimeMessage>().request<Mail::Folder>());
-    // ApplicationDomain::Mail modifiedMail;
-    // {
-    //     auto job = Store::fetchOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail.identifier()) + Query::RequestedProperties(QByteArrayList() << Mail::MimeMessage::name << Mail::Folder::name))
-    //         .then<void, ApplicationDomain::Mail>([&](const ApplicationDomain::Mail &mail) {
-    //                 modifiedMail = mail;
-    //         });
-    //     VERIFYEXEC(job);
-    // }
+    auto modifiedMail = Store::readOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail));
     modifiedMail.setDraft(true);
     VERIFYEXEC(Store::modify(modifiedMail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
     VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     QByteArray folderIdentifier;
-    auto job = Store::fetchOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail.identifier()) + Query::RequestedProperties(QByteArrayList() << Mail::MimeMessage::name << Mail::Folder::name))
-        .then<void, ApplicationDomain::Mail>([&](const ApplicationDomain::Mail &mail) {
-            folderIdentifier = mail.getProperty("folder").toByteArray();
-            QVERIFY(!folderIdentifier.isEmpty());
-        });
-    VERIFYEXEC(job);
+    {
+        auto createdDraft = Store::readOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail).request<Mail::Folder>());
+        folderIdentifier = createdDraft.getFolder();
+        QVERIFY(!folderIdentifier.isEmpty());
+    }
 
     //Ensure the folder is also existing
     {
         ApplicationDomain::Folder folder;
-        Query query;
-        query.ids << folderIdentifier;
-        query.request<Folder::SpecialPurpose>();
-        auto job = Store::fetchAll<ApplicationDomain::Folder>(Query::IdentityFilter(folderIdentifier))
-            .then<void, QList<ApplicationDomain::Folder::Ptr> >([&](const QList<ApplicationDomain::Folder::Ptr> &folders) {
-                QCOMPARE(folders.size(), 1);
-                folder = *folders.first();
-                QVERIFY(folder.getSpecialPurpose().contains("drafts"));
-            });
-        VERIFYEXEC(job);
+        auto folders = Store::read<ApplicationDomain::Folder>(Query::IdentityFilter(folderIdentifier).request<Folder::SpecialPurpose>());
+        QCOMPARE(folders.size(), 1);
+        folder = folders.first();
+        QVERIFY(folder.getSpecialPurpose().contains("drafts"));
         VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, true)));
     }
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, true)));
@@ -464,42 +441,26 @@ void MailTest::testModifyMailToTrash()
     VERIFYEXEC(Store::create(mail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
-    // auto modifiedMail = Store::read<ApplicationDomain::Mail>(Query::IdentityFilter(mail).request<Mail::MimeMessage>().request<Mail::Folder>()).value();
-
-    ApplicationDomain::Mail modifiedMail;
-    {
-        auto job = Store::fetchOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail.identifier()) + Query::RequestedProperties(QByteArrayList() << Mail::MimeMessage::name << Mail::Folder::name))
-            .then<void, ApplicationDomain::Mail>([&](const ApplicationDomain::Mail &mail) {
-                    modifiedMail = mail;
-            });
-        VERIFYEXEC(job);
-    }
+    auto modifiedMail = Store::readOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail));
     modifiedMail.setTrash(true);
     VERIFYEXEC(Store::modify(modifiedMail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
     VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     QByteArray folderIdentifier;
-    auto job = Store::fetchOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail.identifier()) + Query::RequestedProperties(QByteArrayList() << Mail::MimeMessage::name << Mail::Folder::name))
-        .then<void, ApplicationDomain::Mail>([&](const ApplicationDomain::Mail &mail) {
-            folderIdentifier = mail.getProperty("folder").toByteArray();
-            QVERIFY(!folderIdentifier.isEmpty());
-        });
-    VERIFYEXEC(job);
+    {
+        auto createdMail = Store::readOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail).request<Mail::Folder>());
+        folderIdentifier = createdMail.getFolder();
+        QVERIFY(!folderIdentifier.isEmpty());
+    }
 
     //Ensure the folder is also existing
     {
         ApplicationDomain::Folder folder;
-        Query query;
-        query.ids << folderIdentifier;
-        query.request<Folder::SpecialPurpose>();
-        auto job = Store::fetchAll<ApplicationDomain::Folder>(Query::IdentityFilter(folderIdentifier))
-            .then<void, QList<ApplicationDomain::Folder::Ptr> >([&](const QList<ApplicationDomain::Folder::Ptr> &folders) {
-                QCOMPARE(folders.size(), 1);
-                folder = *folders.first();
-                QVERIFY(folder.getSpecialPurpose().contains("trash"));
-            });
-        VERIFYEXEC(job);
+        auto folders = Store::read<ApplicationDomain::Folder>(Query::IdentityFilter(folderIdentifier).request<Folder::SpecialPurpose>());
+        QCOMPARE(folders.size(), 1);
+        folder = folders.first();
+        QVERIFY(folder.getSpecialPurpose().contains("trash"));
         VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Folder>(ResourceControl::Inspection::ExistenceInspection(folder, true)));
     }
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, true)));
