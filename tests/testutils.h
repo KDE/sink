@@ -18,41 +18,30 @@
  */
 #pragma once
 
-#include <QObject>
-#include <QByteArray>
+#define ASYNCCOMPARE(actual, expected) \
+do {\
+    if (!QTest::qCompare(actual, expected, #actual, #expected, __FILE__, __LINE__))\
+        return KAsync::error<void>(1, "Comparison failed.");\
+} while (0)
 
-#include <applicationdomaintype.h>
-#include "testutils.h"
+#define ASYNCVERIFY(statement) \
+do {\
+    if (!QTest::qVerify((statement), #statement, "", __FILE__, __LINE__))\
+        return KAsync::error<void>(1, "Verify failed.");\
+} while (0)
 
-namespace Sink {
+#define VERIFYEXEC(statement) \
+do {\
+    auto result = statement.exec(); \
+    result.waitForFinished(); \
+    if (!QTest::qVerify(!result.errorCode(), #statement, "", __FILE__, __LINE__))\
+        return;\
+} while (0)
 
-class MailTest : public QObject
-{
-    Q_OBJECT
-
-protected:
-    QByteArray mResourceInstanceIdentifier;
-    QByteArrayList mCapabilities;
-
-    virtual void resetTestEnvironment() = 0;
-    virtual Sink::ApplicationDomain::SinkResource createResource() = 0;
-    virtual void removeResourceFromDisk(const QByteArray &mResourceInstanceIdentifier) = 0;
-
-private slots:
-    void initTestCase();
-    void init();
-    void cleanup();
-
-    void testCreateModifyDeleteFolder();
-    void testCreateModifyDeleteMail();
-    void testMoveMail();
-    void testMarkMailAsRead();
-
-    void testCreateDraft();
-    void testModifyMailToDraft();
-
-    void testModifyMailToTrash();
-};
-
-}
-
+#define VERIFYEXEC_FAIL(statement) \
+do {\
+    auto result = statement.exec(); \
+    result.waitForFinished(); \
+    if (!QTest::qVerify(result.errorCode(), #statement, "", __FILE__, __LINE__))\
+        return;\
+} while (0)

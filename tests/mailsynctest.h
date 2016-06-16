@@ -22,26 +22,7 @@
 #include <QByteArray>
 
 #include <applicationdomaintype.h>
-
-#define ASYNCCOMPARE(actual, expected) \
-do {\
-    if (!QTest::qCompare(actual, expected, #actual, #expected, __FILE__, __LINE__))\
-        return KAsync::error<void>(1, "Comparison failed.");\
-} while (0)
-
-#define ASYNCVERIFY(statement) \
-do {\
-    if (!QTest::qVerify((statement), #statement, "", __FILE__, __LINE__))\
-        return KAsync::error<void>(1, "Verify failed.");\
-} while (0)
-
-#define VERIFYEXEC(statement) \
-do {\
-    auto result = statement.exec(); \
-    result.waitForFinished(); \
-    if (!QTest::qVerify(!result.errorCode(), #statement, "", __FILE__, __LINE__))\
-        return;\
-} while (0)
+#include "testutils.h"
 
 namespace Sink {
 
