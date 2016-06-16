@@ -35,6 +35,7 @@
 #include "entitybuffer.h"
 #include "propertymapper.h"
 #include "log.h"
+#include "dummy_generated.h"
 
 /**
  * Create a buffer from a domain object using the provided mappings
@@ -130,7 +131,7 @@ public:
  * It defines how values are split accross local and resource buffer.
  * This is required by the facade the read the value, and by the pipeline preprocessors to access the domain values in a generic way.
  */
-template <typename DomainType, typename ResourceBuffer, typename ResourceBuilder>
+template <typename DomainType, typename ResourceBuffer = Sink::ApplicationDomain::Buffer::Dummy, typename ResourceBuilder = Sink::ApplicationDomain::Buffer::DummyBuilder>
 class SINK_EXPORT DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInterface
 {
     typedef typename Sink::ApplicationDomain::TypeImplementation<DomainType>::Buffer LocalBuffer;

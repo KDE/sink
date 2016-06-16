@@ -55,7 +55,7 @@ public:
      */
     GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr(),
         const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess = QSharedPointer<Sink::ResourceAccessInterface>());
-    ~GenericFacade();
+    virtual ~GenericFacade();
 
     static QByteArray bufferTypeForDomainType();
     KAsync::Job<void> create(const DomainType &domainObject) Q_DECL_OVERRIDE;
@@ -70,4 +70,16 @@ protected:
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
     QByteArray mResourceInstanceIdentifier;
 };
+
+/**
+ * A default facade implemenation that simply instantiates a generic resource with the given DomainTypeAdaptorFactory
+ */
+template<typename DomainType, typename DomainTypeAdaptorFactory>
+class DefaultFacade : public GenericFacade<DomainType>
+{
+public:
+    DefaultFacade(const QByteArray &resourceIdentifier) : GenericFacade<DomainType>(resourceIdentifier, QSharedPointer<DomainTypeAdaptorFactory>::create()) {}
+    virtual ~DefaultFacade(){}
+};
+
 }
