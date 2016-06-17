@@ -54,6 +54,12 @@ public:
         return reader.readPrevious(uid, revision);
     }
 
+    template<typename T>
+    EntityReader<T> reader()
+    {
+        return EntityReader<T>(mResourceType, mResourceInstanceIdentifier, mTransaction);
+    }
+
 private:
     QByteArray mResourceType;
     QByteArray mResourceInstanceIdentifier;

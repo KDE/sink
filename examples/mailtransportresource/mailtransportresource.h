@@ -20,9 +20,28 @@
 #pragma once
 
 #include "common/resource.h"
+#include "common/genericresource.h"
 
 //TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
 #define PLUGIN_NAME "org.kde.mailtransport"
+
+class MailtransportResource : public Sink::GenericResource
+{
+public:
+    MailtransportResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
+    KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
+    static void removeFromDisk(const QByteArray &instanceIdentifier);
+
+    struct Settings {
+        QString server;
+        QString username;
+        QString cacert;
+        QString password;
+        bool testMode;
+    };
+private:
+    Settings mSettings;
+};
 
 class MailtransportResourceFactory : public Sink::ResourceFactory
 {
@@ -35,5 +54,6 @@ public:
 
     Sink::Resource *createResource(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
     void registerFacades(Sink::FacadeFactory &factory) Q_DECL_OVERRIDE;
+    void registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry) Q_DECL_OVERRIDE;
 };
 

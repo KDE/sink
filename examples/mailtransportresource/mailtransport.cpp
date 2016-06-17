@@ -58,7 +58,7 @@ static size_t payload_source(void *ptr, size_t size, size_t nmemb, void *userp)
 }
 
 
-void sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs, const char *msg, bool useTls, const char* from, const char *username, const char *password, const char *server, bool verifyPeer)
+bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs, const char *msg, bool useTls, const char* from, const char *username, const char *password, const char *server, bool verifyPeer)
 {
     //For ssl use "smtps://mainserver.example.net
     const char* cacert = 0; // = "/path/to/certificate.pem";
@@ -121,15 +121,17 @@ void sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs,
         }
         curl_slist_free_all(recipients);
         curl_easy_cleanup(curl);
+        return res == CURLE_OK;
     }
+    return false;
 }
 
 };
 
-void MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert)
+bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert)
 {
     QByteArray msg = message->encodedContent();
-    qWarning() << "Sending message " << msg;
+    qDebug() << "Sending message " << msg;
 
     QByteArray from(message->from(true)->mailboxes().isEmpty() ? QByteArray() : message->from(true)->mailboxes().first().address());
     QList<QByteArray> toList;
@@ -155,6 +157,5 @@ void MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteA
         cc[i] = ccList.at(i);
     }
 
-    sendMessageCurl(to, numTos, cc, numCcs, msg, useTls, from.isEmpty() ? nullptr : from, username, password, server, verifyPeer);
-    qWarning() << "Message sent";
+    return sendMessageCurl(to, numTos, cc, numCcs, msg, useTls, from.isEmpty() ? nullptr : from, username, password, server, verifyPeer);
 }

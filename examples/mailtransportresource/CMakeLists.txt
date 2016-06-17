@@ -9,8 +9,10 @@ find_package(CURL 7.20.0 REQUIRED)
 include_directories(${CURL_INCLUDE_DIRS})
 
 
-add_library(${PROJECT_NAME} SHARED facade.cpp mailtransportresource.cpp mailtransport.cpp)
+add_library(${PROJECT_NAME} SHARED mailtransportresource.cpp mailtransport.cpp)
 qt5_use_modules(${PROJECT_NAME} Core Network)
 target_link_libraries(${PROJECT_NAME} sink KF5::Mime ${CURL_LIBRARIES})
+
+add_subdirectory(tests)
 
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
