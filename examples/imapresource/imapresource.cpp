@@ -220,9 +220,6 @@ public:
         if (!newMail.getMimeMessagePath().isEmpty()) {
             newMail.setMimeMessagePath(moveMessage(newMail.getMimeMessagePath(), newMail));
         }
-        if (oldMail.getFolder() != newMail.getFolder()) {
-            newMail.setMimeMessagePath(moveMessage(oldMail.getMimeMessagePath(), newMail));
-        }
     }
 
     void deletedEntity(const Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
