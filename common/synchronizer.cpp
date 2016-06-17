@@ -92,17 +92,20 @@ void Synchronizer::createEntity(const QByteArray &sinkId, const QByteArray &buff
 void Synchronizer::modifyEntity(const QByteArray &sinkId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject,
     DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback)
 {
+    // FIXME removals
+    QByteArrayList deletedProperties;
     // These changes are coming from the source
     const auto replayToSource = false;
     flatbuffers::FlatBufferBuilder entityFbb;
     adaptorFactory.createBuffer(domainObject, entityFbb);
     flatbuffers::FlatBufferBuilder fbb;
     auto entityId = fbb.CreateString(sinkId.toStdString());
+    auto modifiedProperties = BufferUtils::toVector(fbb, domainObject.changedProperties());
+    auto deletions = BufferUtils::toVector(fbb, deletedProperties);
     // This is the resource type and not the domain type
     auto type = fbb.CreateString(bufferType.toStdString());
     auto delta = Sink::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
-    // FIXME removals
-    auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, 0, type, delta, replayToSource);
+    auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta, replayToSource, modifiedProperties);
     Sink::Commands::FinishModifyEntityBuffer(fbb, location);
     callback(BufferUtils::extractBuffer(fbb));
 }
@@ -223,6 +226,16 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
     }
 }
 
+template<typename DomainType>
+void Synchronizer::modify(const DomainType &entity)
+{
+    const auto bufferType = ApplicationDomain::getTypeName<DomainType>();
+    const auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(mResourceType, bufferType);
+    Q_ASSERT(adaptorFactory);
+    modifyEntity(entity.identifier(), entity.revision(), bufferType, entity, *adaptorFactory,
+                    [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::ModifyEntityCommand, buffer); });
+}
+
 KAsync::Job<void> Synchronizer::synchronize()
 {
     Trace() << "Synchronizing";
@@ -263,7 +276,8 @@ Sink::Storage::Transaction &Synchronizer::syncTransaction()
 }
 
 #define REGISTER_TYPE(T)                                                          \
-    template void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const T &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria)
+    template void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const T &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria); \
+    template void Synchronizer::modify(const T &entity);
 
 REGISTER_TYPE(ApplicationDomain::Event);
 REGISTER_TYPE(ApplicationDomain::Mail);

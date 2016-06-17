@@ -12,6 +12,7 @@ table Mail {
   mimeMessage:string;
   draft:bool = false;
   trash:bool = false;
+  sent:bool = false;
 }
 
 root_type Mail;

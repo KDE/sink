@@ -34,6 +34,7 @@
 #include "resultprovider.h"
 #include "mailtransport.h"
 #include "mail_generated.h"
+#include "inspection.h"
 #include <synchronizer.h>
 #include <log.h>
 #include <resourceconfig.h>
@@ -91,24 +92,6 @@ public:
     QByteArray mResourceInstanceIdentifier;
 };
 
-static KAsync::Job<void>send(const ApplicationDomain::Mail &mail, const MailtransportResource::Settings &settings)
-{
-    const auto data = mail.getMimeMessage();
-    auto msg = KMime::Message::Ptr::create();
-    msg->setHead(KMime::CRLFtoLF(data));
-    msg->parse();
-    if (settings.testMode) {
-        Log() << "I would totally send that mail, but I'm in test mode.";
-    } else {
-        if (MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), settings.password.toUtf8(), settings.cacert.toUtf8())) {
-            Log() << "Sent message successfully";
-        } else {
-            Log() << "Failed to send message";
-            return KAsync::error<void>(1, "Failed to send the message.");
-        }
-    }
-    return KAsync::null<void>();
-}
 
 //TODO fold into synchronizer
 class MailtransportWriteback : public Sink::SourceWriteBack
@@ -137,9 +120,37 @@ public:
 class MailtransportSynchronizer : public Sink::Synchronizer {
 public:
     MailtransportSynchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier)
-        : Sink::Synchronizer(resourceType, resourceInstanceIdentifier)
+        : Sink::Synchronizer(resourceType, resourceInstanceIdentifier),
+        mResourceInstanceIdentifier(resourceInstanceIdentifier)
     {
 
+    }
+
+    KAsync::Job<void>send(const ApplicationDomain::Mail &mail, const MailtransportResource::Settings &settings)
+    {
+        const auto data = mail.getMimeMessage();
+        auto msg = KMime::Message::Ptr::create();
+        msg->setHead(KMime::CRLFtoLF(data));
+        msg->parse();
+        if (settings.testMode) {
+            Log() << "I would totally send that mail, but I'm in test mode." << mail.identifier();
+            auto path = resourceStorageLocation(mResourceInstanceIdentifier) + "/test/";
+            Trace() << path;
+            QDir dir;
+            dir.mkpath(path);
+            QFile f(path+ mail.identifier());
+            f.open(QIODevice::ReadWrite);
+            f.write("foo");
+            f.close();
+        } else {
+            if (MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), settings.password.toUtf8(), settings.cacert.toUtf8())) {
+                Log() << "Sent message successfully";
+            } else {
+                Log() << "Failed to send message";
+                return KAsync::error<void>(1, "Failed to send the message.");
+            }
+        }
+        return KAsync::null<void>();
     }
 
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
@@ -151,16 +162,18 @@ public:
             Log() << " Looking for mail";
             store().reader<ApplicationDomain::Mail>().query(query, [&](const ApplicationDomain::Mail &mail) -> bool {
                 Trace() << "Found mail: " << mail.identifier();
-                // if (!mail.isSent()) {
+                if (!mail.getSent()) {
                     toSend << mail;
-                // }
+                }
                 return true;
             });
             auto job = KAsync::null<void>();
             for (const auto &m : toSend) {
-                job = job.then(send(m, mSettings)).then<void>([]() {
-                    //on success, mark the mail as sent and move it to a separate place
-                    //TODO
+                job = job.then(send(m, mSettings)).then<void>([this, m]() {
+                    auto modifiedMail = ApplicationDomain::Mail(mResourceInstanceIdentifier, m.identifier(), m.revision(), QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+                    modifiedMail.setSent(true);
+                    modify(modifiedMail);
+                    //TODO copy to a sent mail folder as well
                 });
             }
             job = job.then<void>([&future]() {
@@ -208,6 +221,15 @@ void MailtransportResource::removeFromDisk(const QByteArray &instanceIdentifier)
 
 KAsync::Job<void> MailtransportResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
+    if (domainType == ENTITY_TYPE_MAIL) {
+        if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
+            auto path = resourceStorageLocation(mResourceInstanceIdentifier) + "/test/" + entityId;
+            if (QFileInfo::exists(path)) {
+                return KAsync::null<void>();
+            }
+            return KAsync::error<void>(1, "Couldn't find message: " + path);
+        }
+    }
     return KAsync::null<void>();
 }
 

@@ -211,6 +211,7 @@ struct SINK_EXPORT Mail : public Entity {
     SINK_BLOB_PROPERTY(MimeMessage, mimeMessage);
     SINK_PROPERTY(bool, Draft, draft);
     SINK_PROPERTY(bool, Trash, trash);
+    SINK_PROPERTY(bool, Sent, sent);
 };
 
 /**

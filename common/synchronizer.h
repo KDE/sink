@@ -86,6 +86,13 @@ protected:
     template <typename DomainType>
     void createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const DomainType &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria);
 
+    // template <typename DomainType>
+    // void create(const DomainType &entity);
+    template <typename DomainType>
+    void modify(const DomainType &entity);
+    // template <typename DomainType>
+    // void remove(const DomainType &entity);
+
     virtual KAsync::Job<void> synchronizeWithSource() = 0;
 
 private:

@@ -26,11 +26,6 @@ class MailtransportTest : public QObject
         resource.setProperty("testmode", true);
         return resource;
     }
-
-    void removeResourceFromDisk(const QByteArray &identifier)
-    {
-        // ::MailtransportResource::removeFromDisk(identifier);
-    }
     QByteArray mResourceInstanceIdentifier;
 
 private slots:
@@ -39,13 +34,10 @@ private slots:
     {
         Test::initTest();
         Log::setDebugOutputLevel(Sink::Log::Trace);
-        // resetTestEnvironment();
         auto resource = createResource();
         QVERIFY(!resource.identifier().isEmpty());
         VERIFYEXEC(Store::create(resource));
         mResourceInstanceIdentifier = resource.identifier();
-        // mCapabilities = resource.getProperty("capabilities").value<QByteArrayList>();
-        qWarning() << "FOooooooooooooooooooo";
     }
 
     void cleanup()
@@ -56,9 +48,6 @@ private slots:
 
     void init()
     {
-        // qDebug();
-        // qDebug() << "-----------------------------------------";
-        // qDebug();
         // VERIFYEXEC(ResourceControl::start(mResourceInstanceIdentifier));
     }
 
@@ -74,13 +63,10 @@ private slots:
         VERIFYEXEC(Store::create(mail));
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
         VERIFYEXEC(Store::synchronize(Query::ResourceFilter(mResourceInstanceIdentifier)));
+        VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, true)));
 
-        //TODO verify the mail has been sent
-
-        // auto modifiedMail = Store::readOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail));
-        // VERIFYEXEC(Store::modify(modifiedMail));
-        // VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
-        // VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier));
+        auto sentMail = Store::readOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail).request<Mail::Sent>());
+        QVERIFY(sentMail.getSent());
 
     }
 
