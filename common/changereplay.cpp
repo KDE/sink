@@ -96,7 +96,6 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                 [&lastReplayedRevision, type, this, &replayJob](const QByteArray &key, const QByteArray &value) -> bool {
                     Trace() << "Replaying " << key;
                     replayJob = replay(type, key, value);
-                    // TODO make for loop async, and pass to async replay function together with type
                     return false;
                 },
                 [key](const Storage::Error &) { ErrorMsg() << "Failed to replay change " << key; });
@@ -108,9 +107,9 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
         },
         [this, revision, recordReplayedRevision](int, QString) {
             Trace() << "Change replay failed" << revision;
-            recordReplayedRevision(revision);
-            //replay until we're done
-            replayNextRevision().exec();
+            //We're probably not online or so, so postpone retrying
+            mReplayInProgress = false;
+            emit changesReplayed();
         });
     } else {
         Trace() << "No changes to replay";
