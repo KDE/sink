@@ -70,10 +70,10 @@ static QString getFilePathFromMimeMessagePath(const QString &mimeMessagePath)
     return list.first().filePath();
 }
 
-class MailPropertyExtractor : public Sink::Preprocessor
+class MaildirMailPropertyExtractor : public Sink::Preprocessor
 {
 public:
-    MailPropertyExtractor() {}
+    MaildirMailPropertyExtractor() {}
 
     void updatedIndexedProperties(Sink::ApplicationDomain::BufferAdaptor &newEntity)
     {
@@ -504,7 +504,7 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
     setupChangereplay(changereplay);
 
     auto folderUpdater = new FolderUpdater(QByteArray());
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << folderUpdater << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << folderUpdater << new MaildirMailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     auto folderPreprocessor = new FolderPreprocessor;
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << folderPreprocessor << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 
