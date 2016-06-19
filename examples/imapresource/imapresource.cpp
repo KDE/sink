@@ -251,7 +251,6 @@ public:
 
             createOrModify(bufferType, remoteId, mail);
         }
-        commitSync();
         const auto elapsed = time->elapsed();
         Log() << "Synchronized " << count << " mails in " << path << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
@@ -310,7 +309,6 @@ public:
             auto folderFuture = imap.fetchFolders([this, &imap, &folderList](const QVector<Folder> &folders) {
                 synchronizeFolders(folders);
                 commit();
-                commitSync();
                 folderList << folders;
 
             }).exec();
@@ -332,7 +330,6 @@ public:
                     }
                     synchronizeMails(folder.normalizedPath(), messages);
                     commit();
-                    commitSync();
                 }).exec();
                 messagesFuture.waitForFinished();
                 if (messagesFuture.errorCode()) {
@@ -342,7 +339,6 @@ public:
                 //Remove what there is to remove
                 synchronizeRemovals(folder.normalizedPath(), uids);
                 commit();
-                commitSync();
                 Trace() << "Folder synchronized: " << folder.normalizedPath();
             }
 

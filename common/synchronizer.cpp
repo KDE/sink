@@ -240,24 +240,26 @@ void Synchronizer::modify(const DomainType &entity)
 KAsync::Job<void> Synchronizer::synchronize()
 {
     Trace() << "Synchronizing";
+    mSyncInProgress = true;
     mMessageQueue->startTransaction();
     return synchronizeWithSource().then<void>([this]() {
         mSyncStore.clear();
         mEntityStore.clear();
         mMessageQueue->commit();
+        mSyncInProgress = false;
     });
 }
 
 void Synchronizer::commit()
 {
+    mMessageQueue->commit();
     mTransaction.abort();
     mEntityStore.clear();
-}
-
-void Synchronizer::commitSync()
-{
     mSyncTransaction.commit();
     mSyncStore.clear();
+    if (mSyncInProgress) {
+        mMessageQueue->startTransaction();
+    }
 }
 
 Sink::Storage::Transaction &Synchronizer::transaction()

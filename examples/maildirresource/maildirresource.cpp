@@ -393,7 +393,6 @@ public:
 
             createOrModify(bufferType, remoteId, mail);
         }
-        commitSync();
         const auto elapsed = time->elapsed();
         Log() << "Synchronized " << count << " mails in " << listingPath << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
@@ -409,12 +408,10 @@ public:
             synchronizeFolders();
             //The next sync needs the folders available
             commit();
-            commitSync();
             for (const auto &folder : listAvailableFolders()) {
                 synchronizeMails(folder);
                 //Don't let the transaction grow too much
                 commit();
-                commitSync();
             }
             Log() << "Done Synchronizing";
             return KAsync::null<void>();
@@ -515,7 +512,6 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
     auto remoteId = synchronizer->createFolder(mDraftsFolder, "folder", QByteArrayList() << "drafts");
     auto draftsFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
     synchronizer->commit();
-    synchronizer->commitSync();
 
     folderUpdater->mDraftsFolder = draftsFolderLocalId;
     folderUpdater->mResourceInstanceIdentifier = mResourceInstanceIdentifier;

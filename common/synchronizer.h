@@ -50,7 +50,6 @@ public:
     RemoteIdMap &syncStore();
 
     void commit();
-    void commitSync();
     Sink::Storage::Transaction &transaction();
     Sink::Storage::Transaction &syncTransaction();
 
@@ -106,6 +105,7 @@ private:
     Sink::Storage::Transaction mSyncTransaction;
     std::function<void(int commandId, const QByteArray &data)> mEnqueue;
     MessageQueue *mMessageQueue;
+    bool mSyncInProgress;
 };
 
 }
