@@ -24,7 +24,6 @@
 
 #include "domain/folder.h"
 #include "log.h"
-#include "threadboundary.h"
 
 #undef DEBUG_AREA
 #define DEBUG_AREA "client.modelresult"
@@ -253,7 +252,6 @@ void ModelResult<T, Ptr>::setFetcher(const std::function<void(const Ptr &parent)
 template <class T, class Ptr>
 void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Ptr &emitter)
 {
-    static async::ThreadBoundary threadBoundary;
     setFetcher([this](const Ptr &parent) { mEmitter->fetch(parent); });
 
     emitter->onAdded([this](const Ptr &value) {

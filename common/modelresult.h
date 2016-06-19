@@ -27,6 +27,7 @@
 #include <functional>
 #include "query.h"
 #include "resultprovider.h"
+#include "threadboundary.h"
 
 template <class T, class Ptr>
 class ModelResult : public QAbstractItemModel
@@ -76,4 +77,5 @@ private:
     Sink::Query mQuery;
     std::function<void(const Ptr &)> loadEntities;
     typename Sink::ResultEmitter<Ptr>::Ptr mEmitter;
+    async::ThreadBoundary threadBoundary;
 };
