@@ -46,7 +46,7 @@ namespace Sink {
 class Pipeline::Private
 {
 public:
-    Private(const QString &resourceName) : storage(Sink::storageLocation(), resourceName, Storage::ReadWrite), revisionChanged(false)
+    Private(const QString &resourceName) : storage(Sink::storageLocation(), resourceName, Storage::ReadWrite), revisionChanged(false), resourceInstanceIdentifier(resourceName.toUtf8())
     {
     }
 
@@ -58,6 +58,7 @@ public:
     QTime transactionTime;
     int transactionItemCount;
     QByteArray resourceType;
+    QByteArray resourceInstanceIdentifier;
 };
 
 void Pipeline::Private::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid)
@@ -82,6 +83,9 @@ Pipeline::~Pipeline()
 
 void Pipeline::setPreprocessors(const QString &entityType, const QVector<Preprocessor *> &processors)
 {
+    for (auto p : processors) {
+        p->setup(d->resourceType, d->resourceInstanceIdentifier, this);
+    }
     d->processors[entityType] = processors;
 }
 
@@ -191,8 +195,6 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     auto adaptor = adaptorFactory->createAdaptor(*entity);
     auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create(*(adaptor), adaptor->availableProperties());
     for (auto processor : d->processors[bufferType]) {
-        processor->resourceType = d->resourceType;
-        processor->pipeline = this;
         processor->newEntity(key, Storage::maxRevision(d->transaction) + 1, *memoryAdaptor, d->transaction);
     }
     //The maxRevision may have changed meanwhile if the entity created sub-entities
@@ -303,8 +305,6 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     }
 
     for (auto processor : d->processors[bufferType]) {
-        processor->resourceType = d->resourceType;
-        processor->pipeline = this;
         processor->modifiedEntity(key, Storage::maxRevision(d->transaction) + 1, *current, *newAdaptor, d->transaction);
     }
     //The maxRevision may have changed meanwhile if the entity created sub-entities
@@ -452,12 +452,27 @@ qint64 Pipeline::cleanedUpRevision()
     return Storage::cleanedUpRevision(d->transaction);
 }
 
-Preprocessor::Preprocessor() : d(0)
+class Preprocessor::Private {
+public:
+    QByteArray resourceType;
+    QByteArray resourceInstanceIdentifier;
+    Pipeline *pipeline;
+};
+
+Preprocessor::Preprocessor() : d(new Preprocessor::Private)
 {
 }
 
 Preprocessor::~Preprocessor()
 {
+    delete d;
+}
+
+void Preprocessor::setup(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Pipeline *pipeline)
+{
+    d->resourceType = resourceType;
+    d->resourceInstanceIdentifier = resourceInstanceIdentifier;
+    d->pipeline = pipeline;
 }
 
 void Preprocessor::startBatch()
@@ -468,10 +483,15 @@ void Preprocessor::finalize()
 {
 }
 
+QByteArray Preprocessor::resourceInstanceIdentifier() const
+{
+    return d->resourceInstanceIdentifier;
+}
+
 void Preprocessor::createEntity(const Sink::ApplicationDomain::ApplicationDomainType &entity, const QByteArray &typeName)
 {
     flatbuffers::FlatBufferBuilder entityFbb;
-    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(resourceType, typeName);
+    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceType, typeName);
     adaptorFactory->createBuffer(entity, entityFbb);
     const auto entityBuffer = BufferUtils::extractBuffer(entityFbb);
 
@@ -484,7 +504,7 @@ void Preprocessor::createEntity(const Sink::ApplicationDomain::ApplicationDomain
     Sink::Commands::FinishCreateEntityBuffer(fbb, location);
 
     const auto data = BufferUtils::extractBuffer(fbb);
-    pipeline->newEntity(data, data.size()).exec();
+    d->pipeline->newEntity(data, data.size()).exec();
 }
 
 } // namespace Sink

@@ -47,6 +47,7 @@
 
 #include "imapserverproxy.h"
 #include "entityreader.h"
+#include "mailpreprocessor.h"
 
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_MAIL "mail"
@@ -136,98 +137,6 @@ public:
     QByteArray mResourceInstanceIdentifier;
 };
 
-class MailPropertyExtractor : public Sink::EntityPreprocessor<ApplicationDomain::Mail>
-{
-public:
-
-    void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail)
-    {
-        const auto mimeMessagePath = mail.getMimeMessagePath();
-        Trace() << "Updating indexed properties " << mimeMessagePath;
-        QFile f(mimeMessagePath);
-        if (!f.open(QIODevice::ReadOnly)) {
-            Warning() << "Failed to open the file: " << mimeMessagePath;
-            return;
-        }
-        if (!f.size()) {
-            Warning() << "The file is empty.";
-            return;
-        }
-        const auto mappedSize = qMin((qint64)8000, f.size());
-        auto mapped = f.map(0, mappedSize);
-        if (!mapped) {
-            Warning() << "Failed to map the file: " << f.errorString();
-            return;
-        }
-
-        KMime::Message *msg = new KMime::Message;
-        msg->setHead(KMime::CRLFtoLF(QByteArray::fromRawData(reinterpret_cast<const char*>(mapped), mappedSize)));
-        msg->parse();
-
-        mail.setExtractedSubject(msg->subject(true)->asUnicodeString());
-        mail.setExtractedSender(msg->from(true)->asUnicodeString());
-        mail.setExtractedSenderName(msg->from(true)->asUnicodeString());
-        mail.setExtractedDate(msg->date(true)->dateTime());
-    }
-
-    void newEntity(Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        updatedIndexedProperties(mail);
-    }
-
-    void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail,Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        updatedIndexedProperties(newMail);
-    }
-};
-
-class MimeMessageMover : public Sink::EntityPreprocessor<ApplicationDomain::Mail>
-{
-public:
-    MimeMessageMover(const QByteArray &resourceInstanceIdentifier) : Sink::EntityPreprocessor<ApplicationDomain::Mail>(), mResourceInstanceIdentifier(resourceInstanceIdentifier) {}
-
-    QString moveMessage(const QString &oldPath, const Sink::ApplicationDomain::Mail &mail)
-    {
-        const auto directory = Sink::resourceStorageLocation(mResourceInstanceIdentifier);
-        const auto filePath = directory + "/" + mail.identifier();
-        if (oldPath != filePath) {
-            if (!QDir().mkpath(directory)) {
-                Warning() << "Failed to create the directory: " << directory;
-            }
-            QFile::remove(filePath);
-            QFile origFile(oldPath);
-            if (!origFile.open(QIODevice::ReadWrite)) {
-                Warning() << "Failed to open the original file with write rights: " << origFile.errorString();
-            }
-            if (!origFile.rename(filePath)) {
-                Warning() << "Failed to move the file from: " << oldPath << " to " << filePath << ". " << origFile.errorString();
-            }
-            origFile.close();
-            return filePath;
-        }
-        return oldPath;
-    }
-
-    void newEntity(Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        if (!mail.getMimeMessagePath().isEmpty()) {
-            mail.setMimeMessagePath(moveMessage(mail.getMimeMessagePath(), mail));
-        }
-    }
-
-    void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        if (!newMail.getMimeMessagePath().isEmpty()) {
-            newMail.setMimeMessagePath(moveMessage(newMail.getMimeMessagePath(), newMail));
-        }
-    }
-
-    void deletedEntity(const Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        QFile::remove(mail.getMimeMessagePath());
-    }
-    QByteArray mResourceInstanceIdentifier;
-};
 
 static qint64 uidFromMailRid(const QByteArray &remoteId)
 {
@@ -651,7 +560,7 @@ ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPo
     changereplay->mPassword = mPassword;
     setupChangereplay(changereplay);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(mResourceType, mResourceInstanceIdentifier) << new MimeMessageMover(mResourceInstanceIdentifier) << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(mResourceType, mResourceInstanceIdentifier) << new MimeMessageMover << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 }
 

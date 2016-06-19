@@ -73,6 +73,7 @@ set(command_SRCS
     remoteidmap.cpp
     sourcewriteback.cpp
     entityreader.cpp
+    mailpreprocessor.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})
@@ -108,7 +109,7 @@ SET_TARGET_PROPERTIES(${PROJECT_NAME}
     EXPORT_NAME ${PROJECT_NAME}
 )
 qt5_use_modules(${PROJECT_NAME} Network)
-target_link_libraries(${PROJECT_NAME} ${storage_LIBS} KF5::Async)
+target_link_libraries(${PROJECT_NAME} ${storage_LIBS} KF5::Async KF5::Mime)
 install(TARGETS ${PROJECT_NAME}
     EXPORT SinkTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )
 

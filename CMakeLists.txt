@@ -20,7 +20,7 @@ include(ECMSetupVersion)
 include(KDEInstallDirs)
 
 find_package(Qt5 COMPONENTS REQUIRED Core Widgets Network)
-find_package(KF5 COMPONENTS REQUIRED Async)
+find_package(KF5 COMPONENTS REQUIRED Async Mime)
 find_package(FlatBuffers REQUIRED)
 
 #Clang-format support

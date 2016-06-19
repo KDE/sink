@@ -88,6 +88,8 @@ public:
     virtual void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) {};
     virtual void finalize();
 
+    void setup(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Pipeline *);
+
 protected:
     template <typename DomainType>
     void createEntity(const DomainType &entity)
@@ -96,12 +98,12 @@ protected:
     }
     void createEntity(const Sink::ApplicationDomain::ApplicationDomainType &entity, const QByteArray &type);
 
+    QByteArray resourceInstanceIdentifier() const;
+
 private:
     friend class Pipeline;
     class Private;
     Private *const d;
-    Pipeline *pipeline;
-    QByteArray resourceType;
 };
 
 template<typename DomainType>
