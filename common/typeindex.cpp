@@ -124,7 +124,10 @@ void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDoma
     for (const auto &property : mProperties) {
         const auto value = bufferAdaptor.getProperty(property);
         // FIXME don't always convert to byte array
-        Index(indexName(property), transaction).remove(getByteArray(value), identifier);
+        const auto data = getByteArray(value);
+        if (data.isEmpty()) {
+            Index(indexName(property), transaction).remove(data, identifier);
+        }
     }
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
         const auto propertyValue = bufferAdaptor.getProperty(it.key());

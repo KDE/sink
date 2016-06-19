@@ -55,8 +55,12 @@ private:
 
     void remove(const QVariant &value, const QByteArray &uid, Sink::Storage::Transaction &transaction)
     {
-        // TODO hide notfound error
-        Index(mIndexIdentifier, transaction).remove(value.toByteArray(), uid);
+        if (value.isValid()) {
+            const auto data = value.toByteArray();
+            if (!data.isEmpty()) {
+                Index(mIndexIdentifier, transaction).remove(data, uid);
+            }
+        }
     }
 
     QByteArray mIndexIdentifier;
