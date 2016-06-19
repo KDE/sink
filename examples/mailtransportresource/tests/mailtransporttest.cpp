@@ -65,9 +65,9 @@ private slots:
         VERIFYEXEC(Store::synchronize(Query::ResourceFilter(mResourceInstanceIdentifier)));
         VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, true)));
 
-        auto sentMail = Store::readOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail).request<Mail::Sent>());
+        auto sentMail = Store::readOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail).request<Mail::Sent>().request<Mail::Subject>());
         QVERIFY(sentMail.getSent());
-
+        QVERIFY(!sentMail.getSubject().isEmpty());
     }
 
     //TODO test mail that fails to be sent. add a special header to the mail and have the resource fail sending. Ensure we can modify the mail to fix sending of the message.

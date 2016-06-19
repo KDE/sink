@@ -39,59 +39,12 @@
 #include <log.h>
 #include <resourceconfig.h>
 #include <pipeline.h>
+#include <mailpreprocessor.h>
+#include <indexupdater.h>
 
 #define ENTITY_TYPE_MAIL "mail"
 
 using namespace Sink;
-
-class MimeMessageMover : public Sink::EntityPreprocessor<ApplicationDomain::Mail>
-{
-public:
-    MimeMessageMover(const QByteArray &resourceInstanceIdentifier) : Sink::EntityPreprocessor<ApplicationDomain::Mail>(), mResourceInstanceIdentifier(resourceInstanceIdentifier) {}
-
-    QString moveMessage(const QString &oldPath, const Sink::ApplicationDomain::Mail &mail)
-    {
-        const auto directory = Sink::resourceStorageLocation(mResourceInstanceIdentifier);
-        const auto filePath = directory + "/" + mail.identifier();
-        if (oldPath != filePath) {
-            if (!QDir().mkpath(directory)) {
-                Warning() << "Failed to create the directory: " << directory;
-            }
-            QFile::remove(filePath);
-            QFile origFile(oldPath);
-            if (!origFile.open(QIODevice::ReadWrite)) {
-                Warning() << "Failed to open the original file with write rights: " << origFile.errorString();
-            }
-            if (!origFile.rename(filePath)) {
-                Warning() << "Failed to move the file from: " << oldPath << " to " << filePath << ". " << origFile.errorString();
-            }
-            origFile.close();
-            return filePath;
-        }
-        return oldPath;
-    }
-
-    void newEntity(Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        if (!mail.getMimeMessagePath().isEmpty()) {
-            mail.setMimeMessagePath(moveMessage(mail.getMimeMessagePath(), mail));
-        }
-    }
-
-    void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        if (!newMail.getMimeMessagePath().isEmpty()) {
-            newMail.setMimeMessagePath(moveMessage(newMail.getMimeMessagePath(), newMail));
-        }
-    }
-
-    void deletedEntity(const Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        QFile::remove(mail.getMimeMessagePath());
-    }
-    QByteArray mResourceInstanceIdentifier;
-};
-
 
 //TODO fold into synchronizer
 class MailtransportWriteback : public Sink::SourceWriteBack
@@ -210,7 +163,7 @@ MailtransportResource::MailtransportResource(const QByteArray &instanceIdentifie
     changereplay->mSettings = mSettings;
     setupChangereplay(changereplay);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MimeMessageMover(mResourceInstanceIdentifier));
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MimeMessageMover << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
 }
 
 void MailtransportResource::removeFromDisk(const QByteArray &instanceIdentifier)
