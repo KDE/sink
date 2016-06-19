@@ -45,9 +45,10 @@ Synchronizer::~Synchronizer()
 
 }
 
-void Synchronizer::setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback)
+void Synchronizer::setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback, MessageQueue &mq)
 {
     mEnqueue = enqueueCommandCallback;
+    mMessageQueue = &mq;
 }
 
 void Synchronizer::enqueueCommand(int commandId, const QByteArray &data)
@@ -239,9 +240,11 @@ void Synchronizer::modify(const DomainType &entity)
 KAsync::Job<void> Synchronizer::synchronize()
 {
     Trace() << "Synchronizing";
+    mMessageQueue->startTransaction();
     return synchronizeWithSource().then<void>([this]() {
         mSyncStore.clear();
         mEntityStore.clear();
+        mMessageQueue->commit();
     });
 }
 

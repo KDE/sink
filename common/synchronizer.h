@@ -24,8 +24,8 @@
 #include <Async/Async>
 #include <domainadaptor.h>
 #include <query.h>
-
-#include "storage.h"
+#include <messagequeue.h>
+#include <storage.h>
 
 namespace Sink {
 class EntityStore;
@@ -40,7 +40,7 @@ public:
     Synchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier);
     virtual ~Synchronizer();
 
-    void setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback);
+    void setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback, MessageQueue &messageQueue);
     KAsync::Job<void> synchronize();
 
     //Read only access to main storage
@@ -105,6 +105,7 @@ private:
     Sink::Storage::Transaction mTransaction;
     Sink::Storage::Transaction mSyncTransaction;
     std::function<void(int commandId, const QByteArray &data)> mEnqueue;
+    MessageQueue *mMessageQueue;
 };
 
 }

@@ -323,7 +323,7 @@ void GenericResource::setupSynchronizer(const QSharedPointer<Synchronizer> &sync
     mSynchronizer = synchronizer;
     mSynchronizer->setup([this](int commandId, const QByteArray &data) {
         enqueueCommand(mSynchronizerQueue, commandId, data);
-    });
+    }, mSynchronizerQueue);
 }
 
 void GenericResource::setupChangereplay(const QSharedPointer<ChangeReplay> &changeReplay)
