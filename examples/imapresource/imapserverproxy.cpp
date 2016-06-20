@@ -44,6 +44,11 @@ const char* Imap::Flags::Deleted = "\\Deleted";
 const char* Imap::Flags::Answered = "\\Answered";
 const char* Imap::Flags::Flagged = "\\Flagged";
 
+const char* Imap::FolderFlags::Noselect = "\\Noselect";
+const char* Imap::FolderFlags::Noinferiors = "\\Noinferiors";
+const char* Imap::FolderFlags::Marked = "\\Marked";
+const char* Imap::FolderFlags::Unmarked = "\\Unmarked";
+
 template <typename T>
 static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
 {
@@ -359,9 +364,12 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const QVector
     Trace() << "Fetching folders";
     return list(KIMAP::ListJob::IncludeUnsubscribed, [callback](const QList<KIMAP::MailBoxDescriptor> &mailboxes, const QList<QList<QByteArray> > &flags){
         QVector<Folder> list;
-        for (const auto &mailbox : mailboxes) {
-            Trace() << "Found mailbox: " << mailbox.name;
-            list << Folder{mailbox.name.split(mailbox.separator), mailbox.name, mailbox.separator};
+        for (int i = 0; i < mailboxes.size(); i++) {
+            const auto mailbox = mailboxes[i];
+            const auto mailboxFlags = flags[i];
+            bool noselect = mailboxFlags.contains(QByteArray(FolderFlags::Noselect).toLower()) || mailboxFlags.contains(QByteArray(FolderFlags::Noselect));
+            Log() << "Found mailbox: " << mailbox.name << mailboxFlags << FolderFlags::Noselect << noselect;
+            list << Folder{mailbox.name.split(mailbox.separator), mailbox.name, mailbox.separator, noselect};
         }
         callback(list);
     });

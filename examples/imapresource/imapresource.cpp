@@ -322,6 +322,9 @@ public:
             }
 
             for (const auto &folder : folderList) {
+                if (folder.noselect) {
+                    continue;
+                }
                 QSet<qint64> uids;
                 auto messagesFuture = imap.fetchMessages(folder, [this, folder, &uids](const QVector<Message> &messages) {
                     Trace() << "Synchronizing mails" << folder.normalizedPath();

@@ -40,6 +40,14 @@ namespace Flags
     extern const char* Flagged;
 }
 
+namespace FolderFlags
+{
+    extern const char* Noinferiors;
+    extern const char* Noselect;
+    extern const char* Marked;
+    extern const char* Unmarked;
+}
+
 struct Message {
     qint64 uid;
     qint64 size;
@@ -64,6 +72,7 @@ struct Folder {
     QList<QString> pathParts;
     QString path;
     QChar separator;
+    bool noselect;
 };
 
 class ImapServerProxy {
