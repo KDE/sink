@@ -120,6 +120,11 @@ void Pipeline::commit()
     // for (auto processor : d->processors[bufferType]) {
     //     processor->finalize();
     // }
+    if (!d->revisionChanged) {
+        d->transaction.abort();
+        d->transaction = Storage::Transaction();
+        return;
+    }
     const auto revision = Storage::maxRevision(d->transaction);
     const auto elapsed = d->transactionTime.elapsed();
     Log() << "Committing revision: " << revision << ":" << d->transactionItemCount << " items in: " << Log::TraceTime(elapsed) << " "
