@@ -650,7 +650,7 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
         const auto folder = entityStore->read<Sink::ApplicationDomain::Folder>(entityId);
 
         if (inspectionType == Sink::ResourceControl::Inspection::CacheIntegrityInspectionType) {
-            Warning() << "Inspecting cache integrity" << remoteId;
+            Log() << "Inspecting cache integrity" << remoteId;
 
             int expectedCount = 0;
             Index index("mail.index.folder", transaction);

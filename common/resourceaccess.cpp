@@ -230,7 +230,7 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
 ResourceAccess::ResourceAccess(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType)
     : ResourceAccessInterface(), d(new Private(resourceType, resourceInstanceIdentifier, this))
 {
-    Log() << "Starting access";
+    Trace() << "Starting access";
 }
 
 ResourceAccess::~ResourceAccess()
@@ -415,7 +415,7 @@ void ResourceAccess::sendCommand(const QSharedPointer<QueuedCommand> &command)
     // TODO: we should have a timeout for commands
     d->messageId++;
     const auto messageId = d->messageId;
-    Log() << QString("Sending command \"%1\" with messageId %2").arg(QString(Sink::Commands::name(command->commandId))).arg(d->messageId);
+    Trace() << QString("Sending command \"%1\" with messageId %2").arg(QString(Sink::Commands::name(command->commandId))).arg(d->messageId);
     Q_ASSERT(command->callback);
     registerCallback(d->messageId, [this, messageId, command](int errorCode, QString errorMessage) {
         Trace() << "Command complete " << messageId;
@@ -456,7 +456,7 @@ void ResourceAccess::connected()
         return;
     }
 
-    Log() << QString("Connected: %1").arg(d->socket->fullServerName());
+    Trace() << QString("Connected: %1").arg(d->socket->fullServerName());
 
     {
         flatbuffers::FlatBufferBuilder fbb;
@@ -533,7 +533,7 @@ bool ResourceAccess::processMessageBuffer()
     switch (commandId) {
         case Commands::RevisionUpdateCommand: {
             auto buffer = Commands::GetRevisionUpdate(d->partialMessageBuffer.constData() + headerSize);
-            Log() << QString("Revision updated to: %1").arg(buffer->revision());
+            Trace() << QString("Revision updated to: %1").arg(buffer->revision());
             Notification n;
             n.type = Sink::Commands::NotificationType::NotificationType_RevisionUpdate;
             emit notification(n);
@@ -543,7 +543,7 @@ bool ResourceAccess::processMessageBuffer()
         }
         case Commands::CommandCompletionCommand: {
             auto buffer = Commands::GetCommandCompletion(d->partialMessageBuffer.constData() + headerSize);
-            Log() << QString("Command with messageId %1 completed %2").arg(buffer->id()).arg(buffer->success() ? "sucessfully" : "unsuccessfully");
+            Trace() << QString("Command with messageId %1 completed %2").arg(buffer->id()).arg(buffer->success() ? "sucessfully" : "unsuccessfully");
 
             d->completeCommands.insert(buffer->id(), buffer->success());
             // The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
@@ -558,7 +558,7 @@ bool ResourceAccess::processMessageBuffer()
                     close();
                     break;
                 case Sink::Commands::NotificationType::NotificationType_Inspection: {
-                    Log() << "Received inspection notification.";
+                    Trace() << "Received inspection notification.";
                     Notification n;
                     if (buffer->identifier()) {
                         // Don't use fromRawData, the buffer is gone once we invoke emit notification

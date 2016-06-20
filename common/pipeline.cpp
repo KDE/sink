@@ -63,6 +63,7 @@ public:
 
 void Pipeline::Private::storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid)
 {
+    Trace() << "Committing new revision: " << uid << newRevision;
     Storage::mainDatabase(transaction, bufferType)
         .write(Storage::assembleKey(uid, newRevision), BufferUtils::extractBuffer(fbb),
             [uid, newRevision](const Storage::Error &error) { Warning() << "Failed to write entity" << uid << newRevision; });
@@ -121,7 +122,7 @@ void Pipeline::commit()
     // }
     const auto revision = Storage::maxRevision(d->transaction);
     const auto elapsed = d->transactionTime.elapsed();
-    Trace() << "Committing revision: " << revision << ":" << d->transactionItemCount << " items in: " << Log::TraceTime(elapsed) << " "
+    Log() << "Committing revision: " << revision << ":" << d->transactionItemCount << " items in: " << Log::TraceTime(elapsed) << " "
             << (double)elapsed / (double)qMax(d->transactionItemCount, 1) << "[ms/item]";
     if (d->transaction) {
         d->transaction.commit();
@@ -145,7 +146,6 @@ Storage &Pipeline::storage() const
 
 KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 {
-    Trace() << "Pipeline: New Entity";
     d->transactionItemCount++;
 
     {
@@ -159,19 +159,6 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 
     const bool replayToSource = createEntity->replayToSource();
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const *>(createEntity->domainType()->Data()), createEntity->domainType()->size());
-    {
-        flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(createEntity->delta()->Data()), createEntity->delta()->size());
-        if (!VerifyEntityBuffer(verifyer)) {
-            Warning() << "invalid buffer, not an entity buffer";
-            return KAsync::error<qint64>(0);
-        }
-    }
-    auto entity = GetEntity(createEntity->delta()->Data());
-    if (!entity->resource()->size() && !entity->local()->size()) {
-        Warning() << "No local and no resource buffer while trying to create entity.";
-        return KAsync::error<qint64>(0);
-    }
-
     QByteArray key;
     if (createEntity->entityId()) {
         key = QByteArray(reinterpret_cast<char const *>(createEntity->entityId()->Data()), createEntity->entityId()->size());
@@ -184,7 +171,21 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     if (key.isEmpty()) {
         key = Sink::Storage::generateUid();
     }
+    Log() << "New Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
     Q_ASSERT(!key.isEmpty());
+
+    {
+        flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(createEntity->delta()->Data()), createEntity->delta()->size());
+        if (!VerifyEntityBuffer(verifyer)) {
+            Warning() << "invalid buffer, not an entity buffer";
+            return KAsync::error<qint64>(0);
+        }
+    }
+    auto entity = GetEntity(createEntity->delta()->Data());
+    if (!entity->resource()->size() && !entity->local()->size()) {
+        Warning() << "No local and no resource buffer while trying to create entity.";
+        return KAsync::error<qint64>(0);
+    }
 
     auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceType, bufferType);
     if (!adaptorFactory) {
@@ -214,13 +215,11 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 
     d->storeNewRevision(newRevision, fbb, bufferType, key);
 
-    Log() << "Pipeline: wrote entity: " << key << newRevision << bufferType;
     return KAsync::start<qint64>([newRevision]() { return newRevision; });
 }
 
 KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 {
-    Trace() << "Pipeline: Modified Entity";
     d->transactionItemCount++;
 
     {
@@ -240,9 +239,9 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     }
     const qint64 baseRevision = modifyEntity->revision();
     const bool replayToSource = modifyEntity->replayToSource();
-    // TODO rename modifyEntity->domainType to bufferType
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const *>(modifyEntity->domainType()->Data()), modifyEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const *>(modifyEntity->entityId()->Data()), modifyEntity->entityId()->size());
+    Log() << "Modified Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
     if (bufferType.isEmpty() || key.isEmpty()) {
         Warning() << "entity type or key " << bufferType << key;
         return KAsync::error<qint64>(0);
@@ -328,13 +327,11 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     adaptorFactory->createBuffer(newAdaptor, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
     d->storeNewRevision(newRevision, fbb, bufferType, key);
-    Log() << "Pipeline: modified entity: " << key << newRevision << bufferType;
     return KAsync::start<qint64>([newRevision]() { return newRevision; });
 }
 
 KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 {
-    Trace() << "Pipeline: Deleted Entity";
     d->transactionItemCount++;
 
     {
@@ -349,6 +346,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     const bool replayToSource = deleteEntity->replayToSource();
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const *>(deleteEntity->domainType()->Data()), deleteEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const *>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
+    Log() << "Deleted Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
 
     bool found = false;
     bool alreadyRemoved = false;
@@ -411,7 +409,6 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
             [this](const Storage::Error &error) { ErrorMsg() << "Failed to find value in pipeline: " << error.message; });
 
     d->storeNewRevision(newRevision, fbb, bufferType, key);
-    Log() << "Pipeline: deleted entity: " << newRevision;
 
     for (auto processor : d->processors[bufferType]) {
         processor->deletedEntity(key, newRevision, *current, d->transaction);

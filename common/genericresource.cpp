@@ -114,7 +114,7 @@ private slots:
 
     KAsync::Job<qint64> processQueuedCommand(const Sink::QueuedCommand *queuedCommand)
     {
-        Log() << "Processing command: " << Sink::Commands::name(queuedCommand->commandId());
+        Trace() << "Processing command: " << Sink::Commands::name(queuedCommand->commandId());
         // Throw command into appropriate pipeline
         switch (queuedCommand->commandId()) {
             case Sink::Commands::DeleteEntityCommand:

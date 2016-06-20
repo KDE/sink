@@ -120,7 +120,7 @@ void Listener::closeAllConnections()
 
 void Listener::acceptConnection()
 {
-    Log() << "Accepting connection";
+    Trace() << "Accepting connection";
     QLocalSocket *socket = m_server->nextPendingConnection();
 
     if (!socket) {
@@ -239,7 +239,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
             if (Sink::Commands::VerifySynchronizeBuffer(verifier)) {
                 auto buffer = Sink::Commands::GetSynchronize(commandBuffer.constData());
-                Log() << QString("\tSynchronize request (id %1) from %2").arg(messageId).arg(client.name);
+                Trace() << QString("Synchronize request (id %1) from %2").arg(messageId).arg(client.name);
                 auto timer = QSharedPointer<QTime>::create();
                 timer->start();
                 auto job = KAsync::null<void>();
@@ -268,20 +268,20 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         case Sink::Commands::DeleteEntityCommand:
         case Sink::Commands::ModifyEntityCommand:
         case Sink::Commands::CreateEntityCommand:
-            Log() << "\tCommand id  " << messageId << " of type \"" << Sink::Commands::name(commandId) << "\" from " << client.name;
+            Trace() << "Command id  " << messageId << " of type \"" << Sink::Commands::name(commandId) << "\" from " << client.name;
             loadResource()->processCommand(commandId, commandBuffer);
             break;
         case Sink::Commands::ShutdownCommand:
-            Log() << QString("\tReceived shutdown command from %1").arg(client.name);
+            Log() << QString("Received shutdown command from %1").arg(client.name);
             // Immediately reject new connections
             m_server->close();
             QTimer::singleShot(0, this, &Listener::quit);
             break;
         case Sink::Commands::PingCommand:
-            Log() << QString("\tReceived ping command from %1").arg(client.name);
+            Trace() << QString("Received ping command from %1").arg(client.name);
             break;
         case Sink::Commands::RevisionReplayedCommand: {
-            Log() << QString("\tReceived revision replayed command from %1").arg(client.name);
+            Trace() << QString("Received revision replayed command from %1").arg(client.name);
             flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
             if (Sink::Commands::VerifyRevisionReplayedBuffer(verifier)) {
                 auto buffer = Sink::Commands::GetRevisionReplayed(commandBuffer.constData());
@@ -292,7 +292,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             loadResource()->setLowerBoundRevision(lowerBoundRevision());
         } break;
         case Sink::Commands::RemoveFromDiskCommand: {
-            Log() << QString("\tReceived a remove from disk command from %1").arg(client.name);
+            Log() << QString("Received a remove from disk command from %1").arg(client.name);
             m_resource->removeDataFromDisk();
             delete m_resource;
             m_resource = nullptr;
@@ -300,7 +300,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         } break;
         default:
             if (commandId > Sink::Commands::CustomCommand) {
-                Log() << QString("\tReceived custom command from %1: ").arg(client.name) << commandId;
+                Log() << QString("Received custom command from %1: ").arg(client.name) << commandId;
                 loadResource()->processCommand(commandId, commandBuffer);
             } else {
                 success = false;
@@ -365,7 +365,7 @@ bool Listener::processClientBuffer(Client &client)
         const QByteArray commandBuffer = client.commandBuffer.left(size);
         client.commandBuffer.remove(0, size);
         processCommand(commandId, messageId, commandBuffer, client, [this, messageId, commandId, socket, clientName](bool success) {
-            Log() << QString("\tCompleted command messageid %1 of type \"%2\" from %3").arg(messageId).arg(QString(Sink::Commands::name(commandId))).arg(clientName);
+            Trace() << QString("Completed command messageid %1 of type \"%2\" from %3").arg(messageId).arg(QString(Sink::Commands::name(commandId))).arg(clientName);
             if (socket) {
                 sendCommandCompleted(socket.data(), messageId, success);
             } else {
