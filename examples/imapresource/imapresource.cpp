@@ -329,12 +329,12 @@ public:
                         uids << msg.uid;
                     }
                     synchronizeMails(folder.normalizedPath(), messages);
-                    commit();
                 }).exec();
                 messagesFuture.waitForFinished();
+                commit();
                 if (messagesFuture.errorCode()) {
-                    future.setError(1, "Folder sync failed: " + folder.normalizedPath());
-                    return;
+                    Warning() << "Folder sync failed: " << folder.normalizedPath();
+                    continue;
                 }
                 //Remove what there is to remove
                 synchronizeRemovals(folder.normalizedPath(), uids);
