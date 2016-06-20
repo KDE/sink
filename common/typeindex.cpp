@@ -27,6 +27,9 @@
 
 static QByteArray getByteArray(const QVariant &value)
 {
+    if (value.type() == QVariant::DateTime) {
+        return value.toDateTime().toString().toLatin1();
+    }
     if (value.isValid() && !value.toByteArray().isEmpty()) {
         return value.toByteArray();
     }
@@ -82,11 +85,8 @@ template <>
 void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
-        const auto date = value.toDateTime();
         // Trace() << "Indexing " << mType + ".index." + property << date.toString();
-        if (date.isValid()) {
-            Index(indexName(property), transaction).add(date.toString().toLatin1(), identifier);
-        }
+        Index(indexName(property), transaction).add(getByteArray(value), identifier);
     };
     mIndexer.insert(property, indexer);
     mProperties << property;
@@ -123,11 +123,7 @@ void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDoma
 {
     for (const auto &property : mProperties) {
         const auto value = bufferAdaptor.getProperty(property);
-        // FIXME don't always convert to byte array
-        const auto data = getByteArray(value);
-        if (!data.isEmpty()) {
-            Index(indexName(property), transaction).remove(data, identifier);
-        }
+        Index(indexName(property), transaction).remove(getByteArray(value), identifier);
     }
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
         const auto propertyValue = bufferAdaptor.getProperty(it.key());
