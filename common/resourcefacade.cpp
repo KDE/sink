@@ -220,5 +220,5 @@ IdentityFacade::~IdentityFacade()
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
-#include "resourcefacade.moc"
+#include "moc_resourcefacade.cpp"
 #pragma clang diagnostic pop

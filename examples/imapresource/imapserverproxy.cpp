@@ -87,7 +87,7 @@ class SessionUiProxy : public KIMAP::SessionUiProxy {
     }
 };
 
-ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port) : mSession(new KIMAP::Session(serverUrl, port))
+ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port) : mSession(new KIMAP::Session(serverUrl, qint16(port)))
 {
     mSession->setUiProxy(SessionUiProxy::Ptr(new SessionUiProxy));
     mSession->setTimeout(10);

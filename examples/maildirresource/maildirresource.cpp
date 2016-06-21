@@ -164,7 +164,6 @@ public:
             auto identifier = oldMaildir.moveEntryTo(oldIdentifier, maildir);
             return path + "/" + identifier;
         }
-        return oldPath;
     }
 
     void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE

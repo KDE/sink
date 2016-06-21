@@ -37,7 +37,7 @@
 #undef DEBUG_AREA
 #define DEBUG_AREA "resource"
 
-Listener *listener = nullptr;
+static Listener *listener = nullptr;
 
 //Print a demangled stacktrace
 void printStacktrace()
@@ -78,14 +78,13 @@ void printStacktrace()
     std::cerr << trace_buf.str();
 }
 
-int sCounter = 0;
+static int sCounter = 0;
 
 void crashHandler(int signal)
 {
     //Guard against crashing in here
     if (sCounter > 1) {
         std::_Exit(EXIT_FAILURE);
-        return;
     }
     sCounter++;
 
@@ -107,7 +106,6 @@ void crashHandler(int signal)
     // std::system("exec xterm -e gdb -p \"$PPID\"");
 
     std::_Exit(EXIT_FAILURE);
-    return;
 }
 
 void terminateHandler()

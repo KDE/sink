@@ -48,7 +48,7 @@ static size_t payload_source(void *ptr, size_t size, size_t nmemb, void *userp)
         if (len > size * nmemb) {
             len = size * nmemb;
         }
-        fprintf(stderr, "read n bytes: %d\n",len);
+        fprintf(stderr, "read n bytes: %d\n", int(len));
         memcpy(ptr, data, len);
         upload_ctx->offset += len;
         return len;
