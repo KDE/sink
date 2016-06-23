@@ -74,6 +74,7 @@ set(command_SRCS
     sourcewriteback.cpp
     entityreader.cpp
     mailpreprocessor.cpp
+    specialpurposepreprocessor.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

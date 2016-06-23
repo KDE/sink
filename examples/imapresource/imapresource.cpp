@@ -48,6 +48,7 @@
 #include "imapserverproxy.h"
 #include "entityreader.h"
 #include "mailpreprocessor.h"
+#include "specialpurposepreprocessor.h"
 
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_MAIL "mail"
@@ -58,85 +59,6 @@
 
 using namespace Imap;
 using namespace Sink;
-
-static QHash<QByteArray, QString> specialPurposeFolders()
-{
-    QHash<QByteArray, QString> hash;
-        //FIXME localize
-    hash.insert("drafts", "Drafts");
-    hash.insert("trash", "Trash");
-    return hash;
-}
-
-static QHash<QString, QByteArray> specialPurposeNames()
-{
-    QHash<QString, QByteArray> hash;
-    for (const auto &value : specialPurposeFolders().values()) {
-        hash.insert(value.toLower(), specialPurposeFolders().key(value));
-    }
-    return hash;
-}
-
-//specialpurpose, name
-static QHash<QByteArray, QString> sSpecialPurposeFolders = specialPurposeFolders();
-//Lowercase-name, specialpurpose
-static QHash<QString, QByteArray> sSpecialPurposeNames = specialPurposeNames();
-
-class SpecialPurposeProcessor : public Sink::Preprocessor
-{
-public:
-    SpecialPurposeProcessor(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : mResourceType(resourceType), mResourceInstanceIdentifier(resourceInstanceIdentifier) {}
-
-    QByteArray ensureFolder(Sink::Storage::Transaction &transaction, const QByteArray &specialPurpose)
-    {
-        if (!mSpecialPurposeFolders.contains(specialPurpose)) {
-            //Try to find an existing drafts folder
-            Sink::EntityReader<ApplicationDomain::Folder> reader(mResourceType, mResourceInstanceIdentifier, transaction);
-            reader.query(Sink::Query().filter<ApplicationDomain::Folder::SpecialPurpose>(Query::Comparator("drafts", Query::Comparator::Contains)),
-                [this, specialPurpose](const ApplicationDomain::Folder &f) -> bool{
-                    mSpecialPurposeFolders.insert(specialPurpose, f.identifier());
-                    return false;
-                });
-            if (!mSpecialPurposeFolders.contains(specialPurpose)) {
-                Trace() << "Failed to find a drafts folder, creating a new one";
-                auto folder = ApplicationDomain::Folder::create(mResourceInstanceIdentifier);
-                folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
-                folder.setName(sSpecialPurposeFolders.value(specialPurpose));
-                folder.setIcon("folder");
-                //This processes the pipeline synchronously
-                createEntity(folder);
-                mSpecialPurposeFolders.insert(specialPurpose, folder.identifier());
-            }
-        }
-        return mSpecialPurposeFolders.value(specialPurpose);
-    }
-
-    void moveToFolder(Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction)
-    {
-        if (newEntity.getProperty("trash").toBool()) {
-            newEntity.setProperty("folder", ensureFolder(transaction, "trash"));
-            return;
-        }
-        if (newEntity.getProperty("draft").toBool()) {
-            newEntity.setProperty("folder", ensureFolder(transaction, "drafts"));
-        }
-    }
-
-    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        moveToFolder(newEntity, transaction);
-    }
-
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        moveToFolder(newEntity, transaction);
-    }
-
-    QHash<QByteArray, QByteArray> mSpecialPurposeFolders;
-    QByteArray mResourceType;
-    QByteArray mResourceInstanceIdentifier;
-};
-
 
 static qint64 uidFromMailRid(const QByteArray &remoteId)
 {
@@ -180,8 +102,8 @@ public:
         folder.setProperty(ApplicationDomain::Folder::Name::name, folderName);
         folder.setProperty(ApplicationDomain::Folder::Icon::name, icon);
         QHash<QByteArray, Query::Comparator> mergeCriteria;
-        if (sSpecialPurposeNames.contains(folderName.toLower())) {
-            auto type = sSpecialPurposeNames.value(folderName.toLower());
+        if (SpecialPurpose::isSpecialPurposeFolderName(folderName)) {
+            auto type = SpecialPurpose::getSpecialPurposeType(folderName);
             folder.setProperty(ApplicationDomain::Folder::SpecialPurpose::name, QVariant::fromValue(QByteArrayList() << type));
             mergeCriteria.insert(ApplicationDomain::Folder::SpecialPurpose::name, Query::Comparator(type, Query::Comparator::Contains));
         }
@@ -481,8 +403,8 @@ public:
                 auto mergeJob = imap->login(mUser, mPassword)
                     .then<void>(imap->fetchFolders([=](const QVector<Imap::Folder> &folders) {
                         for (const auto &f : folders) {
-                            if (sSpecialPurposeNames.contains(f.pathParts.last().toLower())) {
-                                specialPurposeFolders->insert(sSpecialPurposeNames.value(f.pathParts.last().toLower()), f.path);
+                            if (SpecialPurpose::isSpecialPurposeFolderName(f.pathParts.last())) {
+                                specialPurposeFolders->insert(SpecialPurpose::getSpecialPurposeType(f.pathParts.last()), f.path);
                             };
                         }
                     }))
