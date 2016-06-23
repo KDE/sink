@@ -294,6 +294,8 @@ public:
     {
         Log() << " Synchronizing";
         return KAsync::start<void>([this](KAsync::Future<void> future) {
+            Trace() << "Connecting to:" << mServer << mPort;
+            Trace() << "as:" << mUser;
             ImapServerProxy imap(mServer, mPort);
             auto loginFuture = imap.login(mUser, mPassword).exec();
             loginFuture.waitForFinished();
@@ -542,8 +544,17 @@ ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPo
     auto config = ResourceConfig::getConfiguration(instanceIdentifier);
     mServer = config.value("server").toString();
     mPort = config.value("port").toInt();
-    mUser = config.value("user").toString();
+    mUser = config.value("username").toString();
     mPassword = config.value("password").toString();
+    if (mServer.startsWith("imap")) {
+        mServer.remove("imap://");
+        mServer.remove("imaps://");
+    }
+    if (mServer.contains(':')) {
+        auto list = mServer.split(':');
+        mServer = list.at(0);
+        mPort = list.at(1).toInt();
+    }
 
     auto synchronizer = QSharedPointer<ImapSynchronizer>::create(PLUGIN_NAME, instanceIdentifier);
     synchronizer->mServer = mServer;
@@ -603,6 +614,8 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
         scope.mode = KIMAP::FetchJob::FetchScope::Full;
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
         auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
+        Trace() << "Connecting to:" << mServer << mPort;
+        Trace() << "as:" << mUser;
         auto inspectionJob = imap->login(mUser, mPassword)
             .then<void>(imap->select(folderRemoteId))
             .then<void>(imap->fetch(set, scope, [imap, messageByUid](const QVector<Imap::Message> &messages) {

@@ -48,7 +48,7 @@ protected:
         auto resource = ApplicationDomain::ImapResource::create("account1");
         resource.setProperty("server", "localhost");
         resource.setProperty("port", 993);
-        resource.setProperty("user", "doe");
+        resource.setProperty("username", "doe");
         resource.setProperty("password", "doe");
         return resource;
     }
@@ -58,7 +58,7 @@ protected:
         auto resource = ApplicationDomain::ImapResource::create("account1");
         resource.setProperty("server", "foobar");
         resource.setProperty("port", 993);
-        resource.setProperty("user", "doe");
+        resource.setProperty("username", "doe");
         resource.setProperty("password", "doe");
         return resource;
     }

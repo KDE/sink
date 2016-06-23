@@ -99,7 +99,11 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     loginJob->setUserName(username);
     loginJob->setPassword(password);
     loginJob->setAuthenticationMode(KIMAP::LoginJob::Plain);
-    loginJob->setEncryptionMode(KIMAP::LoginJob::EncryptionMode::AnySslVersion);
+    if (mSession->port() == 143) {
+        loginJob->setEncryptionMode(KIMAP::LoginJob::EncryptionMode::TlsV1);
+    } else {
+        loginJob->setEncryptionMode(KIMAP::LoginJob::EncryptionMode::AnySslVersion);
+    }
 
     auto capabilitiesJob = new KIMAP::CapabilitiesJob(mSession);
     QObject::connect(capabilitiesJob, &KIMAP::CapabilitiesJob::capabilitiesReceived, [this](const QStringList &capabilities) {
