@@ -434,6 +434,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 
 void Pipeline::cleanupRevision(qint64 revision)
 {
+    d->revisionChanged = true;
     const auto uid = Storage::getUidFromRevision(d->transaction, revision);
     const auto bufferType = Storage::getTypeFromRevision(d->transaction, revision);
     Trace() << "Cleaning up revision " << revision << uid << bufferType;
