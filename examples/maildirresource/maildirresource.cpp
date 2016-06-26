@@ -39,6 +39,7 @@
 #include "synchronizer.h"
 #include "sourcewriteback.h"
 #include "adaptorfactoryregistry.h"
+#include "specialpurposepreprocessor.h"
 #include <QDate>
 #include <QUuid>
 #include <QDir>
@@ -105,10 +106,10 @@ public:
     }
 };
 
-class FolderUpdater : public Sink::Preprocessor
+class MaildirMimeMessageMover : public Sink::Preprocessor
 {
 public:
-    FolderUpdater(const QByteArray &drafts) : mDraftsFolder(drafts) {}
+    MaildirMimeMessageMover(const QByteArray &resourceInstanceIdentifier, const QString &maildirPath) : mResourceInstanceIdentifier(resourceInstanceIdentifier), mMaildirPath(maildirPath) {}
 
     QString getPath(const QByteArray &folderIdentifier, Sink::Storage::Transaction &transaction)
     {
@@ -168,9 +169,6 @@ public:
 
     void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        if (newEntity.getProperty("draft").toBool()) {
-            newEntity.setProperty("folder", mDraftsFolder);
-        }
         const auto mimeMessage = newEntity.getProperty("mimeMessage");
         if (mimeMessage.isValid()) {
             newEntity.setProperty("mimeMessage", moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray(), transaction));
@@ -180,9 +178,6 @@ public:
     void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
         Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
-        if (newEntity.getProperty("draft").toBool()) {
-            newEntity.setProperty("folder", mDraftsFolder);
-        }
         const auto mimeMessage = newEntity.getProperty("mimeMessage");
         const auto newFolder = newEntity.getProperty("folder");
         const bool mimeMessageChanged = mimeMessage.isValid() && mimeMessage.toString() != oldEntity.getProperty("mimeMessage").toString();
@@ -221,7 +216,6 @@ public:
         const auto filePath = getFilePathFromMimeMessagePath(oldEntity.getProperty("mimeMessage").toString());
         QFile::remove(filePath);
     }
-    QByteArray mDraftsFolder;
     QByteArray mResourceInstanceIdentifier;
     QString mMaildirPath;
 };
@@ -229,7 +223,7 @@ public:
 class FolderPreprocessor : public Sink::Preprocessor
 {
 public:
-    FolderPreprocessor() {}
+    FolderPreprocessor(const QString maildirPath) : mMaildirPath(maildirPath) {}
 
     void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
     {
@@ -499,23 +493,16 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
     changereplay->mMaildirPath = mMaildirPath;
     setupChangereplay(changereplay);
 
-    auto folderUpdater = new FolderUpdater(QByteArray());
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << folderUpdater << new MaildirMailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
-    auto folderPreprocessor = new FolderPreprocessor;
-    setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << folderPreprocessor << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(mResourceType, mResourceInstanceIdentifier) << new MaildirMimeMessageMover(mResourceInstanceIdentifier, mMaildirPath) << new MaildirMailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new FolderPreprocessor(mMaildirPath) << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 
     KPIM::Maildir dir(mMaildirPath, true);
     Trace() << "Started maildir resource for maildir: " << mMaildirPath;
-    mDraftsFolder = dir.addSubFolder("Drafts");
+    auto draftsFolder = dir.addSubFolder("Drafts");
 
-    auto remoteId = synchronizer->createFolder(mDraftsFolder, "folder", QByteArrayList() << "drafts");
+    auto remoteId = synchronizer->createFolder(draftsFolder, "folder", QByteArrayList() << "drafts");
     auto draftsFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
     synchronizer->commit();
-
-    folderUpdater->mDraftsFolder = draftsFolderLocalId;
-    folderUpdater->mResourceInstanceIdentifier = mResourceInstanceIdentifier;
-    folderUpdater->mMaildirPath = mMaildirPath;
-    folderPreprocessor->mMaildirPath = mMaildirPath;
 }
 
 void MaildirResource::removeFromDisk(const QByteArray &instanceIdentifier)
