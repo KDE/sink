@@ -115,11 +115,13 @@ void Pipeline::startTransaction()
     //FIXME this is a temporary measure to recover from a failure to open the named databases correctly.
     //Once the actual problem is fixed it will be enough to simply crash if we open the wrong database (which we check in openDatabase already).
     //It seems like the validateNamedDatabase calls actually stops the mdb_put failures during sync...
-    while (!d->transaction.validateNamedDatabases()) {
-        Warning() << "Opened an invalid transaction!!!!!!";
-        d->transaction = std::move(storage().createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
-        Warning() << error.message;
-    }));
+    if (d->storage.exists()) {
+        while (!d->transaction.validateNamedDatabases()) {
+            Warning() << "Opened an invalid transaction!!!!!!";
+            d->transaction = std::move(storage().createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
+                Warning() << error.message;
+            }));
+        }
     }
 }
 

@@ -524,7 +524,13 @@ QList<QByteArray> Storage::Transaction::getDatabaseNames() const
                 list << QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
             }
         } else {
-            Warning() << "Failed to get a value" << rc;
+            //Normal if we don't have any databases yet
+            if (rc == MDB_NOTFOUND) {
+                rc = 0;
+            }
+            if (rc) {
+                Warning() << "Failed to get a value" << rc;
+            }
         }
     } else {
         Warning() << "Failed to open db" << rc << QByteArray(mdb_strerror(rc));

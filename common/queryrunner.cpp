@@ -207,6 +207,11 @@ Storage::Transaction QueryWorker<DomainType>::getTransaction()
     Sink::Storage::Transaction transaction;
     {
         Sink::Storage storage(Sink::storageLocation(), mResourceInstanceIdentifier);
+        if (!storage.exists()) {
+            //This is not an error if the resource wasn't started before
+            Log() << "Store doesn't exist: " << mResourceInstanceIdentifier;
+            return Sink::Storage::Transaction();
+        }
         storage.setDefaultErrorHandler([](const Sink::Storage::Error &error) { Warning() << "Error during query: " << error.store << error.message; });
         transaction = storage.createTransaction(Sink::Storage::ReadOnly);
     }
