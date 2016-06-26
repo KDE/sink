@@ -244,6 +244,9 @@ struct SINK_EXPORT Identity : public ApplicationDomainType {
     virtual ~Identity();
 };
 
+namespace DummyResource {
+    SinkResource SINK_EXPORT create(const QByteArray &account);
+};
 namespace MaildirResource {
     SinkResource SINK_EXPORT create(const QByteArray &account);
 };

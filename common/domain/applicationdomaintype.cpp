@@ -247,6 +247,18 @@ Identity::~Identity()
 
 }
 
+namespace DummyResource {
+    SinkResource create(const QByteArray &account)
+    {
+        auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
+        resource.setProperty("type", "org.kde.dummy");
+        resource.setProperty("account", account);
+        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << "-folder.rename"));
+        // resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << "-folder.rename" << ResourceCapabilities::Mail::trash));
+        return resource;
+    }
+}
+
 namespace MaildirResource {
     SinkResource create(const QByteArray &account)
     {

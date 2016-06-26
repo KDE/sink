@@ -37,6 +37,7 @@
 #include "indexupdater.h"
 #include "adaptorfactoryregistry.h"
 #include "synchronizer.h"
+#include "mailpreprocessor.h"
 #include "remoteidmap.h"
 #include <QDate>
 #include <QUuid>
@@ -131,7 +132,7 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
     setupSynchronizer(QSharedPointer<DummySynchronizer>::create(PLUGIN_NAME, instanceIdentifier));
     setupChangereplay(QSharedPointer<Sink::NullChangeReplay>::create(instanceIdentifier));
     setupPreprocessors(ENTITY_TYPE_MAIL,
-            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+            QVector<Sink::Preprocessor*>() << new MailPropertyExtractor <<  new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     setupPreprocessors(ENTITY_TYPE_FOLDER,
             QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
     setupPreprocessors(ENTITY_TYPE_EVENT,
