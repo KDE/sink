@@ -1,7 +1,6 @@
 #include <QtTest>
 
 #include <tests/mailtest.h>
-#include "../imapresource.h"
 
 #include "common/test.h"
 #include "common/domain/applicationdomaintype.h"
@@ -32,11 +31,6 @@ protected:
         resource.setProperty("username", "doe");
         resource.setProperty("password", "doe");
         return resource;
-    }
-
-    void removeResourceFromDisk(const QByteArray &identifier) Q_DECL_OVERRIDE
-    {
-        ::ImapResource::removeFromDisk(identifier);
     }
 };
 

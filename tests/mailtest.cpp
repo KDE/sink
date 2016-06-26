@@ -47,8 +47,7 @@ void MailTest::initTestCase()
 
 void MailTest::cleanup()
 {
-    VERIFYEXEC(ResourceControl::shutdown(mResourceInstanceIdentifier));
-    removeResourceFromDisk(mResourceInstanceIdentifier);
+    VERIFYEXEC(Store::removeDataFromDisk(mResourceInstanceIdentifier));
 }
 
 void MailTest::init()

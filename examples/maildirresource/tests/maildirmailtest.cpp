@@ -1,7 +1,6 @@
 #include <QtTest>
 
 #include <tests/mailtest.h>
-#include "../maildirresource.h"
 
 #include "common/test.h"
 #include "common/domain/applicationdomaintype.h"
@@ -32,11 +31,6 @@ protected:
         auto resource = ApplicationDomain::MaildirResource::create("account1");
         resource.setProperty("path", targetPath);
         return resource;
-    }
-
-    void removeResourceFromDisk(const QByteArray &identifier) Q_DECL_OVERRIDE
-    {
-        ::MaildirResource::removeFromDisk(identifier);
     }
 };
 

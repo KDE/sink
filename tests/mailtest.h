@@ -36,7 +36,6 @@ protected:
 
     virtual void resetTestEnvironment() = 0;
     virtual Sink::ApplicationDomain::SinkResource createResource() = 0;
-    virtual void removeResourceFromDisk(const QByteArray &mResourceInstanceIdentifier) = 0;
 
 private slots:
     void initTestCase();
