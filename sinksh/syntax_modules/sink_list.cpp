@@ -31,6 +31,7 @@
 #include "common/log.h"
 #include "common/storage.h"
 #include "common/definitions.h"
+#include "common/store.h"
 
 #include "sinksh_utils.h"
 #include "state.h"
@@ -70,45 +71,26 @@ bool list(const QStringList &args, State &state)
 
     query.liveQuery = false;
 
-    QTime time;
-    time.start();
-    auto model = SinkshUtils::loadModel(type, query);
-    if (state.debugLevel() > 0) {
-        state.printLine(QObject::tr("Folder type %1").arg(type));
-        state.printLine(QObject::tr("Loaded model in %1 ms").arg(time.elapsed()));
-    }
+    query.requestedProperties = SinkshUtils::requestedProperties(type);
 
-    //qDebug() << "Listing";
     QStringList line;
     line << QObject::tr("Resource") << QObject::tr("Identifier");
-    for (int i = 0; i < model->columnCount(QModelIndex()); i++) {
-        line << model->headerData(i, Qt::Horizontal).toString();
+    for (const auto &prop: query.requestedProperties) {
+        line << prop;
     }
     state.stageTableLine(line);
 
-    QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, state](const QModelIndex &index, int start, int end) {
-        for (int i = start; i <= end; i++) {
-            auto object = model->data(model->index(i, 0, index), Sink::Store::DomainObjectBaseRole).value<Sink::ApplicationDomain::ApplicationDomainType::Ptr>();
-            QStringList line;
-            line << object->resourceInstanceIdentifier();
-            line << object->identifier();
-            for (int col = 0; col < model->columnCount(QModelIndex()); col++) {
-                line << model->data(model->index(i, col, index)).toString();
-            }
-            state.stageTableLine(line);
+    for (const auto &o : SinkshUtils::getStore(type).read(query)) {
+        QStringList line;
+        line << o.resourceInstanceIdentifier();
+        line << o.identifier();
+        for (const auto &prop: query.requestedProperties) {
+            line << o.getProperty(prop).toString();
         }
-    });
-
-    QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
-        if (roles.contains(Sink::Store::ChildrenFetchedRole)) {
-            state.flushTable();
-            state.commandFinished();
-        }
-    });
-
-    if (!model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool()) {
-        return true;
+        state.stageTableLine(line);
     }
+    state.flushTable();
+    state.commandFinished();
 
     return false;
 }

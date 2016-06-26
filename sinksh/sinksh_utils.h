@@ -35,6 +35,7 @@ class StoreBase;
 bool isValidStoreType(const QString &type);
 StoreBase &getStore(const QString &type);
 QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Sink::Query query);
+QList<QByteArray> requestedProperties(const QString &type);
 QStringList resourceIds();
 QStringList resourceCompleter(const QStringList &, const QString &fragment, State &state);
 QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &fragment, State &state);
@@ -54,6 +55,7 @@ public:
     virtual KAsync::Job<void> modify(const Sink::ApplicationDomain::ApplicationDomainType &type) = 0;
     virtual KAsync::Job<void> remove(const Sink::ApplicationDomain::ApplicationDomainType &type) = 0;
     virtual QSharedPointer<QAbstractItemModel> loadModel(const Sink::Query &query) = 0;
+    virtual QList<Sink::ApplicationDomain::ApplicationDomainType> read(const Sink::Query &query) = 0;
 };
 
 template <typename T>
@@ -88,6 +90,15 @@ public:
     QSharedPointer<QAbstractItemModel> loadModel(const Sink::Query &query) Q_DECL_OVERRIDE
     {
         return Sink::Store::loadModel<T>(query);
+    }
+
+    QList<Sink::ApplicationDomain::ApplicationDomainType> read(const Sink::Query &query) Q_DECL_OVERRIDE
+    {
+        QList<Sink::ApplicationDomain::ApplicationDomainType> list;
+        for (const auto &o : Sink::Store::read<T>(query)) {
+            list << o;
+        }
+        return list;
     }
 };
 }

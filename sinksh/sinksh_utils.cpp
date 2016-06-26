@@ -63,20 +63,26 @@ StoreBase &getStore(const QString &type)
     return store;
 }
 
-QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Sink::Query query)
+QList<QByteArray> requestedProperties(const QString &type)
 {
     if (type == "folder") {
-        query.requestedProperties << "name"
+        return QList<QByteArray>() << "name"
                                   << "parent";
     } else if (type == "mail") {
-        query.requestedProperties << "subject"
+        return QList<QByteArray>() << "subject"
                                   << "folder"
                                   << "date";
     } else if (type == "event") {
-        query.requestedProperties << "summary";
+        return QList<QByteArray>() << "summary";
     } else if (type == "resource") {
-        query.requestedProperties << "type";
+        return QList<QByteArray>() << "type";
     }
+    return QList<QByteArray>();
+}
+
+QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Sink::Query query)
+{
+    query.requestedProperties = requestedProperties(type);
     auto model = getStore(type).loadModel(query);
     Q_ASSERT(model);
     return model;
