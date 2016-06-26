@@ -39,6 +39,7 @@
 #include "synchronizer.h"
 #include "sourcewriteback.h"
 #include "adaptorfactoryregistry.h"
+#include "mailpreprocessor.h"
 #include "specialpurposepreprocessor.h"
 #include <QDate>
 #include <QUuid>
@@ -71,38 +72,12 @@ static QString getFilePathFromMimeMessagePath(const QString &mimeMessagePath)
     return list.first().filePath();
 }
 
-class MaildirMailPropertyExtractor : public Sink::Preprocessor
+class MaildirMailPropertyExtractor : public MailPropertyExtractor
 {
-public:
-    MaildirMailPropertyExtractor() {}
-
-    void updatedIndexedProperties(Sink::ApplicationDomain::BufferAdaptor &newEntity)
+protected:
+    virtual QString getFilePathFromMimeMessagePath(const QString &mimeMessagePath) const Q_DECL_OVERRIDE
     {
-        const auto filePath = getFilePathFromMimeMessagePath(newEntity.getProperty("mimeMessage").toString());
-
-        KMime::Message *msg = new KMime::Message;
-        msg->setHead(KMime::CRLFtoLF(KPIM::Maildir::readEntryHeadersFromFile(filePath)));
-        msg->parse();
-
-        newEntity.setProperty("subject", msg->subject(true)->asUnicodeString());
-        newEntity.setProperty("sender", msg->from(true)->asUnicodeString());
-        newEntity.setProperty("senderName", msg->from(true)->asUnicodeString());
-        newEntity.setProperty("date", msg->date(true)->dateTime());
-    }
-
-    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        updatedIndexedProperties(newEntity);
-    }
-
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
-        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
-        updatedIndexedProperties(newEntity);
-    }
-
-    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
-    {
+        return ::getFilePathFromMimeMessagePath(mimeMessagePath);
     }
 };
 

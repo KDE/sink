@@ -29,9 +29,14 @@
 
 using namespace Sink;
 
+QString MailPropertyExtractor::getFilePathFromMimeMessagePath(const QString &s) const
+{
+    return s;
+}
+
 void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail)
 {
-    const auto mimeMessagePath = mail.getMimeMessagePath();
+    const auto mimeMessagePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
     Trace() << "Updating indexed properties " << mimeMessagePath;
     QFile f(mimeMessagePath);
     if (!f.open(QIODevice::ReadOnly)) {
