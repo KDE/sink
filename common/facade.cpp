@@ -74,6 +74,7 @@ KAsync::Job<void> GenericFacade<DomainType>::modify(const DomainType &domainObje
         Warning() << "No domain type adaptor factory available";
         return KAsync::error<void>();
     }
+    Trace() << "Modifying entity: " << domainObject.identifier() << domainObject.changedProperties();
     flatbuffers::FlatBufferBuilder entityFbb;
     mDomainTypeAdaptorFactory->createBuffer(domainObject, entityFbb);
     return mResourceAccess->sendModifyCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType(), QByteArrayList(), BufferUtils::extractBuffer(entityFbb), domainObject.changedProperties());

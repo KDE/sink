@@ -344,6 +344,7 @@ public:
             const bool messageMoved = changedProperties.contains(ApplicationDomain::Mail::Folder::name);
             const bool messageChanged = changedProperties.contains(ApplicationDomain::Mail::MimeMessage::name);
             if (messageChanged || messageMoved) {
+                Trace() << "Replacing message.";
                 const auto folderId = folderIdFromMailRid(oldRemoteId);
                 const QString oldMailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, folderId);
                 QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
@@ -362,6 +363,7 @@ public:
                         return *rid;
                     });
             } else {
+                Trace() << "Updating flags only.";
                 KIMAP::ImapSet set;
                 set.add(uid);
                 return login.then(imap->select(mailbox))

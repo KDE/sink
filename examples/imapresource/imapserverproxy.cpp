@@ -54,13 +54,16 @@ static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
 {
     return KAsync::start<T>([job, f](KAsync::Future<T> &future) {
         QObject::connect(job, &KJob::result, [&future, f](KJob *job) {
+            Trace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
+                Warning() << "Job failed: " << job->errorString();
                 future.setError(job->error(), job->errorString());
             } else {
                 future.setValue(f(job));
                 future.setFinished();
             }
         });
+        Trace() << "Starting job: " << job->metaObject()->className();
         job->start();
     });
 }
@@ -69,6 +72,7 @@ static KAsync::Job<void> runJob(KJob *job)
 {
     return KAsync::start<void>([job](KAsync::Future<void> &future) {
         QObject::connect(job, &KJob::result, [&future](KJob *job) {
+            Trace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
                 Warning() << "Job failed: " << job->errorString();
                 future.setError(job->error(), job->errorString());
@@ -76,6 +80,7 @@ static KAsync::Job<void> runJob(KJob *job)
                 future.setFinished();
             }
         });
+        Trace() << "Starting job: " << job->metaObject()->className();
         job->start();
     });
 }
