@@ -366,8 +366,8 @@ public:
                 set.add(uid);
                 return login.then(imap->select(mailbox))
                     .then(imap->storeFlags(set, flags))
-                    .then<void, qint64>([imap, mailbox](qint64 uid) {
-                        Trace() << "Finished modifying mail: " << uid;
+                    .then<void>([imap, mailbox]() {
+                        Trace() << "Finished modifying mail";
                     })
                     .then<QByteArray>([oldRemoteId, imap]() {
                         return oldRemoteId;

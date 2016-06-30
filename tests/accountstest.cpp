@@ -82,7 +82,7 @@ private slots:
 
         Store::remove(resource).exec().waitForFinished();
 
-        Store::fetchAll<SinkResource>(Query()).then<void, QList<SinkResource>>([](const QList<SinkResource> &resources) {
+        Store::fetchAll<SinkResource>(Query()).then<void, QList<SinkResource::Ptr>>([](const QList<SinkResource::Ptr> &resources) {
             QCOMPARE(resources.size(), 0);
         })
         .exec().waitForFinished();
