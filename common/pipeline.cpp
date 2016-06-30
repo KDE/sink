@@ -305,7 +305,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     // Apply diff
     // FIXME only apply the properties that are available in the buffer
-    Trace() << "Applying changed properties: " << diff->availableProperties();
+    Trace() << "Applying changed properties: " << changeset;
     for (const auto &property : changeset) {
         const auto value = diff->getProperty(property);
         if (value.isValid()) {
@@ -320,6 +320,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         }
     }
 
+    newAdaptor->resetChangedProperties();
     for (auto processor : d->processors[bufferType]) {
         processor->modifiedEntity(key, Storage::maxRevision(d->transaction) + 1, *current, *newAdaptor, d->transaction);
     }
@@ -330,7 +331,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     flatbuffers::FlatBufferBuilder metadataFbb;
     {
         //We add availableProperties to account for the properties that have been changed by the preprocessors
-        auto modifiedProperties = BufferUtils::toVector(metadataFbb, changeset + newAdaptor->availableProperties());
+        auto modifiedProperties = BufferUtils::toVector(metadataFbb, changeset + newAdaptor->changedProperties());
         auto metadataBuilder = MetadataBuilder(metadataFbb);
         metadataBuilder.add_revision(newRevision);
         metadataBuilder.add_operation(Operation_Modification);

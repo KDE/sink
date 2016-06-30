@@ -82,15 +82,29 @@ public:
     }
     virtual void setProperty(const QByteArray &key, const QVariant &value)
     {
+        if (value != mValues.value(key)) {
+            mChanges << key;
+        }
         mValues.insert(key, value);
     }
+
     virtual QByteArrayList availableProperties() const
     {
         return mValues.keys();
     }
 
+    void resetChangedProperties()
+    {
+        mChanges.clear();
+    }
+
+    QList<QByteArray> changedProperties() const
+    {
+        return mChanges;
+    }
 private:
     QHash<QByteArray, QVariant> mValues;
+    QList<QByteArray> mChanges;
 };
 }
 }
