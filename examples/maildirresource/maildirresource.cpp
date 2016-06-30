@@ -473,10 +473,16 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
 
     KPIM::Maildir dir(mMaildirPath, true);
     Trace() << "Started maildir resource for maildir: " << mMaildirPath;
-    auto draftsFolder = dir.addSubFolder("Drafts");
-
-    auto remoteId = synchronizer->createFolder(draftsFolder, "folder", QByteArrayList() << "drafts");
-    auto draftsFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
+    {
+        auto draftsFolder = dir.addSubFolder("Drafts");
+        auto remoteId = synchronizer->createFolder(draftsFolder, "folder", QByteArrayList() << "drafts");
+        auto draftsFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
+    }
+    {
+        auto trashFolder = dir.addSubFolder("Trash");
+        auto remoteId = synchronizer->createFolder(trashFolder, "folder", QByteArrayList() << "trash");
+        auto trashFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
+    }
     synchronizer->commit();
 }
 

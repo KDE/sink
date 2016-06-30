@@ -104,6 +104,11 @@ void MailSyncTest::testListFolders()
             names.removeAll("Drafts");
             QVERIFY(specialPurposeFolders.contains("drafts"));
         }
+        if (mCapabilities.contains(ResourceCapabilities::Mail::trash)) {
+            QVERIFY(names.contains("Trash"));
+            names.removeAll("Trash");
+            QVERIFY(specialPurposeFolders.contains("trash"));
+        }
         QCOMPARE(names.size(), 2);
         QVERIFY(names.contains("INBOX"));
         QVERIFY(names.contains("test"));
