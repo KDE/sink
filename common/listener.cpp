@@ -330,7 +330,7 @@ qint64 Listener::lowerBoundRevision()
 void Listener::quit()
 {
     // Broadcast shutdown notifications to open clients, so they don't try to restart the resource
-    auto command = Sink::Commands::CreateNotification(m_fbb, Sink::Commands::NotificationType::NotificationType_Shutdown);
+    auto command = Sink::Commands::CreateNotification(m_fbb, Sink::Notification::Shutdown);
     Sink::Commands::FinishNotificationBuffer(m_fbb, command);
     for (Client &client : m_connections) {
         if (client.socket && client.socket->isOpen()) {
@@ -418,7 +418,7 @@ void Listener::notify(const Sink::Notification &notification)
     auto messageString = m_fbb.CreateString(notification.message.toUtf8().constData(), notification.message.toUtf8().size());
     auto idString = m_fbb.CreateString(notification.id.constData(), notification.id.size());
     Sink::Commands::NotificationBuilder builder(m_fbb);
-    builder.add_type(static_cast<Sink::Commands::NotificationType>(notification.type));
+    builder.add_type(notification.type);
     builder.add_code(notification.code);
     builder.add_identifier(idString);
     builder.add_message(messageString);

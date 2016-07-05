@@ -230,6 +230,7 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
 ResourceAccess::ResourceAccess(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType)
     : ResourceAccessInterface(), d(new Private(resourceType, resourceInstanceIdentifier, this))
 {
+    mResourceStatus = Sink::ApplicationDomain::OfflineStatus;
     Trace() << "Starting access";
 }
 
@@ -513,6 +514,22 @@ void ResourceAccess::readResourceMessage()
     }
 }
 
+static Sink::Notification getNotification(const Sink::Commands::Notification *buffer)
+{
+    Sink::Notification n;
+    if (buffer->identifier()) {
+        // Don't use fromRawData, the buffer is gone once we invoke emit notification
+        n.id = BufferUtils::extractBufferCopy(buffer->identifier());
+    }
+    if (buffer->message()) {
+        // Don't use fromRawData, the buffer is gone once we invoke emit notification
+        n.message = BufferUtils::extractBufferCopy(buffer->message());
+    }
+    n.type = buffer->type();
+    n.code = buffer->code();
+    return n;
+}
+
 bool ResourceAccess::processMessageBuffer()
 {
     static const int headerSize = Commands::headerSize();
@@ -535,7 +552,7 @@ bool ResourceAccess::processMessageBuffer()
             auto buffer = Commands::GetRevisionUpdate(d->partialMessageBuffer.constData() + headerSize);
             Trace() << QString("Revision updated to: %1").arg(buffer->revision());
             Notification n;
-            n.type = Sink::Commands::NotificationType::NotificationType_RevisionUpdate;
+            n.type = Sink::Notification::RevisionUpdate;
             emit notification(n);
             emit revisionChanged(buffer->revision());
 
@@ -553,30 +570,26 @@ bool ResourceAccess::processMessageBuffer()
         case Commands::NotificationCommand: {
             auto buffer = Commands::GetNotification(d->partialMessageBuffer.constData() + headerSize);
             switch (buffer->type()) {
-                case Sink::Commands::NotificationType::NotificationType_Shutdown:
+                case Sink::Notification::Shutdown:
                     Log() << "Received shutdown notification.";
                     close();
                     break;
-                case Sink::Commands::NotificationType::NotificationType_Inspection: {
+                case Sink::Notification::Inspection: {
                     Trace() << "Received inspection notification.";
-                    Notification n;
-                    if (buffer->identifier()) {
-                        // Don't use fromRawData, the buffer is gone once we invoke emit notification
-                        n.id = BufferUtils::extractBufferCopy(buffer->identifier());
-                    }
-                    if (buffer->message()) {
-                        // Don't use fromRawData, the buffer is gone once we invoke emit notification
-                        n.message = BufferUtils::extractBufferCopy(buffer->message());
-                    }
-                    n.type = buffer->type();
-                    n.code = buffer->code();
+                    auto n = getNotification(buffer);
                     // The callbacks can result in this object getting destroyed directly, so we need to ensure we finish our work first
                     queuedInvoke([=]() { emit notification(n); }, this);
                 } break;
-                case Sink::Commands::NotificationType::NotificationType_Status:
-                case Sink::Commands::NotificationType::NotificationType_Warning:
-                case Sink::Commands::NotificationType::NotificationType_Progress:
-                case Sink::Commands::NotificationType::NotificationType_RevisionUpdate:
+                case Sink::Notification::Status:
+                    mResourceStatus = buffer->code();
+                    [[clang::fallthrough]];
+                case Sink::Notification::Warning:
+                    [[clang::fallthrough]];
+                case Sink::Notification::Progress: {
+                    auto n = getNotification(buffer);
+                    emit notification(n);
+                } break;
+                case Sink::Notification::RevisionUpdate:
                 default:
                     Warning() << "Received unknown notification: " << buffer->type();
                     break;

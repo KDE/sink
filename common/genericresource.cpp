@@ -260,18 +260,18 @@ GenericResource::GenericResource(const QByteArray &resourceType, const QByteArra
                     [=]() {
                         Log_area("resource.inspection") << "Inspection was successful: " << inspectionType << inspectionId << entityId;
                         Sink::Notification n;
-                        n.type = Sink::Commands::NotificationType_Inspection;
+                        n.type = Sink::Notification::Inspection;
                         n.id = inspectionId;
-                        n.code = Sink::Commands::NotificationCode_Success;
+                        n.code = Sink::Notification::Success;
                         emit notify(n);
                     },
                     [=](int code, const QString &message) {
                         Warning_area("resource.inspection") << "Inspection failed: " << inspectionType << inspectionId << entityId << message;
                         Sink::Notification n;
-                        n.type = Sink::Commands::NotificationType_Inspection;
+                        n.type = Sink::Notification::Inspection;
                         n.message = message;
                         n.id = inspectionId;
-                        n.code = Sink::Commands::NotificationCode_Failure;
+                        n.code = Sink::Notification::Failure;
                         emit notify(n);
                     })
                 .exec();
@@ -282,6 +282,23 @@ GenericResource::GenericResource(const QByteArray &resourceType, const QByteArra
     QObject::connect(mProcessor, &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
     mClientLowerBoundRevision = mPipeline->cleanedUpRevision();
+
+    QObject::connect(mChangeReplay.data(), &ChangeReplay::replayingChanges, [this]() {
+        Sink::Notification n;
+        n.id = "changereplay";
+        n.type = Sink::Notification::Status;
+        n.message = "Replaying changes.";
+        n.code = Sink::ApplicationDomain::BusyStatus;
+        emit notify(n);
+    });
+    QObject::connect(mChangeReplay.data(), &ChangeReplay::changesReplayed, [this]() {
+        Sink::Notification n;
+        n.id = "changereplay";
+        n.type = Sink::Notification::Status;
+        n.message = "All changes have been replayed.";
+        n.code = Sink::ApplicationDomain::ConnectedStatus;
+        emit notify(n);
+    });
 
     mCommitQueueTimer.setInterval(sCommitInterval);
     mCommitQueueTimer.setSingleShot(true);
@@ -399,12 +416,27 @@ void GenericResource::processCommand(int commandId, const QByteArray &data)
 KAsync::Job<void> GenericResource::synchronizeWithSource()
 {
     return KAsync::start<void>([this](KAsync::Future<void> &future) {
+
+        Sink::Notification n;
+        n.id = "sync";
+        n.type = Sink::Notification::Status;
+        n.message = "Synchronization has started.";
+        n.code = Sink::ApplicationDomain::BusyStatus;
+        emit notify(n);
+
         Log() << " Synchronizing";
         // Changereplay would deadlock otherwise when trying to open the synchronization store
         enableChangeReplay(false);
         mSynchronizer->synchronize()
             .then<void>([this, &future]() {
                 Log() << "Done Synchronizing";
+                Sink::Notification n;
+                n.id = "sync";
+                n.type = Sink::Notification::Status;
+                n.message = "Synchronization has ended.";
+                n.code = Sink::ApplicationDomain::ConnectedStatus;
+                emit notify(n);
+
                 enableChangeReplay(true);
                 future.setFinished();
             }, [this, &future](int errorCode, const QString &error) {

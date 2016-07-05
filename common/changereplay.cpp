@@ -86,6 +86,7 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
 
     if (lastReplayedRevision < topRevision) {
         Trace() << "Changereplay from " << lastReplayedRevision << " to " << topRevision;
+        emit replayingChanges();
         qint64 revision = lastReplayedRevision + 1;
         const auto uid = Storage::getUidFromRevision(mainStoreTransaction, revision);
         const auto type = Storage::getTypeFromRevision(mainStoreTransaction, revision);

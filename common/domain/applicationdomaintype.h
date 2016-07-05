@@ -52,6 +52,13 @@
     void setExtracted##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
     TYPE get##NAME() const { return getProperty(NAME::name).value<TYPE>(); } \
 
+#define SINK_STATUS_PROPERTY(TYPE, NAME, LOWERCASENAME) \
+    struct NAME { \
+        static constexpr const char *name = #LOWERCASENAME; \
+        typedef TYPE Type; \
+    }; \
+    void setStatus##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
+    TYPE get##NAME() const { return getProperty(NAME::name).value<TYPE>(); } \
 
 #define SINK_BLOB_PROPERTY(NAME, LOWERCASENAME) \
     struct NAME { \
@@ -75,6 +82,14 @@
 
 namespace Sink {
 namespace ApplicationDomain {
+
+struct SINK_EXPORT Error {
+
+};
+
+struct SINK_EXPORT Progress {
+
+};
 
 /**
  * The domain type interface has two purposes:
@@ -215,6 +230,38 @@ struct SINK_EXPORT Mail : public Entity {
 };
 
 /**
+ * The status of an account or resource.
+ *
+ * It is set as follows:
+ * * By default the status is offline.
+ * * If a connection to the server could be established the status is Connected.
+ * * If an error occurred that keeps the resource from operating (so non transient), the resource enters the error state.
+ * * If a long running operation is started the resource goes to the busy state (and return to the previous state after that).
+ */
+enum SINK_EXPORT Status {
+    OfflineStatus,
+    ConnectedStatus,
+    BusyStatus,
+    ErrorStatus
+};
+
+struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
+    typedef QSharedPointer<SinkAccount> Ptr;
+    explicit SinkAccount(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
+    explicit SinkAccount(const QByteArray &identifier);
+    SinkAccount();
+    virtual ~SinkAccount();
+
+    SINK_PROPERTY(QString, Name, name);
+    SINK_PROPERTY(QString, Icon, icon);
+    SINK_PROPERTY(QString, AccountType, accountType);
+    SINK_STATUS_PROPERTY(int, Status, status);
+    SINK_STATUS_PROPERTY(ApplicationDomain::Error, Error, error);
+    SINK_STATUS_PROPERTY(ApplicationDomain::Progress, Progress, progress);
+};
+
+
+/**
  * Represents an sink resource.
  *
  * This type is used for configuration of resources,
@@ -226,14 +273,13 @@ struct SINK_EXPORT SinkResource : public ApplicationDomainType {
     explicit SinkResource(const QByteArray &identifier);
     SinkResource();
     virtual ~SinkResource();
-};
 
-struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
-    typedef QSharedPointer<SinkAccount> Ptr;
-    explicit SinkAccount(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
-    explicit SinkAccount(const QByteArray &identifier);
-    SinkAccount();
-    virtual ~SinkAccount();
+    SINK_REFERENCE_PROPERTY(SinkAccount, Account, account);
+    SINK_PROPERTY(QString, ResourceType, resourceType);
+    SINK_PROPERTY(QByteArrayList, Capabilities, capabilities);
+    SINK_STATUS_PROPERTY(int, Status, status);
+    SINK_STATUS_PROPERTY(ApplicationDomain::Error, Error, error);
+    SINK_STATUS_PROPERTY(ApplicationDomain::Progress, Progress, progress);
 };
 
 struct SINK_EXPORT Identity : public ApplicationDomainType {
@@ -330,3 +376,5 @@ Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkAccount)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkAccount::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Identity)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Identity::Ptr)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Error)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Progress)

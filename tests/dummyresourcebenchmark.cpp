@@ -90,7 +90,7 @@ private slots:
         bool gotNotification = false;
         int duration = 0;
         notifier->registerHandler([&gotNotification, &duration, &time](const Sink::Notification &notification) {
-            if (notification.type == Sink::Commands::NotificationType::NotificationType_RevisionUpdate) {
+            if (notification.type == Sink::Notification::RevisionUpdate) {
                 gotNotification = true;
                 duration = time.elapsed();
             }
