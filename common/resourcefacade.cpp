@@ -22,23 +22,16 @@
 #include "query.h"
 #include "definitions.h"
 #include "storage.h"
+#include "resourceaccess.h"
 #include <QDir>
 
-template <typename DomainType>
+using namespace Sink;
+
+template<typename DomainType>
 ConfigNotifier LocalStorageFacade<DomainType>::sConfigNotifier;
 
 template <typename DomainType>
-LocalStorageFacade<DomainType>::LocalStorageFacade(const QByteArray &identifier) : Sink::StoreFacade<DomainType>(), mConfigStore(identifier), mResourceInstanceIdentifier(identifier)
-{
-}
-
-template <typename DomainType>
-LocalStorageFacade<DomainType>::~LocalStorageFacade()
-{
-}
-
-template <typename DomainType>
-typename DomainType::Ptr LocalStorageFacade<DomainType>::readFromConfig(ConfigStore &configStore, const QByteArray &id, const QByteArray &type)
+static typename DomainType::Ptr readFromConfig(ConfigStore &configStore, const QByteArray &id, const QByteArray &type)
 {
     auto object = DomainType::Ptr::create(id);
     object->setProperty("type", type);
@@ -49,10 +42,148 @@ typename DomainType::Ptr LocalStorageFacade<DomainType>::readFromConfig(ConfigSt
     return object;
 }
 
+static bool matchesFilter(const QHash<QByteArray, Query::Comparator> &filter, const QMap<QByteArray, QVariant> &properties)
+{
+    for (const auto &filterProperty : filter.keys()) {
+        if (filterProperty == "type") {
+            continue;
+        }
+        if (!filter.value(filterProperty).matches(properties.value(filterProperty))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template<typename DomainType>
+LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query, const QByteArray &identifier, ConfigNotifier &configNotifier)
+    : mResultProvider(new ResultProvider<typename DomainType::Ptr>), mConfigStore(identifier)
+{
+    QObject *guard = new QObject;
+    mResultProvider->setFetcher([this, query, guard, &configNotifier](const QSharedPointer<DomainType> &) {
+        const auto entries = mConfigStore.getEntries();
+        for (const auto &res : entries.keys()) {
+            const auto type = entries.value(res);
+
+            if (query.propertyFilter.contains("type") && query.propertyFilter.value("type").value.toByteArray() != type) {
+                Trace() << "Skipping due to type.";
+                continue;
+            }
+            if (!query.ids.isEmpty() && !query.ids.contains(res)) {
+                continue;
+            }
+            const auto configurationValues = mConfigStore.get(res);
+            if (!matchesFilter(query.propertyFilter, configurationValues)){
+                Trace() << "Skipping due to filter.";
+                continue;
+            }
+            Trace() << "Found match " << res;
+            auto entity = readFromConfig<DomainType>(mConfigStore, res, type);
+            updateStatus(*entity);
+            mResultProvider->add(entity);
+        }
+        if (query.liveQuery) {
+            {
+                auto ret = QObject::connect(&configNotifier, &ConfigNotifier::added, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
+                    auto entity = entry.staticCast<DomainType>();
+                    updateStatus(*entity);
+                    mResultProvider->add(entity);
+                });
+                Q_ASSERT(ret);
+            }
+            {
+                auto ret = QObject::connect(&configNotifier, &ConfigNotifier::modified, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
+                    auto entity = entry.staticCast<DomainType>();
+                    updateStatus(*entity);
+                    mResultProvider->modify(entity);
+                });
+                Q_ASSERT(ret);
+            }
+            {
+                auto ret = QObject::connect(&configNotifier, &ConfigNotifier::removed, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
+                    mResultProvider->remove(entry.staticCast<DomainType>());
+                });
+                Q_ASSERT(ret);
+            }
+        }
+        // TODO initialResultSetComplete should be implicit
+        mResultProvider->initialResultSetComplete(typename DomainType::Ptr());
+        mResultProvider->complete();
+    });
+    mResultProvider->onDone([=]() { delete guard; });
+}
+
+// QByteArrayList getMatchingEntries(const Query &query)
+// {
+//         const auto entries = mConfigStore.getEntries();
+//         for (const auto &res : entries.keys()) {
+//             const auto type = entries.value(res);
+//
+//             if (query.propertyFilter.contains("type") && query.propertyFilter.value("type").value.toByteArray() != type) {
+//                 Trace() << "Skipping due to type.";
+//                 continue;
+//             }
+//             if (!query.ids.isEmpty() && !query.ids.contains(res)) {
+//                 continue;
+//             }
+//             const auto configurationValues = mConfigStore.get(res);
+//             if (!matchesFilter(query.propertyFilter, configurationValues)){
+//                 Trace() << "Skipping due to filter.";
+//                 continue;
+//             }
+//             Trace() << "Found match " << res;
+//             auto entity = readFromConfig<DomainType>(mConfigStore, res, type);
+//             updateStatus(*entity);
+//             mResultProvider->add(entity);
+//         }
+//
+// }
+
+
+template<typename DomainType>
+void LocalStorageQueryRunner<DomainType>::updateStatus(DomainType &entity)
+{
+    if (mStatusUpdater) {
+        mStatusUpdater(entity);
+    }
+}
+
+template<typename DomainType>
+void LocalStorageQueryRunner<DomainType>::setStatusUpdater(const std::function<void(DomainType &)> &updater)
+{
+    mStatusUpdater = updater;
+}
+
+template<typename DomainType>
+void LocalStorageQueryRunner<DomainType>::statusChanged(const QByteArray &identifier)
+{
+    Trace() << "Status changed " << identifier;
+    auto entity = readFromConfig<DomainType>(mConfigStore, identifier, ApplicationDomain::getTypeName<DomainType>());
+    updateStatus(*entity);
+    mResultProvider->modify(entity);
+}
+
+template<typename DomainType>
+typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr LocalStorageQueryRunner<DomainType>::emitter()
+{
+    return mResultProvider->emitter();
+}
+
+
+template <typename DomainType>
+LocalStorageFacade<DomainType>::LocalStorageFacade(const QByteArray &identifier) : StoreFacade<DomainType>(), mIdentifier(identifier), mConfigStore(identifier)
+{
+}
+
+template <typename DomainType>
+LocalStorageFacade<DomainType>::~LocalStorageFacade()
+{
+}
+
 template <typename DomainType>
 typename DomainType::Ptr LocalStorageFacade<DomainType>::readFromConfig(const QByteArray &id, const QByteArray &type)
 {
-    return readFromConfig(mConfigStore, id, type);
+    return ::readFromConfig<DomainType>(mConfigStore, id, type);
 }
 
 template <typename DomainType>
@@ -119,67 +250,12 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domai
     });
 }
 
-static bool matchesFilter(const QHash<QByteArray, Sink::Query::Comparator> &filter, const QMap<QByteArray, QVariant> &properties)
-{
-    for (const auto &filterProperty : filter.keys()) {
-        if (filterProperty == "type") {
-            continue;
-        }
-        if (!filter.value(filterProperty).matches(properties.value(filterProperty))) {
-            return false;
-        }
-    }
-    return true;
-}
-
 template <typename DomainType>
-QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> LocalStorageFacade<DomainType>::load(const Sink::Query &query)
+QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> LocalStorageFacade<DomainType>::load(const Query &query)
 {
-    QObject *guard = new QObject;
-    auto resultProvider = new Sink::ResultProvider<typename DomainType::Ptr>();
-    auto emitter = resultProvider->emitter();
-    auto identifier = mResourceInstanceIdentifier;
-    resultProvider->setFetcher([identifier, query, guard, resultProvider](const QSharedPointer<DomainType> &) {
-        ConfigStore mConfigStore(identifier);
-        const auto entries = mConfigStore.getEntries();
-        for (const auto &res : entries.keys()) {
-            const auto type = entries.value(res);
-
-            if (query.propertyFilter.contains("type") && query.propertyFilter.value("type").value.toByteArray() != type) {
-                Trace() << "Skipping due to type.";
-                continue;
-            }
-            if (!query.ids.isEmpty() && !query.ids.contains(res)) {
-                continue;
-            }
-            const auto configurationValues = mConfigStore.get(res);
-            if (!matchesFilter(query.propertyFilter, configurationValues)){
-                Trace() << "Skipping due to filter.";
-                continue;
-            }
-            Trace() << "Found match " << res;
-            resultProvider->add(readFromConfig(mConfigStore, res, type));
-        }
-        if (query.liveQuery) {
-            QObject::connect(&sConfigNotifier, &ConfigNotifier::modified, guard, [resultProvider](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &entry) {
-                resultProvider->modify(entry.staticCast<DomainType>());
-            });
-            QObject::connect(&sConfigNotifier, &ConfigNotifier::added, guard, [resultProvider](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &entry) {
-                resultProvider->add(entry.staticCast<DomainType>());
-            });
-            QObject::connect(&sConfigNotifier, &ConfigNotifier::removed, guard,[resultProvider](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &entry) {
-                resultProvider->remove(entry.staticCast<DomainType>());
-            });
-        }
-        // TODO initialResultSetComplete should be implicit
-        resultProvider->initialResultSetComplete(typename DomainType::Ptr());
-        resultProvider->complete();
-    });
-    resultProvider->onDone([=]() { delete resultProvider; delete guard; });
-
-    return qMakePair(KAsync::null<void>(), emitter);
+    auto runner = new LocalStorageQueryRunner<DomainType>(query, mIdentifier, sConfigNotifier);
+    return qMakePair(KAsync::null<void>(), runner->emitter());
 }
-
 
 ResourceFacade::ResourceFacade() : LocalStorageFacade<Sink::ApplicationDomain::SinkResource>("resources")
 {
@@ -199,6 +275,28 @@ KAsync::Job<void> ResourceFacade::remove(const Sink::ApplicationDomain::SinkReso
             Sink::Storage(Sink::storageLocation(), folder, Sink::Storage::ReadWrite).removeFromDisk();
         }
     });
+}
+
+QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain::SinkResource::Ptr>::Ptr> ResourceFacade::load(const Sink::Query &query)
+{
+    auto runner = new LocalStorageQueryRunner<ApplicationDomain::SinkResource>(query, mIdentifier, sConfigNotifier);
+    auto monitoredResources = QSharedPointer<QSet<QByteArray>>::create();
+    runner->setStatusUpdater([runner, monitoredResources](ApplicationDomain::SinkResource &resource) {
+        auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource.identifier(), ResourceConfig::getResourceType(resource.identifier()));
+        if (!monitoredResources->contains(resource.identifier())) {
+            //TODO disconnect at some point when the runner is done
+            auto ret = QObject::connect(resourceAccess.data(), &ResourceAccess::notification, [resource, runner, resourceAccess](const Notification &notification) {
+                Trace() << "Received notification in facade: " << notification.type;
+                if (notification.type == Notification::Status) {
+                    runner->statusChanged(resource.identifier());
+                }
+            });
+            Q_ASSERT(ret);
+            monitoredResources->insert(resource.identifier());
+        }
+        resource.setStatusStatus(resourceAccess->getResourceStatus());
+    });
+    return qMakePair(KAsync::null<void>(), runner->emitter());
 }
 
 
