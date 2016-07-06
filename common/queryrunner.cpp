@@ -123,6 +123,9 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
         mResourceAccess->open();
         QObject::connect(mResourceAccess.data(), &Sink::ResourceAccess::revisionChanged, this, &QueryRunner::revisionChanged);
     }
+    mResultProvider->onDone([this]() {
+        delete this;
+    });
 }
 
 template <class DomainType>
