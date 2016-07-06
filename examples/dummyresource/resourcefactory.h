@@ -35,6 +35,7 @@ public:
     DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
     virtual ~DummyResource();
 
+    KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE;
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
 };
 

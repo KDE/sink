@@ -23,6 +23,7 @@
 #include "entitybuffer.h"
 #include "pipeline.h"
 #include "dummycalendar_generated.h"
+#include "notification_generated.h"
 #include "mail_generated.h"
 #include "createentity_generated.h"
 #include "domainadaptor.h"
@@ -142,6 +143,18 @@ DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QShared
 DummyResource::~DummyResource()
 {
 
+}
+
+KAsync::Job<void> DummyResource::synchronizeWithSource()
+{
+    Trace() << "Synchronize with source and sending a notification about it";
+    Sink::Notification n;
+    n.id = "connected";
+    n.type = Sink::Notification::Status;
+    n.message = "We're connected";
+    n.code = Sink::ApplicationDomain::ConnectedStatus;
+    emit notify(n);
+    return GenericResource::synchronizeWithSource();
 }
 
 KAsync::Job<void> DummyResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
