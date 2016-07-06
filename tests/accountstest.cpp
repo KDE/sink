@@ -94,8 +94,8 @@ private slots:
         using namespace Sink::ApplicationDomain;
 
         auto account = ApplicationDomainType::createEntity<SinkAccount>();
-        account.setProperty("type", "maildir");
-        account.setProperty("name", "name");
+        account.setAccountType("maildir");
+        account.setName("name");
         Store::create(account).exec().waitForFinished();
 
         Query query;
@@ -104,14 +104,14 @@ private slots:
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
 
         auto account2 = ApplicationDomainType::createEntity<SinkAccount>();
-        account2.setProperty("type", "maildir");
-        account2.setProperty("name", "name");
+        account2.setAccountType("maildir");
+        account2.setName("name");
         Store::create(account2).exec().waitForFinished();
         QTRY_COMPARE(model->rowCount(QModelIndex()), 2);
 
         //Ensure the notifier only affects one type
         auto resource = ApplicationDomainType::createEntity<SinkResource>();
-        resource.setProperty("type", "org.kde.mailtransport");
+        resource.setResourceType("org.kde.mailtransport");
         Store::create(resource).exec().waitForFinished();
         QTRY_COMPARE(model->rowCount(QModelIndex()), 2);
     }

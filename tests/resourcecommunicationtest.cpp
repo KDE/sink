@@ -92,6 +92,26 @@ private slots:
         QTRY_COMPARE(complete, count);
         QVERIFY(!errors);
     }
+
+    void testAccessFactory()
+    {
+        const QByteArray resourceIdentifier("test");
+        Listener listener(resourceIdentifier, "");
+        QWeakPointer<Sink::ResourceAccess> weakRef;
+        QTime time;
+        time.start();
+        {
+            auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(resourceIdentifier, "");
+            weakRef = resourceAccess.toWeakRef();
+            resourceAccess->open();
+            resourceAccess->sendCommand(Sink::Commands::PingCommand).then<void>([resourceAccess]() { qDebug() << "Pind complete";  }).exec();
+        }
+        QVERIFY(weakRef.toStrongRef());
+        QTRY_VERIFY(!weakRef.toStrongRef());
+        qDebug() << "time.elapsed " << time.elapsed();
+        QVERIFY(time.elapsed() < 3500);
+        QVERIFY(time.elapsed() > 2500);
+    }
 };
 
 QTEST_MAIN(ResourceCommunicationTest)
