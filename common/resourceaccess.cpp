@@ -586,11 +586,13 @@ bool ResourceAccess::processMessageBuffer()
                         break;
                     }
                     mResourceStatus = buffer->code();
+                    Trace() << "Updated status: " << mResourceStatus;
                     [[clang::fallthrough]];
                 case Sink::Notification::Warning:
                     [[clang::fallthrough]];
                 case Sink::Notification::Progress: {
                     auto n = getNotification(buffer);
+                    Trace() << "Received notification: " << n.type;
                     emit notification(n);
                 } break;
                 case Sink::Notification::RevisionUpdate:
