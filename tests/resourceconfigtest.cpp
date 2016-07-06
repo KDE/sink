@@ -80,17 +80,13 @@ private slots:
         ResourceConfig::clear();
         Sink::FacadeFactory::instance().registerStaticFacades();
 
-        Sink::ApplicationDomain::SinkResource res("", "dummyresource.identifier1", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        res.setProperty("identifier", "dummyresource.identifier1");
-        res.setProperty("type", "org.kde.dummy");
-        res.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << "foo"));
-
-        Sink::Store::create(res).exec().waitForFinished();
+        auto res = Sink::ApplicationDomain::DummyResource::create("");
+        VERIFYEXEC(Sink::Store::create(res));
         {
             Sink::Query query;
             query.liveQuery = true;
             query.request<Sink::ApplicationDomain::SinkResource::Status>();
-            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(Sink::Query::CapabilityFilter("foo"));
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
             auto resource = model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkResource::Ptr>();
             QCOMPARE(resource->getStatus(), static_cast<int>(Sink::ApplicationDomain::OfflineStatus));

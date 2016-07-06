@@ -349,11 +349,11 @@ private slots:
     {
         flatbuffers::FlatBufferBuilder entityFbb;
 
-        TestProcessor testProcessor;
+        auto testProcessor = new TestProcessor;
 
         Sink::Pipeline pipeline("org.kde.pipelinetest.instance1");
         pipeline.setResourceType("test");
-        pipeline.setPreprocessors("event", QVector<Sink::Preprocessor *>() << &testProcessor);
+        pipeline.setPreprocessors("event", QVector<Sink::Preprocessor *>() << testProcessor);
         pipeline.startTransaction();
         // pipeline.setAdaptorFactory("event", QSharedPointer<TestEventAdaptorFactory>::create());
 
@@ -361,10 +361,10 @@ private slots:
         {
             auto command = createEntityCommand(createEvent(entityFbb));
             pipeline.newEntity(command.constData(), command.size());
-            QCOMPARE(testProcessor.newUids.size(), 1);
-            QCOMPARE(testProcessor.newRevisions.size(), 1);
+            QCOMPARE(testProcessor->newUids.size(), 1);
+            QCOMPARE(testProcessor->newRevisions.size(), 1);
             // Key doesn't contain revision and is just the uid
-            QCOMPARE(testProcessor.newUids.at(0), Sink::Storage::uidFromKey(testProcessor.newUids.at(0)));
+            QCOMPARE(testProcessor->newUids.at(0), Sink::Storage::uidFromKey(testProcessor->newUids.at(0)));
         }
         pipeline.commit();
         entityFbb.Clear();
@@ -375,10 +375,10 @@ private slots:
         {
             auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summary2"), uid, 1);
             pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
-            QCOMPARE(testProcessor.modifiedUids.size(), 1);
-            QCOMPARE(testProcessor.modifiedRevisions.size(), 1);
+            QCOMPARE(testProcessor->modifiedUids.size(), 1);
+            QCOMPARE(testProcessor->modifiedRevisions.size(), 1);
             // Key doesn't contain revision and is just the uid
-            QCOMPARE(testProcessor.modifiedUids.at(0), Sink::Storage::uidFromKey(testProcessor.modifiedUids.at(0)));
+            QCOMPARE(testProcessor->modifiedUids.at(0), Sink::Storage::uidFromKey(testProcessor->modifiedUids.at(0)));
         }
         pipeline.commit();
         entityFbb.Clear();
@@ -386,12 +386,12 @@ private slots:
         {
             auto deleteCommand = deleteEntityCommand(uid, 1);
             pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size());
-            QCOMPARE(testProcessor.deletedUids.size(), 1);
-            QCOMPARE(testProcessor.deletedUids.size(), 1);
-            QCOMPARE(testProcessor.deletedSummaries.size(), 1);
+            QCOMPARE(testProcessor->deletedUids.size(), 1);
+            QCOMPARE(testProcessor->deletedUids.size(), 1);
+            QCOMPARE(testProcessor->deletedSummaries.size(), 1);
             // Key doesn't contain revision and is just the uid
-            QCOMPARE(testProcessor.deletedUids.at(0), Sink::Storage::uidFromKey(testProcessor.deletedUids.at(0)));
-            QCOMPARE(testProcessor.deletedSummaries.at(0), QByteArray("summary2"));
+            QCOMPARE(testProcessor->deletedUids.at(0), Sink::Storage::uidFromKey(testProcessor->deletedUids.at(0)));
+            QCOMPARE(testProcessor->deletedSummaries.at(0), QByteArray("summary2"));
         }
     }
 };
