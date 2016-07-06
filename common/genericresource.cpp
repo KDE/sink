@@ -279,26 +279,15 @@ GenericResource::GenericResource(const QByteArray &resourceType, const QByteArra
         }
         return KAsync::error<void>(-1, "Invalid inspection command.");
     });
-    QObject::connect(mProcessor, &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
-    QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
+    {
+        auto ret =QObject::connect(mProcessor, &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
+        Q_ASSERT(ret);
+    }
+    {
+        auto ret = QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
+        Q_ASSERT(ret);
+    }
     mClientLowerBoundRevision = mPipeline->cleanedUpRevision();
-
-    QObject::connect(mChangeReplay.data(), &ChangeReplay::replayingChanges, [this]() {
-        Sink::Notification n;
-        n.id = "changereplay";
-        n.type = Sink::Notification::Status;
-        n.message = "Replaying changes.";
-        n.code = Sink::ApplicationDomain::BusyStatus;
-        emit notify(n);
-    });
-    QObject::connect(mChangeReplay.data(), &ChangeReplay::changesReplayed, [this]() {
-        Sink::Notification n;
-        n.id = "changereplay";
-        n.type = Sink::Notification::Status;
-        n.message = "All changes have been replayed.";
-        n.code = Sink::ApplicationDomain::ConnectedStatus;
-        emit notify(n);
-    });
 
     mCommitQueueTimer.setInterval(sCommitInterval);
     mCommitQueueTimer.setSingleShot(true);
@@ -346,6 +335,29 @@ void GenericResource::setupSynchronizer(const QSharedPointer<Synchronizer> &sync
 void GenericResource::setupChangereplay(const QSharedPointer<ChangeReplay> &changeReplay)
 {
     mChangeReplay = changeReplay;
+    {
+        auto ret = QObject::connect(mChangeReplay.data(), &ChangeReplay::replayingChanges, [this]() {
+            Sink::Notification n;
+            n.id = "changereplay";
+            n.type = Sink::Notification::Status;
+            n.message = "Replaying changes.";
+            n.code = Sink::ApplicationDomain::BusyStatus;
+            emit notify(n);
+        });
+        Q_ASSERT(ret);
+    }
+    {
+        auto ret = QObject::connect(mChangeReplay.data(), &ChangeReplay::changesReplayed, [this]() {
+            Sink::Notification n;
+            n.id = "changereplay";
+            n.type = Sink::Notification::Status;
+            n.message = "All changes have been replayed.";
+            n.code = Sink::ApplicationDomain::ConnectedStatus;
+            emit notify(n);
+        });
+        Q_ASSERT(ret);
+    }
+
     mProcessor->setOldestUsedRevision(mChangeReplay->getLastReplayedRevision());
     enableChangeReplay(true);
 }
