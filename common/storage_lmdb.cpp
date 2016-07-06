@@ -103,6 +103,21 @@ Storage::NamedDatabase::NamedDatabase(NamedDatabase::Private *prv) : d(prv)
 {
 }
 
+Storage::NamedDatabase::NamedDatabase(NamedDatabase &&other) : d(nullptr)
+{
+    *this = std::move(other);
+}
+
+Storage::NamedDatabase &Storage::NamedDatabase::operator=(Storage::NamedDatabase &&other)
+{
+    if (&other != this) {
+        delete d;
+        d = other.d;
+        other.d = nullptr;
+    }
+    return *this;
+}
+
 Storage::NamedDatabase::~NamedDatabase()
 {
     delete d;
@@ -398,6 +413,21 @@ Storage::Transaction::Transaction(Transaction::Private *prv) : d(prv)
     d->startTransaction();
 }
 
+Storage::Transaction::Transaction(Transaction &&other) : d(nullptr)
+{
+    *this = std::move(other);
+}
+
+Storage::Transaction &Storage::Transaction::operator=(Storage::Transaction &&other)
+{
+    if (&other != this) {
+        delete d;
+        d = other.d;
+        other.d = nullptr;
+    }
+    return *this;
+}
+
 Storage::Transaction::~Transaction()
 {
     if (d && d->transaction) {
@@ -532,6 +562,7 @@ QList<QByteArray> Storage::Transaction::getDatabaseNames() const
                 Warning() << "Failed to get a value" << rc;
             }
         }
+        mdb_cursor_close(cursor);
     } else {
         Warning() << "Failed to open db" << rc << QByteArray(mdb_strerror(rc));
     }
@@ -594,6 +625,8 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m) : st
                 } else {
                     // FIXME: dynamic resize
                     const size_t dbSize = (size_t)10485760 * (size_t)8000; // 1MB * 8000
+                    // In order to run valgrind this size must be smaller than half your available RAM
+                    // https://github.com/BVLC/caffe/issues/2404
                     mdb_env_set_mapsize(env, dbSize);
                     sEnvironments.insert(fullPath, env);
                 }

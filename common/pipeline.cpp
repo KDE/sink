@@ -79,6 +79,10 @@ Pipeline::Pipeline(const QString &resourceName, QObject *parent) : QObject(paren
 
 Pipeline::~Pipeline()
 {
+    d->transaction = Storage::Transaction();
+    for (const auto &t : d->processors.keys()) {
+        qDeleteAll(d->processors.value(t));
+    }
     delete d;
 }
 
@@ -108,9 +112,9 @@ void Pipeline::startTransaction()
     Trace() << "Starting transaction.";
     d->transactionTime.start();
     d->transactionItemCount = 0;
-    d->transaction = std::move(storage().createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
+    d->transaction = storage().createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
         Warning() << error.message;
-    }));
+    });
 
     //FIXME this is a temporary measure to recover from a failure to open the named databases correctly.
     //Once the actual problem is fixed it will be enough to simply crash if we open the wrong database (which we check in openDatabase already).

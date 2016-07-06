@@ -85,6 +85,11 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
 
 Listener::~Listener()
 {
+    closeAllConnections();
+    delete m_resource;
+    delete m_checkConnectionsTimer;
+    delete m_clientBufferProcessesTimer;
+    delete m_server;
 }
 
 void Listener::emergencyAbortAllConnections()

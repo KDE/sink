@@ -103,18 +103,8 @@ public:
          */
         bool contains(const QByteArray &uid);
 
-        NamedDatabase(NamedDatabase &&other) : d(other.d)
-        {
-            d = other.d;
-            other.d = nullptr;
-        }
-
-        NamedDatabase &operator=(NamedDatabase &&other)
-        {
-            d = other.d;
-            other.d = nullptr;
-            return *this;
-        }
+        NamedDatabase(NamedDatabase &&other);
+        NamedDatabase &operator=(NamedDatabase &&other);
 
         operator bool() const
         {
@@ -146,17 +136,8 @@ public:
         NamedDatabase openDatabase(const QByteArray &name = QByteArray("default"),
             const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool allowDuplicates = false) const;
 
-        Transaction(Transaction &&other) : d(other.d)
-        {
-            d = other.d;
-            other.d = nullptr;
-        }
-        Transaction &operator=(Transaction &&other)
-        {
-            d = other.d;
-            other.d = nullptr;
-            return *this;
-        }
+        Transaction(Transaction &&other);
+        Transaction &operator=(Transaction &&other);
 
         operator bool() const;
 

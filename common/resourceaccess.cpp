@@ -643,6 +643,7 @@ Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &ins
     }
     if (!mTimer.contains(instanceIdentifier)) {
         auto timer = new QTimer;
+        timer->setSingleShot(true);
         // Drop connection after 3 seconds (which is a random value)
         QObject::connect(timer, &QTimer::timeout, timer, [this, instanceIdentifier]() { mCache.remove(instanceIdentifier); });
         timer->setInterval(3000);

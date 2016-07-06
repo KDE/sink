@@ -145,7 +145,7 @@ private:
  *
  * This avoids constantly recreating connections, and should allow a single process to have one connection per resource.
  */
-class ResourceAccessFactory
+class SINK_EXPORT ResourceAccessFactory
 {
 public:
     static ResourceAccessFactory &instance();
