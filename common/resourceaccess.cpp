@@ -581,6 +581,10 @@ bool ResourceAccess::processMessageBuffer()
                     queuedInvoke([=]() { emit notification(n); }, this);
                 } break;
                 case Sink::Notification::Status:
+                    if (mResourceStatus == buffer->code()) {
+                        Trace() << "Got an unnecessary status notification";
+                        break;
+                    }
                     mResourceStatus = buffer->code();
                     [[clang::fallthrough]];
                 case Sink::Notification::Warning:
