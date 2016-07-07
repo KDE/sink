@@ -110,7 +110,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
         mResultProvider->initialResultSetComplete(typename DomainType::Ptr());
         mResultProvider->complete();
     });
-    mResultProvider->onDone([=]() { delete guard; });
+    mResultProvider->onDone([=]() { delete guard; delete this; });
 }
 
 // QByteArrayList getMatchingEntries(const Query &query)
