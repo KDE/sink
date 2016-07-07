@@ -45,6 +45,7 @@ void Sink::Test::initTest()
     QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation)).removeRecursively();
     // qDebug() << "Removing " << QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation);
     QDir(QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation)).removeRecursively();
+    Log::setPrimaryComponent("test");
 }
 
 void Sink::Test::setTestModeEnabled(bool enabled)

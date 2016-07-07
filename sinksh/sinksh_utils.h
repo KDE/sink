@@ -40,6 +40,7 @@ QStringList resourceIds();
 QStringList resourceCompleter(const QStringList &, const QString &fragment, State &state);
 QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &fragment, State &state);
 QStringList typeCompleter(const QStringList &commands, const QString &fragment, State &state);
+QStringList debugareaCompleter(const QStringList &, const QString &fragment, State &state);
 QMap<QString, QString> keyValueMapFromArgs(const QStringList &args);
 
 /**

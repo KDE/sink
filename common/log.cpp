@@ -16,6 +16,12 @@ static QSharedPointer<QSettings> config()
     return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/log.ini", QSettings::IniFormat);
 }
 
+static QByteArray sPrimaryComponent;
+void Sink::Log::setPrimaryComponent(const QString &component)
+{
+    sPrimaryComponent = component.toUtf8();
+}
+
 class DebugStream : public QIODevice
 {
 public:

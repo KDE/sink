@@ -162,6 +162,7 @@ int main(int argc, char *argv[])
     const QByteArray instanceIdentifier = arguments.at(1);
     const QByteArray resourceType = arguments.at(2);
     app.setApplicationName(instanceIdentifier);
+    Sink::Log::setPrimaryComponent(instanceIdentifier);
     Log() << "Starting: " << instanceIdentifier;
 
     QLockFile lockfile(instanceIdentifier + ".lock");

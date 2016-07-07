@@ -113,6 +113,14 @@ QStringList resourceIds(State &state)
     return resources;
 }
 
+QStringList debugareaCompleter(const QStringList &, const QString &fragment, State &state)
+{
+    QStringList list;
+    list << "foo.bar" << "tar.war" << "bluub";
+    // return Utils::filteredCompletions(debugAreas(state), fragment);
+    return Utils::filteredCompletions(list, fragment);
+}
+
 QStringList resourceCompleter(const QStringList &, const QString &fragment, State &state)
 {
     return Utils::filteredCompletions(resourceIds(state), fragment);
@@ -120,11 +128,7 @@ QStringList resourceCompleter(const QStringList &, const QString &fragment, Stat
 
 QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &fragment, State &state)
 {
-    static QStringList types = QStringList() << "resource"
-                                             << "folder"
-                                             << "mail"
-                                             << "event"
-                                             << "account";
+    static QStringList types = s_types;
     if (commands.count() == 1) {
         return Utils::filteredCompletions(s_types, fragment);
     }
