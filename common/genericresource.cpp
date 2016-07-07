@@ -240,7 +240,7 @@ GenericResource::GenericResource(const QByteArray &resourceType, const QByteArra
       mClientLowerBoundRevision(std::numeric_limits<qint64>::max())
 {
     mPipeline->setResourceType(mResourceType);
-    mProcessor = new CommandProcessor(mPipeline.data(), QList<MessageQueue *>() << &mUserQueue << &mSynchronizerQueue);
+    mProcessor = std::unique_ptr<CommandProcessor>(new CommandProcessor(mPipeline.data(), QList<MessageQueue *>() << &mUserQueue << &mSynchronizerQueue));
     mProcessor->setInspectionCommand([this](void const *command, size_t size) {
         flatbuffers::Verifier verifier((const uint8_t *)command, size);
         if (Sink::Commands::VerifyInspectionBuffer(verifier)) {
@@ -280,7 +280,7 @@ GenericResource::GenericResource(const QByteArray &resourceType, const QByteArra
         return KAsync::error<void>(-1, "Invalid inspection command.");
     });
     {
-        auto ret =QObject::connect(mProcessor, &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
+        auto ret =QObject::connect(mProcessor.get(), &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
         Q_ASSERT(ret);
     }
     {
@@ -296,7 +296,6 @@ GenericResource::GenericResource(const QByteArray &resourceType, const QByteArra
 
 GenericResource::~GenericResource()
 {
-    delete mProcessor;
 }
 
 KAsync::Job<void> GenericResource::inspect(

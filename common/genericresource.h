@@ -77,7 +77,7 @@ protected:
     QSharedPointer<Pipeline> mPipeline;
 
 private:
-    CommandProcessor *mProcessor;
+    std::unique_ptr<CommandProcessor> mProcessor;
     QSharedPointer<ChangeReplay> mChangeReplay;
     QSharedPointer<Synchronizer> mSynchronizer;
     int mError;

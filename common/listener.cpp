@@ -47,11 +47,10 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
       m_server(new QLocalServer(this)),
       m_resourceName(resourceType),
       m_resourceInstanceIdentifier(resourceInstanceIdentifier),
-      m_resource(0),
       m_clientBufferProcessesTimer(new QTimer(this)),
       m_messageId(0)
 {
-    connect(m_server, &QLocalServer::newConnection, this, &Listener::acceptConnection);
+    connect(m_server.get(), &QLocalServer::newConnection, this, &Listener::acceptConnection);
     Trace() << "Trying to open " << m_resourceInstanceIdentifier;
 
     if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
@@ -66,10 +65,10 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
         Log() << QString("Listening on %1").arg(m_server->serverName());
     }
 
-    m_checkConnectionsTimer = new QTimer;
+    m_checkConnectionsTimer = std::unique_ptr<QTimer>(new QTimer);
     m_checkConnectionsTimer->setSingleShot(true);
     m_checkConnectionsTimer->setInterval(1000);
-    connect(m_checkConnectionsTimer, &QTimer::timeout, [this]() {
+    connect(m_checkConnectionsTimer.get(), &QTimer::timeout, [this]() {
         if (m_connections.isEmpty()) {
             Log() << QString("No connections, shutting down.");
             quit();
@@ -80,16 +79,12 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
     //      or even just drop down to invoking the method queued? => invoke queued unless we need throttling
     m_clientBufferProcessesTimer->setInterval(0);
     m_clientBufferProcessesTimer->setSingleShot(true);
-    connect(m_clientBufferProcessesTimer, &QTimer::timeout, this, &Listener::processClientBuffers);
+    connect(m_clientBufferProcessesTimer.get(), &QTimer::timeout, this, &Listener::processClientBuffers);
 }
 
 Listener::~Listener()
 {
     closeAllConnections();
-    delete m_resource;
-    delete m_checkConnectionsTimer;
-    delete m_clientBufferProcessesTimer;
-    delete m_server;
 }
 
 void Listener::emergencyAbortAllConnections()
@@ -140,7 +135,7 @@ void Listener::acceptConnection()
 
     // If this is the first client, set the lower limit for revision cleanup
     if (m_connections.size() == 1) {
-        loadResource()->setLowerBoundRevision(0);
+        loadResource().setLowerBoundRevision(0);
     }
 
     if (socket->bytesAvailable()) {
@@ -177,7 +172,7 @@ void Listener::checkConnections()
 {
     // If this was the last client, disengage the lower limit for revision cleanup
     if (m_connections.isEmpty()) {
-        loadResource()->setLowerBoundRevision(std::numeric_limits<qint64>::max());
+        loadResource().setLowerBoundRevision(std::numeric_limits<qint64>::max());
     }
     m_checkConnectionsTimer->start();
 }
@@ -249,10 +244,10 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 timer->start();
                 auto job = KAsync::null<void>();
                 if (buffer->sourceSync()) {
-                    job = loadResource()->synchronizeWithSource();
+                    job = loadResource().synchronizeWithSource();
                 }
                 if (buffer->localSync()) {
-                    job = job.then<void>(loadResource()->processAllMessages());
+                    job = job.then<void>(loadResource().processAllMessages());
                 }
                 job.then<void>([callback, timer]() {
                        Trace() << "Sync took " << Sink::Log::TraceTime(timer->elapsed());
@@ -274,7 +269,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         case Sink::Commands::ModifyEntityCommand:
         case Sink::Commands::CreateEntityCommand:
             Trace() << "Command id  " << messageId << " of type \"" << Sink::Commands::name(commandId) << "\" from " << client.name;
-            loadResource()->processCommand(commandId, commandBuffer);
+            loadResource().processCommand(commandId, commandBuffer);
             break;
         case Sink::Commands::ShutdownCommand:
             Log() << QString("Received shutdown command from %1").arg(client.name);
@@ -294,20 +289,19 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             } else {
                 Warning() << "received invalid command";
             }
-            loadResource()->setLowerBoundRevision(lowerBoundRevision());
+            loadResource().setLowerBoundRevision(lowerBoundRevision());
         } break;
         case Sink::Commands::RemoveFromDiskCommand: {
             Log() << QString("Received a remove from disk command from %1").arg(client.name);
-            delete m_resource;
-            m_resource = nullptr;
-            loadResource()->removeDataFromDisk();
+            m_resource.reset(nullptr);
+            loadResource().removeDataFromDisk();
             m_server->close();
             QTimer::singleShot(0, this, &Listener::quit);
         } break;
         default:
             if (commandId > Sink::Commands::CustomCommand) {
                 Log() << QString("Received custom command from %1: ").arg(client.name) << commandId;
-                loadResource()->processCommand(commandId, commandBuffer);
+                loadResource().processCommand(commandId, commandBuffer);
             } else {
                 success = false;
                 ErrorMsg() << QString("\tReceived invalid command from %1: ").arg(client.name) << commandId;
@@ -437,25 +431,25 @@ void Listener::notify(const Sink::Notification &notification)
     m_fbb.Clear();
 }
 
-Sink::Resource *Listener::loadResource()
+Sink::Resource &Listener::loadResource()
 {
     if (!m_resource) {
         if (Sink::ResourceFactory *resourceFactory = Sink::ResourceFactory::load(m_resourceName)) {
-            m_resource = resourceFactory->createResource(m_resourceInstanceIdentifier);
+            m_resource = std::unique_ptr<Sink::Resource>(resourceFactory->createResource(m_resourceInstanceIdentifier));
             if (!m_resource) {
                 ErrorMsg() << "Failed to instantiate the resource " << m_resourceName;
-                m_resource = new Sink::Resource;
+                m_resource = std::unique_ptr<Sink::Resource>(new Sink::Resource);
             }
             Trace() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
-            Trace() << QString("\tResource: %1").arg((qlonglong)m_resource);
-            connect(m_resource, &Sink::Resource::revisionUpdated, this, &Listener::refreshRevision);
-            connect(m_resource, &Sink::Resource::notify, this, &Listener::notify);
+            Trace() << QString("\tResource: %1").arg((qlonglong)m_resource.get());
+            connect(m_resource.get(), &Sink::Resource::revisionUpdated, this, &Listener::refreshRevision);
+            connect(m_resource.get(), &Sink::Resource::notify, this, &Listener::notify);
         } else {
             ErrorMsg() << "Failed to load resource " << m_resourceName;
-            m_resource = new Sink::Resource;
+            m_resource = std::unique_ptr<Sink::Resource>(new Sink::Resource);
         }
     }
-    return m_resource;
+    return *m_resource;
 }
 
 #pragma clang diagnostic push

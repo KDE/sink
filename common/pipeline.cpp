@@ -52,7 +52,7 @@ public:
 
     Storage storage;
     Storage::Transaction transaction;
-    QHash<QString, QVector<Preprocessor *>> processors;
+    QHash<QString, QVector<QSharedPointer<Preprocessor>>> processors;
     bool revisionChanged;
     void storeNewRevision(qint64 newRevision, const flatbuffers::FlatBufferBuilder &fbb, const QByteArray &bufferType, const QByteArray &uid);
     QTime transactionTime;
@@ -80,18 +80,16 @@ Pipeline::Pipeline(const QString &resourceName, QObject *parent) : QObject(paren
 Pipeline::~Pipeline()
 {
     d->transaction = Storage::Transaction();
-    for (const auto &t : d->processors.keys()) {
-        qDeleteAll(d->processors.value(t));
-    }
-    delete d;
 }
 
 void Pipeline::setPreprocessors(const QString &entityType, const QVector<Preprocessor *> &processors)
 {
+    auto &list = d->processors[entityType];
+    list.clear();
     for (auto p : processors) {
         p->setup(d->resourceType, d->resourceInstanceIdentifier, this);
+        list.append(QSharedPointer<Preprocessor>(p));
     }
-    d->processors[entityType] = processors;
 }
 
 void Pipeline::setResourceType(const QByteArray &resourceType)
@@ -216,7 +214,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 
     auto adaptor = adaptorFactory->createAdaptor(*entity);
     auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create(*(adaptor), adaptor->availableProperties());
-    for (auto processor : d->processors[bufferType]) {
+    foreach (const auto &processor, d->processors[bufferType]) {
         processor->newEntity(key, Storage::maxRevision(d->transaction) + 1, *memoryAdaptor, d->transaction);
     }
     //The maxRevision may have changed meanwhile if the entity created sub-entities
@@ -325,7 +323,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     }
 
     newAdaptor->resetChangedProperties();
-    for (auto processor : d->processors[bufferType]) {
+    foreach (const auto &processor, d->processors[bufferType]) {
         processor->modifiedEntity(key, Storage::maxRevision(d->transaction) + 1, *current, *newAdaptor, d->transaction);
     }
     //The maxRevision may have changed meanwhile if the entity created sub-entities
@@ -432,7 +430,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 
     d->storeNewRevision(newRevision, fbb, bufferType, key);
 
-    for (auto processor : d->processors[bufferType]) {
+    foreach (const auto &processor, d->processors[bufferType]) {
         processor->deletedEntity(key, newRevision, *current, d->transaction);
     }
 
@@ -485,7 +483,6 @@ Preprocessor::Preprocessor() : d(new Preprocessor::Private)
 
 Preprocessor::~Preprocessor()
 {
-    delete d;
 }
 
 void Preprocessor::setup(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Pipeline *pipeline)
