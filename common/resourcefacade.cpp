@@ -22,6 +22,7 @@
 #include "query.h"
 #include "definitions.h"
 #include "storage.h"
+#include "store.h"
 #include "resourceaccess.h"
 #include <QDir>
 
@@ -247,13 +248,7 @@ ResourceFacade::~ResourceFacade()
 KAsync::Job<void> ResourceFacade::remove(const Sink::ApplicationDomain::SinkResource &resource)
 {
     const auto identifier = resource.identifier();
-    return LocalStorageFacade<Sink::ApplicationDomain::SinkResource>::remove(resource).then<void>([identifier]() {
-        // TODO shutdown resource, or use the resource process with a --remove option to cleanup (so we can take advantage of the file locking)
-        QDir dir(Sink::storageLocation());
-        for (const auto &folder : dir.entryList(QStringList() << identifier + "*")) {
-            Sink::Storage(Sink::storageLocation(), folder, Sink::Storage::ReadWrite).removeFromDisk();
-        }
-    });
+    return Sink::Store::removeDataFromDisk(identifier).then(LocalStorageFacade<Sink::ApplicationDomain::SinkResource>::remove(resource));
 }
 
 QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain::SinkResource::Ptr>::Ptr> ResourceFacade::load(const Sink::Query &query)
