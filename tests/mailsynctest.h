@@ -41,6 +41,7 @@ protected:
     QByteArray mResourceInstanceIdentifier;
     QByteArrayList mCapabilities;
 
+    virtual bool isBackendAvailable() { return true; }
     virtual void resetTestEnvironment() = 0;
     virtual Sink::ApplicationDomain::SinkResource createResource() = 0;
     virtual Sink::ApplicationDomain::SinkResource createFaultyResource() = 0;

@@ -34,6 +34,7 @@ using namespace Sink::ApplicationDomain;
 void MailTest::initTestCase()
 {
     Test::initTest();
+    QVERIFY(isBackendAvailable());
     Log::setDebugOutputLevel(Sink::Log::Trace);
     resetTestEnvironment();
     auto resource = createResource();

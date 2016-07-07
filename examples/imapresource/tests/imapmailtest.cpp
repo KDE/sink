@@ -1,4 +1,5 @@
 #include <QtTest>
+#include <QTcpSocket>
 
 #include <tests/mailtest.h>
 
@@ -18,6 +19,13 @@ class ImapMailTest : public Sink::MailTest
     Q_OBJECT
 
 protected:
+    bool isBackendAvailable() Q_DECL_OVERRIDE
+    {
+        QTcpSocket socket;
+        socket.connectToHost("localhost", 993);
+        return socket.waitForConnected(200);
+    }
+
     void resetTestEnvironment() Q_DECL_OVERRIDE
     {
         system("resetmailbox.sh");

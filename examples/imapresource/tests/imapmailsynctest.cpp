@@ -17,6 +17,7 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 #include <QtTest>
+#include <QTcpSocket>
 
 #include <tests/mailsynctest.h>
 #include "../imapresource.h"
@@ -38,6 +39,13 @@ class ImapMailSyncTest : public Sink::MailSyncTest
     Q_OBJECT
 
 protected:
+    bool isBackendAvailable() Q_DECL_OVERRIDE
+    {
+        QTcpSocket socket;
+        socket.connectToHost("localhost", 993);
+        return socket.waitForConnected(200);
+    }
+
     void resetTestEnvironment() Q_DECL_OVERRIDE
     {
         system("resetmailbox.sh");
