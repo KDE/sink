@@ -63,12 +63,14 @@ public:
     typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
     void setStatusUpdater(const std::function<void(DomainType &)> &);
     void statusChanged(const QByteArray &identifier);
+    QObject *guard() const;
 
 private:
     void updateStatus(DomainType &entity);
     std::function<void(DomainType &)> mStatusUpdater;
     QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr>> mResultProvider;
     ConfigStore mConfigStore;
+    std::unique_ptr<QObject> mGuard;
 };
 
 template <typename DomainType>

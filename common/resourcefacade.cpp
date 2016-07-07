@@ -57,7 +57,7 @@ static bool matchesFilter(const QHash<QByteArray, Query::Comparator> &filter, co
 
 template<typename DomainType>
 LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query, const QByteArray &identifier, ConfigNotifier &configNotifier)
-    : mResultProvider(new ResultProvider<typename DomainType::Ptr>), mConfigStore(identifier)
+    : mResultProvider(new ResultProvider<typename DomainType::Ptr>), mConfigStore(identifier), mGuard(new QObject)
 {
     QObject *guard = new QObject;
     mResultProvider->setFetcher([this, query, guard, &configNotifier](const QSharedPointer<DomainType> &) {
@@ -139,6 +139,11 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
 //
 // }
 
+template<typename DomainType>
+QObject *LocalStorageQueryRunner<DomainType>::guard() const
+{
+    return mGuard.get();
+}
 
 template<typename DomainType>
 void LocalStorageQueryRunner<DomainType>::updateStatus(DomainType &entity)
@@ -284,8 +289,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
     runner->setStatusUpdater([runner, monitoredResources](ApplicationDomain::SinkResource &resource) {
         auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource.identifier(), ResourceConfig::getResourceType(resource.identifier()));
         if (!monitoredResources->contains(resource.identifier())) {
-            //TODO disconnect at some point when the runner is done
-            auto ret = QObject::connect(resourceAccess.data(), &ResourceAccess::notification, [resource, runner, resourceAccess](const Notification &notification) {
+            auto ret = QObject::connect(resourceAccess.data(), &ResourceAccess::notification, runner->guard(), [resource, runner, resourceAccess](const Notification &notification) {
                 Trace() << "Received notification in facade: " << notification.type;
                 if (notification.type == Notification::Status) {
                     runner->statusChanged(resource.identifier());
