@@ -113,32 +113,6 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
     mResultProvider->onDone([=]() { delete guard; delete this; });
 }
 
-// QByteArrayList getMatchingEntries(const Query &query)
-// {
-//         const auto entries = mConfigStore.getEntries();
-//         for (const auto &res : entries.keys()) {
-//             const auto type = entries.value(res);
-//
-//             if (query.propertyFilter.contains("type") && query.propertyFilter.value("type").value.toByteArray() != type) {
-//                 Trace() << "Skipping due to type.";
-//                 continue;
-//             }
-//             if (!query.ids.isEmpty() && !query.ids.contains(res)) {
-//                 continue;
-//             }
-//             const auto configurationValues = mConfigStore.get(res);
-//             if (!matchesFilter(query.propertyFilter, configurationValues)){
-//                 Trace() << "Skipping due to filter.";
-//                 continue;
-//             }
-//             Trace() << "Found match " << res;
-//             auto entity = readFromConfig<DomainType>(mConfigStore, res, type);
-//             updateStatus(*entity);
-//             mResultProvider->add(entity);
-//         }
-//
-// }
-
 template<typename DomainType>
 QObject *LocalStorageQueryRunner<DomainType>::guard() const
 {
