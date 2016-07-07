@@ -15,6 +15,7 @@ enum DebugLevel
 };
 
 void SINK_EXPORT setPrimaryComponent(const QString &component);
+QSet<QString> SINK_EXPORT debugAreas();
 
 QByteArray SINK_EXPORT debugLevelName(DebugLevel debugLevel);
 DebugLevel SINK_EXPORT debugLevelFromName(const QByteArray &name);

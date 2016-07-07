@@ -21,6 +21,7 @@
 #include "sinksh_utils.h"
 
 #include "common/store.h"
+#include "common/log.h"
 
 #include "utils.h"
 
@@ -115,10 +116,7 @@ QStringList resourceIds(State &state)
 
 QStringList debugareaCompleter(const QStringList &, const QString &fragment, State &state)
 {
-    QStringList list;
-    list << "foo.bar" << "tar.war" << "bluub";
-    // return Utils::filteredCompletions(debugAreas(state), fragment);
-    return Utils::filteredCompletions(list, fragment);
+    return Utils::filteredCompletions(Sink::Log::debugAreas().toList(), fragment);
 }
 
 QStringList resourceCompleter(const QStringList &, const QString &fragment, State &state)

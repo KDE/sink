@@ -6,8 +6,11 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <QSharedPointer>
+#include <QMutex>
+#include <QMutexLocker>
 #include <iostream>
 #include <unistd.h>
+#include <memory>
 
 using namespace Sink::Log;
 
@@ -218,9 +221,63 @@ static QByteArray getProgramName()
     }
 }
 
+static QSharedPointer<QSettings> debugAreasConfig()
+{
+    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/debugAreas.ini", QSettings::IniFormat);
+}
+
+class DebugAreaCollector {
+public:
+    DebugAreaCollector()
+    {
+        QMutexLocker locker(&mutex);
+        mDebugAreas = debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+    }
+
+    ~DebugAreaCollector()
+    {
+        QMutexLocker locker(&mutex);
+        mDebugAreas += debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+        debugAreasConfig()->setValue("areas", QVariant::fromValue(mDebugAreas.toList().join(';')));
+    }
+
+    void add(const QString &area)
+    {
+        QMutexLocker locker(&mutex);
+        mDebugAreas << area;
+    }
+
+    QSet<QString> debugAreas()
+    {
+        QMutexLocker locker(&mutex);
+        return mDebugAreas;
+    }
+
+    QMutex mutex;
+    QSet<QString> mDebugAreas;
+};
+
+static auto sDebugAreaCollector = std::unique_ptr<DebugAreaCollector>(new DebugAreaCollector);
+
+QSet<QString> Sink::Log::debugAreas()
+{
+    return sDebugAreaCollector->debugAreas();
+}
+
+static void collectDebugArea(const QString &debugArea)
+{
+    sDebugAreaCollector->add(debugArea);
+}
+
 static bool containsItemStartingWith(const QByteArray &pattern, const QByteArrayList &list)
 {
     for (const auto &item : list) {
+        if (item.startsWith('*')) {
+            auto stripped = item.mid(1);
+            if (pattern.contains(stripped)) {
+                return true;
+            }
+        }
         if (pattern.startsWith(item)) {
             return true;
         }
@@ -248,9 +305,9 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     if (sPrimaryComponent.isEmpty()) {
         sPrimaryComponent = getProgramName();
     }
-    QString fullDebugArea = sPrimaryComponent + "."+ QString::fromLatin1(debugComponent) + "." + QString::fromLatin1(debugArea);
+    QString fullDebugArea = sPrimaryComponent + "." + (debugComponent ? (QString::fromLatin1(debugComponent) + ".") : "") + (debugArea ? QString::fromLatin1(debugArea) : "");
 
-    //TODO add to autocompletion
+    collectDebugArea(fullDebugArea);
 
     auto areas = debugOutputFilter(Sink::Log::Area);
     if (!areas.isEmpty()) {
@@ -258,14 +315,6 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
             return QDebug(&nullstream);
         }
     }
-    // static QByteArray programName = getProgramName();
-    //
-    // auto filter = debugOutputFilter(Sink::Log::ApplicationName);
-    // if (!filter.isEmpty() && !filter.contains(programName)) {
-    //     if (!containsItemStartingWith(programName, filter)) {
-    //         return QDebug(&nullstream);
-    //     }
-    // }
 
     QString prefix;
     int prefixColorCode = ANSI_Colors::DoNothing;

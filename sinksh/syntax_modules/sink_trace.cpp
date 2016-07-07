@@ -35,21 +35,6 @@
 namespace SinkTrace
 {
 
-bool trace(const QStringList &args, State &state)
-{
-    // if (args.isEmpty()) {
-    //     state.printError(QObject::tr("Specifiy a debug area to trace."));
-    //     return false;
-    // }
-    //
-    //
-    qDebug() << "Trace arguments: " << args;
-    Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
-    // Sink::Log::setDebugOutputFilter(Sink::Log::FilterType::Area, "filter");
-
-    return true;
-}
-
 bool traceOff(const QStringList &args, State &state)
 {
     Sink::Log::setDebugOutputLevel(Sink::Log::Log);
@@ -57,12 +42,39 @@ bool traceOff(const QStringList &args, State &state)
     return true;
 }
 
+bool traceOn(const QStringList &args, State &state)
+{
+    if (args.isEmpty()) {
+        state.printError(QObject::tr("Specifiy a debug area to trace: ") + Sink::Log::debugAreas().toList().join(", "));
+        return false;
+    }
+    Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
+    QByteArrayList filter;
+    for (const auto &arg : args) {
+        filter << arg.toLatin1();
+    }
+    Sink::Log::setDebugOutputFilter(Sink::Log::Area, filter);
+    return true;
+}
+
+bool trace(const QStringList &args, State &state)
+{
+    return traceOn(args, state);
+}
+
+
 Syntax::List syntax()
 {
     Syntax trace("trace", QObject::tr("Control trace debug output."), &SinkTrace::trace, Syntax::NotInteractive);
-    trace.completer = &SinkshUtils::debugareaCompleter;
+    trace.completer = &SinkshUtils::debugareaCompleter; 
 
-    trace.children << Syntax("off", QObject::tr("Turns off trace output."), &SinkTrace::traceOff, Syntax::NotInteractive);
+    Syntax traceOff("off", QObject::tr("Turns off trace output."), &SinkTrace::traceOff, Syntax::NotInteractive);
+    traceOff.completer = &SinkshUtils::debugareaCompleter; 
+    trace.children << traceOff;
+
+    Syntax traceOn("on", QObject::tr("Turns on trace output."), &SinkTrace::traceOn, Syntax::NotInteractive);
+    traceOn.completer = &SinkshUtils::debugareaCompleter; 
+    trace.children << traceOn;
 
     return Syntax::List() << trace;
 }
