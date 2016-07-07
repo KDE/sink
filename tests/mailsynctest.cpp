@@ -197,6 +197,10 @@ void MailSyncTest::testListFolderHierarchy()
             QVERIFY(names.contains("Drafts"));
             names.removeAll("Drafts");
         }
+        if (mCapabilities.contains(ResourceCapabilities::Mail::trash)) {
+            QVERIFY(names.contains("Trash"));
+            names.removeAll("Trash");
+        }
         QCOMPARE(names.size(), 3);
         QCOMPARE(map.value("sub")->getParent(), map.value("test")->identifier());
     });
