@@ -48,6 +48,8 @@
 #define ENTITY_TYPE_MAIL "mail"
 #define ENTITY_TYPE_FOLDER "folder"
 
+SINK_DEBUG_AREA("dummyresource")
+
 class DummySynchronizer : public Sink::Synchronizer {
     public:
 
@@ -105,12 +107,12 @@ class DummySynchronizer : public Sink::Synchronizer {
             auto entity = createEntity(remoteId, it.value());
             createOrModify(bufferType, remoteId, *entity);
         }
-        Trace() << "Sync of " << count << " entities of type " << bufferType << " done." << Sink::Log::TraceTime(time->elapsed());
+        SinkTrace() << "Sync of " << count << " entities of type " << bufferType << " done." << Sink::Log::TraceTime(time->elapsed());
     }
 
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
     {
-        Log() << " Synchronizing with the source";
+        SinkLog() << " Synchronizing with the source";
         return KAsync::start<void>([this]() {
             synchronize(ENTITY_TYPE_EVENT, DummyStore::instance().events(), [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data) {
                 return createEvent(ridBuffer, data);
@@ -121,7 +123,7 @@ class DummySynchronizer : public Sink::Synchronizer {
             synchronize(ENTITY_TYPE_FOLDER, DummyStore::instance().folders(), [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data) {
                 return createFolder(ridBuffer, data);
             });
-            Log() << "Done Synchronizing";
+            SinkLog() << "Done Synchronizing";
         });
     }
 
@@ -147,7 +149,7 @@ DummyResource::~DummyResource()
 
 KAsync::Job<void> DummyResource::synchronizeWithSource()
 {
-    Trace() << "Synchronize with source and sending a notification about it";
+    SinkTrace() << "Synchronize with source and sending a notification about it";
     Sink::Notification n;
     n.id = "connected";
     n.type = Sink::Notification::Status;
@@ -160,7 +162,7 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
 KAsync::Job<void> DummyResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
 
-    Trace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
+    SinkTrace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
     if (property == "testInspection") {
         if (expectedValue.toBool()) {
             //Success

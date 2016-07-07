@@ -31,6 +31,8 @@
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
+SINK_DEBUG_AREA("mailsynctest")
+
 void MailSyncTest::initTestCase()
 {
     Test::initTest();
@@ -73,7 +75,7 @@ void MailSyncTest::testListFolders()
                 for (const auto &folder : folders) {
                     names << folder->getName();
                 }
-                Trace() << "base folder: " << names;
+                SinkTrace() << "base folder: " << names;
                 baseCount = folders.size();
             });
         VERIFYEXEC(job);

@@ -24,6 +24,8 @@
 #include "storage.h" //for generateUid()
 #include <QFile>
 
+SINK_DEBUG_AREA("applicationdomaintype");
+
 namespace Sink {
 namespace ApplicationDomain {
 
@@ -82,7 +84,7 @@ QVariant ApplicationDomainType::getProperty(const QByteArray &key) const
 {
     Q_ASSERT(mAdaptor);
     if (!mAdaptor->availableProperties().contains(key)) {
-        Warning() << "No such property available " << key;
+        SinkWarning() << "No such property available " << key;
     }
     return mAdaptor->getProperty(key);
 }
@@ -105,7 +107,7 @@ QByteArray ApplicationDomainType::getBlobProperty(const QByteArray &key) const
     const auto path = getProperty(key).toByteArray();
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
-        ErrorMsg() << "Failed to open the file: " << file.errorString() << path;
+        SinkError() << "Failed to open the file: " << file.errorString() << path;
         return QByteArray();
     }
     return file.readAll();
@@ -116,7 +118,7 @@ void ApplicationDomainType::setBlobProperty(const QByteArray &key, const QByteAr
     const auto path = Sink::temporaryFileLocation() + "/" + QUuid::createUuid().toString();
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
-        ErrorMsg() << "Failed to open the file: " << file.errorString() << path;
+        SinkError() << "Failed to open the file: " << file.errorString() << path;
         return;
     }
     file.write(value);

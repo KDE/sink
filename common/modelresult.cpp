@@ -25,8 +25,7 @@
 #include "domain/folder.h"
 #include "log.h"
 
-#undef DEBUG_AREA
-#define DEBUG_AREA "client.modelresult"
+SINK_DEBUG_AREA("modelresult")
 
 static uint qHash(const Sink::ApplicationDomain::ApplicationDomainType &type)
 {
@@ -123,7 +122,7 @@ QModelIndex ModelResult<T, Ptr>::index(int row, int column, const QModelIndex &p
         const auto childId = list.at(row);
         return createIndex(row, column, childId);
     }
-    Warning() << "Index not available " << row << column << parent;
+    SinkWarning() << "Index not available " << row << column << parent;
     Q_ASSERT(false);
     return QModelIndex();
 }
@@ -174,7 +173,7 @@ bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 template <class T, class Ptr>
 void ModelResult<T, Ptr>::fetchMore(const QModelIndex &parent)
 {
-    Trace() << "Fetching more: " << parent;
+    SinkTrace() << "Fetching more: " << parent;
     fetchEntities(parent);
 }
 
@@ -185,7 +184,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
     const auto id = parentId(value);
     // Ignore updates we get before the initial fetch is done
     if (!mEntityChildrenFetched.contains(id)) {
-        Trace() << "Too early" << id;
+        SinkTrace() << "Too early" << id;
         return;
     }
     auto parent = createIndexFromId(id);
@@ -198,7 +197,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
         }
     }
     if (mEntities.contains(childId)) {
-        Warning() << "Entity already in model " << value->identifier();
+        SinkWarning() << "Entity already in model " << value->identifier();
         return;
     }
     // qDebug() << "Inserting rows " << index << parent;
@@ -234,18 +233,18 @@ void ModelResult<T, Ptr>::fetchEntities(const QModelIndex &parent)
     const auto id = getIdentifier(parent);
     mEntityChildrenFetchComplete.remove(id);
     mEntityChildrenFetched.insert(id);
-    Trace() << "Loading child entities of parent " << id;
+    SinkTrace() << "Loading child entities of parent " << id;
     if (loadEntities) {
         loadEntities(parent.data(DomainObjectRole).template value<Ptr>());
     } else {
-        Warning() << "No way to fetch entities";
+        SinkWarning() << "No way to fetch entities";
     }
 }
 
 template <class T, class Ptr>
 void ModelResult<T, Ptr>::setFetcher(const std::function<void(const Ptr &parent)> &fetcher)
 {
-    Trace() << "Setting fetcher";
+    SinkTrace() << "Setting fetcher";
     loadEntities = fetcher;
 }
 
@@ -270,7 +269,7 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
         });
     });
     emitter->onInitialResultSetComplete([this](const Ptr &parent) {
-        Trace() << "Initial result set complete";
+        SinkTrace() << "Initial result set complete";
         const qint64 parentId = parent ? qHash(*parent) : 0;
         const auto parentIndex = createIndexFromId(parentId);
         mEntityChildrenFetchComplete.insert(parentId);

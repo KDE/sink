@@ -238,27 +238,34 @@ static bool caseInsensitiveContains(const QByteArray &pattern, const QByteArrayL
     return false;
 }
 
-QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea)
+QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea, const char *debugComponent)
 {
     static NullStream nullstream;
     if (debugLevel < debugOutputLevel()) {
         return QDebug(&nullstream);
     }
 
-    auto areas = debugOutputFilter(Sink::Log::Area);
-    if (debugArea && !areas.isEmpty()) {
-        if (!containsItemStartingWith(debugArea, areas)) {
-            return QDebug(&nullstream);
-        }
+    if (sPrimaryComponent.isEmpty()) {
+        sPrimaryComponent = getProgramName();
     }
-    static QByteArray programName = getProgramName();
+    QString fullDebugArea = sPrimaryComponent + "."+ QString::fromLatin1(debugComponent) + "." + QString::fromLatin1(debugArea);
 
-    auto filter = debugOutputFilter(Sink::Log::ApplicationName);
-    if (!filter.isEmpty() && !filter.contains(programName)) {
-        if (!containsItemStartingWith(programName, filter)) {
+    //TODO add to autocompletion
+
+    auto areas = debugOutputFilter(Sink::Log::Area);
+    if (!areas.isEmpty()) {
+        if (!containsItemStartingWith(fullDebugArea.toUtf8(), areas)) {
             return QDebug(&nullstream);
         }
     }
+    // static QByteArray programName = getProgramName();
+    //
+    // auto filter = debugOutputFilter(Sink::Log::ApplicationName);
+    // if (!filter.isEmpty() && !filter.contains(programName)) {
+    //     if (!containsItemStartingWith(programName, filter)) {
+    //         return QDebug(&nullstream);
+    //     }
+    // }
 
     QString prefix;
     int prefixColorCode = ANSI_Colors::DoNothing;
@@ -299,19 +306,17 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     }
     if (showProgram) {
         int width = 10;
-        output += QString(" %1(%2)").arg(QString::fromLatin1(programName).leftJustified(width, ' ', true)).arg(unsigned(getpid())).rightJustified(width + 8, ' ');
+        output += QString(" %1(%2)").arg(QString::fromLatin1(getProgramName()).leftJustified(width, ' ', true)).arg(unsigned(getpid())).rightJustified(width + 8, ' ');
     }
-    if (debugArea) {
-        if (useColor) {
-            output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode);
-        }
-        output += QString(" %1 ").arg(QString::fromLatin1(debugArea).leftJustified(25, ' ', true));
-        if (useColor) {
-            output += resetColor;
-        }
+    if (useColor) {
+        output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode);
+    }
+    output += QString(" %1 ").arg(fullDebugArea.leftJustified(25, ' ', true));
+    if (useColor) {
+        output += resetColor;
     }
     if (showFunction) {
-        output += QString(" %3").arg(QString::fromLatin1(function).leftJustified(25, ' ', true));
+        output += QString(" %3").arg(fullDebugArea.leftJustified(25, ' ', true));
     }
     if (showLocation) {
         const auto filename = QString::fromLatin1(file).split('/').last();

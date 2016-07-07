@@ -37,6 +37,8 @@
 
 #include "log.h"
 
+SINK_DEBUG_AREA("imapserverproxy")
+
 using namespace Imap;
 
 const char* Imap::Flags::Seen = "\\Seen";
@@ -54,16 +56,16 @@ static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
 {
     return KAsync::start<T>([job, f](KAsync::Future<T> &future) {
         QObject::connect(job, &KJob::result, [&future, f](KJob *job) {
-            Trace() << "Job done: " << job->metaObject()->className();
+            SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
-                Warning() << "Job failed: " << job->errorString();
+                SinkWarning() << "Job failed: " << job->errorString();
                 future.setError(job->error(), job->errorString());
             } else {
                 future.setValue(f(job));
                 future.setFinished();
             }
         });
-        Trace() << "Starting job: " << job->metaObject()->className();
+        SinkTrace() << "Starting job: " << job->metaObject()->className();
         job->start();
     });
 }
@@ -72,15 +74,15 @@ static KAsync::Job<void> runJob(KJob *job)
 {
     return KAsync::start<void>([job](KAsync::Future<void> &future) {
         QObject::connect(job, &KJob::result, [&future](KJob *job) {
-            Trace() << "Job done: " << job->metaObject()->className();
+            SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
-                Warning() << "Job failed: " << job->errorString();
+                SinkWarning() << "Job failed: " << job->errorString();
                 future.setError(job->error(), job->errorString());
             } else {
                 future.setFinished();
             }
         });
-        Trace() << "Starting job: " << job->metaObject()->className();
+        SinkTrace() << "Starting job: " << job->metaObject()->className();
         job->start();
     });
 }
@@ -117,11 +119,11 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     auto namespaceJob = new KIMAP::NamespaceJob(mSession);
 
     return runJob(loginJob).then(runJob(capabilitiesJob)).then<void>([this](){
-        Trace() << "Supported capabilities: " << mCapabilities;
+        SinkTrace() << "Supported capabilities: " << mCapabilities;
         QStringList requiredExtensions = QStringList() << "UIDPLUS" << "NAMESPACE";
         for (const auto &requiredExtension : requiredExtensions) {
             if (!mCapabilities.contains(requiredExtension)) {
-                Warning() << "Server doesn't support required capability: " << requiredExtension;
+                SinkWarning() << "Server doesn't support required capability: " << requiredExtension;
                 //TODO fail the job
             }
         }
@@ -138,9 +140,9 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
             mUserNamespaces << ns.name;
             mUserNamespaceSeparator = ns.separator;
         }
-        Trace() << "Found personal namespaces: " << mPersonalNamespaces << mPersonalNamespaceSeparator;
-        Trace() << "Found shared namespaces: " << mSharedNamespaces << mSharedNamespaceSeparator;
-        Trace() << "Found user namespaces: " << mUserNamespaces << mUserNamespaceSeparator;
+        SinkTrace() << "Found personal namespaces: " << mPersonalNamespaces << mPersonalNamespaceSeparator;
+        SinkTrace() << "Found shared namespaces: " << mSharedNamespaces << mSharedNamespaceSeparator;
+        SinkTrace() << "Found user namespaces: " << mUserNamespaces << mUserNamespaceSeparator;
     });
 }
 
@@ -291,8 +293,8 @@ KAsync::Job<QList<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbox)
                     const QMap<qint64,KIMAP::MessageAttribute> &attrs,
                     const QMap<qint64,KIMAP::MessageFlags> &flags,
                     const QMap<qint64,KIMAP::MessagePtr> &messages) {
-                Trace() << "Received " << uids.size() << " headers from " << mailbox;
-                Trace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
+                SinkTrace() << "Received " << uids.size() << " headers from " << mailbox;
+                SinkTrace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
 
                 //TODO based on the data available here, figure out which messages to actually fetch
                 //(we only fetched headers and structure so far)
@@ -344,7 +346,7 @@ KAsync::Job<QString> ImapServerProxy::createSubfolder(const QString &parentMailb
         } else {
             *folder = parentMailbox + mPersonalNamespaceSeparator + folderName;
         }
-        Trace() << "Creating subfolder: " << *folder;
+        SinkTrace() << "Creating subfolder: " << *folder;
         return create(*folder);
     })
     .then<QString>([=]() {
@@ -360,7 +362,7 @@ KAsync::Job<QString> ImapServerProxy::renameSubfolder(const QString &oldMailbox,
         auto parts = oldMailbox.split(mPersonalNamespaceSeparator);
         parts.removeLast();
         *folder = parts.join(mPersonalNamespaceSeparator) + mPersonalNamespaceSeparator + newName;
-        Trace() << "Renaming subfolder: " << oldMailbox << *folder;
+        SinkTrace() << "Renaming subfolder: " << oldMailbox << *folder;
         return rename(oldMailbox, *folder);
     })
     .then<QString>([=]() {
@@ -370,14 +372,14 @@ KAsync::Job<QString> ImapServerProxy::renameSubfolder(const QString &oldMailbox,
 
 KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const QVector<Folder> &)> callback)
 {
-    Trace() << "Fetching folders";
+    SinkTrace() << "Fetching folders";
     return list(KIMAP::ListJob::IncludeUnsubscribed, [callback](const QList<KIMAP::MailBoxDescriptor> &mailboxes, const QList<QList<QByteArray> > &flags){
         QVector<Folder> list;
         for (int i = 0; i < mailboxes.size(); i++) {
             const auto mailbox = mailboxes[i];
             const auto mailboxFlags = flags[i];
             bool noselect = mailboxFlags.contains(QByteArray(FolderFlags::Noselect).toLower()) || mailboxFlags.contains(QByteArray(FolderFlags::Noselect));
-            Log() << "Found mailbox: " << mailbox.name << mailboxFlags << FolderFlags::Noselect << noselect;
+            SinkLog() << "Found mailbox: " << mailbox.name << mailboxFlags << FolderFlags::Noselect << noselect;
             list << Folder{mailbox.name.split(mailbox.separator), mailbox.name, mailbox.separator, noselect};
         }
         callback(list);
@@ -395,9 +397,9 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, std::func
     Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
     return select(mailboxFromFolder(folder)).then<void, KAsync::Job<void>>([this, callback, folder]() -> KAsync::Job<void> {
         return fetchHeaders(mailboxFromFolder(folder)).then<void, KAsync::Job<void>, QList<qint64>>([this, callback](const QList<qint64> &uidsToFetch){
-            Trace() << "Uids to fetch: " << uidsToFetch;
+            SinkTrace() << "Uids to fetch: " << uidsToFetch;
             if (uidsToFetch.isEmpty()) {
-                Trace() << "Nothing to fetch";
+                SinkTrace() << "Nothing to fetch";
                 callback(QVector<Message>());
                 return KAsync::null<void>();
             }

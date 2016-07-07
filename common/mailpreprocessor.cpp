@@ -29,6 +29,8 @@
 
 using namespace Sink;
 
+SINK_DEBUG_AREA("mailpreprocessor")
+
 QString MailPropertyExtractor::getFilePathFromMimeMessagePath(const QString &s) const
 {
     return s;
@@ -38,23 +40,23 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
 {
     const auto mimeMessagePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
     if (mimeMessagePath.isNull()) {
-        Trace() << "No mime message";
+        SinkTrace() << "No mime message";
         return;
     }
-    Trace() << "Updating indexed properties " << mimeMessagePath;
+    SinkTrace() << "Updating indexed properties " << mimeMessagePath;
     QFile f(mimeMessagePath);
     if (!f.open(QIODevice::ReadOnly)) {
-        Warning() << "Failed to open the file: " << mimeMessagePath;
+        SinkWarning() << "Failed to open the file: " << mimeMessagePath;
         return;
     }
     if (!f.size()) {
-        Warning() << "The file is empty.";
+        SinkWarning() << "The file is empty.";
         return;
     }
     const auto mappedSize = qMin((qint64)8000, f.size());
     auto mapped = f.map(0, mappedSize);
     if (!mapped) {
-        Warning() << "Failed to map the file: " << f.errorString();
+        SinkWarning() << "Failed to map the file: " << f.errorString();
         return;
     }
 
@@ -89,15 +91,15 @@ QString MimeMessageMover::moveMessage(const QString &oldPath, const Sink::Applic
     const auto filePath = directory + "/" + mail.identifier();
     if (oldPath != filePath) {
         if (!QDir().mkpath(directory)) {
-            Warning() << "Failed to create the directory: " << directory;
+            SinkWarning() << "Failed to create the directory: " << directory;
         }
         QFile::remove(filePath);
         QFile origFile(oldPath);
         if (!origFile.open(QIODevice::ReadWrite)) {
-            Warning() << "Failed to open the original file with write rights: " << origFile.errorString();
+            SinkWarning() << "Failed to open the original file with write rights: " << origFile.errorString();
         }
         if (!origFile.rename(filePath)) {
-            Warning() << "Failed to move the file from: " << oldPath << " to " << filePath << ". " << origFile.errorString();
+            SinkWarning() << "Failed to move the file from: " << oldPath << " to " << filePath << ". " << origFile.errorString();
         }
         origFile.close();
         return filePath;

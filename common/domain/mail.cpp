@@ -35,6 +35,8 @@
 
 #include "mail_generated.h"
 
+SINK_DEBUG_AREA("mail");
+
 static QMutex sMutex;
 
 using namespace Sink::ApplicationDomain;
@@ -63,7 +65,7 @@ ResultSet TypeImplementation<Mail>::queryIndexes(const Sink::Query &query, const
 
 void TypeImplementation<Mail>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
 {
-    Trace() << "Indexing " << identifier;
+    SinkTrace() << "Indexing " << identifier;
     getIndex().add(identifier, bufferAdaptor, transaction);
 }
 

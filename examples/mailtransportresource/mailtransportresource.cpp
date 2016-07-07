@@ -44,6 +44,8 @@
 
 #define ENTITY_TYPE_MAIL "mail"
 
+SINK_DEBUG_AREA("mailtransportresource")
+
 using namespace Sink;
 
 //TODO fold into synchronizer
@@ -58,7 +60,7 @@ public:
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
         if (operation == Sink::Operation_Creation) {
-            Trace() << "Dispatching message.";
+            SinkTrace() << "Dispatching message.";
             // return send(mail, mSettings);
         } else if (operation == Sink::Operation_Removal) {
         } else if (operation == Sink::Operation_Modification) {
@@ -86,9 +88,9 @@ public:
         msg->setHead(KMime::CRLFtoLF(data));
         msg->parse();
         if (settings.testMode) {
-            Log() << "I would totally send that mail, but I'm in test mode." << mail.identifier();
+            SinkLog() << "I would totally send that mail, but I'm in test mode." << mail.identifier();
             auto path = resourceStorageLocation(mResourceInstanceIdentifier) + "/test/";
-            Trace() << path;
+            SinkTrace() << path;
             QDir dir;
             dir.mkpath(path);
             QFile f(path+ mail.identifier());
@@ -97,9 +99,9 @@ public:
             f.close();
         } else {
             if (MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), settings.password.toUtf8(), settings.cacert.toUtf8())) {
-                Log() << "Sent message successfully";
+                SinkLog() << "Sent message successfully";
             } else {
-                Log() << "Failed to send message";
+                SinkLog() << "Failed to send message";
                 return KAsync::error<void>(1, "Failed to send the message.");
             }
         }
@@ -108,13 +110,13 @@ public:
 
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
     {
-        Log() << " Synchronizing";
+        SinkLog() << " Synchronizing";
         return KAsync::start<void>([this](KAsync::Future<void> future) {
             Sink::Query query;
             QList<ApplicationDomain::Mail> toSend;
-            Log() << " Looking for mail";
+            SinkLog() << " Looking for mail";
             store().reader<ApplicationDomain::Mail>().query(query, [&](const ApplicationDomain::Mail &mail) -> bool {
-                Trace() << "Found mail: " << mail.identifier();
+                SinkTrace() << "Found mail: " << mail.identifier();
                 if (!mail.getSent()) {
                     toSend << mail;
                 }

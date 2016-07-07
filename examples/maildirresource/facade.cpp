@@ -38,11 +38,11 @@ MaildirResourceMailFacade::MaildirResourceMailFacade(const QByteArray &instanceI
             const auto folderPath = parts.join('/');
             const auto path =  folderPath + "/cur/";
 
-            Trace() << "Looking for mail in: " << path << key;
+            SinkTrace_("", "maildirfacade") << "Looking for mail in: " << path << key;
             QDir dir(path);
             const QFileInfoList list = dir.entryInfoList(QStringList() << (key+"*"), QDir::Files);
             if (list.size() != 1) {
-                Warning() << "Failed to find message " << path << key << list.size();
+                SinkWarning_("", "maildirfacade") << "Failed to find message " << path << key << list.size();
                 value.setProperty("mimeMessage", QVariant());
             } else {
                 value.setProperty("mimeMessage", list.at(0).filePath());

@@ -12,6 +12,8 @@
 
 using namespace Imap;
 
+SINK_DEBUG_AREA("imapserverproxytest")
+
 /**
  */
 class ImapServerProxyTest : public QObject
@@ -81,8 +83,8 @@ private slots:
                             const QMap<qint64,KIMAP::MessageAttribute> &attrs,
                             const QMap<qint64,KIMAP::MessageFlags> &flags,
                             const QMap<qint64,KIMAP::MessagePtr> &messages) {
-                        Trace() << "Received " << uids.size() << " messages from " << mailbox;
-                        Trace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
+                        SinkTrace() << "Received " << uids.size() << " messages from " << mailbox;
+                        SinkTrace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
                         count += uids.size();
                     }));
 
@@ -106,8 +108,8 @@ private slots:
                             const QMap<qint64,KIMAP::MessageAttribute> &attrs,
                             const QMap<qint64,KIMAP::MessageFlags> &flags,
                             const QMap<qint64,KIMAP::MessagePtr> &messages) {
-                        Trace() << "Received " << uids.size() << " messages from " << mailbox;
-                        Trace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
+                        SinkTrace() << "Received " << uids.size() << " messages from " << mailbox;
+                        SinkTrace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
                         count += uids.size();
                     }));
 

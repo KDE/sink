@@ -5,6 +5,8 @@
 
 using namespace Sink;
 
+SINK_DEBUG_AREA("SpecialPurposeProcessor")
+
 static QHash<QByteArray, QString> specialPurposeFolders()
 {
     QHash<QByteArray, QString> hash;
@@ -53,7 +55,7 @@ QByteArray SpecialPurposeProcessor::ensureFolder(Sink::Storage::Transaction &tra
                 return false;
             });
         if (!mSpecialPurposeFolders.contains(specialPurpose)) {
-            Trace() << "Failed to find a drafts folder, creating a new one";
+            SinkTrace() << "Failed to find a drafts folder, creating a new one";
             auto folder = ApplicationDomain::Folder::create(mResourceInstanceIdentifier);
             folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
             folder.setName(sSpecialPurposeFolders.value(specialPurpose));

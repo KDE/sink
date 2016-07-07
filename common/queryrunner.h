@@ -32,6 +32,8 @@
 class QueryRunnerBase : public QObject
 {
     Q_OBJECT
+protected:
+    SINK_DEBUG_AREA("queryrunner")
 public:
     typedef std::function<void(Sink::ApplicationDomain::ApplicationDomainType &domainObject)> ResultTransformation;
 
@@ -52,7 +54,7 @@ protected slots:
      */
     void revisionChanged(qint64 newRevision)
     {
-        Trace() << "New revision: " << newRevision;
+        SinkTrace() << "New revision: " << newRevision;
         run().exec();
     }
 

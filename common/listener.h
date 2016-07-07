@@ -25,6 +25,7 @@
 #include <QPointer>
 #include <QLocalSocket>
 #include <flatbuffers/flatbuffers.h>
+#include <log.h>
 
 namespace Sink {
 class Resource;
@@ -54,6 +55,7 @@ public:
 class SINK_EXPORT Listener : public QObject
 {
     Q_OBJECT
+    SINK_DEBUG_AREA("communication")
 
 public:
     Listener(const QByteArray &resourceName, const QByteArray &resourceType, QObject *parent = 0);

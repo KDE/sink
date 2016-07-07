@@ -36,8 +36,7 @@
 #include "storage.h"
 #include "log.h"
 
-#undef DEBUG_AREA
-#define DEBUG_AREA "client.store"
+SINK_DEBUG_AREA("store")
 
 namespace Sink {
 
@@ -88,24 +87,24 @@ static QMap<QByteArray, QByteArray> getResources(const QList<QByteArray> &resour
                 }
                 resources.insert(res, configuredResources.value(res));
             } else {
-                Warning() << "Resource is not existing: " << res;
+                SinkWarning() << "Resource is not existing: " << res;
             }
         }
     }
-    Trace() << "Found resources: " << resources;
+    SinkTrace() << "Found resources: " << resources;
     return resources;
 }
 
 template <class DomainType>
 QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 {
-    Trace() << "Query: " << ApplicationDomain::getTypeName<DomainType>();
-    Trace() << "  Requested: " << query.requestedProperties;
-    Trace() << "  Filter: " << query.propertyFilter;
-    Trace() << "  Parent: " << query.parentProperty;
-    Trace() << "  Ids: " << query.ids;
-    Trace() << "  IsLive: " << query.liveQuery;
-    Trace() << "  Sorting: " << query.sortProperty;
+    SinkTrace() << "Query: " << ApplicationDomain::getTypeName<DomainType>();
+    SinkTrace() << "  Requested: " << query.requestedProperties;
+    SinkTrace() << "  Filter: " << query.propertyFilter;
+    SinkTrace() << "  Parent: " << query.parentProperty;
+    SinkTrace() << "  Ids: " << query.ids;
+    SinkTrace() << "  IsLive: " << query.liveQuery;
+    SinkTrace() << "  Sorting: " << query.sortProperty;
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties);
 
     //* Client defines lifetime of model
@@ -123,16 +122,16 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
             const auto resourceType = resources.value(resourceInstanceIdentifier);
             auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceType, resourceInstanceIdentifier);
             if (facade) {
-                Trace() << "Trying to fetch from resource " << resourceInstanceIdentifier;
+                SinkTrace() << "Trying to fetch from resource " << resourceInstanceIdentifier;
                 auto result = facade->load(query);
                 if (result.second) {
                     aggregatingEmitter->addEmitter(result.second);
                 } else {
-                    Warning() << "Null emitter for resource " << resourceInstanceIdentifier;
+                    SinkWarning() << "Null emitter for resource " << resourceInstanceIdentifier;
                 }
                 result.first.template then<void>([&future]() { future.setFinished(); }).exec();
             } else {
-                Trace() << "Couldn' find a facade for " << resourceInstanceIdentifier;
+                SinkTrace() << "Couldn' find a facade for " << resourceInstanceIdentifier;
                 // Ignore the error and carry on
                 future.setFinished();
             }
@@ -164,7 +163,7 @@ KAsync::Job<void> Store::create(const DomainType &domainObject)
 {
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->create(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { Warning() << "Failed to create"; });
+    return facade->create(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { SinkWarning() << "Failed to create"; });
 }
 
 template <class DomainType>
@@ -172,7 +171,7 @@ KAsync::Job<void> Store::modify(const DomainType &domainObject)
 {
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->modify(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { Warning() << "Failed to modify"; });
+    return facade->modify(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { SinkWarning() << "Failed to modify"; });
 }
 
 template <class DomainType>
@@ -180,7 +179,7 @@ KAsync::Job<void> Store::remove(const DomainType &domainObject)
 {
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->remove(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { Warning() << "Failed to remove"; });
+    return facade->remove(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { SinkWarning() << "Failed to remove"; });
 }
 
 KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
@@ -188,28 +187,28 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
     // All databases are going to become invalid, nuke the environments
     // TODO: all clients should react to a notification the resource
     Sink::Storage::clearEnv();
-    Trace() << "Remove data from disk " << identifier;
+    SinkTrace() << "Remove data from disk " << identifier;
     auto time = QSharedPointer<QTime>::create();
     time->start();
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
     resourceAccess->open();
     return resourceAccess->sendCommand(Sink::Commands::RemoveFromDiskCommand)
-        .then<void>([resourceAccess, time]() { Trace() << "Remove from disk complete." << Log::TraceTime(time->elapsed()); });
+        .then<void>([resourceAccess, time]() { SinkTrace() << "Remove from disk complete." << Log::TraceTime(time->elapsed()); });
 }
 
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
-    Trace() << "synchronize" << query.resources;
+    SinkTrace() << "synchronize" << query.resources;
     auto resources = getResources(query.resources, query.accounts).keys();
     //FIXME only necessary because each doesn't propagate errors
     auto error = new bool;
     return KAsync::iterate(resources)
         .template each<void, QByteArray>([query, error](const QByteArray &resource, KAsync::Future<void> &future) {
-            Trace() << "Synchronizing " << resource;
+            SinkTrace() << "Synchronizing " << resource;
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
             resourceAccess->open();
-            resourceAccess->synchronizeResource(true, false).then<void>([resourceAccess, &future]() {Trace() << "synced."; future.setFinished(); },
-                    [&future, error](int errorCode, QString msg) { *error = true; Warning() << "Error during sync."; future.setError(errorCode, msg); }).exec();
+            resourceAccess->synchronizeResource(true, false).then<void>([resourceAccess, &future]() {SinkTrace() << "synced."; future.setFinished(); },
+                    [&future, error](int errorCode, QString msg) { *error = true; SinkWarning() << "Error during sync."; future.setError(errorCode, msg); }).exec();
         }).then<void>([error](KAsync::Future<void> &future) {
             if (*error) {
                 future.setError(1, "Error during sync.");
@@ -306,25 +305,25 @@ QList<DomainType> Store::read(const Sink::Query &q)
     auto resources = getResources(query.resources, query.accounts, ApplicationDomain::getTypeName<DomainType>());
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     aggregatingEmitter->onAdded([&list](const typename DomainType::Ptr &value){
-        Trace() << "Found value: " << value->identifier();
+        SinkTrace() << "Found value: " << value->identifier();
         list << *value;
     });
     for (const auto resourceInstanceIdentifier : resources.keys()) {
         const auto resourceType = resources.value(resourceInstanceIdentifier);
-        Trace() << "Looking for " << resourceType << resourceInstanceIdentifier;
+        SinkTrace() << "Looking for " << resourceType << resourceInstanceIdentifier;
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceType, resourceInstanceIdentifier);
         if (facade) {
-            Trace() << "Trying to fetch from resource " << resourceInstanceIdentifier;
+            SinkTrace() << "Trying to fetch from resource " << resourceInstanceIdentifier;
             auto result = facade->load(query);
             if (result.second) {
                 aggregatingEmitter->addEmitter(result.second);
             } else {
-                Warning() << "Null emitter for resource " << resourceInstanceIdentifier;
+                SinkWarning() << "Null emitter for resource " << resourceInstanceIdentifier;
             }
             result.first.exec();
             aggregatingEmitter->fetch(typename DomainType::Ptr());
         } else {
-            Trace() << "Couldn't find a facade for " << resourceInstanceIdentifier;
+            SinkTrace() << "Couldn't find a facade for " << resourceInstanceIdentifier;
             // Ignore the error and carry on
         }
     }

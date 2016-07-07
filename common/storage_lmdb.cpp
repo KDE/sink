@@ -34,10 +34,8 @@
 #include <lmdb.h>
 #include "log.h"
 
-#undef Trace
-#define Trace() Trace_area("storage." + d->storageRoot.toLatin1() + '/' + d->name.toLatin1())
-#undef Warning
-#define Warning() Warning_area("storage")
+SINK_DEBUG_AREA("storage")
+// SINK_DEBUG_COMPONENT(d->storageRoot.toLatin1() + '/' + d->name.toLatin1())
 
 namespace Sink {
 
@@ -354,7 +352,7 @@ qint64 Storage::NamedDatabase::getSize()
     MDB_stat stat;
     rc = mdb_stat(d->transaction, d->dbi, &stat);
     if (rc) {
-        Warning() << "Something went wrong " << QByteArray(mdb_strerror(rc));
+        SinkWarning() << "Something went wrong " << QByteArray(mdb_strerror(rc));
     }
     // std::cout << "overflow_pages: " << stat.ms_overflow_pages << std::endl;
     // std::cout << "page size: " << stat.ms_psize << std::endl;
@@ -482,7 +480,7 @@ static bool ensureCorrectDb(Storage::NamedDatabase &database, const QByteArray &
     bool openedTheWrongDatabase = false;
     auto count = database.scan("__internal_dbname", [db, &openedTheWrongDatabase](const QByteArray &key, const QByteArray &value) ->bool {
         if (value != db) {
-            Warning() << "Opened the wrong database, got " << value << " instead of " << db;
+            SinkWarning() << "Opened the wrong database, got " << value << " instead of " << db;
             openedTheWrongDatabase = true;
         }
         return false;
@@ -505,7 +503,7 @@ bool Storage::Transaction::validateNamedDatabases()
     for (const auto &dbName : databases) {
         auto db = openDatabase(dbName);
         if (!db) {
-            Warning() << "Failed to open the database: " << dbName;
+            SinkWarning() << "Failed to open the database: " << dbName;
             return false;
         }
     }
@@ -527,7 +525,7 @@ Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, 
     }
     auto database = Storage::NamedDatabase(p);
     if (!ensureCorrectDb(database, db, d->requestedRead)) {
-        Warning() << "Failed to open the database" << db;
+        SinkWarning() << "Failed to open the database" << db;
         return Storage::NamedDatabase();
     }
     return database;
@@ -536,7 +534,7 @@ Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, 
 QList<QByteArray> Storage::Transaction::getDatabaseNames() const
 {
     if (!d) {
-        Warning() << "Invalid transaction";
+        SinkWarning() << "Invalid transaction";
         return QList<QByteArray>();
     }
 
@@ -559,12 +557,12 @@ QList<QByteArray> Storage::Transaction::getDatabaseNames() const
                 rc = 0;
             }
             if (rc) {
-                Warning() << "Failed to get a value" << rc;
+                SinkWarning() << "Failed to get a value" << rc;
             }
         }
         mdb_cursor_close(cursor);
     } else {
-        Warning() << "Failed to open db" << rc << QByteArray(mdb_strerror(rc));
+        SinkWarning() << "Failed to open db" << rc << QByteArray(mdb_strerror(rc));
     }
     return list;
 }
@@ -611,7 +609,7 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m) : st
             int rc = 0;
             if ((rc = mdb_env_create(&env))) {
                 // TODO: handle error
-                Warning() << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
+                SinkWarning() << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
             } else {
                 mdb_env_set_maxdbs(env, 50);
                 unsigned int flags = MDB_NOTLS;
@@ -619,7 +617,7 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m) : st
                     flags |= MDB_RDONLY;
                 }
                 if ((rc = mdb_env_open(env, fullPath.toStdString().data(), flags, 0664))) {
-                    Warning() << "mdb_env_open: " << rc << " " << mdb_strerror(rc);
+                    SinkWarning() << "mdb_env_open: " << rc << " " << mdb_strerror(rc);
                     mdb_env_close(env);
                     env = 0;
                 } else {
@@ -681,7 +679,7 @@ qint64 Storage::diskUsage() const
 {
     QFileInfo info(d->storageRoot + '/' + d->name + "/data.mdb");
     if (!info.exists()) {
-        Warning() << "Tried to get filesize for non-existant file: " << info.path();
+        SinkWarning() << "Tried to get filesize for non-existant file: " << info.path();
     }
     return info.size();
 }
@@ -691,7 +689,7 @@ void Storage::removeFromDisk() const
     const QString fullPath(d->storageRoot + '/' + d->name);
     QMutexLocker locker(&d->sMutex);
     QDir dir(fullPath);
-    Trace() << "Removing database from disk: " << fullPath;
+    SinkTrace() << "Removing database from disk: " << fullPath;
     if (!dir.removeRecursively()) {
         Error error(d->name.toLatin1(), ErrorCodes::GenericError, QString("Failed to remove directory %1 %2").arg(d->storageRoot).arg(d->name).toLatin1());
         defaultErrorHandler()(error);

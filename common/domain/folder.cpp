@@ -35,6 +35,8 @@
 
 #include "folder_generated.h"
 
+SINK_DEBUG_AREA("folder");
+
 static QMutex sMutex;
 
 using namespace Sink::ApplicationDomain;
@@ -58,7 +60,7 @@ ResultSet TypeImplementation<Folder>::queryIndexes(const Sink::Query &query, con
 
 void TypeImplementation<Folder>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
 {
-    Trace() << "Indexing " << identifier;
+    SinkTrace() << "Indexing " << identifier;
     getIndex().add(identifier, bufferAdaptor, transaction);
 }
 

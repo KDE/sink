@@ -24,6 +24,8 @@
 #include "log.h"
 #include <QUuid>
 
+SINK_DEBUG_AREA("storage")
+
 namespace Sink {
 
 static const char *s_internalPrefix = "__internal";
@@ -31,7 +33,7 @@ static const int s_internalPrefixSize = strlen(s_internalPrefix);
 
 void errorHandler(const Storage::Error &error)
 {
-    Warning() << "Database error in " << error.store << ", code " << error.code << ", message: " << error.message;
+    SinkWarning() << "Database error in " << error.store << ", code " << error.code << ", message: " << error.message;
 }
 
 std::function<void(const Storage::Error &error)> Storage::basicErrorHandler()
@@ -67,7 +69,7 @@ qint64 Storage::maxRevision(const Sink::Storage::Transaction &transaction)
         },
         [](const Error &error) {
             if (error.code != Sink::Storage::NotFound) {
-                Warning() << "Coultn'd find the maximum revision.";
+                SinkWarning() << "Coultn'd find the maximum revision.";
             }
         });
     return r;
@@ -88,7 +90,7 @@ qint64 Storage::cleanedUpRevision(const Sink::Storage::Transaction &transaction)
         },
         [](const Error &error) {
             if (error.code != Sink::Storage::NotFound) {
-                Warning() << "Coultn'd find the maximum revision.";
+                SinkWarning() << "Coultn'd find the maximum revision.";
             }
         });
     return r;
@@ -103,7 +105,7 @@ QByteArray Storage::getUidFromRevision(const Sink::Storage::Transaction &transac
                 uid = value;
                 return false;
             },
-            [revision](const Error &error) { Warning() << "Coultn'd find uid for revision: " << revision << error.message; });
+            [revision](const Error &error) { SinkWarning() << "Coultn'd find uid for revision: " << revision << error.message; });
     return uid;
 }
 
@@ -116,7 +118,7 @@ QByteArray Storage::getTypeFromRevision(const Sink::Storage::Transaction &transa
                 type = value;
                 return false;
             },
-            [revision](const Error &error) { Warning() << "Coultn'd find type for revision " << revision; });
+            [revision](const Error &error) { SinkWarning() << "Coultn'd find type for revision " << revision; });
     return type;
 }
 

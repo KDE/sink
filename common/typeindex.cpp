@@ -22,8 +22,7 @@
 #include "index.h"
 #include <QDateTime>
 
-#undef DEBUG_AREA
-#define DEBUG_AREA "common.typeindex"
+SINK_DEBUG_AREA("typeindex")
 
 static QByteArray getByteArray(const QVariant &value)
 {
@@ -63,7 +62,7 @@ template <>
 void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
-        // Trace() << "Indexing " << mType + ".index." + property << value.toByteArray();
+        // SinkTrace() << "Indexing " << mType + ".index." + property << value.toByteArray();
         Index(indexName(property), transaction).add(getByteArray(value), identifier);
     };
     mIndexer.insert(property, indexer);
@@ -74,7 +73,7 @@ template <>
 void TypeIndex::addProperty<QString>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
-        // Trace() << "Indexing " << mType + ".index." + property << value.toByteArray();
+        // SinkTrace() << "Indexing " << mType + ".index." + property << value.toByteArray();
         Index(indexName(property), transaction).add(getByteArray(value), identifier);
     };
     mIndexer.insert(property, indexer);
@@ -85,7 +84,7 @@ template <>
 void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
-        // Trace() << "Indexing " << mType + ".index." + property << date.toString();
+        // SinkTrace() << "Indexing " << mType + ".index." + property << date.toString();
         Index(indexName(property), transaction).add(getByteArray(value), identifier);
     };
     mIndexer.insert(property, indexer);
@@ -143,12 +142,12 @@ ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFi
         if (query.propertyFilter.contains(it.key()) && query.sortProperty == it.value()) {
             Index index(indexName(it.key(), it.value()), transaction);
             const auto lookupKey = getByteArray(query.propertyFilter.value(it.key()).value);
-            Trace() << "looking for " << lookupKey;
+            SinkTrace() << "looking for " << lookupKey;
             index.lookup(lookupKey, [&](const QByteArray &value) { keys << value; },
-                [it](const Index::Error &error) { Warning() << "Error in index: " << error.message << it.key() << it.value(); }, true);
+                [it](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << it.key() << it.value(); }, true);
             appliedFilters << it.key();
             appliedSorting = it.value();
-            Trace() << "Index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
+            SinkTrace() << "Index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
             return ResultSet(keys);
         }
     }
@@ -157,12 +156,12 @@ ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFi
             Index index(indexName(property), transaction);
             const auto lookupKey = getByteArray(query.propertyFilter.value(property).value);
             index.lookup(
-                lookupKey, [&](const QByteArray &value) { keys << value; }, [property](const Index::Error &error) { Warning() << "Error in index: " << error.message << property; });
+                lookupKey, [&](const QByteArray &value) { keys << value; }, [property](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
             appliedFilters << property;
-            Trace() << "Index lookup on " << property << " found " << keys.size() << " keys.";
+            SinkTrace() << "Index lookup on " << property << " found " << keys.size() << " keys.";
             return ResultSet(keys);
         }
     }
-    Trace() << "No matching index";
+    SinkTrace() << "No matching index";
     return ResultSet(keys);
 }

@@ -30,14 +30,13 @@
 #include "log.h"
 #include "notifier.h"
 
-#undef DEBUG_AREA
-#define DEBUG_AREA "client.resourcecontrol"
+SINK_DEBUG_AREA("resourcecontrol")
 
 namespace Sink {
 
 KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
 {
-    Trace() << "shutdown " << identifier;
+    SinkTrace() << "shutdown " << identifier;
     auto time = QSharedPointer<QTime>::create();
     time->start();
     return ResourceAccess::connectToServer(identifier)
@@ -50,33 +49,33 @@ KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
                 resourceAccess->sendCommand(Sink::Commands::ShutdownCommand)
                     .then<void>([&future, resourceAccess, time]() {
                         resourceAccess->close();
-                        Trace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
+                        SinkTrace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
                         future.setFinished();
                     })
                     .exec();
             },
             [](int, const QString &) {
-                Trace() << "Resource is already closed.";
+                SinkTrace() << "Resource is already closed.";
                 // Resource isn't started, nothing to shutdown
             });
 }
 
 KAsync::Job<void> ResourceControl::start(const QByteArray &identifier)
 {
-    Trace() << "start " << identifier;
+    SinkTrace() << "start " << identifier;
     auto time = QSharedPointer<QTime>::create();
     time->start();
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
     resourceAccess->open();
-    return resourceAccess->sendCommand(Sink::Commands::PingCommand).then<void>([resourceAccess, time]() { Trace() << "Start complete." << Log::TraceTime(time->elapsed()); });
+    return resourceAccess->sendCommand(Sink::Commands::PingCommand).then<void>([resourceAccess, time]() { SinkTrace() << "Start complete." << Log::TraceTime(time->elapsed()); });
 }
 
 KAsync::Job<void> ResourceControl::flushMessageQueue(const QByteArrayList &resourceIdentifier)
 {
-    Trace() << "flushMessageQueue" << resourceIdentifier;
+    SinkTrace() << "flushMessageQueue" << resourceIdentifier;
     return KAsync::iterate(resourceIdentifier)
         .template each<void, QByteArray>([](const QByteArray &resource, KAsync::Future<void> &future) {
-            Trace() << "Flushing message queue " << resource;
+            SinkTrace() << "Flushing message queue " << resource;
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
             resourceAccess->open();
             resourceAccess->synchronizeResource(false, true).then<void>([&future, resourceAccess]() { future.setFinished(); }).exec();
@@ -95,7 +94,7 @@ KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
 
     auto time = QSharedPointer<QTime>::create();
     time->start();
-    Trace() << "Sending inspection " << resource;
+    SinkTrace() << "Sending inspection " << resource;
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
     resourceAccess->open();
     auto notifier = QSharedPointer<Sink::Notifier>::create(resourceAccess);
@@ -104,7 +103,7 @@ KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
         .template then<void>([resourceAccess, notifier, id, time](KAsync::Future<void> &future) {
             notifier->registerHandler([&future, id, time](const Notification &notification) {
                 if (notification.id == id) {
-                    Trace() << "Inspection complete." << Log::TraceTime(time->elapsed());
+                    SinkTrace() << "Inspection complete." << Log::TraceTime(time->elapsed());
                     if (notification.code) {
                         future.setError(-1, "Inspection returned an error: " + notification.message);
                     } else {

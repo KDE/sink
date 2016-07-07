@@ -28,6 +28,8 @@
 
 using namespace Sink;
 
+SINK_DEBUG_AREA("ResourceFacade")
+
 template<typename DomainType>
 ConfigNotifier LocalStorageFacade<DomainType>::sConfigNotifier;
 
@@ -67,7 +69,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
             const auto type = entries.value(res);
 
             if (query.propertyFilter.contains("type") && query.propertyFilter.value("type").value.toByteArray() != type) {
-                Trace() << "Skipping due to type.";
+                SinkTrace() << "Skipping due to type.";
                 continue;
             }
             if (!query.ids.isEmpty() && !query.ids.contains(res)) {
@@ -75,10 +77,10 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
             }
             const auto configurationValues = mConfigStore.get(res);
             if (!matchesFilter(query.propertyFilter, configurationValues)){
-                Trace() << "Skipping due to filter.";
+                SinkTrace() << "Skipping due to filter.";
                 continue;
             }
-            Trace() << "Found match " << res;
+            SinkTrace() << "Found match " << res;
             auto entity = readFromConfig<DomainType>(mConfigStore, res, type);
             updateStatus(*entity);
             mResultProvider->add(entity);
@@ -137,7 +139,7 @@ void LocalStorageQueryRunner<DomainType>::setStatusUpdater(const std::function<v
 template<typename DomainType>
 void LocalStorageQueryRunner<DomainType>::statusChanged(const QByteArray &identifier)
 {
-    Trace() << "Status changed " << identifier;
+    SinkTrace() << "Status changed " << identifier;
     auto entity = readFromConfig<DomainType>(mConfigStore, identifier, ApplicationDomain::getTypeName<DomainType>());
     updateStatus(*entity);
     mResultProvider->modify(entity);
@@ -195,7 +197,7 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::modify(const DomainType &domai
     return KAsync::start<void>([domainObject, this]() {
         const QByteArray identifier = domainObject.identifier();
         if (identifier.isEmpty()) {
-            Warning() << "We need an \"identifier\" property to identify the entity to configure.";
+            SinkWarning() << "We need an \"identifier\" property to identify the entity to configure.";
             return;
         }
         auto changedProperties = domainObject.changedProperties();
@@ -221,10 +223,10 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domai
     return KAsync::start<void>([domainObject, this]() {
         const QByteArray identifier = domainObject.identifier();
         if (identifier.isEmpty()) {
-            Warning() << "We need an \"identifier\" property to identify the entity to configure";
+            SinkWarning() << "We need an \"identifier\" property to identify the entity to configure";
             return;
         }
-        Trace() << "Removing: " << identifier;
+        SinkTrace() << "Removing: " << identifier;
         mConfigStore.remove(identifier);
         sConfigNotifier.remove(QSharedPointer<DomainType>::create(domainObject));
     });
@@ -259,7 +261,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
         auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource.identifier(), ResourceConfig::getResourceType(resource.identifier()));
         if (!monitoredResources->contains(resource.identifier())) {
             auto ret = QObject::connect(resourceAccess.data(), &ResourceAccess::notification, runner->guard(), [resource, runner, resourceAccess](const Notification &notification) {
-                Trace() << "Received notification in facade: " << notification.type;
+                SinkTrace() << "Received notification in facade: " << notification.type;
                 if (notification.type == Notification::Status) {
                     runner->statusChanged(resource.identifier());
                 }

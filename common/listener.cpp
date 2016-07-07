@@ -39,9 +39,6 @@
 #include <QTime>
 #include <QDataStream>
 
-#undef DEBUG_AREA
-#define DEBUG_AREA "resource.communication"
-
 Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType, QObject *parent)
     : QObject(parent),
       m_server(new QLocalServer(this)),
@@ -51,18 +48,18 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
       m_messageId(0)
 {
     connect(m_server.get(), &QLocalServer::newConnection, this, &Listener::acceptConnection);
-    Trace() << "Trying to open " << m_resourceInstanceIdentifier;
+    SinkTrace() << "Trying to open " << m_resourceInstanceIdentifier;
 
     if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
         m_server->removeServer(m_resourceInstanceIdentifier);
         if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
-            Warning() << "Utter failure to start server";
+            SinkWarning() << "Utter failure to start server";
             exit(-1);
         }
     }
 
     if (m_server->isListening()) {
-        Log() << QString("Listening on %1").arg(m_server->serverName());
+        SinkLog() << QString("Listening on %1").arg(m_server->serverName());
     }
 
     m_checkConnectionsTimer = std::unique_ptr<QTimer>(new QTimer);
@@ -70,7 +67,7 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
     m_checkConnectionsTimer->setInterval(1000);
     connect(m_checkConnectionsTimer.get(), &QTimer::timeout, [this]() {
         if (m_connections.isEmpty()) {
-            Log() << QString("No connections, shutting down.");
+            SinkLog() << QString("No connections, shutting down.");
             quit();
         }
     });
@@ -91,7 +88,7 @@ void Listener::emergencyAbortAllConnections()
 {
     for (Client &client : m_connections) {
         if (client.socket) {
-            Warning() << "Sending panic";
+            SinkWarning() << "Sending panic";
             client.socket->write("PANIC");
             client.socket->waitForBytesWritten();
             disconnect(client.socket, 0, this, 0);
@@ -120,11 +117,11 @@ void Listener::closeAllConnections()
 
 void Listener::acceptConnection()
 {
-    Trace() << "Accepting connection";
+    SinkTrace() << "Accepting connection";
     QLocalSocket *socket = m_server->nextPendingConnection();
 
     if (!socket) {
-        Warning() << "Accepted connection but didn't get a socket for it";
+        SinkWarning() << "Accepted connection but didn't get a socket for it";
         return;
     }
 
@@ -156,13 +153,13 @@ void Listener::clientDropped()
         const Client &client = it.next();
         if (client.socket == socket) {
             dropped = true;
-            Log() << QString("Dropped connection: %1").arg(client.name) << socket;
+            SinkLog() << QString("Dropped connection: %1").arg(client.name) << socket;
             it.remove();
             break;
         }
     }
     if (!dropped) {
-        Warning() << "Failed to find connection for disconnected socket: " << socket;
+        SinkWarning() << "Failed to find connection for disconnected socket: " << socket;
     }
 
     checkConnections();
@@ -188,7 +185,7 @@ void Listener::onDataAvailable()
 
 void Listener::readFromSocket(QLocalSocket *socket)
 {
-    Trace() << "Reading from socket...";
+    SinkTrace() << "Reading from socket...";
     for (Client &client : m_connections) {
         if (client.socket == socket) {
             client.commandBuffer += socket->readAll();
@@ -231,7 +228,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 auto buffer = Sink::Commands::GetHandshake(commandBuffer.constData());
                 client.name = buffer->name()->c_str();
             } else {
-                Warning() << "received invalid command";
+                SinkWarning() << "received invalid command";
             }
             break;
         }
@@ -239,7 +236,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
             if (Sink::Commands::VerifySynchronizeBuffer(verifier)) {
                 auto buffer = Sink::Commands::GetSynchronize(commandBuffer.constData());
-                Trace() << QString("Synchronize request (id %1) from %2").arg(messageId).arg(client.name);
+                SinkTrace() << QString("Synchronize request (id %1) from %2").arg(messageId).arg(client.name);
                 auto timer = QSharedPointer<QTime>::create();
                 timer->start();
                 auto job = KAsync::null<void>();
@@ -250,16 +247,16 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                     job = job.then<void>(loadResource().processAllMessages());
                 }
                 job.then<void>([callback, timer]() {
-                       Trace() << "Sync took " << Sink::Log::TraceTime(timer->elapsed());
+                       SinkTrace() << "Sync took " << Sink::Log::TraceTime(timer->elapsed());
                        callback(true);
                    }, [callback](int errorCode, const QString &msg) {
-                       Warning() << "Sync failed: " << msg;
+                       SinkWarning() << "Sync failed: " << msg;
                        callback(false);
                    })
                     .exec();
                 return;
             } else {
-                Warning() << "received invalid command";
+                SinkWarning() << "received invalid command";
             }
             break;
         }
@@ -268,31 +265,31 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         case Sink::Commands::DeleteEntityCommand:
         case Sink::Commands::ModifyEntityCommand:
         case Sink::Commands::CreateEntityCommand:
-            Trace() << "Command id  " << messageId << " of type \"" << Sink::Commands::name(commandId) << "\" from " << client.name;
+            SinkTrace() << "Command id  " << messageId << " of type \"" << Sink::Commands::name(commandId) << "\" from " << client.name;
             loadResource().processCommand(commandId, commandBuffer);
             break;
         case Sink::Commands::ShutdownCommand:
-            Log() << QString("Received shutdown command from %1").arg(client.name);
+            SinkLog() << QString("Received shutdown command from %1").arg(client.name);
             // Immediately reject new connections
             m_server->close();
             QTimer::singleShot(0, this, &Listener::quit);
             break;
         case Sink::Commands::PingCommand:
-            Trace() << QString("Received ping command from %1").arg(client.name);
+            SinkTrace() << QString("Received ping command from %1").arg(client.name);
             break;
         case Sink::Commands::RevisionReplayedCommand: {
-            Trace() << QString("Received revision replayed command from %1").arg(client.name);
+            SinkTrace() << QString("Received revision replayed command from %1").arg(client.name);
             flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
             if (Sink::Commands::VerifyRevisionReplayedBuffer(verifier)) {
                 auto buffer = Sink::Commands::GetRevisionReplayed(commandBuffer.constData());
                 client.currentRevision = buffer->revision();
             } else {
-                Warning() << "received invalid command";
+                SinkWarning() << "received invalid command";
             }
             loadResource().setLowerBoundRevision(lowerBoundRevision());
         } break;
         case Sink::Commands::RemoveFromDiskCommand: {
-            Log() << QString("Received a remove from disk command from %1").arg(client.name);
+            SinkLog() << QString("Received a remove from disk command from %1").arg(client.name);
             m_resource.reset(nullptr);
             loadResource().removeDataFromDisk();
             m_server->close();
@@ -300,11 +297,11 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         } break;
         default:
             if (commandId > Sink::Commands::CustomCommand) {
-                Log() << QString("Received custom command from %1: ").arg(client.name) << commandId;
+                SinkLog() << QString("Received custom command from %1: ").arg(client.name) << commandId;
                 loadResource().processCommand(commandId, commandBuffer);
             } else {
                 success = false;
-                ErrorMsg() << QString("\tReceived invalid command from %1: ").arg(client.name) << commandId;
+                SinkError() << QString("\tReceived invalid command from %1: ").arg(client.name) << commandId;
             }
             break;
     }
@@ -352,7 +349,7 @@ bool Listener::processClientBuffer(Client &client)
     const uint messageId = *(uint *)client.commandBuffer.constData();
     const int commandId = *(int *)(client.commandBuffer.constData() + sizeof(uint));
     const uint size = *(uint *)(client.commandBuffer.constData() + sizeof(int) + sizeof(uint));
-    Trace() << "Received message. Id:" << messageId << " CommandId: " << commandId << " Size: " << size;
+    SinkTrace() << "Received message. Id:" << messageId << " CommandId: " << commandId << " Size: " << size;
 
     // TODO: reject messages above a certain size?
 
@@ -365,11 +362,11 @@ bool Listener::processClientBuffer(Client &client)
         const QByteArray commandBuffer = client.commandBuffer.left(size);
         client.commandBuffer.remove(0, size);
         processCommand(commandId, messageId, commandBuffer, client, [this, messageId, commandId, socket, clientName](bool success) {
-            Trace() << QString("Completed command messageid %1 of type \"%2\" from %3").arg(messageId).arg(QString(Sink::Commands::name(commandId))).arg(clientName);
+            SinkTrace() << QString("Completed command messageid %1 of type \"%2\" from %3").arg(messageId).arg(QString(Sink::Commands::name(commandId))).arg(clientName);
             if (socket) {
                 sendCommandCompleted(socket.data(), messageId, success);
             } else {
-                Log() << QString("Socket became invalid before we could send a response. client: %1").arg(clientName);
+                SinkLog() << QString("Socket became invalid before we could send a response. client: %1").arg(clientName);
             }
         });
 
@@ -406,7 +403,7 @@ void Listener::updateClientsWithRevision(qint64 revision)
             continue;
         }
 
-        Trace() << "Sending revision update for " << client.name << revision;
+        SinkTrace() << "Sending revision update for " << client.name << revision;
         Sink::Commands::write(client.socket, ++m_messageId, Sink::Commands::RevisionUpdateCommand, m_fbb);
     }
     m_fbb.Clear();
@@ -437,15 +434,15 @@ Sink::Resource &Listener::loadResource()
         if (Sink::ResourceFactory *resourceFactory = Sink::ResourceFactory::load(m_resourceName)) {
             m_resource = std::unique_ptr<Sink::Resource>(resourceFactory->createResource(m_resourceInstanceIdentifier));
             if (!m_resource) {
-                ErrorMsg() << "Failed to instantiate the resource " << m_resourceName;
+                SinkError() << "Failed to instantiate the resource " << m_resourceName;
                 m_resource = std::unique_ptr<Sink::Resource>(new Sink::Resource);
             }
-            Trace() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
-            Trace() << QString("\tResource: %1").arg((qlonglong)m_resource.get());
+            SinkTrace() << QString("Resource factory: %1").arg((qlonglong)resourceFactory);
+            SinkTrace() << QString("\tResource: %1").arg((qlonglong)m_resource.get());
             connect(m_resource.get(), &Sink::Resource::revisionUpdated, this, &Listener::refreshRevision);
             connect(m_resource.get(), &Sink::Resource::notify, this, &Listener::notify);
         } else {
-            ErrorMsg() << "Failed to load resource " << m_resourceName;
+            SinkError() << "Failed to load resource " << m_resourceName;
             m_resource = std::unique_ptr<Sink::Resource>(new Sink::Resource);
         }
     }

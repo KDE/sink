@@ -8,6 +8,8 @@
 #include "messagequeue.h"
 #include "log.h"
 
+SINK_DEBUG_AREA("messagequeuetest")
+
 /**
  * Test of the messagequeue implementation.
  */
@@ -80,7 +82,7 @@ private slots:
         }
 
         while (!queue.isEmpty()) {
-            Log() << "start";
+            SinkLog() << "start";
             const auto expected = values.dequeue();
             bool gotValue = false;
             bool gotError = false;

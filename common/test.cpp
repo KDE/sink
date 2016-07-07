@@ -28,6 +28,8 @@
 #include "query.h"
 #include "resourceconfig.h"
 
+SINK_DEBUG_AREA("test")
+
 using namespace Sink;
 
 void Sink::Test::initTest()
@@ -103,7 +105,7 @@ public:
     {
         auto resultProvider = new Sink::ResultProvider<typename T::Ptr>();
         resultProvider->onDone([resultProvider]() {
-            Trace() << "Result provider is done";
+            SinkTrace() << "Result provider is done";
             delete resultProvider;
         });
         // We have to do it this way, otherwise we're not setting the fetcher right
@@ -111,11 +113,11 @@ public:
 
         resultProvider->setFetcher([query, resultProvider, this](const typename T::Ptr &parent) {
             if (parent) {
-                Trace() << "Running the fetcher " << parent->identifier();
+                SinkTrace() << "Running the fetcher " << parent->identifier();
             } else {
-                Trace() << "Running the fetcher.";
+                SinkTrace() << "Running the fetcher.";
             }
-            Trace() << "-------------------------.";
+            SinkTrace() << "-------------------------.";
             for (const auto &res : mTestAccount->entities<T>()) {
                 qDebug() << "Parent filter " << query.propertyFilter.value("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
                 auto parentProperty = res->getProperty("parent").toByteArray();

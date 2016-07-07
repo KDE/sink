@@ -46,9 +46,6 @@ static int sCommitInterval = 10;
 
 using namespace Sink;
 
-#undef DEBUG_AREA
-#define DEBUG_AREA "resource.commandprocessor"
-
 /**
  * Drives the pipeline using the output from all command queues
  */
@@ -56,12 +53,13 @@ class CommandProcessor : public QObject
 {
     Q_OBJECT
     typedef std::function<KAsync::Job<void>(void const *, size_t)> InspectionFunction;
+    SINK_DEBUG_AREA("commandprocessor")
 
 public:
     CommandProcessor(Sink::Pipeline *pipeline, QList<MessageQueue *> commandQueues) : QObject(), mPipeline(pipeline), mCommandQueues(commandQueues), mProcessingLock(false)
     {
         mLowerBoundRevision = Storage::maxRevision(mPipeline->storage().createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
-            Warning() << error.message;
+            SinkWarning() << error.message;
         }));
 
         for (auto queue : mCommandQueues) {
@@ -79,7 +77,6 @@ public:
     {
         mInspect = f;
     }
-
 
 signals:
     void error(int errorCode, const QString &errorMessage);
@@ -114,7 +111,7 @@ private slots:
 
     KAsync::Job<qint64> processQueuedCommand(const Sink::QueuedCommand *queuedCommand)
     {
-        Trace() << "Processing command: " << Sink::Commands::name(queuedCommand->commandId());
+        SinkTrace() << "Processing command: " << Sink::Commands::name(queuedCommand->commandId());
         // Throw command into appropriate pipeline
         switch (queuedCommand->commandId()) {
             case Sink::Commands::DeleteEntityCommand:
@@ -138,21 +135,21 @@ private slots:
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(data.constData()), data.size());
         if (!Sink::VerifyQueuedCommandBuffer(verifyer)) {
-            Warning() << "invalid buffer";
+            SinkWarning() << "invalid buffer";
             // return KAsync::error<void, qint64>(1, "Invalid Buffer");
         }
         auto queuedCommand = Sink::GetQueuedCommand(data.constData());
         const auto commandId = queuedCommand->commandId();
-        Trace() << "Dequeued Command: " << Sink::Commands::name(commandId);
+        SinkTrace() << "Dequeued Command: " << Sink::Commands::name(commandId);
         return processQueuedCommand(queuedCommand)
             .then<qint64, qint64>(
-                [commandId](qint64 createdRevision) -> qint64 {
-                    Trace() << "Command pipeline processed: " << Sink::Commands::name(commandId);
+                [this, commandId](qint64 createdRevision) -> qint64 {
+                    SinkTrace() << "Command pipeline processed: " << Sink::Commands::name(commandId);
                     return createdRevision;
                 },
                 [](int errorCode, QString errorMessage) {
                     // FIXME propagate error, we didn't handle it
-                    Warning() << "Error while processing queue command: " << errorMessage;
+                    SinkWarning() << "Error while processing queue command: " << errorMessage;
                 });
     }
 
@@ -169,7 +166,7 @@ private slots:
                                  return KAsync::start<void>([this, data, time](KAsync::Future<void> &future) {
                                      processQueuedCommand(data)
                                          .then<void, qint64>([&future, this, time](qint64 createdRevision) {
-                                             Trace() << "Created revision " << createdRevision << ". Processing took: " << Log::TraceTime(time->elapsed());
+                                             SinkTrace() << "Created revision " << createdRevision << ". Processing took: " << Log::TraceTime(time->elapsed());
                                              future.setFinished();
                                          })
                                          .exec();
@@ -178,7 +175,7 @@ private slots:
                         .then<void>([&future, queue]() { future.setFinished(); },
                             [&future](int i, QString error) {
                                 if (i != MessageQueue::ErrorCodes::NoMessageFound) {
-                                    Warning() << "Error while getting message from messagequeue: " << error;
+                                    SinkWarning() << "Error while getting message from messagequeue: " << error;
                                 }
                                 future.setFinished();
                             })
@@ -192,12 +189,12 @@ private slots:
         auto time = QSharedPointer<QTime>::create();
         time->start();
         mPipeline->startTransaction();
-        Trace() << "Cleaning up from " << mPipeline->cleanedUpRevision() + 1 << " to " << mLowerBoundRevision;
+        SinkTrace() << "Cleaning up from " << mPipeline->cleanedUpRevision() + 1 << " to " << mLowerBoundRevision;
         for (qint64 revision = mPipeline->cleanedUpRevision() + 1; revision <= mLowerBoundRevision; revision++) {
             mPipeline->cleanupRevision(revision);
         }
         mPipeline->commit();
-        Trace() << "Cleanup done." << Log::TraceTime(time->elapsed());
+        SinkTrace() << "Cleanup done." << Log::TraceTime(time->elapsed());
 
         // Go through all message queues
         auto it = QSharedPointer<QListIterator<MessageQueue *>>::create(mCommandQueues);
@@ -208,8 +205,8 @@ private slots:
 
                 auto queue = it->next();
                 processQueue(queue)
-                    .then<void>([&future, time]() {
-                        Trace() << "Queue processed." << Log::TraceTime(time->elapsed());
+                    .then<void>([this, &future, time]() {
+                        SinkTrace() << "Queue processed." << Log::TraceTime(time->elapsed());
                         future.setFinished();
                     })
                     .exec();
@@ -225,9 +222,6 @@ private:
     qint64 mLowerBoundRevision;
     InspectionFunction mInspect;
 };
-
-#undef DEBUG_AREA
-#define DEBUG_AREA "resource"
 
 GenericResource::GenericResource(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline )
     : Sink::Resource(),
@@ -301,7 +295,7 @@ GenericResource::~GenericResource()
 KAsync::Job<void> GenericResource::inspect(
     int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
-    Warning() << "Inspection not implemented";
+    SinkWarning() << "Inspection not implemented";
     return KAsync::null<void>();
 }
 
@@ -363,7 +357,7 @@ void GenericResource::setupChangereplay(const QSharedPointer<ChangeReplay> &chan
 
 void GenericResource::removeDataFromDisk()
 {
-    Log() << "Removing the resource from disk: " << mResourceInstanceIdentifier;
+    SinkLog() << "Removing the resource from disk: " << mResourceInstanceIdentifier;
     //Ensure we have no transaction or databases open
     mSynchronizer.clear();
     mChangeReplay.clear();
@@ -391,7 +385,7 @@ qint64 GenericResource::diskUsage(const QByteArray &instanceIdentifier)
 
 void GenericResource::onProcessorError(int errorCode, const QString &errorMessage)
 {
-    Warning() << "Received error from Processor: " << errorCode << errorMessage;
+    SinkWarning() << "Received error from Processor: " << errorCode << errorMessage;
     mError = errorCode;
 }
 
@@ -435,12 +429,12 @@ KAsync::Job<void> GenericResource::synchronizeWithSource()
         n.code = Sink::ApplicationDomain::BusyStatus;
         emit notify(n);
 
-        Log() << " Synchronizing";
+        SinkLog() << " Synchronizing";
         // Changereplay would deadlock otherwise when trying to open the synchronization store
         enableChangeReplay(false);
         mSynchronizer->synchronize()
             .then<void>([this, &future]() {
-                Log() << "Done Synchronizing";
+                SinkLog() << "Done Synchronizing";
                 Sink::Notification n;
                 n.id = "sync";
                 n.type = Sink::Notification::Status;

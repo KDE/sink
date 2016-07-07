@@ -2,8 +2,7 @@
 
 #include "log.h"
 
-#undef Trace
-#define Trace() Trace_area("index." + mName.toLatin1())
+SINK_DEBUG_AREA("index")
 
 Index::Index(const QString &storageRoot, const QString &name, Sink::Storage::AccessMode mode)
     : mTransaction(Sink::Storage(storageRoot, name, mode).createTransaction(mode)),
@@ -34,8 +33,8 @@ void Index::lookup(const QByteArray &key, const std::function<void(const QByteAr
             resultHandler(value);
             return true;
         },
-        [errorHandler](const Sink::Storage::Error &error) {
-            Warning() << "Error while retrieving value" << error.message;
+        [this, errorHandler](const Sink::Storage::Error &error) {
+            SinkWarning() << "Error while retrieving value" << error.message;
             errorHandler(Error(error.store, error.code, error.message));
         },
         matchSubStringKeys);
@@ -45,6 +44,6 @@ QByteArray Index::lookup(const QByteArray &key)
 {
     QByteArray result;
     //We have to create a deep copy, otherwise the returned data may become invalid when the transaction ends.
-    lookup(key, [&result](const QByteArray &value) { result = QByteArray(value.constData(), value.size()); }, [this](const Index::Error &error) { Trace() << "Error while retrieving value" << error.message; });
+    lookup(key, [&result](const QByteArray &value) { result = QByteArray(value.constData(), value.size()); }, [this](const Index::Error &error) { SinkTrace() << "Error while retrieving value" << error.message; });
     return result;
 }
