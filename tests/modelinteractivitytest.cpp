@@ -10,6 +10,7 @@
 #include "resourceconfig.h"
 #include "log.h"
 #include "modelresult.h"
+#include "test.h"
 
 static int blockingTime;
 
@@ -49,6 +50,7 @@ class ModelinteractivityTest : public QObject
 private slots:
     void initTestCase()
     {
+        Sink::Test::initTest();
         Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
         ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
         Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();

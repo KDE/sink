@@ -37,6 +37,10 @@ QString MailPropertyExtractor::getFilePathFromMimeMessagePath(const QString &s) 
 void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail)
 {
     const auto mimeMessagePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
+    if (mimeMessagePath.isNull()) {
+        Trace() << "No mime message";
+        return;
+    }
     Trace() << "Updating indexed properties " << mimeMessagePath;
     QFile f(mimeMessagePath);
     if (!f.open(QIODevice::ReadOnly)) {
