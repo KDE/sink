@@ -30,10 +30,11 @@ public:
     {
         t.start();
         const bool ret = QCoreApplication::notify(receiver, event);
-        if (t.elapsed() > 1)
+        if (t.elapsed() > 1) {
             std::cout
-                << QString("processing event type %1 for object %2 took %3ms").arg((int)event->type()).arg("" /* receiver->objectName().toLocal8Bit().data()*/).arg((int)t.elapsed()).toStdString()
+                << QString("processing event type %1 for object %2 took %3ms").arg((int)event->type()).arg(receiver->metaObject()->className()).arg((int)t.elapsed()).toStdString()
                 << std::endl;
+        }
         blockingTime += t.elapsed();
         return ret;
     }
