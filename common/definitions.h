@@ -26,6 +26,8 @@
 
 namespace Sink {
 QString SINK_EXPORT storageLocation();
+QString SINK_EXPORT dataLocation();
+QString SINK_EXPORT configLocation();
 QString SINK_EXPORT temporaryFileLocation();
 QString SINK_EXPORT resourceStorageLocation(const QByteArray &resourceInstanceIdentifier);
 }

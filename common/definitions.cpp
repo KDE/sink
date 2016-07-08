@@ -25,12 +25,22 @@
 
 QString Sink::storageLocation()
 {
-    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/storage";
+    return dataLocation() + "/storage";
+}
+
+QString Sink::dataLocation()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink";
+}
+
+QString Sink::configLocation()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/sink";
 }
 
 QString Sink::temporaryFileLocation()
 {
-    auto path = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/temporaryFiles";
+    auto path = dataLocation() + "/temporaryFiles";
     //FIXME create in a singleton on startup?
     QDir dir;
     dir.mkpath(path);

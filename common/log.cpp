@@ -4,19 +4,19 @@
 #include <QIODevice>
 #include <QCoreApplication>
 #include <QSettings>
-#include <QStandardPaths>
 #include <QSharedPointer>
 #include <QMutex>
 #include <QMutexLocker>
 #include <iostream>
 #include <unistd.h>
 #include <memory>
+#include <definitions.h>
 
 using namespace Sink::Log;
 
 static QSharedPointer<QSettings> config()
 {
-    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/log.ini", QSettings::IniFormat);
+    return QSharedPointer<QSettings>::create(Sink::configLocation() + "/log.ini", QSettings::IniFormat);
 }
 
 static QByteArray sPrimaryComponent;
@@ -223,7 +223,7 @@ static QByteArray getProgramName()
 
 static QSharedPointer<QSettings> debugAreasConfig()
 {
-    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/debugAreas.ini", QSettings::IniFormat);
+    return QSharedPointer<QSettings>::create(Sink::dataLocation() + "/debugAreas.ini", QSettings::IniFormat);
 }
 
 class DebugAreaCollector {
