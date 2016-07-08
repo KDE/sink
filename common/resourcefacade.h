@@ -107,6 +107,7 @@ class AccountFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkAcc
 public:
     AccountFacade();
     virtual ~AccountFacade();
+    virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename Sink::ApplicationDomain::SinkAccount::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 };
 
 class IdentityFacade : public LocalStorageFacade<Sink::ApplicationDomain::Identity>

@@ -8,6 +8,7 @@
 #include <store.h>
 #include <log.h>
 #include <configstore.h>
+#include "testutils.h"
 
 class AccountsTest : public QObject
 {
@@ -113,6 +114,35 @@ private slots:
         resource.setResourceType("sink.mailtransport");
         Store::create(resource).exec().waitForFinished();
         QTRY_COMPARE(model->rowCount(QModelIndex()), 2);
+    }
+
+    void testLoadAccountStatus()
+    {
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
+
+        auto account = ApplicationDomainType::createEntity<SinkAccount>();
+        account.setAccountType("dummy");
+        account.setName("name");
+        VERIFYEXEC(Store::create(account));
+
+        auto res = Sink::ApplicationDomain::DummyResource::create(account.identifier());
+        VERIFYEXEC(Sink::Store::create(res));
+        {
+            Sink::Query query;
+            query.liveQuery = true;
+            query.request<Sink::ApplicationDomain::SinkAccount::Status>();
+
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkAccount>(query);
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+            auto account = model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkAccount::Ptr>();
+            QCOMPARE(account->getStatus(), static_cast<int>(Sink::ApplicationDomain::OfflineStatus));
+
+            //Synchronize to connect
+            VERIFYEXEC(Sink::Store::synchronize(Query::ResourceFilter(res)));
+
+            QTRY_COMPARE_WITH_TIMEOUT(model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkAccount::Ptr>()->getStatus(), static_cast<int>(Sink::ApplicationDomain::ConnectedStatus), 1000);
+        }
     }
 
 };

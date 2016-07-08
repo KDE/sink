@@ -283,6 +283,55 @@ AccountFacade::~AccountFacade()
 {
 }
 
+QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain::SinkAccount::Ptr>::Ptr> AccountFacade::load(const Sink::Query &query)
+{
+    auto runner = new LocalStorageQueryRunner<ApplicationDomain::SinkAccount>(query, mIdentifier, sConfigNotifier);
+    auto monitoredResources = QSharedPointer<QSet<QByteArray>>::create();
+    runner->setStatusUpdater([runner, monitoredResources](ApplicationDomain::SinkAccount &account) {
+        Query query;
+        query.filter<ApplicationDomain::SinkResource::Account>(account.identifier());
+        const auto resources = Store::read<ApplicationDomain::SinkResource>(query);
+        SinkTrace() << "Found resource belonging to the account " << account.identifier() << " : " << resources;
+        auto accountIdentifier = account.identifier();
+        ApplicationDomain::Status status = ApplicationDomain::ConnectedStatus;
+        for (const auto &resource : resources) {
+            auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource.identifier(), ResourceConfig::getResourceType(resource.identifier()));
+            if (!monitoredResources->contains(resource.identifier())) {
+                auto ret = QObject::connect(resourceAccess.data(), &ResourceAccess::notification, runner->guard(), [resource, runner, resourceAccess, accountIdentifier](const Notification &notification) {
+                    SinkTrace() << "Received notification in facade: " << notification.type;
+                    if (notification.type == Notification::Status) {
+                        runner->statusChanged(accountIdentifier);
+                    }
+                });
+                Q_ASSERT(ret);
+                monitoredResources->insert(resource.identifier());
+            }
+
+            //Figure out overall status
+            auto s = resourceAccess->getResourceStatus();
+            switch (s) {
+                case ApplicationDomain::ErrorStatus:
+                    status = ApplicationDomain::ErrorStatus;
+                    break;
+                case ApplicationDomain::OfflineStatus:
+                    if (status == ApplicationDomain::ConnectedStatus) {
+                        status = ApplicationDomain::OfflineStatus;
+                    }
+                    break;
+                case ApplicationDomain::ConnectedStatus:
+                    break;
+                case ApplicationDomain::BusyStatus:
+                    if (status != ApplicationDomain::ErrorStatus) {
+                        status = ApplicationDomain::BusyStatus;
+                    }
+                    break;
+            }
+        }
+        account.setStatusStatus(status);
+    });
+    return qMakePair(KAsync::null<void>(), runner->emitter());
+}
+
 IdentityFacade::IdentityFacade() : LocalStorageFacade<Sink::ApplicationDomain::Identity>("identities")
 {
 }
