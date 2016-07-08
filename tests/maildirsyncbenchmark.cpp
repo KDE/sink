@@ -61,17 +61,17 @@ private slots:
     {
         targetPath = tempDir.path() + "/maildir1";
 
-        MaildirResource::removeFromDisk("org.kde.maildir.test1");
+        MaildirResource::removeFromDisk("sink.maildir.test1");
         Sink::ApplicationDomain::SinkResource resource;
-        resource.setProperty("identifier", "org.kde.maildir.test1");
-        resource.setProperty("type", "org.kde.maildir");
+        resource.setProperty("identifier", "sink.maildir.test1");
+        resource.setProperty("type", "sink.maildir");
         resource.setProperty("path", targetPath);
         Sink::Store::create(resource).exec().waitForFinished();
     }
 
     void cleanup()
     {
-        MaildirResource::removeFromDisk("org.kde.maildir.test1");
+        MaildirResource::removeFromDisk("sink.maildir.test1");
         QDir dir(targetPath);
         dir.removeRecursively();
     }
@@ -83,8 +83,8 @@ private slots:
 
     void testbench()
     {
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.maildir.test1");
-        MaildirResource resource("org.kde.maildir.test1", pipeline);
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create("sink.maildir.test1");
+        MaildirResource resource("sink.maildir.test1", pipeline);
         QTime time;
         time.start();
         resource.Sink::GenericResource::synchronizeWithSource().exec().waitForFinished();

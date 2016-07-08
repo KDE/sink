@@ -120,7 +120,7 @@ public:
         syncButton->setText("Synchronize!");
         QObject::connect(syncButton, &QPushButton::pressed, []() {
             Sink::Query query;
-            query.resources << "org.kde.dummy.instance1";
+            query.resources << "sink.dummy.instance1";
             Sink::Store::synchronize(query).exec();
         });
 

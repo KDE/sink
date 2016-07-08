@@ -21,7 +21,7 @@ private slots:
     void initTestCase()
     {
         Sink::Test::initTest();
-        Sink::Storage store(Sink::Store::storageLocation(), "org.kde.dummy.testqueue", Sink::Storage::ReadWrite);
+        Sink::Storage store(Sink::Store::storageLocation(), "sink.dummy.testqueue", Sink::Storage::ReadWrite);
         store.removeFromDisk();
     }
 
@@ -31,13 +31,13 @@ private slots:
 
     void cleanup()
     {
-        Sink::Storage store(Sink::Store::storageLocation(), "org.kde.dummy.testqueue", Sink::Storage::ReadWrite);
+        Sink::Storage store(Sink::Store::storageLocation(), "sink.dummy.testqueue", Sink::Storage::ReadWrite);
         store.removeFromDisk();
     }
 
     void testEmpty()
     {
-        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
         QVERIFY(queue.isEmpty());
         queue.enqueue("value");
         QVERIFY(!queue.isEmpty());
@@ -45,7 +45,7 @@ private slots:
 
     void testDequeueEmpty()
     {
-        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
         bool gotValue = false;
         bool gotError = false;
         queue.dequeue([&](void *ptr, int size, std::function<void(bool success)> callback) { gotValue = true; }, [&](const MessageQueue::Error &error) { gotError = true; });
@@ -55,7 +55,7 @@ private slots:
 
     void testEnqueue()
     {
-        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
         QSignalSpy spy(&queue, SIGNAL(messageReady()));
         queue.enqueue("value1");
         QCOMPARE(spy.size(), 1);
@@ -63,7 +63,7 @@ private slots:
 
     void testDrained()
     {
-        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
         QSignalSpy spy(&queue, SIGNAL(drained()));
         queue.enqueue("value1");
 
@@ -77,7 +77,7 @@ private slots:
         values << "value1";
         values << "value2";
 
-        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
         for (const QByteArray &value : values) {
             queue.enqueue(value);
         }
@@ -107,7 +107,7 @@ private slots:
         values << "value1";
         values << "value2";
 
-        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
         for (const QByteArray &value : values) {
             queue.enqueue(value);
         }
@@ -145,7 +145,7 @@ private slots:
      */
     void testNestedEnqueue()
     {
-        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
         queue.enqueue("value1");
 
         bool gotError = false;
@@ -160,7 +160,7 @@ private slots:
 
     void testBatchDequeue()
     {
-        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
         queue.enqueue("value1");
         queue.enqueue("value2");
         queue.enqueue("value3");
@@ -181,7 +181,7 @@ private slots:
 
     void testBatchEnqueue()
     {
-        MessageQueue queue(Sink::Store::storageLocation(), "org.kde.dummy.testqueue");
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
         QSignalSpy spy(&queue, SIGNAL(messageReady()));
         queue.startTransaction();
         queue.enqueue("value1");

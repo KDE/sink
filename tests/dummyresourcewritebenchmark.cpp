@@ -103,14 +103,14 @@ class DummyResourceWriteBenchmark : public QObject
 
     void writeInProcess(int num)
     {
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
+        DummyResource::removeFromDisk("sink.dummy.instance1");
 
 
         QTime time;
         time.start();
 
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.dummy.instance1");
-        DummyResource resource("org.kde.dummy.instance1", pipeline);
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create("sink.dummy.instance1");
+        DummyResource resource("sink.dummy.instance1", pipeline);
 
         int bufferSize = 0;
         auto command = createEntityBuffer(bufferSize);
@@ -131,7 +131,7 @@ class DummyResourceWriteBenchmark : public QObject
         const auto finalRss = getCurrentRSS();
         const auto rssGrowth = finalRss - startingRss;
         // Since the database is memory mapped it is attributted to the resident set size.
-        const auto rssWithoutDb = finalRss - DummyResource::diskUsage("org.kde.dummy.instance1");
+        const auto rssWithoutDb = finalRss - DummyResource::diskUsage("sink.dummy.instance1");
         const auto peakRss = getPeakRSS();
         // How much peak deviates from final rss in percent
         const auto percentageRssError = static_cast<double>(peakRss - finalRss) * 100.0 / static_cast<double>(finalRss);
@@ -143,7 +143,7 @@ class DummyResourceWriteBenchmark : public QObject
         std::cout << "Rss without db [kb]: " << rssWithoutDb / 1024 << std::endl;
         std::cout << "Percentage peak rss error: " << percentageRssError << std::endl;
 
-        auto onDisk = DummyResource::diskUsage("org.kde.dummy.instance1");
+        auto onDisk = DummyResource::diskUsage("sink.dummy.instance1");
         auto writeAmplification = static_cast<double>(onDisk) / static_cast<double>(bufferSizeTotal);
         std::cout << "On disk [kb]: " << onDisk / 1024 << std::endl;
         std::cout << "Buffer size total [kb]: " << bufferSizeTotal / 1024 << std::endl;
@@ -216,13 +216,13 @@ private slots:
 
     void getFreePages()
     {
-        std::system(QString("mdb_stat %1/%2 -ff").arg(Sink::storageLocation()).arg("org.kde.dummy.instance1").toLatin1().constData());
+        std::system(QString("mdb_stat %1/%2 -ff").arg(Sink::storageLocation()).arg("sink.dummy.instance1").toLatin1().constData());
     }
 
     // This allows to run individual parts without doing a cleanup, but still cleaning up normally
     void testCleanupForCompleteTest()
     {
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
+        DummyResource::removeFromDisk("sink.dummy.instance1");
     }
 
 private:

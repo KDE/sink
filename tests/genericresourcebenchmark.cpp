@@ -96,9 +96,9 @@ private slots:
 
     void initTestCase()
     {
-        removeFromDisk("org.kde.test.instance1");
-        removeFromDisk("org.kde.test.instance1.userqueue");
-        removeFromDisk("org.kde.test.instance1.synchronizerqueue");
+        removeFromDisk("sink.test.instance1");
+        removeFromDisk("sink.test.instance1.userqueue");
+        removeFromDisk("sink.test.instance1.synchronizerqueue");
     }
 
 
@@ -106,8 +106,8 @@ private slots:
     {
         int num = 10000;
 
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.test.instance1");
-        TestResource resource("org.kde.test.instance1", pipeline);
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create("sink.test.instance1");
+        TestResource resource("sink.test.instance1", pipeline);
 
         auto command = createEntityBuffer();
 
@@ -141,16 +141,16 @@ private slots:
     {
         int num = 50000;
 
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.test.instance1");
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create("sink.test.instance1");
 
         auto eventFactory = QSharedPointer<TestEventAdaptorFactory>::create();
-        const QByteArray resourceIdentifier = "org.kde.test.instance1";
+        const QByteArray resourceIdentifier = "sink.test.instance1";
         auto indexer = QSharedPointer<IndexUpdater>::create();
 
         pipeline->setPreprocessors("event", QVector<Sink::Preprocessor *>() << indexer.data());
         pipeline->setAdaptorFactory("event", eventFactory);
 
-        TestResource resource("org.kde.test.instance1", pipeline);
+        TestResource resource("sink.test.instance1", pipeline);
 
         auto command = createEntityBuffer();
 

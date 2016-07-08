@@ -23,15 +23,15 @@ private slots:
     void initTestCase()
     {
         Sink::Test::initTest();
-        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
+        auto factory = Sink::ResourceFactory::load("sink.dummy");
         QVERIFY(factory);
-        ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
-        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
+        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
     }
 
     void cleanup()
     {
-        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
     }
 
     void init()
@@ -59,13 +59,13 @@ private slots:
     {
         // Setup
         {
-            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
             Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
         }
 
         // Test
         Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        query.resources << "sink.dummy.instance1";
         query.liveQuery = true;
 
         // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
@@ -77,13 +77,13 @@ private slots:
     {
         // Setup
         {
-            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
             Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
         }
 
         // Test
         Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        query.resources << "sink.dummy.instance1";
         query.liveQuery = false;
 
         // Ensure all local data is processed
@@ -101,12 +101,12 @@ private slots:
         QByteArray id;
         // Setup
         {
-            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
             Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
             Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
 
             Sink::Query query;
-            query.resources << "org.kde.dummy.instance1";
+            query.resources << "sink.dummy.instance1";
 
             // Ensure all local data is processed
             Sink::Store::synchronize(query).exec().waitForFinished();
@@ -120,7 +120,7 @@ private slots:
 
         // Test
         Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        query.resources << "sink.dummy.instance1";
         query.ids << id;
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -131,13 +131,13 @@ private slots:
     {
         // Setup
         {
-            Sink::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Folder folder("sink.dummy.instance1");
             Sink::Store::create<Sink::ApplicationDomain::Folder>(folder).exec().waitForFinished();
         }
 
         // Test
         Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        query.resources << "sink.dummy.instance1";
         query.liveQuery = true;
 
         // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
@@ -151,11 +151,11 @@ private slots:
     {
         // Setup
         {
-            Sink::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Folder folder("sink.dummy.instance1");
             Sink::Store::create<Sink::ApplicationDomain::Folder>(folder).exec().waitForFinished();
 
             Sink::Query query;
-            query.resources << "org.kde.dummy.instance1";
+            query.resources << "sink.dummy.instance1";
 
             // Ensure all local data is processed
             Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
@@ -167,14 +167,14 @@ private slots:
             auto folderEntity = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>();
             QVERIFY(!folderEntity->identifier().isEmpty());
 
-            Sink::ApplicationDomain::Folder subfolder("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Folder subfolder("sink.dummy.instance1");
             subfolder.setProperty("parent", folderEntity->identifier());
             Sink::Store::create<Sink::ApplicationDomain::Folder>(subfolder).exec().waitForFinished();
         }
 
         // Test
         Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        query.resources << "sink.dummy.instance1";
         query.parentProperty = "parent";
 
         // Ensure all local data is processed
@@ -193,7 +193,7 @@ private slots:
     {
         // Setup
         {
-            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
             mail.setProperty("uid", "test1");
             mail.setProperty("sender", "doe@example.org");
             Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
@@ -201,7 +201,7 @@ private slots:
 
         // Test
         Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        query.resources << "sink.dummy.instance1";
         query.liveQuery = false;
         query += Sink::Query::PropertyFilter("uid", "test1");
 
@@ -219,11 +219,11 @@ private slots:
         // Setup
         Sink::ApplicationDomain::Folder::Ptr folderEntity;
         {
-            Sink::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Folder folder("sink.dummy.instance1");
             Sink::Store::create<Sink::ApplicationDomain::Folder>(folder).exec().waitForFinished();
 
             Sink::Query query;
-            query.resources << "org.kde.dummy.instance1";
+            query.resources << "sink.dummy.instance1";
 
             // Ensure all local data is processed
             Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
@@ -235,7 +235,7 @@ private slots:
             folderEntity = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>();
             QVERIFY(!folderEntity->identifier().isEmpty());
 
-            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
             mail.setProperty("uid", "test1");
             mail.setProperty("folder", folderEntity->identifier());
             Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
@@ -243,7 +243,7 @@ private slots:
 
         // Test
         Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        query.resources << "sink.dummy.instance1";
         query += Sink::Query::PropertyFilter("folder", *folderEntity);
 
         // Ensure all local data is processed
@@ -260,11 +260,11 @@ private slots:
         // Setup
         Sink::ApplicationDomain::Folder::Ptr folderEntity;
         {
-            Sink::ApplicationDomain::Folder folder("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Folder folder("sink.dummy.instance1");
             Sink::Store::create<Sink::ApplicationDomain::Folder>(folder).exec().waitForFinished();
 
             Sink::Query query;
-            query.resources << "org.kde.dummy.instance1";
+            query.resources << "sink.dummy.instance1";
 
             // Ensure all local data is processed
             Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
@@ -278,21 +278,21 @@ private slots:
 
             const auto date = QDateTime(QDate(2015, 7, 7), QTime(12, 0));
             {
-                Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+                Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
                 mail.setProperty("uid", "testSecond");
                 mail.setProperty("folder", folderEntity->identifier());
                 mail.setProperty("date", date.addDays(-1));
                 Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
             }
             {
-                Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+                Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
                 mail.setProperty("uid", "testLatest");
                 mail.setProperty("folder", folderEntity->identifier());
                 mail.setProperty("date", date);
                 Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
             }
             {
-                Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+                Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
                 mail.setProperty("uid", "testLast");
                 mail.setProperty("folder", folderEntity->identifier());
                 mail.setProperty("date", date.addDays(-2));
@@ -302,7 +302,7 @@ private slots:
 
         // Test
         Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        query.resources << "sink.dummy.instance1";
         query += Sink::Query::PropertyFilter("folder", *folderEntity);
         query.sortProperty = "date";
         query.limit = 1;

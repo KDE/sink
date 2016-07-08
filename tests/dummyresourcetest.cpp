@@ -30,10 +30,10 @@ private slots:
     void initTestCase()
     {
         Sink::Test::initTest();
-        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
+        auto factory = Sink::ResourceFactory::load("sink.dummy");
         QVERIFY(factory);
-        DummyResource::removeFromDisk("org.kde.dummy.instance1");
-        ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
+        DummyResource::removeFromDisk("sink.dummy.instance1");
+        ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
     }
 
     void init()
@@ -47,7 +47,7 @@ private slots:
     void cleanup()
     {
         qDebug() << "Test took " << time.elapsed();
-        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
     }
 
     void testProperty()
@@ -59,13 +59,13 @@ private slots:
 
     void testWriteToFacadeAndQueryByUid()
     {
-        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
         Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        const auto query = Query::ResourceFilter("org.kde.dummy.instance1") ;
+        const auto query = Query::ResourceFilter("sink.dummy.instance1") ;
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
@@ -78,7 +78,7 @@ private slots:
 
     void testWriteToFacadeAndQueryByUid2()
     {
-        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
         event.setProperty("summary", "summaryValue");
 
         event.setProperty("uid", "testuid");
@@ -87,7 +87,7 @@ private slots:
         event.setProperty("uid", "testuid2");
         Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        const auto query = Query::ResourceFilter("org.kde.dummy.instance1") ;
+        const auto query = Query::ResourceFilter("sink.dummy.instance1") ;
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
@@ -102,7 +102,7 @@ private slots:
 
     void testWriteToFacadeAndQueryBySummary()
     {
-        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
 
         event.setProperty("uid", "testuid");
         event.setProperty("summary", "summaryValue1");
@@ -112,7 +112,7 @@ private slots:
         event.setProperty("summary", "summaryValue2");
         Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        const auto query = Query::ResourceFilter("org.kde.dummy.instance1") ;
+        const auto query = Query::ResourceFilter("sink.dummy.instance1") ;
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
@@ -127,8 +127,8 @@ private slots:
 
     void testResourceSync()
     {
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.dummy.instance1");
-        DummyResource resource("org.kde.dummy.instance1", pipeline);
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create("sink.dummy.instance1");
+        DummyResource resource("sink.dummy.instance1", pipeline);
         auto job = resource.synchronizeWithSource();
         // TODO pass in optional timeout?
         auto future = job.exec();
@@ -142,7 +142,7 @@ private slots:
 
     void testSyncAndFacade()
     {
-        const auto query = Query::ResourceFilter("org.kde.dummy.instance1");
+        const auto query = Query::ResourceFilter("sink.dummy.instance1");
 
         // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
@@ -158,7 +158,7 @@ private slots:
 
     void testSyncAndFacadeMail()
     {
-        const auto query = Query::ResourceFilter("org.kde.dummy.instance1");
+        const auto query = Query::ResourceFilter("sink.dummy.instance1");
 
         // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
@@ -174,13 +174,13 @@ private slots:
 
     void testWriteModifyDelete()
     {
-        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
         Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
 
-        const auto query = Query::ResourceFilter("org.kde.dummy.instance1") + Query::PropertyFilter("uid", "testuid");
+        const auto query = Query::ResourceFilter("sink.dummy.instance1") + Query::PropertyFilter("uid", "testuid");
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
@@ -229,14 +229,14 @@ private slots:
 
     void testWriteModifyDeleteLive()
     {
-        auto query = Query::ResourceFilter("org.kde.dummy.instance1");
+        auto query = Query::ResourceFilter("sink.dummy.instance1");
         query.liveQuery = true;
         query += Query::PropertyFilter("uid", "testuid");
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
 
-        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");

@@ -131,7 +131,7 @@ private slots:
     {
         Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
         Sink::AdaptorFactoryRegistry::instance().registerFactory<Sink::ApplicationDomain::Mail, TestMailAdaptorFactory>("test");
-        resourceIdentifier = "org.kde.test.instance1";
+        resourceIdentifier = "sink.test.instance1";
     }
 
     void testWithoutIndex()

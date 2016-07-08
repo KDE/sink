@@ -91,4 +91,4 @@ private:
 
 } // namespace Sink
 
-Q_DECLARE_INTERFACE(Sink::ResourceFactory, "org.kde.sink.resourcefactory")
+Q_DECLARE_INTERFACE(Sink::ResourceFactory, "sink.sink.resourcefactory")

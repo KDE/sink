@@ -27,7 +27,7 @@
 #include <flatbuffers/flatbuffers.h>
 
 //TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
-#define PLUGIN_NAME "org.kde.dummy"
+#define PLUGIN_NAME "sink.dummy"
 
 class DummyResource : public Sink::GenericResource
 {
@@ -42,7 +42,7 @@ public:
 class DummyResourceFactory : public Sink::ResourceFactory
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.kde.dummy")
+    Q_PLUGIN_METADATA(IID "sink.dummy")
     Q_INTERFACES(Sink::ResourceFactory)
 
 public:

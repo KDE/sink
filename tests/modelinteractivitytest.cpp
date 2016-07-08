@@ -51,13 +51,13 @@ private slots:
     void initTestCase()
     {
         Sink::Test::initTest();
-        ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
-        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
+        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
     }
 
     void cleanup()
     {
-        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
     }
 
     void init()
@@ -68,14 +68,14 @@ private slots:
     {
         // Setup
         {
-            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
             for (int i = 0; i < 1000; i++) {
                 Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
             }
         }
 
         Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        query.resources << "sink.dummy.instance1";
         query.liveQuery = true;
 
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();

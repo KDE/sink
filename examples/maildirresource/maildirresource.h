@@ -26,7 +26,7 @@
 #include <flatbuffers/flatbuffers.h>
 
 //TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
-#define PLUGIN_NAME "org.kde.maildir"
+#define PLUGIN_NAME "sink.maildir"
 
 class MaildirMailAdaptorFactory;
 class MaildirFolderAdaptorFactory;
@@ -58,7 +58,7 @@ private:
 class MaildirResourceFactory : public Sink::ResourceFactory
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.kde.maildir")
+    Q_PLUGIN_METADATA(IID "sink.maildir")
     Q_INTERFACES(Sink::ResourceFactory)
 
 public:

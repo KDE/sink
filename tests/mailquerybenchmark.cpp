@@ -148,7 +148,7 @@ private slots:
 
     void init()
     {
-        resourceIdentifier = "org.kde.test.instance1";
+        resourceIdentifier = "sink.test.instance1";
         Sink::AdaptorFactoryRegistry::instance().registerFactory<Sink::ApplicationDomain::Mail, TestMailAdaptorFactory>("test");
     }
 

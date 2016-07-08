@@ -51,7 +51,7 @@ private slots:
         QString smtpUsername("smtpUsername");
         QString smtpPassword("smtpPassword");
         auto resource = ApplicationDomainType::createEntity<SinkResource>();
-        resource.setProperty("type", "org.kde.mailtransport");
+        resource.setProperty("type", "sink.mailtransport");
         resource.setProperty("account", account.identifier());
         resource.setProperty("server", smtpServer);
         resource.setProperty("username", smtpUsername);
@@ -62,7 +62,7 @@ private slots:
         Store::fetchAll<SinkResource>(Query()).then<void, QList<SinkResource::Ptr>>([&](const QList<SinkResource::Ptr> &resources) {
             QCOMPARE(resources.size(), 1);
             auto resource = resources.first();
-            QCOMPARE(resource->getProperty("type").toString(), QString("org.kde.mailtransport"));
+            QCOMPARE(resource->getProperty("type").toString(), QString("sink.mailtransport"));
             QCOMPARE(resource->getProperty("server").toString(), smtpServer);
         })
         .exec().waitForFinished();
@@ -110,7 +110,7 @@ private slots:
 
         //Ensure the notifier only affects one type
         auto resource = ApplicationDomainType::createEntity<SinkResource>();
-        resource.setResourceType("org.kde.mailtransport");
+        resource.setResourceType("sink.mailtransport");
         Store::create(resource).exec().waitForFinished();
         QTRY_COMPARE(model->rowCount(QModelIndex()), 2);
     }

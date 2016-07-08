@@ -16,19 +16,19 @@ class IndexTest : public QObject
 private slots:
     void initTestCase()
     {
-        Sink::Storage store("./testindex", "org.kde.dummy.testindex", Sink::Storage::ReadWrite);
+        Sink::Storage store("./testindex", "sink.dummy.testindex", Sink::Storage::ReadWrite);
         store.removeFromDisk();
     }
 
     void cleanup()
     {
-        Sink::Storage store("./testindex", "org.kde.dummy.testindex", Sink::Storage::ReadWrite);
+        Sink::Storage store("./testindex", "sink.dummy.testindex", Sink::Storage::ReadWrite);
         store.removeFromDisk();
     }
 
     void testIndex()
     {
-        Index index("./testindex", "org.kde.dummy.testindex", Sink::Storage::ReadWrite);
+        Index index("./testindex", "sink.dummy.testindex", Sink::Storage::ReadWrite);
         // The first key is specifically a substring of the second key
         index.add("key", "value1");
         index.add("keyFoo", "value2");

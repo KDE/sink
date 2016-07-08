@@ -23,7 +23,7 @@
 #include "common/genericresource.h"
 
 //TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
-#define PLUGIN_NAME "org.kde.mailtransport"
+#define PLUGIN_NAME "sink.mailtransport"
 
 class MailtransportResource : public Sink::GenericResource
 {
@@ -46,7 +46,7 @@ private:
 class MailtransportResourceFactory : public Sink::ResourceFactory
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.kde.mailtransport")
+    Q_PLUGIN_METADATA(IID "sink.mailtransport")
     Q_INTERFACES(Sink::ResourceFactory)
 
 public:

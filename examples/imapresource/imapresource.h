@@ -26,7 +26,7 @@
 #include <flatbuffers/flatbuffers.h>
 
 //TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
-#define PLUGIN_NAME "org.kde.imap"
+#define PLUGIN_NAME "sink.imap"
 
 class ImapMailAdaptorFactory;
 class ImapFolderAdaptorFactory;
@@ -56,7 +56,7 @@ private:
 class ImapResourceFactory : public Sink::ResourceFactory
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.kde.imap")
+    Q_PLUGIN_METADATA(IID "sink.imap")
     Q_INTERFACES(Sink::ResourceFactory)
 
 public:
