@@ -190,7 +190,6 @@ class PipelineTest : public QObject
 private slots:
     void initTestCase()
     {
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
         Sink::AdaptorFactoryRegistry::instance().registerFactory<Sink::ApplicationDomain::Event, TestEventAdaptorFactory>("test");
     }
 

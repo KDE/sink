@@ -28,7 +28,6 @@ private slots:
         QTcpSocket socket;
         socket.connectToHost("localhost", 993);
         QVERIFY(socket.waitForConnected(200));
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
         system("resetmailbox.sh");
     }
 

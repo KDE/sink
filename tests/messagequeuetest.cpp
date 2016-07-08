@@ -7,6 +7,7 @@
 #include "storage.h"
 #include "messagequeue.h"
 #include "log.h"
+#include "test.h"
 
 SINK_DEBUG_AREA("messagequeuetest")
 
@@ -19,7 +20,7 @@ class MessageQueueTest : public QObject
 private slots:
     void initTestCase()
     {
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
+        Sink::Test::initTest();
         Sink::Storage store(Sink::Store::storageLocation(), "org.kde.dummy.testqueue", Sink::Storage::ReadWrite);
         store.removeFromDisk();
     }

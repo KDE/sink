@@ -37,7 +37,6 @@ void MailSyncTest::initTestCase()
 {
     Test::initTest();
     QVERIFY(isBackendAvailable());
-    Log::setDebugOutputLevel(Sink::Log::Trace);
     resetTestEnvironment();
     auto resource = createResource();
     QVERIFY(!resource.identifier().isEmpty());

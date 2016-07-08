@@ -20,7 +20,6 @@ private slots:
     {
         // Sink::FacadeFactory::instance().resetFactory();
         // ResourceConfig::clear();
-        Log::setDebugOutputLevel(Sink::Log::Trace);
         Test::initTest();
     }
 

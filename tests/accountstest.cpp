@@ -17,7 +17,6 @@ private slots:
     void initTestCase()
     {
         Sink::Test::initTest();
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
     }
 
     void init()

@@ -24,7 +24,6 @@ private slots:
         Sink::Test::initTest();
         Sink::FacadeFactory::instance().resetFactory();
         ResourceConfig::clear();
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
     }
 
     void resourceManagement()

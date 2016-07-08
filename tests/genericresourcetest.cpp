@@ -27,7 +27,6 @@ private slots:
     void init()
     {
         Sink::GenericResource::removeFromDisk("org.kde.test.instance1");
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
     }
 
     /// Ensure the resource can process messages

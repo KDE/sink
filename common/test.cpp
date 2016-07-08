@@ -27,6 +27,7 @@
 #include "facadefactory.h"
 #include "query.h"
 #include "resourceconfig.h"
+#include "definitions.h"
 
 SINK_DEBUG_AREA("test")
 
@@ -34,6 +35,9 @@ using namespace Sink;
 
 void Sink::Test::initTest()
 {
+    auto logIniFile = Sink::configLocation() + "/log.ini";
+    auto areaAutocompletionFile = Sink::dataLocation() + "/debugAreas.ini";
+
     setTestModeEnabled(true);
     // qDebug() << "Removing " << QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
     QDir(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).removeRecursively();
@@ -48,6 +52,30 @@ void Sink::Test::initTest()
     // qDebug() << "Removing " << QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation);
     QDir(QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation)).removeRecursively();
     Log::setPrimaryComponent("test");
+
+    //We copy those files so we can control debug output from outside the test with sinksh
+    {
+        QFile file(logIniFile);
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning() << "Failed to open the file: " << logIniFile;
+        }
+        QDir dir;
+        dir.mkpath(Sink::configLocation());
+        if (!file.copy(Sink::configLocation() + "/log.ini")) {
+            qWarning() << "Failed to move the file: " << Sink::configLocation() + "/log.ini";
+        }
+    }
+    {
+        QFile file(areaAutocompletionFile);
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning() << "Failed to open the file: " << logIniFile;
+        }
+        QDir dir;
+        dir.mkpath(Sink::dataLocation());
+        if (!file.copy(Sink::dataLocation() + "/debugAreas.ini")) {
+            qWarning() << "Failed to move the file: " << Sink::configLocation() + "/log.ini";
+        }
+    }
 }
 
 void Sink::Test::setTestModeEnabled(bool enabled)

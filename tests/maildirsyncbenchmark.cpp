@@ -61,7 +61,6 @@ private slots:
     {
         targetPath = tempDir.path() + "/maildir1";
 
-        Sink::Log::setDebugOutputLevel(Sink::Log::Log);
         MaildirResource::removeFromDisk("org.kde.maildir.test1");
         Sink::ApplicationDomain::SinkResource resource;
         resource.setProperty("identifier", "org.kde.maildir.test1");

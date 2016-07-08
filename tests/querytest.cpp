@@ -23,7 +23,6 @@ private slots:
     void initTestCase()
     {
         Sink::Test::initTest();
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
         auto factory = Sink::ResourceFactory::load("org.kde.dummy");
         QVERIFY(factory);
         ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");

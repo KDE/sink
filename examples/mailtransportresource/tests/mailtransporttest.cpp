@@ -33,7 +33,6 @@ private slots:
     void initTestCase()
     {
         Test::initTest();
-        Log::setDebugOutputLevel(Sink::Log::Trace);
         auto resource = createResource();
         QVERIFY(!resource.identifier().isEmpty());
         VERIFYEXEC(Store::create(resource));

@@ -31,6 +31,7 @@
 #include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
+#include "iostream"
 
 namespace SinkTrace
 {
@@ -38,22 +39,24 @@ namespace SinkTrace
 bool traceOff(const QStringList &args, State &state)
 {
     Sink::Log::setDebugOutputLevel(Sink::Log::Log);
-    qDebug() << "Turned trace off: " << args;
+    std::cout << "Turned trace off." << std::endl;
     return true;
 }
 
 bool traceOn(const QStringList &args, State &state)
 {
-    if (args.isEmpty()) {
-        state.printError(QObject::tr("Specifiy a debug area to trace: ") + Sink::Log::debugAreas().toList().join(", "));
-        return false;
-    }
     Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
-    QByteArrayList filter;
-    for (const auto &arg : args) {
-        filter << arg.toLatin1();
+    if (args.isEmpty() || (args.size() == 1 && args.first() == "*")) {
+        Sink::Log::setDebugOutputFilter(Sink::Log::Area, QByteArrayList());
+        std::cout << "Set trace filter to: *" << std::endl;
+    } else {
+        QByteArrayList filter;
+        for (const auto &arg : args) {
+            filter << arg.toLatin1();
+        }
+        Sink::Log::setDebugOutputFilter(Sink::Log::Area, filter);
+        std::cout << "Set trace filter to: " << filter.join(", ").toStdString() << std::endl;
     }
-    Sink::Log::setDebugOutputFilter(Sink::Log::Area, filter);
     return true;
 }
 
