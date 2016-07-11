@@ -30,6 +30,7 @@
 #include <QString>
 #include <QTime>
 #include <QMutex>
+#include <valgrind.h>
 
 #include <lmdb.h>
 #include "log.h"
@@ -621,11 +622,16 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m) : st
                     mdb_env_close(env);
                     env = 0;
                 } else {
-                    // FIXME: dynamic resize
-                    // In order to run valgrind this size must be smaller than half your available RAM
-                    // https://github.com/BVLC/caffe/issues/2404
-                    const size_t dbSize = (size_t)10485760 * (size_t)8000; // 1MB * 8000
-                    mdb_env_set_mapsize(env, dbSize);
+                    if (RUNNING_ON_VALGRIND) {
+                        // In order to run valgrind this size must be smaller than half your available RAM
+                        // https://github.com/BVLC/caffe/issues/2404
+                        const size_t dbSize = (size_t)10485760 * (size_t)1000; // 1MB * 1000
+                        mdb_env_set_mapsize(env, dbSize);
+                    } else {
+                        // FIXME: dynamic resize
+                        const size_t dbSize = (size_t)10485760 * (size_t)8000; // 1MB * 8000
+                        mdb_env_set_mapsize(env, dbSize);
+                    }
                     sEnvironments.insert(fullPath, env);
                 }
             }
