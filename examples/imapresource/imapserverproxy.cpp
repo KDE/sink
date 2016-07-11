@@ -113,7 +113,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     }
 
     auto capabilitiesJob = new KIMAP::CapabilitiesJob(mSession);
-    QObject::connect(capabilitiesJob, &KIMAP::CapabilitiesJob::capabilitiesReceived, [this](const QStringList &capabilities) {
+    QObject::connect(capabilitiesJob, &KIMAP::CapabilitiesJob::capabilitiesReceived, &mGuard, [this](const QStringList &capabilities) {
         mCapabilities = capabilities;
     });
     auto namespaceJob = new KIMAP::NamespaceJob(mSession);
