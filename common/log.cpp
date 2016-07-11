@@ -10,6 +10,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <memory>
+#include <atomic>
 #include <definitions.h>
 
 using namespace Sink::Log;
@@ -360,7 +361,9 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     if (useColor) {
         output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode);
     }
-    output += QString(" %1 ").arg(fullDebugArea.leftJustified(25, ' ', true));
+    static std::atomic<int> maxDebugAreaSize{25};
+    maxDebugAreaSize = qMax(fullDebugArea.size(), maxDebugAreaSize.load());
+    output += QString(" %1 ").arg(fullDebugArea.leftJustified(maxDebugAreaSize, ' ', false));
     if (useColor) {
         output += resetColor;
     }
