@@ -40,6 +40,9 @@ class Synchronizer;
  */
 class SINK_EXPORT GenericResource : public Resource
 {
+protected:
+    SINK_DEBUG_AREA("resource")
+    SINK_DEBUG_COMPONENT(mResourceInstanceIdentifier)
 public:
     GenericResource(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, const QSharedPointer<Pipeline> &pipeline);
     virtual ~GenericResource();
@@ -77,7 +80,7 @@ protected:
     QSharedPointer<Pipeline> mPipeline;
 
 private:
-    CommandProcessor *mProcessor;
+    std::unique_ptr<CommandProcessor> mProcessor;
     QSharedPointer<ChangeReplay> mChangeReplay;
     QSharedPointer<Synchronizer> mSynchronizer;
     int mError;

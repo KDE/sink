@@ -27,7 +27,7 @@
 #include <flatbuffers/flatbuffers.h>
 
 //TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
-#define PLUGIN_NAME "org.kde.dummy"
+#define PLUGIN_NAME "sink.dummy"
 
 class DummyResource : public Sink::GenericResource
 {
@@ -35,13 +35,14 @@ public:
     DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
     virtual ~DummyResource();
 
+    KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE;
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
 };
 
 class DummyResourceFactory : public Sink::ResourceFactory
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.kde.dummy")
+    Q_PLUGIN_METADATA(IID "sink.dummy")
     Q_INTERFACES(Sink::ResourceFactory)
 
 public:

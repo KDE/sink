@@ -56,6 +56,24 @@ signals:
 };
 
 template <typename DomainType>
+class LocalStorageQueryRunner
+{
+public:
+    LocalStorageQueryRunner(const Sink::Query &query, const QByteArray &identifier, ConfigNotifier &configNotifier);
+    typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
+    void setStatusUpdater(const std::function<void(DomainType &)> &);
+    void statusChanged(const QByteArray &identifier);
+    QObject *guard() const;
+
+private:
+    void updateStatus(DomainType &entity);
+    std::function<void(DomainType &)> mStatusUpdater;
+    QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr>> mResultProvider;
+    ConfigStore mConfigStore;
+    std::unique_ptr<QObject> mGuard;
+};
+
+template <typename DomainType>
 class LocalStorageFacade : public Sink::StoreFacade<DomainType>
 {
 public:
@@ -65,13 +83,14 @@ public:
     virtual KAsync::Job<void> modify(const DomainType &resource) Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> remove(const DomainType &resource) Q_DECL_OVERRIDE;
     virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
+
+protected:
+    QByteArray mIdentifier;
+    static ConfigNotifier sConfigNotifier;
+
 private:
     typename DomainType::Ptr readFromConfig(const QByteArray &id, const QByteArray &type);
-    static typename DomainType::Ptr readFromConfig(ConfigStore &store, const QByteArray &id, const QByteArray &type);
-
     ConfigStore mConfigStore;
-    static ConfigNotifier sConfigNotifier;
-    QByteArray mResourceInstanceIdentifier;
 };
 
 class ResourceFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkResource>
@@ -80,6 +99,7 @@ public:
     ResourceFacade();
     virtual ~ResourceFacade();
     virtual KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkResource &resource) Q_DECL_OVERRIDE;
+    virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename Sink::ApplicationDomain::SinkResource::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 };
 
 class AccountFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkAccount>
@@ -87,6 +107,7 @@ class AccountFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkAcc
 public:
     AccountFacade();
     virtual ~AccountFacade();
+    virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename Sink::ApplicationDomain::SinkAccount::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 };
 
 class IdentityFacade : public LocalStorageFacade<Sink::ApplicationDomain::Identity>

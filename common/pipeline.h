@@ -72,7 +72,7 @@ signals:
 
 private:
     class Private;
-    Private *const d;
+    const std::unique_ptr<Private> d;
 };
 
 class SINK_EXPORT Preprocessor
@@ -103,7 +103,7 @@ protected:
 private:
     friend class Pipeline;
     class Private;
-    Private *const d;
+    const std::unique_ptr<Private> d;
 };
 
 template<typename DomainType>

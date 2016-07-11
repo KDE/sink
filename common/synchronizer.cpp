@@ -29,6 +29,8 @@
 #include "modifyentity_generated.h"
 #include "deleteentity_generated.h"
 
+SINK_DEBUG_AREA("synchronizer")
+
 using namespace Sink;
 
 Synchronizer::Synchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier)
@@ -37,7 +39,7 @@ Synchronizer::Synchronizer(const QByteArray &resourceType, const QByteArray &res
     mResourceType(resourceType),
     mResourceInstanceIdentifier(resourceInstanceIdentifier)
 {
-    Trace() << "Starting synchronizer: " << resourceType << resourceInstanceIdentifier;
+    SinkTrace() << "Starting synchronizer: " << resourceType << resourceInstanceIdentifier;
 }
 
 Synchronizer::~Synchronizer()
@@ -129,11 +131,11 @@ void Synchronizer::scanForRemovals(const QByteArray &bufferType, const std::func
     entryGenerator([this, bufferType, &exists](const QByteArray &key) {
         auto sinkId = Sink::Storage::uidFromKey(key);
         const auto remoteId = syncStore().resolveLocalId(bufferType, sinkId);
-        Trace() << "Checking for removal " << key << remoteId;
+        SinkTrace() << "Checking for removal " << key << remoteId;
         // If we have no remoteId, the entity hasn't been replayed to the source yet
         if (!remoteId.isEmpty()) {
             if (!exists(remoteId)) {
-                Trace() << "Found a removed entity: " << sinkId;
+                SinkTrace() << "Found a removed entity: " << sinkId;
                 deleteEntity(sinkId, Sink::Storage::maxRevision(transaction()), bufferType,
                     [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::DeleteEntityCommand, buffer); });
             }
@@ -143,14 +145,14 @@ void Synchronizer::scanForRemovals(const QByteArray &bufferType, const std::func
 
 void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
-    Trace() << "Create or modify" << bufferType << remoteId;
+    SinkTrace() << "Create or modify" << bufferType << remoteId;
     auto mainDatabase = Storage::mainDatabase(transaction(), bufferType);
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
     const auto found = mainDatabase.contains(sinkId);
     auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(mResourceType, bufferType);
     Q_ASSERT(adaptorFactory);
     if (!found) {
-        Trace() << "Found a new entity: " << remoteId;
+        SinkTrace() << "Found a new entity: " << remoteId;
         createEntity(
             sinkId, bufferType, entity, *adaptorFactory, [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::CreateEntityCommand, buffer); });
     } else { // modification
@@ -159,17 +161,17 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
             bool changed = false;
             for (const auto &property : entity.changedProperties()) {
                 if (entity.getProperty(property) != current->getProperty(property)) {
-                    Trace() << "Property changed " << sinkId << property;
+                    SinkTrace() << "Property changed " << sinkId << property;
                     changed = true;
                 }
             }
             if (changed) {
-                Trace() << "Found a modified entity: " << remoteId;
+                SinkTrace() << "Found a modified entity: " << remoteId;
                 modifyEntity(sinkId, Sink::Storage::maxRevision(transaction()), bufferType, entity, *adaptorFactory,
                     [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::ModifyEntityCommand, buffer); });
             }
         } else {
-            Warning() << "Failed to get current entity";
+            SinkWarning() << "Failed to get current entity";
         }
     }
 }
@@ -178,7 +180,7 @@ template<typename DomainType>
 void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const DomainType &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria)
 {
 
-    Trace() << "Create or modify" << bufferType << remoteId;
+    SinkTrace() << "Create or modify" << bufferType << remoteId;
     auto mainDatabase = Storage::mainDatabase(transaction(), bufferType);
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
     const auto found = mainDatabase.contains(sinkId);
@@ -192,17 +194,17 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
             reader.query(query,
                 [this, bufferType, remoteId, &merge](const DomainType &o) -> bool{
                     merge = true;
-                    Trace() << "Merging local entity with remote entity: " << o.identifier() << remoteId;
+                    SinkTrace() << "Merging local entity with remote entity: " << o.identifier() << remoteId;
                     syncStore().recordRemoteId(bufferType, o.identifier(), remoteId);
                     return false;
                 });
             if (!merge) {
-                Trace() << "Found a new entity: " << remoteId;
+                SinkTrace() << "Found a new entity: " << remoteId;
                 createEntity(
                     sinkId, bufferType, entity, *adaptorFactory, [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::CreateEntityCommand, buffer); });
             }
         } else {
-            Trace() << "Found a new entity: " << remoteId;
+            SinkTrace() << "Found a new entity: " << remoteId;
             createEntity(
                 sinkId, bufferType, entity, *adaptorFactory, [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::CreateEntityCommand, buffer); });
         }
@@ -212,17 +214,17 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
             bool changed = false;
             for (const auto &property : entity.changedProperties()) {
                 if (entity.getProperty(property) != current->getProperty(property)) {
-                    Trace() << "Property changed " << sinkId << property;
+                    SinkTrace() << "Property changed " << sinkId << property;
                     changed = true;
                 }
             }
             if (changed) {
-                Trace() << "Found a modified entity: " << remoteId;
+                SinkTrace() << "Found a modified entity: " << remoteId;
                 modifyEntity(sinkId, Sink::Storage::maxRevision(transaction()), bufferType, entity, *adaptorFactory,
                     [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::ModifyEntityCommand, buffer); });
             }
         } else {
-            Warning() << "Failed to get current entity";
+            SinkWarning() << "Failed to get current entity";
         }
     }
 }
@@ -239,7 +241,7 @@ void Synchronizer::modify(const DomainType &entity)
 
 KAsync::Job<void> Synchronizer::synchronize()
 {
-    Trace() << "Synchronizing";
+    SinkTrace() << "Synchronizing";
     mSyncInProgress = true;
     mMessageQueue->startTransaction();
     return synchronizeWithSource().then<void>([this]() {
@@ -265,7 +267,7 @@ void Synchronizer::commit()
 Sink::Storage::Transaction &Synchronizer::transaction()
 {
     if (!mTransaction) {
-        Trace() << "Starting transaction";
+        SinkTrace() << "Starting transaction";
         mTransaction = mStorage.createTransaction(Sink::Storage::ReadOnly);
     }
     return mTransaction;
@@ -274,7 +276,7 @@ Sink::Storage::Transaction &Synchronizer::transaction()
 Sink::Storage::Transaction &Synchronizer::syncTransaction()
 {
     if (!mSyncTransaction) {
-        Trace() << "Starting transaction";
+        SinkTrace() << "Starting transaction";
         mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::ReadWrite);
     }
     return mSyncTransaction;

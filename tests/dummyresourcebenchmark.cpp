@@ -34,9 +34,9 @@ private slots:
     void initTestCase()
     {
         Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
-        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
+        auto factory = Sink::ResourceFactory::load("sink.dummy");
         QVERIFY(factory);
-        ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
+        ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
         num = 5000;
     }
 
@@ -76,21 +76,21 @@ private slots:
     void testCommandResponsiveness()
     {
         // Test responsiveness including starting the process.
-        Sink::Store::removeDataFromDisk("org.kde.dummy.instance1").exec().waitForFinished();
+        Sink::Store::removeDataFromDisk("sink.dummy.instance1").exec().waitForFinished();
 
         QTime time;
         time.start();
 
-        Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
+        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
 
-        auto notifier = QSharedPointer<Sink::Notifier>::create("org.kde.dummy.instance1", "org.kde.dummy");
+        auto notifier = QSharedPointer<Sink::Notifier>::create("sink.dummy.instance1", "sink.dummy");
         bool gotNotification = false;
         int duration = 0;
         notifier->registerHandler([&gotNotification, &duration, &time](const Sink::Notification &notification) {
-            if (notification.type == Sink::Commands::NotificationType::NotificationType_RevisionUpdate) {
+            if (notification.type == Sink::Notification::RevisionUpdate) {
                 gotNotification = true;
                 duration = time.elapsed();
             }
@@ -102,19 +102,19 @@ private slots:
         QTRY_VERIFY(gotNotification);
 
         QVERIFY2(duration < 100, QString::fromLatin1("Processing a create command took more than 100ms: %1").arg(duration).toLatin1());
-        Sink::ResourceControl::shutdown("org.kde.dummy.instance1").exec().waitForFinished();
+        Sink::ResourceControl::shutdown("sink.dummy.instance1").exec().waitForFinished();
         qDebug() << "Single command took [ms]: " << duration;
     }
 
     void testWriteToFacade()
     {
-        Sink::Store::removeDataFromDisk("org.kde.dummy.instance1").exec().waitForFinished();
+        Sink::Store::removeDataFromDisk("sink.dummy.instance1").exec().waitForFinished();
 
         QTime time;
         time.start();
         QList<KAsync::Future<void>> waitCondition;
         for (int i = 0; i < num; i++) {
-            Sink::ApplicationDomain::Event event("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Event event("sink.dummy.instance1");
             event.setProperty("uid", "testuid");
             QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
             event.setProperty("summary", "summaryValue");
@@ -126,7 +126,7 @@ private slots:
         // Ensure everything is processed
         {
             Sink::Query query;
-            query.resources << "org.kde.dummy.instance1";
+            query.resources << "sink.dummy.instance1";
             Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
         }
         auto allProcessedTime = time.elapsed();
@@ -140,7 +140,7 @@ private slots:
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
 
-        auto diskUsage = DummyResource::diskUsage("org.kde.dummy.instance1");
+        auto diskUsage = DummyResource::diskUsage("sink.dummy.instance1");
         qDebug() << "Database size [kb]: " << diskUsage / 1024;
 
         // Print memory layout, RSS is what is in memory
@@ -155,7 +155,7 @@ private slots:
         {
             time.start();
             Sink::Query query;
-            query.resources << "org.kde.dummy.instance1";
+            query.resources << "sink.dummy.instance1";
 
             query.propertyFilter.insert("uid", Sink::Query::Comparator("testuid"));
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
@@ -173,12 +173,12 @@ private slots:
 
     void testWriteInProcess()
     {
-        Sink::Store::removeDataFromDisk("org.kde.dummy.instance1").exec().waitForFinished();
+        Sink::Store::removeDataFromDisk("sink.dummy.instance1").exec().waitForFinished();
         QTime time;
         time.start();
 
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.dummy.instance1");
-        DummyResource resource("org.kde.dummy.instance1", pipeline);
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create("sink.dummy.instance1");
+        DummyResource resource("sink.dummy.instance1", pipeline);
 
         flatbuffers::FlatBufferBuilder eventFbb;
         eventFbb.Clear();
@@ -261,7 +261,7 @@ private slots:
     // This allows to run individual parts without doing a cleanup, but still cleaning up normally
     void testCleanupForCompleteTest()
     {
-        Sink::Store::removeDataFromDisk("org.kde.dummy.instance1").exec().waitForFinished();
+        Sink::Store::removeDataFromDisk("sink.dummy.instance1").exec().waitForFinished();
     }
 
 private:

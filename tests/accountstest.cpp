@@ -8,6 +8,7 @@
 #include <store.h>
 #include <log.h>
 #include <configstore.h>
+#include "testutils.h"
 
 class AccountsTest : public QObject
 {
@@ -17,7 +18,6 @@ private slots:
     void initTestCase()
     {
         Sink::Test::initTest();
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
     }
 
     void init()
@@ -52,7 +52,7 @@ private slots:
         QString smtpUsername("smtpUsername");
         QString smtpPassword("smtpPassword");
         auto resource = ApplicationDomainType::createEntity<SinkResource>();
-        resource.setProperty("type", "org.kde.mailtransport");
+        resource.setProperty("type", "sink.mailtransport");
         resource.setProperty("account", account.identifier());
         resource.setProperty("server", smtpServer);
         resource.setProperty("username", smtpUsername);
@@ -63,7 +63,7 @@ private slots:
         Store::fetchAll<SinkResource>(Query()).then<void, QList<SinkResource::Ptr>>([&](const QList<SinkResource::Ptr> &resources) {
             QCOMPARE(resources.size(), 1);
             auto resource = resources.first();
-            QCOMPARE(resource->getProperty("type").toString(), QString("org.kde.mailtransport"));
+            QCOMPARE(resource->getProperty("type").toString(), QString("sink.mailtransport"));
             QCOMPARE(resource->getProperty("server").toString(), smtpServer);
         })
         .exec().waitForFinished();
@@ -94,8 +94,8 @@ private slots:
         using namespace Sink::ApplicationDomain;
 
         auto account = ApplicationDomainType::createEntity<SinkAccount>();
-        account.setProperty("type", "maildir");
-        account.setProperty("name", "name");
+        account.setAccountType("maildir");
+        account.setName("name");
         Store::create(account).exec().waitForFinished();
 
         Query query;
@@ -104,16 +104,45 @@ private slots:
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
 
         auto account2 = ApplicationDomainType::createEntity<SinkAccount>();
-        account2.setProperty("type", "maildir");
-        account2.setProperty("name", "name");
+        account2.setAccountType("maildir");
+        account2.setName("name");
         Store::create(account2).exec().waitForFinished();
         QTRY_COMPARE(model->rowCount(QModelIndex()), 2);
 
         //Ensure the notifier only affects one type
         auto resource = ApplicationDomainType::createEntity<SinkResource>();
-        resource.setProperty("type", "org.kde.mailtransport");
+        resource.setResourceType("sink.mailtransport");
         Store::create(resource).exec().waitForFinished();
         QTRY_COMPARE(model->rowCount(QModelIndex()), 2);
+    }
+
+    void testLoadAccountStatus()
+    {
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
+
+        auto account = ApplicationDomainType::createEntity<SinkAccount>();
+        account.setAccountType("dummy");
+        account.setName("name");
+        VERIFYEXEC(Store::create(account));
+
+        auto res = Sink::ApplicationDomain::DummyResource::create(account.identifier());
+        VERIFYEXEC(Sink::Store::create(res));
+        {
+            Sink::Query query;
+            query.liveQuery = true;
+            query.request<Sink::ApplicationDomain::SinkAccount::Status>();
+
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkAccount>(query);
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+            auto account = model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkAccount::Ptr>();
+            QCOMPARE(account->getStatus(), static_cast<int>(Sink::ApplicationDomain::OfflineStatus));
+
+            //Synchronize to connect
+            VERIFYEXEC(Sink::Store::synchronize(Query::ResourceFilter(res)));
+
+            QTRY_COMPARE_WITH_TIMEOUT(model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkAccount::Ptr>()->getStatus(), static_cast<int>(Sink::ApplicationDomain::ConnectedStatus), 1000);
+        }
     }
 
 };

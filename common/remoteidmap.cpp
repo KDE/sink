@@ -25,6 +25,8 @@
 
 using namespace Sink;
 
+SINK_DEBUG_AREA("remoteidmap")
+
 RemoteIdMap::RemoteIdMap(Sink::Storage::Transaction &transaction)
     : mTransaction(transaction)
 {
@@ -67,7 +69,7 @@ QByteArray RemoteIdMap::resolveLocalId(const QByteArray &bufferType, const QByte
 {
     QByteArray remoteId = Index("localid.mapping." + bufferType, mTransaction).lookup(localId);
     if (remoteId.isEmpty()) {
-        Warning() << "Couldn't find the remote id for " << localId;
+        SinkWarning() << "Couldn't find the remote id for " << localId;
         return QByteArray();
     }
     return remoteId;

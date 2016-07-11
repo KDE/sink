@@ -8,6 +8,8 @@
 #include "modelresult.h"
 #include "resultprovider.h"
 #include "facadefactory.h"
+#include "test.h"
+#include "testutils.h"
 
 /**
  * Test of the resource configuration.
@@ -19,9 +21,9 @@ private slots:
 
     void initTestCase()
     {
+        Sink::Test::initTest();
         Sink::FacadeFactory::instance().resetFactory();
         ResourceConfig::clear();
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
     }
 
     void resourceManagement()
@@ -70,6 +72,30 @@ private slots:
         }
 
         Sink::Store::remove(res).exec().waitForFinished();
+    }
+
+    void testLoadResourceStatus()
+    {
+        ResourceConfig::clear();
+        Sink::FacadeFactory::instance().registerStaticFacades();
+
+        auto res = Sink::ApplicationDomain::DummyResource::create("");
+        VERIFYEXEC(Sink::Store::create(res));
+        {
+            Sink::Query query;
+            query.liveQuery = true;
+            query.request<Sink::ApplicationDomain::SinkResource::Status>();
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(query);
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+            auto resource = model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkResource::Ptr>();
+            QCOMPARE(resource->getStatus(), static_cast<int>(Sink::ApplicationDomain::OfflineStatus));
+
+            //Synchronize to connect
+            VERIFYEXEC(Sink::Store::synchronize(query));
+            QTRY_COMPARE(model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkResource::Ptr>()->getStatus(), static_cast<int>(Sink::ApplicationDomain::ConnectedStatus));
+        }
+
+        VERIFYEXEC(Sink::Store::remove(res));
     }
 
 };

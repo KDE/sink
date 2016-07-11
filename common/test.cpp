@@ -27,11 +27,17 @@
 #include "facadefactory.h"
 #include "query.h"
 #include "resourceconfig.h"
+#include "definitions.h"
+
+SINK_DEBUG_AREA("test")
 
 using namespace Sink;
 
 void Sink::Test::initTest()
 {
+    auto logIniFile = Sink::configLocation() + "/log.ini";
+    auto areaAutocompletionFile = Sink::dataLocation() + "/debugAreas.ini";
+
     setTestModeEnabled(true);
     // qDebug() << "Removing " << QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
     QDir(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)).removeRecursively();
@@ -45,6 +51,31 @@ void Sink::Test::initTest()
     QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation)).removeRecursively();
     // qDebug() << "Removing " << QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation);
     QDir(QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation)).removeRecursively();
+    Log::setPrimaryComponent("test");
+
+    //We copy those files so we can control debug output from outside the test with sinksh
+    {
+        QFile file(logIniFile);
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning() << "Failed to open the file: " << logIniFile;
+        }
+        QDir dir;
+        dir.mkpath(Sink::configLocation());
+        if (!file.copy(Sink::configLocation() + "/log.ini")) {
+            qWarning() << "Failed to move the file: " << Sink::configLocation() + "/log.ini";
+        }
+    }
+    {
+        QFile file(areaAutocompletionFile);
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning() << "Failed to open the file: " << logIniFile;
+        }
+        QDir dir;
+        dir.mkpath(Sink::dataLocation());
+        if (!file.copy(Sink::dataLocation() + "/debugAreas.ini")) {
+            qWarning() << "Failed to move the file: " << Sink::configLocation() + "/log.ini";
+        }
+    }
 }
 
 void Sink::Test::setTestModeEnabled(bool enabled)
@@ -102,7 +133,7 @@ public:
     {
         auto resultProvider = new Sink::ResultProvider<typename T::Ptr>();
         resultProvider->onDone([resultProvider]() {
-            Trace() << "Result provider is done";
+            SinkTrace() << "Result provider is done";
             delete resultProvider;
         });
         // We have to do it this way, otherwise we're not setting the fetcher right
@@ -110,11 +141,11 @@ public:
 
         resultProvider->setFetcher([query, resultProvider, this](const typename T::Ptr &parent) {
             if (parent) {
-                Trace() << "Running the fetcher " << parent->identifier();
+                SinkTrace() << "Running the fetcher " << parent->identifier();
             } else {
-                Trace() << "Running the fetcher.";
+                SinkTrace() << "Running the fetcher.";
             }
-            Trace() << "-------------------------.";
+            SinkTrace() << "-------------------------.";
             for (const auto &res : mTestAccount->entities<T>()) {
                 qDebug() << "Parent filter " << query.propertyFilter.value("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
                 auto parentProperty = res->getProperty("parent").toByteArray();

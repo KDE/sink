@@ -34,8 +34,7 @@
 #include "log.h"
 #include "test.h"
 
-#undef DEBUG_AREA
-#define DEBUG_AREA "resource"
+SINK_DEBUG_AREA("main")
 
 static Listener *listener = nullptr;
 
@@ -149,25 +148,26 @@ int main(int argc, char *argv[])
         arguments << argv[i];
     }
     if (arguments.contains("--test")) {
-        Log() << "Running in test-mode";
+        SinkLog() << "Running in test-mode";
         arguments.removeAll("--test");
         Sink::Test::setTestModeEnabled(true);
     }
 
     if (arguments.count() < 3) {
-        Warning() << "Not enough args passed, no resource loaded.";
+        SinkWarning() << "Not enough args passed, no resource loaded.";
         return app.exec();
     }
 
     const QByteArray instanceIdentifier = arguments.at(1);
     const QByteArray resourceType = arguments.at(2);
     app.setApplicationName(instanceIdentifier);
-    Log() << "Starting: " << instanceIdentifier;
+    Sink::Log::setPrimaryComponent(instanceIdentifier);
+    SinkLog() << "Starting: " << instanceIdentifier;
 
     QLockFile lockfile(instanceIdentifier + ".lock");
     lockfile.setStaleLockTime(500);
     if (!lockfile.tryLock(0)) {
-        Warning() << "Failed to acquire exclusive lock on socket.";
+        SinkWarning() << "Failed to acquire exclusive lock on socket.";
         return -1;
     }
 
@@ -177,6 +177,6 @@ int main(int argc, char *argv[])
     QObject::connect(listener, &Listener::noClients, &app, &QCoreApplication::quit);
 
     auto ret = app.exec();
-    Log() << "Exiting: " << instanceIdentifier;
+    SinkLog() << "Exiting: " << instanceIdentifier;
     return ret;
 }

@@ -45,6 +45,7 @@ public:
 
 signals:
     void changesReplayed();
+    void replayingChanges();
 
 public slots:
     void revisionChanged();

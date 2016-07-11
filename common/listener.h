@@ -25,6 +25,7 @@
 #include <QPointer>
 #include <QLocalSocket>
 #include <flatbuffers/flatbuffers.h>
+#include <log.h>
 
 namespace Sink {
 class Resource;
@@ -54,6 +55,7 @@ public:
 class SINK_EXPORT Listener : public QObject
 {
     Q_OBJECT
+    SINK_DEBUG_AREA("communication")
 
 public:
     Listener(const QByteArray &resourceName, const QByteArray &resourceType, QObject *parent = 0);
@@ -81,17 +83,17 @@ private:
     bool processClientBuffer(Client &client);
     void sendCommandCompleted(QLocalSocket *socket, uint messageId, bool success);
     void updateClientsWithRevision(qint64);
-    Sink::Resource *loadResource();
+    Sink::Resource &loadResource();
     void readFromSocket(QLocalSocket *socket);
     qint64 lowerBoundRevision();
 
-    QLocalServer *m_server;
+    std::unique_ptr<QLocalServer> m_server;
     QVector<Client> m_connections;
     flatbuffers::FlatBufferBuilder m_fbb;
     const QByteArray m_resourceName;
     const QByteArray m_resourceInstanceIdentifier;
-    Sink::Resource *m_resource;
-    QTimer *m_clientBufferProcessesTimer;
-    QTimer *m_checkConnectionsTimer;
+    std::unique_ptr<Sink::Resource> m_resource;
+    std::unique_ptr<QTimer> m_clientBufferProcessesTimer;
+    std::unique_ptr<QTimer> m_checkConnectionsTimer;
     int m_messageId;
 };

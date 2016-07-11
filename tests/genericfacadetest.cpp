@@ -8,6 +8,7 @@
 #include <common/domainadaptor.h>
 #include <common/resultprovider.h>
 #include <common/synclistresult.h>
+#include <common/test.h>
 
 // Replace with something different
 #include "event_generated.h"
@@ -23,10 +24,9 @@ class GenericFacadeTest : public QObject
 {
     Q_OBJECT
 private slots:
-
-    void init()
+    void initTestCase()
     {
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
+        Sink::Test::initTest();
     }
 
     void testLoad()

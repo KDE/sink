@@ -33,22 +33,22 @@ Provides the same contents as "list" but in a graphical tree view. This was real
 # Setting up a new resource instance
 sink_cmd is already the primary way how you create resource instances:
 
-  `sinksh create resource org.kde.maildir path /home/developer/maildir1`
+  `sinksh create resource sink.maildir path /home/developer/maildir1`
 
-This creates a resource of type "org.kde.maildir" and a configuration of "path" with the value "home/developer/maildir1". Resources are stored in configuration files, so all this does is write to some config files.
+This creates a resource of type "sink.maildir" and a configuration of "path" with the value "home/developer/maildir1". Resources are stored in configuration files, so all this does is write to some config files.
 
   `sinksh list resource`
 
 By listing all available resources we can find the identifier of the resource that was automatically assigned.
 
-  `sinksh synchronize org.kde.maildir.instance1`
+  `sinksh synchronize sink.maildir.instance1`
 
 This triggers the actual synchronization in the resource, and from there on the data is available.
 
-  `sinksh list folder org.kde.maildir.instance1`
+  `sinksh list folder sink.maildir.instance1`
 
 This will get you all folders that are in the resource.
 
-  `sinksh remove resource org.kde.maildir.instance1`
+  `sinksh remove resource sink.maildir.instance1`
 
 And this will finally remove all traces of the resource instance.

@@ -30,9 +30,6 @@
 
 using namespace Sink;
 
-#undef DEBUG_AREA
-#define DEBUG_AREA "client.facade"
-
 template <class DomainType>
 GenericFacade<DomainType>::GenericFacade(
     const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory, const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
@@ -59,7 +56,7 @@ template <class DomainType>
 KAsync::Job<void> GenericFacade<DomainType>::create(const DomainType &domainObject)
 {
     if (!mDomainTypeAdaptorFactory) {
-        Warning() << "No domain type adaptor factory available";
+        SinkWarning() << "No domain type adaptor factory available";
         return KAsync::error<void>();
     }
     flatbuffers::FlatBufferBuilder entityFbb;
@@ -71,10 +68,10 @@ template <class DomainType>
 KAsync::Job<void> GenericFacade<DomainType>::modify(const DomainType &domainObject)
 {
     if (!mDomainTypeAdaptorFactory) {
-        Warning() << "No domain type adaptor factory available";
+        SinkWarning() << "No domain type adaptor factory available";
         return KAsync::error<void>();
     }
-    Trace() << "Modifying entity: " << domainObject.identifier() << domainObject.changedProperties();
+    SinkTrace() << "Modifying entity: " << domainObject.identifier() << domainObject.changedProperties();
     flatbuffers::FlatBufferBuilder entityFbb;
     mDomainTypeAdaptorFactory->createBuffer(domainObject, entityFbb);
     return mResourceAccess->sendModifyCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType(), QByteArrayList(), BufferUtils::extractBuffer(entityFbb), domainObject.changedProperties());

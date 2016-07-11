@@ -20,13 +20,15 @@
 
 #include <QSettings>
 #include <QSharedPointer>
-#include <QStandardPaths>
 #include <QFile>
 #include <log.h>
+#include <definitions.h>
+
+SINK_DEBUG_AREA("configstore")
 
 static QSharedPointer<QSettings> getConfig(const QByteArray &identifier)
 {
-    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/" + identifier + ".ini", QSettings::IniFormat);
+    return QSharedPointer<QSettings>::create(Sink::configLocation() + "/" + identifier + ".ini", QSettings::IniFormat);
 }
 
 ConfigStore::ConfigStore(const QByteArray &identifier)
@@ -50,7 +52,7 @@ QMap<QByteArray, QByteArray> ConfigStore::getEntries()
 
 void ConfigStore::add(const QByteArray &identifier, const QByteArray &type)
 {
-    Trace() << "Adding " << identifier;
+    SinkTrace() << "Adding " << identifier;
     mConfig->beginGroup(QString::fromLatin1(identifier));
     mConfig->setValue("type", type);
     mConfig->endGroup();
@@ -59,7 +61,7 @@ void ConfigStore::add(const QByteArray &identifier, const QByteArray &type)
 
 void ConfigStore::remove(const QByteArray &identifier)
 {
-    Trace() << "Removing " << identifier;
+    SinkTrace() << "Removing " << identifier;
     mConfig->beginGroup(QString::fromLatin1(identifier));
     mConfig->remove("");
     mConfig->endGroup();
@@ -75,7 +77,7 @@ void ConfigStore::clear()
 
 void ConfigStore::modify(const QByteArray &identifier, const QMap<QByteArray, QVariant> &configuration)
 {
-    Trace() << "Modifying " << identifier;
+    SinkTrace() << "Modifying " << identifier;
     auto config = getConfig(identifier);
     config->clear();
     for (const auto &key : configuration.keys()) {

@@ -26,8 +26,7 @@ private slots:
 
     void init()
     {
-        Sink::GenericResource::removeFromDisk("org.kde.test.instance1");
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
+        Sink::GenericResource::removeFromDisk("sink.test.instance1");
     }
 
     /// Ensure the resource can process messages
@@ -71,10 +70,10 @@ private slots:
         }
 
         // Actual test
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create("org.kde.test.instance1");
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create("sink.test.instance1");
         QSignalSpy revisionSpy(pipeline.data(), SIGNAL(revisionUpdated(qint64)));
         QVERIFY(revisionSpy.isValid());
-        TestResource resource("org.kde.test.instance1", pipeline);
+        TestResource resource("sink.test.instance1", pipeline);
         resource.processCommand(Sink::Commands::CreateEntityCommand, command);
         resource.processCommand(Sink::Commands::CreateEntityCommand, command);
         resource.processAllMessages().exec().waitForFinished();

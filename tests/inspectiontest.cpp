@@ -19,11 +19,10 @@ class InspectionTest : public QObject
 private slots:
     void initTestCase()
     {
-        Sink::Log::setDebugOutputLevel(Sink::Log::Trace);
-        auto factory = Sink::ResourceFactory::load("org.kde.dummy");
+        auto factory = Sink::ResourceFactory::load("sink.dummy");
         QVERIFY(factory);
-        ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
-        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
+        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
     }
 
     void testInspection_data()
@@ -39,7 +38,7 @@ private slots:
         using namespace Sink;
         using namespace Sink::ApplicationDomain;
 
-        Mail mail(QByteArray("org.kde.dummy.instance1"), QByteArray("identifier"), 0, QSharedPointer<MemoryBufferAdaptor::MemoryBufferAdaptor>::create());
+        Mail mail(QByteArray("sink.dummy.instance1"), QByteArray("identifier"), 0, QSharedPointer<MemoryBufferAdaptor::MemoryBufferAdaptor>::create());
 
         // testInspection is a magic property that the dummyresource supports
         auto inspectionCommand = ResourceControl::Inspection::PropertyInspection(mail, "testInspection", success);

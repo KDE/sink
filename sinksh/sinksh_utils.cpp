@@ -21,6 +21,7 @@
 #include "sinksh_utils.h"
 
 #include "common/store.h"
+#include "common/log.h"
 
 #include "utils.h"
 
@@ -88,48 +89,35 @@ QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Sink::Query qu
     return model;
 }
 
-QStringList resourceIds(State &state)
+QStringList resourceIds()
 {
-    QStringList resources;
     Sink::Query query;
     query.liveQuery = false;
-    auto model = SinkshUtils::loadModel("resource", query);
-
-    QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model, &resources](const QModelIndex &index, int start, int end) mutable {
-        for (int i = start; i <= end; i++) {
-            auto object = model->data(model->index(i, 0, index), Sink::Store::DomainObjectBaseRole).value<Sink::ApplicationDomain::ApplicationDomainType::Ptr>();
-            resources << object->identifier();
-        }
-    });
-
-    QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
-        if (roles.contains(Sink::Store::ChildrenFetchedRole)) {
-            state.commandFinished();
-        }
-    });
-
-    state.commandStarted();
-
+    QStringList resources;
+    for (const auto &r : getStore("resource").read(query)) {
+        resources << r.identifier();
+    }
     return resources;
+}
+
+QStringList debugareaCompleter(const QStringList &, const QString &fragment, State &state)
+{
+    return Utils::filteredCompletions(Sink::Log::debugAreas().toList(), fragment);
 }
 
 QStringList resourceCompleter(const QStringList &, const QString &fragment, State &state)
 {
-    return Utils::filteredCompletions(resourceIds(state), fragment);
+    return Utils::filteredCompletions(resourceIds(), fragment);
 }
 
 QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &fragment, State &state)
 {
-    static QStringList types = QStringList() << "resource"
-                                             << "folder"
-                                             << "mail"
-                                             << "event"
-                                             << "account";
+    static QStringList types = s_types;
     if (commands.count() == 1) {
         return Utils::filteredCompletions(s_types, fragment);
     }
 
-    return Utils::filteredCompletions(resourceIds(state), fragment);
+    return Utils::filteredCompletions(resourceIds(), fragment);
 }
 
 QStringList typeCompleter(const QStringList &commands, const QString &fragment, State &state)

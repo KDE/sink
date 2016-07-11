@@ -3,6 +3,8 @@
 #include <QDebug>
 #include <log.h>
 
+SINK_DEBUG_AREA("messagequeue")
+
 static KAsync::Job<void> waitForCompletion(QList<KAsync::Future<void>> &futures)
 {
     auto context = new QObject;
@@ -128,7 +130,7 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
                     return false;
                 },
                 [](const Sink::Storage::Error &error) {
-                    ErrorMsg() << "Error while retrieving value" << error.message;
+                    SinkError() << "Error while retrieving value" << error.message;
                     // errorHandler(Error(error.store, error.code, error.message));
                 });
 
@@ -164,7 +166,7 @@ bool MessageQueue::isEmpty()
                 }
                 return true;
             },
-            [](const Sink::Storage::Error &error) { ErrorMsg() << "Error while checking if empty" << error.message; });
+            [](const Sink::Storage::Error &error) { SinkError() << "Error while checking if empty" << error.message; });
     }
     return count == 0;
 }

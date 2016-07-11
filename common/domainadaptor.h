@@ -47,12 +47,12 @@ createBufferPart(const Sink::ApplicationDomain::ApplicationDomainType &domainObj
     // First create a primitives such as strings using the mappings
     QList<std::function<void(Builder &)>> propertiesToAddToResource;
     for (const auto &property : domainObject.changedProperties()) {
-        // Trace() << "copying property " << property;
+        // SinkTrace() << "copying property " << property;
         const auto value = domainObject.getProperty(property);
         if (mapper.hasMapping(property)) {
             mapper.setProperty(property, domainObject.getProperty(property), propertiesToAddToResource, fbb);
         } else {
-            // Trace() << "no mapping for property available " << property;
+            // SinkTrace() << "no mapping for property available " << property;
         }
     }
 
@@ -79,7 +79,7 @@ static void createBufferPartBuffer(const Sink::ApplicationDomain::ApplicationDom
     fbb.Finish(pos, "AKFB");
     flatbuffers::Verifier verifier(fbb.GetBufferPointer(), fbb.GetSize());
     if (!verifier.VerifyBuffer<Buffer>()) {
-        Warning() << "Created invalid uffer";
+        SinkWarning_(0, "bufferadaptor") << "Created invalid uffer";
     }
 }
 
@@ -89,6 +89,7 @@ static void createBufferPartBuffer(const Sink::ApplicationDomain::ApplicationDom
 template <class LocalBuffer, class ResourceBuffer>
 class GenericBufferAdaptor : public Sink::ApplicationDomain::BufferAdaptor
 {
+    SINK_DEBUG_AREA("bufferadaptor")
 public:
     GenericBufferAdaptor() : BufferAdaptor()
     {
@@ -96,7 +97,7 @@ public:
 
     virtual void setProperty(const QByteArray &key, const QVariant &value) Q_DECL_OVERRIDE
     {
-        Warning() << "Can't set property " << key;
+        SinkWarning() << "Can't set property " << key;
         Q_ASSERT(false);
     }
 
@@ -107,7 +108,7 @@ public:
         } else if (mLocalBuffer && mLocalMapper->hasMapping(key)) {
             return mLocalMapper->getProperty(key, mLocalBuffer);
         }
-        Warning() << "No mapping available for key " << key << mLocalBuffer << mResourceBuffer;
+        SinkWarning() << "No mapping available for key " << key << mLocalBuffer << mResourceBuffer;
         return QVariant();
     }
 
@@ -168,13 +169,13 @@ public:
     {
         flatbuffers::FlatBufferBuilder localFbb;
         if (mLocalWriteMapper) {
-            // Trace() << "Creating local buffer part";
+            // SinkTrace() << "Creating local buffer part";
             createBufferPartBuffer<LocalBuffer, LocalBuilder>(domainObject, localFbb, *mLocalWriteMapper);
         }
 
         flatbuffers::FlatBufferBuilder resFbb;
         if (mResourceWriteMapper) {
-            // Trace() << "Creating resouce buffer part";
+            // SinkTrace() << "Creating resouce buffer part";
             createBufferPartBuffer<ResourceBuffer, ResourceBuilder>(domainObject, resFbb, *mResourceWriteMapper);
         }
 

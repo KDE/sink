@@ -5,6 +5,7 @@
 #include <functional>
 #include <QString>
 #include "storage.h"
+#include "log.h"
 
 /**
  * An index for value pairs.
@@ -43,4 +44,5 @@ private:
     Sink::Storage::Transaction mTransaction;
     Sink::Storage::NamedDatabase mDb;
     QString mName;
+    SINK_DEBUG_COMPONENT(mName.toLatin1())
 };

@@ -4,16 +4,25 @@
 #include <QIODevice>
 #include <QCoreApplication>
 #include <QSettings>
-#include <QStandardPaths>
 #include <QSharedPointer>
+#include <QMutex>
+#include <QMutexLocker>
 #include <iostream>
 #include <unistd.h>
+#include <memory>
+#include <definitions.h>
 
 using namespace Sink::Log;
 
 static QSharedPointer<QSettings> config()
 {
-    return QSharedPointer<QSettings>::create(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink/log.ini", QSettings::IniFormat);
+    return QSharedPointer<QSettings>::create(Sink::configLocation() + "/log.ini", QSettings::IniFormat);
+}
+
+static QByteArray sPrimaryComponent;
+void Sink::Log::setPrimaryComponent(const QString &component)
+{
+    sPrimaryComponent = component.toUtf8();
 }
 
 class DebugStream : public QIODevice
@@ -212,9 +221,63 @@ static QByteArray getProgramName()
     }
 }
 
+static QSharedPointer<QSettings> debugAreasConfig()
+{
+    return QSharedPointer<QSettings>::create(Sink::dataLocation() + "/debugAreas.ini", QSettings::IniFormat);
+}
+
+class DebugAreaCollector {
+public:
+    DebugAreaCollector()
+    {
+        QMutexLocker locker(&mutex);
+        mDebugAreas = debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+    }
+
+    ~DebugAreaCollector()
+    {
+        QMutexLocker locker(&mutex);
+        mDebugAreas += debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+        debugAreasConfig()->setValue("areas", QVariant::fromValue(mDebugAreas.toList().join(';')));
+    }
+
+    void add(const QString &area)
+    {
+        QMutexLocker locker(&mutex);
+        mDebugAreas << area;
+    }
+
+    QSet<QString> debugAreas()
+    {
+        QMutexLocker locker(&mutex);
+        return mDebugAreas;
+    }
+
+    QMutex mutex;
+    QSet<QString> mDebugAreas;
+};
+
+static auto sDebugAreaCollector = std::unique_ptr<DebugAreaCollector>(new DebugAreaCollector);
+
+QSet<QString> Sink::Log::debugAreas()
+{
+    return sDebugAreaCollector->debugAreas();
+}
+
+static void collectDebugArea(const QString &debugArea)
+{
+    sDebugAreaCollector->add(debugArea);
+}
+
 static bool containsItemStartingWith(const QByteArray &pattern, const QByteArrayList &list)
 {
     for (const auto &item : list) {
+        if (item.startsWith('*')) {
+            auto stripped = item.mid(1);
+            if (pattern.contains(stripped)) {
+                return true;
+            }
+        }
         if (pattern.startsWith(item)) {
             return true;
         }
@@ -232,24 +295,23 @@ static bool caseInsensitiveContains(const QByteArray &pattern, const QByteArrayL
     return false;
 }
 
-QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea)
+QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea, const char *debugComponent)
 {
     static NullStream nullstream;
     if (debugLevel < debugOutputLevel()) {
         return QDebug(&nullstream);
     }
 
-    auto areas = debugOutputFilter(Sink::Log::Area);
-    if (debugArea && !areas.isEmpty()) {
-        if (!containsItemStartingWith(debugArea, areas)) {
-            return QDebug(&nullstream);
-        }
+    if (sPrimaryComponent.isEmpty()) {
+        sPrimaryComponent = getProgramName();
     }
-    static QByteArray programName = getProgramName();
+    QString fullDebugArea = sPrimaryComponent + "." + (debugComponent ? (QString::fromLatin1(debugComponent) + ".") : "") + (debugArea ? QString::fromLatin1(debugArea) : "");
 
-    auto filter = debugOutputFilter(Sink::Log::ApplicationName);
-    if (!filter.isEmpty() && !filter.contains(programName)) {
-        if (!containsItemStartingWith(programName, filter)) {
+    collectDebugArea(fullDebugArea);
+
+    auto areas = debugOutputFilter(Sink::Log::Area);
+    if (!areas.isEmpty()) {
+        if (!containsItemStartingWith(fullDebugArea.toUtf8(), areas)) {
             return QDebug(&nullstream);
         }
     }
@@ -293,19 +355,17 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     }
     if (showProgram) {
         int width = 10;
-        output += QString(" %1(%2)").arg(QString::fromLatin1(programName).leftJustified(width, ' ', true)).arg(unsigned(getpid())).rightJustified(width + 8, ' ');
+        output += QString(" %1(%2)").arg(QString::fromLatin1(getProgramName()).leftJustified(width, ' ', true)).arg(unsigned(getpid())).rightJustified(width + 8, ' ');
     }
-    if (debugArea) {
-        if (useColor) {
-            output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode);
-        }
-        output += QString(" %1 ").arg(QString::fromLatin1(debugArea).leftJustified(25, ' ', true));
-        if (useColor) {
-            output += resetColor;
-        }
+    if (useColor) {
+        output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode);
+    }
+    output += QString(" %1 ").arg(fullDebugArea.leftJustified(25, ' ', true));
+    if (useColor) {
+        output += resetColor;
     }
     if (showFunction) {
-        output += QString(" %3").arg(QString::fromLatin1(function).leftJustified(25, ' ', true));
+        output += QString(" %3").arg(fullDebugArea.leftJustified(25, ' ', true));
     }
     if (showLocation) {
         const auto filename = QString::fromLatin1(file).split('/').last();

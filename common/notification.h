@@ -30,6 +30,19 @@ namespace Sink {
 class SINK_EXPORT Notification
 {
 public:
+    enum NoticationType {
+        Shutdown,
+        Status,
+        Warning,
+        Progress,
+        Inspection,
+        RevisionUpdate
+    };
+    enum InspectionCode {
+        Success,
+        Failure
+    };
+
     QByteArray id;
     int type;
     QString message;

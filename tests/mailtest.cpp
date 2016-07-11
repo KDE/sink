@@ -31,10 +31,12 @@
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
+SINK_DEBUG_AREA("mailtest")
+
 void MailTest::initTestCase()
 {
     Test::initTest();
-    Log::setDebugOutputLevel(Sink::Log::Trace);
+    QVERIFY(isBackendAvailable());
     resetTestEnvironment();
     auto resource = createResource();
     QVERIFY(!resource.identifier().isEmpty());
@@ -250,7 +252,7 @@ void MailTest::testMoveMail()
                 auto mail = *mails.first();
                 modifiedMail = mail;
                 QCOMPARE(mail.getFolder(), folder.identifier());
-                Warning() << "path: " << mail.getMimeMessagePath();
+                SinkWarning() << "path: " << mail.getMimeMessagePath();
                 QVERIFY(QFile(mail.getMimeMessagePath()).exists());
             });
         VERIFYEXEC(job);
@@ -269,7 +271,7 @@ void MailTest::testMoveMail()
                 auto mail = *mails.first();
                 QCOMPARE(mail.getFolder(), folder1.identifier());
                 QVERIFY(QFile(mail.getMimeMessagePath()).exists());
-                Trace() << "Mime message path: " << mail.getMimeMessagePath();
+                SinkTrace() << "Mime message path: " << mail.getMimeMessagePath();
             });
         VERIFYEXEC(job);
     }

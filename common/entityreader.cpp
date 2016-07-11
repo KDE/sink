@@ -23,6 +23,8 @@
 #include "storage.h"
 #include "query.h"
 
+SINK_DEBUG_AREA("entityreader")
+
 using namespace Sink;
 
 QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityReaderUtils::getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision)
@@ -32,15 +34,15 @@ QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityReaderUtils::getLat
         [&current, &adaptorFactory, &retrievedRevision](const QByteArray &key, const QByteArray &data) -> bool {
             Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
             if (!buffer.isValid()) {
-                Warning() << "Read invalid buffer from disk";
+                SinkWarning() << "Read invalid buffer from disk";
             } else {
-                Trace() << "Found value " << key;
+                SinkTrace() << "Found value " << key;
                 current = adaptorFactory.createAdaptor(buffer.entity());
                 retrievedRevision = Sink::Storage::revisionFromKey(key);
             }
             return false;
         },
-        [](const Sink::Storage::Error &error) { Warning() << "Failed to read current value from storage: " << error.message; });
+        [](const Sink::Storage::Error &error) { SinkWarning() << "Failed to read current value from storage: " << error.message; });
     return current;
 }
 
@@ -51,14 +53,14 @@ QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityReaderUtils::get(co
         [&current, &adaptorFactory, &retrievedRevision](const QByteArray &key, const QByteArray &data) -> bool {
             Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
             if (!buffer.isValid()) {
-                Warning() << "Read invalid buffer from disk";
+                SinkWarning() << "Read invalid buffer from disk";
             } else {
                 current = adaptorFactory.createAdaptor(buffer.entity());
                 retrievedRevision = Sink::Storage::revisionFromKey(key);
             }
             return false;
         },
-        [](const Sink::Storage::Error &error) { Warning() << "Failed to read current value from storage: " << error.message; });
+        [](const Sink::Storage::Error &error) { SinkWarning() << "Failed to read current value from storage: " << error.message; });
     return current;
 }
 
@@ -74,7 +76,7 @@ QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> EntityReaderUtils::getPre
             }
             return true;
         },
-        [](const Sink::Storage::Error &error) { Warning() << "Failed to read current value from storage: " << error.message; }, true);
+        [](const Sink::Storage::Error &error) { SinkWarning() << "Failed to read current value from storage: " << error.message; }, true);
     return get(db, Sink::Storage::assembleKey(uid, latestRevision), adaptorFactory, retrievedRevision);
 }
 
@@ -86,7 +88,7 @@ EntityReader<DomainType>::EntityReader(const QByteArray &resourceType, const QBy
     mDomainTypeAdaptorFactory(*mDomainTypeAdaptorFactoryPtr)
 {
     Q_ASSERT(!resourceType.isEmpty());
-    Trace() << "resourceType " << resourceType;
+    SinkTrace() << "resourceType " << resourceType;
     Q_ASSERT(mDomainTypeAdaptorFactoryPtr);
 }
 
@@ -165,13 +167,13 @@ void EntityReader<DomainType>::readEntity(const Sink::Storage::NamedDatabase &db
             resultCallback(DomainType::Ptr::create(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, adaptor), operation);
             return false;
         },
-        [&](const Sink::Storage::Error &error) { Warning() << "Error during query: " << error.message << key; });
+        [&](const Sink::Storage::Error &error) { SinkWarning() << "Error during query: " << error.message << key; });
 }
 
 static inline ResultSet fullScan(const Sink::Storage::Transaction &transaction, const QByteArray &bufferType)
 {
     // TODO use a result set with an iterator, to read values on demand
-    Trace() << "Looking for : " << bufferType;
+    SinkTrace() << "Looking for : " << bufferType;
     //The scan can return duplicate results if we have multiple revisions, so we use a set to deduplicate.
     QSet<QByteArray> keys;
     Storage::mainDatabase(transaction, bufferType)
@@ -179,14 +181,14 @@ static inline ResultSet fullScan(const Sink::Storage::Transaction &transaction, 
             [&](const QByteArray &key, const QByteArray &value) -> bool {
                 if (keys.contains(Sink::Storage::uidFromKey(key))) {
                     //Not something that should persist if the replay works, so we keep a message for now.
-                    Trace() << "Multiple revisions for key: " << key;
+                    SinkTrace() << "Multiple revisions for key: " << key;
                 }
                 keys << Sink::Storage::uidFromKey(key);
                 return true;
             },
-            [](const Sink::Storage::Error &error) { Warning() << "Error during query: " << error.message; });
+            [](const Sink::Storage::Error &error) { SinkWarning() << "Error during query: " << error.message; });
 
-    Trace() << "Full scan retrieved " << keys.size() << " results.";
+    SinkTrace() << "Full scan retrieved " << keys.size() << " results.";
     return ResultSet(keys.toList().toVector());
 }
 
@@ -224,7 +226,7 @@ ResultSet EntityReader<DomainType>::loadIncrementalResultSet(qint64 baseRevision
         while (*revisionCounter <= topRevision) {
             const auto uid = Sink::Storage::getUidFromRevision(mTransaction, *revisionCounter);
             const auto type = Sink::Storage::getTypeFromRevision(mTransaction, *revisionCounter);
-            // Trace() << "Revision" << *revisionCounter << type << uid;
+            // SinkTrace() << "Revision" << *revisionCounter << type << uid;
             Q_ASSERT(!uid.isEmpty());
             Q_ASSERT(!type.isEmpty());
             if (type != bufferType) {
@@ -236,7 +238,7 @@ ResultSet EntityReader<DomainType>::loadIncrementalResultSet(qint64 baseRevision
             *revisionCounter += 1;
             return key;
         }
-        Trace() << "Finished reading incremental result set:" << *revisionCounter;
+        SinkTrace() << "Finished reading incremental result set:" << *revisionCounter;
         // We're done
         return QByteArray();
     });
@@ -248,7 +250,7 @@ ResultSet EntityReader<DomainType>::filterAndSortSet(ResultSet &resultSet, const
 {
     const bool sortingRequired = !sortProperty.isEmpty();
     if (initialQuery && sortingRequired) {
-        Trace() << "Sorting the resultset in memory according to property: " << sortProperty;
+        SinkTrace() << "Sorting the resultset in memory according to property: " << sortProperty;
         // Sort the complete set by reading the sort property and filling into a sorted map
         auto sortedMap = QSharedPointer<QMap<QByteArray, QByteArray>>::create();
         while (resultSet.next()) {
@@ -271,7 +273,7 @@ ResultSet EntityReader<DomainType>::filterAndSortSet(ResultSet &resultSet, const
                 });
         }
 
-        Trace() << "Sorted " << sortedMap->size() << " values.";
+        SinkTrace() << "Sorted " << sortedMap->size() << " values.";
         auto iterator = QSharedPointer<QMapIterator<QByteArray, QByteArray>>::create(*sortedMap);
         ResultSet::ValueGenerator generator = [this, iterator, sortedMap, &db, filter, initialQuery](
             std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> callback) -> bool {
@@ -330,11 +332,11 @@ QPair<qint64, qint64> EntityReader<DomainType>::load(const Sink::Query &query, c
     QSet<QByteArray> remainingFilters;
     QByteArray remainingSorting;
     auto resultSet = baseSetRetriever(remainingFilters, remainingSorting);
-    Trace() << "Base set retrieved. " << Log::TraceTime(time.elapsed());
+    SinkTrace() << "Base set retrieved. " << Log::TraceTime(time.elapsed());
     auto filteredSet = filterAndSortSet(resultSet, getFilter(remainingFilters, query), db, initialQuery, remainingSorting);
-    Trace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
+    SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
     auto replayedEntities = replaySet(filteredSet, offset, batchSize, callback);
-    // Trace() << "Filtered set replayed. " << Log::TraceTime(time.elapsed());
+    // SinkTrace() << "Filtered set replayed. " << Log::TraceTime(time.elapsed());
     return qMakePair(Sink::Storage::maxRevision(mTransaction), replayedEntities);
 }
 
@@ -346,7 +348,7 @@ QPair<qint64, qint64> EntityReader<DomainType>::executeInitialQuery(const Sink::
     auto revisionAndReplayedEntities = load(query, [&](QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting) -> ResultSet {
         return loadInitialResultSet(query, remainingFilters, remainingSorting);
     }, true, offset, batchsize, callback);
-    Trace() << "Initial query took: " << Log::TraceTime(time.elapsed());
+    SinkTrace() << "Initial query took: " << Log::TraceTime(time.elapsed());
     return revisionAndReplayedEntities;
 }
 
@@ -359,7 +361,7 @@ QPair<qint64, qint64> EntityReader<DomainType>::executeIncrementalQuery(const Si
     auto revisionAndReplayedEntities = load(query, [&](QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting) -> ResultSet {
         return loadIncrementalResultSet(baseRevision, query, remainingFilters);
     }, false, 0, 0, callback);
-    Trace() << "Initial query took: " << Log::TraceTime(time.elapsed());
+    SinkTrace() << "Initial query took: " << Log::TraceTime(time.elapsed());
     return revisionAndReplayedEntities;
 }
 
@@ -377,7 +379,7 @@ EntityReader<DomainType>::getFilter(const QSet<QByteArray> remainingFilters, con
             const auto property = domainObject->getProperty(filterProperty);
             const auto comparator = query.propertyFilter.value(filterProperty);
             if (!comparator.matches(property)) {
-                Trace() << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << comparator.value;
+                SinkTrace() << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << comparator.value;
                 return false;
             }
         }
@@ -388,7 +390,7 @@ EntityReader<DomainType>::getFilter(const QSet<QByteArray> remainingFilters, con
 template <class DomainType>
 qint64 EntityReader<DomainType>::replaySet(ResultSet &resultSet, int offset, int batchSize, const std::function<bool(const typename DomainType::Ptr &value, Sink::Operation operation)> &callback)
 {
-    Trace() << "Skipping over " << offset << " results";
+    SinkTrace() << "Skipping over " << offset << " results";
     resultSet.skip(offset);
     int counter = 0;
     while (!batchSize || (counter < batchSize)) {
@@ -401,7 +403,7 @@ qint64 EntityReader<DomainType>::replaySet(ResultSet &resultSet, int offset, int
             break;
         }
     };
-    Trace() << "Replayed " << counter << " results."
+    SinkTrace() << "Replayed " << counter << " results."
             << "Limit " << batchSize;
     return counter;
 }

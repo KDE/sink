@@ -10,6 +10,7 @@
 #include "resourceconfig.h"
 #include "log.h"
 #include "modelresult.h"
+#include "test.h"
 
 static int blockingTime;
 
@@ -29,10 +30,11 @@ public:
     {
         t.start();
         const bool ret = QCoreApplication::notify(receiver, event);
-        if (t.elapsed() > 1)
+        if (t.elapsed() > 1) {
             std::cout
-                << QString("processing event type %1 for object %2 took %3ms").arg((int)event->type()).arg("" /* receiver->objectName().toLocal8Bit().data()*/).arg((int)t.elapsed()).toStdString()
+                << QString("processing event type %1 for object %2 took %3ms").arg((int)event->type()).arg(receiver->metaObject()->className()).arg((int)t.elapsed()).toStdString()
                 << std::endl;
+        }
         blockingTime += t.elapsed();
         return ret;
     }
@@ -49,14 +51,14 @@ class ModelinteractivityTest : public QObject
 private slots:
     void initTestCase()
     {
-        Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
-        ResourceConfig::addResource("org.kde.dummy.instance1", "org.kde.dummy");
-        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Test::initTest();
+        ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
+        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
     }
 
     void cleanup()
     {
-        Sink::Store::removeDataFromDisk(QByteArray("org.kde.dummy.instance1")).exec().waitForFinished();
+        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
     }
 
     void init()
@@ -67,14 +69,14 @@ private slots:
     {
         // Setup
         {
-            Sink::ApplicationDomain::Mail mail("org.kde.dummy.instance1");
+            Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
             for (int i = 0; i < 1000; i++) {
                 Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
             }
         }
 
         Sink::Query query;
-        query.resources << "org.kde.dummy.instance1";
+        query.resources << "sink.dummy.instance1";
         query.liveQuery = true;
 
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();

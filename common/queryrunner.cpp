@@ -29,8 +29,7 @@
 #include "asyncutils.h"
 #include "entityreader.h"
 
-#undef DEBUG_AREA
-#define DEBUG_AREA "client.queryrunner"
+SINK_DEBUG_AREA("queryrunner")
 
 using namespace Sink;
 
@@ -43,6 +42,8 @@ using namespace Sink;
 template <typename DomainType>
 class QueryWorker : public QObject
 {
+    // SINK_DEBUG_COMPONENT(mResourceInstanceIdentifier, mId)
+    SINK_DEBUG_COMPONENT(mResourceInstanceIdentifier)
 public:
     QueryWorker(const Sink::Query &query, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &, const QByteArray &bufferType,
         const QueryRunnerBase::ResultTransformation &transformation);
@@ -61,22 +62,19 @@ private:
     QByteArray mId; //Used for identification in debug output
 };
 
-#undef Trace
-#define Trace() Trace_area(DEBUG_AREA)
-
 template <class DomainType>
 QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::ResourceAccessInterface::Ptr &resourceAccess, const QByteArray &instanceIdentifier,
     const DomainTypeAdaptorFactoryInterface::Ptr &factory, const QByteArray &bufferType)
     : QueryRunnerBase(), mResourceAccess(resourceAccess), mResultProvider(new ResultProvider<typename DomainType::Ptr>), mBatchSize(query.limit)
 {
-    Trace() << "Starting query";
+    SinkTrace() << "Starting query";
     if (query.limit && query.sortProperty.isEmpty()) {
-        Warning() << "A limited query without sorting is typically a bad idea.";
+        SinkWarning() << "A limited query without sorting is typically a bad idea.";
     }
     // We delegate loading of initial data to the result provider, so it can decide for itself what it needs to load.
     mResultProvider->setFetcher([=](const typename DomainType::Ptr &parent) {
         const QByteArray parentId = parent ? parent->identifier() : QByteArray();
-        Trace() << "Running fetcher. Offset: " << mOffset[parentId] << " Batchsize: " << mBatchSize;
+        SinkTrace() << "Running fetcher. Offset: " << mOffset[parentId] << " Batchsize: " << mBatchSize;
         auto resultProvider = mResultProvider;
         if (query.synchronousQuery) {
             QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType, mResultTransformation);
@@ -123,12 +121,15 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
         mResourceAccess->open();
         QObject::connect(mResourceAccess.data(), &Sink::ResourceAccess::revisionChanged, this, &QueryRunner::revisionChanged);
     }
+    mResultProvider->onDone([this]() {
+        delete this;
+    });
 }
 
 template <class DomainType>
 QueryRunner<DomainType>::~QueryRunner()
 {
-    Trace() << "Stopped query";
+    SinkTrace() << "Stopped query";
 }
 
 template <class DomainType>
@@ -144,21 +145,18 @@ typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr QueryRunner<DomainTy
 }
 
 
-#undef Trace
-#define Trace() Trace_area("client.queryrunner." + mId)
-
 template <class DomainType>
 QueryWorker<DomainType>::QueryWorker(const Sink::Query &query, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &factory,
     const QByteArray &bufferType, const QueryRunnerBase::ResultTransformation &transformation)
     : QObject(), mResultTransformation(transformation), mDomainTypeAdaptorFactory(factory), mResourceInstanceIdentifier(instanceIdentifier), mId(QUuid::createUuid().toByteArray())
 {
-    Trace() << "Starting query worker";
+    SinkTrace() << "Starting query worker";
 }
 
 template <class DomainType>
 QueryWorker<DomainType>::~QueryWorker()
 {
-    Trace() << "Stopped query worker";
+    SinkTrace() << "Stopped query worker";
 }
 
 template <class DomainType>
@@ -171,15 +169,15 @@ std::function<bool(const typename DomainType::Ptr &, Sink::Operation)> QueryWork
         }
         switch (operation) {
             case Sink::Operation_Creation:
-                // Trace() << "Got creation";
+                // SinkTrace() << "Got creation";
                 resultProvider.add(valueCopy);
                 break;
             case Sink::Operation_Modification:
-                // Trace() << "Got modification";
+                // SinkTrace() << "Got modification";
                 resultProvider.modify(valueCopy);
                 break;
             case Sink::Operation_Removal:
-                // Trace() << "Got removal";
+                // SinkTrace() << "Got removal";
                 resultProvider.remove(valueCopy);
                 break;
         }
@@ -197,7 +195,7 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeIncrementalQuery(const Sin
 
     Sink::EntityReader<DomainType> reader(*mDomainTypeAdaptorFactory, mResourceInstanceIdentifier, transaction);
     auto revisionAndReplayedEntities = reader.executeIncrementalQuery(query, resultProvider.revision(), resultProviderCallback(query, resultProvider));
-    Trace() << "Incremental query took: " << Log::TraceTime(time.elapsed());
+    SinkTrace() << "Incremental query took: " << Log::TraceTime(time.elapsed());
     return revisionAndReplayedEntities;
 }
 
@@ -209,10 +207,10 @@ Storage::Transaction QueryWorker<DomainType>::getTransaction()
         Sink::Storage storage(Sink::storageLocation(), mResourceInstanceIdentifier);
         if (!storage.exists()) {
             //This is not an error if the resource wasn't started before
-            Log() << "Store doesn't exist: " << mResourceInstanceIdentifier;
+            SinkLog() << "Store doesn't exist: " << mResourceInstanceIdentifier;
             return Sink::Storage::Transaction();
         }
-        storage.setDefaultErrorHandler([](const Sink::Storage::Error &error) { Warning() << "Error during query: " << error.store << error.message; });
+        storage.setDefaultErrorHandler([this](const Sink::Storage::Error &error) { SinkWarning() << "Error during query: " << error.store << error.message; });
         transaction = storage.createTransaction(Sink::Storage::ReadOnly);
     }
 
@@ -235,10 +233,10 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeInitialQuery(
     auto modifiedQuery = query;
     if (!query.parentProperty.isEmpty()) {
         if (parent) {
-            Trace() << "Running initial query for parent:" << parent->identifier();
+            SinkTrace() << "Running initial query for parent:" << parent->identifier();
             modifiedQuery.propertyFilter.insert(query.parentProperty, Query::Comparator(parent->identifier()));
         } else {
-            Trace() << "Running initial query for toplevel";
+            SinkTrace() << "Running initial query for toplevel";
             modifiedQuery.propertyFilter.insert(query.parentProperty, Query::Comparator(QVariant()));
         }
     }
@@ -247,7 +245,7 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeInitialQuery(
 
     Sink::EntityReader<DomainType> reader(*mDomainTypeAdaptorFactory, mResourceInstanceIdentifier, transaction);
     auto revisionAndReplayedEntities = reader.executeInitialQuery(modifiedQuery, offset, batchsize, resultProviderCallback(query, resultProvider));
-    Trace() << "Initial query took: " << Log::TraceTime(time.elapsed());
+    SinkTrace() << "Initial query took: " << Log::TraceTime(time.elapsed());
     return revisionAndReplayedEntities;
 }
 

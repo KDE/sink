@@ -29,6 +29,7 @@
 
 #include <flatbuffers/flatbuffers.h>
 #include "notification.h"
+#include "log.h"
 
 namespace Sink {
 
@@ -72,19 +73,28 @@ public:
         return KAsync::null<void>();
     };
 
+    int getResourceStatus() const
+    {
+        return mResourceStatus;
+    }
+
 signals:
     void ready(bool isReady);
     void revisionChanged(qint64 revision);
-    void notification(Notification revision);
+    void notification(Notification notification);
 
 public slots:
     virtual void open() = 0;
     virtual void close() = 0;
+
+protected:
+    int mResourceStatus;
 };
 
 class SINK_EXPORT ResourceAccess : public ResourceAccessInterface
 {
     Q_OBJECT
+    SINK_DEBUG_AREA("communication")
 public:
     typedef QSharedPointer<ResourceAccess> Ptr;
 
@@ -130,6 +140,7 @@ private:
 
     class Private;
     Private *const d;
+    // SINK_DEBUG_COMPONENT(d->resourceInstanceIdentifier)
 };
 
 /**
@@ -137,8 +148,9 @@ private:
  *
  * This avoids constantly recreating connections, and should allow a single process to have one connection per resource.
  */
-class ResourceAccessFactory
+class SINK_EXPORT ResourceAccessFactory
 {
+    SINK_DEBUG_AREA("ResourceAccessFactory")
 public:
     static ResourceAccessFactory &instance();
     Sink::ResourceAccess::Ptr getAccess(const QByteArray &instanceIdentifier, const QByteArray resourceType);
