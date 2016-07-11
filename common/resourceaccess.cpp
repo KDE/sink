@@ -483,6 +483,10 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
     const bool resourceCrashed = d->partialMessageBuffer.contains("PANIC");
     if (resourceCrashed) {
         SinkError() << "The resource crashed!";
+        mResourceStatus = Sink::ApplicationDomain::ErrorStatus;
+        Sink::Notification n;
+        n.type = Sink::Notification::Status;
+        emit notification(n);
         d->abortPendingOperations();
     } else if (error == QLocalSocket::PeerClosedError) {
         SinkLog() << "The resource closed the connection.";
