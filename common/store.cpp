@@ -65,7 +65,7 @@ static QMap<QByteArray, QByteArray> getResources(const QList<QByteArray> &resour
 
     QMap<QByteArray, QByteArray> resources;
     // Return the global resource (signified by an empty name) for types that don't belong to a specific resource
-    if (type == "sinkresource" || type == "sinkaccount" || type == "identity") {
+    if (ApplicationDomain::isGlobalType(type)) {
         resources.insert("", "");
         return resources;
     }
@@ -145,9 +145,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 template <class DomainType>
 static std::shared_ptr<StoreFacade<DomainType>> getFacade(const QByteArray &resourceInstanceIdentifier)
 {
-
-    const auto type = ApplicationDomain::getTypeName<DomainType>();
-    if (type == "sinkresource" || type == "sinkaccount") {
+    if (ApplicationDomain::isGlobalType(ApplicationDomain::getTypeName<DomainType>())) {
         if (auto facade = FacadeFactory::instance().getFacade<DomainType>("", "")) {
             return facade;
         }

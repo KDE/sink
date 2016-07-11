@@ -336,6 +336,13 @@ QByteArray getTypeName<Folder>()
     return "folder";
 }
 
+bool isGlobalType(const QByteArray &type) {
+    if (type == ApplicationDomain::getTypeName<SinkResource>() || type == ApplicationDomain::getTypeName<SinkAccount>() || type == ApplicationDomain::getTypeName<Identity>()) {
+        return true;
+    }
+    return false;
+}
+
 }
 }
 
