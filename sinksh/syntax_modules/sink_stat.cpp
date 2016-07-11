@@ -70,30 +70,11 @@ bool statAllResources(State &state)
 {
     Sink::Query query;
     query.liveQuery = false;
-    auto model = SinkshUtils::loadModel("resource", query);
-
-    //SUUUPER ugly, but can't think of a better way with 2 glasses of wine in me on Christmas day
-    static QStringList resources;
-    resources.clear();
-
-    QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [model](const QModelIndex &index, int start, int end) mutable {
-        for (int i = start; i <= end; i++) {
-            auto object = model->data(model->index(i, 0, index), Sink::Store::DomainObjectBaseRole).value<Sink::ApplicationDomain::ApplicationDomainType::Ptr>();
-            resources << object->identifier();
-        }
-    });
-
-    QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
-        if (roles.contains(Sink::Store::ChildrenFetchedRole)) {
-            statResources(resources, state);
-            state.commandFinished();
-        }
-    });
-
-    if (!model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool()) {
-        return true;
+    QStringList resources;
+    for (const auto &r : SinkshUtils::getStore("resource").read(query)) {
+        resources << r.identifier();
     }
-
+    statResources(resources, state);
     return false;
 }
 
@@ -109,7 +90,7 @@ bool stat(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax state("stat", QObject::tr("Shows database usage for the resources requested"), &SinkStat::stat, Syntax::EventDriven);
+    Syntax state("stat", QObject::tr("Shows database usage for the resources requested"), &SinkStat::stat, Syntax::NotInteractive);
     state.completer = &SinkshUtils::resourceCompleter;
 
     return Syntax::List() << state;

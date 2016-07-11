@@ -98,7 +98,7 @@ bool resource(const QStringList &args, State &state)
 Syntax::List syntax()
 {
     Syntax remove("remove", QObject::tr("Remove items in a resource"), &SinkRemove::remove);
-    Syntax resource("resource", QObject::tr("Removes a resource"), &SinkRemove::resource);//, Syntax::EventDriven);
+    Syntax resource("resource", QObject::tr("Removes a resource"), &SinkRemove::resource, Syntax::NotInteractive);
     resource.completer = &SinkshUtils::resourceCompleter;
     remove.children << resource;
 
