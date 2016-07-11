@@ -8,6 +8,7 @@
 #include "modelresult.h"
 #include "resultprovider.h"
 #include "facadefactory.h"
+#include "test.h"
 
 SINK_DEBUG_AREA("clientapitest")
 
@@ -91,6 +92,7 @@ private slots:
 
     void initTestCase()
     {
+        Sink::Test::initTest();
         Sink::FacadeFactory::instance().resetFactory();
         ResourceConfig::clear();
     }
