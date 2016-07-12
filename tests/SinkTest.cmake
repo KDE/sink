@@ -1,12 +1,15 @@
 
 
 function(add_memcheck_test name binary)
-    set(memcheck_command "${MEMORYCHECK_COMMAND} ${MEMORYCHECK_COMMAND_OPTIONS}")
-    if (NOT ${memcheck_command})
-        message("MEMORYCHECK_COMMAND not defined.")
+    if (${ENABLE_MEMCHECK})
+        set(memcheck_command "${MEMORYCHECK_COMMAND} ${MEMORYCHECK_COMMAND_OPTIONS}")
+        if (NOT ${memcheck_command})
+            message("MEMORYCHECK_COMMAND not defined.")
+        else()
+            separate_arguments(memcheck_command)
+            add_test(memcheck_${name} ${memcheck_command} ./${binary} ${ARGN})
+        endif()
     endif()
-    separate_arguments(memcheck_command)
-    add_test(memcheck_${name} ${memcheck_command} ./${binary} ${ARGN})
 endfunction(add_memcheck_test)
 
 macro(auto_tests)
