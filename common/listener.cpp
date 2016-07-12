@@ -397,6 +397,9 @@ void Listener::sendCommandCompleted(QLocalSocket *socket, uint messageId, bool s
     auto command = Sink::Commands::CreateCommandCompletion(m_fbb, messageId, success);
     Sink::Commands::FinishCommandCompletionBuffer(m_fbb, command);
     Sink::Commands::write(socket, ++m_messageId, Sink::Commands::CommandCompletionCommand, m_fbb);
+    if (m_exiting) {
+        socket->waitForBytesWritten();
+    }
     m_fbb.Clear();
 }
 
