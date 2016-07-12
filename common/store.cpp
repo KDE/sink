@@ -191,7 +191,21 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
     resourceAccess->open();
     return resourceAccess->sendCommand(Sink::Commands::RemoveFromDiskCommand)
-        .then<void>([resourceAccess, time]() { SinkTrace() << "Remove from disk complete." << Log::TraceTime(time->elapsed()); });
+        .then<void>([resourceAccess](KAsync::Future<void> &future) {
+            if (resourceAccess->isReady()) {
+                //Wait for the resource shutdown
+                QObject::connect(resourceAccess.data(), &ResourceAccess::ready, [&future](bool ready) {
+                    if (!ready) {
+                        future.setFinished();
+                    }
+                });
+            } else {
+                future.setFinished();
+            }
+        })
+        .then<void>([resourceAccess, time]() {
+            SinkTrace() << "Remove from disk complete." << Log::TraceTime(time->elapsed()); 
+        });
 }
 
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
