@@ -85,6 +85,7 @@ private:
     void updateClientsWithRevision(qint64);
     Sink::Resource &loadResource();
     void readFromSocket(QLocalSocket *socket);
+    void sendShutdownNotification();
     qint64 lowerBoundRevision();
 
     std::unique_ptr<QLocalServer> m_server;
@@ -96,4 +97,5 @@ private:
     std::unique_ptr<QTimer> m_clientBufferProcessesTimer;
     std::unique_ptr<QTimer> m_checkConnectionsTimer;
     int m_messageId;
+    bool m_exiting;
 };

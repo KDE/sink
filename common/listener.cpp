@@ -45,7 +45,8 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
       m_resourceName(resourceType),
       m_resourceInstanceIdentifier(resourceInstanceIdentifier),
       m_clientBufferProcessesTimer(new QTimer(this)),
-      m_messageId(0)
+      m_messageId(0),
+      m_exiting(false)
 {
     connect(m_server.get(), &QLocalServer::newConnection, this, &Listener::acceptConnection);
     SinkTrace() << "Trying to open " << m_resourceInstanceIdentifier;
@@ -177,7 +178,7 @@ void Listener::checkConnections()
 void Listener::onDataAvailable()
 {
     QLocalSocket *socket = qobject_cast<QLocalSocket *>(sender());
-    if (!socket) {
+    if (!socket || m_exiting) {
         return;
     }
     readFromSocket(socket);
@@ -270,9 +271,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             break;
         case Sink::Commands::ShutdownCommand:
             SinkLog() << QString("Received shutdown command from %1").arg(client.name);
-            // Immediately reject new connections
-            m_server->close();
-            QTimer::singleShot(0, this, &Listener::quit);
+            m_exiting = true;
             break;
         case Sink::Commands::PingCommand:
             SinkTrace() << QString("Received ping command from %1").arg(client.name);
@@ -292,8 +291,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             SinkLog() << QString("Received a remove from disk command from %1").arg(client.name);
             m_resource.reset(nullptr);
             loadResource().removeDataFromDisk();
-            m_server->close();
-            QTimer::singleShot(0, this, &Listener::quit);
+            m_exiting = true;
         } break;
         default:
             if (commandId > Sink::Commands::CustomCommand) {
@@ -323,7 +321,7 @@ qint64 Listener::lowerBoundRevision()
     return lowerBound;
 }
 
-void Listener::quit()
+void Listener::sendShutdownNotification()
 {
     // Broadcast shutdown notifications to open clients, so they don't try to restart the resource
     auto command = Sink::Commands::CreateNotification(m_fbb, Sink::Notification::Shutdown);
@@ -333,10 +331,20 @@ void Listener::quit()
             Sink::Commands::write(client.socket, ++m_messageId, Sink::Commands::NotificationCommand, m_fbb);
         }
     }
+}
+
+void Listener::quit()
+{
+    m_clientBufferProcessesTimer->stop();
+    m_server->close();
+    sendShutdownNotification();
+    closeAllConnections();
     m_fbb.Clear();
 
-    // Connections will be cleaned up later
-    emit noClients();
+    QTimer::singleShot(0, this, [this]() {
+        // This will destroy this object
+        emit noClients();
+    });
 }
 
 bool Listener::processClientBuffer(Client &client)
@@ -369,6 +377,10 @@ bool Listener::processClientBuffer(Client &client)
                 SinkLog() << QString("Socket became invalid before we could send a response. client: %1").arg(clientName);
             }
         });
+        if (m_exiting) {
+            quit();
+            return false;
+        }
 
         return client.commandBuffer.size() >= headerSize;
     }
@@ -446,6 +458,7 @@ Sink::Resource &Listener::loadResource()
             m_resource = std::unique_ptr<Sink::Resource>(new Sink::Resource);
         }
     }
+    Q_ASSERT(m_resource);
     return *m_resource;
 }
 
