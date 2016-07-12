@@ -85,34 +85,35 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
             updateStatus(*entity);
             mResultProvider->add(entity);
         }
-        if (query.liveQuery) {
-            {
-                auto ret = QObject::connect(&configNotifier, &ConfigNotifier::added, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
-                    auto entity = entry.staticCast<DomainType>();
-                    updateStatus(*entity);
-                    mResultProvider->add(entity);
-                });
-                Q_ASSERT(ret);
-            }
-            {
-                auto ret = QObject::connect(&configNotifier, &ConfigNotifier::modified, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
-                    auto entity = entry.staticCast<DomainType>();
-                    updateStatus(*entity);
-                    mResultProvider->modify(entity);
-                });
-                Q_ASSERT(ret);
-            }
-            {
-                auto ret = QObject::connect(&configNotifier, &ConfigNotifier::removed, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
-                    mResultProvider->remove(entry.staticCast<DomainType>());
-                });
-                Q_ASSERT(ret);
-            }
-        }
         // TODO initialResultSetComplete should be implicit
         mResultProvider->initialResultSetComplete(typename DomainType::Ptr());
         mResultProvider->complete();
     });
+    if (query.liveQuery) {
+        {
+            auto ret = QObject::connect(&configNotifier, &ConfigNotifier::added, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
+                auto entity = entry.staticCast<DomainType>();
+                SinkTrace() << "A new resource has been added: " << entity->identifier();
+                updateStatus(*entity);
+                mResultProvider->add(entity);
+            });
+            Q_ASSERT(ret);
+        }
+        {
+            auto ret = QObject::connect(&configNotifier, &ConfigNotifier::modified, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
+                auto entity = entry.staticCast<DomainType>();
+                updateStatus(*entity);
+                mResultProvider->modify(entity);
+            });
+            Q_ASSERT(ret);
+        }
+        {
+            auto ret = QObject::connect(&configNotifier, &ConfigNotifier::removed, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
+                mResultProvider->remove(entry.staticCast<DomainType>());
+            });
+            Q_ASSERT(ret);
+        }
+    }
     mResultProvider->onDone([=]() { delete guard; delete this; });
 }
 
@@ -153,7 +154,7 @@ typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr LocalStorageQueryRun
 
 
 template <typename DomainType>
-LocalStorageFacade<DomainType>::LocalStorageFacade(const QByteArray &identifier) : StoreFacade<DomainType>(), mIdentifier(identifier), mConfigStore(identifier)
+LocalStorageFacade<DomainType>::LocalStorageFacade(const QByteArray &identifier) : StoreFacade<DomainType>(), mIdentifier(identifier)
 {
 }
 
@@ -163,19 +164,15 @@ LocalStorageFacade<DomainType>::~LocalStorageFacade()
 }
 
 template <typename DomainType>
-typename DomainType::Ptr LocalStorageFacade<DomainType>::readFromConfig(const QByteArray &id, const QByteArray &type)
-{
-    return ::readFromConfig<DomainType>(mConfigStore, id, type);
-}
-
-template <typename DomainType>
 KAsync::Job<void> LocalStorageFacade<DomainType>::create(const DomainType &domainObject)
 {
-    return KAsync::start<void>([domainObject, this]() {
+    auto configStoreIdentifier = mIdentifier;
+    return KAsync::start<void>([domainObject, configStoreIdentifier]() {
         const QByteArray type = domainObject.getProperty("type").toByteArray();
         const QByteArray providedIdentifier = domainObject.identifier().isEmpty() ? domainObject.getProperty("identifier").toByteArray() : domainObject.identifier();
         const QByteArray identifier = providedIdentifier.isEmpty() ? ResourceConfig::newIdentifier(type) : providedIdentifier;
-        mConfigStore.add(identifier, type);
+        auto configStore = ConfigStore(configStoreIdentifier);
+        configStore.add(identifier, type);
         auto changedProperties = domainObject.changedProperties();
         changedProperties.removeOne("identifier");
         changedProperties.removeOne("type");
@@ -185,16 +182,17 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::create(const DomainType &domai
             for (const auto &property : changedProperties) {
                 configurationValues.insert(property, domainObject.getProperty(property));
             }
-            mConfigStore.modify(identifier, configurationValues);
+            configStore.modify(identifier, configurationValues);
         }
-        sConfigNotifier.add(readFromConfig(identifier, type));
+        sConfigNotifier.add(::readFromConfig<DomainType>(configStore, identifier, type));
     });
 }
 
 template <typename DomainType>
 KAsync::Job<void> LocalStorageFacade<DomainType>::modify(const DomainType &domainObject)
 {
-    return KAsync::start<void>([domainObject, this]() {
+    auto configStoreIdentifier = mIdentifier;
+    return KAsync::start<void>([domainObject, configStoreIdentifier]() {
         const QByteArray identifier = domainObject.identifier();
         if (identifier.isEmpty()) {
             SinkWarning() << "We need an \"identifier\" property to identify the entity to configure.";
@@ -203,31 +201,34 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::modify(const DomainType &domai
         auto changedProperties = domainObject.changedProperties();
         changedProperties.removeOne("identifier");
         changedProperties.removeOne("type");
+        auto configStore = ConfigStore(configStoreIdentifier);
         if (!changedProperties.isEmpty()) {
             // We have some configuration values
             QMap<QByteArray, QVariant> configurationValues;
             for (const auto &property : changedProperties) {
                 configurationValues.insert(property, domainObject.getProperty(property));
             }
-            mConfigStore.modify(identifier, configurationValues);
+            configStore.modify(identifier, configurationValues);
         }
 
-        const auto type = mConfigStore.getEntries().value(identifier);
-        sConfigNotifier.modify(readFromConfig(identifier, type));
+        const auto type = configStore.getEntries().value(identifier);
+        sConfigNotifier.modify(::readFromConfig<DomainType>(configStore, identifier, type));
     });
 }
 
 template <typename DomainType>
 KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domainObject)
 {
-    return KAsync::start<void>([domainObject, this]() {
+    auto configStoreIdentifier = mIdentifier;
+    return KAsync::start<void>([domainObject, configStoreIdentifier]() {
         const QByteArray identifier = domainObject.identifier();
         if (identifier.isEmpty()) {
             SinkWarning() << "We need an \"identifier\" property to identify the entity to configure";
             return;
         }
         SinkTrace() << "Removing: " << identifier;
-        mConfigStore.remove(identifier);
+        auto configStore = ConfigStore(configStoreIdentifier);
+        configStore.remove(identifier);
         sConfigNotifier.remove(QSharedPointer<DomainType>::create(domainObject));
     });
 }

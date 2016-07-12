@@ -2,7 +2,7 @@
 
 #include <QString>
 
-#include "dummyresource/resourcefactory.h"
+#include "resource.h"
 #include "store.h"
 #include "resourcecontrol.h"
 #include "commands.h"
@@ -10,6 +10,7 @@
 #include "log.h"
 #include "modelresult.h"
 #include "test.h"
+#include "testutils.h"
 
 /**
  * Test of the query system using the dummy resource.
@@ -322,6 +323,22 @@ private slots:
         QCOMPARE(model->rowCount(), 2);
         // We can't make any assumptions about the order of the indexes
         // QCOMPARE(model->index(1, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Mail::Ptr>()->getProperty("uid").toByteArray(), QByteArray("testSecond"));
+    }
+
+    void testReactToNewResource()
+    {
+        Sink::Query query;
+        query.liveQuery = true;
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
+        QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
+
+        auto res = Sink::ApplicationDomain::DummyResource::create("");
+        VERIFYEXEC(Sink::Store::create(res));
+        auto folder = Sink::ApplicationDomain::Folder::create(res.identifier());
+        VERIFYEXEC(Sink::Store::create(folder));
+        QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+
+        VERIFYEXEC(Sink::Store::remove(res));
     }
 };
 

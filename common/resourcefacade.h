@@ -87,10 +87,6 @@ public:
 protected:
     QByteArray mIdentifier;
     static ConfigNotifier sConfigNotifier;
-
-private:
-    typename DomainType::Ptr readFromConfig(const QByteArray &id, const QByteArray &type);
-    ConfigStore mConfigStore;
 };
 
 class ResourceFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkResource>
