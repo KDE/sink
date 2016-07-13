@@ -129,6 +129,8 @@ public:
     KAsync::Job<void> fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback);
 
 private:
+    KAsync::Job<void> ping();
+
     QObject mGuard;
 };
 

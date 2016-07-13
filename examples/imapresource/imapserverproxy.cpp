@@ -20,6 +20,8 @@
 
 #include <QDir>
 #include <QFile>
+#include <QTcpSocket>
+#include <QTimer>
 #include <KIMAP/KIMAP/LoginJob>
 #include <kimap/namespacejob.h>
 #include <KIMAP/KIMAP/SelectJob>
@@ -36,6 +38,7 @@
 #include <KCoreAddons/KJob>
 
 #include "log.h"
+#include "test.h"
 
 SINK_DEBUG_AREA("imapserverproxy")
 
@@ -97,7 +100,45 @@ class SessionUiProxy : public KIMAP::SessionUiProxy {
 ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port) : mSession(new KIMAP::Session(serverUrl, qint16(port)))
 {
     mSession->setUiProxy(SessionUiProxy::Ptr(new SessionUiProxy));
-    mSession->setTimeout(10);
+    if (Sink::Test::testModeEnabled()) {
+        mSession->setTimeout(1);
+    } else {
+        mSession->setTimeout(10);
+    }
+}
+
+KAsync::Job<void> ImapServerProxy::ping()
+{
+    auto hostname = mSession->hostName();
+    auto port = mSession->port();
+    auto timeout = mSession->timeout() * 1000;
+    return KAsync::start<void>([=](KAsync::Future<void> &future) {
+        SinkTrace() << "Starting ping" << timeout;
+        auto guard = QPointer<QObject>(new QObject);
+        auto socket = QSharedPointer<QTcpSocket>::create();
+        QObject::connect(socket.data(), &QTcpSocket::hostFound, guard, [guard, &future, socket]() {
+            SinkTrace() << "Ping succeeded";
+            delete guard;
+            future.setFinished();
+        });
+        QObject::connect(socket.data(), static_cast<void(QTcpSocket::*)(QTcpSocket::SocketError)>(&QTcpSocket::error), guard, [guard, &future, socket](QTcpSocket::SocketError) {
+            SinkWarning() << "Ping failed: ";
+            delete guard;
+            future.setError(1, "Error during connect");
+        });
+        if (!guard) {
+            return;
+        }
+        socket->connectToHost(hostname, port);
+        QTimer::singleShot(timeout, guard, [guard, &future, hostname, port, socket]() {
+            if (guard) {
+                SinkWarning() << "Ping failed: " << hostname << port;
+                delete guard;
+                future.setError(1, "Couldn't lookup host");
+            }
+        });
+    });
+
 }
 
 KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString &password)
@@ -118,7 +159,8 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     });
     auto namespaceJob = new KIMAP::NamespaceJob(mSession);
 
-    return runJob(loginJob).then(runJob(capabilitiesJob)).then<void>([this](){
+    //FIXME The ping is only required because the login job doesn't fail after the configured timeout
+    return ping().then(runJob(loginJob)).then(runJob(capabilitiesJob)).then<void>([this](){
         SinkTrace() << "Supported capabilities: " << mCapabilities;
         QStringList requiredExtensions = QStringList() << "UIDPLUS" << "NAMESPACE";
         for (const auto &requiredExtension : requiredExtensions) {

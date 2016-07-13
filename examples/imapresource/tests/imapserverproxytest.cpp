@@ -25,6 +25,7 @@ class ImapServerProxyTest : public QObject
 private slots:
     void initTestCase()
     {
+        Sink::Test::initTest();
         QTcpSocket socket;
         socket.connectToHost("localhost", 993);
         QVERIFY(socket.waitForConnected(200));
