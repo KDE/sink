@@ -360,7 +360,7 @@ QList<DomainType> Store::read(const Sink::Query &q)
         SinkTrace() << "Found value: " << value->identifier();
         list << *value;
     });
-    for (const auto resourceInstanceIdentifier : resources.keys()) {
+    for (const auto &resourceInstanceIdentifier : resources.keys()) {
         const auto resourceType = resources.value(resourceInstanceIdentifier);
         SinkTrace() << "Looking for " << resourceType << resourceInstanceIdentifier;
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceType, resourceInstanceIdentifier);

@@ -53,7 +53,7 @@ flatbuffers::uoffset_t variantToProperty<QByteArrayList>(const QVariant &propert
     if (property.isValid()) {
         const auto list = property.value<QByteArrayList>();
         std::vector<flatbuffers::Offset<flatbuffers::String>> vector;
-        for (const auto value : list) {
+        for (const auto &value : list) {
             auto offset = fbb.CreateString(value.toStdString());
             vector.push_back(offset);
         }

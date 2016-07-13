@@ -296,7 +296,7 @@ public:
             }
         );
 
-        for (const auto folderPath : folderList) {
+        for (const auto &folderPath : folderList) {
             createFolder(folderPath, "folder");
         }
     }

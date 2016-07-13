@@ -133,7 +133,7 @@ public:
             },
             [&folderList](const QByteArray &remoteId) -> bool {
                 // folderList.contains(remoteId)
-                for (const auto folderPath : folderList) {
+                for (const auto &folderPath : folderList) {
                     if (folderPath.path == remoteId) {
                         return true;
                     }

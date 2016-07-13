@@ -115,7 +115,7 @@ public:
     /**
      * Returns all available properties for which a mapping exists (no matter what the buffer contains)
      */
-    virtual QList<QByteArray> availableProperties() const
+    virtual QList<QByteArray> availableProperties() const Q_DECL_OVERRIDE
     {
         return mResourceMapper->availableProperties() + mLocalMapper->availableProperties();
     }

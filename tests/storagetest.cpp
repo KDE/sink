@@ -28,7 +28,7 @@ private:
             if (i % 10000 == 0) {
                 if (i > 0) {
                     transaction.commit();
-                    transaction = std::move(storage.createTransaction(Sink::Storage::ReadWrite));
+                    transaction = storage.createTransaction(Sink::Storage::ReadWrite);
                 }
             }
             transaction.openDatabase().write(keyPrefix + QByteArray::number(i), keyPrefix + QByteArray::number(i));

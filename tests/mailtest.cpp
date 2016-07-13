@@ -354,7 +354,7 @@ void MailTest::testCreateDraft()
     {
         auto mails = Store::read<ApplicationDomain::Mail>(Query().filter<Mail::Folder>(folderIdentifier));
         bool found = false;
-        for (const auto m : mails) {
+        for (const auto &m : mails) {
             if (m.identifier() == mail.identifier()) {
                 found = true;
             }

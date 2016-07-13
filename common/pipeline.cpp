@@ -119,9 +119,9 @@ void Pipeline::startTransaction()
     if (d->storage.exists()) {
         while (!d->transaction.validateNamedDatabases()) {
             SinkWarning() << "Opened an invalid transaction!!!!!!";
-            d->transaction = std::move(storage().createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
+            d->transaction = storage().createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
                 SinkWarning() << error.message;
-            }));
+            });
         }
     }
 }
@@ -316,7 +316,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     // Remove deletions
     if (modifyEntity->deletions()) {
-        for (const auto &property : *modifyEntity->deletions()) {
+        for (const flatbuffers::String *property : *modifyEntity->deletions()) {
             newAdaptor->setProperty(BufferUtils::extractBuffer(property), QVariant());
         }
     }

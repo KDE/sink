@@ -55,7 +55,7 @@ void MessageQueue::startTransaction()
         return;
     }
     processRemovals();
-    mWriteTransaction = std::move(mStorage.createTransaction(Sink::Storage::ReadWrite));
+    mWriteTransaction = mStorage.createTransaction(Sink::Storage::ReadWrite);
 }
 
 void MessageQueue::commit()
@@ -87,7 +87,7 @@ void MessageQueue::processRemovals()
     if (mWriteTransaction) {
         return;
     }
-    auto transaction = std::move(mStorage.createTransaction(Sink::Storage::ReadWrite));
+    auto transaction = mStorage.createTransaction(Sink::Storage::ReadWrite);
     for (const auto &key : mPendingRemoval) {
         transaction.openDatabase().remove(key);
     }

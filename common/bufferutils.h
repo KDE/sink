@@ -26,7 +26,7 @@ static QByteArray extractBuffer(const flatbuffers::FlatBufferBuilder &fbb)
 static QList<QByteArray> fromVector(const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> &vector)
 {
     QList<QByteArray> list;
-    for (const auto &data : vector) {
+    for (const flatbuffers::String *data : vector) {
         Q_ASSERT(data);
         list << QByteArray::fromStdString(data->str());
     }

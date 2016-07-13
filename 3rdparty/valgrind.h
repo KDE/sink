@@ -70,9 +70,11 @@
    problem, you can compile with the NVALGRIND symbol defined (gcc
    -DNVALGRIND) so that client requests are not even compiled in.  */
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreserved-id-macro"
+
 #ifndef __VALGRIND_H
 #define __VALGRIND_H
-
 
 /* ------------------------------------------------------------------ */
 /* VERSION NUMBER OF VALGRIND                                         */
@@ -5958,3 +5960,6 @@ VALGRIND_PRINTF_BACKTRACE(const char *format, ...)
 #undef PLAT_mips64_linux
 
 #endif   /* __VALGRIND_H */
+
+#pragma clang diagnostic pop
+

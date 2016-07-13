@@ -121,7 +121,7 @@ DatasetDefinition::DatasetDefinition(const QString &path)
 
             m_description = json.value("description").toString();
             auto cols = json.value("columns").toArray();
-            for (const auto &entry: cols) {
+            for (QJsonValueRef entry: cols) {
                 QJsonObject def = entry.toObject();
                 if (!def.isEmpty()) {
                     m_columns << qMakePair(def.value("name").toString(), DataDefinition(def));
