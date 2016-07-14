@@ -76,7 +76,7 @@ QList<QByteArray> requestedProperties(const QString &type)
     } else if (type == "event") {
         return QList<QByteArray>() << "summary";
     } else if (type == "resource") {
-        return QList<QByteArray>() << "type";
+        return QList<QByteArray>() << "type" << "account";
     }
     return QList<QByteArray>();
 }
