@@ -36,6 +36,8 @@
 #include "state.h"
 #include "syntaxtree.h"
 
+using namespace Sink;
+
 namespace SinkCreate
 {
 
@@ -54,7 +56,7 @@ bool create(const QStringList &allArgs, State &state)
     auto args = allArgs;
     auto type = args.takeFirst();
     auto &store = SinkshUtils::getStore(type);
-    Sink::ApplicationDomain::ApplicationDomainType::Ptr object;
+    ApplicationDomain::ApplicationDomainType::Ptr object;
     auto resource = args.takeFirst().toLatin1();
     object = store.getObject(resource);
 
@@ -67,7 +69,7 @@ bool create(const QStringList &allArgs, State &state)
     result.waitForFinished();
     if (result.errorCode()) {
         state.printError(QObject::tr("An error occurred while creating the entity: %1").arg(result.errorMessage()),
-                         "akonaid_create_e" + QString::number(result.errorCode()));
+                         "sink_create_e" + QString::number(result.errorCode()));
     }
 
     return true;
@@ -83,19 +85,55 @@ bool resource(const QStringList &args, State &state)
     auto &store = SinkshUtils::getStore("resource");
 
     auto resourceType = args.at(0);
-    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("");
-    object->setProperty("type", resourceType);
 
     auto map = SinkshUtils::keyValueMapFromArgs(args);
+
+    auto identifier = map.take("identifier").toLatin1();
+
+    auto object = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::SinkResource>("", identifier);
+    object.setResourceType(resourceType);
+
     for (auto i = map.begin(); i != map.end(); ++i) {
-        object->setProperty(i.key().toLatin1(), i.value());
+        object.setProperty(i.key().toLatin1(), i.value());
     }
 
-    auto result = store.create(*object).exec();
+    auto result = store.create(object).exec();
     result.waitForFinished();
     if (result.errorCode()) {
         state.printError(QObject::tr("An error occurred while creating the entity: %1").arg(result.errorMessage()),
-                         "akonaid_create_e" + QString::number(result.errorCode()));
+                         "sink_create_e" + QString::number(result.errorCode()));
+    }
+
+    return true;
+}
+
+bool account(const QStringList &args, State &state)
+{
+    if (args.isEmpty()) {
+        state.printError(QObject::tr("An account can not be created without a type"), "sinkcreate/01");
+        return false;
+    }
+
+    auto &store = SinkshUtils::getStore("account");
+
+    auto type = args.at(0);
+
+    auto map = SinkshUtils::keyValueMapFromArgs(args);
+
+    auto identifier = map.take("identifier").toLatin1();
+
+    auto object = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::SinkAccount>("", identifier);
+    object.setAccountType(type);
+
+    for (auto i = map.begin(); i != map.end(); ++i) {
+        object.setProperty(i.key().toLatin1(), i.value());
+    }
+
+    auto result = store.create(object).exec();
+    result.waitForFinished();
+    if (result.errorCode()) {
+        state.printError(QObject::tr("An error occurred while creating the entity: %1").arg(result.errorMessage()),
+                         "sink_create_e" + QString::number(result.errorCode()));
     }
 
     return true;
@@ -108,6 +146,7 @@ Syntax::List syntax()
 
     Syntax create("create", QObject::tr("Create items in a resource"), &SinkCreate::create);
     create.children << Syntax("resource", QObject::tr("Creates a new resource"), &SinkCreate::resource);
+    create.children << Syntax("account", QObject::tr("Creates a new account"), &SinkCreate::account);
 
     syntax << create;
     return syntax;

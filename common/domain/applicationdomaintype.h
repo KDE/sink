@@ -134,6 +134,17 @@ public:
         return object;
     }
 
+    template <class DomainType>
+    static DomainType createEntity(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier)
+    {
+        if (identifier.isEmpty()) {
+            return createEntity<DomainType>(resourceInstanceIdentifier);
+        }
+        DomainType object(resourceInstanceIdentifier);
+        object.mIdentifier = identifier;
+        return object;
+    }
+
     virtual ~ApplicationDomainType();
 
     bool hasProperty(const QByteArray &key) const;
