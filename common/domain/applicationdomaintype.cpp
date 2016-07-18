@@ -249,49 +249,41 @@ Identity::~Identity()
 
 }
 
-namespace DummyResource {
-    SinkResource create(const QByteArray &account)
-    {
-        auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
-        resource.setProperty("type", "sink.dummy");
-        resource.setProperty("account", account);
-        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << "-folder.rename"));
-        // resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << "-folder.rename" << ResourceCapabilities::Mail::trash));
-        return resource;
-    }
+SinkResource DummyResource::create(const QByteArray &account)
+{
+    auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
+    resource.setProperty("type", "sink.dummy");
+    resource.setProperty("account", account);
+    resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << "-folder.rename"));
+    // resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << "-folder.rename" << ResourceCapabilities::Mail::trash));
+    return resource;
 }
 
-namespace MaildirResource {
-    SinkResource create(const QByteArray &account)
-    {
-        auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
-        resource.setProperty("type", "sink.maildir");
-        resource.setProperty("account", account);
-        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << "-folder.rename" << ResourceCapabilities::Mail::trash));
-        return resource;
-    }
+SinkResource MaildirResource::create(const QByteArray &account)
+{
+    auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
+    resource.setProperty("type", "sink.maildir");
+    resource.setProperty("account", account);
+    resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << "-folder.rename" << ResourceCapabilities::Mail::trash));
+    return resource;
 }
 
-namespace MailtransportResource {
-    SinkResource create(const QByteArray &account)
-    {
-        auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
-        resource.setProperty("type", "sink.mailtransport");
-        resource.setProperty("account", account);
-        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::transport));
-        return resource;
-    }
+SinkResource MailtransportResource::create(const QByteArray &account)
+{
+    auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
+    resource.setProperty("type", "sink.mailtransport");
+    resource.setProperty("account", account);
+    resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::transport));
+    return resource;
 }
 
-namespace ImapResource {
-    SinkResource create(const QByteArray &account)
-    {
-        auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
-        resource.setProperty("type", "sink.imap");
-        resource.setProperty("account", account);
-        resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << ResourceCapabilities::Mail::folderhierarchy << ResourceCapabilities::Mail::trash));
-        return resource;
-    }
+SinkResource ImapResource::create(const QByteArray &account)
+{
+    auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
+    resource.setProperty("type", "sink.imap");
+    resource.setProperty("account", account);
+    resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << ResourceCapabilities::Mail::folderhierarchy << ResourceCapabilities::Mail::trash));
+    return resource;
 }
 
 template<>

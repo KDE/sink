@@ -301,17 +301,20 @@ struct SINK_EXPORT Identity : public ApplicationDomainType {
     virtual ~Identity();
 };
 
-namespace DummyResource {
-    SinkResource SINK_EXPORT create(const QByteArray &account);
+struct SINK_EXPORT DummyResource {
+    static SinkResource create(const QByteArray &account);
 };
-namespace MaildirResource {
-    SinkResource SINK_EXPORT create(const QByteArray &account);
+
+struct SINK_EXPORT MaildirResource {
+    static SinkResource create(const QByteArray &account);
 };
-namespace MailtransportResource {
-    SinkResource SINK_EXPORT create(const QByteArray &account);
+
+struct SINK_EXPORT MailtransportResource {
+    static SinkResource create(const QByteArray &account);
 };
-namespace ImapResource {
-    SinkResource SINK_EXPORT create(const QByteArray &account);
+
+struct SINK_EXPORT ImapResource {
+    static SinkResource create(const QByteArray &account);
 };
 
 namespace ResourceCapabilities {
