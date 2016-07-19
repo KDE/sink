@@ -24,6 +24,8 @@
 #include "definitions.h"
 #include "bufferutils.h"
 
+#include <QTimer>
+
 using namespace Sink;
 
 SINK_DEBUG_AREA("changereplay");
@@ -102,7 +104,9 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
             SinkTrace() << "Replayed until " << revision;
             recordReplayedRevision(revision);
             //replay until we're done
-            replayNextRevision().exec();
+            QTimer::singleShot(0, this, [this]() {
+                replayNextRevision().exec();
+            });
         },
         [this, revision, recordReplayedRevision](int, QString) {
             SinkTrace() << "Change replay failed" << revision;
