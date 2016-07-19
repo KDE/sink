@@ -113,21 +113,14 @@ void terminateHandler()
     if (exptr != 0)
     {
         // the only useful feature of std::exception_ptr is that it can be rethrown...
-        try
-        {
+        try {
             std::rethrow_exception(exptr);
-        }
-        catch (std::exception &ex)
-        {
+        } catch (std::exception &ex) {
             std::fprintf(stderr, "Terminated due to exception: %s\n", ex.what());
-        }
-        catch (...)
-        {
+        } catch (...) {
             std::fprintf(stderr, "Terminated due to unknown exception\n");
         }
-    }
-    else
-    {
+    } else {
         std::fprintf(stderr, "Terminated due to unknown reason :(\n");
     }
     std::abort();

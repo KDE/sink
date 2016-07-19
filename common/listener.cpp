@@ -82,6 +82,7 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
 
 Listener::~Listener()
 {
+    SinkTrace() << "Shutting down " << m_resourceInstanceIdentifier;
     closeAllConnections();
 }
 
@@ -335,6 +336,7 @@ void Listener::sendShutdownNotification()
 
 void Listener::quit()
 {
+    SinkTrace() << "Quitting " << m_resourceInstanceIdentifier;
     m_clientBufferProcessesTimer->stop();
     m_server->close();
     sendShutdownNotification();
