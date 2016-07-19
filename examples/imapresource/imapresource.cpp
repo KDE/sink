@@ -173,7 +173,7 @@ public:
             createOrModify(bufferType, remoteId, mail);
         }
         const auto elapsed = time->elapsed();
-        SinkLog() << "Synchronized " << count << " mails in " << path << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
+        SinkTrace() << "Synchronized " << count << " mails in " << path << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
 
     void synchronizeRemovals(const QString &path, const QSet<qint64> &messages)
@@ -249,8 +249,8 @@ public:
                     continue;
                 }
                 QSet<qint64> uids;
+                SinkLog() << "Synchronizing mails" << folder.normalizedPath();
                 auto messagesFuture = imap.fetchMessages(folder, [this, folder, &uids](const QVector<Message> &messages) {
-                    SinkTrace() << "Synchronizing mails" << folder.normalizedPath();
                     for (const auto &msg : messages) {
                         uids << msg.uid;
                     }

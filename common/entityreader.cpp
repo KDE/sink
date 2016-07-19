@@ -88,7 +88,6 @@ EntityReader<DomainType>::EntityReader(const QByteArray &resourceType, const QBy
     mDomainTypeAdaptorFactory(*mDomainTypeAdaptorFactoryPtr)
 {
     Q_ASSERT(!resourceType.isEmpty());
-    SinkTrace() << "resourceType " << resourceType;
     Q_ASSERT(mDomainTypeAdaptorFactoryPtr);
 }
 
