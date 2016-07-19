@@ -14,4 +14,10 @@ target_link_libraries(imapserverproxytest sink_resource_imap)
 target_link_libraries(imapmailtest sink_resource_imap)
 target_link_libraries(imapmailsynctest sink_resource_imap)
 
+manual_tests (
+    imapmailsyncbenchmark
+)
+target_link_libraries(imapmailsyncbenchmark sink_resource_imap)
+
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/resetmailbox.sh DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/populatemailbox.sh DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ)
