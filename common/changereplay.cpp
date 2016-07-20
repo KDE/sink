@@ -59,67 +59,103 @@ bool ChangeReplay::allChangesReplayed()
     return (lastReplayedRevision >= topRevision);
 }
 
+void ChangeReplay::recordReplayedRevision(qint64 revision)
+{
+    auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
+        SinkWarning() << error.message;
+    });
+    replayStoreTransaction.openDatabase().write("lastReplayedRevision", QByteArray::number(revision));
+    replayStoreTransaction.commit();
+};
+
 KAsync::Job<void> ChangeReplay::replayNextRevision()
 {
-    mReplayInProgress = true;
-    auto mainStoreTransaction = mStorage.createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
-        SinkWarning() << error.message;
-    });
-    auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
-        SinkWarning() << error.message;
-    });
-    qint64 lastReplayedRevision = 0;
-    replayStoreTransaction.openDatabase().scan("lastReplayedRevision",
-        [&lastReplayedRevision](const QByteArray &key, const QByteArray &value) -> bool {
-            lastReplayedRevision = value.toLongLong();
-            return false;
-        },
-        [](const Storage::Error &) {});
-    const qint64 topRevision = Storage::maxRevision(mainStoreTransaction);
-
-    auto recordReplayedRevision = [this](qint64 revision) {
-        auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
-            SinkWarning() << error.message;
-        });
-        replayStoreTransaction.openDatabase().write("lastReplayedRevision", QByteArray::number(revision));
-        replayStoreTransaction.commit();
-    };
-
-    if (lastReplayedRevision < topRevision) {
-        SinkTrace() << "Changereplay from " << lastReplayedRevision << " to " << topRevision;
-        qint64 revision = lastReplayedRevision + 1;
-        const auto uid = Storage::getUidFromRevision(mainStoreTransaction, revision);
-        const auto type = Storage::getTypeFromRevision(mainStoreTransaction, revision);
-        const auto key = Storage::assembleKey(uid, revision);
-        KAsync::Job<void> replayJob = KAsync::null<void>();
-        Storage::mainDatabase(mainStoreTransaction, type)
-            .scan(key,
-                [&lastReplayedRevision, type, this, &replayJob](const QByteArray &key, const QByteArray &value) -> bool {
-                    SinkTrace() << "Replaying " << key;
-                    replayJob = replay(type, key, value);
+    auto lastReplayedRevision = QSharedPointer<qint64>::create(0);
+    auto topRevision = QSharedPointer<qint64>::create(0);
+    return KAsync::start<void>([this, lastReplayedRevision, topRevision]() {
+            mReplayInProgress = true;
+            mMainStoreTransaction = mStorage.createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
+                SinkWarning() << error.message;
+            });
+            auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
+                SinkWarning() << error.message;
+            });
+            replayStoreTransaction.openDatabase().scan("lastReplayedRevision",
+                [lastReplayedRevision](const QByteArray &key, const QByteArray &value) -> bool {
+                    *lastReplayedRevision = value.toLongLong();
                     return false;
                 },
-                [key](const Storage::Error &) { SinkError() << "Failed to replay change " << key; });
-        return replayJob.then<void>([this, revision, recordReplayedRevision]() {
-            SinkTrace() << "Replayed until " << revision;
-            recordReplayedRevision(revision);
-            //replay until we're done
-            QTimer::singleShot(0, this, [this]() {
-                replayNextRevision().exec();
-            });
-        },
-        [this, revision, recordReplayedRevision](int, QString) {
-            SinkTrace() << "Change replay failed" << revision;
-            //We're probably not online or so, so postpone retrying
-            mReplayInProgress = false;
-            emit changesReplayed();
+                [](const Storage::Error &) {});
+            *topRevision = Storage::maxRevision(mMainStoreTransaction);
+            SinkTrace() << "Changereplay from " << *lastReplayedRevision << " to " << *topRevision;
+        })
+        .then(KAsync::dowhile(
+            [this, lastReplayedRevision, topRevision](KAsync::Future<bool> &future) {
+                    if (*lastReplayedRevision >= *topRevision) {
+                        future.setValue(false);
+                        future.setFinished();
+                        return;
+                    }
+
+                    qint64 revision = *lastReplayedRevision + 1;
+                    KAsync::Job<void> replayJob = KAsync::null<void>();
+                    while (revision <= *topRevision) {
+                        const auto uid = Storage::getUidFromRevision(mMainStoreTransaction, revision);
+                        const auto type = Storage::getTypeFromRevision(mMainStoreTransaction, revision);
+                        const auto key = Storage::assembleKey(uid, revision);
+                        bool exitLoop = false;
+                        Storage::mainDatabase(mMainStoreTransaction, type)
+                            .scan(key,
+                                [&lastReplayedRevision, type, this, &replayJob, &exitLoop, revision](const QByteArray &key, const QByteArray &value) -> bool {
+                                    SinkTrace() << "Replaying " << key;
+                                    if (canReplay(type, key, value)) {
+                                        replayJob = replay(type, key, value).then<void>([this, revision, lastReplayedRevision]() {
+                                            recordReplayedRevision(revision);
+                                            *lastReplayedRevision = revision;
+                                        },
+                                        [revision](int, QString) {
+                                            SinkTrace() << "Change replay failed" << revision;
+                                        });
+                                        exitLoop = true;
+                                    } else {
+                                        *lastReplayedRevision = revision;
+                                    }
+                                    return false;
+                                },
+                                [key](const Storage::Error &) { SinkError() << "Failed to replay change " << key; });
+                        if (exitLoop) {
+                            break;
+                        }
+                        revision++;
+                    }
+                    replayJob.then<void>([this, revision, lastReplayedRevision, topRevision, &future]() {
+                        SinkTrace() << "Replayed until " << revision;
+                        recordReplayedRevision(*lastReplayedRevision);
+                        QTimer::singleShot(0, [&future, lastReplayedRevision, topRevision]() {
+                            future.setValue((*lastReplayedRevision < *topRevision));
+                            future.setFinished();
+                        });
+                    },
+                    [this, revision, &future](int, QString) {
+                        SinkTrace() << "Change replay failed" << revision;
+                        //We're probably not online or so, so postpone retrying
+                        future.setValue(false);
+                        future.setFinished();
+                    }).exec();
+
+            }))
+        .then<void>([this, lastReplayedRevision]() {
+            recordReplayedRevision(*lastReplayedRevision);
+            mMainStoreTransaction.abort();
+            if (allChangesReplayed()) {
+                mReplayInProgress = false;
+                emit changesReplayed();
+            } else {
+                QTimer::singleShot(0, [this]() {
+                    replayNextRevision().exec();
+                });
+            }
         });
-    } else {
-        SinkTrace() << "No changes to replay";
-        mReplayInProgress = false;
-        emit changesReplayed();
-    }
-    return KAsync::null<void>();
 }
 
 void ChangeReplay::revisionChanged()

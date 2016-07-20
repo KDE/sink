@@ -52,12 +52,15 @@ public slots:
 
 protected:
     virtual KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) = 0;
+    virtual bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) = 0;
     Sink::Storage mStorage;
 
 private:
+    void recordReplayedRevision(qint64 revision);
     KAsync::Job<void> replayNextRevision();
     Sink::Storage mChangeReplayStore;
     bool mReplayInProgress;
+    Sink::Storage::Transaction mMainStoreTransaction;
 };
 
 class NullChangeReplay : public ChangeReplay
@@ -65,6 +68,7 @@ class NullChangeReplay : public ChangeReplay
 public:
     NullChangeReplay(const QByteArray &resourceName) : ChangeReplay(resourceName) {}
     KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE { return KAsync::null<void>(); }
+    bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE { return false; }
 };
 
 }

@@ -55,6 +55,18 @@ RemoteIdMap &SourceWriteBack::syncStore()
     return *mSyncStore;
 }
 
+bool SourceWriteBack::canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
+{
+    Sink::EntityBuffer buffer(value);
+    const Sink::Entity &entity = buffer.entity();
+    const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
+    Q_ASSERT(metadataBuffer);
+    if (!metadataBuffer->replayToSource()) {
+        SinkTrace() << "Change is coming from the source";
+    }
+    return metadataBuffer->replayToSource();
+}
+
 KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
 {
     SinkTrace() << "Replaying" << type << key;
@@ -63,10 +75,6 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
     const Sink::Entity &entity = buffer.entity();
     const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
     Q_ASSERT(metadataBuffer);
-    if (!metadataBuffer->replayToSource()) {
-        SinkTrace() << "Change is coming from the source";
-        return KAsync::null<void>();
-    }
     Q_ASSERT(!mSyncStore);
     Q_ASSERT(!mEntityStore);
     Q_ASSERT(!mTransaction);
