@@ -255,6 +255,9 @@ public:
                         uids << msg.uid;
                     }
                     synchronizeMails(folder.normalizedPath(), messages);
+                },
+                [](int progress, int total) {
+                    SinkTrace() << "Progress: " << progress << " out of " << total;
                 }).exec();
                 messagesFuture.waitForFinished();
                 commit();
