@@ -38,6 +38,7 @@ namespace SinkTrace
 
 bool traceOff(const QStringList &args, State &state)
 {
+    Sink::Log::setDebugOutputFilter(Sink::Log::Area, QByteArrayList());
     Sink::Log::setDebugOutputLevel(Sink::Log::Log);
     std::cout << "Turned trace off." << std::endl;
     return true;
