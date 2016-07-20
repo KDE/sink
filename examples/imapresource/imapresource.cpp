@@ -267,8 +267,6 @@ public:
                 commit();
                 SinkTrace() << "Folder synchronized: " << folder.normalizedPath();
             }
-
-            SinkLog() << "Done Synchronizing";
             future.setFinished();
         });
     }
