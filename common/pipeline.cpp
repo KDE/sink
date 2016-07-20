@@ -189,7 +189,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     if (key.isEmpty()) {
         key = Sink::Storage::generateUid();
     }
-    SinkLog() << "New Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
+    SinkTrace() << "New Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
     Q_ASSERT(!key.isEmpty());
 
     {
@@ -259,7 +259,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     const bool replayToSource = modifyEntity->replayToSource();
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const *>(modifyEntity->domainType()->Data()), modifyEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const *>(modifyEntity->entityId()->Data()), modifyEntity->entityId()->size());
-    SinkLog() << "Modified Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
+    SinkTrace() << "Modified Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
     if (bufferType.isEmpty() || key.isEmpty()) {
         SinkWarning() << "entity type or key " << bufferType << key;
         return KAsync::error<qint64>(0);
@@ -365,7 +365,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     const bool replayToSource = deleteEntity->replayToSource();
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const *>(deleteEntity->domainType()->Data()), deleteEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const *>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
-    SinkLog() << "Deleted Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
+    SinkTrace() << "Deleted Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
 
     bool found = false;
     bool alreadyRemoved = false;

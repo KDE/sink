@@ -18,25 +18,28 @@ This way we get complete logs also if some resource was not started from the con
 * warning: Only warnings, should always be logged.
 * error: Critical messages that should never appear. Should always be logged.
 
-## Debug areas
-Debug areas split the code into sections that can be enabled/disabled as one.
-This is supposed to give finer grained control over what is logged or displayed.
+## Debug areas and components
+Debug areas and components split the code into sections that can be enabled/disabled as one. This gives finer grained control over what is logged or displayed.
 
-Debug areas may align with classes, but don't have to, the should be made so that they are useful.
+Debug areas are the static part, that typically represent a class or file, but give no information about which runtime-component is executing the given code.
 
-Areas could be:
+Components are the runtime information part that can represent i.e. the resource plugin in the client process or the resource process itself.
 
-* resource.sync.performance
-* resource.sync
-* resource.listener
-* resource.pipeline
-* resource.store
-* resource.communication
-* client.communication
-* client.communication.org.sink.resource.maildir.identifier1
-* client.queryrunner
-* client.queryrunner.performance
-* common.typeindex
+The full debugging area is then assembled as: "Component.Area"
+
+This can result in identifiers like:
+
+* $RESOURCE_IDENTIFIER.sync.performance
+* $RESOURCE_IDENTIFIER.sync
+* $RESOURCE_IDENTIFIER.communication
+* $RESOURCE_IDENTIFIER.pipeline
+* kube.$RESOURCE_IDENTIFIER.communication
+* kube.$RESOURCE_IDENTIFIER.queryrunner
+* kube.actions
+
+## Logging guidelines
+* The trace log level should be used for any information that is not continuously required.
+* Messages on the Log level should scale. During a sync with 10k messages we don't want 10k messages on the log level, these should go to trace.
 
 ## Collected information
 Additionally to the regular message we want:
