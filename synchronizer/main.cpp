@@ -29,6 +29,9 @@
 #include <dlfcn.h>
 #include <ostream>
 #include <sstream>
+#include <thread>
+#include <chrono>
+#include <unistd.h>
 
 #include "listener.h"
 #include "log.h"
@@ -99,6 +102,9 @@ void crashHandler(int signal)
 
     //Get the word out that we're going down
     listener->emergencyAbortAllConnections();
+
+    std::cout << "Sleeping for 10s to attach a debugger: gdb attach " << getpid();
+    std::this_thread::sleep_for(std::chrono::seconds(10));
 
     // std::system("exec gdb -p \"$PPID\" -ex \"thread apply all bt\"");
     // This only works if we actually have xterm and X11 available
