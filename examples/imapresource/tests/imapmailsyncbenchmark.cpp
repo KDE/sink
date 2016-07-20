@@ -119,6 +119,14 @@ private slots:
 
         VERIFYEXEC(ResourceControl::flushMessageQueue(query.resources));
         SinkLog() << "Total took: " << Sink::Log::TraceTime(time.elapsed());
+
+        time.start();
+
+        VERIFYEXEC(Store::synchronize(query));
+        SinkLog() << "ReSync took: " << Sink::Log::TraceTime(time.elapsed());
+
+        VERIFYEXEC(ResourceControl::flushMessageQueue(query.resources));
+        SinkLog() << "Total resync took: " << Sink::Log::TraceTime(time.elapsed());
     }
 };
 
