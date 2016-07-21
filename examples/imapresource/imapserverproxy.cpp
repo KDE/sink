@@ -338,15 +338,14 @@ QStringList ImapServerProxy::getCapabilities() const
     return mCapabilities;
 }
 
-KAsync::Job<QList<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbox)
+KAsync::Job<QList<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbox, const qint64 minUid)
 {
     auto list = QSharedPointer<QList<qint64>>::create();
     KIMAP::FetchJob::FetchScope scope;
-    scope.parts.clear();
     scope.mode = KIMAP::FetchJob::FetchScope::Flags;
 
     //Fetch headers of all messages
-    return fetch(KIMAP::ImapSet(1, 0), scope,
+    return fetch(KIMAP::ImapSet(minUid, 0), scope,
             [list](const QString &mailbox,
                     const QMap<qint64,qint64> &uids,
                     const QMap<qint64,qint64> &sizes,
@@ -459,18 +458,18 @@ QString ImapServerProxy::mailboxFromFolder(const Folder &folder) const
 
 KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 uidNext, std::function<void(const QVector<Message> &)> callback, std::function<void(int, int)> progress)
 {
-    Q_UNUSED(uidNext);
     auto time = QSharedPointer<QTime>::create();
     time->start();
     Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
     return select(mailboxFromFolder(folder)).then<void, KAsync::Job<void>, SelectResult>([this, callback, folder, time, progress, uidNext](const SelectResult &selectResult) -> KAsync::Job<void> {
 
-        if (selectResult.uidNext == uidNext) {
+        SinkLog() << "UIDNEXT " << selectResult.uidNext << uidNext;
+        if (selectResult.uidNext == (uidNext + 1)) {
             SinkTrace() << "Uidnext didn't change, nothing to do.";
             return KAsync::null<void>();
         }
 
-        return fetchHeaders(mailboxFromFolder(folder)).then<void, KAsync::Job<void>, QList<qint64>>([this, callback, time, progress](const QList<qint64> &uidsToFetch){
+        return fetchHeaders(mailboxFromFolder(folder), (uidNext + 1)).then<void, KAsync::Job<void>, QList<qint64>>([this, callback, time, progress](const QList<qint64> &uidsToFetch){
             SinkTrace() << "Fetched headers";
             SinkTrace() << "  Total: " << uidsToFetch.size();
             SinkTrace() << "  Uids to fetch: " << uidsToFetch;
