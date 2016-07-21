@@ -54,6 +54,9 @@ public:
      */
     QByteArray resolveLocalId(const QByteArray &bufferType, const QByteArray &localId);
 
+    QByteArray readValue(const QByteArray &key);
+    void writeValue(const QByteArray &key, const QByteArray &value);
+
 private:
     Sink::Storage::Transaction &mTransaction;
 };

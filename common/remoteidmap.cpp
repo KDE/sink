@@ -75,3 +75,20 @@ QByteArray RemoteIdMap::resolveLocalId(const QByteArray &bufferType, const QByte
     return remoteId;
 }
 
+QByteArray RemoteIdMap::readValue(const QByteArray &key)
+{
+    QByteArray value;
+    mTransaction.openDatabase("values").scan(key, [&value](const QByteArray &, const QByteArray &v) {
+        value = v;
+        return false;
+    }, [](const Sink::Storage::Error &) {
+        //Ignore errors because we may not find the value
+    });
+    return value;
+}
+
+void RemoteIdMap::writeValue(const QByteArray &key, const QByteArray &value)
+{
+    mTransaction.openDatabase("values").write(key, value);
+}
+

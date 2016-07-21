@@ -233,13 +233,23 @@ public:
             return KAsync::null<void>();
         })
         .then<void, KAsync::Job<void>>([this, folder, imap]() {
-            auto uidNext = 0;
-            return imap->fetchMessages(folder, uidNext, [this, folder](const QVector<Message> &messages) {
+            SinkTrace() << "About to fetch mail";
+            const auto uidNext = syncStore().readValue(folder.normalizedPath().toUtf8() + "uidnext").toLongLong();
+            auto maxUid = QSharedPointer<qint64>::create(0);
+            return imap->fetchMessages(folder, uidNext, [this, folder, maxUid](const QVector<Message> &messages) {
                 SinkTrace() << "Got mail";
+                for (const auto &m : messages) {
+                    if (*maxUid < m.uid) {
+                        *maxUid = m.uid;
+                    }
+                }
                 synchronizeMails(folder.normalizedPath(), messages);
             },
             [](int progress, int total) {
                 SinkTrace() << "Progress: " << progress << " out of " << total;
+            })
+            .then<void>([this, maxUid, folder]() {
+                syncStore().writeValue(folder.normalizedPath().toUtf8() + "uidnext", QByteArray::number(*maxUid));
             });
         });
 

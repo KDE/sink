@@ -125,7 +125,7 @@ public:
     QStringList getCapabilities() const;
 
     //Composed calls that do login etc.
-    KAsync::Job<QList<qint64>> fetchHeaders(const QString &mailbox);
+    KAsync::Job<QList<qint64>> fetchHeaders(const QString &mailbox, qint64 minUid = 1);
     KAsync::Job<void> remove(const QString &mailbox, const KIMAP::ImapSet &set);
     KAsync::Job<void> remove(const QString &mailbox, const QByteArray &imapSet);
     KAsync::Job<void> move(const QString &mailbox, const KIMAP::ImapSet &set, const QString &newMailbox);
