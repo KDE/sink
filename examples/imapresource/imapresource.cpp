@@ -211,14 +211,49 @@ public:
         SinkLog() << "Removed " << count << " mails in " << path << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
 
+    KAsync::Job<void> synchronizeFolder(QSharedPointer<ImapServerProxy> imap, const Imap::Folder &folder)
+    {
+        QSet<qint64> uids;
+        SinkLog() << "Synchronizing mails" << folder.normalizedPath();
+        auto capabilities = imap->getCapabilities();
+        bool canDoIncrementalRemovals = false;
+        return KAsync::start<void>([=]() {
+            //TODO update flags
+        })
+        .then<void, KAsync::Job<void>>([=]() {
+            //TODO Remove what's no longer existing
+            if (canDoIncrementalRemovals) {
+            } else {
+                return imap->fetchUids(folder).then<void, QVector<qint64>>([this, folder](const QVector<qint64> &uids) {
+                    SinkTrace() << "Syncing removals";
+                    synchronizeRemovals(folder.normalizedPath(), uids.toList().toSet());
+                    commit();
+                }).then<void>([](){});
+            }
+            return KAsync::null<void>();
+        })
+        .then<void, KAsync::Job<void>>([this, folder, imap]() {
+            auto uidNext = 0;
+            return imap->fetchMessages(folder, uidNext, [this, folder](const QVector<Message> &messages) {
+                SinkTrace() << "Got mail";
+                synchronizeMails(folder.normalizedPath(), messages);
+            },
+            [](int progress, int total) {
+                SinkTrace() << "Progress: " << progress << " out of " << total;
+            });
+        });
+
+
+    }
+
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
     {
         SinkLog() << " Synchronizing";
         return KAsync::start<void>([this](KAsync::Future<void> future) {
             SinkTrace() << "Connecting to:" << mServer << mPort;
             SinkTrace() << "as:" << mUser;
-            ImapServerProxy imap(mServer, mPort);
-            auto loginFuture = imap.login(mUser, mPassword).exec();
+            auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+            auto loginFuture = imap->login(mUser, mPassword).exec();
             loginFuture.waitForFinished();
             if (loginFuture.errorCode()) {
                 SinkWarning() << "Login failed.";
@@ -229,7 +264,7 @@ public:
             }
 
             QVector<Folder> folderList;
-            auto folderFuture = imap.fetchFolders([this, &imap, &folderList](const QVector<Folder> &folders) {
+            auto folderFuture = imap->fetchFolders([this, &imap, &folderList](const QVector<Folder> &folders) {
                 synchronizeFolders(folders);
                 commit();
                 folderList << folders;
@@ -248,27 +283,7 @@ public:
                 if (folder.noselect) {
                     continue;
                 }
-                QSet<qint64> uids;
-                SinkLog() << "Synchronizing mails" << folder.normalizedPath();
-                auto messagesFuture = imap.fetchMessages(folder, [this, folder, &uids](const QVector<Message> &messages) {
-                    for (const auto &msg : messages) {
-                        uids << msg.uid;
-                    }
-                    synchronizeMails(folder.normalizedPath(), messages);
-                },
-                [](int progress, int total) {
-                    SinkTrace() << "Progress: " << progress << " out of " << total;
-                }).exec();
-                messagesFuture.waitForFinished();
-                commit();
-                if (messagesFuture.errorCode()) {
-                    SinkWarning() << "Folder sync failed: " << folder.normalizedPath();
-                    continue;
-                }
-                //Remove what there is to remove
-                synchronizeRemovals(folder.normalizedPath(), uids);
-                commit();
-                SinkTrace() << "Folder synchronized: " << folder.normalizedPath();
+                synchronizeFolder(imap, folder).exec().waitForFinished();
             }
             future.setFinished();
         });
@@ -541,7 +556,7 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
         SinkTrace() << "Connecting to:" << mServer << mPort;
         SinkTrace() << "as:" << mUser;
         auto inspectionJob = imap->login(mUser, mPassword)
-            .then<void>(imap->select(folderRemoteId))
+            .then<void>(imap->select(folderRemoteId).then<void>([](){}))
             .then<void>(imap->fetch(set, scope, [imap, messageByUid](const QVector<Imap::Message> &messages) {
                 for (const auto &m : messages) {
                     messageByUid->insert(m.uid, m);
@@ -604,7 +619,7 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
             auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
             auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
             auto inspectionJob = imap->login(mUser, mPassword)
-                .then<void>(imap->select(remoteId))
+                .then<void>(imap->select(remoteId).then<void>([](){}))
                 .then<void>(imap->fetch(set, scope, [=](const QVector<Imap::Message> &messages) {
                     for (const auto &m : messages) {
                         messageByUid->insert(m.uid, m);

@@ -75,6 +75,12 @@ struct Folder {
     bool noselect;
 };
 
+struct SelectResult {
+    qint64 uidValidity;
+    qint64 uidNext;
+    quint64 highestModSequence;
+};
+
 class ImapServerProxy {
     KIMAP::Session *mSession;
     QStringList mCapabilities;
@@ -91,7 +97,7 @@ public:
 
     //Standard IMAP calls
     KAsync::Job<void> login(const QString &username, const QString &password);
-    KAsync::Job<void> select(const QString &mailbox);
+    KAsync::Job<SelectResult> select(const QString &mailbox);
     KAsync::Job<qint64> append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags = QList<QByteArray>(), const QDateTime &internalDate = QDateTime());
     KAsync::Job<void> store(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
     KAsync::Job<void> storeFlags(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
@@ -103,6 +109,7 @@ public:
     KAsync::Job<void> expunge();
     KAsync::Job<void> expunge(const KIMAP::ImapSet &set);
     KAsync::Job<void> copy(const KIMAP::ImapSet &set, const QString &newMailbox);
+    KAsync::Job<QVector<qint64>> search(const KIMAP::ImapSet &set);
 
     typedef std::function<void(const QString &,
                         const QMap<qint64,qint64> &,
@@ -115,6 +122,8 @@ public:
     KAsync::Job<void> fetch(const KIMAP::ImapSet &set, KIMAP::FetchJob::FetchScope scope, const std::function<void(const QVector<Message> &)> &callback);
     KAsync::Job<void> list(KIMAP::ListJob::Option option, const std::function<void(const QList<KIMAP::MailBoxDescriptor> &mailboxes,const QList<QList<QByteArray> > &flags)> &callback);
 
+    QStringList getCapabilities() const;
+
     //Composed calls that do login etc.
     KAsync::Job<QList<qint64>> fetchHeaders(const QString &mailbox);
     KAsync::Job<void> remove(const QString &mailbox, const KIMAP::ImapSet &set);
@@ -122,11 +131,14 @@ public:
     KAsync::Job<void> move(const QString &mailbox, const KIMAP::ImapSet &set, const QString &newMailbox);
     KAsync::Job<QString> createSubfolder(const QString &parentMailbox, const QString &folderName);
     KAsync::Job<QString> renameSubfolder(const QString &mailbox, const QString &newName);
+    KAsync::Job<QVector<qint64>> fetchUids(const QString &mailbox);
 
     QString mailboxFromFolder(const Folder &) const;
 
     KAsync::Job<void> fetchFolders(std::function<void(const QVector<Folder> &)> callback);
     KAsync::Job<void> fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
+    KAsync::Job<void> fetchMessages(const Folder &folder, qint64 uidNext, std::function<void(const QVector<Message> &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
+    KAsync::Job<QVector<qint64>> fetchUids(const Folder &folder);
 
 private:
     KAsync::Job<void> ping();
