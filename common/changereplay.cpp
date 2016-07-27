@@ -72,7 +72,7 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
 {
     auto lastReplayedRevision = QSharedPointer<qint64>::create(0);
     auto topRevision = QSharedPointer<qint64>::create(0);
-    return KAsync::start<void>([this, lastReplayedRevision, topRevision]() {
+    return KAsync::syncStart<void>([this, lastReplayedRevision, topRevision]() {
             mReplayInProgress = true;
             mMainStoreTransaction = mStorage.createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
                 SinkWarning() << error.message;
@@ -90,11 +90,9 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
             SinkTrace() << "Changereplay from " << *lastReplayedRevision << " to " << *topRevision;
         })
         .then(KAsync::dowhile(
-            [this, lastReplayedRevision, topRevision](KAsync::Future<bool> &future) {
+            [this, lastReplayedRevision, topRevision]() -> KAsync::Job<KAsync::ControlFlowFlag> {
                     if (*lastReplayedRevision >= *topRevision) {
-                        future.setValue(false);
-                        future.setFinished();
-                        return;
+                        return KAsync::value(KAsync::Break);
                     }
 
                     qint64 revision = *lastReplayedRevision + 1;
@@ -109,12 +107,15 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                                 [&lastReplayedRevision, type, this, &replayJob, &exitLoop, revision](const QByteArray &key, const QByteArray &value) -> bool {
                                     SinkTrace() << "Replaying " << key;
                                     if (canReplay(type, key, value)) {
-                                        replayJob = replay(type, key, value).then<void>([this, revision, lastReplayedRevision]() {
-                                            recordReplayedRevision(revision);
-                                            *lastReplayedRevision = revision;
-                                        },
-                                        [revision](int, QString) {
-                                            SinkTrace() << "Change replay failed" << revision;
+                                        replayJob = replay(type, key, value).then<void>([this, revision, lastReplayedRevision](const KAsync::Error &error) {
+                                            if (error) {
+                                                SinkTrace() << "Change replay failed" << revision;
+                                                return KAsync::error(error);
+                                            } else {
+                                                recordReplayedRevision(revision);
+                                                *lastReplayedRevision = revision;
+                                            }
+                                            return KAsync::null();
                                         });
                                         exitLoop = true;
                                     } else {
@@ -128,23 +129,26 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                         }
                         revision++;
                     }
-                    replayJob.then<void>([this, revision, lastReplayedRevision, topRevision, &future]() {
-                        SinkTrace() << "Replayed until " << revision;
-                        recordReplayedRevision(*lastReplayedRevision);
-                        QTimer::singleShot(0, [&future, lastReplayedRevision, topRevision]() {
-                            future.setValue((*lastReplayedRevision < *topRevision));
-                            future.setFinished();
-                        });
-                    },
-                    [this, revision, &future](int, QString) {
-                        SinkTrace() << "Change replay failed" << revision;
-                        //We're probably not online or so, so postpone retrying
-                        future.setValue(false);
-                        future.setFinished();
-                    }).exec();
-
+                    return replayJob.then<KAsync::ControlFlowFlag>([this, revision, lastReplayedRevision, topRevision](const KAsync::Error &error) ->KAsync::Job<KAsync::ControlFlowFlag> {
+                        if (error) {
+                            SinkTrace() << "Change replay failed" << revision;
+                            //We're probably not online or so, so postpone retrying
+                            return KAsync::value(KAsync::Break);
+                        } else {
+                            SinkTrace() << "Replayed until " << revision;
+                            recordReplayedRevision(*lastReplayedRevision);
+                            if (*lastReplayedRevision < *topRevision) {
+                                return KAsync::wait(0).then(KAsync::value(KAsync::Continue));
+                            } else {
+                                return KAsync::value(KAsync::Break);
+                            }
+                        }
+                        //We shouldn't ever get here
+                        Q_ASSERT(false);
+                        return KAsync::value(KAsync::Break);
+                    });
             }))
-        .then<void>([this, lastReplayedRevision]() {
+        .syncThen<void>([this, lastReplayedRevision]() {
             recordReplayedRevision(*lastReplayedRevision);
             mMainStoreTransaction.abort();
             if (allChangesReplayed()) {

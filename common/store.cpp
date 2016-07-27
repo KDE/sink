@@ -39,6 +39,8 @@
 SINK_DEBUG_AREA("store")
 
 Q_DECLARE_METATYPE(QSharedPointer<Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>>)
+Q_DECLARE_METATYPE(QSharedPointer<Sink::ResourceAccessInterface>);
+Q_DECLARE_METATYPE(std::shared_ptr<void>);
 
 namespace Sink {
 
@@ -169,12 +171,10 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
         result.first.exec();
     }
 
-    KAsync::iterate(resources.keys())
-        .template each<void, QByteArray>([query, aggregatingEmitter, resources](const QByteArray &resourceInstanceIdentifier, KAsync::Future<void> &future) {
+    KAsync::value(resources.keys())
+        .template each([query, aggregatingEmitter, resources](const QByteArray &resourceInstanceIdentifier) {
             const auto resourceType = resources.value(resourceInstanceIdentifier);
-            queryResource<DomainType>(resourceType, resourceInstanceIdentifier, query, aggregatingEmitter).template then<void>([&future]() {
-                future.setFinished();
-            }).exec();
+            return queryResource<DomainType>(resourceType, resourceInstanceIdentifier, query, aggregatingEmitter);
         })
         .exec();
     model->fetchMore(QModelIndex());
@@ -201,7 +201,7 @@ KAsync::Job<void> Store::create(const DomainType &domainObject)
 {
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->create(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { SinkWarning() << "Failed to create"; });
+    return facade->create(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to create"; });
 }
 
 template <class DomainType>
@@ -209,7 +209,7 @@ KAsync::Job<void> Store::modify(const DomainType &domainObject)
 {
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->modify(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { SinkWarning() << "Failed to modify"; });
+    return facade->modify(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to modify"; });
 }
 
 template <class DomainType>
@@ -217,7 +217,7 @@ KAsync::Job<void> Store::remove(const DomainType &domainObject)
 {
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->remove(domainObject).template then<void>([facade]() {}, [](int errorCode, const QString &error) { SinkWarning() << "Failed to remove"; });
+    return facade->remove(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to remove"; });
 }
 
 KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
@@ -231,6 +231,7 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
     resourceAccess->open();
     return resourceAccess->sendCommand(Sink::Commands::RemoveFromDiskCommand)
+        .addToContext(resourceAccess)
         .then<void>([resourceAccess](KAsync::Future<void> &future) {
             if (resourceAccess->isReady()) {
                 //Wait for the resource shutdown
@@ -243,8 +244,8 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
                 future.setFinished();
             }
         })
-        .then<void>([resourceAccess, time]() {
-            SinkTrace() << "Remove from disk complete." << Log::TraceTime(time->elapsed()); 
+        .syncThen<void>([time]() {
+            SinkTrace() << "Remove from disk complete." << Log::TraceTime(time->elapsed());
         });
 }
 
@@ -253,41 +254,38 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
     SinkTrace() << "synchronize" << query.resources;
     auto resources = getResources(query.resources, query.accounts).keys();
     //FIXME only necessary because each doesn't propagate errors
-    auto error = new bool;
-    return KAsync::iterate(resources)
-        .template each<void, QByteArray>([query, error](const QByteArray &resource, KAsync::Future<void> &future) {
+    auto errorFlag = new bool;
+    return KAsync::value(resources)
+        .template each([query, errorFlag](const QByteArray &resource) {
             SinkTrace() << "Synchronizing " << resource;
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
             resourceAccess->open();
-            resourceAccess->synchronizeResource(true, false).then<void>([resourceAccess, &future]() {SinkTrace() << "synced."; future.setFinished(); },
-                    [&future, error](int errorCode, QString msg) { *error = true; SinkWarning() << "Error during sync."; future.setError(errorCode, msg); }).exec();
-        }).then<void>([error](KAsync::Future<void> &future) {
-            if (*error) {
-                future.setError(1, "Error during sync.");
-            } else {
-                future.setFinished();
+            return resourceAccess->synchronizeResource(true, false)
+                .addToContext(resourceAccess)
+                .then<void>([errorFlag](const KAsync::Error &error) {
+                        if (error) {
+                            *errorFlag = true;
+                            SinkWarning() << "Error during sync.";
+                            return KAsync::error<void>(error);
+                        }
+                        SinkTrace() << "synced.";
+                        return KAsync::null<void>();
+                    });
+        })
+        .then<void>([errorFlag]() {
+            if (*errorFlag) {
+                return KAsync::error<void>("Error during sync.");
             }
-            delete error;
+            delete errorFlag;
+            return KAsync::null<void>();
         });
 }
 
 template <class DomainType>
 KAsync::Job<DomainType> Store::fetchOne(const Sink::Query &query)
 {
-    return KAsync::start<DomainType>([query](KAsync::Future<DomainType> &future) {
-        // FIXME We could do this more elegantly if composed jobs would have the correct type (In that case we'd simply return the value from then continuation, and could avoid the
-        // outer job entirely)
-        fetch<DomainType>(query, 1)
-            .template then<void, QList<typename DomainType::Ptr>>(
-                [&future](const QList<typename DomainType::Ptr> &list) {
-                    future.setValue(*list.first());
-                    future.setFinished();
-                },
-                [&future](int errorCode, const QString &errorMessage) {
-                    future.setError(errorCode, errorMessage);
-                    future.setFinished();
-                })
-            .exec();
+    return fetch<DomainType>(query, 1).template then<DomainType, QList<typename DomainType::Ptr>>([](const QList<typename DomainType::Ptr> &list) {
+        return KAsync::value(*list.first());
     });
 }
 

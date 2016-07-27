@@ -44,34 +44,6 @@ private slots:
     {
     }
 
-    static KAsync::Job<void> waitForCompletion(QList<KAsync::Future<void>> &futures)
-    {
-        auto context = new QObject;
-        return KAsync::start<void>([futures, context](KAsync::Future<void> &future) {
-                   const auto total = futures.size();
-                   auto count = QSharedPointer<int>::create();
-                   int i = 0;
-                   for (KAsync::Future<void> subFuture : futures) {
-                       i++;
-                       if (subFuture.isFinished()) {
-                           *count += 1;
-                           continue;
-                       }
-                       // FIXME bind lifetime all watcher to future (repectively the main job
-                       auto watcher = QSharedPointer<KAsync::FutureWatcher<void>>::create();
-                       QObject::connect(watcher.data(), &KAsync::FutureWatcher<void>::futureReady, [count, total, &future]() {
-                           *count += 1;
-                           if (*count == total) {
-                               future.setFinished();
-                           }
-                       });
-                       watcher->setFuture(subFuture);
-                       context->setProperty(QString("future%1").arg(i).toLatin1().data(), QVariant::fromValue(watcher));
-                   }
-               })
-            .then<void>([context]() { delete context; });
-    }
-
     // Ensure we can process a command in less than 0.1s
     void testCommandResponsiveness()
     {
@@ -120,7 +92,7 @@ private slots:
             event.setProperty("summary", "summaryValue");
             waitCondition << Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec();
         }
-        waitForCompletion(waitCondition).exec().waitForFinished();
+        KAsync::waitForCompletion(waitCondition).exec().waitForFinished();
         auto appendTime = time.elapsed();
 
         // Ensure everything is processed

@@ -106,7 +106,7 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
         job = replay(mail, operation, oldRemoteId, modifiedProperties);
     }
 
-    return job.then<void, QByteArray>([this, operation, type, uid, oldRemoteId](const QByteArray &remoteId) {
+    return job.syncThen<void, QByteArray>([this, operation, type, uid, oldRemoteId](const QByteArray &remoteId) {
         if (operation == Sink::Operation_Creation) {
             SinkTrace() << "Replayed creation with remote id: " << remoteId;
             if (remoteId.isEmpty()) {
@@ -127,13 +127,11 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
         } else {
             SinkError() << "Unkown operation" << operation;
         }
-
-        mSyncStore.clear();
-        mEntityStore.clear();
-        mTransaction.abort();
-        mSyncTransaction.commit();
-    }, [this](int errorCode, const QString &errorMessage) {
-        SinkWarning() << "Failed to replay change: " << errorMessage;
+    })
+    .syncThen<void>([this](const KAsync::Error &error) {
+        if (error) {
+            SinkWarning() << "Failed to replay change: " << error.errorMessage;
+        }
         mSyncStore.clear();
         mEntityStore.clear();
         mTransaction.abort();

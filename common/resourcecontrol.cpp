@@ -41,22 +41,22 @@ KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
     time->start();
     return ResourceAccess::connectToServer(identifier)
         .then<void, QSharedPointer<QLocalSocket>>(
-            [identifier, time](QSharedPointer<QLocalSocket> socket, KAsync::Future<void> &future) {
+            [identifier, time](const KAsync::Error &error, QSharedPointer<QLocalSocket> socket) {
+                if (error) {
+                    SinkTrace() << "Resource is already closed.";
+                    // Resource isn't started, nothing to shutdown
+                    return KAsync::null();
+                }
                 // We can't currently reuse the socket
                 socket->close();
                 auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
                 resourceAccess->open();
-                resourceAccess->sendCommand(Sink::Commands::ShutdownCommand)
-                    .then<void>([&future, resourceAccess, time]() {
+                return resourceAccess->sendCommand(Sink::Commands::ShutdownCommand)
+                    .addToContext(resourceAccess)
+                    .syncThen<void>([resourceAccess, time]() {
                         resourceAccess->close();
                         SinkTrace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
-                        future.setFinished();
-                    })
-                    .exec();
-            },
-            [](int, const QString &) {
-                SinkTrace() << "Resource is already closed.";
-                // Resource isn't started, nothing to shutdown
+                    });
             });
 }
 
@@ -67,18 +67,19 @@ KAsync::Job<void> ResourceControl::start(const QByteArray &identifier)
     time->start();
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
     resourceAccess->open();
-    return resourceAccess->sendCommand(Sink::Commands::PingCommand).then<void>([resourceAccess, time]() { SinkTrace() << "Start complete." << Log::TraceTime(time->elapsed()); });
+    return resourceAccess->sendCommand(Sink::Commands::PingCommand).addToContext(resourceAccess).syncThen<void>([time]() { SinkTrace() << "Start complete." << Log::TraceTime(time->elapsed()); });
 }
 
 KAsync::Job<void> ResourceControl::flushMessageQueue(const QByteArrayList &resourceIdentifier)
 {
     SinkTrace() << "flushMessageQueue" << resourceIdentifier;
-    return KAsync::iterate(resourceIdentifier)
-        .template each<void, QByteArray>([](const QByteArray &resource, KAsync::Future<void> &future) {
+    return KAsync::value(resourceIdentifier)
+        .template each([](const QByteArray &resource) {
             SinkTrace() << "Flushing message queue " << resource;
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
             resourceAccess->open();
-            resourceAccess->synchronizeResource(false, true).then<void>([&future, resourceAccess]() { future.setFinished(); }).exec();
+            return resourceAccess->synchronizeResource(false, true)
+                .addToContext(resourceAccess);
         });
 }
 

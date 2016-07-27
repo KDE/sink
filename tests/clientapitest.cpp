@@ -70,7 +70,7 @@ public:
             }
             resultProvider->initialResultSetComplete(parent);
         });
-        auto job = KAsync::start<void>([query, resultProvider]() {});
+        auto job = KAsync::syncStart<void>([query, resultProvider]() {});
         mResultProvider = resultProvider;
         return qMakePair(job, emitter);
     }
@@ -273,7 +273,7 @@ private slots:
 
         bool gotValue = false;
         auto result = Sink::Store::fetchOne<Sink::ApplicationDomain::Event>(query)
-                          .then<void, Sink::ApplicationDomain::Event>([&gotValue](const Sink::ApplicationDomain::Event &event) { gotValue = true; })
+                          .syncThen<void, Sink::ApplicationDomain::Event>([&gotValue](const Sink::ApplicationDomain::Event &event) { gotValue = true; })
                           .exec();
         result.waitForFinished();
         QVERIFY(!result.errorCode());

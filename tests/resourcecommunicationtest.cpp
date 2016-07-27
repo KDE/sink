@@ -51,13 +51,14 @@ private slots:
         int errors = 0;
         for (int i = 0; i < count; i++) {
             auto result = resourceAccess.sendCommand(Sink::Commands::PingCommand)
-                              .then<void>([&complete]() { complete++; },
-                                  [&errors, &complete](int error, const QString &msg) {
-                                      qWarning() << msg;
-                                      errors++;
-                                      complete++;
-                                  })
-                              .exec();
+                                .syncThen<void>([&resourceAccess, &errors, &complete](const KAsync::Error &error) {
+                                    complete++;
+                                    if (error) {
+                                        qWarning() << error.errorMessage;
+                                        errors++;
+                                    }
+                                })
+                                .exec();
         }
         QTRY_COMPARE(complete, count);
         QVERIFY(!errors);
@@ -76,13 +77,12 @@ private slots:
         int errors = 0;
         for (int i = 0; i < count; i++) {
             resourceAccess.sendCommand(Sink::Commands::PingCommand)
-                .then<void>([&complete]() { complete++; },
-                    [&errors, &complete](int error, const QString &msg) {
-                        qWarning() << msg;
+                .syncThen<void>([&resourceAccess, &errors, &complete](const KAsync::Error &error) {
+                    complete++;
+                    if (error) {
+                        qWarning() << error.errorMessage;
                         errors++;
-                        complete++;
-                    })
-                .then<void>([&resourceAccess]() {
+                    }
                     resourceAccess.close();
                     resourceAccess.open();
                 })
@@ -104,7 +104,7 @@ private slots:
             auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(resourceIdentifier, "");
             weakRef = resourceAccess.toWeakRef();
             resourceAccess->open();
-            resourceAccess->sendCommand(Sink::Commands::PingCommand).then<void>([resourceAccess]() { qDebug() << "Pind complete";  }).exec();
+            resourceAccess->sendCommand(Sink::Commands::PingCommand).syncThen<void>([resourceAccess]() { qDebug() << "Ping complete";  }).exec();
         }
         QVERIFY(weakRef.toStrongRef());
         QTRY_VERIFY(!weakRef.toStrongRef());

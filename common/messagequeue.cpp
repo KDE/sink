@@ -5,37 +5,6 @@
 
 SINK_DEBUG_AREA("messagequeue")
 
-static KAsync::Job<void> waitForCompletion(QList<KAsync::Future<void>> &futures)
-{
-    auto context = new QObject;
-    return KAsync::start<void>([futures, context](KAsync::Future<void> &future) {
-               const auto total = futures.size();
-               auto count = QSharedPointer<int>::create();
-               int i = 0;
-               for (KAsync::Future<void> subFuture : futures) {
-                   i++;
-                   if (subFuture.isFinished()) {
-                       *count += 1;
-                       continue;
-                   }
-                   // FIXME bind lifetime all watcher to future (repectively the main job
-                   auto watcher = QSharedPointer<KAsync::FutureWatcher<void>>::create();
-                   QObject::connect(watcher.data(), &KAsync::FutureWatcher<void>::futureReady, [count, total, &future]() {
-                       *count += 1;
-                       if (*count == total) {
-                           future.setFinished();
-                       }
-                   });
-                   watcher->setFuture(subFuture);
-                   context->setProperty(QString("future%1").arg(i).toLatin1().data(), QVariant::fromValue(watcher));
-               }
-               if (*count == total) {
-                   future.setFinished();
-               }
-           })
-        .then<void>([context]() { delete context; });
-}
-
 MessageQueue::MessageQueue(const QString &storageRoot, const QString &name) : mStorage(storageRoot, name, Sink::Storage::ReadWrite)
 {
 }
@@ -101,7 +70,7 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
         return KAsync::start<void>([&value, resultHandler](KAsync::Future<void> &future) {
             resultHandler(const_cast<void *>(static_cast<const void *>(value.data())), value.size(), [&future](bool success) { future.setFinished(); });
         });
-    }).then<void>([]() {}, [errorHandler](int error, const QString &errorString) { errorHandler(Error("messagequeue", error, errorString.toLatin1())); }).exec();
+    }).onError([errorHandler](const KAsync::Error &error) { errorHandler(Error("messagequeue", error.errorCode, error.errorMessage.toLatin1())); }).exec();
 }
 
 KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::function<KAsync::Job<void>(const QByteArray &)> &resultHandler)
@@ -135,8 +104,8 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
                 });
 
         // Trace() << "Waiting on " << waitCondition.size() << " results";
-        ::waitForCompletion(waitCondition)
-            .then<void>([this, resultCount, &future]() {
+        KAsync::waitForCompletion(waitCondition)
+            .syncThen<void>([this, resultCount, &future]() {
                 processRemovals();
                 if (*resultCount == 0) {
                     future.setError(static_cast<int>(ErrorCodes::NoMessageFound), "No message found");
