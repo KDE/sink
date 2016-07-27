@@ -161,7 +161,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     auto namespaceJob = new KIMAP::NamespaceJob(mSession);
 
     //FIXME The ping is only required because the login job doesn't fail after the configured timeout
-    return ping().then(runJob(loginJob)).then(runJob(capabilitiesJob)).then<void>([this](){
+    return ping().then(runJob(loginJob)).then(runJob(capabilitiesJob)).syncThen<void>([this](){
         SinkTrace() << "Supported capabilities: " << mCapabilities;
         QStringList requiredExtensions = QStringList() << "UIDPLUS" << "NAMESPACE";
         for (const auto &requiredExtension : requiredExtensions) {
@@ -170,7 +170,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
                 //TODO fail the job
             }
         }
-    }).then(runJob(namespaceJob)).then<void>([this, namespaceJob](){
+    }).then(runJob(namespaceJob)).syncThen<void>([this, namespaceJob] {
         for (const auto &ns :namespaceJob->personalNamespaces()) {
             mPersonalNamespaces << ns.name;
             mPersonalNamespaceSeparator = ns.separator;
@@ -363,7 +363,7 @@ KAsync::Job<QList<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbox,
                     list->append(uids.value(id));
                 }
             })
-    .then<QList<qint64>>([list](){
+    .syncThen<QList<qint64>>([list](){
         return *list;
     });
 }
@@ -402,35 +402,34 @@ KAsync::Job<void> ImapServerProxy::move(const QString &mailbox, const KIMAP::Ima
 
 KAsync::Job<QString> ImapServerProxy::createSubfolder(const QString &parentMailbox, const QString &folderName)
 {
-    auto folder = QSharedPointer<QString>::create();
-    return KAsync::start<void, KAsync::Job<void>>([this, parentMailbox, folderName, folder]() {
+    return KAsync::start<QString>([this, parentMailbox, folderName]() {
         Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
+        auto folder = QSharedPointer<QString>::create();
         if (parentMailbox.isEmpty()) {
             *folder = mPersonalNamespaces.toList().first() + folderName;
         } else {
             *folder = parentMailbox + mPersonalNamespaceSeparator + folderName;
         }
         SinkTrace() << "Creating subfolder: " << *folder;
-        return create(*folder);
-    })
-    .then<QString>([=]() {
-        return *folder;
+        return create(*folder)
+            .syncThen<QString>([=]() {
+                return *folder;
+            });
     });
 }
 
 KAsync::Job<QString> ImapServerProxy::renameSubfolder(const QString &oldMailbox, const QString &newName)
 {
-    auto folder = QSharedPointer<QString>::create();
-    return KAsync::start<void, KAsync::Job<void>>([this, oldMailbox, newName, folder]() {
+    return KAsync::start<QString>([this, oldMailbox, newName] {
         Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
         auto parts = oldMailbox.split(mPersonalNamespaceSeparator);
         parts.removeLast();
-        *folder = parts.join(mPersonalNamespaceSeparator) + mPersonalNamespaceSeparator + newName;
+        auto folder = QSharedPointer<QString>::create(parts.join(mPersonalNamespaceSeparator) + mPersonalNamespaceSeparator + newName);
         SinkTrace() << "Renaming subfolder: " << oldMailbox << *folder;
-        return rename(oldMailbox, *folder);
-    })
-    .then<QString>([=]() {
-        return *folder;
+        return rename(oldMailbox, *folder)
+            .syncThen<QString>([=]() {
+                return *folder;
+            });
     });
 }
 
@@ -461,7 +460,7 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 ui
     auto time = QSharedPointer<QTime>::create();
     time->start();
     Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
-    return select(mailboxFromFolder(folder)).then<void, KAsync::Job<void>, SelectResult>([this, callback, folder, time, progress, uidNext](const SelectResult &selectResult) -> KAsync::Job<void> {
+    return select(mailboxFromFolder(folder)).then<void, SelectResult>([this, callback, folder, time, progress, uidNext](const SelectResult &selectResult) -> KAsync::Job<void> {
 
         SinkLog() << "UIDNEXT " << selectResult.uidNext << uidNext;
         if (selectResult.uidNext == (uidNext + 1)) {
@@ -469,7 +468,7 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 ui
             return KAsync::null<void>();
         }
 
-        return fetchHeaders(mailboxFromFolder(folder), (uidNext + 1)).then<void, KAsync::Job<void>, QList<qint64>>([this, callback, time, progress](const QList<qint64> &uidsToFetch){
+        return fetchHeaders(mailboxFromFolder(folder), (uidNext + 1)).then<void, QList<qint64>>([this, callback, time, progress](const QList<qint64> &uidsToFetch){
             SinkTrace() << "Fetched headers";
             SinkTrace() << "  Total: " << uidsToFetch.size();
             SinkTrace() << "  Uids to fetch: " << uidsToFetch;

@@ -248,13 +248,17 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 if (buffer->localSync()) {
                     job = job.then<void>(loadResource().processAllMessages());
                 }
-                job.then<void>([callback, timer]() {
-                       SinkTrace() << "Sync took " << Sink::Log::TraceTime(timer->elapsed());
-                       callback(true);
-                   }, [callback](int errorCode, const QString &msg) {
-                       SinkWarning() << "Sync failed: " << msg;
-                       callback(false);
-                   })
+                job.then<void>([callback, timer](const KAsync::Error &error) {
+                        if (error) {
+                            SinkWarning() << "Sync failed: " << error.errorMessage;
+                            callback(false);
+                            return KAsync::error(error);
+                        } else {
+                            SinkTrace() << "Sync took " << Sink::Log::TraceTime(timer->elapsed());
+                            callback(true);
+                            return KAsync::null();
+                        }
+                    })
                     .exec();
                 return;
             } else {

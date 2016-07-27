@@ -124,17 +124,14 @@ public:
             });
             auto job = KAsync::null<void>();
             for (const auto &m : toSend) {
-                job = job.then(send(m, mSettings)).then<void>([this, m]() {
+                job = job.then(send(m, mSettings)).syncThen<void>([this, m] {
                     auto modifiedMail = ApplicationDomain::Mail(mResourceInstanceIdentifier, m.identifier(), m.revision(), QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
                     modifiedMail.setSent(true);
                     modify(modifiedMail);
                     //TODO copy to a sent mail folder as well
                 });
             }
-            job = job.then<void>([&future]() {
-                future.setFinished();
-            },
-            [&future](int errorCode, const QString &errorString) {
+            job = job.syncThen<void>([&future](const KAsync::Error &) {
                 future.setFinished();
             });
             job.exec();

@@ -367,7 +367,7 @@ public:
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
     {
         SinkLog() << " Synchronizing";
-        return KAsync::start<void, KAsync::Job<void> >([this]() {
+        return KAsync::start<void>([this]() {
             KPIM::Maildir maildir(mMaildirPath, true);
             if (!maildir.isValid(false)) {
                 return KAsync::error<void>(1, "Maildir path doesn't point to a valid maildir: " + mMaildirPath);
@@ -402,18 +402,14 @@ public:
         if (operation == Sink::Operation_Creation) {
             const auto remoteId = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
             SinkTrace() << "Mail created: " << remoteId;
-            return KAsync::start<QByteArray>([=]() -> QByteArray {
-                return remoteId.toUtf8();
-            });
+            return KAsync::value(remoteId.toUtf8());
         } else if (operation == Sink::Operation_Removal) {
             SinkTrace() << "Removing a mail: " << oldRemoteId;
             return KAsync::null<QByteArray>();
         } else if (operation == Sink::Operation_Modification) {
             SinkTrace() << "Modifying a mail: " << oldRemoteId;
             const auto remoteId = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
-            return KAsync::start<QByteArray>([=]() -> QByteArray {
-                return remoteId.toUtf8();
-            });
+            return KAsync::value(remoteId.toUtf8());
         }
         return KAsync::null<QByteArray>();
     }
@@ -427,9 +423,7 @@ public:
             SinkTrace() << "Creating a new folder: " << path;
             KPIM::Maildir maildir(path, false);
             maildir.create();
-            return KAsync::start<QByteArray>([=]() -> QByteArray {
-                return path.toUtf8();
-            });
+            return KAsync::value(path.toUtf8());
         } else if (operation == Sink::Operation_Removal) {
             const auto path = oldRemoteId;
             SinkTrace() << "Removing a folder: " << path;
@@ -438,9 +432,7 @@ public:
             return KAsync::null<QByteArray>();
         } else if (operation == Sink::Operation_Modification) {
             SinkWarning() << "Folder modifications are not implemented";
-            return KAsync::start<QByteArray>([=]() -> QByteArray {
-                return oldRemoteId;
-            });
+            return KAsync::value(oldRemoteId);
         }
         return KAsync::null<QByteArray>();
     }

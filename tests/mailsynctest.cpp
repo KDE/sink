@@ -69,7 +69,7 @@ void MailSyncTest::testListFolders()
     //First figure out how many folders we have by default
     {
         auto job = Store::fetchAll<Folder>(Query())
-            .then<void, QList<Folder::Ptr>>([&](const QList<Folder::Ptr> &folders) {
+            .syncThen<void, QList<Folder::Ptr>>([&](const QList<Folder::Ptr> &folders) {
                 QStringList names;
                 for (const auto &folder : folders) {
                     names << folder->getName();
@@ -88,7 +88,7 @@ void MailSyncTest::testListFolders()
     VERIFYEXEC(Store::synchronize(query));
     ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-    auto job = Store::fetchAll<Folder>(query).then<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
+    auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
         QStringList names;
         QHash<QByteArray, QByteArray> specialPurposeFolders;
         for (const auto &folder : folders) {
@@ -130,7 +130,7 @@ void MailSyncTest::testListNewFolder()
     VERIFYEXEC(Store::synchronize(query));
     ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-    auto job = Store::fetchAll<Folder>(query).then<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
+    auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
         QStringList names;
         for (const auto &folder : folders) {
             names << folder->getName();
@@ -155,7 +155,7 @@ void MailSyncTest::testListRemovedFolder()
     VERIFYEXEC(Store::synchronize(query));
     ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-    auto job = Store::fetchAll<Folder>(query).then<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
+    auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
         QStringList names;
         for (const auto &folder : folders) {
             names << folder->getName();
@@ -180,7 +180,7 @@ void MailSyncTest::testListFolderHierarchy()
     VERIFYEXEC(Store::synchronize(query));
     ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-    auto job = Store::fetchAll<Folder>(query).then<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
+    auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
         QHash<QString, Folder::Ptr> map;
         for (const auto &folder : folders) {
             map.insert(folder->getName(), folder);
@@ -223,7 +223,7 @@ void MailSyncTest::testListNewSubFolder()
     VERIFYEXEC(Store::synchronize(query));
     ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-    auto job = Store::fetchAll<Folder>(query).then<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
+    auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
         QStringList names;
         for (const auto &folder : folders) {
             names << folder->getName();
@@ -251,7 +251,7 @@ void MailSyncTest::testListRemovedSubFolder()
     VERIFYEXEC(Store::synchronize(query));
     ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-    auto job = Store::fetchAll<Folder>(query).then<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
+    auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
         QStringList names;
         for (const auto &folder : folders) {
             names << folder->getName();
@@ -271,7 +271,7 @@ void MailSyncTest::testListMails()
     VERIFYEXEC(Store::synchronize(query));
     ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-    auto job = Store::fetchAll<Mail>(query).then<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
+    auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
         QCOMPARE(mails.size(), 1);
         QVERIFY(mails.first()->getSubject().startsWith(QString("[Nepomuk] Jenkins build is still unstable")));
         const auto data = mails.first()->getMimeMessage();
@@ -300,7 +300,7 @@ void MailSyncTest::testResyncMails()
     VERIFYEXEC(Store::synchronize(query));
     ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-    auto job = Store::fetchAll<Mail>(query).then<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
+    auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
         QCOMPARE(mails.size(), 1);
     });
     VERIFYEXEC(job);
@@ -325,7 +325,7 @@ void MailSyncTest::testFetchNewRemovedMessages()
     ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
     {
-        auto job = Store::fetchAll<Mail>(query).then<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
+        auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
             QCOMPARE(mails.size(), 2);
         });
         VERIFYEXEC(job);
@@ -337,7 +337,7 @@ void MailSyncTest::testFetchNewRemovedMessages()
     ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
     {
-        auto job = Store::fetchAll<Mail>(query).then<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
+        auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
             QCOMPARE(mails.size(), 1);
         });
         VERIFYEXEC(job);

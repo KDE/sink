@@ -159,67 +159,65 @@ KAsync::Job<void> ResourceAccess::Private::tryToConnect()
     // We may have a socket from the last connection leftover
     socket.reset();
     auto counter = QSharedPointer<int>::create(0);
-    return KAsync::dowhile([this]() -> bool { return !socket; },
-        [this, counter](KAsync::Future<void> &future) {
+    return KAsync::dowhile(
+        [this, counter]() {
             SinkTrace() << "Loop";
-            connectToServer(resourceInstanceIdentifier)
-                .then<void, QSharedPointer<QLocalSocket>>(
-                    [this, &future](const QSharedPointer<QLocalSocket> &s) {
-                        Q_ASSERT(s);
-                        socket = s;
-                        future.setFinished();
-                    },
-                    [&future, counter, this](int errorCode, const QString &errorString) {
-                        static int waitTime = 10;
-                        static int timeout = 500;
-                        static int maxRetries = timeout / waitTime;
-                        if (*counter > maxRetries) {
-                            SinkTrace() << "Giving up";
-                            future.setError(-1, "Failed to connect to socket");
+            return connectToServer(resourceInstanceIdentifier)
+                .then<KAsync::ControlFlowFlag, QSharedPointer<QLocalSocket>>(
+                    [this, counter](const KAsync::Error &error, const QSharedPointer<QLocalSocket> &s) {
+                        if (error) {
+                            static int waitTime = 10;
+                            static int timeout = 500;
+                            static int maxRetries = timeout / waitTime;
+                            if (*counter > maxRetries) {
+                                SinkTrace() << "Giving up";
+                                return KAsync::error<KAsync::ControlFlowFlag>("Failed to connect to socket");
+                            } else {
+                                *counter = *counter + 1;
+                                return KAsync::wait(waitTime).then(KAsync::value(KAsync::Continue));
+                            }
                         } else {
-                            KAsync::wait(waitTime).then<void>([&future]() { future.setFinished(); }).exec();
+                            Q_ASSERT(s);
+                            socket = s;
+                            return KAsync::value(KAsync::Break);
                         }
-                        *counter = *counter + 1;
-                    })
-                .exec();
+                    });
         });
 }
 
 KAsync::Job<void> ResourceAccess::Private::initializeSocket()
 {
-    return KAsync::start<void>([this](KAsync::Future<void> &future) {
+    return KAsync::start<void>([this] {
         SinkTrace() << "Trying to connect";
-        connectToServer(resourceInstanceIdentifier)
+        return connectToServer(resourceInstanceIdentifier)
             .then<void, QSharedPointer<QLocalSocket>>(
-                [this, &future](const QSharedPointer<QLocalSocket> &s) {
-                    SinkTrace() << "Connected to resource, without having to start it.";
-                    Q_ASSERT(s);
-                    socket = s;
-                    future.setFinished();
-                },
-                [this, &future](int errorCode, const QString &errorString) {
-                    SinkTrace() << "Failed to connect, starting resource";
-                    // We failed to connect, so let's start the resource
-                    QStringList args;
-                    if (Sink::Test::testModeEnabled()) {
-                        args << "--test";
-                    }
-                    args << resourceInstanceIdentifier << resourceName;
-                    qint64 pid = 0;
-                    if (QProcess::startDetached("sink_synchronizer", args, QDir::homePath(), &pid)) {
-                        SinkTrace() << "Started resource " << pid;
-                        tryToConnect()
-                            .then<void>([&future]() { future.setFinished(); },
-                                [this, &future](int errorCode, const QString &errorString) {
-                                    SinkWarning() << "Failed to connect to started resource";
-                                    future.setError(errorCode, errorString);
-                                })
-                            .exec();
+                [this](const KAsync::Error &error, const QSharedPointer<QLocalSocket> &s) {
+                    if (error) {
+                        SinkTrace() << "Failed to connect, starting resource";
+                        // We failed to connect, so let's start the resource
+                        QStringList args;
+                        if (Sink::Test::testModeEnabled()) {
+                            args << "--test";
+                        }
+                        args << resourceInstanceIdentifier << resourceName;
+                        qint64 pid = 0;
+                        if (QProcess::startDetached("sink_synchronizer", args, QDir::homePath(), &pid)) {
+                            SinkTrace() << "Started resource " << pid;
+                            return tryToConnect()
+                                .onError([this](const KAsync::Error &error) {
+                                        SinkWarning() << "Failed to connect to started resource";
+                                });
+                        } else {
+                            SinkWarning() << "Failed to start resource";
+                        }
+                        return KAsync::null();
                     } else {
-                        SinkWarning() << "Failed to start resource";
+                        SinkTrace() << "Connected to resource, without having to start it.";
+                        Q_ASSERT(s);
+                        socket = s;
+                        return KAsync::null();
                     }
-                })
-            .exec();
+                });
     });
 }
 
@@ -383,17 +381,18 @@ void ResourceAccess::open()
     d->openingSocket = true;
     d->initializeSocket()
         .then<void>(
-            [this, time]() {
-                SinkTrace() << "Socket is initialized." << Log::TraceTime(time->elapsed());
+            [this, time](const KAsync::Error &error) {
                 d->openingSocket = false;
-                QObject::connect(d->socket.data(), &QLocalSocket::disconnected, this, &ResourceAccess::disconnected);
-                QObject::connect(d->socket.data(), SIGNAL(error(QLocalSocket::LocalSocketError)), this, SLOT(connectionError(QLocalSocket::LocalSocketError)));
-                QObject::connect(d->socket.data(), &QIODevice::readyRead, this, &ResourceAccess::readResourceMessage);
-                connected();
-            },
-            [this](int error, const QString &errorString) {
-                d->openingSocket = false;
-                SinkWarning() << "Failed to initialize socket " << errorString;
+                if (error) {
+                    SinkWarning() << "Failed to initialize socket " << error.errorMessage;
+                } else {
+                    SinkTrace() << "Socket is initialized." << Log::TraceTime(time->elapsed());
+                    QObject::connect(d->socket.data(), &QLocalSocket::disconnected, this, &ResourceAccess::disconnected);
+                    QObject::connect(d->socket.data(), SIGNAL(error(QLocalSocket::LocalSocketError)), this, SLOT(connectionError(QLocalSocket::LocalSocketError)));
+                    QObject::connect(d->socket.data(), &QIODevice::readyRead, this, &ResourceAccess::readResourceMessage);
+                    connected();
+                }
+                return KAsync::null();
             })
         .exec();
 }

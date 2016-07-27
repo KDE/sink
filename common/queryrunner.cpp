@@ -86,7 +86,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                 const auto  newRevisionAndReplayedEntities = worker.executeInitialQuery(query, parent, *resultProvider, mOffset[parentId], mBatchSize);
                 return newRevisionAndReplayedEntities;
             })
-                .template then<void, QPair<qint64, qint64>>([=](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
+                .template syncThen<void, QPair<qint64, qint64>>([=](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
                     mOffset[parentId] += newRevisionAndReplayedEntities.second;
                     // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
                     if (query.liveQuery) {
@@ -110,7 +110,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                        const auto newRevisionAndReplayedEntities = worker.executeIncrementalQuery(query, *resultProvider);
                        return newRevisionAndReplayedEntities;
                    })
-                .template then<void, QPair<qint64, qint64> >([query, this, resultProvider](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
+                .template syncThen<void, QPair<qint64, qint64> >([query, this, resultProvider](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
                     // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
                     mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.first);
                     resultProvider->setRevision(newRevisionAndReplayedEntities.first);

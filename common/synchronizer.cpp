@@ -244,7 +244,7 @@ KAsync::Job<void> Synchronizer::synchronize()
     SinkTrace() << "Synchronizing";
     mSyncInProgress = true;
     mMessageQueue->startTransaction();
-    return synchronizeWithSource().then<void>([this]() {
+    return synchronizeWithSource().syncThen<void>([this]() {
         mSyncStore.clear();
         mEntityStore.clear();
         mMessageQueue->commit();

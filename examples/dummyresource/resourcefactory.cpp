@@ -113,7 +113,7 @@ class DummySynchronizer : public Sink::Synchronizer {
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
     {
         SinkLog() << " Synchronizing with the source";
-        return KAsync::start<void>([this]() {
+        return KAsync::syncStart<void>([this]() {
             synchronize(ENTITY_TYPE_EVENT, DummyStore::instance().events(), [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data) {
                 return createEvent(ridBuffer, data);
             });

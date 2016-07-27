@@ -233,7 +233,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 
     d->storeNewRevision(newRevision, fbb, bufferType, key);
 
-    return KAsync::start<qint64>([newRevision]() { return newRevision; });
+    return KAsync::value(newRevision);
 }
 
 KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
@@ -346,7 +346,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     adaptorFactory->createBuffer(newAdaptor, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
     d->storeNewRevision(newRevision, fbb, bufferType, key);
-    return KAsync::start<qint64>([newRevision]() { return newRevision; });
+    return KAsync::value(newRevision);
 }
 
 KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
@@ -433,7 +433,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
         processor->deletedEntity(key, newRevision, *current, d->transaction);
     }
 
-    return KAsync::start<qint64>([newRevision]() { return newRevision; });
+    return KAsync::value(newRevision);
 }
 
 void Pipeline::cleanupRevision(qint64 revision)

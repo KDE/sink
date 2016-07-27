@@ -100,7 +100,7 @@ private slots:
         }
         mProcessingLock = true;
         auto job = processPipeline()
-                       .then<void>([this]() {
+                       .syncThen<void>([this]() {
                            mProcessingLock = false;
                            if (messagesToProcessAvailable()) {
                                process();
@@ -122,7 +122,8 @@ private slots:
                 return mPipeline->newEntity(queuedCommand->command()->Data(), queuedCommand->command()->size());
             case Sink::Commands::InspectionCommand:
                 if (mInspect) {
-                    return mInspect(queuedCommand->command()->Data(), queuedCommand->command()->size()).then<qint64>([]() { return -1; });
+                    return mInspect(queuedCommand->command()->Data(), queuedCommand->command()->size())
+                        .syncThen<qint64>([]() { return -1; });
                 } else {
                     return KAsync::error<qint64>(-1, "Missing inspection command.");
                 }
@@ -131,7 +132,7 @@ private slots:
         }
     }
 
-    KAsync::Job<qint64, qint64> processQueuedCommand(const QByteArray &data)
+    KAsync::Job<qint64> processQueuedCommand(const QByteArray &data)
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(data.constData()), data.size());
         if (!Sink::VerifyQueuedCommandBuffer(verifyer)) {
@@ -143,13 +144,13 @@ private slots:
         SinkTrace() << "Dequeued Command: " << Sink::Commands::name(commandId);
         return processQueuedCommand(queuedCommand)
             .then<qint64, qint64>(
-                [this, commandId](qint64 createdRevision) -> qint64 {
+                [this, commandId](const KAsync::Error &error, qint64 createdRevision) -> KAsync::Job<qint64> {
+                    if (error) {
+                        SinkWarning() << "Error while processing queue command: " << error.errorMessage;
+                        return KAsync::error<qint64>(error);
+                    }
                     SinkTrace() << "Command pipeline processed: " << Sink::Commands::name(commandId);
-                    return createdRevision;
-                },
-                [](int errorCode, QString errorMessage) {
-                    // FIXME propagate error, we didn't handle it
-                    SinkWarning() << "Error while processing queue command: " << errorMessage;
+                    return KAsync::value<qint64>(createdRevision);
                 });
     }
 
@@ -157,31 +158,31 @@ private slots:
     KAsync::Job<void> processQueue(MessageQueue *queue)
     {
         auto time = QSharedPointer<QTime>::create();
-        return KAsync::start<void>([this]() { mPipeline->startTransaction(); })
-            .then(KAsync::dowhile([queue]() { return !queue->isEmpty(); },
-                [this, queue, time](KAsync::Future<void> &future) {
-                    queue->dequeueBatch(sBatchSize,
-                             [this, time](const QByteArray &data) {
-                                 time->start();
-                                 return KAsync::start<void>([this, data, time](KAsync::Future<void> &future) {
-                                     processQueuedCommand(data)
-                                         .then<void, qint64>([&future, this, time](qint64 createdRevision) {
-                                             SinkTrace() << "Created revision " << createdRevision << ". Processing took: " << Log::TraceTime(time->elapsed());
-                                             future.setFinished();
-                                         })
-                                         .exec();
-                                 });
-                             })
-                        .then<void>([&future, queue]() { future.setFinished(); },
-                            [&future](int i, QString error) {
-                                if (i != MessageQueue::ErrorCodes::NoMessageFound) {
-                                    SinkWarning() << "Error while getting message from messagequeue: " << error;
+        return KAsync::syncStart<void>([this]() { mPipeline->startTransaction(); })
+            .then(KAsync::dowhile(
+                [this, queue, time]() -> KAsync::Job<KAsync::ControlFlowFlag> {
+                    return queue->dequeueBatch(sBatchSize,
+                        [this, time](const QByteArray &data) -> KAsync::Job<void> {
+                            time->start();
+                            return processQueuedCommand(data)
+                            .syncThen<void, qint64>([this, time](qint64 createdRevision) {
+                                SinkTrace() << "Created revision " << createdRevision << ". Processing took: " << Log::TraceTime(time->elapsed());
+                            });
+                        })
+                        .then<KAsync::ControlFlowFlag>([queue](const KAsync::Error &error) {
+                                if (error) {
+                                    if (error.errorCode != MessageQueue::ErrorCodes::NoMessageFound) {
+                                        SinkWarning() << "Error while getting message from messagequeue: " << error.errorMessage;
+                                    }
                                 }
-                                future.setFinished();
-                            })
-                        .exec();
+                                if (queue->isEmpty()) {
+                                    return KAsync::value<KAsync::ControlFlowFlag>(KAsync::Break);
+                                } else {
+                                    return KAsync::value<KAsync::ControlFlowFlag>(KAsync::Continue);
+                                }
+                            });
                 }))
-            .then<void>([this]() { mPipeline->commit(); });
+            .syncThen<void>([this](const KAsync::Error &) { mPipeline->commit(); });
     }
 
     KAsync::Job<void> processPipeline()
@@ -198,18 +199,20 @@ private slots:
 
         // Go through all message queues
         auto it = QSharedPointer<QListIterator<MessageQueue *>>::create(mCommandQueues);
-        return KAsync::dowhile([it]() { return it->hasNext(); },
-            [it, this](KAsync::Future<void> &future) {
+        return KAsync::dowhile(
+            [it, this]() {
                 auto time = QSharedPointer<QTime>::create();
                 time->start();
 
                 auto queue = it->next();
-                processQueue(queue)
-                    .then<void>([this, &future, time]() {
+                return processQueue(queue)
+                    .syncThen<KAsync::ControlFlowFlag>([this, time, it]() {
                         SinkTrace() << "Queue processed." << Log::TraceTime(time->elapsed());
-                        future.setFinished();
-                    })
-                    .exec();
+                        if (it->hasNext()) {
+                            return KAsync::Continue;
+                        }
+                        return KAsync::Break;
+                    });
             });
     }
 
@@ -251,22 +254,19 @@ GenericResource::GenericResource(const QByteArray &resourceType, const QByteArra
             s >> expectedValue;
             inspect(inspectionType, inspectionId, domainType, entityId, property, expectedValue)
                 .then<void>(
-                    [=]() {
-                        Log_area("resource.inspection") << "Inspection was successful: " << inspectionType << inspectionId << entityId;
+                    [=](const KAsync::Error &error) {
                         Sink::Notification n;
                         n.type = Sink::Notification::Inspection;
                         n.id = inspectionId;
-                        n.code = Sink::Notification::Success;
+                        if (error) {
+                            Warning_area("resource.inspection") << "Inspection failed: " << inspectionType << inspectionId << entityId << error.errorMessage;
+                            n.code = Sink::Notification::Failure;
+                        } else {
+                            Log_area("resource.inspection") << "Inspection was successful: " << inspectionType << inspectionId << entityId;
+                            n.code = Sink::Notification::Success;
+                        }
                         emit notify(n);
-                    },
-                    [=](int code, const QString &message) {
-                        Warning_area("resource.inspection") << "Inspection failed: " << inspectionType << inspectionId << entityId << message;
-                        Sink::Notification n;
-                        n.type = Sink::Notification::Inspection;
-                        n.message = message;
-                        n.id = inspectionId;
-                        n.code = Sink::Notification::Failure;
-                        emit notify(n);
+                        return KAsync::null();
                     })
                 .exec();
             return KAsync::null<void>();
@@ -420,7 +420,7 @@ void GenericResource::processCommand(int commandId, const QByteArray &data)
 
 KAsync::Job<void> GenericResource::synchronizeWithSource()
 {
-    return KAsync::start<void>([this](KAsync::Future<void> &future) {
+    return KAsync::start<void>([this]() {
 
         Sink::Notification n;
         n.id = "sync";
@@ -432,23 +432,21 @@ KAsync::Job<void> GenericResource::synchronizeWithSource()
         SinkLog() << " Synchronizing";
         // Changereplay would deadlock otherwise when trying to open the synchronization store
         enableChangeReplay(false);
-        mSynchronizer->synchronize()
-            .then<void>([this, &future]() {
-                SinkLog() << "Done Synchronizing";
-                Sink::Notification n;
-                n.id = "sync";
-                n.type = Sink::Notification::Status;
-                n.message = "Synchronization has ended.";
-                n.code = Sink::ApplicationDomain::ConnectedStatus;
-                emit notify(n);
-
+        return mSynchronizer->synchronize()
+            .then<void>([this](const KAsync::Error &error) {
                 enableChangeReplay(true);
-                future.setFinished();
-            }, [this, &future](int errorCode, const QString &error) {
-                enableChangeReplay(true);
-                future.setError(errorCode, error);
-            })
-            .exec();
+                if (!error) {
+                    SinkLog() << "Done Synchronizing";
+                    Sink::Notification n;
+                    n.id = "sync";
+                    n.type = Sink::Notification::Status;
+                    n.message = "Synchronization has ended.";
+                    n.code = Sink::ApplicationDomain::ConnectedStatus;
+                    emit notify(n);
+                    return KAsync::null();
+                }
+                return KAsync::error(error);
+            });
     });
 }
 
