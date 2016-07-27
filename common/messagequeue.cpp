@@ -108,7 +108,6 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
             .syncThen<void>([this, resultCount, &future]() {
                 processRemovals();
                 if (*resultCount == 0) {
-                    future.setError(static_cast<int>(ErrorCodes::NoMessageFound), "No message found");
                     future.setFinished();
                 } else {
                     if (isEmpty()) {
