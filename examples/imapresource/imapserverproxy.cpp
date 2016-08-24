@@ -35,7 +35,6 @@
 #include <KIMAP/KIMAP/CapabilitiesJob>
 #include <KIMAP/KIMAP/SearchJob>
 
-#include <KIMAP/KIMAP/SessionUiProxy>
 #include <KCoreAddons/KJob>
 
 #include "log.h"
@@ -91,16 +90,13 @@ static KAsync::Job<void> runJob(KJob *job)
     });
 }
 
-class SessionUiProxy : public KIMAP::SessionUiProxy {
-  public:
-    bool ignoreSslError( const KSslErrorUiData &errorData ) {
-        return true;
-    }
-};
-
 ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port) : mSession(new KIMAP::Session(serverUrl, qint16(port)))
 {
-    mSession->setUiProxy(SessionUiProxy::Ptr(new SessionUiProxy));
+    QObject::connect(mSession, &KIMAP::Session::sslErrors, [this](const QList<QSslError> &errors) {
+        SinkLog() << "Got ssl error: " << errors;
+        mSession->ignoreErrors(errors);
+    });
+
     if (Sink::Test::testModeEnabled()) {
         mSession->setTimeout(1);
     } else {
@@ -149,9 +145,9 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     loginJob->setPassword(password);
     loginJob->setAuthenticationMode(KIMAP::LoginJob::Plain);
     if (mSession->port() == 143) {
-        loginJob->setEncryptionMode(KIMAP::LoginJob::EncryptionMode::TlsV1);
+        loginJob->setEncryptionMode(QSsl::TlsV1_0OrLater, true);
     } else {
-        loginJob->setEncryptionMode(KIMAP::LoginJob::EncryptionMode::AnySslVersion);
+        loginJob->setEncryptionMode(QSsl::AnyProtocol, false);
     }
 
     auto capabilitiesJob = new KIMAP::CapabilitiesJob(mSession);
