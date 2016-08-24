@@ -104,40 +104,6 @@ ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port) : mSession(
     }
 }
 
-KAsync::Job<void> ImapServerProxy::ping()
-{
-    auto hostname = mSession->hostName();
-    auto port = mSession->port();
-    auto timeout = mSession->timeout() * 1000;
-    return KAsync::start<void>([=](KAsync::Future<void> &future) {
-        SinkTrace() << "Starting ping" << timeout;
-        auto guard = QPointer<QObject>(new QObject);
-        auto socket = QSharedPointer<QTcpSocket>::create();
-        QObject::connect(socket.data(), &QTcpSocket::hostFound, guard, [guard, &future, socket]() {
-            SinkTrace() << "Ping succeeded";
-            delete guard;
-            future.setFinished();
-        });
-        QObject::connect(socket.data(), static_cast<void(QTcpSocket::*)(QTcpSocket::SocketError)>(&QTcpSocket::error), guard, [guard, &future, socket](QTcpSocket::SocketError) {
-            SinkWarning() << "Ping failed: ";
-            delete guard;
-            future.setError(1, "Error during connect");
-        });
-        if (!guard) {
-            return;
-        }
-        socket->connectToHost(hostname, port);
-        QTimer::singleShot(timeout, guard, [guard, &future, hostname, port, socket]() {
-            if (guard) {
-                SinkWarning() << "Ping failed: " << hostname << port;
-                delete guard;
-                future.setError(1, "Couldn't lookup host");
-            }
-        });
-    });
-
-}
-
 KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString &password)
 {
     auto loginJob = new KIMAP::LoginJob(mSession);
@@ -156,8 +122,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     });
     auto namespaceJob = new KIMAP::NamespaceJob(mSession);
 
-    //FIXME The ping is only required because the login job doesn't fail after the configured timeout
-    return ping().then(runJob(loginJob)).then(runJob(capabilitiesJob)).syncThen<void>([this](){
+    return runJob(loginJob).then(runJob(capabilitiesJob)).syncThen<void>([this](){
         SinkTrace() << "Supported capabilities: " << mCapabilities;
         QStringList requiredExtensions = QStringList() << "UIDPLUS" << "NAMESPACE";
         for (const auto &requiredExtension : requiredExtensions) {
