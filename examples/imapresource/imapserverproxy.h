@@ -141,8 +141,6 @@ public:
     KAsync::Job<QVector<qint64>> fetchUids(const Folder &folder);
 
 private:
-    KAsync::Job<void> ping();
-
     QObject mGuard;
 };
 
