@@ -344,7 +344,7 @@ public:
             const QString mailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, folderId);
             const auto uid = uidFromMailRid(oldRemoteId);
             SinkTrace() << "Removing a mail: " << oldRemoteId << "in the mailbox: " << mailbox;
-            KIMAP::ImapSet set;
+            KIMAP2::ImapSet set;
             set.add(uid);
             return login.then(imap->remove(mailbox, set))
                 .syncThen<QByteArray>([imap, oldRemoteId] {
@@ -373,7 +373,7 @@ public:
                 const QString oldMailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, folderId);
                 QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
                 QDateTime internalDate = mail.getDate();
-                KIMAP::ImapSet set;
+                KIMAP2::ImapSet set;
                 set.add(uid);
                 return login.then(imap->append(mailbox, content, flags, internalDate))
                     .addToContext(imap)
@@ -384,7 +384,7 @@ public:
                     });
             } else {
                 SinkTrace() << "Updating flags only.";
-                KIMAP::ImapSet set;
+                KIMAP2::ImapSet set;
                 set.add(uid);
                 return login.then(imap->select(mailbox))
                     .addToContext(imap)
@@ -548,13 +548,13 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
         const auto uid = uidFromMailRid(mailRemoteId);
         SinkTrace() << "Mail remote id: " << folderRemoteId << mailRemoteId << mail.identifier() << folder.identifier();
 
-        KIMAP::ImapSet set;
+        KIMAP2::ImapSet set;
         set.add(uid);
         if (set.isEmpty()) {
             return KAsync::error<void>(1, "Couldn't determine uid of mail.");
         }
-        KIMAP::FetchJob::FetchScope scope;
-        scope.mode = KIMAP::FetchJob::FetchScope::Full;
+        KIMAP2::FetchJob::FetchScope scope;
+        scope.mode = KIMAP2::FetchJob::FetchScope::Full;
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
         auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
         SinkTrace() << "Connecting to:" << mServer << mPort;
@@ -618,9 +618,9 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
                 SinkWarning() << "Error in index: " <<  error.message << property;
             });
 
-            auto set = KIMAP::ImapSet::fromImapSequenceSet("1:*");
-            KIMAP::FetchJob::FetchScope scope;
-            scope.mode = KIMAP::FetchJob::FetchScope::Headers;
+            auto set = KIMAP2::ImapSet::fromImapSequenceSet("1:*");
+            KIMAP2::FetchJob::FetchScope scope;
+            scope.mode = KIMAP2::FetchJob::FetchScope::Headers;
             auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
             auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
             return imap->login(mUser, mPassword)

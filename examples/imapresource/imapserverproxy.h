@@ -22,9 +22,9 @@
 #include <Async/Async>
 
 #include <KMime/KMime/KMimeMessage>
-#include <KIMAP/KIMAP/ListJob>
-#include <KIMAP/KIMAP/Session>
-#include <KIMAP/KIMAP/FetchJob>
+#include <KIMAP2/ListJob>
+#include <KIMAP2/Session>
+#include <KIMAP2/FetchJob>
 
 namespace Imap {
 
@@ -82,7 +82,7 @@ struct SelectResult {
 };
 
 class ImapServerProxy {
-    KIMAP::Session *mSession;
+    KIMAP2::Session *mSession;
     QStringList mCapabilities;
 
     QSet<QString> mPersonalNamespaces;
@@ -99,36 +99,36 @@ public:
     KAsync::Job<void> login(const QString &username, const QString &password);
     KAsync::Job<SelectResult> select(const QString &mailbox);
     KAsync::Job<qint64> append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags = QList<QByteArray>(), const QDateTime &internalDate = QDateTime());
-    KAsync::Job<void> store(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
-    KAsync::Job<void> storeFlags(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
-    KAsync::Job<void> addFlags(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
-    KAsync::Job<void> removeFlags(const KIMAP::ImapSet &set, const QList<QByteArray> &flags);
+    KAsync::Job<void> store(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags);
+    KAsync::Job<void> storeFlags(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags);
+    KAsync::Job<void> addFlags(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags);
+    KAsync::Job<void> removeFlags(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags);
     KAsync::Job<void> create(const QString &mailbox);
     KAsync::Job<void> rename(const QString &mailbox, const QString &newMailbox);
     KAsync::Job<void> remove(const QString &mailbox);
     KAsync::Job<void> expunge();
-    KAsync::Job<void> expunge(const KIMAP::ImapSet &set);
-    KAsync::Job<void> copy(const KIMAP::ImapSet &set, const QString &newMailbox);
-    KAsync::Job<QVector<qint64>> search(const KIMAP::ImapSet &set);
+    KAsync::Job<void> expunge(const KIMAP2::ImapSet &set);
+    KAsync::Job<void> copy(const KIMAP2::ImapSet &set, const QString &newMailbox);
+    KAsync::Job<QVector<qint64>> search(const KIMAP2::ImapSet &set);
 
     typedef std::function<void(const QString &,
                         const QMap<qint64,qint64> &,
                         const QMap<qint64,qint64> &,
-                        const QMap<qint64,KIMAP::MessageAttribute> &,
-                        const QMap<qint64,KIMAP::MessageFlags> &,
-                        const QMap<qint64,KIMAP::MessagePtr> &)> FetchCallback;
+                        const QMap<qint64,KIMAP2::MessageAttribute> &,
+                        const QMap<qint64,KIMAP2::MessageFlags> &,
+                        const QMap<qint64,KIMAP2::MessagePtr> &)> FetchCallback;
 
-    KAsync::Job<void> fetch(const KIMAP::ImapSet &set, KIMAP::FetchJob::FetchScope scope, FetchCallback callback);
-    KAsync::Job<void> fetch(const KIMAP::ImapSet &set, KIMAP::FetchJob::FetchScope scope, const std::function<void(const QVector<Message> &)> &callback);
-    KAsync::Job<void> list(KIMAP::ListJob::Option option, const std::function<void(const QList<KIMAP::MailBoxDescriptor> &mailboxes,const QList<QList<QByteArray> > &flags)> &callback);
+    KAsync::Job<void> fetch(const KIMAP2::ImapSet &set, KIMAP2::FetchJob::FetchScope scope, FetchCallback callback);
+    KAsync::Job<void> fetch(const KIMAP2::ImapSet &set, KIMAP2::FetchJob::FetchScope scope, const std::function<void(const QVector<Message> &)> &callback);
+    KAsync::Job<void> list(KIMAP2::ListJob::Option option, const std::function<void(const QList<KIMAP2::MailBoxDescriptor> &mailboxes,const QList<QList<QByteArray> > &flags)> &callback);
 
     QStringList getCapabilities() const;
 
     //Composed calls that do login etc.
     KAsync::Job<QList<qint64>> fetchHeaders(const QString &mailbox, qint64 minUid = 1);
-    KAsync::Job<void> remove(const QString &mailbox, const KIMAP::ImapSet &set);
+    KAsync::Job<void> remove(const QString &mailbox, const KIMAP2::ImapSet &set);
     KAsync::Job<void> remove(const QString &mailbox, const QByteArray &imapSet);
-    KAsync::Job<void> move(const QString &mailbox, const KIMAP::ImapSet &set, const QString &newMailbox);
+    KAsync::Job<void> move(const QString &mailbox, const KIMAP2::ImapSet &set, const QString &newMailbox);
     KAsync::Job<QString> createSubfolder(const QString &parentMailbox, const QString &folderName);
     KAsync::Job<QString> renameSubfolder(const QString &mailbox, const QString &newName);
     KAsync::Job<QVector<qint64>> fetchUids(const QString &mailbox);
