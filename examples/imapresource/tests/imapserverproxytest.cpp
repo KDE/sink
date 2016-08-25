@@ -73,16 +73,16 @@ private slots:
         ImapServerProxy imap("localhost", 993);
         VERIFYEXEC(imap.login("doe", "doe"));
 
-        KIMAP::FetchJob::FetchScope scope;
-        scope.mode = KIMAP::FetchJob::FetchScope::Headers;
+        KIMAP2::FetchJob::FetchScope scope;
+        scope.mode = KIMAP2::FetchJob::FetchScope::Headers;
         int count = 0;
-        auto job = imap.select("INBOX.test").then<void>(imap.fetch(KIMAP::ImapSet::fromImapSequenceSet("1:*"), scope,
+        auto job = imap.select("INBOX.test").then<void>(imap.fetch(KIMAP2::ImapSet::fromImapSequenceSet("1:*"), scope,
                     [&count](const QString &mailbox,
                             const QMap<qint64,qint64> &uids,
                             const QMap<qint64,qint64> &sizes,
-                            const QMap<qint64,KIMAP::MessageAttribute> &attrs,
-                            const QMap<qint64,KIMAP::MessageFlags> &flags,
-                            const QMap<qint64,KIMAP::MessagePtr> &messages) {
+                            const QMap<qint64,KIMAP2::MessageAttribute> &attrs,
+                            const QMap<qint64,KIMAP2::MessageFlags> &flags,
+                            const QMap<qint64,KIMAP2::MessagePtr> &messages) {
                         SinkTrace() << "Received " << uids.size() << " messages from " << mailbox;
                         SinkTrace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
                         count += uids.size();
@@ -98,16 +98,16 @@ private slots:
         VERIFYEXEC(imap.login("doe", "doe"));
         VERIFYEXEC(imap.remove("INBOX.test", "1:*"));
 
-        KIMAP::FetchJob::FetchScope scope;
-        scope.mode = KIMAP::FetchJob::FetchScope::Headers;
+        KIMAP2::FetchJob::FetchScope scope;
+        scope.mode = KIMAP2::FetchJob::FetchScope::Headers;
         int count = 0;
-        auto job = imap.select("INBOX.test").then<void>(imap.fetch(KIMAP::ImapSet::fromImapSequenceSet("1:*"), scope,
+        auto job = imap.select("INBOX.test").then<void>(imap.fetch(KIMAP2::ImapSet::fromImapSequenceSet("1:*"), scope,
                     [&count](const QString &mailbox,
                             const QMap<qint64,qint64> &uids,
                             const QMap<qint64,qint64> &sizes,
-                            const QMap<qint64,KIMAP::MessageAttribute> &attrs,
-                            const QMap<qint64,KIMAP::MessageFlags> &flags,
-                            const QMap<qint64,KIMAP::MessagePtr> &messages) {
+                            const QMap<qint64,KIMAP2::MessageAttribute> &attrs,
+                            const QMap<qint64,KIMAP2::MessageFlags> &flags,
+                            const QMap<qint64,KIMAP2::MessagePtr> &messages) {
                         SinkTrace() << "Received " << uids.size() << " messages from " << mailbox;
                         SinkTrace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
                         count += uids.size();
