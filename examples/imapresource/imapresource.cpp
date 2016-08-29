@@ -261,43 +261,37 @@ public:
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
     {
         SinkLog() << " Synchronizing";
-        return KAsync::start<void>([this](KAsync::Future<void> future) {
+        return KAsync::start<void>([this]() {
             SinkTrace() << "Connecting to:" << mServer << mPort;
             SinkTrace() << "as:" << mUser;
             auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
-            auto loginFuture = imap->login(mUser, mPassword).exec();
-            loginFuture.waitForFinished();
-            if (loginFuture.errorCode()) {
+
+            return imap->login(mUser, mPassword)
+            .addToContext(imap)
+            .onError([](const KAsync::Error &error) {
                 SinkWarning() << "Login failed.";
-                future.setError(1, "Login failed");
-                return;
-            } else {
-                SinkTrace() << "Login was successful";
-            }
-
-            QVector<Folder> folderList;
-            auto folderFuture = imap->fetchFolders([this, &imap, &folderList](const QVector<Folder> &folders) {
-                synchronizeFolders(folders);
-                commit();
-                folderList << folders;
-
-            }).exec();
-            folderFuture.waitForFinished();
-            if (folderFuture.errorCode()) {
-                SinkWarning() << "Folder sync failed.";
-                future.setError(1, "Folder list sync failed");
-                return;
-            } else {
-                SinkTrace() << "Folder sync was successful";
-            }
-
-            for (const auto &folder : folderList) {
+            })
+            .then<QVector<Folder>>([this, imap]() {
+                auto folderList = QSharedPointer<QVector<Folder>>::create();
+                SinkLog() << "Login was successful";
+                return  imap->fetchFolders([this, &imap, folderList](const QVector<Folder> &folders) {
+                    synchronizeFolders(folders);
+                    commit();
+                    *folderList << folders;
+                })
+                .onError([](const KAsync::Error &error) {
+                    SinkWarning() << "Folder list sync failed.";
+                })
+                .syncThen<QVector<Folder>>([folderList]() {
+                    return *folderList;
+                });
+            })
+            .serialEach<void>([this, imap](const Folder &folder) {
                 if (folder.noselect) {
-                    continue;
+                    return KAsync::null<void>();
                 }
-                synchronizeFolder(imap, folder).exec().waitForFinished();
-            }
-            future.setFinished();
+                return synchronizeFolder(imap, folder);
+            });
         });
     }
 
