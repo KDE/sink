@@ -26,6 +26,8 @@
 
 #include "common/log.h"
 
+SINK_DEBUG_AREA("state")
+
 static bool s_hasEventLoop = false;
 
 class State::Private
@@ -127,6 +129,7 @@ unsigned int State::debugLevel() const
 
 int State::commandStarted() const
 {
+    SinkTrace() << "Command started";
     if (!s_hasEventLoop) {
         return QCoreApplication::exec();
     } else if (!d->eventLoop()->isRunning()) {
@@ -138,6 +141,7 @@ int State::commandStarted() const
 
 void State::commandFinished(int returnCode) const
 {
+    SinkTrace() << "Command finished";
     if (!s_hasEventLoop) {
         QCoreApplication::exit(returnCode);
     } else {

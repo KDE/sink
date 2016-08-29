@@ -45,8 +45,12 @@ bool sync(const QStringList &args, State &state)
     }
 
     QTimer::singleShot(0, [query, state]() {
-    Sink::Store::synchronize(query).syncThen<void>([state]() {
-            state.printLine("Synchronization complete!");
+    Sink::Store::synchronize(query).syncThen<void>([state](const KAsync::Error &error) {
+            if (error) {
+                state.printLine("Synchronization failed!");
+            } else {
+                state.printLine("Synchronization complete!");
+            }
             state.commandFinished();
         }).exec();
     });
