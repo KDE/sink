@@ -219,8 +219,23 @@ public:
         SinkLog() << "Synchronizing mails" << folder.normalizedPath();
         auto capabilities = imap->getCapabilities();
         bool canDoIncrementalRemovals = false;
-        return KAsync::syncStart<void>([=]() {
-            //TODO update flags
+        return KAsync::start<void>([=]() {
+            const auto changedsince = syncStore().readValue(folder.normalizedPath().toUtf8() + "changedsince").toLongLong();
+            // auto changedsince = QSharedPointer<qint64>::create(0);
+            //FIXME this should generate a compiletime error
+            return imap->fetchFlags(folder, changedsince, [this, folder](const QVector<Message> &messages) {
+                // synchronizeMails(folder.normalizedPath(), messages);
+                const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folder.normalizedPath().toUtf8());
+                for (const auto &message : messages) {
+                    const auto remoteId = assembleMailRid(folderLocalId, message.uid);
+
+
+                    auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
+                    mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
+                    mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
+                    createOrModify(ENTITY_TYPE_MAIL, remoteId, mail);
+                }
+            });
         })
         .then<void>([=]() {
             //TODO Remove what's no longer existing

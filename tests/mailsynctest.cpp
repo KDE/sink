@@ -344,7 +344,43 @@ void MailSyncTest::testFetchNewRemovedMessages()
     }
 }
 
-//TODO test flag sync
+void MailSyncTest::testFlagChange()
+{
+    Sink::Query query;
+    query.resources << mResourceInstanceIdentifier;
+    query.request<Mail::Subject>().request<Mail::Important>();
+
+    auto msg = KMime::Message::Ptr::create();
+    msg->subject(true)->fromUnicodeString("Foobar", "utf8");
+    msg->assemble();
+    auto messageIdentifier = createMessage(QStringList() << "test", msg->encodedContent(true));
+
+    Store::synchronize(query).exec().waitForFinished();
+    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+    {
+        auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
+            QCOMPARE(mails.size(), 2);
+            QVERIFY(!mails.at(1)->getImportant());
+        });
+        VERIFYEXEC(job);
+    }
+
+    markAsImportant(QStringList() << "test", messageIdentifier);
+
+    // Ensure all local data is processed
+    VERIFYEXEC(Store::synchronize(query));
+    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+    {
+        auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
+            QCOMPARE(mails.size(), 2);
+            QVERIFY(mails.at(1)->getImportant());
+        });
+        VERIFYEXEC(job);
+    }
+
+}
 
 void MailSyncTest::testFailingSync()
 {

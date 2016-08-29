@@ -104,6 +104,14 @@ protected:
         VERIFYEXEC(imap.login("doe", "doe"));
         VERIFYEXEC(imap.remove("INBOX." + folderPath.join('.'), messages));
     }
+
+    void markAsImportant(const QStringList &folderPath, const QByteArray &messageIdentifier) Q_DECL_OVERRIDE
+    {
+        Imap::ImapServerProxy imap("localhost", 993);
+        VERIFYEXEC(imap.login("doe", "doe"));
+        VERIFYEXEC(imap.select("INBOX." + folderPath.join('.')));
+        VERIFYEXEC(imap.addFlags(KIMAP2::ImapSet::fromImapSequenceSet(messageIdentifier), QByteArrayList() << Imap::Flags::Flagged));
+    }
 };
 
 QTEST_MAIN(ImapMailSyncTest)

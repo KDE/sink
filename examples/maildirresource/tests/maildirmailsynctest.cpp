@@ -125,6 +125,13 @@ protected:
         KPIM::Maildir maildir(rootPath + folderPath.join('/'));
         maildir.removeEntry(messageIdentifier);
     }
+
+    void markAsImportant(const QStringList &folderPath, const QByteArray &messageIdentifier) Q_DECL_OVERRIDE
+    {
+        auto rootPath = tempDir.path() + "/maildir1/";
+        KPIM::Maildir maildir(rootPath + folderPath.join('/'));
+        maildir.changeEntryFlags(messageIdentifier, KPIM::Maildir::Flagged);
+    }
 };
 
 QTEST_MAIN(MaildirMailSyncTest)

@@ -50,6 +50,7 @@ protected:
     virtual void removeFolder(const QStringList &folderPath) = 0;
     virtual QByteArray createMessage(const QStringList &folderPath, const QByteArray &message) = 0;
     virtual void removeMessage(const QStringList &folderPath, const QByteArray &messageIdentifier) = 0;
+    virtual void markAsImportant(const QStringList &folderPath, const QByteArray &messageIdentifier) = 0;
 
 private slots:
     void initTestCase();
@@ -66,6 +67,7 @@ private slots:
     void testListMails();
     void testResyncMails();
     void testFetchNewRemovedMessages();
+    void testFlagChange();
 
     void testFailingSync();
 };
