@@ -143,36 +143,45 @@ void Synchronizer::scanForRemovals(const QByteArray &bufferType, const std::func
     });
 }
 
+void Synchronizer::modify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
+{
+    auto mainDatabase = Storage::mainDatabase(transaction(), bufferType);
+    const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
+    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(mResourceType, bufferType);
+    Q_ASSERT(adaptorFactory);
+    qint64 retrievedRevision = 0;
+    if (auto current = EntityReaderUtils::getLatest(mainDatabase, sinkId, *adaptorFactory, retrievedRevision)) {
+        bool changed = false;
+        for (const auto &property : entity.changedProperties()) {
+            if (entity.getProperty(property) != current->getProperty(property)) {
+                SinkTrace() << "Property changed " << sinkId << property;
+                changed = true;
+            }
+        }
+        if (changed) {
+            SinkTrace() << "Found a modified entity: " << remoteId;
+            modifyEntity(sinkId, Sink::Storage::maxRevision(transaction()), bufferType, entity, *adaptorFactory,
+                [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::ModifyEntityCommand, buffer); });
+        }
+    } else {
+        SinkWarning() << "Failed to get current entity";
+    }
+}
+
 void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
     SinkTrace() << "Create or modify" << bufferType << remoteId;
     auto mainDatabase = Storage::mainDatabase(transaction(), bufferType);
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
     const auto found = mainDatabase.contains(sinkId);
-    auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(mResourceType, bufferType);
-    Q_ASSERT(adaptorFactory);
     if (!found) {
         SinkTrace() << "Found a new entity: " << remoteId;
+        auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(mResourceType, bufferType);
+        Q_ASSERT(adaptorFactory);
         createEntity(
             sinkId, bufferType, entity, *adaptorFactory, [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::CreateEntityCommand, buffer); });
     } else { // modification
-        qint64 retrievedRevision = 0;
-        if (auto current = EntityReaderUtils::getLatest(mainDatabase, sinkId, *adaptorFactory, retrievedRevision)) {
-            bool changed = false;
-            for (const auto &property : entity.changedProperties()) {
-                if (entity.getProperty(property) != current->getProperty(property)) {
-                    SinkTrace() << "Property changed " << sinkId << property;
-                    changed = true;
-                }
-            }
-            if (changed) {
-                SinkTrace() << "Found a modified entity: " << remoteId;
-                modifyEntity(sinkId, Sink::Storage::maxRevision(transaction()), bufferType, entity, *adaptorFactory,
-                    [this](const QByteArray &buffer) { enqueueCommand(Sink::Commands::ModifyEntityCommand, buffer); });
-            }
-        } else {
-            SinkWarning() << "Failed to get current entity";
-        }
+        modify(bufferType, remoteId, entity);
     }
 }
 

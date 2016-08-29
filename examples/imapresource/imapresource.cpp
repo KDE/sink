@@ -233,7 +233,8 @@ public:
                     auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
                     mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
                     mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
-                    createOrModify(ENTITY_TYPE_MAIL, remoteId, mail);
+
+                    modify(ENTITY_TYPE_MAIL, remoteId, mail);
                 }
             });
         })
