@@ -236,6 +236,9 @@ public:
 
                     modify(ENTITY_TYPE_MAIL, remoteId, mail);
                 }
+            })
+            .syncThen<void, SelectResult>([this, folder](const SelectResult &selectResult) {
+                syncStore().writeValue(folder.normalizedPath().toUtf8() + "changedsince", QByteArray::number(selectResult.highestModSequence));
             });
         })
         .then<void>([=]() {

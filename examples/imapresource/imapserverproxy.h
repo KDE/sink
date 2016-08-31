@@ -138,7 +138,7 @@ public:
     KAsync::Job<void> fetchFolders(std::function<void(const QVector<Folder> &)> callback);
     KAsync::Job<void> fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
     KAsync::Job<void> fetchMessages(const Folder &folder, qint64 uidNext, std::function<void(const QVector<Message> &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
-    KAsync::Job<void> fetchFlags(const Folder &folder, qint64 changedsince, std::function<void(const QVector<Message> &)> callback);
+    KAsync::Job<SelectResult> fetchFlags(const Folder &folder, qint64 changedsince, std::function<void(const QVector<Message> &)> callback);
     KAsync::Job<QVector<qint64>> fetchUids(const Folder &folder);
 
 private:

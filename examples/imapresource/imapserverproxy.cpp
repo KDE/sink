@@ -100,7 +100,7 @@ ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port) : mSession(
     if (Sink::Test::testModeEnabled()) {
         mSession->setTimeout(1);
     } else {
-        mSession->setTimeout(10);
+        mSession->setTimeout(20);
     }
 }
 
@@ -416,15 +416,15 @@ QString ImapServerProxy::mailboxFromFolder(const Folder &folder) const
     return folder.pathParts.join(mPersonalNamespaceSeparator);
 }
 
-KAsync::Job<void> ImapServerProxy::fetchFlags(const Folder &folder, qint64 changedsince, std::function<void(const QVector<Message> &)> callback)
+KAsync::Job<SelectResult> ImapServerProxy::fetchFlags(const Folder &folder, qint64 changedsince, std::function<void(const QVector<Message> &)> callback)
 {
     SinkTrace() << "Fetching flags " << folder.normalizedPath();
-    return select(mailboxFromFolder(folder)).then<void, SelectResult>([=](const SelectResult &selectResult) -> KAsync::Job<void> {
+    return select(mailboxFromFolder(folder)).then<SelectResult, SelectResult>([=](const SelectResult &selectResult) -> KAsync::Job<SelectResult> {
         SinkTrace() << "Modeseq " << folder.normalizedPath() << selectResult.highestModSequence << changedsince;
 
         if (selectResult.highestModSequence == static_cast<quint64>(changedsince)) {
             SinkTrace()<< folder.normalizedPath() << "Changedsince didn't change, nothing to do.";
-            return KAsync::null<void>();
+            return KAsync::value<SelectResult>(selectResult);
         }
 
         SinkTrace() << "Fetching flags  " << folder.normalizedPath() << selectResult.highestModSequence << changedsince;
@@ -433,7 +433,9 @@ KAsync::Job<void> ImapServerProxy::fetchFlags(const Folder &folder, qint64 chang
         scope.mode = KIMAP2::FetchJob::FetchScope::Flags;
         scope.changedSince = changedsince;
 
-        return fetch(KIMAP2::ImapSet(1, 0), scope, callback);
+        return fetch(KIMAP2::ImapSet(1, 0), scope, callback).syncThen<SelectResult>([selectResult] {
+            return selectResult;
+        });
     });
 }
 
@@ -443,7 +445,6 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 ui
     time->start();
     Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
     return select(mailboxFromFolder(folder)).then<void, SelectResult>([this, callback, folder, time, progress, uidNext](const SelectResult &selectResult) -> KAsync::Job<void> {
-
         SinkTrace() << "UIDNEXT " << folder.normalizedPath() << selectResult.uidNext << uidNext;
         if (selectResult.uidNext == (uidNext + 1)) {
             SinkTrace()<< folder.normalizedPath() << "Uidnext didn't change, nothing to do.";
