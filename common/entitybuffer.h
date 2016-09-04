@@ -33,7 +33,7 @@ public:
     static const T *readBuffer(const uint8_t *data, int size)
     {
         flatbuffers::Verifier verifier(data, size);
-        if (verifier.VerifyBuffer<T>()) {
+        if (verifier.VerifyBuffer<T>(nullptr)) {
             return flatbuffers::GetRoot<T>(data);
         }
         return nullptr;

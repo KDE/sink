@@ -49,7 +49,7 @@ private slots:
         Sink::ApplicationDomain::Buffer::FinishEventBuffer(fbb, pos);
 
         flatbuffers::Verifier verifier(fbb.GetBufferPointer(), fbb.GetSize());
-        QVERIFY(verifier.VerifyBuffer<Sink::ApplicationDomain::Buffer::Event>());
+        QVERIFY(verifier.VerifyBuffer<Sink::ApplicationDomain::Buffer::Event>(nullptr));
     }
 
     void testAdaptor()

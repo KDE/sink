@@ -78,7 +78,7 @@ static void createBufferPartBuffer(const Sink::ApplicationDomain::ApplicationDom
     // FIXME: This means all buffers in here must have the AKFB identifier
     fbb.Finish(pos, "AKFB");
     flatbuffers::Verifier verifier(fbb.GetBufferPointer(), fbb.GetSize());
-    if (!verifier.VerifyBuffer<Buffer>()) {
+    if (!verifier.VerifyBuffer<Buffer>(nullptr)) {
         SinkWarning_(0, "bufferadaptor") << "Created invalid uffer";
     }
 }
