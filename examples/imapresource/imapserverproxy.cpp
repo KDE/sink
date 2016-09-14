@@ -295,6 +295,8 @@ KAsync::Job<QList<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbox,
     //Fetch headers of all messages
     return fetch(KIMAP2::ImapSet(minUid, 0), scope,
             [list](const KIMAP2::FetchJob::Result &result) {
+                // SinkTrace() << "Received " << uids.size() << " headers from " << mailbox;
+                // SinkTrace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
 
                 //TODO based on the data available here, figure out which messages to actually fetch
                 //(we only fetched headers and structure so far)
@@ -312,12 +314,12 @@ KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUids(const QString &mailbox)
     return select(mailbox).then<QVector<qint64>>(search(KIMAP2::ImapSet(1, 0)));
 }
 
-KAsync::Job<void> ImapServerProxy::list(KIMAP2::ListJob::Option option, const std::function<void(const QList<KIMAP2::MailBoxDescriptor> &mailboxes,const QList<QList<QByteArray> > &flags)> &callback)
+KAsync::Job<void> ImapServerProxy::list(KIMAP2::ListJob::Option option, const std::function<void(const KIMAP2::MailBoxDescriptor &mailboxes, const QList<QByteArray> &flags)> &callback)
 {
     auto listJob = new KIMAP2::ListJob(mSession);
     listJob->setOption(option);
     // listJob->setQueriedNamespaces(serverNamespaces());
-    QObject::connect(listJob, &KIMAP2::ListJob::mailBoxesReceived,
+    QObject::connect(listJob, &KIMAP2::ListJob::resultReceived,
             listJob, callback);
     return runJob(listJob);
 }
@@ -372,19 +374,13 @@ KAsync::Job<QString> ImapServerProxy::renameSubfolder(const QString &oldMailbox,
     });
 }
 
-KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const QVector<Folder> &)> callback)
+KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder &)> callback)
 {
     SinkTrace() << "Fetching folders";
-    return list(KIMAP2::ListJob::IncludeUnsubscribed, [callback](const QList<KIMAP2::MailBoxDescriptor> &mailboxes, const QList<QList<QByteArray> > &flags){
-        QVector<Folder> list;
-        for (int i = 0; i < mailboxes.size(); i++) {
-            const auto mailbox = mailboxes[i];
-            const auto mailboxFlags = flags[i];
-            bool noselect = mailboxFlags.contains(QByteArray(FolderFlags::Noselect).toLower()) || mailboxFlags.contains(QByteArray(FolderFlags::Noselect));
-            SinkLog() << "Found mailbox: " << mailbox.name << mailboxFlags << FolderFlags::Noselect << noselect;
-            list << Folder{mailbox.name.split(mailbox.separator), mailbox.name, mailbox.separator, noselect};
-        }
-        callback(list);
+    return list(KIMAP2::ListJob::IncludeUnsubscribed, [callback](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &flags){
+            bool noselect = flags.contains(QByteArray(FolderFlags::Noselect).toLower()) || flags.contains(QByteArray(FolderFlags::Noselect));
+            SinkLog() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect;
+            callback(Folder{mailbox.name.split(mailbox.separator), mailbox.name, mailbox.separator, noselect});
     });
 }
 

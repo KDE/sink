@@ -115,7 +115,7 @@ public:
 
     KAsync::Job<void> fetch(const KIMAP2::ImapSet &set, KIMAP2::FetchJob::FetchScope scope, FetchCallback callback);
     KAsync::Job<void> fetch(const KIMAP2::ImapSet &set, KIMAP2::FetchJob::FetchScope scope, const std::function<void(const QVector<Message> &)> &callback);
-    KAsync::Job<void> list(KIMAP2::ListJob::Option option, const std::function<void(const QList<KIMAP2::MailBoxDescriptor> &mailboxes,const QList<QList<QByteArray> > &flags)> &callback);
+    KAsync::Job<void> list(KIMAP2::ListJob::Option option, const std::function<void(const KIMAP2::MailBoxDescriptor &mailboxes,const QList<QByteArray> &flags)> &callback);
 
     QStringList getCapabilities() const;
 
@@ -130,7 +130,7 @@ public:
 
     QString mailboxFromFolder(const Folder &) const;
 
-    KAsync::Job<void> fetchFolders(std::function<void(const QVector<Folder> &)> callback);
+    KAsync::Job<void> fetchFolders(std::function<void(const Folder &)> callback);
     KAsync::Job<void> fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
     KAsync::Job<void> fetchMessages(const Folder &folder, qint64 uidNext, std::function<void(const QVector<Message> &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
     KAsync::Job<SelectResult> fetchFlags(const Folder &folder, const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const QVector<Message> &)> callback);

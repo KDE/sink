@@ -298,15 +298,15 @@ public:
             .then<QVector<Folder>>([this, imap]() {
                 auto folderList = QSharedPointer<QVector<Folder>>::create();
                 SinkLog() << "Login was successful";
-                return  imap->fetchFolders([this, &imap, folderList](const QVector<Folder> &folders) {
-                    synchronizeFolders(folders);
-                    commit();
-                    *folderList << folders;
+                return  imap->fetchFolders([folderList](const Folder &folder) {
+                    *folderList << folder;
                 })
                 .onError([](const KAsync::Error &error) {
                     SinkWarning() << "Folder list sync failed.";
                 })
-                .syncThen<QVector<Folder>>([folderList]() {
+                .syncThen<QVector<Folder>>([this, folderList]() {
+                    synchronizeFolders(*folderList);
+                    commit();
                     return *folderList;
                 });
             })
@@ -440,12 +440,10 @@ public:
             } else { //We try to merge special purpose folders first
                 auto  specialPurposeFolders = QSharedPointer<QHash<QByteArray, QString>>::create();
                 auto mergeJob = imap->login(mUser, mPassword)
-                    .then<void>(imap->fetchFolders([=](const QVector<Imap::Folder> &folders) {
-                        for (const auto &f : folders) {
-                            if (SpecialPurpose::isSpecialPurposeFolderName(f.pathParts.last())) {
-                                specialPurposeFolders->insert(SpecialPurpose::getSpecialPurposeType(f.pathParts.last()), f.path);
-                            };
-                        }
+                    .then<void>(imap->fetchFolders([=](const Imap::Folder &folder) {
+                        if (SpecialPurpose::isSpecialPurposeFolderName(folder.pathParts.last())) {
+                            specialPurposeFolders->insert(SpecialPurpose::getSpecialPurposeType(folder.pathParts.last()), folder.path);
+                        };
                     }))
                     .then<void>([specialPurposeFolders, folder, imap, parentFolder, rid]() -> KAsync::Job<void> {
                         for (const auto &purpose : folder.getSpecialPurpose()) {
@@ -661,11 +659,9 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
 
             auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
             auto inspectionJob = imap->login(mUser, mPassword)
-                .then<void>(imap->fetchFolders([=](const QVector<Imap::Folder> &folders) {
-                    for (const auto &f : folders) {
-                        *folderByPath << f.normalizedPath();
-                        *folderByName << f.pathParts.last();
-                    }
+                .then<void>(imap->fetchFolders([=](const Imap::Folder &f) {
+                    *folderByPath << f.normalizedPath();
+                    *folderByName << f.pathParts.last();
                 }))
                 .then<void>([this, folderByName, folderByPath, folder, remoteId, imap]() {
                     if (!folderByName->contains(folder.getName())) {
