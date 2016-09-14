@@ -263,21 +263,24 @@ KAsync::Job<void> ImapServerProxy::fetch(const KIMAP2::ImapSet &set, KIMAP2::Fet
 
 KAsync::Job<QVector<qint64>> ImapServerProxy::search(const KIMAP2::ImapSet &set)
 {
+    return search(KIMAP2::Term(KIMAP2::Term::Uid, set));
+}
+
+KAsync::Job<QVector<qint64>> ImapServerProxy::search(const KIMAP2::Term &term)
+{
     auto search = new KIMAP2::SearchJob(mSession);
-    search->setTerm(KIMAP2::Term(KIMAP2::Term::Uid, set));
+    search->setTerm(term);
     search->setUidBased(true);
     return runJob<QVector<qint64>>(search, [](KJob *job) -> QVector<qint64> {
         return static_cast<KIMAP2::SearchJob*>(job)->results();
     });
 }
 
-KAsync::Job<void> ImapServerProxy::fetch(const KIMAP2::ImapSet &set, KIMAP2::FetchJob::FetchScope scope, const std::function<void(const QVector<Message> &)> &callback)
+KAsync::Job<void> ImapServerProxy::fetch(const KIMAP2::ImapSet &set, KIMAP2::FetchJob::FetchScope scope, const std::function<void(const Message &)> &callback)
 {
     return fetch(set, scope,
                     [callback](const KIMAP2::FetchJob::Result &result) {
-                        QVector<Message> list;
-                        list << Message{result.uid, result.size, result.attributes, result.flags, result.message};
-                        callback(list);
+                        callback(Message{result.uid, result.size, result.attributes, result.flags, result.message});
                     });
 }
 
@@ -286,9 +289,9 @@ QStringList ImapServerProxy::getCapabilities() const
     return mCapabilities;
 }
 
-KAsync::Job<QList<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbox, const qint64 minUid)
+KAsync::Job<QVector<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbox, const qint64 minUid)
 {
-    auto list = QSharedPointer<QList<qint64>>::create();
+    auto list = QSharedPointer<QVector<qint64>>::create();
     KIMAP2::FetchJob::FetchScope scope;
     scope.mode = KIMAP2::FetchJob::FetchScope::Flags;
 
@@ -304,14 +307,19 @@ KAsync::Job<QList<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbox,
 
                 list->append(result.uid);
             })
-    .syncThen<QList<qint64>>([list](){
+    .syncThen<QVector<qint64>>([list](){
         return *list;
     });
 }
 
 KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUids(const QString &mailbox)
 {
-    return select(mailbox).then<QVector<qint64>>(search(KIMAP2::ImapSet(1, 0)));
+    return select(mailbox).then<QVector<qint64>>(search(KIMAP2::Term(KIMAP2::Term::Uid, KIMAP2::ImapSet(1, 0))));
+}
+
+KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUidsSince(const QString &mailbox, const QDate &since)
+{
+    return select(mailbox).then<QVector<qint64>>(search(KIMAP2::Term(KIMAP2::Term::Since, since)));
 }
 
 KAsync::Job<void> ImapServerProxy::list(KIMAP2::ListJob::Option option, const std::function<void(const KIMAP2::MailBoxDescriptor &mailboxes, const QList<QByteArray> &flags)> &callback)
@@ -390,7 +398,7 @@ QString ImapServerProxy::mailboxFromFolder(const Folder &folder) const
     return folder.pathParts.join(mPersonalNamespaceSeparator);
 }
 
-KAsync::Job<SelectResult> ImapServerProxy::fetchFlags(const Folder &folder, const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const QVector<Message> &)> callback)
+KAsync::Job<SelectResult> ImapServerProxy::fetchFlags(const Folder &folder, const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback)
 {
     SinkTrace() << "Fetching flags " << folder.normalizedPath();
     return select(mailboxFromFolder(folder)).then<SelectResult, SelectResult>([=](const SelectResult &selectResult) -> KAsync::Job<SelectResult> {
@@ -413,7 +421,7 @@ KAsync::Job<SelectResult> ImapServerProxy::fetchFlags(const Folder &folder, cons
     });
 }
 
-KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 uidNext, std::function<void(const QVector<Message> &)> callback, std::function<void(int, int)> progress)
+KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 uidNext, std::function<void(const Message &)> callback, std::function<void(int, int)> progress)
 {
     auto time = QSharedPointer<QTime>::create();
     time->start();
@@ -426,40 +434,56 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 ui
         }
 
         SinkTrace() << "Fetching messages from  " << folder.normalizedPath() << selectResult.uidNext << uidNext;
-        return fetchHeaders(mailboxFromFolder(folder), (uidNext + 1)).then<void, QList<qint64>>([this, callback, time, progress, folder](const QList<qint64> &uidsToFetch){
+        return fetchHeaders(mailboxFromFolder(folder), (uidNext + 1)).then<void, QVector<qint64>>([this, callback, time, progress, folder](const QVector<qint64> &uidsToFetch){
             SinkTrace() << "Fetched headers" << folder.normalizedPath();
             SinkTrace() << "  Total: " << uidsToFetch.size();
             SinkTrace() << "  Uids to fetch: " << uidsToFetch;
             SinkTrace() << "  Took: " << Sink::Log::TraceTime(time->elapsed());
-            auto totalCount = uidsToFetch.size();
-            if (progress) {
-                progress(0, totalCount);
-            }
-            if (uidsToFetch.isEmpty()) {
-                SinkTrace() << "Nothing to fetch";
-                callback(QVector<Message>());
-                return KAsync::null<void>();
-            }
-            KIMAP2::FetchJob::FetchScope scope;
-            scope.parts.clear();
-            scope.mode = KIMAP2::FetchJob::FetchScope::Full;
-
-            KIMAP2::ImapSet set;
-            set.add(uidsToFetch.toVector());
-            auto count = QSharedPointer<int>::create();
-            return fetch(set, scope, [=](const QVector<Message> &messages) {
-                *count += messages.size();
-                if (progress) {
-                    progress(*count, totalCount);
-                }
-                callback(messages);
-            });
+            return fetchMessages(folder, uidsToFetch, callback, progress);
         });
 
     });
 }
 
-KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback, std::function<void(int, int)> progress)
+KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, const QVector<qint64> &uidsToFetch, std::function<void(const Message &)> callback, std::function<void(int, int)> progress)
+{
+    auto time = QSharedPointer<QTime>::create();
+    time->start();
+    Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
+    return select(mailboxFromFolder(folder)).then<void, SelectResult>([this, callback, folder, time, progress, uidsToFetch](const SelectResult &selectResult) -> KAsync::Job<void> {
+
+        SinkTrace() << "Fetching messages" << folder.normalizedPath();
+        SinkTrace() << "  Total: " << uidsToFetch.size();
+        SinkTrace() << "  Uids to fetch: " << uidsToFetch;
+        auto totalCount = uidsToFetch.size();
+        if (progress) {
+            progress(0, totalCount);
+        }
+        if (uidsToFetch.isEmpty()) {
+            SinkTrace() << "Nothing to fetch";
+            return KAsync::null<void>();
+        }
+        KIMAP2::FetchJob::FetchScope scope;
+        scope.parts.clear();
+        scope.mode = KIMAP2::FetchJob::FetchScope::Full;
+
+        KIMAP2::ImapSet set;
+        set.add(uidsToFetch);
+        auto count = QSharedPointer<int>::create();
+        return fetch(set, scope, [=](const Message &message) {
+            *count += 1;
+            if (progress) {
+                progress(*count, totalCount);
+            }
+            callback(message);
+        });
+    })
+    .syncThen<void>([time]() {
+        SinkTrace() << "The fetch took: " << Sink::Log::TraceTime(time->elapsed());
+    });
+}
+
+KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, std::function<void(const Message &)> callback, std::function<void(int, int)> progress)
 {
     return fetchMessages(folder, 0, callback, progress);
 }

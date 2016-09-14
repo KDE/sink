@@ -40,10 +40,14 @@
 #include "entitystore.h"
 #include "remoteidmap.h"
 #include "query.h"
+
+#include <QtGlobal>
 #include <QDate>
 #include <QUuid>
 #include <QDir>
 #include <QDirIterator>
+#include <QDateTime>
+#include <QtAlgorithms>
 
 #include "imapserverproxy.h"
 #include "entityreader.h"
@@ -149,7 +153,7 @@ public:
         }
     }
 
-    void synchronizeMails(const QString &path, const QVector<Message> &messages)
+    void synchronizeMails(const QString &path, const Message &message)
     {
         auto time = QSharedPointer<QTime>::create();
         time->start();
@@ -159,23 +163,20 @@ public:
 
         const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, path.toUtf8());
 
-        int count = 0;
-        for (const auto &message : messages) {
-            count++;
-            const auto remoteId = assembleMailRid(folderLocalId, message.uid);
+        const auto remoteId = assembleMailRid(folderLocalId, message.uid);
 
-            SinkTrace() << "Found a mail " << remoteId << message.msg->subject(true)->asUnicodeString() << message.flags;
+        Q_ASSERT(message.msg);
+        SinkTrace() << "Found a mail " << remoteId << message.msg->subject(true)->asUnicodeString() << message.flags;
 
-            auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
-            mail.setFolder(folderLocalId);
-            mail.setMimeMessage(message.msg->encodedContent());
-            mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
-            mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
+        auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
+        mail.setFolder(folderLocalId);
+        mail.setMimeMessage(message.msg->encodedContent());
+        mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
+        mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
 
-            createOrModify(bufferType, remoteId, mail);
-        }
-        const auto elapsed = time->elapsed();
-        SinkTrace() << "Synchronized " << count << " mails in " << path << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
+        createOrModify(bufferType, remoteId, mail);
+        // const auto elapsed = time->elapsed();
+        // SinkTrace() << "Synchronized " << count << " mails in " << path << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
 
     void synchronizeRemovals(const QString &path, const QSet<qint64> &messages)
@@ -220,29 +221,71 @@ public:
         auto capabilities = imap->getCapabilities();
         bool canDoIncrementalRemovals = false;
         return KAsync::start<void>([=]() {
+            //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
+            SinkLog() << "About to update flags" << folder.normalizedPath();
             auto uidNext = syncStore().readValue(folder.normalizedPath().toUtf8() + "uidnext").toLongLong();
             const auto changedsince = syncStore().readValue(folder.normalizedPath().toUtf8() + "changedsince").toLongLong();
-            return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(uidNext, qint64(1))), changedsince, [this, folder](const QVector<Message> &messages) {
-                // synchronizeMails(folder.normalizedPath(), messages);
+            return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(uidNext, qint64(1))), changedsince, [this, folder](const Message &message) {
                 const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folder.normalizedPath().toUtf8());
-                for (const auto &message : messages) {
-                    const auto remoteId = assembleMailRid(folderLocalId, message.uid);
+                const auto remoteId = assembleMailRid(folderLocalId, message.uid);
 
+                SinkLog() << "Updating mail flags " << remoteId << message.flags;
 
-                    auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
-                    mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
-                    mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
+                auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
+                mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
+                mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
 
-                    modify(ENTITY_TYPE_MAIL, remoteId, mail);
-                }
+                modify(ENTITY_TYPE_MAIL, remoteId, mail);
             })
             .syncThen<void, SelectResult>([this, folder](const SelectResult &selectResult) {
                 syncStore().writeValue(folder.normalizedPath().toUtf8() + "changedsince", QByteArray::number(selectResult.highestModSequence));
             });
         })
         .then<void>([=]() {
+            //Get the range we're interested in. This is what we're going to download.
+            return imap->fetchUidsSince(imap->mailboxFromFolder(folder), QDate::currentDate().addDays(-14))
+            .then<void, QVector<qint64>>([this, folder, imap](const QVector<qint64> &uidsToFetch) {
+                SinkTrace() << "Received result set " << uidsToFetch;
+                SinkTrace() << "About to fetch mail" << folder.normalizedPath();
+                const auto uidNext = syncStore().readValue(folder.normalizedPath().toUtf8() + "uidnext").toLongLong();
+                QVector<qint64> filteredAndSorted = uidsToFetch;
+                qSort(filteredAndSorted.begin(), filteredAndSorted.end(), qGreater<qint64>());
+                auto lowerBound = qLowerBound(filteredAndSorted.begin(), filteredAndSorted.end(), uidNext, qGreater<qint64>());
+                if (lowerBound != filteredAndSorted.end()) {
+                    filteredAndSorted.erase(lowerBound, filteredAndSorted.end());
+                }
+
+                auto maxUid = QSharedPointer<qint64>::create(0);
+                if (!filteredAndSorted.isEmpty()) {
+                    *maxUid = filteredAndSorted.first();
+                }
+                SinkTrace() << "Uids to fetch: " << filteredAndSorted;
+                return imap->fetchMessages(folder, filteredAndSorted, [this, folder, maxUid](const Message &m) {
+                    if (*maxUid < m.uid) {
+                        *maxUid = m.uid;
+                    }
+                    synchronizeMails(folder.normalizedPath(), m);
+                },
+                [this, maxUid, folder](int progress, int total) {
+                    SinkLog() << "Progress: " << progress << " out of " << total;
+                    //commit every 10 messages
+                    if ((progress % 10) == 0) {
+                        commit();
+                    }
+                })
+                .syncThen<void>([this, maxUid, folder]() {
+                    SinkLog() << "UIDMAX: " << *maxUid << folder.normalizedPath();
+                    if (*maxUid > 0) {
+                        syncStore().writeValue(folder.normalizedPath().toUtf8() + "uidnext", QByteArray::number(*maxUid));
+                    }
+                    commit();
+                });
+            });
+        })
+        .then<void>([=]() {
             //TODO Remove what's no longer existing
             if (canDoIncrementalRemovals) {
+                //TODO do an examine with QRESYNC and remove VANISHED messages
             } else {
                 return imap->fetchUids(folder).syncThen<void, QVector<qint64>>([this, folder](const QVector<qint64> &uids) {
                     SinkTrace() << "Syncing removals";
@@ -251,32 +294,6 @@ public:
                 });
             }
             return KAsync::null<void>();
-        })
-        .then<void>([this, folder, imap]() {
-            SinkTrace() << "About to fetch mail";
-            const auto uidNext = syncStore().readValue(folder.normalizedPath().toUtf8() + "uidnext").toLongLong();
-            auto maxUid = QSharedPointer<qint64>::create(0);
-            return imap->fetchMessages(folder, uidNext, [this, folder, maxUid](const QVector<Message> &messages) {
-                SinkTrace() << "Got mail";
-                for (const auto &m : messages) {
-                    if (*maxUid < m.uid) {
-                        *maxUid = m.uid;
-                    }
-                }
-                synchronizeMails(folder.normalizedPath(), messages);
-            },
-            [this, maxUid, folder](int progress, int total) {
-                SinkLog() << "Progress: " << progress << " out of " << total;
-                //commit every 10 messages
-                if ((progress % 10) == 0) {
-                    commit();
-                }
-            })
-            .syncThen<void>([this, maxUid, folder]() {
-                syncStore().writeValue(folder.normalizedPath().toUtf8() + "uidnext", QByteArray::number(*maxUid));
-                SinkLog() << "UIDMAX: " << *maxUid << folder.normalizedPath();
-                commit();
-            });
         });
 
 
@@ -578,10 +595,8 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
         auto inspectionJob = imap->login(mUser, mPassword)
             .then<Imap::SelectResult>(imap->select(folderRemoteId))
             .syncThen<void, Imap::SelectResult>([](Imap::SelectResult){})
-            .then<void>(imap->fetch(set, scope, [imap, messageByUid](const QVector<Imap::Message> &messages) {
-                for (const auto &m : messages) {
-                    messageByUid->insert(m.uid, m);
-                }
+            .then<void>(imap->fetch(set, scope, [imap, messageByUid](const Imap::Message &message) {
+                messageByUid->insert(message.uid, message);
             }));
 
         if (inspectionType == Sink::ResourceControl::Inspection::PropertyInspectionType) {
@@ -641,10 +656,8 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
             auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
             return imap->login(mUser, mPassword)
                 .then<void>(imap->select(remoteId).syncThen<void>([](){}))
-                .then<void>(imap->fetch(set, scope, [=](const QVector<Imap::Message> &messages) {
-                    for (const auto &m : messages) {
-                        messageByUid->insert(m.uid, m);
-                    }
+                .then<void>(imap->fetch(set, scope, [=](const Imap::Message message) {
+                    messageByUid->insert(message.uid, message);
                 }))
                 .then<void>([imap, messageByUid, expectedCount]() {
                     if (messageByUid->size() != expectedCount) {
