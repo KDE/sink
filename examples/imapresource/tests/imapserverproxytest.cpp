@@ -12,7 +12,7 @@
 
 using namespace Imap;
 
-SINK_DEBUG_AREA("imapserverproxytest")
+// SINK_DEBUG_AREA("imapserverproxytest")
 
 /**
  */
@@ -77,15 +77,8 @@ private slots:
         scope.mode = KIMAP2::FetchJob::FetchScope::Headers;
         int count = 0;
         auto job = imap.select("INBOX.test").then<void>(imap.fetch(KIMAP2::ImapSet::fromImapSequenceSet("1:*"), scope,
-                    [&count](const QString &mailbox,
-                            const QMap<qint64,qint64> &uids,
-                            const QMap<qint64,qint64> &sizes,
-                            const QMap<qint64,KIMAP2::MessageAttribute> &attrs,
-                            const QMap<qint64,KIMAP2::MessageFlags> &flags,
-                            const QMap<qint64,KIMAP2::MessagePtr> &messages) {
-                        SinkTrace() << "Received " << uids.size() << " messages from " << mailbox;
-                        SinkTrace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
-                        count += uids.size();
+                    [&count](const KIMAP2::FetchJob::Result &) {
+                        count++;
                     }));
 
         VERIFYEXEC(job);
@@ -102,15 +95,8 @@ private slots:
         scope.mode = KIMAP2::FetchJob::FetchScope::Headers;
         int count = 0;
         auto job = imap.select("INBOX.test").then<void>(imap.fetch(KIMAP2::ImapSet::fromImapSequenceSet("1:*"), scope,
-                    [&count](const QString &mailbox,
-                            const QMap<qint64,qint64> &uids,
-                            const QMap<qint64,qint64> &sizes,
-                            const QMap<qint64,KIMAP2::MessageAttribute> &attrs,
-                            const QMap<qint64,KIMAP2::MessageFlags> &flags,
-                            const QMap<qint64,KIMAP2::MessagePtr> &messages) {
-                        SinkTrace() << "Received " << uids.size() << " messages from " << mailbox;
-                        SinkTrace() << uids.size() << sizes.size() << attrs.size() << flags.size() << messages.size();
-                        count += uids.size();
+                    [&count](const KIMAP2::FetchJob::Result &) {
+                        count++;
                     }));
 
         VERIFYEXEC(job);

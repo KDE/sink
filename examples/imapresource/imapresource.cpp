@@ -220,10 +220,9 @@ public:
         auto capabilities = imap->getCapabilities();
         bool canDoIncrementalRemovals = false;
         return KAsync::start<void>([=]() {
+            auto uidNext = syncStore().readValue(folder.normalizedPath().toUtf8() + "uidnext").toLongLong();
             const auto changedsince = syncStore().readValue(folder.normalizedPath().toUtf8() + "changedsince").toLongLong();
-            // auto changedsince = QSharedPointer<qint64>::create(0);
-            //FIXME this should generate a compiletime error
-            return imap->fetchFlags(folder, changedsince, [this, folder](const QVector<Message> &messages) {
+            return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(uidNext, qint64(1))), changedsince, [this, folder](const QVector<Message> &messages) {
                 // synchronizeMails(folder.normalizedPath(), messages);
                 const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folder.normalizedPath().toUtf8());
                 for (const auto &message : messages) {
@@ -266,11 +265,17 @@ public:
                 }
                 synchronizeMails(folder.normalizedPath(), messages);
             },
-            [](int progress, int total) {
-                SinkTrace() << "Progress: " << progress << " out of " << total;
+            [this, maxUid, folder](int progress, int total) {
+                SinkLog() << "Progress: " << progress << " out of " << total;
+                //commit every 10 messages
+                if ((progress % 10) == 0) {
+                    commit();
+                }
             })
             .syncThen<void>([this, maxUid, folder]() {
                 syncStore().writeValue(folder.normalizedPath().toUtf8() + "uidnext", QByteArray::number(*maxUid));
+                SinkLog() << "UIDMAX: " << *maxUid << folder.normalizedPath();
+                commit();
             });
         });
 

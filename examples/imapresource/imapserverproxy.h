@@ -51,8 +51,8 @@ namespace FolderFlags
 struct Message {
     qint64 uid;
     qint64 size;
-    QPair<QByteArray, QVariant> attributes;
-    QList<QByteArray> flags;
+    KIMAP2::MessageAttributes attributes;
+    KIMAP2::MessageFlags flags;
     KMime::Message::Ptr msg;
 };
 
@@ -111,12 +111,7 @@ public:
     KAsync::Job<void> copy(const KIMAP2::ImapSet &set, const QString &newMailbox);
     KAsync::Job<QVector<qint64>> search(const KIMAP2::ImapSet &set);
 
-    typedef std::function<void(const QString &,
-                        const QMap<qint64,qint64> &,
-                        const QMap<qint64,qint64> &,
-                        const QMap<qint64,KIMAP2::MessageAttribute> &,
-                        const QMap<qint64,KIMAP2::MessageFlags> &,
-                        const QMap<qint64,KIMAP2::MessagePtr> &)> FetchCallback;
+    typedef std::function<void(const KIMAP2::FetchJob::Result &)> FetchCallback;
 
     KAsync::Job<void> fetch(const KIMAP2::ImapSet &set, KIMAP2::FetchJob::FetchScope scope, FetchCallback callback);
     KAsync::Job<void> fetch(const KIMAP2::ImapSet &set, KIMAP2::FetchJob::FetchScope scope, const std::function<void(const QVector<Message> &)> &callback);
@@ -138,7 +133,7 @@ public:
     KAsync::Job<void> fetchFolders(std::function<void(const QVector<Folder> &)> callback);
     KAsync::Job<void> fetchMessages(const Folder &folder, std::function<void(const QVector<Message> &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
     KAsync::Job<void> fetchMessages(const Folder &folder, qint64 uidNext, std::function<void(const QVector<Message> &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
-    KAsync::Job<SelectResult> fetchFlags(const Folder &folder, qint64 changedsince, std::function<void(const QVector<Message> &)> callback);
+    KAsync::Job<SelectResult> fetchFlags(const Folder &folder, const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const QVector<Message> &)> callback);
     KAsync::Job<QVector<qint64>> fetchUids(const Folder &folder);
 
 private:
