@@ -20,6 +20,7 @@
 
 #include <limits>
 #include <QTime>
+#include <QPointer>
 
 #include "commands.h"
 #include "log.h"
@@ -71,6 +72,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
     if (query.limit && query.sortProperty.isEmpty()) {
         SinkWarning() << "A limited query without sorting is typically a bad idea.";
     }
+    auto guardPtr = QPointer<QObject>(&guard);
     // We delegate loading of initial data to the result provider, so it can decide for itself what it needs to load.
     mResultProvider->setFetcher([=](const typename DomainType::Ptr &parent) {
         const QByteArray parentId = parent ? parent->identifier() : QByteArray();
@@ -81,12 +83,20 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
             worker.executeInitialQuery(query, parent, *resultProvider, mOffset[parentId], mBatchSize);
             resultProvider->initialResultSetComplete(parent);
         } else {
-            async::run<QPair<qint64, qint64> >([=]() {
-                QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType, mResultTransformation);
-                const auto  newRevisionAndReplayedEntities = worker.executeInitialQuery(query, parent, *resultProvider, mOffset[parentId], mBatchSize);
+            auto resultTransformation = mResultTransformation;
+            auto offset = mOffset[parentId];
+            auto batchSize = mBatchSize;
+            //The lambda will be executed in a separate thread, so we're extra careful
+            async::run<QPair<qint64, qint64> >([resultTransformation, offset, batchSize, query, bufferType, instanceIdentifier, factory, resultProvider, parent]() {
+                QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType, resultTransformation);
+                const auto  newRevisionAndReplayedEntities = worker.executeInitialQuery(query, parent, *resultProvider, offset, batchSize);
                 return newRevisionAndReplayedEntities;
             })
-                .template syncThen<void, QPair<qint64, qint64>>([=](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
+                .template syncThen<void, QPair<qint64, qint64>>([this, parentId, query, parent, resultProvider, guardPtr](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
+                    if (!guardPtr) {
+                        qWarning() << "The parent object is already gone";
+                        return;
+                    }
                     mOffset[parentId] += newRevisionAndReplayedEntities.second;
                     // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
                     if (query.liveQuery) {
@@ -110,7 +120,11 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                        const auto newRevisionAndReplayedEntities = worker.executeIncrementalQuery(query, *resultProvider);
                        return newRevisionAndReplayedEntities;
                    })
-                .template syncThen<void, QPair<qint64, qint64> >([query, this, resultProvider](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
+                .template syncThen<void, QPair<qint64, qint64> >([query, this, resultProvider, guardPtr](const QPair<qint64, qint64> &newRevisionAndReplayedEntities) {
+                    if (!guardPtr) {
+                        qWarning() << "The parent object is already gone";
+                        return;
+                    }
                     // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
                     mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.first);
                     resultProvider->setRevision(newRevisionAndReplayedEntities.first);

@@ -74,8 +74,8 @@ private:
  * A QueryRunner runs a query and updates the corresponding result set.
  *
  * The lifetime of the QueryRunner is defined by the resut set (otherwise it's doing useless work),
- * and by how long a result set must be updated. If the query is one off the runner dies after the execution,
- * otherwise it lives on the react to changes and updates the corresponding result set.
+ * and by how long a result set must be updated. If the query is a one off, the runner dies after the execution,
+ * otherwise it lives on to react to changes, and updates the corresponding result set.
  *
  * QueryRunner has to keep ResourceAccess alive in order to keep getting updates.
  */
@@ -101,4 +101,5 @@ private:
     ResultTransformation mResultTransformation;
     QHash<QByteArray, qint64> mOffset;
     int mBatchSize;
+    QObject guard;
 };
