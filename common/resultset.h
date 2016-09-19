@@ -20,8 +20,8 @@
 
 #include <QVector>
 #include <functional>
-#include "domain/applicationdomaintype.h"
 #include "metadata_generated.h"
+#include "entitybuffer.h"
 
 /*
  * An iterator to a result set.
@@ -31,7 +31,8 @@
 class ResultSet
 {
 public:
-    typedef std::function<bool(std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)>)> ValueGenerator;
+    typedef std::function<void(const QByteArray &uid, const Sink::EntityBuffer &, Sink::Operation)> Callback;
+    typedef std::function<bool(Callback)> ValueGenerator;
     typedef std::function<QByteArray()> IdGenerator;
     typedef std::function<void()> SkipValue;
 
@@ -42,7 +43,7 @@ public:
     ResultSet(const ResultSet &other);
 
     bool next();
-    bool next(std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation)> callback);
+    bool next(const Callback &callback);
 
     void skip(int number);
 

@@ -89,17 +89,6 @@ public:
 private:
     qint64 replaySet(ResultSet &resultSet, int offset, int batchSize, const ResultCallback &callback);
 
-    void readEntity(const Sink::Storage::NamedDatabase &db, const QByteArray &key,
-        const std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> &resultCallback);
-
-    ResultSet loadInitialResultSet(const Sink::Query &query, QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting);
-    ResultSet loadIncrementalResultSet(qint64 baseRevision, const Sink::Query &query, QSet<QByteArray> &remainingFilters);
-
-    ResultSet filterAndSortSet(ResultSet &resultSet, const std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter,
-        const Sink::Storage::NamedDatabase &db, bool initialQuery, const QByteArray &sortProperty);
-    std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> getFilter(const QSet<QByteArray> remainingFilters, const Sink::Query &query);
-    QPair<qint64, qint64> load(const Sink::Query &query, const std::function<ResultSet(QSet<QByteArray> &, QByteArray &)> &baseSetRetriever, bool initialQuery, int offset, int batchSize, const ResultCallback &callback);
-
 private:
     QByteArray mResourceInstanceIdentifier;
     Sink::Storage::Transaction &mTransaction;

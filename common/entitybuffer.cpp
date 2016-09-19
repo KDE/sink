@@ -26,7 +26,7 @@ bool EntityBuffer::isValid() const
     return mEntity;
 }
 
-const Sink::Entity &EntityBuffer::entity()
+const Sink::Entity &EntityBuffer::entity() const
 {
     Q_ASSERT(mEntity);
     return *mEntity;
@@ -83,4 +83,16 @@ void EntityBuffer::assembleEntityBuffer(
     auto local = appendAsVector(fbb, localData, localSize);
     auto entity = Sink::CreateEntity(fbb, metadata, resource, local);
     Sink::FinishEntityBuffer(fbb, entity);
+}
+
+Sink::Operation EntityBuffer::operation() const
+{
+    const auto metadataBuffer = readBuffer<Sink::Metadata>(mEntity->metadata());
+    return metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
+}
+
+qint64 EntityBuffer::revision() const
+{
+    const auto metadataBuffer = readBuffer<Sink::Metadata>(mEntity->metadata());
+    return metadataBuffer ? metadataBuffer->revision() : -1;
 }

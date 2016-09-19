@@ -21,6 +21,7 @@
 #include "applicationdomaintype.h"
 
 #include "storage.h"
+#include "datastorequery.h"
 
 class ResultSet;
 class QByteArray;
@@ -44,6 +45,7 @@ class TypeImplementation<Sink::ApplicationDomain::Mail> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Mail Buffer;
     typedef Sink::ApplicationDomain::Buffer::MailBuilder BufferBuilder;
+    static DataStoreQuery prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction);
     static QSet<QByteArray> indexedProperties();
     /**
      * Returns the potential result set based on the indexes.

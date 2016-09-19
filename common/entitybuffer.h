@@ -3,6 +3,7 @@
 #include "sink_export.h"
 #include <functional>
 #include <flatbuffers/flatbuffers.h>
+#include "metadata_generated.h"
 #include <QByteArray>
 
 namespace Sink {
@@ -16,8 +17,11 @@ public:
     const uint8_t *resourceBuffer();
     const uint8_t *metadataBuffer();
     const uint8_t *localBuffer();
-    const Entity &entity();
+    const Entity &entity() const;
     bool isValid() const;
+
+    Sink::Operation operation() const;
+    qint64 revision() const;
 
     static void extractResourceBuffer(void *dataValue, int dataSize, const std::function<void(const uint8_t *, size_t size)> &handler);
     /*

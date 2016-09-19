@@ -32,6 +32,8 @@
 #include "../query.h"
 #include "../definitions.h"
 #include "../typeindex.h"
+#include "entitybuffer.h"
+#include "entity_generated.h"
 
 #include "event_generated.h"
 
@@ -83,4 +85,15 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Event>::BufferBuilder> > T
     propertyMapper->addMapping<Event::Uid>(&BufferBuilder::add_uid);
     propertyMapper->addMapping<Event::Attachment>(&BufferBuilder::add_attachment);
     return propertyMapper;
+}
+
+DataStoreQuery TypeImplementation<Event>::prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction)
+{
+
+    auto mapper = initializeReadPropertyMapper();
+    return DataStoreQuery(query, ApplicationDomain::getTypeName<Event>(), transaction, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
+
+        const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
+        return mapper->getProperty(property, localBuffer);
+    });
 }

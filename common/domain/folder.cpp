@@ -32,6 +32,8 @@
 #include "../query.h"
 #include "../definitions.h"
 #include "../typeindex.h"
+#include "entitybuffer.h"
+#include "entity_generated.h"
 
 #include "folder_generated.h"
 
@@ -87,4 +89,13 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Folder>::BufferBuilder> > 
     propertyMapper->addMapping<Folder::Icon>(&BufferBuilder::add_icon);
     propertyMapper->addMapping<Folder::SpecialPurpose>(&BufferBuilder::add_specialpurpose);
     return propertyMapper;
+}
+
+DataStoreQuery TypeImplementation<Folder>::prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction)
+{
+    auto mapper = initializeReadPropertyMapper();
+    return DataStoreQuery(query, ApplicationDomain::getTypeName<Folder>(), transaction, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
+        const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
+        return mapper->getProperty(property, localBuffer);
+    });
 }

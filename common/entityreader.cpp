@@ -150,205 +150,41 @@ void EntityReader<DomainType>::query(const Sink::Query &query, const std::functi
         });
 }
 
-template <class DomainType>
-void EntityReader<DomainType>::readEntity(const Sink::Storage::NamedDatabase &db, const QByteArray &key,
-    const std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> &resultCallback)
-{
-    db.findLatest(key,
-        [=](const QByteArray &key, const QByteArray &value) -> bool {
-            Sink::EntityBuffer buffer(value.data(), value.size());
-            const Sink::Entity &entity = buffer.entity();
-            const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
-            const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
-            const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
-            auto adaptor = mDomainTypeAdaptorFactory.createAdaptor(entity);
-            Q_ASSERT(adaptor);
-            resultCallback(DomainType::Ptr::create(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, adaptor), operation);
-            return false;
-        },
-        [&](const Sink::Storage::Error &error) { SinkWarning() << "Error during query: " << error.message << key; });
-}
+/* template <class DomainType> */
+/* void EntityReader<DomainType>::readEntity(const Sink::Storage::NamedDatabase &db, const QByteArray &key, */
+/*     const std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> &resultCallback) */
+/* { */
+/*     db.findLatest(key, */
+/*         [=](const QByteArray &key, const QByteArray &value) -> bool { */
+/*             Sink::EntityBuffer buffer(value.data(), value.size()); */
+/*             const Sink::Entity &entity = buffer.entity(); */
+/*             const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata()); */
+/*             const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1; */
+/*             const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation; */
+/*             auto adaptor = mDomainTypeAdaptorFactory.createAdaptor(entity); */
+/*             Q_ASSERT(adaptor); */
+/*             resultCallback(DomainType::Ptr::create(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, adaptor), operation); */
+/*             return false; */
+/*         }, */
+/*         [&](const Sink::Storage::Error &error) { SinkWarning() << "Error during query: " << error.message << key; }); */
+/* } */
 
-static inline ResultSet fullScan(const Sink::Storage::Transaction &transaction, const QByteArray &bufferType)
-{
-    // TODO use a result set with an iterator, to read values on demand
-    SinkTrace() << "Looking for : " << bufferType;
-    //The scan can return duplicate results if we have multiple revisions, so we use a set to deduplicate.
-    QSet<QByteArray> keys;
-    Storage::mainDatabase(transaction, bufferType)
-        .scan(QByteArray(),
-            [&](const QByteArray &key, const QByteArray &value) -> bool {
-                if (keys.contains(Sink::Storage::uidFromKey(key))) {
-                    //Not something that should persist if the replay works, so we keep a message for now.
-                    SinkTrace() << "Multiple revisions for key: " << key;
-                }
-                keys << Sink::Storage::uidFromKey(key);
-                return true;
-            },
-            [](const Sink::Storage::Error &error) { SinkWarning() << "Error during query: " << error.message; });
 
-    SinkTrace() << "Full scan retrieved " << keys.size() << " results.";
-    return ResultSet(keys.toList().toVector());
-}
-
-template <class DomainType>
-ResultSet EntityReader<DomainType>::loadInitialResultSet(const Sink::Query &query, QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting)
-{
-    if (!query.ids.isEmpty()) {
-        return ResultSet(query.ids.toVector());
-    }
-    QSet<QByteArray> appliedFilters;
-    QByteArray appliedSorting;
-    auto resultSet = Sink::ApplicationDomain::TypeImplementation<DomainType>::queryIndexes(query, mResourceInstanceIdentifier, appliedFilters, appliedSorting, mTransaction);
-    remainingFilters = query.propertyFilter.keys().toSet() - appliedFilters;
-    if (appliedSorting.isEmpty()) {
-        remainingSorting = query.sortProperty;
-    }
-
-    // We do a full scan if there were no indexes available to create the initial set.
-    if (appliedFilters.isEmpty()) {
-        // TODO this should be replaced by an index lookup as well
-        resultSet = fullScan(mTransaction, ApplicationDomain::getTypeName<DomainType>());
-    }
-    return resultSet;
-}
-
-template <class DomainType>
-ResultSet EntityReader<DomainType>::loadIncrementalResultSet(qint64 baseRevision, const Sink::Query &query, QSet<QByteArray> &remainingFilters)
-{
-    const auto bufferType = ApplicationDomain::getTypeName<DomainType>();
-    auto revisionCounter = QSharedPointer<qint64>::create(baseRevision);
-    remainingFilters = query.propertyFilter.keys().toSet();
-    return ResultSet([this, bufferType, revisionCounter]() -> QByteArray {
-        const qint64 topRevision = Sink::Storage::maxRevision(mTransaction);
-        // Spit out the revision keys one by one.
-        while (*revisionCounter <= topRevision) {
-            const auto uid = Sink::Storage::getUidFromRevision(mTransaction, *revisionCounter);
-            const auto type = Sink::Storage::getTypeFromRevision(mTransaction, *revisionCounter);
-            // SinkTrace() << "Revision" << *revisionCounter << type << uid;
-            Q_ASSERT(!uid.isEmpty());
-            Q_ASSERT(!type.isEmpty());
-            if (type != bufferType) {
-                // Skip revision
-                *revisionCounter += 1;
-                continue;
-            }
-            const auto key = Sink::Storage::assembleKey(uid, *revisionCounter);
-            *revisionCounter += 1;
-            return key;
-        }
-        SinkTrace() << "Finished reading incremental result set:" << *revisionCounter;
-        // We're done
-        return QByteArray();
-    });
-}
-
-template <class DomainType>
-ResultSet EntityReader<DomainType>::filterAndSortSet(ResultSet &resultSet, const std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)> &filter,
-    const Sink::Storage::NamedDatabase &db, bool initialQuery, const QByteArray &sortProperty)
-{
-    const bool sortingRequired = !sortProperty.isEmpty();
-    if (initialQuery && sortingRequired) {
-        SinkTrace() << "Sorting the resultset in memory according to property: " << sortProperty;
-        // Sort the complete set by reading the sort property and filling into a sorted map
-        auto sortedMap = QSharedPointer<QMap<QByteArray, QByteArray>>::create();
-        while (resultSet.next()) {
-            // readEntity is only necessary if we actually want to filter or know the operation type (but not a big deal if we do it always I guess)
-            readEntity(db, resultSet.id(),
-                [this, filter, initialQuery, sortedMap, sortProperty, &resultSet](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Sink::Operation operation) {
-                    // We're not interested in removals during the initial query
-                    if ((operation != Sink::Operation_Removal) && filter(domainObject)) {
-                        if (!sortProperty.isEmpty()) {
-                            const auto sortValue = domainObject->getProperty(sortProperty);
-                            if (sortValue.type() == QVariant::DateTime) {
-                                sortedMap->insert(QByteArray::number(std::numeric_limits<unsigned int>::max() - sortValue.toDateTime().toTime_t()), domainObject->identifier());
-                            } else {
-                                sortedMap->insert(sortValue.toString().toLatin1(), domainObject->identifier());
-                            }
-                        } else {
-                            sortedMap->insert(domainObject->identifier(), domainObject->identifier());
-                        }
-                    }
-                });
-        }
-
-        SinkTrace() << "Sorted " << sortedMap->size() << " values.";
-        auto iterator = QSharedPointer<QMapIterator<QByteArray, QByteArray>>::create(*sortedMap);
-        ResultSet::ValueGenerator generator = [this, iterator, sortedMap, &db, filter, initialQuery](
-            std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> callback) -> bool {
-            if (iterator->hasNext()) {
-                readEntity(db, iterator->next().value(), [this, filter, callback, initialQuery](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject,
-                                                             Sink::Operation operation) { callback(domainObject, Sink::Operation_Creation); });
-                return true;
-            }
-            return false;
-        };
-
-        auto skip = [iterator]() {
-            if (iterator->hasNext()) {
-                iterator->next();
-            }
-        };
-        return ResultSet(generator, skip);
-    } else {
-        auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
-        ResultSet::ValueGenerator generator = [this, resultSetPtr, &db, filter, initialQuery](
-            std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> callback) -> bool {
-            if (resultSetPtr->next()) {
-                // readEntity is only necessary if we actually want to filter or know the operation type (but not a big deal if we do it always I guess)
-                readEntity(db, resultSetPtr->id(), [this, filter, callback, initialQuery](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject, Sink::Operation operation) {
-                    if (initialQuery) {
-                        // We're not interested in removals during the initial query
-                        if ((operation != Sink::Operation_Removal) && filter(domainObject)) {
-                            // In the initial set every entity is new
-                            callback(domainObject, Sink::Operation_Creation);
-                        }
-                    } else {
-                        // Always remove removals, they probably don't match due to non-available properties
-                        if ((operation == Sink::Operation_Removal) || filter(domainObject)) {
-                            // TODO only replay if this is in the currently visible set (or just always replay, worst case we have a couple to many results)
-                            callback(domainObject, operation);
-                        }
-                    }
-                });
-                return true;
-            }
-            return false;
-        };
-        auto skip = [resultSetPtr]() { resultSetPtr->skip(1); };
-        return ResultSet(generator, skip);
-    }
-}
-
-template <class DomainType>
-QPair<qint64, qint64> EntityReader<DomainType>::load(const Sink::Query &query, const std::function<ResultSet(QSet<QByteArray> &, QByteArray &)> &baseSetRetriever, bool initialQuery, int offset, int batchSize, const std::function<bool(const typename DomainType::Ptr &value, Sink::Operation operation)> &callback)
-{
-    QTime time;
-    time.start();
-
-    auto db = Storage::mainDatabase(mTransaction, ApplicationDomain::getTypeName<DomainType>());
-
-    QSet<QByteArray> remainingFilters;
-    QByteArray remainingSorting;
-    auto resultSet = baseSetRetriever(remainingFilters, remainingSorting);
-    SinkTrace() << "Base set retrieved. " << Log::TraceTime(time.elapsed());
-    auto filteredSet = filterAndSortSet(resultSet, getFilter(remainingFilters, query), db, initialQuery, remainingSorting);
-    SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
-    auto replayedEntities = replaySet(filteredSet, offset, batchSize, callback);
-    // SinkTrace() << "Filtered set replayed. " << Log::TraceTime(time.elapsed());
-    return qMakePair(Sink::Storage::maxRevision(mTransaction), replayedEntities);
-}
 
 template <class DomainType>
 QPair<qint64, qint64> EntityReader<DomainType>::executeInitialQuery(const Sink::Query &query, int offset, int batchsize, const std::function<bool(const typename DomainType::Ptr &value, Sink::Operation operation)> &callback)
 {
     QTime time;
     time.start();
-    auto revisionAndReplayedEntities = load(query, [&](QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting) -> ResultSet {
-        return loadInitialResultSet(query, remainingFilters, remainingSorting);
-    }, true, offset, batchsize, callback);
+
+    auto preparedQuery = ApplicationDomain::TypeImplementation<DomainType>::prepareQuery(query, mTransaction);
+    auto resultSet = preparedQuery.execute();
+
+    SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
+    auto replayedEntities = replaySet(resultSet, offset, batchsize, callback);
+
     SinkTrace() << "Initial query took: " << Log::TraceTime(time.elapsed());
-    return revisionAndReplayedEntities;
+    return qMakePair(Sink::Storage::maxRevision(mTransaction), replayedEntities);
 }
 
 template <class DomainType>
@@ -357,33 +193,15 @@ QPair<qint64, qint64> EntityReader<DomainType>::executeIncrementalQuery(const Si
     QTime time;
     time.start();
     const qint64 baseRevision = lastRevision + 1;
-    auto revisionAndReplayedEntities = load(query, [&](QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting) -> ResultSet {
-        return loadIncrementalResultSet(baseRevision, query, remainingFilters);
-    }, false, 0, 0, callback);
-    SinkTrace() << "Initial query took: " << Log::TraceTime(time.elapsed());
-    return revisionAndReplayedEntities;
-}
 
-template <class DomainType>
-std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject)>
-EntityReader<DomainType>::getFilter(const QSet<QByteArray> remainingFilters, const Sink::Query &query)
-{
-    return [this, remainingFilters, query](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &domainObject) -> bool {
-        if (!query.ids.isEmpty()) {
-            if (!query.ids.contains(domainObject->identifier())) {
-                return false;
-            }
-        }
-        for (const auto &filterProperty : remainingFilters) {
-            const auto property = domainObject->getProperty(filterProperty);
-            const auto comparator = query.propertyFilter.value(filterProperty);
-            if (!comparator.matches(property)) {
-                SinkTrace() << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << comparator.value;
-                return false;
-            }
-        }
-        return true;
-    };
+    auto preparedQuery = ApplicationDomain::TypeImplementation<DomainType>::prepareQuery(query, mTransaction);
+    auto resultSet = preparedQuery.update(baseRevision);
+
+    SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
+    auto replayedEntities = replaySet(resultSet, 0, 0, callback);
+
+    SinkTrace() << "Incremental query took: " << Log::TraceTime(time.elapsed());
+    return qMakePair(Sink::Storage::maxRevision(mTransaction), replayedEntities);
 }
 
 template <class DomainType>
@@ -394,9 +212,11 @@ qint64 EntityReader<DomainType>::replaySet(ResultSet &resultSet, int offset, int
     int counter = 0;
     while (!batchSize || (counter < batchSize)) {
         const bool ret =
-            resultSet.next([&counter, callback](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation operation) -> bool {
+            resultSet.next([this, &counter, callback](const QByteArray &uid, const Sink::EntityBuffer &value, Sink::Operation operation) -> bool {
                 counter++;
-                return callback(value.staticCast<DomainType>(), operation);
+                auto adaptor = mDomainTypeAdaptorFactory.createAdaptor(value.entity());
+                Q_ASSERT(adaptor);
+                return callback(QSharedPointer<DomainType>::create(mResourceInstanceIdentifier, uid, value.revision(), adaptor), operation);
             });
         if (!ret) {
             break;

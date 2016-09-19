@@ -32,6 +32,8 @@
 #include "../query.h"
 #include "../definitions.h"
 #include "../typeindex.h"
+#include "entitybuffer.h"
+#include "entity_generated.h"
 
 #include "mail_generated.h"
 
@@ -110,3 +112,14 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Mail>::BufferBuilder> > Ty
     propertyMapper->addMapping<Mail::Sent>(&BufferBuilder::add_sent);
     return propertyMapper;
 }
+
+DataStoreQuery TypeImplementation<Mail>::prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction)
+{
+    auto mapper = initializeReadPropertyMapper();
+    return DataStoreQuery(query, ApplicationDomain::getTypeName<Mail>(), transaction, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
+
+        const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
+        return mapper->getProperty(property, localBuffer);
+    });
+}
+

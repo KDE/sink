@@ -18,7 +18,7 @@
  */
 #include "resultset.h"
 
-#include "common/log.h"
+#include "log.h"
 
 ResultSet::ResultSet() : mIt(nullptr)
 {
@@ -78,12 +78,12 @@ bool ResultSet::next()
             return true;
         }
     } else {
-        next([](const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation) { return false; });
+        next([](const QByteArray &, const Sink::EntityBuffer &, Sink::Operation) { return false; });
     }
     return false;
 }
 
-bool ResultSet::next(std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &value, Sink::Operation)> callback)
+bool ResultSet::next(const Callback &callback)
 {
     Q_ASSERT(mValueGenerator);
     return mValueGenerator(callback);
