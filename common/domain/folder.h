@@ -45,9 +45,8 @@ class TypeImplementation<Sink::ApplicationDomain::Folder> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Folder Buffer;
     typedef Sink::ApplicationDomain::Buffer::FolderBuilder BufferBuilder;
-    static DataStoreQuery prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction);
+    static DataStoreQuery::Ptr prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction);
     static QSet<QByteArray> indexedProperties();
-    static ResultSet queryIndexes(const Sink::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::Transaction &transaction);
     static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
     static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
     static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();

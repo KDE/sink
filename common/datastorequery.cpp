@@ -122,17 +122,17 @@ QVariant DataStoreQuery::getProperty(const Sink::Entity &entity, const QByteArra
     return mGetProperty(entity, property);
 }
 
-ResultSet DataStoreQuery::filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, bool initialQuery, const QByteArray &sortProperty)
+ResultSet DataStoreQuery::filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, const QByteArray &sortProperty)
 {
     const bool sortingRequired = !sortProperty.isEmpty();
-    if (initialQuery && sortingRequired) {
+    if (mInitialQuery && sortingRequired) {
         SinkTrace() << "Sorting the resultset in memory according to property: " << sortProperty;
         // Sort the complete set by reading the sort property and filling into a sorted map
         auto sortedMap = QSharedPointer<QMap<QByteArray, QByteArray>>::create();
         while (resultSet.next()) {
             // readEntity is only necessary if we actually want to filter or know the operation type (but not a big deal if we do it always I guess)
             readEntity(resultSet.id(),
-                [this, filter, initialQuery, sortedMap, sortProperty, &resultSet](const QByteArray &uid, const Sink::EntityBuffer &buffer) {
+                [this, filter, sortedMap, sortProperty, &resultSet](const QByteArray &uid, const Sink::EntityBuffer &buffer) {
 
                     const auto operation = buffer.operation();
 
@@ -154,10 +154,10 @@ ResultSet DataStoreQuery::filterAndSortSet(ResultSet &resultSet, const FilterFun
 
         SinkTrace() << "Sorted " << sortedMap->size() << " values.";
         auto iterator = QSharedPointer<QMapIterator<QByteArray, QByteArray>>::create(*sortedMap);
-        ResultSet::ValueGenerator generator = [this, iterator, sortedMap, filter, initialQuery](
+        ResultSet::ValueGenerator generator = [this, iterator, sortedMap, filter](
             std::function<void(const QByteArray &uid, const Sink::EntityBuffer &entity, Sink::Operation)> callback) -> bool {
             if (iterator->hasNext()) {
-                readEntity(iterator->next().value(), [this, filter, callback, initialQuery](const QByteArray &uid, const Sink::EntityBuffer &buffer) {
+                readEntity(iterator->next().value(), [this, filter, callback](const QByteArray &uid, const Sink::EntityBuffer &buffer) {
                         callback(uid, buffer, Sink::Operation_Creation);
                     });
                 return true;
@@ -173,13 +173,13 @@ ResultSet DataStoreQuery::filterAndSortSet(ResultSet &resultSet, const FilterFun
         return ResultSet(generator, skip);
     } else {
         auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
-        ResultSet::ValueGenerator generator = [this, resultSetPtr, filter, initialQuery](const ResultSet::Callback &callback) -> bool {
+        ResultSet::ValueGenerator generator = [this, resultSetPtr, filter](const ResultSet::Callback &callback) -> bool {
             if (resultSetPtr->next()) {
                 SinkTrace() << "Reading the next value: " << resultSetPtr->id();
                 // readEntity is only necessary if we actually want to filter or know the operation type (but not a big deal if we do it always I guess)
-                readEntity(resultSetPtr->id(), [this, filter, callback, initialQuery](const QByteArray &uid, const Sink::EntityBuffer &buffer) {
+                readEntity(resultSetPtr->id(), [this, filter, callback](const QByteArray &uid, const Sink::EntityBuffer &buffer) {
                     const auto operation = buffer.operation();
-                    if (initialQuery) {
+                    if (mInitialQuery) {
                         // We're not interested in removals during the initial query
                         if ((operation != Sink::Operation_Removal) && filter(uid, buffer)) {
                             // In the initial set every entity is new
@@ -225,22 +225,53 @@ DataStoreQuery::FilterFunction DataStoreQuery::getFilter(const QSet<QByteArray> 
     };
 }
 
+ResultSet DataStoreQuery::createFilteredSet(ResultSet &resultSet, const std::function<bool(const QByteArray &, const Sink::EntityBuffer &buffer)> &filter)
+{
+    auto resultSetPtr = QSharedPointer<ResultSet>::create(resultSet);
+    ResultSet::ValueGenerator generator = [this, resultSetPtr, filter](const ResultSet::Callback &callback) -> bool {
+        return resultSetPtr->next([=](const QByteArray &uid, const Sink::EntityBuffer &buffer, Sink::Operation operation) {
+            if (mInitialQuery) {
+                // We're not interested in removals during the initial query
+                if ((operation != Sink::Operation_Removal) && filter(uid, buffer)) {
+                    // In the initial set every entity is new
+                    callback(uid, buffer, Sink::Operation_Creation);
+                }
+            } else {
+                // Always remove removals, they probably don't match due to non-available properties
+                if ((operation == Sink::Operation_Removal) || filter(uid, buffer)) {
+                    // TODO only replay if this is in the currently visible set (or just always replay, worst case we have a couple to many results)
+                    callback(uid, buffer, operation);
+                }
+            }
+        });
+    };
+    auto skip = [resultSetPtr]() { resultSetPtr->skip(1); };
+    return ResultSet(generator, skip);
+}
+
+ResultSet DataStoreQuery::postSortFilter(ResultSet &resultSet)
+{
+    return resultSet;
+}
+
 ResultSet DataStoreQuery::update(qint64 baseRevision)
 {
     SinkTrace() << "Executing query update";
+    mInitialQuery = false;
     QSet<QByteArray> remainingFilters;
     QByteArray remainingSorting;
     auto resultSet = loadIncrementalResultSet(baseRevision, remainingFilters);
-    auto filteredSet = filterAndSortSet(resultSet, getFilter(remainingFilters), false, remainingSorting);
-    return filteredSet;
+    auto filteredSet = filterAndSortSet(resultSet, getFilter(remainingFilters), remainingSorting);
+    return postSortFilter(filteredSet);
 }
 
 ResultSet DataStoreQuery::execute()
 {
     SinkTrace() << "Executing query";
+    mInitialQuery = true;
     QSet<QByteArray> remainingFilters;
     QByteArray remainingSorting;
     auto resultSet = loadInitialResultSet(remainingFilters, remainingSorting);
-    auto filteredSet = filterAndSortSet(resultSet, getFilter(remainingFilters), true, remainingSorting);
-    return filteredSet;
+    auto filteredSet = filterAndSortSet(resultSet, getFilter(remainingFilters), remainingSorting);
+    return postSortFilter(filteredSet);
 }

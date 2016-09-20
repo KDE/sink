@@ -8,6 +8,8 @@ include(SinkTest)
 auto_tests (
     maildirmailtest
     maildirmailsynctest
+    maildirthreadtest
 )
 target_link_libraries(maildirmailtest sink_resource_maildir)
 target_link_libraries(maildirmailsynctest sink_resource_maildir)
+target_link_libraries(maildirthreadtest sink_resource_maildir)

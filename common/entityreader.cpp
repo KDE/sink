@@ -150,27 +150,6 @@ void EntityReader<DomainType>::query(const Sink::Query &query, const std::functi
         });
 }
 
-/* template <class DomainType> */
-/* void EntityReader<DomainType>::readEntity(const Sink::Storage::NamedDatabase &db, const QByteArray &key, */
-/*     const std::function<void(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &, Sink::Operation)> &resultCallback) */
-/* { */
-/*     db.findLatest(key, */
-/*         [=](const QByteArray &key, const QByteArray &value) -> bool { */
-/*             Sink::EntityBuffer buffer(value.data(), value.size()); */
-/*             const Sink::Entity &entity = buffer.entity(); */
-/*             const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata()); */
-/*             const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1; */
-/*             const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation; */
-/*             auto adaptor = mDomainTypeAdaptorFactory.createAdaptor(entity); */
-/*             Q_ASSERT(adaptor); */
-/*             resultCallback(DomainType::Ptr::create(mResourceInstanceIdentifier, Sink::Storage::uidFromKey(key), revision, adaptor), operation); */
-/*             return false; */
-/*         }, */
-/*         [&](const Sink::Storage::Error &error) { SinkWarning() << "Error during query: " << error.message << key; }); */
-/* } */
-
-
-
 template <class DomainType>
 QPair<qint64, qint64> EntityReader<DomainType>::executeInitialQuery(const Sink::Query &query, int offset, int batchsize, const std::function<bool(const typename DomainType::Ptr &value, Sink::Operation operation)> &callback)
 {
@@ -178,7 +157,7 @@ QPair<qint64, qint64> EntityReader<DomainType>::executeInitialQuery(const Sink::
     time.start();
 
     auto preparedQuery = ApplicationDomain::TypeImplementation<DomainType>::prepareQuery(query, mTransaction);
-    auto resultSet = preparedQuery.execute();
+    auto resultSet = preparedQuery->execute();
 
     SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
     auto replayedEntities = replaySet(resultSet, offset, batchsize, callback);
@@ -195,7 +174,7 @@ QPair<qint64, qint64> EntityReader<DomainType>::executeIncrementalQuery(const Si
     const qint64 baseRevision = lastRevision + 1;
 
     auto preparedQuery = ApplicationDomain::TypeImplementation<DomainType>::prepareQuery(query, mTransaction);
-    auto resultSet = preparedQuery.update(baseRevision);
+    auto resultSet = preparedQuery->update(baseRevision);
 
     SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
     auto replayedEntities = replaySet(resultSet, 0, 0, callback);

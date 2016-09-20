@@ -13,6 +13,8 @@ table Mail {
   draft:bool = false;
   trash:bool = false;
   sent:bool = false;
+  messageId:string;
+  parentMessageId:string;
 }
 
 root_type Mail;

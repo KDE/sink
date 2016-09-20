@@ -238,6 +238,8 @@ struct SINK_EXPORT Mail : public Entity {
     SINK_PROPERTY(bool, Draft, draft);
     SINK_PROPERTY(bool, Trash, trash);
     SINK_PROPERTY(bool, Sent, sent);
+    SINK_EXTRACTED_PROPERTY(QByteArray, MessageId, messageId);
+    SINK_EXTRACTED_PROPERTY(QByteArray, ParentMessageId, parentMessageId);
 };
 
 /**

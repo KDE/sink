@@ -55,11 +55,6 @@ static TypeIndex &getIndex()
     return *index;
 }
 
-ResultSet TypeImplementation<Folder>::queryIndexes(const Sink::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::Transaction &transaction)
-{
-    return getIndex().query(query, appliedFilters, appliedSorting, transaction);
-}
-
 void TypeImplementation<Folder>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
 {
     SinkTrace() << "Indexing " << identifier;
@@ -91,10 +86,10 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Folder>::BufferBuilder> > 
     return propertyMapper;
 }
 
-DataStoreQuery TypeImplementation<Folder>::prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction)
+DataStoreQuery::Ptr TypeImplementation<Folder>::prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction)
 {
     auto mapper = initializeReadPropertyMapper();
-    return DataStoreQuery(query, ApplicationDomain::getTypeName<Folder>(), transaction, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
+    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Folder>(), transaction, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
         const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
         return mapper->getProperty(property, localBuffer);
     });

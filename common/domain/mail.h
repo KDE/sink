@@ -45,14 +45,8 @@ class TypeImplementation<Sink::ApplicationDomain::Mail> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Mail Buffer;
     typedef Sink::ApplicationDomain::Buffer::MailBuilder BufferBuilder;
-    static DataStoreQuery prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction);
+    static DataStoreQuery::Ptr prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction);
     static QSet<QByteArray> indexedProperties();
-    /**
-     * Returns the potential result set based on the indexes.
-     * 
-     * An empty result set indicates that a full scan is required.
-     */
-    static ResultSet queryIndexes(const Sink::Query &query, const QByteArray &resourceInstanceIdentifier, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::Transaction &transaction);
     static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
     static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
     static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();

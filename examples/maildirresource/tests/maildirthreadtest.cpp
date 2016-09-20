@@ -18,14 +18,14 @@
  */
 #include <QtTest>
 
-#include <tests/mailsynctest.h>
+#include <tests/mailthreadtest.h>
 #include "../maildirresource.h"
 #include "../libmaildir/maildir.h"
 
 #include "common/test.h"
 #include "common/domain/applicationdomaintype.h"
 
-#include "utils.h"
+#include "utils.h";
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -35,7 +35,7 @@ using namespace Sink::ApplicationDomain;
  *
  * This test requires the maildir resource installed.
  */
-class MaildirMailSyncTest : public Sink::MailSyncTest
+class MaildirThreadTest : public Sink::MailThreadTest
 {
     Q_OBJECT
 
@@ -45,10 +45,10 @@ class MaildirMailSyncTest : public Sink::MailSyncTest
 protected:
     void resetTestEnvironment() Q_DECL_OVERRIDE
     {
-        targetPath = tempDir.path() + "/maildir1/";
+        targetPath = tempDir.path() + "/maildir2/";
         QDir dir(targetPath);
         dir.removeRecursively();
-        copyRecursively(TESTDATAPATH "/maildir1", targetPath);
+        copyRecursively(TESTDATAPATH "/maildir2", targetPath);
     }
 
     Sink::ApplicationDomain::SinkResource createResource() Q_DECL_OVERRIDE
@@ -70,45 +70,21 @@ protected:
         ::MaildirResource::removeFromDisk(identifier);
     }
 
-    void createFolder(const QStringList &folderPath) Q_DECL_OVERRIDE
-    {
-        auto rootPath = tempDir.path() + "/maildir1/";
-        KPIM::Maildir maildir(rootPath + folderPath.join('/'), false);
-        maildir.create();
-    }
-
-    void removeFolder(const QStringList &folderPath) Q_DECL_OVERRIDE
-    {
-        auto rootPath = tempDir.path() + "/maildir1/";
-        KPIM::Maildir maildir(rootPath + folderPath.join('/'), false);
-        maildir.remove();
-        QDir dir(rootPath + folderPath.join('/'));
-        dir.removeRecursively();
-        // QVERIFY(maildir.removeSubFolder(name));
-    }
-
     QByteArray createMessage(const QStringList &folderPath, const QByteArray &message) Q_DECL_OVERRIDE
     {
-        auto rootPath = tempDir.path() + "/maildir1/";
+        auto rootPath = tempDir.path() + "/maildir2/";
         KPIM::Maildir maildir(rootPath + folderPath.join('/'));
         return maildir.addEntry(message).toUtf8();
     }
 
     void removeMessage(const QStringList &folderPath, const QByteArray &messageIdentifier) Q_DECL_OVERRIDE
     {
-        auto rootPath = tempDir.path() + "/maildir1/";
+        auto rootPath = tempDir.path() + "/maildir2/";
         KPIM::Maildir maildir(rootPath + folderPath.join('/'));
         maildir.removeEntry(messageIdentifier);
     }
-
-    void markAsImportant(const QStringList &folderPath, const QByteArray &messageIdentifier) Q_DECL_OVERRIDE
-    {
-        auto rootPath = tempDir.path() + "/maildir1/";
-        KPIM::Maildir maildir(rootPath + folderPath.join('/'));
-        maildir.changeEntryFlags(messageIdentifier, KPIM::Maildir::Flagged);
-    }
 };
 
-QTEST_MAIN(MaildirMailSyncTest)
+QTEST_MAIN(MaildirThreadTest)
 
-#include "maildirmailsynctest.moc"
+#include "maildirthreadtest.moc"

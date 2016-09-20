@@ -27,24 +27,29 @@
 
 class DataStoreQuery {
 public:
+    typedef QSharedPointer<DataStoreQuery> Ptr;
+
     DataStoreQuery(const Sink::Query &query, const QByteArray &type, Sink::Storage::Transaction &transaction, TypeIndex &typeIndex, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty);
     ResultSet execute();
     ResultSet update(qint64 baseRevision);
 
-private:
+protected:
 
     typedef std::function<bool(const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> FilterFunction;
     typedef std::function<void(const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> BufferCallback;
 
-    QVariant getProperty(const Sink::Entity &entity, const QByteArray &property);
+    virtual QVariant getProperty(const Sink::Entity &entity, const QByteArray &property);
 
-    void readEntity(const QByteArray &key, const BufferCallback &resultCallback);
+    virtual void readEntity(const QByteArray &key, const BufferCallback &resultCallback);
 
-    ResultSet loadInitialResultSet(QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting);
-    ResultSet loadIncrementalResultSet(qint64 baseRevision, QSet<QByteArray> &remainingFilters);
+    virtual ResultSet loadInitialResultSet(QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting);
+    virtual ResultSet loadIncrementalResultSet(qint64 baseRevision, QSet<QByteArray> &remainingFilters);
 
-    ResultSet filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, bool initialQuery, const QByteArray &sortProperty);
-    FilterFunction getFilter(const QSet<QByteArray> &remainingFilters);
+    virtual ResultSet filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, const QByteArray &sortProperty);
+    virtual ResultSet postSortFilter(ResultSet &resultSet);
+    virtual FilterFunction getFilter(const QSet<QByteArray> &remainingFilters);
+
+    ResultSet createFilteredSet(ResultSet &resultSet, const std::function<bool(const QByteArray &, const Sink::EntityBuffer &buffer)> &);
 
     Sink::Query mQuery;
     Sink::Storage::Transaction &mTransaction;
@@ -52,6 +57,7 @@ private:
     TypeIndex &mTypeIndex;
     Sink::Storage::NamedDatabase mDb;
     std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> mGetProperty;
+    bool mInitialQuery;
 };
 
 

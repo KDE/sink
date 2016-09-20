@@ -36,48 +36,98 @@ QString MailPropertyExtractor::getFilePathFromMimeMessagePath(const QString &s) 
     return s;
 }
 
-void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail)
+struct MimeMessageReader {
+    MimeMessageReader(const QString &mimeMessagePath)
+        : f(mimeMessagePath),
+        mapped(0),
+        mappedSize(0)
+    {
+        if (mimeMessagePath.isNull()) {
+            SinkTrace() << "No mime message";
+            return;
+        }
+        SinkTrace() << "Updating indexed properties " << mimeMessagePath;
+        if (!f.open(QIODevice::ReadOnly)) {
+            SinkWarning() << "Failed to open the file: " << mimeMessagePath;
+            return;
+        }
+        if (!f.size()) {
+            SinkWarning() << "The file is empty.";
+            return;
+        }
+        mappedSize = qMin((qint64)8000, f.size());
+        mapped = f.map(0, mappedSize);
+        if (!mapped) {
+            SinkWarning() << "Failed to map the file: " << f.errorString();
+            return;
+        }
+    }
+
+    KMime::Message::Ptr mimeMessage()
+    {
+        if (!mapped) {
+            return KMime::Message::Ptr();
+        }
+        Q_ASSERT(mapped);
+        Q_ASSERT(mappedSize);
+        auto msg = KMime::Message::Ptr(new KMime::Message);
+        msg->setHead(KMime::CRLFtoLF(QByteArray::fromRawData(reinterpret_cast<const char*>(mapped), mappedSize)));
+        msg->parse();
+        return msg;
+    }
+
+    QFile f;
+    uchar *mapped;
+    qint64 mappedSize;
+};
+
+static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, KMime::Message::Ptr msg)
 {
-    const auto mimeMessagePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
-    if (mimeMessagePath.isNull()) {
-        SinkTrace() << "No mime message";
-        return;
-    }
-    SinkTrace() << "Updating indexed properties " << mimeMessagePath;
-    QFile f(mimeMessagePath);
-    if (!f.open(QIODevice::ReadOnly)) {
-        SinkWarning() << "Failed to open the file: " << mimeMessagePath;
-        return;
-    }
-    if (!f.size()) {
-        SinkWarning() << "The file is empty.";
-        return;
-    }
-    const auto mappedSize = qMin((qint64)8000, f.size());
-    auto mapped = f.map(0, mappedSize);
-    if (!mapped) {
-        SinkWarning() << "Failed to map the file: " << f.errorString();
-        return;
-    }
-
-    KMime::Message *msg = new KMime::Message;
-    msg->setHead(KMime::CRLFtoLF(QByteArray::fromRawData(reinterpret_cast<const char*>(mapped), mappedSize)));
-    msg->parse();
-
     mail.setExtractedSubject(msg->subject(true)->asUnicodeString());
     mail.setExtractedSender(msg->from(true)->asUnicodeString());
     mail.setExtractedSenderName(msg->from(true)->asUnicodeString());
     mail.setExtractedDate(msg->date(true)->dateTime());
+
+    //The rest should never change, unless we didn't have the headers available initially.
+    auto messageId = msg->messageID(true)->identifier();
+
+    //Ensure the mssageId is unique.
+    //If there already is one with the same id we'd have to assign a new message id, which probably doesn't make any sense.
+
+    //The last is the parent
+    auto references = msg->references(true)->identifiers();
+
+    //The first is the parent
+    auto inReplyTo = msg->inReplyTo(true)->identifiers();
+    QByteArray parentMessageId;
+    if (!references.isEmpty()) {
+        parentMessageId = references.last();
+        //TODO we could use the rest of the references header to complete the ancestry in case we have missing parents.
+    } else {
+        if (!inReplyTo.isEmpty()) {
+            //According to RFC5256 we should ignore all but the first
+            parentMessageId = inReplyTo.first();
+        }
+    }
+
+    mail.setExtractedMessageId(messageId);
+    if (!parentMessageId.isEmpty()) {
+        mail.setExtractedParentMessageId(parentMessageId);
+    }
 }
 
 void MailPropertyExtractor::newEntity(Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction)
 {
-    updatedIndexedProperties(mail);
+    MimeMessageReader mimeMessageReader(getFilePathFromMimeMessagePath(mail.getMimeMessagePath()));
+    auto msg = mimeMessageReader.mimeMessage();
+    updatedIndexedProperties(mail, msg);
 }
 
 void MailPropertyExtractor::modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail,Sink::Storage::Transaction &transaction)
 {
-    updatedIndexedProperties(newMail);
+    MimeMessageReader mimeMessageReader(getFilePathFromMimeMessagePath(newMail.getMimeMessagePath()));
+    auto msg = mimeMessageReader.mimeMessage();
+    updatedIndexedProperties(newMail, msg);
 }
 
 
