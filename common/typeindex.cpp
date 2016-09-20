@@ -27,7 +27,10 @@ SINK_DEBUG_AREA("typeindex")
 static QByteArray getByteArray(const QVariant &value)
 {
     if (value.type() == QVariant::DateTime) {
-        return value.toDateTime().toString().toLatin1();
+        const auto result = value.toDateTime().toString().toLatin1();
+        if (result.isEmpty()) {
+            return "nodate";
+        }
     }
     if (value.isValid() && !value.toByteArray().isEmpty()) {
         return value.toByteArray();
