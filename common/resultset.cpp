@@ -65,6 +65,7 @@ ResultSet::ResultSet(const ResultSet &other) : mResultSet(other.mResultSet), mIt
 
 bool ResultSet::next()
 {
+    Q_ASSERT(!mValueGenerator);
     if (mIt) {
         if (mIt != mResultSet.constEnd() && !mFirst) {
             mIt++;
