@@ -78,17 +78,100 @@ void MailThreadTest::testListThreadLeader()
     auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
         QCOMPARE(mails.size(), 1);
         QVERIFY(mails.first()->getSubject().startsWith(QString("ThreadLeader")));
-        const auto data = mails.first()->getMimeMessage();
-        QVERIFY(!data.isEmpty());
-
-        KMime::Message m;
-        m.setContent(data);
-        m.parse();
-        QCOMPARE(mails.first()->getSubject(), m.subject(true)->asUnicodeString());
-        QVERIFY(!mails.first()->getFolder().isEmpty());
-        QVERIFY(mails.first()->getDate().isValid());
     });
     VERIFYEXEC(job);
+}
+
+/*
+ * Thread:
+ * 1.
+ *  2.
+ *   3.
+ *
+ * 3. first, should result in a new thread.
+ * 1. second, should be merged by subject
+ * 2. last, should complete the thread.
+ */
+void MailThreadTest::testIndexInMixedOrder()
+{
+    auto folder = Folder::create(mResourceInstanceIdentifier);
+    folder.setName("folder");
+    VERIFYEXEC(Store::create(folder));
+
+    auto message1 = KMime::Message::Ptr::create();
+    message1->subject(true)->fromUnicodeString("1", "utf8");
+    message1->messageID(true)->generate("foobar.com");
+    message1->date(true)->setDateTime(QDateTime::currentDateTimeUtc());
+    message1->assemble();
+
+    auto message2 = KMime::Message::Ptr::create();
+    message2->subject(true)->fromUnicodeString("Re: 1", "utf8");
+    message2->messageID(true)->generate("foobar.com");
+    message2->inReplyTo(true)->appendIdentifier(message1->messageID(true)->identifier());
+    message2->date(true)->setDateTime(QDateTime::currentDateTimeUtc().addSecs(1));
+    message2->assemble();
+
+    auto message3 = KMime::Message::Ptr::create();
+    message3->subject(true)->fromUnicodeString("Re: Re: 1", "utf8");
+    message3->messageID(true)->generate("foobar.com");
+    message3->inReplyTo(true)->appendIdentifier(message2->messageID(true)->identifier());
+    message3->date(true)->setDateTime(QDateTime::currentDateTimeUtc().addSecs(2));
+    message3->assemble();
+
+    {
+        auto mail = Mail::create(mResourceInstanceIdentifier);
+        mail.setMimeMessage(message3->encodedContent());
+        mail.setFolder(folder);
+        VERIFYEXEC(Store::create(mail));
+    }
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
+
+    Sink::Query query;
+    query.resources << mResourceInstanceIdentifier;
+    query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
+    query.threadLeaderOnly = true;
+    query.sort<Mail::Date>();
+    query.filter<Mail::Folder>(folder);
+
+    {
+        auto job = Store::fetchAll<Mail>(query)
+            .syncThen<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
+                QCOMPARE(mails.size(), 1);
+                auto mail = *mails.first();
+                QCOMPARE(mail.getSubject(), QString::fromLatin1("Re: Re: 1"));
+            });
+        VERIFYEXEC(job);
+    }
+
+    {
+        auto mail = Mail::create(mResourceInstanceIdentifier);
+        mail.setMimeMessage(message1->encodedContent());
+        mail.setFolder(folder);
+        VERIFYEXEC(Store::create(mail));
+    }
+
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
+    {
+        auto job = Store::fetchAll<Mail>(query)
+            .syncThen<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
+                QCOMPARE(mails.size(), 1);
+                auto mail = *mails.first();
+                QCOMPARE(mail.getSubject(), QString::fromLatin1("Re: Re: 1"));
+            });
+        VERIFYEXEC(job);
+        //TODO ensure we also find message 1 as part of thread.
+    }
+
+    /* VERIFYEXEC(Store::remove(mail)); */
+    /* VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier)); */
+    /* { */
+    /*     auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name)) */
+    /*         .syncThen<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) { */
+    /*             QCOMPARE(mails.size(), 0); */
+    /*         }); */
+    /*     VERIFYEXEC(job); */
+    /* } */
+    /* VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier)); */
 }
 
 #include "mailthreadtest.moc"

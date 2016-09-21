@@ -63,34 +63,98 @@ static TypeIndex &getIndex()
     return *index;
 }
 
+static QString stripOffPrefixes(const QString &subject)
+{
+    //TODO this hardcoded list is probably not good enough (especially regarding internationalization)
+    //TODO this whole routine, including internationalized re/fwd ... should go into some library.
+    //We'll require the same for generating reply/forward subjects in kube
+    static QStringList defaultReplyPrefixes = QStringList() << QLatin1String("Re\\s*:")
+                                                            << QLatin1String("Re\\[\\d+\\]:")
+                                                            << QLatin1String("Re\\d+:");
+
+    static QStringList defaultForwardPrefixes = QStringList() << QLatin1String("Fwd:")
+                                                              << QLatin1String("FW:");
+
+    QStringList replyPrefixes; // = GlobalSettings::self()->replyPrefixes();
+    if (replyPrefixes.isEmpty()) {
+        replyPrefixes = defaultReplyPrefixes;
+    }
+
+    QStringList forwardPrefixes; // = GlobalSettings::self()->forwardPrefixes();
+    if (forwardPrefixes.isEmpty()) {
+        forwardPrefixes = defaultReplyPrefixes;
+    }
+
+    const QStringList prefixRegExps = replyPrefixes + forwardPrefixes;
+
+    // construct a big regexp that
+    // 1. is anchored to the beginning of str (sans whitespace)
+    // 2. matches at least one of the part regexps in prefixRegExps
+    const QString bigRegExp = QString::fromLatin1("^(?:\\s+|(?:%1))+\\s*").arg(prefixRegExps.join(QLatin1String(")|(?:")));
+
+    static QString regExpPattern;
+    static QRegExp regExp;
+
+    regExp.setCaseSensitivity(Qt::CaseInsensitive);
+    if (regExpPattern != bigRegExp) {
+        // the prefixes have changed, so update the regexp
+        regExpPattern = bigRegExp;
+        regExp.setPattern(regExpPattern);
+    }
+
+    if(regExp.isValid()) {
+        QString tmp = subject;
+        if (regExp.indexIn( tmp ) == 0) {
+            return tmp.remove(0, regExp.matchedLength());
+        }
+    } else {
+        SinkWarning() << "bigRegExp = \""
+                   << bigRegExp << "\"\n"
+                   << "prefix regexp is invalid!";
+    }
+
+    return subject;
+}
+
+
 static void updateThreadingIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
 {
     auto messageId = bufferAdaptor.getProperty(Mail::MessageId::name).toByteArray();
     auto parentMessageId = bufferAdaptor.getProperty(Mail::ParentMessageId::name).toByteArray();
+    auto subject = bufferAdaptor.getProperty(Mail::Subject::name).toString();
 
     Index msgIdIndex("msgId", transaction);
     Index msgIdThreadIdIndex("msgIdThreadId", transaction);
+    Index subjectThreadIdIndex("subjectThreadId", transaction);
 
     //Add the message to the index
     Q_ASSERT(msgIdIndex.lookup(messageId).isEmpty());
     msgIdIndex.add(messageId, identifier);
 
-    //If parent is already available, add to thread of parent
+    auto normalizedSubject = stripOffPrefixes(subject).toUtf8();
+
     QByteArray thread;
+    //If parent is already available, add to thread of parent
     if (!parentMessageId.isEmpty() && !msgIdIndex.lookup(parentMessageId).isEmpty()) {
         thread = msgIdThreadIdIndex.lookup(parentMessageId);
         msgIdThreadIdIndex.add(messageId, thread);
+        subjectThreadIdIndex.add(normalizedSubject, thread);
     } else {
-        thread = QUuid::createUuid().toByteArray();
-        if (!parentMessageId.isEmpty()) {
-            //Register parent with thread for when it becomes available
-            msgIdThreadIdIndex.add(parentMessageId, thread);
+        //Try to lookup the thread by subject:
+        thread = subjectThreadIdIndex.lookup(normalizedSubject);
+        if (!thread.isEmpty()) {
+            msgIdThreadIdIndex.add(messageId, thread);
+        } else {
+            thread = QUuid::createUuid().toByteArray();
+            subjectThreadIdIndex.add(normalizedSubject, thread);
+            if (!parentMessageId.isEmpty()) {
+                //Register parent with thread for when it becomes available
+                msgIdThreadIdIndex.add(parentMessageId, thread);
+            }
         }
     }
     Q_ASSERT(!thread.isEmpty());
     msgIdThreadIdIndex.add(messageId, thread);
-
-    //Look for parentMessageId and resolve to local id if available
 }
 
 void TypeImplementation<Mail>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
@@ -173,6 +237,7 @@ protected:
                 if (rootCollection->contains(thread)) {
                     auto date = rootCollection->value(thread);
                     //The mail we have in our result already is newer, so we can ignore this one
+                    //This is always true during the initial query if the set has been sorted by date.
                     if (date > getProperty(entity.entity(), ApplicationDomain::Mail::Date::name).toDateTime()) {
                         return false;
                     }

@@ -51,6 +51,7 @@ private slots:
     void cleanup();
 
     void testListThreadLeader();
+    void testIndexInMixedOrder();
 };
 
 }
