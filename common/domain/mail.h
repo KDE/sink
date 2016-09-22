@@ -25,6 +25,7 @@
 
 class ResultSet;
 class QByteArray;
+class DataStoreQuery;
 
 template<typename T>
 class ReadPropertyMapper;
@@ -45,7 +46,7 @@ class TypeImplementation<Sink::ApplicationDomain::Mail> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Mail Buffer;
     typedef Sink::ApplicationDomain::Buffer::MailBuilder BufferBuilder;
-    static DataStoreQuery::Ptr prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction);
+    static QSharedPointer<DataStoreQuery> prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction);
     static QSet<QByteArray> indexedProperties();
     static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
     static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);

@@ -25,7 +25,12 @@
 #include "query.h"
 #include "entitybuffer.h"
 
+
+class Source;
+class FilterBase;
+
 class DataStoreQuery {
+    friend class FilterBase;
 public:
     typedef QSharedPointer<DataStoreQuery> Ptr;
 
@@ -42,14 +47,17 @@ protected:
 
     virtual void readEntity(const QByteArray &key, const BufferCallback &resultCallback);
 
-    virtual ResultSet loadInitialResultSet(QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting);
-    virtual ResultSet loadIncrementalResultSet(qint64 baseRevision, QSet<QByteArray> &remainingFilters);
+    /* virtual ResultSet loadInitialResultSet(QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting); */
+    /* virtual ResultSet loadIncrementalResultSet(qint64 baseRevision, QSet<QByteArray> &remainingFilters); */
 
-    virtual ResultSet filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, const QByteArray &sortProperty);
-    virtual ResultSet postSortFilter(ResultSet &resultSet);
-    virtual FilterFunction getFilter(const QSet<QByteArray> &remainingFilters);
+    /* virtual ResultSet filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, const QByteArray &sortProperty); */
+    /* virtual ResultSet postSortFilter(ResultSet &resultSet); */
+    /* virtual FilterFunction getFilter(const QSet<QByteArray> &remainingFilters); */
 
     ResultSet createFilteredSet(ResultSet &resultSet, const std::function<bool(const QByteArray &, const Sink::EntityBuffer &buffer)> &);
+    QVector<QByteArray> loadIncrementalResultSet(qint64 baseRevision);
+
+    void setupQuery();
 
     Sink::Query mQuery;
     Sink::Storage::Transaction &mTransaction;
@@ -58,7 +66,63 @@ protected:
     Sink::Storage::NamedDatabase mDb;
     std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> mGetProperty;
     bool mInitialQuery;
+    QSharedPointer<FilterBase> mCollector;
+    QSharedPointer<Source> mSource;
 };
+
+
+class FilterBase {
+public:
+    typedef QSharedPointer<FilterBase> Ptr;
+    FilterBase(DataStoreQuery *store)
+        : mDatastore(store)
+    {
+
+    }
+
+    FilterBase(FilterBase::Ptr source, DataStoreQuery *store)
+        : mSource(source),
+        mDatastore(store)
+    {
+    }
+
+    virtual ~FilterBase(){}
+
+    void readEntity(const QByteArray &key, const std::function<void(const QByteArray &, const Sink::EntityBuffer &buffer)> &callback)
+    {
+        Q_ASSERT(mDatastore);
+        mDatastore->readEntity(key, callback);
+    }
+
+    QVariant getProperty(const Sink::Entity &entity, const QByteArray &property)
+    {
+        Q_ASSERT(mDatastore);
+        return mDatastore->getProperty(entity, property);
+    }
+
+    virtual void skip() { mSource->skip(); };
+
+    //Returns true for as long as a result is available
+    virtual bool next(const std::function<void(Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> &callback) = 0;
+
+    QSharedPointer<FilterBase> mSource;
+    DataStoreQuery *mDatastore;
+};
+
+/* class Reduce { */
+/*     QByteArray property; */
+
+/*     //Property - value, reduction result */
+/*     QHash<QVariant, QVariant> mReducedValue; */
+/* }; */
+
+/* class Bloom { */
+/*     QByteArray property; */
+
+/*     //Property - value, reduction result */
+/*     QSet<QVariant> mPropertyValues; */
+
+/* }; */
 
 
 

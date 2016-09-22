@@ -87,7 +87,7 @@ template <>
 void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
 {
     auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
-        // SinkTrace() << "Indexing " << mType + ".index." + property << date.toString();
+        //SinkTrace() << "Indexing " << mType + ".index." + property << getByteArray(value);
         Index(indexName(property), transaction).add(getByteArray(value), identifier);
     };
     mIndexer.insert(property, indexer);
@@ -138,7 +138,7 @@ void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDoma
     }
 }
 
-ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::Transaction &transaction)
+QVector<QByteArray> TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::Transaction &transaction)
 {
     QVector<QByteArray> keys;
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
@@ -151,7 +151,7 @@ ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFi
             appliedFilters << it.key();
             appliedSorting = it.value();
             SinkTrace() << "Index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
-            return ResultSet(keys);
+            return keys;
         }
     }
     for (const auto &property : mProperties) {
@@ -162,9 +162,9 @@ ResultSet TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFi
                 lookupKey, [&](const QByteArray &value) { keys << value; }, [property](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
             appliedFilters << property;
             SinkTrace() << "Index lookup on " << property << " found " << keys.size() << " keys.";
-            return ResultSet(keys);
+            return keys;
         }
     }
     SinkTrace() << "No matching index";
-    return ResultSet(keys);
+    return keys;
 }

@@ -33,6 +33,7 @@
 #include "../definitions.h"
 #include "../typeindex.h"
 #include "entitybuffer.h"
+#include "datastorequery.h"
 #include "entity_generated.h"
 
 #include "event_generated.h"

@@ -120,14 +120,18 @@ void MailPropertyExtractor::newEntity(Sink::ApplicationDomain::Mail &mail, Sink:
 {
     MimeMessageReader mimeMessageReader(getFilePathFromMimeMessagePath(mail.getMimeMessagePath()));
     auto msg = mimeMessageReader.mimeMessage();
-    updatedIndexedProperties(mail, msg);
+    if (msg) {
+        updatedIndexedProperties(mail, msg);
+    }
 }
 
 void MailPropertyExtractor::modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail,Sink::Storage::Transaction &transaction)
 {
     MimeMessageReader mimeMessageReader(getFilePathFromMimeMessagePath(newMail.getMimeMessagePath()));
     auto msg = mimeMessageReader.mimeMessage();
-    updatedIndexedProperties(newMail, msg);
+    if (msg) {
+        updatedIndexedProperties(newMail, msg);
+    }
 }
 
 

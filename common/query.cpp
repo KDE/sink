@@ -51,6 +51,9 @@ bool Query::Comparator::matches(const QVariant &v) const
     switch(comparator) {
         case Equals:
             if (!v.isValid()) {
+                if (!value.isValid()) {
+                    return true;
+                }
                 return false;
             }
             return v == value;

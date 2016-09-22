@@ -12,6 +12,8 @@
 #include "test.h"
 #include "testutils.h"
 
+using namespace Sink::ApplicationDomain;
+
 /**
  * Test of the query system using the dummy resource.
  *
@@ -95,6 +97,46 @@ private slots:
 
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
+    }
+
+    void testFilter()
+    {
+        // Setup
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setUid("test1");
+            mail.setFolder("folder1");
+            Sink::Store::create<Mail>(mail).exec().waitForFinished();
+        }
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setUid("test2");
+            mail.setFolder("folder2");
+            Sink::Store::create<Mail>(mail).exec().waitForFinished();
+        }
+
+        // Test
+        Sink::Query query;
+        query.resources << "sink.dummy.instance1";
+        query.liveQuery = true;
+        query.filter<Mail::Folder>("folder1");
+
+        // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+
+        auto mail = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Mail::Ptr>();
+        {
+            mail->setFolder("folder2");
+            Sink::Store::modify<Mail>(*mail).exec().waitForFinished();
+        }
+        QTRY_COMPARE(model->rowCount(), 0);
+
+        {
+            mail->setFolder("folder1");
+            Sink::Store::modify<Mail>(*mail).exec().waitForFinished();
+        }
+        QTRY_COMPARE(model->rowCount(), 1);
     }
 
     void testById()
@@ -200,6 +242,13 @@ private slots:
             Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
         }
 
+        {
+            Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
+            mail.setProperty("uid", "test2");
+            mail.setProperty("sender", "doe@example.org");
+            Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+        }
+
         // Test
         Sink::Query query;
         query.resources << "sink.dummy.instance1";
@@ -252,6 +301,61 @@ private slots:
 
         // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
+    }
+
+    /*
+     * Filter by two properties to make sure that we also use a non-index based filter.
+     */
+    void testMailByUidAndFolder()
+    {
+        // Setup
+        Folder::Ptr folderEntity;
+        {
+            Folder folder("sink.dummy.instance1");
+            Sink::Store::create<Folder>(folder).exec().waitForFinished();
+
+            Sink::Query query;
+            query.resources << "sink.dummy.instance1";
+
+            // Ensure all local data is processed
+            Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+            auto model = Sink::Store::loadModel<Folder>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+
+            folderEntity = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Folder::Ptr>();
+            QVERIFY(!folderEntity->identifier().isEmpty());
+
+            Mail mail("sink.dummy.instance1");
+            mail.setProperty("uid", "test1");
+            mail.setProperty("folder", folderEntity->identifier());
+            Sink::Store::create<Mail>(mail).exec().waitForFinished();
+
+            Mail mail1("sink.dummy.instance1");
+            mail1.setProperty("uid", "test1");
+            mail1.setProperty("folder", "foobar");
+            Sink::Store::create<Mail>(mail1).exec().waitForFinished();
+
+            Mail mail2("sink.dummy.instance1");
+            mail2.setProperty("uid", "test2");
+            mail2.setProperty("folder", folderEntity->identifier());
+            Sink::Store::create<Mail>(mail2).exec().waitForFinished();
+        }
+
+        // Test
+        Sink::Query query;
+        query.resources << "sink.dummy.instance1";
+        query.filter<Mail::Folder>(*folderEntity);
+        query.filter<Mail::Uid>("test1");
+
+        // Ensure all local data is processed
+        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+
+        // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
+        auto model = Sink::Store::loadModel<Mail>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
     }

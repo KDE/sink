@@ -33,6 +33,7 @@
 #include "../definitions.h"
 #include "../typeindex.h"
 #include "entitybuffer.h"
+#include "datastorequery.h"
 #include "entity_generated.h"
 
 #include "mail_generated.h"
@@ -210,68 +211,16 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Mail>::BufferBuilder> > Ty
     return propertyMapper;
 }
 
-class ThreadedDataStoreQuery : public DataStoreQuery
-{
-public:
-    typedef QSharedPointer<ThreadedDataStoreQuery> Ptr;
-    using DataStoreQuery::DataStoreQuery;
-
-protected:
-    ResultSet postSortFilter(ResultSet &resultSet) Q_DECL_OVERRIDE
-    {
-        auto query = mQuery;
-        if (query.threadLeaderOnly) {
-            auto rootCollection = QSharedPointer<QMap<QByteArray, QDateTime>>::create();
-            auto filter = [this, query, rootCollection](const QByteArray &uid, const Sink::EntityBuffer &entity) -> bool {
-                //TODO lookup thread
-                //if we got thread already in the result set compare dates and if newer replace
-                //else insert
-
-                const auto messageId = getProperty(entity.entity(), ApplicationDomain::Mail::MessageId::name).toByteArray();
-
-                Index msgIdIndex("msgId", mTransaction);
-                Index msgIdThreadIdIndex("msgIdThreadId", mTransaction);
-                auto thread = msgIdThreadIdIndex.lookup(messageId);
-                SinkTrace() << "MsgId: " << messageId << " Thread: " << thread << getProperty(entity.entity(), ApplicationDomain::Mail::Date::name).toDateTime();
-
-                if (rootCollection->contains(thread)) {
-                    auto date = rootCollection->value(thread);
-                    //The mail we have in our result already is newer, so we can ignore this one
-                    //This is always true during the initial query if the set has been sorted by date.
-                    if (date > getProperty(entity.entity(), ApplicationDomain::Mail::Date::name).toDateTime()) {
-                        return false;
-                    }
-                    qWarning() << "############################################################################";
-                    qWarning() << "Found a newer mail, remove the old one";
-                    qWarning() << "############################################################################";
-                }
-                rootCollection->insert(thread, getProperty(entity.entity(), ApplicationDomain::Mail::Date::name).toDateTime());
-                return true;
-            };
-            return createFilteredSet(resultSet, filter);
-        } else {
-            return resultSet;
-        }
-    }
-};
 
 DataStoreQuery::Ptr TypeImplementation<Mail>::prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction)
 {
-    if (query.threadLeaderOnly) {
-        auto mapper = initializeReadPropertyMapper();
-        return ThreadedDataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Mail>(), transaction, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
 
-            const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
-            return mapper->getProperty(property, localBuffer);
-        });
 
-    } else {
         auto mapper = initializeReadPropertyMapper();
         return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Mail>(), transaction, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
 
             const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
             return mapper->getProperty(property, localBuffer);
         });
-    }
 }
 

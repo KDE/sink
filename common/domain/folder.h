@@ -21,10 +21,10 @@
 #include "applicationdomaintype.h"
 
 #include "storage.h"
-#include "datastorequery.h"
 
 class ResultSet;
 class QByteArray;
+class DataStoreQuery;
 
 template<typename T>
 class ReadPropertyMapper;
@@ -45,7 +45,7 @@ class TypeImplementation<Sink::ApplicationDomain::Folder> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Folder Buffer;
     typedef Sink::ApplicationDomain::Buffer::FolderBuilder BufferBuilder;
-    static DataStoreQuery::Ptr prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction);
+    static QSharedPointer<DataStoreQuery> prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction);
     static QSet<QByteArray> indexedProperties();
     static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
     static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);

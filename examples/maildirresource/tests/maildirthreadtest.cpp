@@ -25,7 +25,7 @@
 #include "common/test.h"
 #include "common/domain/applicationdomaintype.h"
 
-#include "utils.h";
+#include "utils.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;

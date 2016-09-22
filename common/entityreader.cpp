@@ -22,6 +22,7 @@
 #include "resultset.h"
 #include "storage.h"
 #include "query.h"
+#include "datastorequery.h"
 
 SINK_DEBUG_AREA("entityreader")
 

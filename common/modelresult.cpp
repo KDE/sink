@@ -188,7 +188,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
         return;
     }
     auto parent = createIndexFromId(id);
-    // qDebug() << "Added entity " << childId << value->identifier() << id;
+    SinkTrace() << "Added entity " << childId << value->identifier() << id;
     const auto keys = mTree[id];
     int index = 0;
     for (; index < keys.size(); index++) {
@@ -200,13 +200,13 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
         SinkWarning() << "Entity already in model " << value->identifier();
         return;
     }
-    // qDebug() << "Inserting rows " << index << parent;
+    // SinkTrace() << "Inserting rows " << index << parent;
     beginInsertRows(parent, index, index);
     mEntities.insert(childId, value);
     mTree[id].insert(index, childId);
     mParents.insert(childId, id);
     endInsertRows();
-    // qDebug() << "Inserted rows " << mTree[id].size();
+    // SinkTrace() << "Inserted rows " << mTree[id].size();
 }
 
 
@@ -216,7 +216,7 @@ void ModelResult<T, Ptr>::remove(const Ptr &value)
     auto childId = qHash(*value);
     auto id = parentId(value);
     auto parent = createIndexFromId(id);
-    // qDebug() << "Removed entity" << childId;
+    SinkTrace() << "Removed entity" << childId;
     auto index = mTree[id].indexOf(childId);
     beginRemoveRows(parent, index, index);
     mEntities.remove(childId);
@@ -259,6 +259,7 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
         });
     });
     emitter->onModified([this](const Ptr &value) {
+        SinkTrace() << "Received modification: " << value->identifier();
         threadBoundary.callInMainThread([this, value]() {
             modify(value);
         });
@@ -294,8 +295,9 @@ void ModelResult<T, Ptr>::modify(const Ptr &value)
         return;
     }
     auto parent = createIndexFromId(id);
-    // qDebug() << "Modified entity" << childId;
+    SinkTrace() << "Modified entity" << childId;
     auto i = mTree[id].indexOf(childId);
+    Q_ASSERT(i >= 0);
     mEntities.remove(childId);
     mEntities.insert(childId, value);
     // TODO check for change of parents
