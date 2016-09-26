@@ -195,13 +195,13 @@ public:
         return *this;
     }
 
-    Query(const ApplicationDomain::Entity &value) : limit(0), liveQuery(false), synchronousQuery(false), threadLeaderOnly(false)
+    Query(const ApplicationDomain::Entity &value) : limit(0), liveQuery(false), synchronousQuery(false), threadLeaderOnly(false), bloomThread(false)
     {
         ids << value.identifier();
         resources << value.resourceInstanceIdentifier();
     }
 
-    Query(Flags flags = Flags()) : limit(0), liveQuery(false), synchronousQuery(false), threadLeaderOnly(false)
+    Query(Flags flags = Flags()) : limit(0), liveQuery(false), synchronousQuery(false), threadLeaderOnly(false), bloomThread(false)
     {
     }
 
@@ -237,6 +237,7 @@ public:
     bool liveQuery;
     bool synchronousQuery;
     bool threadLeaderOnly;
+    bool bloomThread;
 };
 }
 

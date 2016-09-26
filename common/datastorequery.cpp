@@ -214,6 +214,39 @@ public:
     }
 };
 
+class Bloom : public FilterBase {
+public:
+    typedef QSharedPointer<Bloom> Ptr;
+
+    QByteArray mBloomProperty;
+
+    Bloom(const QByteArray &bloomProperty, FilterBase::Ptr source, DataStoreQuery *store)
+        : FilterBase(source, store),
+        mBloomProperty(bloomProperty)
+    {
+
+    }
+
+    virtual ~Bloom(){}
+
+    bool next(const std::function<void(Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> &callback) Q_DECL_OVERRIDE {
+        bool foundValue = false;
+        while(!foundValue && mSource->next([this, callback, &foundValue](Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
+                auto bloomValue = getProperty(entityBuffer.entity(), mBloomProperty);
+                auto results = indexLookup(mBloomProperty, bloomValue);
+                for (const auto r : results) {
+                    readEntity(r, [&, this](const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
+                        callback(Sink::Operation_Creation, uid, entityBuffer);
+                        foundValue = true;
+                    });
+                }
+                return false;
+            }))
+        {}
+        return foundValue;
+    }
+};
+
 DataStoreQuery::DataStoreQuery(const Sink::Query &query, const QByteArray &type, Sink::Storage::Transaction &transaction, TypeIndex &typeIndex, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty)
     : mQuery(query), mTransaction(transaction), mType(type), mTypeIndex(typeIndex), mDb(Storage::mainDatabase(mTransaction, mType)), mGetProperty(getProperty)
 {
@@ -381,6 +414,10 @@ void DataStoreQuery::setupQuery()
 
     if (mQuery.threadLeaderOnly) {
         auto reduce = Reduce::Ptr::create("threadId", "date", Reduce::Max, baseSet, this);
+        baseSet = reduce;
+    }
+    if (mQuery.bloomThread) {
+        auto reduce = Bloom::Ptr::create("threadId", baseSet, this);
         baseSet = reduce;
     }
 
