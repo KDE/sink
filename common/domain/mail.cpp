@@ -60,6 +60,10 @@ static TypeIndex &getIndex()
         index->addPropertyWithSorting<QByteArray, QDateTime>(Mail::Folder::name, Mail::Date::name);
         index->addProperty<QByteArray>(Mail::MessageId::name);
         index->addProperty<QByteArray>(Mail::ParentMessageId::name);
+
+        index->addProperty<Mail::MessageId>();
+        index->addSecondaryProperty<Mail::MessageId, Mail::ThreadId>();
+        index->addSecondaryProperty<Mail::ThreadId, Mail::MessageId>();
     }
     return *index;
 }
@@ -120,42 +124,44 @@ static QString stripOffPrefixes(const QString &subject)
 
 static void updateThreadingIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
 {
-    auto messageId = bufferAdaptor.getProperty(Mail::MessageId::name).toByteArray();
-    auto parentMessageId = bufferAdaptor.getProperty(Mail::ParentMessageId::name).toByteArray();
-    auto subject = bufferAdaptor.getProperty(Mail::Subject::name).toString();
+    auto messageId = bufferAdaptor.getProperty(Mail::MessageId::name);
+    auto parentMessageId = bufferAdaptor.getProperty(Mail::ParentMessageId::name);
+    auto subject = bufferAdaptor.getProperty(Mail::Subject::name);
 
-    Index msgIdIndex("msgId", transaction);
-    Index msgIdThreadIdIndex("msgIdThreadId", transaction);
-    Index subjectThreadIdIndex("subjectThreadId", transaction);
+    auto normalizedSubject = stripOffPrefixes(subject.toString()).toUtf8();
 
-    //Add the message to the index
-    Q_ASSERT(msgIdIndex.lookup(messageId).isEmpty());
-    msgIdIndex.add(messageId, identifier);
+    QVector<QByteArray> thread;
 
-    auto normalizedSubject = stripOffPrefixes(subject).toUtf8();
+    //a child already registered our thread.
+    thread = getIndex().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId, transaction);
 
-    QByteArray thread;
     //If parent is already available, add to thread of parent
-    if (!parentMessageId.isEmpty() && !msgIdIndex.lookup(parentMessageId).isEmpty()) {
-        thread = msgIdThreadIdIndex.lookup(parentMessageId);
-        msgIdThreadIdIndex.add(messageId, thread);
-        subjectThreadIdIndex.add(normalizedSubject, thread);
-    } else {
+    if (thread.isEmpty() && parentMessageId.isValid()) {
+        thread = getIndex().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId, transaction);
+        SinkTrace() << "Found parent";
+    }
+    if (thread.isEmpty()) {
         //Try to lookup the thread by subject:
-        thread = subjectThreadIdIndex.lookup(normalizedSubject);
-        if (!thread.isEmpty()) {
-            msgIdThreadIdIndex.add(messageId, thread);
+        thread = getIndex().secondaryLookup<Mail::Subject, Mail::ThreadId>(normalizedSubject, transaction);
+        if (thread.isEmpty()) {
+            SinkTrace() << "Created a new thread ";
+            thread << QUuid::createUuid().toByteArray();
         } else {
-            thread = QUuid::createUuid().toByteArray();
-            subjectThreadIdIndex.add(normalizedSubject, thread);
-            if (!parentMessageId.isEmpty()) {
-                //Register parent with thread for when it becomes available
-                msgIdThreadIdIndex.add(parentMessageId, thread);
-            }
         }
     }
-    Q_ASSERT(!thread.isEmpty());
-    msgIdThreadIdIndex.add(messageId, thread);
+
+    //We should have found the thread by now
+    if (!thread.isEmpty()) {
+        if (parentMessageId.isValid()) {
+            //Register parent with thread for when it becomes available
+            getIndex().index<Mail::MessageId, Mail::ThreadId>(parentMessageId, thread.first(), transaction);
+        }
+        getIndex().index<Mail::MessageId, Mail::ThreadId>(messageId, thread.first(), transaction);
+        getIndex().index<Mail::ThreadId, Mail::MessageId>(thread.first(), messageId, transaction);
+        getIndex().index<Mail::Subject, Mail::ThreadId>(normalizedSubject, thread.first(), transaction);
+    } else {
+        SinkWarning() << "Couldn't find a thread for: " << messageId;
+    }
 }
 
 void TypeImplementation<Mail>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
@@ -214,13 +220,21 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Mail>::BufferBuilder> > Ty
 
 DataStoreQuery::Ptr TypeImplementation<Mail>::prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction)
 {
-
-
-        auto mapper = initializeReadPropertyMapper();
-        return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Mail>(), transaction, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
-
+    auto mapper = initializeReadPropertyMapper();
+    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Mail>(), transaction, getIndex(), [mapper, &transaction](const Sink::Entity &entity, const QByteArray &property) -> QVariant {
+        if (property == Mail::ThreadId::name) {
             const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
+            Q_ASSERT(localBuffer);
+            auto messageId = mapper->getProperty(Mail::MessageId::name, localBuffer);
+            //This is an index property that we have too lookup
+            auto thread = getIndex().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId, transaction);
+            Q_ASSERT(!thread.isEmpty());
+            return thread.first();
+        } else {
+            const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
+            Q_ASSERT(localBuffer);
             return mapper->getProperty(property, localBuffer);
-        });
+        }
+    });
 }
 

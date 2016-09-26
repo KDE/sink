@@ -168,3 +168,71 @@ QVector<QByteArray> TypeIndex::query(const Sink::Query &query, QSet<QByteArray> 
     SinkTrace() << "No matching index";
     return keys;
 }
+
+QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant &value, Sink::Storage::Transaction &transaction)
+{
+    SinkTrace() << "Index lookup on property: " << property << mSecondaryProperties.keys() << mProperties;
+    if (mProperties.contains(property)) {
+        QVector<QByteArray> keys;
+        Index index(indexName(property), transaction);
+        const auto lookupKey = getByteArray(value);
+        index.lookup(
+            lookupKey, [&](const QByteArray &value) { keys << value; }, [property](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
+        SinkTrace() << "Index lookup on " << property << " found " << keys.size() << " keys.";
+        return keys;
+    } else if (mSecondaryProperties.contains(property)) {
+        //Lookups on secondary indexes first lookup the key, and then lookup the results again to resolve to entity id's
+        QVector<QByteArray> keys;
+        auto resultProperty = mSecondaryProperties.value(property);
+
+        QVector<QByteArray> secondaryKeys;
+        Index index(indexName(property + resultProperty), transaction);
+        const auto lookupKey = getByteArray(value);
+        index.lookup(
+            lookupKey, [&](const QByteArray &value) { secondaryKeys << value; }, [property](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
+        SinkTrace() << "Looked up secondary keys: " << secondaryKeys;
+        for (const auto &secondary : secondaryKeys) {
+            keys += lookup(resultProperty, secondary, transaction);
+        }
+        return keys;
+    } else {
+        SinkWarning() << "Tried to lookup " << property << " but couldn't find value";
+    }
+    return QVector<QByteArray>();
+}
+
+template <>
+void TypeIndex::index<QByteArray, QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::Transaction &transaction)
+{
+    Index(indexName(leftName + rightName), transaction).add(getByteArray(leftValue), getByteArray(rightValue));
+}
+
+template <>
+void TypeIndex::index<QString, QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::Transaction &transaction)
+{
+    Index(indexName(leftName + rightName), transaction).add(getByteArray(leftValue), getByteArray(rightValue));
+}
+
+template <>
+QVector<QByteArray> TypeIndex::secondaryLookup<QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value, Sink::Storage::Transaction &transaction)
+{
+    QVector<QByteArray> keys;
+    Index index(indexName(leftName + rightName), transaction);
+    const auto lookupKey = getByteArray(value);
+    index.lookup(
+        lookupKey, [&](const QByteArray &value) { keys << value; }, [=](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << value; });
+
+    return keys;
+}
+
+template <>
+QVector<QByteArray> TypeIndex::secondaryLookup<QString>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value, Sink::Storage::Transaction &transaction)
+{
+    QVector<QByteArray> keys;
+    Index index(indexName(leftName + rightName), transaction);
+    const auto lookupKey = getByteArray(value);
+    index.lookup(
+        lookupKey, [&](const QByteArray &value) { keys << value; }, [=](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << value; });
+
+    return keys;
+}

@@ -79,6 +79,12 @@
     void set##NAME(const QByteArray &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
     QByteArray get##NAME() const { return getProperty(NAME::name).value<QByteArray>(); } \
 
+#define SINK_INDEX_PROPERTY(TYPE, NAME, LOWERCASENAME) \
+    struct NAME { \
+        static constexpr const char *name = #LOWERCASENAME; \
+        typedef TYPE Type; \
+    }; \
+
 
 namespace Sink {
 namespace ApplicationDomain {
@@ -240,6 +246,7 @@ struct SINK_EXPORT Mail : public Entity {
     SINK_PROPERTY(bool, Sent, sent);
     SINK_EXTRACTED_PROPERTY(QByteArray, MessageId, messageId);
     SINK_EXTRACTED_PROPERTY(QByteArray, ParentMessageId, parentMessageId);
+    SINK_INDEX_PROPERTY(QByteArray, ThreadId, threadId);
 };
 
 /**
@@ -378,6 +385,7 @@ class SINK_EXPORT TypeImplementation;
 #undef SINK_EXTRACTED_PROPERTY
 #undef SINK_BLOB_PROPERTY
 #undef SINK_REFERENCE_PROPERTY
+#undef SINK_INDEX_PROPERTY
 
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType::Ptr)

@@ -34,16 +34,55 @@ public:
     template <typename T, typename S>
     void addPropertyWithSorting(const QByteArray &property, const QByteArray &sortProperty);
 
+    template <typename T>
+    void addProperty()
+    {
+        addProperty<typename T::Type>(T::name);
+    }
+
+    template <typename T>
+    void addPropertyWithSorting()
+    {
+        addPropertyWithSorting<typename T::Type>(T::name);
+    }
+
+    template <typename Left, typename Right>
+    void addSecondaryProperty()
+    {
+        mSecondaryProperties.insert(Left::name, Right::name);
+    }
     void add(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
     void remove(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
 
     QVector<QByteArray> query(const Sink::Query &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::Transaction &transaction);
+    QVector<QByteArray> lookup(const QByteArray &property, const QVariant &value, Sink::Storage::Transaction &transaction);
+
+    template <typename Left, typename Right>
+    QVector<QByteArray> secondaryLookup(const QVariant &value, Sink::Storage::Transaction &transaction)
+    {
+        return secondaryLookup<typename Left::Type>(Left::name, Right::name, value, transaction);
+    }
+
+    template <typename Type>
+    QVector<QByteArray> secondaryLookup(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value, Sink::Storage::Transaction &transaction);
+
+    template <typename Left, typename Right>
+    void index(const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::Transaction &transaction)
+    {
+        index<typename Left::Type, typename Right::Type>(Left::name, Right::name, leftValue, rightValue, transaction);
+    }
+
+    template <typename LeftType, typename RightType>
+    void index(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::Transaction &transaction);
+
 
 private:
     QByteArray indexName(const QByteArray &property, const QByteArray &sortProperty = QByteArray()) const;
     QByteArray mType;
     QByteArrayList mProperties;
     QMap<QByteArray, QByteArray> mSortedProperties;
+    //<Property, ResultProperty>
+    QMap<QByteArray, QByteArray> mSecondaryProperties;
     QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction)>> mIndexer;
     QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::Transaction &transaction)>> mSortIndexer;
 };

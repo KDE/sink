@@ -44,6 +44,7 @@ protected:
     typedef std::function<void(const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> BufferCallback;
 
     virtual QVariant getProperty(const Sink::Entity &entity, const QByteArray &property);
+    QVector<QByteArray> indexLookup(const QByteArray &property, const QVariant &value);
 
     virtual void readEntity(const QByteArray &key, const BufferCallback &resultCallback);
 
@@ -98,6 +99,12 @@ public:
     {
         Q_ASSERT(mDatastore);
         return mDatastore->getProperty(entity, property);
+    }
+
+    QVector<QByteArray> indexLookup(const QByteArray &property, const QVariant &value)
+    {
+        Q_ASSERT(mDatastore);
+        return mDatastore->indexLookup(property, value);
     }
 
     virtual void skip() { mSource->skip(); };

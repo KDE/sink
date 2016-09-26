@@ -289,6 +289,12 @@ template <class T, class Ptr>
 void ModelResult<T, Ptr>::modify(const Ptr &value)
 {
     auto childId = qHash(*value);
+    if (!mEntities.contains(childId)) {
+        //Happens because the DatabaseQuery emits modifiations also if the item used to be filtered.
+        SinkTrace() << "Tried to modify a value that is not yet part of the model";
+        add(value);
+        return;
+    }
     auto id = parentId(value);
     // Ignore updates we get before the initial fetch is done
     if (!mEntityChildrenFetched.contains(id)) {
