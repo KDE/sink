@@ -23,7 +23,7 @@
 #include "../libmaildir/maildir.h"
 
 #include "common/test.h"
-#include "common/domain/applicationdomaintype.h"
+#include "applicationdomaintype.h"
 
 #include "utils.h"
 

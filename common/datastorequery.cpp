@@ -148,14 +148,9 @@ public:
     QHash<QByteArray, QVariant> mAggregateValues;
     QByteArray mReductionProperty;
     QByteArray mSelectionProperty;
-    enum SelectionComparator {
-        Max
-        /* Min, */
-        /* First */
-    };
-    SelectionComparator mSelectionComparator;
+    Query::Reduce::Selector::Comparator mSelectionComparator;
 
-    Reduce(const QByteArray &reductionProperty, const QByteArray &selectionProperty, SelectionComparator comparator, FilterBase::Ptr source, DataStoreQuery *store)
+    Reduce(const QByteArray &reductionProperty, const QByteArray &selectionProperty, Query::Reduce::Selector::Comparator comparator, FilterBase::Ptr source, DataStoreQuery *store)
         : FilterBase(source, store),
         mReductionProperty(reductionProperty),
         mSelectionProperty(selectionProperty),
@@ -177,9 +172,9 @@ public:
         return QByteArray();
     }
 
-    static bool compare(const QVariant &left, const QVariant &right, SelectionComparator comparator)
+    static bool compare(const QVariant &left, const QVariant &right, Query::Reduce::Selector::Comparator comparator)
     {
-        if (comparator == Max) {
+        if (comparator == Query::Reduce::Selector::Max) {
             return left > right;
         }
         return false;
@@ -412,13 +407,16 @@ void DataStoreQuery::setupQuery()
     /*     baseSet = Sort::Ptr::create(baseSet, mQuery.sortProperty); */
     /* } */
 
-    if (mQuery.threadLeaderOnly) {
-        auto reduce = Reduce::Ptr::create("threadId", "date", Reduce::Max, baseSet, this);
-        baseSet = reduce;
-    }
-    if (mQuery.bloomThread) {
-        auto reduce = Bloom::Ptr::create("threadId", baseSet, this);
-        baseSet = reduce;
+    for (const auto &stage : mQuery.filterStages) {
+        if (auto filter = stage.dynamicCast<Query::Filter>()) {
+
+        } else if (auto filter = stage.dynamicCast<Query::Reduce>()) {
+            auto reduce = Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
+            baseSet = reduce;
+        } else if (auto filter = stage.dynamicCast<Query::Bloom>()) {
+            auto reduce = Bloom::Ptr::create(filter->property, baseSet, this);
+            baseSet = reduce;
+        }
     }
 
     mCollector = Collector::Ptr::create(baseSet, this);

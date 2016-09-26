@@ -174,34 +174,13 @@ public:
         return *this;
     }
 
-    template <typename T>
-    Query &filter(const QVariant &value)
-    {
-        propertyFilter.insert(T::name, value);
-        return *this;
-    }
-
-    template <typename T>
-    Query &filter(const Comparator &comparator)
-    {
-        propertyFilter.insert(T::name, comparator);
-        return *this;
-    }
-
-    template <typename T>
-    Query &filter(const ApplicationDomain::Entity &value)
-    {
-        propertyFilter.insert(T::name, QVariant::fromValue(value.identifier()));
-        return *this;
-    }
-
-    Query(const ApplicationDomain::Entity &value) : limit(0), liveQuery(false), synchronousQuery(false), threadLeaderOnly(false), bloomThread(false)
+    Query(const ApplicationDomain::Entity &value) : limit(0), liveQuery(false), synchronousQuery(false)
     {
         ids << value.identifier();
         resources << value.resourceInstanceIdentifier();
     }
 
-    Query(Flags flags = Flags()) : limit(0), liveQuery(false), synchronousQuery(false), threadLeaderOnly(false), bloomThread(false)
+    Query(Flags flags = Flags()) : limit(0), liveQuery(false), synchronousQuery(false)
     {
     }
 
@@ -236,9 +215,137 @@ public:
     int limit;
     bool liveQuery;
     bool synchronousQuery;
-    bool threadLeaderOnly;
-    bool bloomThread;
+
+    class FilterStage {
+    public:
+        virtual ~FilterStage(){};
+    };
+
+    QList<QSharedPointer<FilterStage>> filterStages;
+
+    /*
+    * Filters
+    */
+    class Filter : public FilterStage {
+        QByteArrayList ids;
+        QHash<QByteArray, Comparator> propertyFilter;
+        QByteArray sortProperty;
+    };
+
+    template <typename T>
+    Query &filter(const QVariant &value)
+    {
+        propertyFilter.insert(T::name, value);
+        return *this;
+    }
+
+    template <typename T>
+    Query &filter(const Comparator &comparator)
+    {
+        propertyFilter.insert(T::name, comparator);
+        return *this;
+    }
+
+    template <typename T>
+    Query &filter(const ApplicationDomain::Entity &value)
+    {
+        propertyFilter.insert(T::name, QVariant::fromValue(value.identifier()));
+        return *this;
+    }
+
+    Query &filter(const ApplicationDomain::SinkResource &resource)
+    {
+        resources << resource.identifier();
+        return *this;
+    }
+
+    Query &filter(const ApplicationDomain::SinkAccount &account)
+    {
+        accounts << account.identifier();
+        return *this;
+    }
+
+    class Reduce : public FilterStage {
+    public:
+
+        class Selector {
+        public:
+            enum Comparator {
+                Min, //get the minimum value
+                Max, //get the maximum value
+                First //Get the first result we get
+            };
+
+            template <typename SelectionProperty>
+            static Selector max()
+            {
+                return Selector(SelectionProperty::name, Max);
+            }
+
+            Selector(const QByteArray &p, Comparator c)
+                : property(p),
+                comparator(c)
+            {
+            }
+
+            QByteArray property;
+            Comparator comparator;
+        };
+
+        Reduce(const QByteArray &p, const Selector &s)
+            : property(p),
+            selector(s)
+        {
+        }
+
+        //Reduce on property
+        QByteArray property;
+        Selector selector;
+
+        //TODO add aggregate functions like:
+        //.count()
+        //.collect<Mail::sender>();
+        //...
+        //
+        //Potentially pass-in an identifier under which the result will be available in the result set.
+    };
+
+    template <typename T>
+    Reduce &reduce(const Reduce::Selector &s)
+    {
+        auto reduction = QSharedPointer<Reduce>::create(T::name, s);
+        filterStages << reduction;
+        return *reduction;
+    }
+
+    /**
+    * "Bloom" on a property.
+    *
+    * For every encountered value of a property,
+    * a result set is generated containing all entries with the same value.
+    *
+    * Example:
+    * For an input result set of one mail; return all emails with the same threadId.
+    */
+    class Bloom : public FilterStage {
+    public:
+        //Property to bloom on
+        QByteArray property;
+        Bloom(const QByteArray &p)
+            : property(p)
+        {
+        }
+    };
+
+    template <typename T>
+    void bloom()
+    {
+        auto bloom = QSharedPointer<Bloom>::create(T::name);
+        filterStages << bloom;
+    }
+
 };
+
 }
 
 QDebug operator<<(QDebug dbg, const Sink::Query::Comparator &c);

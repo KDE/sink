@@ -29,6 +29,8 @@ SINK_DEBUG_AREA("applicationdomaintype");
 namespace Sink {
 namespace ApplicationDomain {
 
+constexpr const char *Mail::ThreadId::name;
+
 ApplicationDomainType::ApplicationDomainType()
     :mAdaptor(new MemoryBufferAdaptor())
 {
