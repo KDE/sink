@@ -142,9 +142,9 @@ QVector<QByteArray> TypeIndex::query(const Sink::Query &query, QSet<QByteArray> 
 {
     QVector<QByteArray> keys;
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
-        if (query.propertyFilter.contains(it.key()) && query.sortProperty == it.value()) {
+        if (query.hasFilter(it.key()) && query.sortProperty == it.value()) {
             Index index(indexName(it.key(), it.value()), transaction);
-            const auto lookupKey = getByteArray(query.propertyFilter.value(it.key()).value);
+            const auto lookupKey = getByteArray(query.getFilter(it.key()).value);
             SinkTrace() << "looking for " << lookupKey;
             index.lookup(lookupKey, [&](const QByteArray &value) { keys << value; },
                 [it](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << it.key() << it.value(); }, true);
@@ -155,9 +155,9 @@ QVector<QByteArray> TypeIndex::query(const Sink::Query &query, QSet<QByteArray> 
         }
     }
     for (const auto &property : mProperties) {
-        if (query.propertyFilter.contains(property)) {
+        if (query.hasFilter(property)) {
             Index index(indexName(property), transaction);
-            const auto lookupKey = getByteArray(query.propertyFilter.value(property).value);
+            const auto lookupKey = getByteArray(query.getFilter(property).value);
             index.lookup(
                 lookupKey, [&](const QByteArray &value) { keys << value; }, [property](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
             appliedFilters << property;

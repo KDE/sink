@@ -197,7 +197,9 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
     if (!found) {
         if (!mergeCriteria.isEmpty()) {
             Sink::Query query;
-            query.propertyFilter = mergeCriteria;
+            for (auto it = mergeCriteria.constBegin(); it != mergeCriteria.constEnd(); it++) {
+                query.filter(it.key(), it.value());
+            }
             bool merge = false;
             Sink::EntityReader<DomainType> reader(mResourceType, mResourceInstanceIdentifier, transaction());
             reader.query(query,

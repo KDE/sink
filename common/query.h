@@ -235,22 +235,40 @@ public:
     template <typename T>
     Query &filter(const QVariant &value)
     {
-        propertyFilter.insert(T::name, value);
-        return *this;
+        return filter(T::name, value);
     }
 
     template <typename T>
     Query &filter(const Comparator &comparator)
     {
-        propertyFilter.insert(T::name, comparator);
+        return filter(T::name, comparator);
+    }
+
+    Query &filter(const QByteArray &property, const Comparator &comparator)
+    {
+        propertyFilter.insert(property, comparator);
         return *this;
+    }
+
+    Comparator getFilter(const QByteArray &property) const
+    {
+        return propertyFilter.value(property);
+    }
+
+    bool hasFilter(const QByteArray &property) const
+    {
+        return propertyFilter.contains(property);
+    }
+
+    QHash<QByteArray, Comparator> getBaseFilters() const
+    {
+        return propertyFilter;
     }
 
     template <typename T>
     Query &filter(const ApplicationDomain::Entity &value)
     {
-        propertyFilter.insert(T::name, QVariant::fromValue(value.identifier()));
-        return *this;
+        return filter(T::name, QVariant::fromValue(value.identifier()));
     }
 
     Query &filter(const ApplicationDomain::SinkResource &resource)

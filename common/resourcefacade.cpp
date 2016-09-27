@@ -68,7 +68,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
         for (const auto &res : entries.keys()) {
             const auto type = entries.value(res);
 
-            if (query.propertyFilter.contains("type") && query.propertyFilter.value("type").value.toByteArray() != type) {
+            if (query.hasFilter("type") && query.getFilter("type").value.toByteArray() != type) {
                 SinkTrace() << "Skipping due to type.";
                 continue;
             }
@@ -76,7 +76,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
                 continue;
             }
             const auto configurationValues = mConfigStore.get(res);
-            if (!matchesFilter(query.propertyFilter, configurationValues)){
+            if (!matchesFilter(query.getBaseFilters(), configurationValues)){
                 SinkTrace() << "Skipping due to filter.";
                 continue;
             }

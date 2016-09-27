@@ -38,7 +38,7 @@ private slots:
         Sink::Store::create(res).exec().waitForFinished();
         {
             Sink::Query query;
-            query.propertyFilter.insert("type", Sink::Query::Comparator("dummyresource"));
+            query.filter("type", Sink::Query::Comparator("dummyresource"));
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         }
@@ -46,7 +46,7 @@ private slots:
         Sink::Store::remove(res).exec().waitForFinished();
         {
             Sink::Query query;
-            query.propertyFilter.insert("type", Sink::Query::Comparator("dummyresource"));
+            query.filter("type", Sink::Query::Comparator("dummyresource"));
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
             QCOMPARE(model->rowCount(QModelIndex()), 0);
@@ -66,7 +66,7 @@ private slots:
         Sink::Store::create(res).exec().waitForFinished();
         {
             Sink::Query query;
-            query.propertyFilter.insert("type", Sink::Query::Comparator("dummyresource"));
+            query.filter("type", Sink::Query::Comparator("dummyresource"));
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(Sink::Query::CapabilityFilter("foo"));
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         }

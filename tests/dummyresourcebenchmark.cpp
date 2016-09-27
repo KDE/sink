@@ -129,7 +129,7 @@ private slots:
             Sink::Query query;
             query.resources << "sink.dummy.instance1";
 
-            query.propertyFilter.insert("uid", Sink::Query::Comparator("testuid"));
+            query.filter("uid", Sink::Query::Comparator("testuid"));
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), num);
         }
