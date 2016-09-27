@@ -75,11 +75,9 @@ void MailThreadTest::testListThreadLeader()
     VERIFYEXEC(Store::synchronize(query));
     ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-    auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
-        QCOMPARE(mails.size(), 1);
-        QVERIFY(mails.first()->getSubject().startsWith(QString("ThreadLeader")));
-    });
-    VERIFYEXEC(job);
+    auto mails = Store::read<Mail>(query);
+    QCOMPARE(mails.size(), 1);
+    QVERIFY(mails.first().getSubject().startsWith(QString("ThreadLeader")));
 }
 
 /*
@@ -126,25 +124,19 @@ void MailThreadTest::testIndexInMixedOrder()
     }
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
-    Sink::Query query;
+    auto query = Sink::Query::threadLeaders(folder);
     query.filter(SinkResource(mResourceInstanceIdentifier));
     query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
-    query.filter<Mail::Folder>(folder);
-    query.sort<Mail::Date>();
-    query.reduce<Mail::ThreadId>(Query::Reduce::Selector::max<Mail::Date>());
 
     Mail threadLeader;
 
     //Ensure we find the thread leader
     {
-        auto job = Store::fetchAll<Mail>(query)
-            .syncThen<void, QList<Mail::Ptr>>([=, &threadLeader](const QList<Mail::Ptr> &mails) {
-                QCOMPARE(mails.size(), 1);
-                auto mail = *mails.first();
-                threadLeader = mail;
-                QCOMPARE(mail.getSubject(), QString::fromLatin1("Re: Re: 1"));
-            });
-        VERIFYEXEC(job);
+        auto mails = Store::read<Mail>(query);
+        QCOMPARE(mails.size(), 1);
+        auto mail = mails.first();
+        threadLeader = mail;
+        QCOMPARE(mail.getSubject(), QString::fromLatin1("Re: Re: 1"));
     }
 
     {
@@ -157,13 +149,10 @@ void MailThreadTest::testIndexInMixedOrder()
 
     //Ensure we find the thread leader still
     {
-        auto job = Store::fetchAll<Mail>(query)
-            .syncThen<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
-                QCOMPARE(mails.size(), 1);
-                auto mail = *mails.first();
-                QCOMPARE(mail.getSubject(), QString::fromLatin1("Re: Re: 1"));
-            });
-        VERIFYEXEC(job);
+        auto mails = Store::read<Mail>(query);
+        QCOMPARE(mails.size(), 1);
+        auto mail = mails.first();
+        QCOMPARE(mail.getSubject(), QString::fromLatin1("Re: Re: 1"));
     }
 
     {
@@ -176,20 +165,13 @@ void MailThreadTest::testIndexInMixedOrder()
 
     //Ensure the thread is complete
     {
-        Sink::Query query;
-        query.filter(SinkResource(mResourceInstanceIdentifier));
-        query.ids << threadLeader.identifier();
+        auto query = Sink::Query::completeThread(threadLeader);
         query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
-        query.sort<Mail::Date>();
-        query.bloom<Mail::ThreadId>();
 
-        auto job = Store::fetchAll<Mail>(query)
-            .syncThen<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
-                QCOMPARE(mails.size(), 3);
-                auto mail = *mails.first();
-                QCOMPARE(mail.getSubject(), QString::fromLatin1("Re: Re: 1"));
-            });
-        VERIFYEXEC(job);
+        auto mails = Store::read<Mail>(query);
+        QCOMPARE(mails.size(), 3);
+        auto mail = mails.first();
+        QCOMPARE(mail.getSubject(), QString::fromLatin1("Re: Re: 1"));
     }
 
     /* VERIFYEXEC(Store::remove(mail)); */

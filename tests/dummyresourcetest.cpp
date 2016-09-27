@@ -14,6 +14,7 @@
 #include "test.h"
 
 using namespace Sink;
+using namespace Sink::ApplicationDomain;
 
 /**
  * Test of complete system using the dummy resource.
@@ -32,7 +33,7 @@ private slots:
         Sink::Test::initTest();
         auto factory = Sink::ResourceFactory::load("sink.dummy");
         QVERIFY(factory);
-        DummyResource::removeFromDisk("sink.dummy.instance1");
+        ::DummyResource::removeFromDisk("sink.dummy.instance1");
         ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
     }
 
@@ -52,49 +53,49 @@ private slots:
 
     void testProperty()
     {
-        Sink::ApplicationDomain::Event event;
+        Event event;
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
     }
 
     void testWriteToFacadeAndQueryByUid()
     {
-        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
+        Event event("sink.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Event>(event).exec().waitForFinished();
 
-        const auto query = Query::ResourceFilter("sink.dummy.instance1") ;
+        auto query = Query::ResourceFilter("sink.dummy.instance1") ;
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query + Query::PropertyFilter("uid", "testuid"));
+        auto model = Sink::Store::loadModel<Event>(query.filter<Event::Uid>("testuid"));
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Event::Ptr>();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
     }
 
     void testWriteToFacadeAndQueryByUid2()
     {
-        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
+        Event event("sink.dummy.instance1");
         event.setProperty("summary", "summaryValue");
 
         event.setProperty("uid", "testuid");
-        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Event>(event).exec().waitForFinished();
 
         event.setProperty("uid", "testuid2");
-        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Event>(event).exec().waitForFinished();
 
-        const auto query = Query::ResourceFilter("sink.dummy.instance1") ;
+        auto query = Query::ResourceFilter("sink.dummy.instance1") ;
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query + Query::PropertyFilter("uid", "testuid"));
+        auto model = Sink::Store::loadModel<Event>(query.filter<Event::Uid>("testuid"));
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Event::Ptr>();
 
         qDebug() << value->getProperty("uid").toByteArray();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
@@ -102,24 +103,24 @@ private slots:
 
     void testWriteToFacadeAndQueryBySummary()
     {
-        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
+        Event event("sink.dummy.instance1");
 
         event.setProperty("uid", "testuid");
         event.setProperty("summary", "summaryValue1");
-        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Event>(event).exec().waitForFinished();
 
         event.setProperty("uid", "testuid2");
         event.setProperty("summary", "summaryValue2");
-        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Event>(event).exec().waitForFinished();
 
-        const auto query = Query::ResourceFilter("sink.dummy.instance1") ;
+        auto query = Query::ResourceFilter("sink.dummy.instance1") ;
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query + Query::PropertyFilter("summary", "summaryValue2"));
+        auto model = Sink::Store::loadModel<Event>(query.filter<Event::Summary>("summaryValue2"));
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Event::Ptr>();
 
         qDebug() << value->getProperty("uid").toByteArray();
         QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid2"));
@@ -128,7 +129,7 @@ private slots:
     void testResourceSync()
     {
         auto pipeline = QSharedPointer<Sink::Pipeline>::create("sink.dummy.instance1");
-        DummyResource resource("sink.dummy.instance1", pipeline);
+        ::DummyResource resource("sink.dummy.instance1", pipeline);
         auto job = resource.synchronizeWithSource();
         // TODO pass in optional timeout?
         auto future = job.exec();
@@ -148,9 +149,9 @@ private slots:
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
+        auto model = Sink::Store::loadModel<Event>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
-        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Event::Ptr>();
 
         QVERIFY(!value->getProperty("summary").toString().isEmpty());
         qDebug() << value->getProperty("summary").toString();
@@ -158,39 +159,40 @@ private slots:
 
     void testSyncAndFacadeMail()
     {
-        const auto query = Query::ResourceFilter("sink.dummy.instance1");
+        auto query = Query::ResourceFilter("sink.dummy.instance1");
+        query.request<Mail::Subject>();
 
         // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
+        auto model = Sink::Store::loadModel<Mail>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
-        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Mail::Ptr>();
+        auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Mail::Ptr>();
 
-        QVERIFY(!value->getProperty("subject").toString().isEmpty());
-        qDebug() << value->getProperty("subject").toString();
+        qWarning() << value->getSubject() << value->identifier();
+        QVERIFY(!value->getSubject().isEmpty());
     }
 
     void testWriteModifyDelete()
     {
-        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
+        Event event("sink.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Event>(event).exec().waitForFinished();
 
-        const auto query = Query::ResourceFilter("sink.dummy.instance1") + Query::PropertyFilter("uid", "testuid");
+        auto query = Query::ResourceFilter("sink.dummy.instance1").filter<Event::Uid>("testuid");
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         // Test create
-        Sink::ApplicationDomain::Event event2;
+        Event event2;
         {
-            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
+            auto model = Sink::Store::loadModel<Event>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Event::Ptr>();
 
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue"));
@@ -199,29 +201,29 @@ private slots:
 
         event2.setProperty("uid", "testuid");
         event2.setProperty("summary", "summaryValue2");
-        Sink::Store::modify<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
+        Sink::Store::modify<Event>(event2).exec().waitForFinished();
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         // Test modify
         {
-            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
+            auto model = Sink::Store::loadModel<Event>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Event::Ptr>();
 
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
         }
 
-        Sink::Store::remove<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
+        Sink::Store::remove<Event>(event2).exec().waitForFinished();
 
         // Ensure all local data is processed
         Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
 
         // Test remove
         {
-            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
+            auto model = Sink::Store::loadModel<Event>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
             QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
         }
@@ -231,22 +233,22 @@ private slots:
     {
         auto query = Query::ResourceFilter("sink.dummy.instance1");
         query.liveQuery = true;
-        query += Query::PropertyFilter("uid", "testuid");
+        query.filter<Event::Uid>("testuid");
 
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
+        auto model = Sink::Store::loadModel<Event>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
 
-        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
+        Event event("sink.dummy.instance1");
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
+        Sink::Store::create<Event>(event).exec().waitForFinished();
 
         // Test create
-        Sink::ApplicationDomain::Event event2;
+        Event event2;
         {
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Event::Ptr>();
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue"));
             event2 = *value;
@@ -254,18 +256,18 @@ private slots:
 
         event2.setProperty("uid", "testuid");
         event2.setProperty("summary", "summaryValue2");
-        Sink::Store::modify<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
+        Sink::Store::modify<Event>(event2).exec().waitForFinished();
 
         // Test modify
         {
             // TODO wait for a change signal
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Event::Ptr>();
+            auto value = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Event::Ptr>();
             QCOMPARE(value->getProperty("uid").toByteArray(), QByteArray("testuid"));
             QCOMPARE(value->getProperty("summary").toByteArray(), QByteArray("summaryValue2"));
         }
 
-        Sink::Store::remove<Sink::ApplicationDomain::Event>(event2).exec().waitForFinished();
+        Sink::Store::remove<Event>(event2).exec().waitForFinished();
 
         // Test remove
         {

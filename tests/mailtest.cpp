@@ -39,12 +39,13 @@ void MailTest::initTestCase()
     QVERIFY(isBackendAvailable());
     resetTestEnvironment();
     auto resource = createResource();
+    QVERIFY(!resource.getResourceType().isEmpty());
     QVERIFY(!resource.identifier().isEmpty());
 
     VERIFYEXEC(Store::create(resource));
 
     mResourceInstanceIdentifier = resource.identifier();
-    mCapabilities = resource.getProperty("capabilities").value<QByteArrayList>();
+    mCapabilities = resource.getCapabilities();
 }
 
 void MailTest::cleanup()
@@ -82,7 +83,7 @@ void MailTest::testCreateModifyDeleteFolder()
     VERIFYEXEC(Store::create(folder));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
     {
-        auto job = Store::fetchAll<Folder>(Query::RequestedProperties(QByteArrayList() << Folder::Name::name << Folder::Icon::name))
+        auto job = Store::fetchAll<Folder>(Query().request<Folder::Name>().request<Folder::Icon>())
             .syncThen<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
                 QCOMPARE(folders.size(), baseCount + 1);
                 QHash<QString, Folder::Ptr> foldersByName;
@@ -108,7 +109,7 @@ void MailTest::testCreateModifyDeleteFolder()
         VERIFYEXEC(Store::modify(folder));
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
         {
-            auto job = Store::fetchAll<Folder>(Query::RequestedProperties(QByteArrayList() << Folder::Name::name << Folder::Icon::name))
+            auto job = Store::fetchAll<Folder>(Query().request<Folder::Name>().request<Folder::Icon>())
                 .syncThen<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
                     QCOMPARE(folders.size(), baseCount + 1);
                     QHash<QString, Folder::Ptr> foldersByName;
@@ -129,7 +130,7 @@ void MailTest::testCreateModifyDeleteFolder()
     VERIFYEXEC(Store::remove(folder));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
     {
-        auto job = Store::fetchAll<Folder>(Query::RequestedProperties(QByteArrayList() << Folder::Name::name << Folder::Icon::name))
+        auto job = Store::fetchAll<Folder>(Query().request<Folder::Name>().request<Folder::Icon>())
             .syncThen<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
                 QCOMPARE(folders.size(), baseCount);
             });
@@ -159,7 +160,7 @@ void MailTest::testCreateModifyDeleteMail()
     VERIFYEXEC(Store::create(mail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
     {
-        auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name << Mail::MimeMessage::name))
+        auto job = Store::fetchAll<Mail>(Query().request<Mail::Folder>().request<Mail::Subject>().request<Mail::MimeMessage>())
             .syncThen<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
                 QCOMPARE(mails.size(), 1);
                 auto mail = *mails.first();
@@ -188,7 +189,7 @@ void MailTest::testCreateModifyDeleteMail()
     VERIFYEXEC(Store::modify(mail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
     {
-        auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name << Mail::MimeMessage::name))
+        auto job = Store::fetchAll<Mail>(Query().request<Mail::Folder>().request<Mail::Subject>().request<Mail::MimeMessage>())
             .syncThen<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
                 QCOMPARE(mails.size(), 1);
                 auto mail = *mails.first();
@@ -210,7 +211,7 @@ void MailTest::testCreateModifyDeleteMail()
     VERIFYEXEC(Store::remove(mail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
     {
-        auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name))
+        auto job = Store::fetchAll<Mail>(Query().request<Mail::Folder>().request<Mail::Subject>())
             .syncThen<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
                 QCOMPARE(mails.size(), 0);
             });
@@ -246,7 +247,7 @@ void MailTest::testMoveMail()
 
     Mail modifiedMail;
     {
-        auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name << Mail::MimeMessage::name))
+        auto job = Store::fetchAll<Mail>(Query().request<Mail::Folder>().request<Mail::Subject>().request<Mail::MimeMessage>())
             .syncThen<void, QList<Mail::Ptr>>([=, &modifiedMail](const QList<Mail::Ptr> &mails) {
                 QCOMPARE(mails.size(), 1);
                 auto mail = *mails.first();
@@ -265,7 +266,7 @@ void MailTest::testMoveMail()
     VERIFYEXEC(Store::modify(modifiedMail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
     {
-        auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name << Mail::MimeMessage::name))
+        auto job = Store::fetchAll<Mail>(Query().request<Mail::Folder>().request<Mail::Subject>().request<Mail::MimeMessage>())
             .syncThen<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) {
                 QCOMPARE(mails.size(), 1);
                 auto mail = *mails.first();
@@ -296,9 +297,11 @@ void MailTest::testMarkMailAsRead()
     VERIFYEXEC(Store::create(mail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
-    auto job = Store::fetchAll<Mail>(Query::ResourceFilter(mResourceInstanceIdentifier) +
-                                Query::RequestedProperties(QByteArrayList() << Mail::Folder::name
-                                                                            << Mail::Subject::name))
+    auto job = Store::fetchAll<Mail>(Query()
+                                        .filter(SinkResource(mResourceInstanceIdentifier))
+                                        .request<Mail::Folder>()
+                                        .request<Mail::Subject>()
+                                    )
         .then<void, QList<Mail::Ptr>>([this](const QList<Mail::Ptr> &mails) {
             ASYNCCOMPARE(mails.size(), 1);
             auto mail = mails.first();
@@ -311,11 +314,13 @@ void MailTest::testMarkMailAsRead()
     VERIFYEXEC(job);
 
     // Verify that we can still query for all relevant information
-    auto job2 = Store::fetchAll<Mail>(
-                        Query::ResourceFilter(mResourceInstanceIdentifier) + Query::RequestedProperties(QByteArrayList() << Mail::Folder::name
-                                                                                                                         << Mail::Subject::name
-                                                                                                                         << Mail::MimeMessage::name
-                                                                                                                         << Mail::Unread::name))
+    auto job2 = Store::fetchAll<Mail>(Query()
+                                        .filter(SinkResource(mResourceInstanceIdentifier))
+                                        .request<Mail::Folder>()
+                                        .request<Mail::Subject>()
+                                        .request<Mail::MimeMessage>()
+                                        .request<Mail::Unread>()
+                                    )
         .then<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
             ASYNCCOMPARE(mails.size(), 1);
             auto mail = mails.first();

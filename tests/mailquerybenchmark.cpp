@@ -45,6 +45,9 @@
 #include "createentity_generated.h"
 #include "getrssusage.h"
 
+using namespace Sink;
+using namespace Sink::ApplicationDomain;
+
 /**
  * Benchmark mail query performance.
  */
@@ -62,7 +65,7 @@ class MailQueryBenchmark : public QObject
         auto pipeline = QSharedPointer<Sink::Pipeline>::create(resourceIdentifier);
         pipeline->setResourceType("test");
 
-        auto indexer = QSharedPointer<DefaultIndexUpdater<Sink::ApplicationDomain::Mail>>::create();
+        auto indexer = QSharedPointer<DefaultIndexUpdater<Mail>>::create();
 
         pipeline->setPreprocessors("mail", QVector<Sink::Preprocessor *>() << indexer.data());
 
@@ -71,13 +74,13 @@ class MailQueryBenchmark : public QObject
         pipeline->startTransaction();
         const auto date = QDateTime::currentDateTimeUtc();
         for (int i = 0; i < count; i++) {
-            auto domainObject = Sink::ApplicationDomain::Mail::Ptr::create();
+            auto domainObject = Mail::Ptr::create();
             domainObject->setProperty("uid", "uid");
             domainObject->setProperty("subject", QString("subject%1").arg(i));
             domainObject->setProperty("date", date.addSecs(count));
             domainObject->setProperty("folder", "folder1");
             // domainObject->setProperty("attachment", attachment);
-            const auto command = createCommand<Sink::ApplicationDomain::Mail>(*domainObject, *domainTypeAdaptorFactory);
+            const auto command = createCommand<Mail>(*domainObject, *domainTypeAdaptorFactory);
             pipeline->newEntity(command.data(), command.size());
         }
         pipeline->commit();
@@ -92,18 +95,18 @@ class MailQueryBenchmark : public QObject
         QTime time;
         time.start();
 
-        auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Mail::Ptr>>::create();
+        auto resultSet = QSharedPointer<Sink::ResultProvider<Mail::Ptr>>::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
         TestMailResourceFacade facade(resourceIdentifier, resourceAccess);
 
         auto ret = facade.load(query);
         ret.first.exec().waitForFinished();
         auto emitter = ret.second;
-        QList<Sink::ApplicationDomain::Mail::Ptr> list;
-        emitter->onAdded([&list](const Sink::ApplicationDomain::Mail::Ptr &mail) { list << mail; });
+        QList<Mail::Ptr> list;
+        emitter->onAdded([&list](const Mail::Ptr &mail) { list << mail; });
         bool done = false;
-        emitter->onInitialResultSetComplete([&done](const Sink::ApplicationDomain::Mail::Ptr &mail) { done = true; });
-        emitter->fetch(Sink::ApplicationDomain::Mail::Ptr());
+        emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail) { done = true; });
+        emitter->fetch(Mail::Ptr());
         QTRY_VERIFY(done);
         QCOMPARE(list.size(), query.limit);
 
@@ -149,18 +152,18 @@ private slots:
     void init()
     {
         resourceIdentifier = "sink.test.instance1";
-        Sink::AdaptorFactoryRegistry::instance().registerFactory<Sink::ApplicationDomain::Mail, TestMailAdaptorFactory>("test");
+        Sink::AdaptorFactoryRegistry::instance().registerFactory<Mail, TestMailAdaptorFactory>("test");
     }
 
     void test50k()
     {
         Sink::Query query;
         query.liveQuery = false;
-        query.requestedProperties << "uid"
-                                  << "subject"
-                                  << "date";
-        query.sortProperty = "date";
-        query += Sink::Query::PropertyFilter("folder", "folder1");
+        query.request<Mail::Uid>()
+             .request<Mail::Subject>()
+             .request<Mail::Date>();
+        query.sort<Mail::Date>();
+        query.filter<Mail::Folder>("folder1");
         query.limit = 1000;
 
         populateDatabase(50000);

@@ -146,6 +146,7 @@ public:
     typedef QSharedPointer<Reduce> Ptr;
 
     QHash<QByteArray, QVariant> mAggregateValues;
+    QSet<QByteArray> mReducedValues;
     QByteArray mReductionProperty;
     QByteArray mSelectionProperty;
     Query::Reduce::Selector::Comparator mSelectionComparator;
@@ -184,7 +185,9 @@ public:
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
                 auto reductionValue = getProperty(entityBuffer.entity(), mReductionProperty);
-                if (!mAggregateValues.contains(getByteArray(reductionValue))) {
+                if (!mReducedValues.contains(getByteArray(reductionValue))) {
+                    //Only reduce every value once.
+                    mReducedValues.insert(getByteArray(reductionValue));
                     QVariant selectionResultValue;
                     QByteArray selectionResult;
                     auto results = indexLookup(mReductionProperty, reductionValue);
@@ -373,17 +376,16 @@ QVector<QByteArray> DataStoreQuery::indexLookup(const QByteArray &property, cons
 void DataStoreQuery::setupQuery()
 {
     FilterBase::Ptr baseSet;
-    QSet<QByteArray> remainingFilters;
+    QSet<QByteArray> remainingFilters = mQuery.getBaseFilters().keys().toSet();
     QByteArray appliedSorting;
     if (!mQuery.ids.isEmpty()) {
         mSource = Source::Ptr::create(mQuery.ids.toVector(), this);
         baseSet = mSource;
-        remainingFilters = mQuery.propertyFilter.keys().toSet();
     } else {
         QSet<QByteArray> appliedFilters;
 
         auto resultSet = mTypeIndex.query(mQuery, appliedFilters, appliedSorting, mTransaction);
-        remainingFilters = mQuery.propertyFilter.keys().toSet() - appliedFilters;
+        remainingFilters = remainingFilters - appliedFilters;
 
         // We do a full scan if there were no indexes available to create the initial set.
         if (appliedFilters.isEmpty()) {
@@ -394,12 +396,12 @@ void DataStoreQuery::setupQuery()
         }
         baseSet = mSource;
     }
-    if (!mQuery.propertyFilter.isEmpty()) {
+    if (!mQuery.getBaseFilters().isEmpty()) {
         auto filter = Filter::Ptr::create(baseSet, this);
-        filter->propertyFilter = mQuery.propertyFilter;
-        /* for (const auto &f : remainingFilters) { */
-        /*     filter->propertyFilter.insert(f, mQuery.propertyFilter.value(f)); */
-        /* } */
+        //For incremental queries the remaining filters are not sufficient
+        for (const auto &f : mQuery.getBaseFilters().keys()) {
+            filter->propertyFilter.insert(f, mQuery.getFilter(f));
+        }
         baseSet = filter;
     }
     /* if (appliedSorting.isEmpty() && !mQuery.sortProperty.isEmpty()) { */
@@ -407,15 +409,16 @@ void DataStoreQuery::setupQuery()
     /*     baseSet = Sort::Ptr::create(baseSet, mQuery.sortProperty); */
     /* } */
 
+    //Setup the rest of the filter stages on top of the base set
     for (const auto &stage : mQuery.filterStages) {
         if (auto filter = stage.dynamicCast<Query::Filter>()) {
-
+            auto f = Filter::Ptr::create(baseSet, this);
+            f->propertyFilter = filter->propertyFilter;
+            baseSet = f;
         } else if (auto filter = stage.dynamicCast<Query::Reduce>()) {
-            auto reduce = Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
-            baseSet = reduce;
+            baseSet = Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
         } else if (auto filter = stage.dynamicCast<Query::Bloom>()) {
-            auto reduce = Bloom::Ptr::create(filter->property, baseSet, this);
-            baseSet = reduce;
+            baseSet = Bloom::Ptr::create(filter->property, baseSet, this);
         }
     }
 

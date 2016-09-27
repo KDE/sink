@@ -147,7 +147,7 @@ public:
             }
             SinkTrace() << "-------------------------.";
             for (const auto &res : mTestAccount->entities<T>()) {
-                qDebug() << "Parent filter " << query.propertyFilter.value("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
+                qDebug() << "Parent filter " << query.getFilter("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
                 auto parentProperty = res->getProperty("parent").toByteArray();
                 if ((!parent && parentProperty.isEmpty()) || (parent && parentProperty == parent->identifier()) || query.parentProperty.isEmpty()) {
                     qDebug() << "Found a match" << res->identifier();

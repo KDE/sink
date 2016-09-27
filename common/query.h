@@ -58,26 +58,6 @@ public:
         Comparators comparator;
     };
 
-
-    static Query PropertyFilter(const QByteArray &key, const QVariant &value)
-    {
-        Query query;
-        query.propertyFilter.insert(key, Comparator(value));
-        return query;
-    }
-
-    static Query PropertyContainsFilter(const QByteArray &key, const QVariant &value)
-    {
-        Query query;
-        query.propertyFilter.insert(key, Comparator(value, Comparator::Contains));
-        return query;
-    }
-
-    static Query PropertyFilter(const QByteArray &key, const ApplicationDomain::Entity &entity)
-    {
-        return PropertyFilter(key, QVariant::fromValue(entity.identifier()));
-    }
-
     static Query ResourceFilter(const QByteArray &identifier)
     {
         Query query;
@@ -95,33 +75,6 @@ public:
     static Query ResourceFilter(const ApplicationDomain::SinkResource &entity)
     {
         return ResourceFilter(entity.identifier());
-    }
-
-    static Query AccountFilter(const QByteArray &identifier)
-    {
-        Query query;
-        query.accounts.append(identifier);
-        return query;
-    }
-
-    static Query CapabilityFilter(const QByteArray &capability)
-    {
-        Query query;
-        query.propertyFilter.insert("capabilities", Comparator(capability, Comparator::Contains));
-        return query;
-    }
-
-    static Query AccountFilter(const QByteArrayList &identifier)
-    {
-        Q_ASSERT(!identifier.isEmpty());
-        Query query;
-        query.accounts = identifier;
-        return query;
-    }
-
-    static Query AccountFilter(const ApplicationDomain::SinkAccount &entity)
-    {
-        return AccountFilter(entity.identifier());
     }
 
     static Query IdentityFilter(const QByteArray &identifier)
@@ -146,24 +99,17 @@ public:
         return query;
     }
 
-    static Query RequestedProperties(const QByteArrayList &properties)
-    {
-        Query query;
-        query.requestedProperties = properties;
-        return query;
-    }
-
-    static Query RequestTree(const QByteArray &parentProperty)
-    {
-        Query query;
-        query.parentProperty = parentProperty;
-        return query;
-    }
-
     template <typename T>
     Query &request()
     {
         requestedProperties << T::name;
+        return *this;
+    }
+
+    template <typename T>
+    Query &requestTree()
+    {
+        parentProperty = T::name;
         return *this;
     }
 
@@ -227,15 +173,20 @@ public:
     * Filters
     */
     class Filter : public FilterStage {
-        QByteArrayList ids;
+    public:
         QHash<QByteArray, Comparator> propertyFilter;
-        QByteArray sortProperty;
     };
 
     template <typename T>
     Query &filter(const QVariant &value)
     {
         return filter(T::name, value);
+    }
+
+    template <typename T>
+    Query &containsFilter(const QVariant &value)
+    {
+        return filter(T::name, Comparator(value, Comparator::Contains));
     }
 
     template <typename T>
@@ -361,6 +312,39 @@ public:
         auto bloom = QSharedPointer<Bloom>::create(T::name);
         filterStages << bloom;
     }
+
+    //Query fixtures
+
+    /**
+     * Returns the complete thread, containing all mails from all folders.
+     */
+    static Query completeThread(const ApplicationDomain::Mail &mail)
+    {
+        Sink::Query query;
+        if (!mail.resourceInstanceIdentifier().isEmpty()) {
+            query.filter(ApplicationDomain::SinkResource(mail.resourceInstanceIdentifier()));
+        }
+        query.ids << mail.identifier();
+        query.sort<ApplicationDomain::Mail::Date>();
+        query.bloom<ApplicationDomain::Mail::ThreadId>();
+        return query;
+    }
+
+    /**
+     * Returns thread leaders only, sorted by date.
+     */
+    static Query threadLeaders(const ApplicationDomain::Folder &folder)
+    {
+        Sink::Query query;
+        if (!folder.resourceInstanceIdentifier().isEmpty()) {
+            query.filter(ApplicationDomain::SinkResource(folder.resourceInstanceIdentifier()));
+        }
+        query.filter<ApplicationDomain::Mail::Folder>(folder);
+        query.sort<ApplicationDomain::Mail::Date>();
+        query.reduce<ApplicationDomain::Mail::ThreadId>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>());
+        return query;
+    }
+
 
 };
 
