@@ -37,7 +37,7 @@ template <typename DomainType>
 static typename DomainType::Ptr readFromConfig(ConfigStore &configStore, const QByteArray &id, const QByteArray &type)
 {
     auto object = DomainType::Ptr::create(id);
-    object->setProperty("type", type);
+    object->setProperty(ApplicationDomain::SinkResource::ResourceType::name, type);
     const auto configurationValues = configStore.get(id);
     for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
         object->setProperty(it.key(), it.value());
@@ -48,7 +48,7 @@ static typename DomainType::Ptr readFromConfig(ConfigStore &configStore, const Q
 static bool matchesFilter(const QHash<QByteArray, Query::Comparator> &filter, const QMap<QByteArray, QVariant> &properties)
 {
     for (const auto &filterProperty : filter.keys()) {
-        if (filterProperty == "type") {
+        if (filterProperty == ApplicationDomain::SinkResource::ResourceType::name) {
             continue;
         }
         if (!filter.value(filterProperty).matches(properties.value(filterProperty))) {
@@ -59,8 +59,8 @@ static bool matchesFilter(const QHash<QByteArray, Query::Comparator> &filter, co
 }
 
 template<typename DomainType>
-LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query, const QByteArray &identifier, ConfigNotifier &configNotifier)
-    : mResultProvider(new ResultProvider<typename DomainType::Ptr>), mConfigStore(identifier), mGuard(new QObject)
+LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query, const QByteArray &identifier, const QByteArray &typeName, ConfigNotifier &configNotifier)
+    : mResultProvider(new ResultProvider<typename DomainType::Ptr>), mConfigStore(identifier, typeName), mGuard(new QObject)
 {
     QObject *guard = new QObject;
     mResultProvider->setFetcher([this, query, guard, &configNotifier](const QSharedPointer<DomainType> &) {
@@ -68,7 +68,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
         for (const auto &res : entries.keys()) {
             const auto type = entries.value(res);
 
-            if (query.hasFilter("type") && query.getFilter("type").value.toByteArray() != type) {
+            if (query.hasFilter(ApplicationDomain::SinkResource::ResourceType::name) && query.getFilter(ApplicationDomain::SinkResource::ResourceType::name).value.toByteArray() != type) {
                 SinkTrace() << "Skipping due to type.";
                 continue;
             }
@@ -154,7 +154,7 @@ typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr LocalStorageQueryRun
 
 
 template <typename DomainType>
-LocalStorageFacade<DomainType>::LocalStorageFacade(const QByteArray &identifier) : StoreFacade<DomainType>(), mIdentifier(identifier)
+LocalStorageFacade<DomainType>::LocalStorageFacade(const QByteArray &identifier, const QByteArray &typeName) : StoreFacade<DomainType>(), mIdentifier(identifier), mTypeName(typeName)
 {
 }
 
@@ -167,15 +167,16 @@ template <typename DomainType>
 KAsync::Job<void> LocalStorageFacade<DomainType>::create(const DomainType &domainObject)
 {
     auto configStoreIdentifier = mIdentifier;
-    return KAsync::syncStart<void>([domainObject, configStoreIdentifier]() {
-        const QByteArray type = domainObject.getProperty("type").toByteArray();
+    auto typeName = mTypeName;
+    return KAsync::syncStart<void>([domainObject, configStoreIdentifier, typeName]() {
+        const QByteArray type = domainObject.getProperty(typeName).toByteArray();
         const QByteArray providedIdentifier = domainObject.identifier().isEmpty() ? domainObject.getProperty("identifier").toByteArray() : domainObject.identifier();
         const QByteArray identifier = providedIdentifier.isEmpty() ? ResourceConfig::newIdentifier(type) : providedIdentifier;
-        auto configStore = ConfigStore(configStoreIdentifier);
+        auto configStore = ConfigStore(configStoreIdentifier, typeName);
         configStore.add(identifier, type);
         auto changedProperties = domainObject.changedProperties();
         changedProperties.removeOne("identifier");
-        changedProperties.removeOne("type");
+        changedProperties.removeOne(typeName);
         if (!changedProperties.isEmpty()) {
             // We have some configuration values
             QMap<QByteArray, QVariant> configurationValues;
@@ -192,7 +193,8 @@ template <typename DomainType>
 KAsync::Job<void> LocalStorageFacade<DomainType>::modify(const DomainType &domainObject)
 {
     auto configStoreIdentifier = mIdentifier;
-    return KAsync::syncStart<void>([domainObject, configStoreIdentifier]() {
+    auto typeName = mTypeName;
+    return KAsync::syncStart<void>([domainObject, configStoreIdentifier, typeName]() {
         const QByteArray identifier = domainObject.identifier();
         if (identifier.isEmpty()) {
             SinkWarning() << "We need an \"identifier\" property to identify the entity to configure.";
@@ -200,8 +202,8 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::modify(const DomainType &domai
         }
         auto changedProperties = domainObject.changedProperties();
         changedProperties.removeOne("identifier");
-        changedProperties.removeOne("type");
-        auto configStore = ConfigStore(configStoreIdentifier);
+        changedProperties.removeOne(typeName);
+        auto configStore = ConfigStore(configStoreIdentifier, typeName);
         if (!changedProperties.isEmpty()) {
             // We have some configuration values
             QMap<QByteArray, QVariant> configurationValues;
@@ -220,14 +222,15 @@ template <typename DomainType>
 KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domainObject)
 {
     auto configStoreIdentifier = mIdentifier;
-    return KAsync::syncStart<void>([domainObject, configStoreIdentifier]() {
+    auto typeName = mTypeName;
+    return KAsync::syncStart<void>([domainObject, configStoreIdentifier, typeName]() {
         const QByteArray identifier = domainObject.identifier();
         if (identifier.isEmpty()) {
             SinkWarning() << "We need an \"identifier\" property to identify the entity to configure";
             return;
         }
         SinkTrace() << "Removing: " << identifier;
-        auto configStore = ConfigStore(configStoreIdentifier);
+        auto configStore = ConfigStore(configStoreIdentifier, typeName);
         configStore.remove(identifier);
         sConfigNotifier.remove(QSharedPointer<DomainType>::create(domainObject));
     });
@@ -236,11 +239,11 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domai
 template <typename DomainType>
 QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> LocalStorageFacade<DomainType>::load(const Query &query)
 {
-    auto runner = new LocalStorageQueryRunner<DomainType>(query, mIdentifier, sConfigNotifier);
+    auto runner = new LocalStorageQueryRunner<DomainType>(query, mIdentifier, mTypeName, sConfigNotifier);
     return qMakePair(KAsync::null<void>(), runner->emitter());
 }
 
-ResourceFacade::ResourceFacade() : LocalStorageFacade<Sink::ApplicationDomain::SinkResource>("resources")
+ResourceFacade::ResourceFacade() : LocalStorageFacade<Sink::ApplicationDomain::SinkResource>("resources", Sink::ApplicationDomain::SinkResource::ResourceType::name)
 {
 }
 
@@ -256,7 +259,7 @@ KAsync::Job<void> ResourceFacade::remove(const Sink::ApplicationDomain::SinkReso
 
 QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain::SinkResource::Ptr>::Ptr> ResourceFacade::load(const Sink::Query &query)
 {
-    auto runner = new LocalStorageQueryRunner<ApplicationDomain::SinkResource>(query, mIdentifier, sConfigNotifier);
+    auto runner = new LocalStorageQueryRunner<ApplicationDomain::SinkResource>(query, mIdentifier, mTypeName, sConfigNotifier);
     auto monitoredResources = QSharedPointer<QSet<QByteArray>>::create();
     runner->setStatusUpdater([runner, monitoredResources](ApplicationDomain::SinkResource &resource) {
         auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource.identifier(), ResourceConfig::getResourceType(resource.identifier()));
@@ -276,7 +279,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
 }
 
 
-AccountFacade::AccountFacade() : LocalStorageFacade<Sink::ApplicationDomain::SinkAccount>("accounts")
+AccountFacade::AccountFacade() : LocalStorageFacade<Sink::ApplicationDomain::SinkAccount>("accounts", "type")
 {
 }
 
@@ -286,7 +289,7 @@ AccountFacade::~AccountFacade()
 
 QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain::SinkAccount::Ptr>::Ptr> AccountFacade::load(const Sink::Query &query)
 {
-    auto runner = new LocalStorageQueryRunner<ApplicationDomain::SinkAccount>(query, mIdentifier, sConfigNotifier);
+    auto runner = new LocalStorageQueryRunner<ApplicationDomain::SinkAccount>(query, mIdentifier, mTypeName, sConfigNotifier);
     auto monitoredResources = QSharedPointer<QSet<QByteArray>>::create();
     runner->setStatusUpdater([runner, monitoredResources](ApplicationDomain::SinkAccount &account) {
         Query query;
@@ -333,7 +336,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
     return qMakePair(KAsync::null<void>(), runner->emitter());
 }
 
-IdentityFacade::IdentityFacade() : LocalStorageFacade<Sink::ApplicationDomain::Identity>("identities")
+IdentityFacade::IdentityFacade() : LocalStorageFacade<Sink::ApplicationDomain::Identity>("identities", "type")
 {
 }
 

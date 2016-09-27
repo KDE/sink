@@ -22,8 +22,8 @@ private slots:
 
     void init()
     {
-        ConfigStore("accounts").clear();
-        ConfigStore("resources").clear();
+        ConfigStore("accounts", "type").clear();
+        ConfigStore("resources", Sink::ApplicationDomain::SinkResource::ResourceType::name).clear();
     }
 
     void testLoad()
@@ -34,17 +34,17 @@ private slots:
         QString accountName("name");
         QString accountIcon("icon");
         auto account = ApplicationDomainType::createEntity<SinkAccount>();
-        account.setProperty("type", "maildir");
-        account.setProperty("name", accountName);
-        account.setProperty("icon", accountIcon);
+        account.setAccountType("maildir");
+        account.setName(accountName);
+        account.setIcon(accountIcon);
         Store::create(account).exec().waitForFinished();
 
         Store::fetchAll<SinkAccount>(Query()).syncThen<void, QList<SinkAccount::Ptr>>([&](const QList<SinkAccount::Ptr> &accounts) {
             QCOMPARE(accounts.size(), 1);
             auto account = accounts.first();
-            QCOMPARE(account->getProperty("type").toString(), QString("maildir"));
-            QCOMPARE(account->getProperty("name").toString(), accountName);
-            QCOMPARE(account->getProperty("icon").toString(), accountIcon);
+            QCOMPARE(account->getAccountType(), QString("maildir"));
+            QCOMPARE(account->getName(), accountName);
+            QCOMPARE(account->getIcon(), accountIcon);
         })
         .exec().waitForFinished();
 
@@ -52,8 +52,8 @@ private slots:
         QString smtpUsername("smtpUsername");
         QString smtpPassword("smtpPassword");
         auto resource = ApplicationDomainType::createEntity<SinkResource>();
-        resource.setProperty("type", "sink.mailtransport");
-        resource.setProperty("account", account.identifier());
+        resource.setResourceType("sink.mailtransport");
+        resource.setAccount(account);
         resource.setProperty("server", smtpServer);
         resource.setProperty("username", smtpUsername);
         resource.setProperty("password", smtpPassword);
@@ -63,7 +63,7 @@ private slots:
         Store::fetchAll<SinkResource>(Query()).syncThen<void, QList<SinkResource::Ptr>>([&](const QList<SinkResource::Ptr> &resources) {
             QCOMPARE(resources.size(), 1);
             auto resource = resources.first();
-            QCOMPARE(resource->getProperty("type").toString(), QString("sink.mailtransport"));
+            QCOMPARE(resource->getResourceType(), QByteArray("sink.mailtransport"));
             QCOMPARE(resource->getProperty("server").toString(), smtpServer);
         })
         .exec().waitForFinished();

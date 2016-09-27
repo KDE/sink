@@ -360,7 +360,7 @@ QList<DomainType> Store::read(const Sink::Query &q)
     });
     for (const auto &resourceInstanceIdentifier : resources.keys()) {
         const auto resourceType = resources.value(resourceInstanceIdentifier);
-        SinkTrace() << "Looking for " << resourceType << resourceInstanceIdentifier;
+        SinkTrace() << "Querying resource:  " << resourceType << resourceInstanceIdentifier;
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceType, resourceInstanceIdentifier);
         if (facade) {
             SinkTrace() << "Trying to fetch from resource " << resourceInstanceIdentifier;

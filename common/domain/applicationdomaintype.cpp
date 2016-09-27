@@ -254,9 +254,9 @@ Identity::~Identity()
 SinkResource DummyResource::create(const QByteArray &account)
 {
     auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
-    resource.setProperty("type", "sink.dummy");
-    resource.setProperty("account", account);
-    resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << "-folder.rename"));
+    resource.setResourceType("sink.dummy");
+    resource.setAccount(account);
+    resource.setCapabilities(QByteArrayList() << ResourceCapabilities::Mail::storage << "-folder.rename");
     // resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << "-folder.rename" << ResourceCapabilities::Mail::trash));
     return resource;
 }
@@ -264,27 +264,27 @@ SinkResource DummyResource::create(const QByteArray &account)
 SinkResource MaildirResource::create(const QByteArray &account)
 {
     auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
-    resource.setProperty("type", "sink.maildir");
-    resource.setProperty("account", account);
-    resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << "-folder.rename" << ResourceCapabilities::Mail::trash));
+    resource.setResourceType("sink.maildir");
+    resource.setAccount(account);
+    resource.setCapabilities(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << "-folder.rename" << ResourceCapabilities::Mail::trash);
     return resource;
 }
 
 SinkResource MailtransportResource::create(const QByteArray &account)
 {
     auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
-    resource.setProperty("type", "sink.mailtransport");
-    resource.setProperty("account", account);
-    resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::transport));
+    resource.setResourceType("sink.mailtransport");
+    resource.setAccount(account);
+    resource.setCapabilities(QByteArrayList() << ResourceCapabilities::Mail::transport);
     return resource;
 }
 
 SinkResource ImapResource::create(const QByteArray &account)
 {
     auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
-    resource.setProperty("type", "sink.imap");
-    resource.setProperty("account", account);
-    resource.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << ResourceCapabilities::Mail::folderhierarchy << ResourceCapabilities::Mail::trash));
+    resource.setResourceType("sink.imap");
+    resource.setAccount(account);
+    resource.setCapabilities(QByteArrayList() << ResourceCapabilities::Mail::storage << ResourceCapabilities::Mail::drafts << ResourceCapabilities::Mail::folderhierarchy << ResourceCapabilities::Mail::trash);
     return resource;
 }
 

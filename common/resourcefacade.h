@@ -59,7 +59,7 @@ template <typename DomainType>
 class LocalStorageQueryRunner
 {
 public:
-    LocalStorageQueryRunner(const Sink::Query &query, const QByteArray &identifier, ConfigNotifier &configNotifier);
+    LocalStorageQueryRunner(const Sink::Query &query, const QByteArray &identifier, const QByteArray &typeName, ConfigNotifier &configNotifier);
     typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
     void setStatusUpdater(const std::function<void(DomainType &)> &);
     void statusChanged(const QByteArray &identifier);
@@ -77,7 +77,7 @@ template <typename DomainType>
 class LocalStorageFacade : public Sink::StoreFacade<DomainType>
 {
 public:
-    LocalStorageFacade(const QByteArray &instanceIdentifier);
+    LocalStorageFacade(const QByteArray &instanceIdentifier, const QByteArray &typeName);
     virtual ~LocalStorageFacade();
     virtual KAsync::Job<void> create(const DomainType &resource) Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> modify(const DomainType &resource) Q_DECL_OVERRIDE;
@@ -86,6 +86,7 @@ public:
 
 protected:
     QByteArray mIdentifier;
+    QByteArray mTypeName;
     static ConfigNotifier sConfigNotifier;
 };
 

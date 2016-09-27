@@ -91,7 +91,7 @@ bool resource(const QStringList &args, State &state)
     auto identifier = map.take("identifier").toLatin1();
 
     auto object = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::SinkResource>("", identifier);
-    object.setResourceType(resourceType);
+    object.setResourceType(resourceType.toLatin1());
 
     for (auto i = map.begin(); i != map.end(); ++i) {
         object.setProperty(i.key().toLatin1(), i.value());

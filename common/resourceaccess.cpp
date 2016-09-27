@@ -199,6 +199,10 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                         if (Sink::Test::testModeEnabled()) {
                             args << "--test";
                         }
+                        if (resourceName.isEmpty()) {
+                            SinkWarning() << "No resource type given";
+                            return KAsync::error();
+                        }
                         args << resourceInstanceIdentifier << resourceName;
                         qint64 pid = 0;
                         if (QProcess::startDetached("sink_synchronizer", args, QDir::homePath(), &pid)) {

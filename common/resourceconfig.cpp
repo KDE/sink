@@ -23,6 +23,7 @@
 #include <QFile>
 #include <log.h>
 #include <definitions.h>
+#include <applicationdomaintype.h>
 
 static QSharedPointer<QSettings> getConfig(const QByteArray &identifier)
 {
@@ -43,7 +44,7 @@ void ResourceConfig::addResource(const QByteArray &identifier, const QByteArray 
 {
     auto settings = getConfig("resources");
     settings->beginGroup(QString::fromLatin1(identifier));
-    settings->setValue("type", type);
+    settings->setValue(Sink::ApplicationDomain::SinkResource::ResourceType::name, type);
     settings->endGroup();
     settings->sync();
 }
@@ -64,7 +65,7 @@ QMap<QByteArray, QByteArray> ResourceConfig::getResources()
     auto settings = getConfig("resources");
     for (const auto &identifier : settings->childGroups()) {
         settings->beginGroup(identifier);
-        const auto type = settings->value("type").toByteArray();
+        const auto type = settings->value(Sink::ApplicationDomain::SinkResource::ResourceType::name).toByteArray();
         resources.insert(identifier.toLatin1(), type);
         settings->endGroup();
     }

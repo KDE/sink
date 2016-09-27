@@ -11,6 +11,9 @@
 #include "test.h"
 #include "testutils.h"
 
+using namespace Sink;
+using namespace Sink::ApplicationDomain;
+
 /**
  * Test of the resource configuration.
  */
@@ -31,43 +34,43 @@ private slots:
         ResourceConfig::clear();
         Sink::FacadeFactory::instance().registerStaticFacades();
 
-        Sink::ApplicationDomain::SinkResource res("", "dummyresource.identifier1", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        SinkResource res("", "dummyresource.identifier1", 0, QSharedPointer<MemoryBufferAdaptor>::create());
         res.setProperty("identifier", "dummyresource.identifier1");
-        res.setProperty("type", "dummyresource");
+        res.setProperty(SinkResource::ResourceType::name, "dummyresource");
 
         Sink::Store::create(res).exec().waitForFinished();
         {
             Sink::Query query;
-            query.filter("type", Sink::Query::Comparator("dummyresource"));
-            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(query);
+            query.filter<SinkResource::ResourceType>("dummyresource");
+            auto model = Sink::Store::loadModel<SinkResource>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         }
 
         Sink::Store::remove(res).exec().waitForFinished();
         {
             Sink::Query query;
-            query.filter("type", Sink::Query::Comparator("dummyresource"));
-            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(query);
+            query.filter<SinkResource::ResourceType>("dummyresource");
+            auto model = Sink::Store::loadModel<SinkResource>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
             QCOMPARE(model->rowCount(QModelIndex()), 0);
         }
     }
 
-    void testLoadResourceByCapabiity()
+    void testLoadResourceByCapability()
     {
         ResourceConfig::clear();
         Sink::FacadeFactory::instance().registerStaticFacades();
 
-        Sink::ApplicationDomain::SinkResource res("", "dummyresource.identifier1", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        SinkResource res("", "dummyresource.identifier1", 0, QSharedPointer<MemoryBufferAdaptor>::create());
         res.setProperty("identifier", "dummyresource.identifier1");
-        res.setProperty("type", "dummyresource");
-        res.setProperty("capabilities", QVariant::fromValue(QByteArrayList() << "foo"));
+        res.setResourceType("dummyresource");
+        res.setCapabilities(QByteArrayList() << "foo");
 
         Sink::Store::create(res).exec().waitForFinished();
         {
             Sink::Query query;
-            query.filter("type", Sink::Query::Comparator("dummyresource"));
-            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(Sink::Query::CapabilityFilter("foo"));
+            query.filter<SinkResource::ResourceType>("dummyresource");
+            auto model = Sink::Store::loadModel<SinkResource>(Query().containsFilter<SinkResource::Capabilities>("foo"));
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         }
 
@@ -79,20 +82,20 @@ private slots:
         ResourceConfig::clear();
         Sink::FacadeFactory::instance().registerStaticFacades();
 
-        auto res = Sink::ApplicationDomain::DummyResource::create("");
+        auto res = DummyResource::create("");
         VERIFYEXEC(Sink::Store::create(res));
         {
             Sink::Query query;
             query.liveQuery = true;
-            query.request<Sink::ApplicationDomain::SinkResource::Status>();
-            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkResource>(query);
+            query.request<SinkResource::Status>();
+            auto model = Sink::Store::loadModel<SinkResource>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
-            auto resource = model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkResource::Ptr>();
-            QCOMPARE(resource->getStatus(), static_cast<int>(Sink::ApplicationDomain::OfflineStatus));
+            auto resource = model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<SinkResource::Ptr>();
+            QCOMPARE(resource->getStatus(), static_cast<int>(OfflineStatus));
 
             //Synchronize to connect
             VERIFYEXEC(Sink::Store::synchronize(query));
-            QTRY_COMPARE(model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkResource::Ptr>()->getStatus(), static_cast<int>(Sink::ApplicationDomain::ConnectedStatus));
+            QTRY_COMPARE(model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<SinkResource::Ptr>()->getStatus(), static_cast<int>(ConnectedStatus));
         }
 
         VERIFYEXEC(Sink::Store::remove(res));

@@ -31,8 +31,9 @@ static QSharedPointer<QSettings> getConfig(const QByteArray &identifier)
     return QSharedPointer<QSettings>::create(Sink::configLocation() + "/" + identifier + ".ini", QSettings::IniFormat);
 }
 
-ConfigStore::ConfigStore(const QByteArray &identifier)
+ConfigStore::ConfigStore(const QByteArray &identifier, const QByteArray &typeName)
     : mIdentifier(identifier),
+    mTypeName(typeName),
     mConfig(getConfig(identifier))
 {
 
@@ -43,7 +44,7 @@ QMap<QByteArray, QByteArray> ConfigStore::getEntries()
     QMap<QByteArray, QByteArray> resources;
     for (const auto &identifier : mConfig->childGroups()) {
         mConfig->beginGroup(identifier);
-        const auto type = mConfig->value("type").toByteArray();
+        const auto type = mConfig->value(mTypeName).toByteArray();
         resources.insert(identifier.toLatin1(), type);
         mConfig->endGroup();
     }
@@ -54,7 +55,7 @@ void ConfigStore::add(const QByteArray &identifier, const QByteArray &type)
 {
     SinkTrace() << "Adding " << identifier;
     mConfig->beginGroup(QString::fromLatin1(identifier));
-    mConfig->setValue("type", type);
+    mConfig->setValue(mTypeName, type);
     mConfig->endGroup();
     mConfig->sync();
 }

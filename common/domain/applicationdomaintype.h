@@ -295,7 +295,7 @@ struct SINK_EXPORT SinkResource : public ApplicationDomainType {
     virtual ~SinkResource();
 
     SINK_REFERENCE_PROPERTY(SinkAccount, Account, account);
-    SINK_PROPERTY(QString, ResourceType, resourceType);
+    SINK_PROPERTY(QByteArray, ResourceType, resourceType);
     SINK_PROPERTY(QByteArrayList, Capabilities, capabilities);
     SINK_STATUS_PROPERTY(int, Status, status);
     SINK_STATUS_PROPERTY(ApplicationDomain::Error, Error, error);

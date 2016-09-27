@@ -30,7 +30,7 @@
 class SINK_EXPORT ConfigStore
 {
 public:
-    ConfigStore(const QByteArray &identifier);
+    ConfigStore(const QByteArray &identifier, const QByteArray &typeName);
 
     /**
      * Returns all entries with their type.
@@ -64,5 +64,6 @@ public:
 
 private:
     QByteArray mIdentifier;
+    QByteArray mTypeName;
     QSharedPointer<QSettings> mConfig;
 };
