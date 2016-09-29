@@ -48,13 +48,6 @@ protected:
 
     virtual void readEntity(const QByteArray &key, const BufferCallback &resultCallback);
 
-    /* virtual ResultSet loadInitialResultSet(QSet<QByteArray> &remainingFilters, QByteArray &remainingSorting); */
-    /* virtual ResultSet loadIncrementalResultSet(qint64 baseRevision, QSet<QByteArray> &remainingFilters); */
-
-    /* virtual ResultSet filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, const QByteArray &sortProperty); */
-    /* virtual ResultSet postSortFilter(ResultSet &resultSet); */
-    /* virtual FilterFunction getFilter(const QSet<QByteArray> &remainingFilters); */
-
     ResultSet createFilteredSet(ResultSet &resultSet, const std::function<bool(const QByteArray &, const Sink::EntityBuffer &buffer)> &);
     QVector<QByteArray> loadIncrementalResultSet(qint64 baseRevision);
 
@@ -115,22 +108,4 @@ public:
     QSharedPointer<FilterBase> mSource;
     DataStoreQuery *mDatastore;
 };
-
-/* class Reduce { */
-/*     QByteArray property; */
-
-/*     //Property - value, reduction result */
-/*     QHash<QVariant, QVariant> mReducedValue; */
-/* }; */
-
-/* class Bloom { */
-/*     QByteArray property; */
-
-/*     //Property - value, reduction result */
-/*     QSet<QVariant> mPropertyValues; */
-
-/* }; */
-
-
-
 
