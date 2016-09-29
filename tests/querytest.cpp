@@ -30,12 +30,12 @@ private slots:
         auto factory = Sink::ResourceFactory::load("sink.dummy");
         QVERIFY(factory);
         ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
-        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
     }
 
     void cleanup()
     {
-        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
     }
 
     void init()
@@ -408,7 +408,7 @@ private slots:
 
         // Test
         Sink::Query query;
-        query.resources << "sink.dummy.instance1";
+        query.filter(SinkResource("sink.dummy.instance1"));
         query.filter<Mail::Folder>(*folderEntity);
         query.sort<Mail::Date>();
         query.limit = 1;
@@ -445,6 +445,53 @@ private slots:
 
         VERIFYEXEC(Sink::Store::remove(res));
     }
+
+    void testAccountFilter()
+    {
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
+
+        //Setup
+        QString accountName("name");
+        QString accountIcon("icon");
+        auto account1 = ApplicationDomainType::createEntity<SinkAccount>();
+        account1.setAccountType("maildir");
+        account1.setName(accountName);
+        account1.setIcon(accountIcon);
+        VERIFYEXEC(Store::create(account1));
+
+        auto account2 = ApplicationDomainType::createEntity<SinkAccount>();
+        account2.setAccountType("maildir");
+        account2.setName(accountName);
+        account2.setIcon(accountIcon);
+        VERIFYEXEC(Store::create(account2));
+
+        auto resource1 = ApplicationDomainType::createEntity<SinkResource>();
+        resource1.setResourceType("sink.dummy");
+        resource1.setAccount(account1);
+        Store::create(resource1).exec().waitForFinished();
+
+        auto resource2 = ApplicationDomainType::createEntity<SinkResource>();
+        resource2.setResourceType("sink.dummy");
+        resource2.setAccount(account2);
+        Store::create(resource2).exec().waitForFinished();
+
+        {
+            Folder folder1(resource1.identifier());
+            VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+            Folder folder2(resource2.identifier());
+            VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+        }
+
+        // Test
+        Sink::Query query;
+        query.filter(account1);
+
+        // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
+        auto folders = Sink::Store::read<Folder>(query);
+        QCOMPARE(folders.size(), 1);
+    }
+
 };
 
 QTEST_MAIN(QueryTest)
