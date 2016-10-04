@@ -371,12 +371,12 @@ QList<DomainType> Store::read(const Sink::Query &q)
                 SinkWarning() << "Null emitter for resource " << resourceInstanceIdentifier;
             }
             result.first.exec();
-            aggregatingEmitter->fetch(typename DomainType::Ptr());
         } else {
             SinkTrace() << "Couldn't find a facade for " << resourceInstanceIdentifier;
             // Ignore the error and carry on
         }
     }
+    aggregatingEmitter->fetch(typename DomainType::Ptr());
     return list;
 }
 
