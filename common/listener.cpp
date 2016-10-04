@@ -60,7 +60,7 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
     }
 
     if (m_server->isListening()) {
-        SinkLog() << QString("Listening on %1").arg(m_server->serverName());
+        SinkTrace() << QString("Listening on %1").arg(m_server->serverName());
     }
 
     m_checkConnectionsTimer = std::unique_ptr<QTimer>(new QTimer);

@@ -48,14 +48,13 @@ StoreBase &getStore(const QString &type)
     } else if (type == getTypeName<SinkResource>()) {
         static Store<SinkResource> store;
         return store;
-    } else if (type == getTypeName<SinkResource>()) {
+    } else if (type == getTypeName<SinkAccount>()) {
         static Store<SinkAccount> store;
         return store;
     }
 
-    // TODO: reinstate the warning+assert
-    // Q_ASSERT(false);
-    // qWarning() << "Trying to get a store that doesn't exist, falling back to event";
+    qWarning() << "Trying to get a store that doesn't exist, falling back to event";
+    Q_ASSERT(false);
     static Store<Sink::ApplicationDomain::Event> store;
     return store;
 }

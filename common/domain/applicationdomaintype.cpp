@@ -303,13 +303,13 @@ QByteArray getTypeName<Todo>()
 template<>
 QByteArray getTypeName<SinkResource>()
 {
-    return "sinkresource";
+    return "resource";
 }
 
 template<>
 QByteArray getTypeName<SinkAccount>()
 {
-    return "sinkaccount";
+    return "account";
 }
 
 template<>
