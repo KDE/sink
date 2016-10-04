@@ -330,6 +330,21 @@ QByteArray getTypeName<Folder>()
     return "folder";
 }
 
+QByteArrayList getTypeNames()
+{
+    static QByteArrayList types;
+    if (types.isEmpty()) {
+        types << ApplicationDomain::getTypeName<SinkResource>();
+        types << ApplicationDomain::getTypeName<SinkAccount>();
+        types << ApplicationDomain::getTypeName<Identity>();
+        types << ApplicationDomain::getTypeName<Mail>();
+        types << ApplicationDomain::getTypeName<Folder>();
+        types << ApplicationDomain::getTypeName<Event>();
+        types << ApplicationDomain::getTypeName<Todo>();
+    }
+    return types;
+}
+
 bool isGlobalType(const QByteArray &type) {
     if (type == ApplicationDomain::getTypeName<SinkResource>() || type == ApplicationDomain::getTypeName<SinkAccount>() || type == ApplicationDomain::getTypeName<Identity>()) {
         return true;

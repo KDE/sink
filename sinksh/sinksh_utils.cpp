@@ -27,33 +27,29 @@
 
 namespace SinkshUtils {
 
-static QStringList s_types = QStringList() << "resource"
-                                           << "folder"
-                                           << "mail"
-                                           << "event"
-                                           << "account";
-
 bool isValidStoreType(const QString &type)
 {
-    return s_types.contains(type);
+    return Sink::ApplicationDomain::getTypeNames().contains(type.toLatin1());
 }
 
 StoreBase &getStore(const QString &type)
 {
-    if (type == "folder") {
-        static Store<Sink::ApplicationDomain::Folder> store;
+    using namespace Sink::ApplicationDomain;
+
+    if (type == getTypeName<Folder>()) {
+        static Store<Folder> store;
         return store;
-    } else if (type == "mail") {
-        static Store<Sink::ApplicationDomain::Mail> store;
+    } else if (type == getTypeName<Mail>()) {
+        static Store<Mail> store;
         return store;
-    } else if (type == "event") {
-        static Store<Sink::ApplicationDomain::Event> store;
+    } else if (type == getTypeName<Event>()) {
+        static Store<Event> store;
         return store;
-    } else if (type == "resource") {
-        static Store<Sink::ApplicationDomain::SinkResource> store;
+    } else if (type == getTypeName<SinkResource>()) {
+        static Store<SinkResource> store;
         return store;
-    } else if (type == "account") {
-        static Store<Sink::ApplicationDomain::SinkAccount> store;
+    } else if (type == getTypeName<SinkResource>()) {
+        static Store<SinkAccount> store;
         return store;
     }
 
@@ -66,19 +62,20 @@ StoreBase &getStore(const QString &type)
 
 QList<QByteArray> requestedProperties(const QString &type)
 {
-    if (type == "folder") {
-        return QList<QByteArray>() << "name"
-                                  << "parent";
-    } else if (type == "mail") {
-        return QList<QByteArray>() << "subject"
-                                  << "folder"
-                                  << "date";
-    } else if (type == "event") {
-        return QList<QByteArray>() << "summary";
-    } else if (type == "resource") {
-        return QList<QByteArray>() << "type" << "account";
-    } else if (type == "account") {
-        return QList<QByteArray>() << "type" << "name";
+    using namespace Sink::ApplicationDomain;
+    if (type == getTypeName<Folder>()) {
+        return QList<QByteArray>() << Folder::Name::name
+                                  << Folder::Parent::name;
+    } else if (type == getTypeName<Mail>()) {
+        return QList<QByteArray>() << Mail::Subject::name
+                                  << Mail::Folder::name
+                                  << Mail::Date::name;
+    } else if (type == getTypeName<Event>()) {
+        return QList<QByteArray>() << Event::Summary::name;
+    } else if (type == getTypeName<SinkResource>()) {
+        return QList<QByteArray>() << SinkResource::ResourceType::name << SinkResource::Account::name;
+    } else if (type == getTypeName<SinkAccount>()) {
+        return QList<QByteArray>() << SinkAccount::AccountType::name << SinkAccount::Name::name;
     }
     return QList<QByteArray>();
 }
@@ -112,11 +109,19 @@ QStringList resourceCompleter(const QStringList &, const QString &fragment, Stat
     return Utils::filteredCompletions(resourceIds(), fragment);
 }
 
+static QStringList toStringList(const QByteArrayList &l)
+{
+    QStringList list;
+    for (const auto &s : l) {
+        list << s;
+    }
+    return list;
+}
+
 QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &fragment, State &state)
 {
-    static QStringList types = s_types;
     if (commands.count() == 1) {
-        return Utils::filteredCompletions(s_types, fragment);
+        return Utils::filteredCompletions(toStringList(Sink::ApplicationDomain::getTypeNames()), fragment);
     }
 
     return Utils::filteredCompletions(resourceIds(), fragment);
@@ -124,18 +129,15 @@ QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &
 
 QStringList typeCompleter(const QStringList &commands, const QString &fragment, State &state)
 {
-    return Utils::filteredCompletions(s_types, fragment);
+    return Utils::filteredCompletions(toStringList(Sink::ApplicationDomain::getTypeNames()), fragment);
 }
 
 QMap<QString, QString> keyValueMapFromArgs(const QStringList &args)
 {
-    // TODO: this is not the most clever of algorithms. preserved during the port of commands
-    // from sink_client ... we can probably do better, however ;)
     QMap<QString, QString> map;
     for (int i = 0; i + 2 <= args.size(); i += 2) {
         map.insert(args.at(i), args.at(i + 1));
     }
-
     return map;
 }
 }

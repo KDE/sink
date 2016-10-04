@@ -366,6 +366,8 @@ QByteArray SINK_EXPORT getTypeName<Mail>();
 template<>
 QByteArray SINK_EXPORT getTypeName<Folder>();
 
+QByteArrayList SINK_EXPORT getTypeNames();
+
 bool SINK_EXPORT isGlobalType(const QByteArray &type);
 
 
