@@ -57,12 +57,27 @@ QString Store::getTemporaryFilePath()
 /*
  * Returns a map of resource instance identifiers and resource type
  */
-static QMap<QByteArray, QByteArray> getResources(const QList<QByteArray> &resourceFilter, const QList<QByteArray> &accountFilter,const QByteArray &type = QByteArray())
+static QMap<QByteArray, QByteArray> getResources(const Sink::Query &query, const QByteArray &type = QByteArray())
 {
+    const QList<QByteArray> resourceFilter = query.resources;
+    const QList<QByteArray> accountFilter = query.accounts;
+
+    auto resourceComparator = query.getFilter(Sink::ApplicationDomain::Entity::Resource::name);
+
     const auto filterResource = [&](const QByteArray &res) {
         const auto configuration = ResourceConfig::getConfiguration(res);
-        if (!accountFilter.isEmpty() && !accountFilter.contains(configuration.value("account").toByteArray())) {
+        if (!accountFilter.isEmpty() && !accountFilter.contains(configuration.value(ApplicationDomain::SinkResource::Account::name).toByteArray())) {
             return true;
+        }
+        //Subquery for the resource
+        if (resourceComparator.value.canConvert<Query>()) {
+            auto subquery = resourceComparator.value.value<Query>();
+            for (const auto &filterProperty : subquery.propertyFilter.keys()) {
+                const auto filter = subquery.propertyFilter.value(filterProperty);
+                if (!filter.matches(configuration.value(filterProperty))) {
+                    return true;
+                }
+            }
         }
         return false;
     };
@@ -139,7 +154,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     //* The result provider needs to live for as long as results are provided (until the last thread exits).
 
     // Query all resources and aggregate results
-    auto resources = getResources(query.resources, query.accounts, ApplicationDomain::getTypeName<DomainType>());
+    auto resources = getResources(query, ApplicationDomain::getTypeName<DomainType>());
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     model->setEmitter(aggregatingEmitter);
 
@@ -252,7 +267,7 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
     SinkTrace() << "synchronize" << query.resources;
-    auto resources = getResources(query.resources, query.accounts).keys();
+    auto resources = getResources(query).keys();
     //FIXME only necessary because each doesn't propagate errors
     auto errorFlag = new bool;
     return KAsync::value(resources)
@@ -352,7 +367,7 @@ QList<DomainType> Store::read(const Sink::Query &q)
     query.synchronousQuery = true;
     query.liveQuery = false;
     QList<DomainType> list;
-    auto resources = getResources(query.resources, query.accounts, ApplicationDomain::getTypeName<DomainType>());
+    auto resources = getResources(query, ApplicationDomain::getTypeName<DomainType>());
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     aggregatingEmitter->onAdded([&list](const typename DomainType::Ptr &value){
         SinkTrace() << "Found value: " << value->identifier();

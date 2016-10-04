@@ -528,6 +528,36 @@ private slots:
         QCOMPARE(mails.size(), 1);
         QCOMPARE(mails.first().getUid().toLatin1(), QByteArray("mail1"));
     }
+
+    void testResourceSubQuery()
+    {
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
+
+        //Setup
+        auto resource1 = ApplicationDomainType::createEntity<SinkResource>();
+        resource1.setResourceType("sink.dummy");
+        resource1.setCapabilities(QByteArrayList() << "cap1");
+        Store::create(resource1).exec().waitForFinished();
+
+        auto resource2 = ApplicationDomainType::createEntity<SinkResource>();
+        resource2.setCapabilities(QByteArrayList() << "cap2");
+        resource2.setResourceType("sink.dummy");
+        Store::create(resource2).exec().waitForFinished();
+
+        Folder folder1(resource1.identifier());
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+        Folder folder2(resource2.identifier());
+        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        // Test
+        Sink::Query query;
+        query.filter<Folder::Resource>(Sink::Query().containsFilter<SinkResource::Capabilities>("cap1"));
+
+        // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
+        auto folders = Sink::Store::read<Folder>(query);
+        QCOMPARE(folders.size(), 1);
+    }
 };
 
 QTEST_MAIN(QueryTest)

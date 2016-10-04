@@ -201,10 +201,48 @@ inline QDebug operator<< (QDebug d, const ApplicationDomainType &type)
     return d;
 }
 
+struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
+    typedef QSharedPointer<SinkAccount> Ptr;
+    explicit SinkAccount(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
+    explicit SinkAccount(const QByteArray &identifier);
+    SinkAccount();
+    virtual ~SinkAccount();
+
+    SINK_PROPERTY(QString, Name, name);
+    SINK_PROPERTY(QString, Icon, icon);
+    SINK_PROPERTY(QString, AccountType, type);
+    SINK_STATUS_PROPERTY(int, Status, status);
+    SINK_STATUS_PROPERTY(ApplicationDomain::Error, Error, error);
+    SINK_STATUS_PROPERTY(ApplicationDomain::Progress, Progress, progress);
+};
+
+
+/**
+ * Represents an sink resource.
+ *
+ * This type is used for configuration of resources,
+ * and for creating and removing resource instances.
+ */
+struct SINK_EXPORT SinkResource : public ApplicationDomainType {
+    typedef QSharedPointer<SinkResource> Ptr;
+    explicit SinkResource(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
+    explicit SinkResource(const QByteArray &identifier);
+    SinkResource();
+    virtual ~SinkResource();
+
+    SINK_REFERENCE_PROPERTY(SinkAccount, Account, account);
+    SINK_PROPERTY(QByteArray, ResourceType, type);
+    SINK_PROPERTY(QByteArrayList, Capabilities, capabilities);
+    SINK_STATUS_PROPERTY(int, Status, status);
+    SINK_STATUS_PROPERTY(ApplicationDomain::Error, Error, error);
+    SINK_STATUS_PROPERTY(ApplicationDomain::Progress, Progress, progress);
+};
+
 struct SINK_EXPORT Entity : public ApplicationDomainType {
     typedef QSharedPointer<Entity> Ptr;
     using ApplicationDomainType::ApplicationDomainType;
     virtual ~Entity();
+    SINK_REFERENCE_PROPERTY(SinkResource, Resource, resource);
 };
 
 struct SINK_EXPORT Event : public Entity {
@@ -264,43 +302,6 @@ enum SINK_EXPORT Status {
     ConnectedStatus,
     BusyStatus,
     ErrorStatus
-};
-
-struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
-    typedef QSharedPointer<SinkAccount> Ptr;
-    explicit SinkAccount(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
-    explicit SinkAccount(const QByteArray &identifier);
-    SinkAccount();
-    virtual ~SinkAccount();
-
-    SINK_PROPERTY(QString, Name, name);
-    SINK_PROPERTY(QString, Icon, icon);
-    SINK_PROPERTY(QString, AccountType, type);
-    SINK_STATUS_PROPERTY(int, Status, status);
-    SINK_STATUS_PROPERTY(ApplicationDomain::Error, Error, error);
-    SINK_STATUS_PROPERTY(ApplicationDomain::Progress, Progress, progress);
-};
-
-
-/**
- * Represents an sink resource.
- *
- * This type is used for configuration of resources,
- * and for creating and removing resource instances.
- */
-struct SINK_EXPORT SinkResource : public ApplicationDomainType {
-    typedef QSharedPointer<SinkResource> Ptr;
-    explicit SinkResource(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
-    explicit SinkResource(const QByteArray &identifier);
-    SinkResource();
-    virtual ~SinkResource();
-
-    SINK_REFERENCE_PROPERTY(SinkAccount, Account, account);
-    SINK_PROPERTY(QByteArray, ResourceType, type);
-    SINK_PROPERTY(QByteArrayList, Capabilities, capabilities);
-    SINK_STATUS_PROPERTY(int, Status, status);
-    SINK_STATUS_PROPERTY(ApplicationDomain::Error, Error, error);
-    SINK_STATUS_PROPERTY(ApplicationDomain::Progress, Progress, progress);
 };
 
 struct SINK_EXPORT Identity : public ApplicationDomainType {

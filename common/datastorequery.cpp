@@ -408,6 +408,9 @@ QByteArrayList DataStoreQuery::executeSubquery(const Query &subquery)
 void DataStoreQuery::setupQuery()
 {
     for (const auto &k : mQuery.propertyFilter.keys()) {
+        if (k == ApplicationDomain::Entity::Resource::name) {
+            continue;
+        }
         const auto comparator = mQuery.propertyFilter.value(k);
         if (comparator.value.canConvert<Query>()) {
             SinkTrace() << "Executing subquery for property: " << k;
@@ -441,6 +444,9 @@ void DataStoreQuery::setupQuery()
         auto filter = Filter::Ptr::create(baseSet, this);
         //For incremental queries the remaining filters are not sufficient
         for (const auto &f : mQuery.getBaseFilters().keys()) {
+            if (f == ApplicationDomain::Entity::Resource::name) {
+                continue;
+            }
             filter->propertyFilter.insert(f, mQuery.getFilter(f));
         }
         baseSet = filter;
