@@ -74,6 +74,7 @@
     struct NAME { \
         static constexpr const char *name = #LOWERCASENAME; \
         typedef QByteArray Type; \
+        typedef ApplicationDomain::TYPE ReferenceType; \
     }; \
     void set##NAME(const ApplicationDomain::TYPE &value) { setProperty(NAME::name, value); } \
     void set##NAME(const QByteArray &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \

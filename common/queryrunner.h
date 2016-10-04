@@ -25,6 +25,7 @@
 #include "domaintypeadaptorfactoryinterface.h"
 #include "storage.h"
 #include "query.h"
+#include "log.h"
 
 /**
  * Base clase because you can't have the Q_OBJECT macro in template classes
@@ -96,6 +97,8 @@ public:
     typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
 
 private:
+    QByteArray mResourceInstanceIdentifier;
+    SINK_DEBUG_COMPONENT(mResourceInstanceIdentifier)
     QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
     QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr>> mResultProvider;
     ResultTransformation mResultTransformation;

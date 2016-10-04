@@ -24,6 +24,7 @@
 #include "typeindex.h"
 #include "query.h"
 #include "entitybuffer.h"
+#include "log.h"
 
 
 class Source;
@@ -52,6 +53,7 @@ protected:
     QVector<QByteArray> loadIncrementalResultSet(qint64 baseRevision);
 
     void setupQuery();
+    QByteArrayList executeSubquery(const Sink::Query &subquery);
 
     Sink::Query mQuery;
     Sink::Storage::Transaction &mTransaction;
@@ -62,6 +64,8 @@ protected:
     bool mInitialQuery;
     QSharedPointer<FilterBase> mCollector;
     QSharedPointer<Source> mSource;
+
+    SINK_DEBUG_COMPONENT(mType)
 };
 
 

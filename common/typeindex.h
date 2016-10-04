@@ -22,6 +22,7 @@
 #include "bufferadaptor.h"
 #include "storage.h"
 #include "query.h"
+#include "log.h"
 #include <QByteArray>
 
 class TypeIndex
@@ -79,6 +80,7 @@ public:
 private:
     QByteArray indexName(const QByteArray &property, const QByteArray &sortProperty = QByteArray()) const;
     QByteArray mType;
+    SINK_DEBUG_COMPONENT(mType)
     QByteArrayList mProperties;
     QMap<QByteArray, QByteArray> mSortedProperties;
     //<Property, ResultProperty>

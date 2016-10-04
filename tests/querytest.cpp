@@ -492,6 +492,42 @@ private slots:
         QCOMPARE(folders.size(), 1);
     }
 
+    void testSubquery()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        folder1.setSpecialPurpose(QByteArrayList() << "purpose1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto folder2 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        folder2.setSpecialPurpose(QByteArrayList() << "purpose2");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setUid("mail1");
+            mail.setFolder(folder1);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setUid("mail2");
+            mail.setFolder(folder2);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+
+        // Ensure all local data is processed
+        Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1").exec().waitForFinished();
+
+        //Setup two folders with a mail each, ensure we only get the mail from the folder that matches the folder filter.
+        Query query;
+        query.filter<Mail::Folder>(Sink::Query().containsFilter<Folder::SpecialPurpose>("purpose1"));
+        query.request<Mail::Uid>();
+
+        auto mails = Sink::Store::read<Mail>(query);
+        QCOMPARE(mails.size(), 1);
+        QCOMPARE(mails.first().getUid().toLatin1(), QByteArray("mail1"));
+    }
 };
 
 QTEST_MAIN(QueryTest)

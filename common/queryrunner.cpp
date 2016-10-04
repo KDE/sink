@@ -66,7 +66,7 @@ private:
 template <class DomainType>
 QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::ResourceAccessInterface::Ptr &resourceAccess, const QByteArray &instanceIdentifier,
     const DomainTypeAdaptorFactoryInterface::Ptr &factory, const QByteArray &bufferType)
-    : QueryRunnerBase(), mResourceAccess(resourceAccess), mResultProvider(new ResultProvider<typename DomainType::Ptr>), mBatchSize(query.limit)
+    : QueryRunnerBase(), mResourceInstanceIdentifier(instanceIdentifier), mResourceAccess(resourceAccess), mResultProvider(new ResultProvider<typename DomainType::Ptr>), mBatchSize(query.limit)
 {
     SinkTrace() << "Starting query";
     if (query.limit && query.sortProperty.isEmpty()) {

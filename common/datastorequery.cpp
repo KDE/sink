@@ -21,6 +21,11 @@
 #include "log.h"
 #include "entitybuffer.h"
 #include "entity_generated.h"
+#include "applicationdomaintype.h"
+
+#include "folder.h"
+#include "mail.h"
+#include "event.h"
 
 using namespace Sink;
 
@@ -373,8 +378,44 @@ QVector<QByteArray> DataStoreQuery::indexLookup(const QByteArray &property, cons
 /*     } */
 /* } */
 
+template <typename ... Args>
+QSharedPointer<DataStoreQuery> prepareQuery(const QByteArray &type, Args && ... args)
+{
+    if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
+        return ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::prepareQuery(std::forward<Args>(args)...);
+    } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
+        return ApplicationDomain::TypeImplementation<ApplicationDomain::Mail>::prepareQuery(std::forward<Args>(args)...);
+    } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Event>()) {
+        return ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::prepareQuery(std::forward<Args>(args)...);
+    }
+    Q_ASSERT(false);
+    return QSharedPointer<DataStoreQuery>();
+}
+
+QByteArrayList DataStoreQuery::executeSubquery(const Query &subquery)
+{
+    Q_ASSERT(!subquery.type.isEmpty());
+    auto sub = prepareQuery(subquery.type, subquery, mTransaction);
+    auto result = sub->execute();
+    QByteArrayList ids;
+    while (result.next([&ids](const QByteArray &uid, const Sink::EntityBuffer &, Sink::Operation) {
+            ids << uid;
+        }))
+    {}
+    return ids;
+}
+
 void DataStoreQuery::setupQuery()
 {
+    for (const auto &k : mQuery.propertyFilter.keys()) {
+        const auto comparator = mQuery.propertyFilter.value(k);
+        if (comparator.value.canConvert<Query>()) {
+            SinkTrace() << "Executing subquery for property: " << k;
+            const auto result = executeSubquery(comparator.value.value<Query>());
+            mQuery.propertyFilter.insert(k, Query::Comparator(QVariant::fromValue(result), Query::Comparator::In));
+        }
+    }
+
     FilterBase::Ptr baseSet;
     QSet<QByteArray> remainingFilters = mQuery.getBaseFilters().keys().toSet();
     QByteArray appliedSorting;
@@ -459,7 +500,7 @@ ResultSet DataStoreQuery::update(qint64 baseRevision)
     SinkTrace() << "Changed: " << incrementalResultSet;
     mSource->add(incrementalResultSet);
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
-        if (mCollector->next([callback](Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &buffer) {
+        if (mCollector->next([this, callback](Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &buffer) {
                 SinkTrace() << "Got incremental result: " << uid << operation;
                 callback(uid, buffer, operation);
             }))
@@ -477,7 +518,7 @@ ResultSet DataStoreQuery::execute()
     SinkTrace() << "Executing query";
 
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
-        if (mCollector->next([callback](Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &buffer) {
+        if (mCollector->next([this, callback](Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &buffer) {
                 if (operation != Sink::Operation_Removal) {
                     SinkTrace() << "Got initial result: " << uid << operation;
                     callback(uid, buffer, Sink::Operation_Creation);

@@ -46,7 +46,8 @@ public:
         enum Comparators {
             Invalid,
             Equals,
-            Contains
+            Contains,
+            In
         };
 
         Comparator();
@@ -158,6 +159,7 @@ public:
     QByteArrayList requestedProperties;
     QByteArray parentProperty;
     QByteArray sortProperty;
+    QByteArray type;
     int limit;
     bool liveQuery;
     bool synchronousQuery;
@@ -220,6 +222,14 @@ public:
     Query &filter(const ApplicationDomain::Entity &value)
     {
         return filter(T::name, QVariant::fromValue(value.identifier()));
+    }
+
+    template <typename T>
+    Query &filter(const Query &query)
+    {
+        auto q = query;
+        q.type = ApplicationDomain::getTypeName<typename T::ReferenceType>();
+        return filter(T::name, QVariant::fromValue(q));
     }
 
     Query &filter(const ApplicationDomain::SinkResource &resource)
@@ -353,3 +363,4 @@ public:
 QDebug operator<<(QDebug dbg, const Sink::Query::Comparator &c);
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Sink::Query::Flags)
+Q_DECLARE_METATYPE(Sink::Query);
