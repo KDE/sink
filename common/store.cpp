@@ -71,9 +71,10 @@ static QMap<QByteArray, QByteArray> getResources(const Sink::Query &query, const
         }
         //Subquery for the resource
         if (resourceComparator.value.canConvert<Query>()) {
-            auto subquery = resourceComparator.value.value<Query>();
-            for (const auto &filterProperty : subquery.propertyFilter.keys()) {
-                const auto filter = subquery.propertyFilter.value(filterProperty);
+            const auto subquery = resourceComparator.value.value<Query>();
+            const auto baseFilters = subquery.getBaseFilters();
+            for (const auto &filterProperty : baseFilters.keys()) {
+                const auto filter = baseFilters.value(filterProperty);
                 if (!filter.matches(configuration.value(filterProperty))) {
                     return true;
                 }
@@ -140,9 +141,9 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 {
     SinkTrace() << "Query: " << ApplicationDomain::getTypeName<DomainType>();
     SinkTrace() << "  Requested: " << query.requestedProperties;
-    SinkTrace() << "  Filter: " << query.propertyFilter;
+    SinkTrace() << "  Filter: " << query.getBaseFilters();
     SinkTrace() << "  Parent: " << query.parentProperty;
-    SinkTrace() << "  Ids: " << query.ids;
+    SinkTrace() << "  Ids: " << query.ids();
     SinkTrace() << "  IsLive: " << query.liveQuery;
     SinkTrace() << "  Sorting: " << query.sortProperty;
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties);

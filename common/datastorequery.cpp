@@ -407,23 +407,25 @@ QByteArrayList DataStoreQuery::executeSubquery(const Query &subquery)
 
 void DataStoreQuery::setupQuery()
 {
-    for (const auto &k : mQuery.propertyFilter.keys()) {
+    auto baseFilters = mQuery.getBaseFilters();
+    for (const auto &k : baseFilters.keys()) {
         if (k == ApplicationDomain::Entity::Resource::name) {
             continue;
         }
-        const auto comparator = mQuery.propertyFilter.value(k);
+        const auto comparator = baseFilters.value(k);
         if (comparator.value.canConvert<Query>()) {
             SinkTrace() << "Executing subquery for property: " << k;
             const auto result = executeSubquery(comparator.value.value<Query>());
-            mQuery.propertyFilter.insert(k, Query::Comparator(QVariant::fromValue(result), Query::Comparator::In));
+            baseFilters.insert(k, Query::Comparator(QVariant::fromValue(result), Query::Comparator::In));
         }
     }
+    mQuery.setBaseFilters(baseFilters);
 
     FilterBase::Ptr baseSet;
     QSet<QByteArray> remainingFilters = mQuery.getBaseFilters().keys().toSet();
     QByteArray appliedSorting;
-    if (!mQuery.ids.isEmpty()) {
-        mSource = Source::Ptr::create(mQuery.ids.toVector(), this);
+    if (!mQuery.ids().isEmpty()) {
+        mSource = Source::Ptr::create(mQuery.ids().toVector(), this);
         baseSet = mSource;
     } else {
         QSet<QByteArray> appliedFilters;
@@ -457,7 +459,7 @@ void DataStoreQuery::setupQuery()
     /* } */
 
     //Setup the rest of the filter stages on top of the base set
-    for (const auto &stage : mQuery.filterStages) {
+    for (const auto &stage : mQuery.filterStages.mid(1)) {
         if (auto filter = stage.dynamicCast<Query::Filter>()) {
             auto f = Filter::Ptr::create(baseSet, this);
             f->propertyFilter = filter->propertyFilter;

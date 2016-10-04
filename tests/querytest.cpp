@@ -164,8 +164,8 @@ private slots:
 
         // Test
         Sink::Query query;
-        query.resources << "sink.dummy.instance1";
-        query.ids << id;
+        query.filter(SinkResource("sink.dummy.instance1"));
+        query.filter(id);
         auto model = Sink::Store::loadModel<Mail>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);

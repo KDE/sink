@@ -58,9 +58,9 @@ bool show(const QStringList &args, State &state)
 
     Sink::Query query;
     if (queryForResourceOrAgent) {
-        query.ids << resource.toLatin1();
+        query.filter(resource.toLatin1());
     } else {
-        query.resources << resource.toLatin1();
+        query.filter(Sink::ApplicationDomain::SinkResource(resource.toLatin1()));
     }
     query.liveQuery = false;
 

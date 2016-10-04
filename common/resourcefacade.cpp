@@ -72,7 +72,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
                 SinkTrace() << "Skipping due to type.";
                 continue;
             }
-            if (!query.ids.isEmpty() && !query.ids.contains(res)) {
+            if (!query.ids().isEmpty() && !query.ids().contains(res)) {
                 continue;
             }
             const auto configurationValues = mConfigStore.get(res);
