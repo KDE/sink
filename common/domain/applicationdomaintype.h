@@ -309,6 +309,7 @@ struct SINK_EXPORT Identity : public ApplicationDomainType {
     explicit Identity(const QByteArray &identifier);
     Identity();
     virtual ~Identity();
+    SINK_REFERENCE_PROPERTY(SinkAccount, Account, account);
 };
 
 struct SINK_EXPORT DummyResource {
