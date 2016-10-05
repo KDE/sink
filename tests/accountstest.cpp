@@ -139,7 +139,7 @@ private slots:
             QCOMPARE(account->getStatus(), static_cast<int>(Sink::ApplicationDomain::OfflineStatus));
 
             //Synchronize to connect
-            VERIFYEXEC(Sink::Store::synchronize(Query::ResourceFilter(res)));
+            VERIFYEXEC(Sink::Store::synchronize(Query().resourceFilter(res.identifier())));
 
             QTRY_COMPARE_WITH_TIMEOUT(model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkAccount::Ptr>()->getStatus(), static_cast<int>(Sink::ApplicationDomain::ConnectedStatus), 1000);
         }

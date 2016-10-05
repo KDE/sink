@@ -11,6 +11,7 @@
 #include "log.h"
 #include "modelresult.h"
 #include "test.h"
+#include "testutils.h"
 
 static int blockingTime;
 
@@ -76,10 +77,10 @@ private slots:
         }
 
         Sink::Query query;
-        query.resources << "sink.dummy.instance1";
+        query.resourceFilter("sink.dummy.instance1");
         query.liveQuery = true;
 
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
         // Test
         QTime time;

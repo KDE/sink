@@ -13,6 +13,8 @@
 #include "log.h"
 #include "resourceconfig.h"
 #include "notification_generated.h"
+#include "test.h"
+#include "testutils.h"
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
@@ -98,8 +100,8 @@ private slots:
         // Ensure everything is processed
         {
             Sink::Query query;
-            query.resources << "sink.dummy.instance1";
-            Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+            query.resourceFilter("sink.dummy.instance1");
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
         }
         auto allProcessedTime = time.elapsed();
 
@@ -127,7 +129,7 @@ private slots:
         {
             time.start();
             Sink::Query query;
-            query.resources << "sink.dummy.instance1";
+            query.resourceFilter("sink.dummy.instance1");
 
             query.filter("uid", Sink::Query::Comparator("testuid"));
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);

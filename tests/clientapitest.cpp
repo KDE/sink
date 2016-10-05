@@ -104,7 +104,7 @@ private slots:
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Sink::Query query;
-        query.resources << "dummyresource.instance1";
+        query.resourceFilter("dummyresource.instance1");
         query.liveQuery = false;
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
@@ -115,7 +115,7 @@ private slots:
     void testLoadWithoutResource()
     {
         Sink::Query query;
-        query.resources << "nonexisting.resource";
+        query.resourceFilter("nonexisting.resource");
         query.liveQuery = false;
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
@@ -129,7 +129,7 @@ private slots:
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Sink::Query query;
-        query.resources << "dummyresource.instance1";
+        query.resourceFilter("dummyresource.instance1");
         query.liveQuery = false;
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
@@ -147,7 +147,7 @@ private slots:
 
         // Test
         Sink::Query query;
-        query.resources << "dummyresource.instance1";
+        query.resourceFilter("dummyresource.instance1");
         query.liveQuery = false;
         query.parentProperty = "parent";
 
@@ -170,7 +170,7 @@ private slots:
 
         // Test
         Sink::Query query;
-        query.resources << "dummyresource.instance1";
+        query.resourceFilter("dummyresource.instance1");
         query.liveQuery = false;
         query.parentProperty = "parent";
 
@@ -193,7 +193,7 @@ private slots:
 
         // Test
         Sink::Query query;
-        query.resources << "dummyresource.instance1";
+        query.resourceFilter("dummyresource.instance1");
         query.liveQuery = true;
         query.parentProperty = "parent";
 
@@ -268,7 +268,7 @@ private slots:
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Sink::Query query;
-        query.resources << "dummyresource.instance1";
+        query.resourceFilter("dummyresource.instance1");
         query.liveQuery = false;
 
         bool gotValue = false;

@@ -60,7 +60,7 @@ bool show(const QStringList &args, State &state)
     if (queryForResourceOrAgent) {
         query.filter(resource.toLatin1());
     } else {
-        query.filter(Sink::ApplicationDomain::SinkResource(resource.toLatin1()));
+        query.resourceFilter(resource.toLatin1());
     }
     query.liveQuery = false;
 

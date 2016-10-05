@@ -66,14 +66,14 @@ void MailThreadTest::init()
 void MailThreadTest::testListThreadLeader()
 {
     Sink::Query query;
-    query.filter(SinkResource(mResourceInstanceIdentifier));
+    query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
     query.sort<Mail::Date>();
     query.reduce<Mail::ThreadId>(Query::Reduce::Selector::max<Mail::Date>());
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto mails = Store::read<Mail>(query);
     QCOMPARE(mails.size(), 1);
@@ -125,7 +125,7 @@ void MailThreadTest::testIndexInMixedOrder()
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto query = Sink::Query::threadLeaders(folder);
-    query.filter(SinkResource(mResourceInstanceIdentifier));
+    query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
 
     Mail threadLeader;

@@ -59,8 +59,7 @@ bool list(const QStringList &args, State &state)
     auto filterIndex = args.indexOf("--filter");
     if (filterIndex >= 0) {
         for (int i = 1; i < filterIndex; i++) {
-            query.resources << args.at(i).toLatin1();
-            query.filter(Sink::ApplicationDomain::SinkResource(args.at(i).toLatin1()));
+            query.resourceFilter(args.at(i).toLatin1());
         }
         for (int i = filterIndex + 1; i < args.size(); i++) {
             auto filter = args.at(i).split("=");

@@ -59,46 +59,6 @@ public:
         Comparators comparator;
     };
 
-    static Query ResourceFilter(const QByteArray &identifier)
-    {
-        Query query;
-        query.resources.append(identifier);
-        return query;
-    }
-
-    static Query ResourceFilter(const QByteArrayList &identifier)
-    {
-        Query query;
-        query.resources = identifier;
-        return query;
-    }
-
-    static Query ResourceFilter(const ApplicationDomain::SinkResource &entity)
-    {
-        return ResourceFilter(entity.identifier());
-    }
-
-    static Query IdentityFilter(const QByteArray &identifier)
-    {
-        Q_ASSERT(!identifier.isEmpty());
-        Query query;
-        query.filter(identifier);
-        return query;
-    }
-
-    static Query IdentityFilter(const QByteArrayList &identifier)
-    {
-        Query query;
-        query.filter(identifier);
-        return query;
-    }
-
-    static Query IdentityFilter(const ApplicationDomain::Entity &entity)
-    {
-        auto query = IdentityFilter(entity.identifier());
-        query.resources << entity.resourceInstanceIdentifier();
-        return query;
-    }
 
     template <typename T>
     Query &request()
@@ -124,16 +84,13 @@ public:
     Query(const ApplicationDomain::Entity &value) : limit(0), liveQuery(false), synchronousQuery(false)
     {
         filter(value.identifier());
-        filter(ApplicationDomain::SinkResource(value.resourceInstanceIdentifier()));
+        resourceFilter(value.resourceInstanceIdentifier());
     }
-
 
     Query(Flags flags = Flags()) : limit(0), liveQuery(false), synchronousQuery(false)
     {
     }
 
-    QByteArrayList resources;
-    QByteArrayList accounts;
     QByteArrayList requestedProperties;
     QByteArray parentProperty;
     QByteArray sortProperty;
@@ -147,7 +104,10 @@ public:
         virtual ~FilterStage(){};
     };
 
-    QList<QSharedPointer<FilterStage>> filterStages;
+    QList<QSharedPointer<FilterStage>> getFilterStages()
+    {
+        return mFilterStages;
+    }
 
     /*
     * Filters
@@ -178,69 +138,45 @@ public:
 
     Query &filter(const QByteArray &id)
     {
-        if (filterStages.isEmpty()) {
-            filterStages << QSharedPointer<Filter>::create();
-        }
-        filterStages.first().staticCast<Filter>()->ids << id;
+        mBaseFilterStage.ids << id;
         return *this;
     }
 
     Query &filter(const QByteArrayList &ids)
     {
-        if (filterStages.isEmpty()) {
-            filterStages << QSharedPointer<Filter>::create();
-        }
-        filterStages.first().staticCast<Filter>()->ids << ids;
+        mBaseFilterStage.ids << ids;
         return *this;
     }
 
     Query &filter(const QByteArray &property, const Comparator &comparator)
     {
-        if (filterStages.isEmpty()) {
-            filterStages << QSharedPointer<Filter>::create();
-        }
-        filterStages.first().staticCast<Filter>()->propertyFilter.insert(property, comparator);
+        mBaseFilterStage.propertyFilter.insert(property, comparator);
         return *this;
     }
 
     Comparator getFilter(const QByteArray &property) const
     {
-        if (filterStages.isEmpty()) {
-            return Comparator();
-        }
-        return filterStages.first().staticCast<Filter>()->propertyFilter.value(property);
+        return mBaseFilterStage.propertyFilter.value(property);
     }
 
     bool hasFilter(const QByteArray &property) const
     {
-        if (filterStages.isEmpty()) {
-            return false;
-        }
-        return filterStages.first().staticCast<Filter>()->propertyFilter.contains(property);
+        return mBaseFilterStage.propertyFilter.contains(property);
     }
 
     void setBaseFilters(const QHash<QByteArray, Comparator> &filter)
     {
-        if (filterStages.isEmpty()) {
-            filterStages << QSharedPointer<Filter>::create();
-        }
-        filterStages.first().staticCast<Filter>()->propertyFilter = filter;
+        mBaseFilterStage.propertyFilter = filter;
     }
 
     QHash<QByteArray, Comparator> getBaseFilters() const
     {
-        if (filterStages.isEmpty()) {
-            return QHash<QByteArray, Comparator>();
-        }
-        return filterStages.first().staticCast<Filter>()->propertyFilter;
+        return mBaseFilterStage.propertyFilter;
     }
 
     QByteArrayList ids() const
     {
-        if (filterStages.isEmpty()) {
-            return QByteArrayList();
-        }
-        return filterStages.first().staticCast<Filter>()->ids;
+        return mBaseFilterStage.ids;
     }
 
     template <typename T>
@@ -257,16 +193,40 @@ public:
         return filter(T::name, QVariant::fromValue(q));
     }
 
-    Query &filter(const ApplicationDomain::SinkResource &resource)
+    Filter getResourceFilter() const
     {
-        resources << resource.identifier();
+        return mResourceFilter;
+    }
+
+    Query &resourceFilter(const QByteArray &id)
+    {
+        mResourceFilter.ids << id;
         return *this;
     }
 
-    Query &filter(const ApplicationDomain::SinkAccount &account)
+    template <typename T>
+    Query &resourceFilter(const ApplicationDomain::ApplicationDomainType &entity)
     {
-        accounts << account.identifier();
+        mResourceFilter.propertyFilter.insert(T::name, Comparator(entity.identifier()));
         return *this;
+    }
+
+    Query &resourceFilter(const QByteArray &name, const Comparator &comparator)
+    {
+        mResourceFilter.propertyFilter.insert(name, comparator);
+        return *this;
+    }
+
+    template <typename T>
+    Query &resourceContainsFilter(const QVariant &value)
+    {
+        return resourceFilter(T::name, Comparator(value, Comparator::Contains));
+    }
+
+    template <typename T>
+    Query &resourceFilter(const QVariant &value)
+    {
+        return resourceFilter(T::name, value);
     }
 
     class Reduce : public FilterStage {
@@ -318,7 +278,7 @@ public:
     Reduce &reduce(const Reduce::Selector &s)
     {
         auto reduction = QSharedPointer<Reduce>::create(T::name, s);
-        filterStages << reduction;
+        mFilterStages << reduction;
         return *reduction;
     }
 
@@ -345,7 +305,7 @@ public:
     void bloom()
     {
         auto bloom = QSharedPointer<Bloom>::create(T::name);
-        filterStages << bloom;
+        mFilterStages << bloom;
     }
 
     //Query fixtures
@@ -357,7 +317,7 @@ public:
     {
         Sink::Query query;
         if (!mail.resourceInstanceIdentifier().isEmpty()) {
-            query.filter(ApplicationDomain::SinkResource(mail.resourceInstanceIdentifier()));
+            query.resourceFilter(mail.resourceInstanceIdentifier());
         }
         query.filter(mail.identifier());
         query.sort<ApplicationDomain::Mail::Date>();
@@ -372,7 +332,7 @@ public:
     {
         Sink::Query query;
         if (!folder.resourceInstanceIdentifier().isEmpty()) {
-            query.filter(ApplicationDomain::SinkResource(folder.resourceInstanceIdentifier()));
+            query.resourceFilter(folder.resourceInstanceIdentifier());
         }
         query.filter<ApplicationDomain::Mail::Folder>(folder);
         query.sort<ApplicationDomain::Mail::Date>();
@@ -380,7 +340,10 @@ public:
         return query;
     }
 
-
+private:
+    Filter mResourceFilter;
+    Filter mBaseFilterStage;
+    QList<QSharedPointer<FilterStage>> mFilterStages;
 };
 
 }

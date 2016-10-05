@@ -12,6 +12,7 @@
 #include "pipeline.h"
 #include "log.h"
 #include "test.h"
+#include "testutils.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -66,10 +67,10 @@ private slots:
         event.setProperty("summary", "summaryValue");
         Sink::Store::create<Event>(event).exec().waitForFinished();
 
-        auto query = Query::ResourceFilter("sink.dummy.instance1") ;
+        auto query = Query().resourceFilter("sink.dummy.instance1") ;
 
         // Ensure all local data is processed
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
         auto model = Sink::Store::loadModel<Event>(query.filter<Event::Uid>("testuid"));
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
@@ -88,10 +89,10 @@ private slots:
         event.setProperty("uid", "testuid2");
         Sink::Store::create<Event>(event).exec().waitForFinished();
 
-        auto query = Query::ResourceFilter("sink.dummy.instance1") ;
+        auto query = Query().resourceFilter("sink.dummy.instance1") ;
 
         // Ensure all local data is processed
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
         auto model = Sink::Store::loadModel<Event>(query.filter<Event::Uid>("testuid"));
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
@@ -113,10 +114,10 @@ private slots:
         event.setProperty("summary", "summaryValue2");
         Sink::Store::create<Event>(event).exec().waitForFinished();
 
-        auto query = Query::ResourceFilter("sink.dummy.instance1") ;
+        auto query = Query().resourceFilter("sink.dummy.instance1") ;
 
         // Ensure all local data is processed
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
         auto model = Sink::Store::loadModel<Event>(query.filter<Event::Summary>("summaryValue2"));
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
@@ -143,11 +144,11 @@ private slots:
 
     void testSyncAndFacade()
     {
-        const auto query = Query::ResourceFilter("sink.dummy.instance1");
+        const auto query = Query().resourceFilter("sink.dummy.instance1");
 
         // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
         auto model = Sink::Store::loadModel<Event>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
@@ -159,12 +160,12 @@ private slots:
 
     void testSyncAndFacadeMail()
     {
-        auto query = Query::ResourceFilter("sink.dummy.instance1");
+        auto query = Query().resourceFilter("sink.dummy.instance1");
         query.request<Mail::Subject>();
 
         // Ensure all local data is processed
         Sink::Store::synchronize(query).exec().waitForFinished();
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
         auto model = Sink::Store::loadModel<Mail>(query);
         QTRY_VERIFY(model->rowCount(QModelIndex()) >= 1);
@@ -182,10 +183,10 @@ private slots:
         event.setProperty("summary", "summaryValue");
         Sink::Store::create<Event>(event).exec().waitForFinished();
 
-        auto query = Query::ResourceFilter("sink.dummy.instance1").filter<Event::Uid>("testuid");
+        auto query = Query().resourceFilter("sink.dummy.instance1").filter<Event::Uid>("testuid");
 
         // Ensure all local data is processed
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
         // Test create
         Event event2;
@@ -204,7 +205,7 @@ private slots:
         Sink::Store::modify<Event>(event2).exec().waitForFinished();
 
         // Ensure all local data is processed
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
         // Test modify
         {
@@ -219,7 +220,7 @@ private slots:
         Sink::Store::remove<Event>(event2).exec().waitForFinished();
 
         // Ensure all local data is processed
-        Sink::ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
         // Test remove
         {
@@ -231,7 +232,7 @@ private slots:
 
     void testWriteModifyDeleteLive()
     {
-        auto query = Query::ResourceFilter("sink.dummy.instance1");
+        auto query = Query().resourceFilter("sink.dummy.instance1");
         query.liveQuery = true;
         query.filter<Event::Uid>("testuid");
 

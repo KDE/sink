@@ -41,7 +41,7 @@ bool sync(const QStringList &args, State &state)
 {
     Sink::Query query;
     for (const auto &res : args) {
-        query.resources << res.toLatin1();
+        query.resourceFilter(res.toLatin1());
     }
 
     QTimer::singleShot(0, [query, state]() {

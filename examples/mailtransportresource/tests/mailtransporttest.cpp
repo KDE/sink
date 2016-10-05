@@ -61,10 +61,10 @@ private slots:
 
         VERIFYEXEC(Store::create(mail));
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
-        VERIFYEXEC(Store::synchronize(Query::ResourceFilter(mResourceInstanceIdentifier)));
+        VERIFYEXEC(Store::synchronize(Query().resourceFilter(mResourceInstanceIdentifier)));
         VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, true)));
 
-        auto sentMail = Store::readOne<ApplicationDomain::Mail>(Query::IdentityFilter(mail).request<Mail::Sent>().request<Mail::Subject>());
+        auto sentMail = Store::readOne<ApplicationDomain::Mail>(Query(mail).request<Mail::Sent>().request<Mail::Subject>());
         QVERIFY(sentMail.getSent());
         QVERIFY(!sentMail.getSubject().isEmpty());
     }

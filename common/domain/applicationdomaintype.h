@@ -242,7 +242,6 @@ struct SINK_EXPORT Entity : public ApplicationDomainType {
     typedef QSharedPointer<Entity> Ptr;
     using ApplicationDomainType::ApplicationDomainType;
     virtual ~Entity();
-    SINK_REFERENCE_PROPERTY(SinkResource, Resource, resource);
 };
 
 struct SINK_EXPORT Event : public Entity {

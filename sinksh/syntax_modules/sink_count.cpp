@@ -51,7 +51,7 @@ bool count(const QStringList &args, State &state)
 
     Sink::Query query;
     for (const auto &res : resources) {
-        query.resources << res.toLatin1();
+        query.resourceFilter(res.toLatin1());
     }
     query.liveQuery = false;
 

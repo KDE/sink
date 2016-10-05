@@ -409,9 +409,6 @@ void DataStoreQuery::setupQuery()
 {
     auto baseFilters = mQuery.getBaseFilters();
     for (const auto &k : baseFilters.keys()) {
-        if (k == ApplicationDomain::Entity::Resource::name) {
-            continue;
-        }
         const auto comparator = baseFilters.value(k);
         if (comparator.value.canConvert<Query>()) {
             SinkTrace() << "Executing subquery for property: " << k;
@@ -446,9 +443,6 @@ void DataStoreQuery::setupQuery()
         auto filter = Filter::Ptr::create(baseSet, this);
         //For incremental queries the remaining filters are not sufficient
         for (const auto &f : mQuery.getBaseFilters().keys()) {
-            if (f == ApplicationDomain::Entity::Resource::name) {
-                continue;
-            }
             filter->propertyFilter.insert(f, mQuery.getFilter(f));
         }
         baseSet = filter;
@@ -459,7 +453,7 @@ void DataStoreQuery::setupQuery()
     /* } */
 
     //Setup the rest of the filter stages on top of the base set
-    for (const auto &stage : mQuery.filterStages.mid(1)) {
+    for (const auto &stage : mQuery.getFilterStages()) {
         if (auto filter = stage.dynamicCast<Query::Filter>()) {
             auto f = Filter::Ptr::create(baseSet, this);
             f->propertyFilter = filter->propertyFilter;

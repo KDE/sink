@@ -107,7 +107,7 @@ private slots:
     void testSync()
     {
         Sink::Query query;
-        query.resources << mResourceInstanceIdentifier;
+        query.resourceFilter(mResourceInstanceIdentifier);
         query.request<Folder::Name>().request<Folder::SpecialPurpose>();
 
         QTime time;
@@ -117,7 +117,7 @@ private slots:
         VERIFYEXEC(Store::synchronize(query));
         SinkLog() << "Sync took: " << Sink::Log::TraceTime(time.elapsed());
 
-        VERIFYEXEC(ResourceControl::flushMessageQueue(query.resources));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
         SinkLog() << "Total took: " << Sink::Log::TraceTime(time.elapsed());
 
         time.start();
@@ -125,7 +125,7 @@ private slots:
         VERIFYEXEC(Store::synchronize(query));
         SinkLog() << "ReSync took: " << Sink::Log::TraceTime(time.elapsed());
 
-        VERIFYEXEC(ResourceControl::flushMessageQueue(query.resources));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
         SinkLog() << "Total resync took: " << Sink::Log::TraceTime(time.elapsed());
     }
 };

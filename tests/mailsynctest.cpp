@@ -81,12 +81,12 @@ void MailSyncTest::testListFolders()
     }
 
     Sink::Query query;
-    query.resources << mResourceInstanceIdentifier;
+    query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Folder::Name>().request<Folder::SpecialPurpose>();
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
         QStringList names;
@@ -121,14 +121,14 @@ void MailSyncTest::testListFolders()
 void MailSyncTest::testListNewFolder()
 {
     Sink::Query query;
-    query.resources << mResourceInstanceIdentifier;
+    query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Folder::Name>();
 
     createFolder(QStringList() << "test2");
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
         QStringList names;
@@ -143,17 +143,17 @@ void MailSyncTest::testListNewFolder()
 void MailSyncTest::testListRemovedFolder()
 {
     Sink::Query query;
-    query.resources << mResourceInstanceIdentifier;
+    query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Folder::Name>();
 
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     removeFolder(QStringList() << "test2");
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
         QStringList names;
@@ -171,14 +171,14 @@ void MailSyncTest::testListFolderHierarchy()
         QSKIP("Missing capability folder.hierarchy");
     }
     Sink::Query query;
-    query.resources << mResourceInstanceIdentifier;
+    query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Folder::Name>().request<Folder::Parent>();
 
     createFolder(QStringList() << "test" << "sub");
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([=](const QList<Folder::Ptr> &folders) {
         QHash<QString, Folder::Ptr> map;
@@ -214,14 +214,14 @@ void MailSyncTest::testListNewSubFolder()
         QSKIP("Missing capability mail.folderhierarchy");
     }
     Sink::Query query;
-    query.resources << mResourceInstanceIdentifier;
+    query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Folder::Name>();
 
     createFolder(QStringList() << "test" << "sub1");
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
         QStringList names;
@@ -239,17 +239,17 @@ void MailSyncTest::testListRemovedSubFolder()
         QSKIP("Missing capability folder.hierarchy");
     }
     Sink::Query query;
-    query.resources << mResourceInstanceIdentifier;
+    query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Folder::Name>();
 
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     removeFolder(QStringList() << "test" << "sub1");
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto job = Store::fetchAll<Folder>(query).syncThen<void, QList<Folder::Ptr>>([](const QList<Folder::Ptr> &folders) {
         QStringList names;
@@ -264,12 +264,12 @@ void MailSyncTest::testListRemovedSubFolder()
 void MailSyncTest::testListMails()
 {
     Sink::Query query;
-    query.resources << mResourceInstanceIdentifier;
+    query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
         QCOMPARE(mails.size(), 1);
@@ -290,15 +290,15 @@ void MailSyncTest::testListMails()
 void MailSyncTest::testResyncMails()
 {
     Sink::Query query;
-    query.resources << mResourceInstanceIdentifier;
+    query.resourceFilter(mResourceInstanceIdentifier);
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
         QCOMPARE(mails.size(), 1);
@@ -309,20 +309,20 @@ void MailSyncTest::testResyncMails()
 void MailSyncTest::testFetchNewRemovedMessages()
 {
     Sink::Query query;
-    query.resources << mResourceInstanceIdentifier;
+    query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Mail::Subject>().request<Mail::MimeMessage>();
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto msg = KMime::Message::Ptr::create();
     msg->subject(true)->fromUnicodeString("Foobar", "utf8");
     msg->assemble();
     auto messageIdentifier = createMessage(QStringList() << "test", msg->encodedContent(true));
 
-    Store::synchronize(query).exec().waitForFinished();
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(Store::synchronize(query));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     {
         auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
@@ -333,8 +333,8 @@ void MailSyncTest::testFetchNewRemovedMessages()
 
     removeMessage(QStringList() << "test", messageIdentifier);
 
-    Store::synchronize(query).exec().waitForFinished();
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(Store::synchronize(query));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     {
         auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
@@ -347,7 +347,8 @@ void MailSyncTest::testFetchNewRemovedMessages()
 void MailSyncTest::testFlagChange()
 {
     Sink::Query query;
-    query.resources << mResourceInstanceIdentifier;
+    query.resourceFilter(mResourceInstanceIdentifier);
+    query.filter<Mail::Important>(true);
     query.request<Mail::Subject>().request<Mail::Important>();
 
     auto msg = KMime::Message::Ptr::create();
@@ -355,13 +356,12 @@ void MailSyncTest::testFlagChange()
     msg->assemble();
     auto messageIdentifier = createMessage(QStringList() << "test", msg->encodedContent(true));
 
-    Store::synchronize(query).exec().waitForFinished();
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(Store::synchronize(query));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     {
         auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
-            QCOMPARE(mails.size(), 2);
-            QVERIFY(!mails.at(1)->getImportant());
+            QCOMPARE(mails.size(), 0);
         });
         VERIFYEXEC(job);
     }
@@ -370,12 +370,12 @@ void MailSyncTest::testFlagChange()
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
-    ResourceControl::flushMessageQueue(query.resources).exec().waitForFinished();
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     {
         auto job = Store::fetchAll<Mail>(query).syncThen<void, QList<Mail::Ptr>>([](const QList<Mail::Ptr> &mails) {
-            QCOMPARE(mails.size(), 2);
-            QVERIFY(mails.at(1)->getImportant());
+            QCOMPARE(mails.size(), 1);
+            QVERIFY(mails.first()->getImportant());
         });
         VERIFYEXEC(job);
     }
@@ -389,7 +389,7 @@ void MailSyncTest::testFailingSync()
     VERIFYEXEC(Store::create(resource));
 
     Sink::Query query;
-    query.resources << resource.identifier();
+    query.resourceFilter(resource.identifier());
 
     // Ensure sync fails if resource is misconfigured
     auto future = Store::synchronize(query).exec();
