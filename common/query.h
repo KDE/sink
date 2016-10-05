@@ -340,6 +340,17 @@ public:
         return query;
     }
 
+    /**
+     * Outgoing mails.
+     */
+    static Query outboxMails()
+    {
+        Sink::Query query;
+        query.resourceContainsFilter<ApplicationDomain::SinkResource::Capabilities>(ApplicationDomain::ResourceCapabilities::Mail::transport);
+        query.sort<ApplicationDomain::Mail::Date>();
+        return query;
+    }
+
 private:
     Filter mResourceFilter;
     Filter mBaseFilterStage;
