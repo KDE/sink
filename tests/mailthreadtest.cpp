@@ -70,7 +70,7 @@ void MailThreadTest::testListThreadLeader()
     query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
     query.sort<Mail::Date>();
-    query.reduce<Mail::ThreadId>(Query::Reduce::Selector::max<Mail::Date>());
+    query.reduce<Mail::ThreadId>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Sender>("senders");
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
@@ -79,6 +79,8 @@ void MailThreadTest::testListThreadLeader()
     auto mails = Store::read<Mail>(query);
     QCOMPARE(mails.size(), 1);
     QVERIFY(mails.first().getSubject().startsWith(QString("ThreadLeader")));
+    auto threadSize = mails.first().getProperty("count").toInt();
+    QCOMPARE(threadSize, 2);
 }
 
 /*

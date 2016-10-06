@@ -55,7 +55,7 @@ public:
 
 private:
     Storage::Transaction getTransaction();
-    std::function<bool(const typename DomainType::Ptr &, Sink::Operation)> resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
+    std::function<bool(const typename DomainType::Ptr &, Sink::Operation, const QMap<QByteArray, QVariant> &)> resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
 
     QueryRunnerBase::ResultTransformation mResultTransformation;
     DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
@@ -174,10 +174,13 @@ QueryWorker<DomainType>::~QueryWorker()
 }
 
 template <class DomainType>
-std::function<bool(const typename DomainType::Ptr &, Sink::Operation)> QueryWorker<DomainType>::resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
+std::function<bool(const typename DomainType::Ptr &, Sink::Operation, const QMap<QByteArray, QVariant> &)> QueryWorker<DomainType>::resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
 {
-    return [this, &query, &resultProvider](const typename DomainType::Ptr &domainObject, Sink::Operation operation) -> bool {
+    return [this, &query, &resultProvider](const typename DomainType::Ptr &domainObject, Sink::Operation operation, const QMap<QByteArray, QVariant> &aggregateValues) -> bool {
         auto valueCopy = Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*domainObject, query.requestedProperties).template staticCast<DomainType>();
+        for (auto it = aggregateValues.constBegin(); it != aggregateValues.constEnd(); it++) {
+            valueCopy->setProperty(it.key(), it.value());
+        }
         if (mResultTransformation) {
             mResultTransformation(*valueCopy);
         }

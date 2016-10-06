@@ -145,14 +145,14 @@ template <class DomainType>
 void EntityReader<DomainType>::query(const Sink::Query &query, const std::function<bool(const DomainType &)> &callback)
 {
     executeInitialQuery(query, 0, 0,
-        [&callback](const typename DomainType::Ptr &value, Sink::Operation operation) -> bool {
+        [&callback](const typename DomainType::Ptr &value, Sink::Operation operation, const QMap<QByteArray, QVariant> &) -> bool {
             Q_ASSERT(operation == Sink::Operation_Creation);
             return callback(*value);
         });
 }
 
 template <class DomainType>
-QPair<qint64, qint64> EntityReader<DomainType>::executeInitialQuery(const Sink::Query &query, int offset, int batchsize, const std::function<bool(const typename DomainType::Ptr &value, Sink::Operation operation)> &callback)
+QPair<qint64, qint64> EntityReader<DomainType>::executeInitialQuery(const Sink::Query &query, int offset, int batchsize, const ResultCallback &callback)
 {
     QTime time;
     time.start();
@@ -168,7 +168,7 @@ QPair<qint64, qint64> EntityReader<DomainType>::executeInitialQuery(const Sink::
 }
 
 template <class DomainType>
-QPair<qint64, qint64> EntityReader<DomainType>::executeIncrementalQuery(const Sink::Query &query, qint64 lastRevision, const std::function<bool(const typename DomainType::Ptr &value, Sink::Operation operation)> &callback)
+QPair<qint64, qint64> EntityReader<DomainType>::executeIncrementalQuery(const Sink::Query &query, qint64 lastRevision, const ResultCallback &callback)
 {
     QTime time;
     time.start();
@@ -185,18 +185,18 @@ QPair<qint64, qint64> EntityReader<DomainType>::executeIncrementalQuery(const Si
 }
 
 template <class DomainType>
-qint64 EntityReader<DomainType>::replaySet(ResultSet &resultSet, int offset, int batchSize, const std::function<bool(const typename DomainType::Ptr &value, Sink::Operation operation)> &callback)
+qint64 EntityReader<DomainType>::replaySet(ResultSet &resultSet, int offset, int batchSize, const ResultCallback &callback)
 {
     SinkTrace() << "Skipping over " << offset << " results";
     resultSet.skip(offset);
     int counter = 0;
     while (!batchSize || (counter < batchSize)) {
         const bool ret =
-            resultSet.next([this, &counter, callback](const QByteArray &uid, const Sink::EntityBuffer &value, Sink::Operation operation) -> bool {
+            resultSet.next([this, &counter, callback](const ResultSet::Result &result) -> bool {
                 counter++;
-                auto adaptor = mDomainTypeAdaptorFactory.createAdaptor(value.entity());
+                auto adaptor = mDomainTypeAdaptorFactory.createAdaptor(result.buffer.entity());
                 Q_ASSERT(adaptor);
-                return callback(QSharedPointer<DomainType>::create(mResourceInstanceIdentifier, uid, value.revision(), adaptor), operation);
+                return callback(QSharedPointer<DomainType>::create(mResourceInstanceIdentifier, result.uid, result.buffer.revision(), adaptor), result.operation, result.aggregateValues);
             });
         if (!ret) {
             break;

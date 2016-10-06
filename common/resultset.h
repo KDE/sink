@@ -19,6 +19,8 @@
 #pragma once
 
 #include <QVector>
+#include <QMap>
+#include <QVariant>
 #include <functional>
 #include "metadata_generated.h"
 #include "entitybuffer.h"
@@ -31,7 +33,13 @@
 class ResultSet
 {
 public:
-    typedef std::function<void(const QByteArray &uid, const Sink::EntityBuffer &, Sink::Operation)> Callback;
+    struct Result {
+        QByteArray uid;
+        Sink::EntityBuffer buffer;
+        Sink::Operation operation;
+        QMap<QByteArray, QVariant> aggregateValues;
+    };
+    typedef std::function<void(const Result &)> Callback;
     typedef std::function<bool(Callback)> ValueGenerator;
     typedef std::function<QByteArray()> IdGenerator;
     typedef std::function<void()> SkipValue;

@@ -50,7 +50,7 @@ namespace StandardQueries {
         }
         query.filter<ApplicationDomain::Mail::Folder>(folder);
         query.sort<ApplicationDomain::Mail::Date>();
-        query.reduce<ApplicationDomain::Mail::ThreadId>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>());
+        query.reduce<ApplicationDomain::Mail::ThreadId>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>()).count("count");
         return query;
     }
 

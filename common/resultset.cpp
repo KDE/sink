@@ -79,7 +79,7 @@ bool ResultSet::next()
             return true;
         }
     } else {
-        next([](const QByteArray &, const Sink::EntityBuffer &, Sink::Operation) { return false; });
+        next([](const Result &) { return false; });
     }
     return false;
 }

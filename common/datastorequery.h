@@ -107,7 +107,7 @@ public:
     virtual void skip() { mSource->skip(); };
 
     //Returns true for as long as a result is available
-    virtual bool next(const std::function<void(Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> &callback) = 0;
+    virtual bool next(const std::function<void(const ResultSet::Result &)> &callback) = 0;
 
     QSharedPointer<FilterBase> mSource;
     DataStoreQuery *mDatastore;

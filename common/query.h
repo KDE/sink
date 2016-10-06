@@ -255,15 +255,48 @@ public:
             Comparator comparator;
         };
 
+        class Aggregator {
+        public:
+            enum Operation {
+                Count,
+                Collect
+            };
+
+            Aggregator(const QByteArray &p, Operation o, const QByteArray &c = QByteArray())
+                : resultProperty(p),
+                operation(o),
+                propertyToCollect(c)
+            {
+            }
+
+            QByteArray resultProperty;
+            Operation operation;
+            QByteArray propertyToCollect;
+        };
+
         Reduce(const QByteArray &p, const Selector &s)
             : property(p),
             selector(s)
         {
         }
 
+        Reduce &count(const QByteArray &propertyName = "count")
+        {
+            aggregators << Aggregator(propertyName, Aggregator::Count);
+            return *this;
+        }
+
+        template <typename T>
+        Reduce &collect(const QByteArray &propertyName)
+        {
+            aggregators << Aggregator(propertyName, Aggregator::Collect, T::name);
+            return *this;
+        }
+
         //Reduce on property
         QByteArray property;
         Selector selector;
+        QList<Aggregator> aggregators;
 
         //TODO add aggregate functions like:
         //.count()

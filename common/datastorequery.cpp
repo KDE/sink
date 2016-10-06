@@ -62,13 +62,13 @@ class Source : public FilterBase {
         mIt = mIds.constBegin();
     }
 
-    bool next(const std::function<void(Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> &callback) Q_DECL_OVERRIDE
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
     {
         if (mIt == mIds.constEnd()) {
             return false;
         }
         readEntity(*mIt, [callback](const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
-            callback(entityBuffer.operation(), uid, entityBuffer);
+            callback({uid, entityBuffer, entityBuffer.operation()});
         });
         mIt++;
         return mIt != mIds.constEnd();
@@ -86,7 +86,7 @@ public:
     }
     virtual ~Collector(){}
 
-    bool next(const std::function<void(Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> &callback) Q_DECL_OVERRIDE
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
     {
         return mSource->next(callback);
     }
@@ -106,26 +106,26 @@ public:
 
     virtual ~Filter(){}
 
-    bool next(const std::function<void(Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> &callback) Q_DECL_OVERRIDE {
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
-        while(!foundValue && mSource->next([this, callback, &foundValue](Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
-                SinkTrace() << "Filter: " << uid << operation;
+        while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
+                SinkTrace() << "Filter: " << result.uid << result.operation;
 
                 //Always accept removals. They can't match the filter since the data is gone.
-                if (operation == Sink::Operation_Removal) {
-                    SinkTrace() << "Removal: " << uid << operation;
-                    callback(operation, uid, entityBuffer);
+                if (result.operation == Sink::Operation_Removal) {
+                    SinkTrace() << "Removal: " << result.uid << result.operation;
+                    callback(result);
                     foundValue = true;
-                } else if (matchesFilter(uid, entityBuffer)) {
-                    SinkTrace() << "Accepted: " << uid << operation;
-                    callback(operation, uid, entityBuffer);
+                } else if (matchesFilter(result.uid, result.buffer)) {
+                    SinkTrace() << "Accepted: " << result.uid << result.operation;
+                    callback(result);
                     foundValue = true;
                     //TODO if something did not match the filter so far but does now, turn into an add operation.
                 } else {
-                    SinkTrace() << "Rejected: " << uid << operation;
+                    SinkTrace() << "Rejected: " << result.uid << result.operation;
                     //TODO emit a removal if we had the uid in the result set and this is a modification.
                     //We don't know if this results in a removal from the dataset, so we emit a removal notification anyways
-                    callback(Sink::Operation_Removal, uid, entityBuffer);
+                    callback({result.uid, result.buffer, Sink::Operation_Removal, result.aggregateValues});
                 }
                 return false;
             }))
@@ -186,10 +186,10 @@ public:
         return false;
     }
 
-    bool next(const std::function<void(Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> &callback) Q_DECL_OVERRIDE {
+    bool next(const std::function<void(const ResultSet::Result &)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
-        while(!foundValue && mSource->next([this, callback, &foundValue](Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
-                auto reductionValue = getProperty(entityBuffer.entity(), mReductionProperty);
+        while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
+                auto reductionValue = getProperty(result.buffer.entity(), mReductionProperty);
                 if (!mReducedValues.contains(getByteArray(reductionValue))) {
                     //Only reduce every value once.
                     mReducedValues.insert(getByteArray(reductionValue));
@@ -205,8 +205,11 @@ public:
                             }
                         });
                     }
+                    int count = results.size();
                     readEntity(selectionResult, [&, this](const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
-                        callback(Sink::Operation_Creation, uid, entityBuffer);
+                        QMap<QByteArray, QVariant> aggregateValues;
+                        aggregateValues.insert("count", count);
+                        callback({uid, entityBuffer, Sink::Operation_Creation, aggregateValues});
                         foundValue = true;
                     });
                 }
@@ -232,14 +235,14 @@ public:
 
     virtual ~Bloom(){}
 
-    bool next(const std::function<void(Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> &callback) Q_DECL_OVERRIDE {
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
-        while(!foundValue && mSource->next([this, callback, &foundValue](Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
-                auto bloomValue = getProperty(entityBuffer.entity(), mBloomProperty);
+        while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
+                auto bloomValue = getProperty(result.buffer.entity(), mBloomProperty);
                 auto results = indexLookup(mBloomProperty, bloomValue);
                 for (const auto r : results) {
                     readEntity(r, [&, this](const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
-                        callback(Sink::Operation_Creation, uid, entityBuffer);
+                        callback({uid, entityBuffer, Sink::Operation_Creation});
                         foundValue = true;
                     });
                 }
@@ -398,8 +401,8 @@ QByteArrayList DataStoreQuery::executeSubquery(const Query &subquery)
     auto sub = prepareQuery(subquery.type, subquery, mTransaction);
     auto result = sub->execute();
     QByteArrayList ids;
-    while (result.next([&ids](const QByteArray &uid, const Sink::EntityBuffer &, Sink::Operation) {
-            ids << uid;
+    while (result.next([&ids](const ResultSet::Result &result) {
+            ids << result.uid;
         }))
     {}
     return ids;
@@ -502,9 +505,9 @@ ResultSet DataStoreQuery::update(qint64 baseRevision)
     SinkTrace() << "Changed: " << incrementalResultSet;
     mSource->add(incrementalResultSet);
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
-        if (mCollector->next([this, callback](Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &buffer) {
-                SinkTrace() << "Got incremental result: " << uid << operation;
-                callback(uid, buffer, operation);
+        if (mCollector->next([this, callback](const ResultSet::Result &result) {
+                SinkTrace() << "Got incremental result: " << result.uid << result.operation;
+                callback(result);
             }))
         {
             return true;
@@ -520,10 +523,10 @@ ResultSet DataStoreQuery::execute()
     SinkTrace() << "Executing query";
 
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
-        if (mCollector->next([this, callback](Sink::Operation operation, const QByteArray &uid, const Sink::EntityBuffer &buffer) {
-                if (operation != Sink::Operation_Removal) {
-                    SinkTrace() << "Got initial result: " << uid << operation;
-                    callback(uid, buffer, Sink::Operation_Creation);
+        if (mCollector->next([this, callback](const ResultSet::Result &result) {
+                if (result.operation != Sink::Operation_Removal) {
+                    SinkTrace() << "Got initial result: " << result.uid << result.operation;
+                    callback(ResultSet::Result{result.uid, result.buffer, Sink::Operation_Creation, result.aggregateValues});
                 }
             }))
         {

@@ -48,7 +48,7 @@ namespace EntityReaderUtils {
 template<typename DomainType>
 class SINK_EXPORT EntityReader
 {
-    typedef std::function<bool(const typename DomainType::Ptr &domainObject, Sink::Operation operation)> ResultCallback;
+    typedef std::function<bool(const typename DomainType::Ptr &domainObject, Sink::Operation operation, const QMap<QByteArray, QVariant> &aggregateValues)> ResultCallback;
 
 public:
     EntityReader(const QByteArray &resourceType, const QByteArray &mResourceInstanceIdentifier, Sink::Storage::Transaction &transaction);
