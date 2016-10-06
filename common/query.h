@@ -59,7 +59,6 @@ public:
         Comparators comparator;
     };
 
-
     template <typename T>
     Query &request()
     {
@@ -289,7 +288,7 @@ public:
     * a result set is generated containing all entries with the same value.
     *
     * Example:
-    * For an input result set of one mail; return all emails with the same threadId.
+    * For an input set of one mail; return all emails with the same threadId.
     */
     class Bloom : public FilterStage {
     public:
@@ -306,49 +305,6 @@ public:
     {
         auto bloom = QSharedPointer<Bloom>::create(T::name);
         mFilterStages << bloom;
-    }
-
-    //Query fixtures
-
-    /**
-     * Returns the complete thread, containing all mails from all folders.
-     */
-    static Query completeThread(const ApplicationDomain::Mail &mail)
-    {
-        Sink::Query query;
-        if (!mail.resourceInstanceIdentifier().isEmpty()) {
-            query.resourceFilter(mail.resourceInstanceIdentifier());
-        }
-        query.filter(mail.identifier());
-        query.sort<ApplicationDomain::Mail::Date>();
-        query.bloom<ApplicationDomain::Mail::ThreadId>();
-        return query;
-    }
-
-    /**
-     * Returns thread leaders only, sorted by date.
-     */
-    static Query threadLeaders(const ApplicationDomain::Folder &folder)
-    {
-        Sink::Query query;
-        if (!folder.resourceInstanceIdentifier().isEmpty()) {
-            query.resourceFilter(folder.resourceInstanceIdentifier());
-        }
-        query.filter<ApplicationDomain::Mail::Folder>(folder);
-        query.sort<ApplicationDomain::Mail::Date>();
-        query.reduce<ApplicationDomain::Mail::ThreadId>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>());
-        return query;
-    }
-
-    /**
-     * Outgoing mails.
-     */
-    static Query outboxMails()
-    {
-        Sink::Query query;
-        query.resourceContainsFilter<ApplicationDomain::SinkResource::Capabilities>(ApplicationDomain::ResourceCapabilities::Mail::transport);
-        query.sort<ApplicationDomain::Mail::Date>();
-        return query;
     }
 
 private:

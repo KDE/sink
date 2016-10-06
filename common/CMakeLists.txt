@@ -123,6 +123,7 @@ install(FILES
     resourcecontrol.h
     domain/applicationdomaintype.h
     query.h
+    standardqueries.h
     inspection.h
     notification.h
     bufferadaptor.h

@@ -27,6 +27,7 @@
 #include "resourcecontrol.h"
 #include "log.h"
 #include "test.h"
+#include "standardqueries.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -124,7 +125,7 @@ void MailThreadTest::testIndexInMixedOrder()
     }
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
-    auto query = Sink::Query::threadLeaders(folder);
+    auto query = Sink::StandardQueries::threadLeaders(folder);
     query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
 
@@ -165,7 +166,7 @@ void MailThreadTest::testIndexInMixedOrder()
 
     //Ensure the thread is complete
     {
-        auto query = Sink::Query::completeThread(threadLeader);
+        auto query = Sink::StandardQueries::completeThread(threadLeader);
         query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
 
         auto mails = Store::read<Mail>(query);
