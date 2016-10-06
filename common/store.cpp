@@ -259,21 +259,31 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
     auto resources = getResources(query).keys();
     SinkTrace() << "synchronize" << resources;
+    //FIXME only necessary because each doesn't propagate errors
+    auto errorFlag = new bool;
     return KAsync::value(resources)
-        .template each([query](const QByteArray &resource) {
+        .template each([query, errorFlag](const QByteArray &resource) {
             SinkTrace() << "Synchronizing " << resource;
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
             resourceAccess->open();
             return resourceAccess->synchronizeResource(true, false)
                 .addToContext(resourceAccess)
-                .then<void>([](const KAsync::Error &error) {
+                .then<void>([errorFlag](const KAsync::Error &error) {
                         if (error) {
+                            *errorFlag = true;
                             SinkWarning() << "Error during sync.";
                             return KAsync::error<void>(error);
                         }
                         SinkTrace() << "synced.";
                         return KAsync::null<void>();
                     });
+        })
+        .then<void>([errorFlag]() {
+            if (*errorFlag) {
+                return KAsync::error<void>("Error during sync.");
+            }
+            delete errorFlag;
+            return KAsync::null<void>();
         });
 }
 
