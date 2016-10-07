@@ -50,7 +50,7 @@ private slots:
     void testCommandResponsiveness()
     {
         // Test responsiveness including starting the process.
-        Sink::Store::removeDataFromDisk("sink.dummy.instance1").exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::removeDataFromDisk("sink.dummy.instance1"));
 
         QTime time;
         time.start();
@@ -76,13 +76,13 @@ private slots:
         QTRY_VERIFY(gotNotification);
 
         QVERIFY2(duration < 100, QString::fromLatin1("Processing a create command took more than 100ms: %1").arg(duration).toLatin1());
-        Sink::ResourceControl::shutdown("sink.dummy.instance1").exec().waitForFinished();
+        VERIFYEXEC(Sink::ResourceControl::shutdown("sink.dummy.instance1"));
         qDebug() << "Single command took [ms]: " << duration;
     }
 
     void testWriteToFacade()
     {
-        Sink::Store::removeDataFromDisk("sink.dummy.instance1").exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::removeDataFromDisk("sink.dummy.instance1"));
 
         QTime time;
         time.start();
@@ -147,7 +147,7 @@ private slots:
 
     void testWriteInProcess()
     {
-        Sink::Store::removeDataFromDisk("sink.dummy.instance1").exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::removeDataFromDisk("sink.dummy.instance1"));
         QTime time;
         time.start();
 
@@ -235,7 +235,7 @@ private slots:
     // This allows to run individual parts without doing a cleanup, but still cleaning up normally
     void testCleanupForCompleteTest()
     {
-        Sink::Store::removeDataFromDisk("sink.dummy.instance1").exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::removeDataFromDisk("sink.dummy.instance1"));
     }
 
 private:

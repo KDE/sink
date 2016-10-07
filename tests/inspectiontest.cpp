@@ -7,6 +7,7 @@
 #include "resourcecontrol.h"
 #include "resourceconfig.h"
 #include "log.h"
+#include "testutils.h"
 
 /**
  * Test of inspection system using the dummy resource.
@@ -22,7 +23,7 @@ private slots:
         auto factory = Sink::ResourceFactory::load("sink.dummy");
         QVERIFY(factory);
         ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
-        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
     }
 
     void testInspection_data()

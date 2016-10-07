@@ -90,17 +90,12 @@ private slots:
 
     void cleanup()
     {
-        //TODO the shutdown job fails if the resource is already shut down
-        // VERIFYEXEC(ResourceControl::shutdown(mResourceInstanceIdentifier));
-        ResourceControl::shutdown(mResourceInstanceIdentifier).exec().waitForFinished();
+        VERIFYEXEC(ResourceControl::shutdown(mResourceInstanceIdentifier));
         removeResourceFromDisk(mResourceInstanceIdentifier);
     }
 
     void init()
     {
-        qDebug();
-        qDebug() << "-----------------------------------------";
-        qDebug();
         VERIFYEXEC(ResourceControl::start(mResourceInstanceIdentifier));
     }
 

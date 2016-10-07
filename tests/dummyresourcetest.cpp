@@ -49,7 +49,7 @@ private slots:
     void cleanup()
     {
         qDebug() << "Test took " << time.elapsed();
-        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
     }
 
     void testProperty()

@@ -55,9 +55,6 @@ void MailTest::cleanup()
 
 void MailTest::init()
 {
-    qDebug();
-    qDebug() << "-----------------------------------------";
-    qDebug();
     VERIFYEXEC(ResourceControl::start(mResourceInstanceIdentifier));
 }
 

@@ -41,13 +41,12 @@ private slots:
 
     void cleanup()
     {
-        // VERIFYEXEC(ResourceControl::shutdown(mResourceInstanceIdentifier));
-        // removeResourceFromDisk(mResourceInstanceIdentifier);
+        VERIFYEXEC(ResourceControl::shutdown(mResourceInstanceIdentifier));
     }
 
     void init()
     {
-        // VERIFYEXEC(ResourceControl::start(mResourceInstanceIdentifier));
+        VERIFYEXEC(ResourceControl::start(mResourceInstanceIdentifier));
     }
 
     void testSendMail()

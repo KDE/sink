@@ -54,12 +54,12 @@ private slots:
     {
         Sink::Test::initTest();
         ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
-        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
     }
 
     void cleanup()
     {
-        Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
     }
 
     void init()
