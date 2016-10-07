@@ -641,12 +641,8 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m) : st
 
 Storage::Private::~Private()
 {
-    // Since we can have only one environment open per process, we currently leak the environments.
-    // if (env) {
-    //     //mdb_dbi_close should not be necessary and is potentially dangerous (see docs)
-    //     mdb_dbi_close(env, dbi);
-    //     mdb_env_close(env);
-    // }
+    //We never close the environment (unless we remove the db), since we should only open the environment once per process (as per lmdb docs)
+    //and create storage instance from all over the place. Thus, we're not closing it here on purpose.
 }
 
 Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode) : d(new Private(storageRoot, name, mode))
