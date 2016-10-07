@@ -11,6 +11,9 @@ MessageQueue::MessageQueue(const QString &storageRoot, const QString &name) : mS
 
 MessageQueue::~MessageQueue()
 {
+    if (mWriteTransaction) {
+        mWriteTransaction.abort();
+    }
 }
 
 void MessageQueue::enqueue(void const *msg, size_t size)

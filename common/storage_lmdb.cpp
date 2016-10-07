@@ -40,6 +40,9 @@ SINK_DEBUG_AREA("storage")
 
 namespace Sink {
 
+QMutex sMutex;
+QHash<QString, MDB_env *> sEnvironments;
+
 int getErrorCode(int e)
 {
     switch (e) {
@@ -434,7 +437,7 @@ Storage::Transaction::~Transaction()
             commit();
         } else {
             // Trace_area("storage." + d->name.toLatin1()) << "Aborting transaction" << mdb_txn_id(d->transaction) << d->transaction;
-            mdb_txn_abort(d->transaction);
+            abort();
         }
     }
     delete d;
@@ -452,9 +455,10 @@ bool Storage::Transaction::commit(const std::function<void(const Storage::Error 
     }
 
     // Trace_area("storage." + d->name.toLatin1()) << "Committing transaction" << mdb_txn_id(d->transaction) << d->transaction;
+    Q_ASSERT(sEnvironments.values().contains(d->env));
     const int rc = mdb_txn_commit(d->transaction);
     if (rc) {
-        mdb_txn_abort(d->transaction);
+        abort();
         Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Error during transaction commit: " + QByteArray(mdb_strerror(rc)));
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     }
@@ -470,6 +474,7 @@ void Storage::Transaction::abort()
     }
 
     // Trace_area("storage." + d->name.toLatin1()) << "Aborting transaction" << mdb_txn_id(d->transaction) << d->transaction;
+    Q_ASSERT(sEnvironments.values().contains(d->env));
     mdb_txn_abort(d->transaction);
     d->transaction = nullptr;
 }
@@ -580,12 +585,7 @@ public:
 
     MDB_env *env;
     AccessMode mode;
-    static QMutex sMutex;
-    static QHash<QString, MDB_env *> sEnvironments;
 };
-
-QMutex Storage::Private::sMutex;
-QHash<QString, MDB_env *> Storage::Private::sEnvironments;
 
 Storage::Private::Private(const QString &s, const QString &n, AccessMode m) : storageRoot(s), name(n), env(0), mode(m)
 {
@@ -693,23 +693,24 @@ qint64 Storage::diskUsage() const
 void Storage::removeFromDisk() const
 {
     const QString fullPath(d->storageRoot + '/' + d->name);
-    QMutexLocker locker(&d->sMutex);
-    QDir dir(fullPath);
+    QMutexLocker locker(&sMutex);
     SinkTrace() << "Removing database from disk: " << fullPath;
+    sEnvironments.take(fullPath);
+    auto env = sEnvironments.take(fullPath);
+    mdb_env_close(env);
+    QDir dir(fullPath);
     if (!dir.removeRecursively()) {
         Error error(d->name.toLatin1(), ErrorCodes::GenericError, QString("Failed to remove directory %1 %2").arg(d->storageRoot).arg(d->name).toLatin1());
         defaultErrorHandler()(error);
     }
-    auto env = d->sEnvironments.take(fullPath);
-    mdb_env_close(env);
 }
 
 void Storage::clearEnv()
 {
-    for (auto env : Storage::Private::sEnvironments) {
+    for (auto env : sEnvironments) {
         mdb_env_close(env);
     }
-    Storage::Private::sEnvironments.clear();
+    sEnvironments.clear();
 }
 
 } // namespace Sink
