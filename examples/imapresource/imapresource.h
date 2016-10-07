@@ -65,5 +65,6 @@ public:
     Sink::Resource *createResource(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
     void registerFacades(Sink::FacadeFactory &factory) Q_DECL_OVERRIDE;
     void registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry) Q_DECL_OVERRIDE;
+    void removeDataFromDisk(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
 };
 

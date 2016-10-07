@@ -55,11 +55,6 @@ public:
      */
     virtual void setLowerBoundRevision(qint64 revision);
 
-    /**
-     * Remove the data from disk
-     */
-    virtual void removeDataFromDisk();
-
 signals:
     void revisionUpdated(qint64);
     void notify(Notification);
@@ -83,6 +78,7 @@ public:
     virtual Resource *createResource(const QByteArray &instanceIdentifier) = 0;
     virtual void registerFacades(FacadeFactory &factory) = 0;
     virtual void registerAdaptorFactories(AdaptorFactoryRegistry &registry) {};
+    virtual void removeDataFromDisk(const QByteArray &instanceIdentifier) = 0;
 
 private:
     class Private;

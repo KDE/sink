@@ -55,7 +55,6 @@ public:
 
     int error() const;
 
-    void removeDataFromDisk() Q_DECL_OVERRIDE;
     static void removeFromDisk(const QByteArray &instanceIdentifier);
     static qint64 diskUsage(const QByteArray &instanceIdentifier);
 

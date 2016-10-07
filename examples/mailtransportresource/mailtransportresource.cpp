@@ -205,3 +205,8 @@ void MailtransportResourceFactory::registerAdaptorFactories(Sink::AdaptorFactory
 {
     registry.registerFactory<Sink::ApplicationDomain::Mail, DomainTypeAdaptorFactory<ApplicationDomain::Mail>>(PLUGIN_NAME);
 }
+
+void MailtransportResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)
+{
+    MailtransportResource::removeFromDisk(instanceIdentifier);
+}

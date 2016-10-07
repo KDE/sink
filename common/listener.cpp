@@ -294,8 +294,11 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         } break;
         case Sink::Commands::RemoveFromDiskCommand: {
             SinkLog() << QString("Received a remove from disk command from %1").arg(client.name);
+            //Close the resource to ensure no transactions are open
             m_resource.reset(nullptr);
-            loadResource().removeDataFromDisk();
+            if (Sink::ResourceFactory *resourceFactory = Sink::ResourceFactory::load(m_resourceName)) {
+                resourceFactory->removeDataFromDisk(m_resourceInstanceIdentifier);
+            }
             m_exiting = true;
         } break;
         default:

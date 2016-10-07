@@ -714,3 +714,8 @@ void ImapResourceFactory::registerAdaptorFactories(Sink::AdaptorFactoryRegistry 
     registry.registerFactory<Sink::ApplicationDomain::Mail, ImapMailAdaptorFactory>(PLUGIN_NAME);
     registry.registerFactory<Sink::ApplicationDomain::Folder, ImapFolderAdaptorFactory>(PLUGIN_NAME);
 }
+
+void ImapResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)
+{
+    ImapResource::removeFromDisk(instanceIdentifier);
+}

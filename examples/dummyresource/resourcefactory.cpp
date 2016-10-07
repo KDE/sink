@@ -201,3 +201,7 @@ void DummyResourceFactory::registerAdaptorFactories(Sink::AdaptorFactoryRegistry
     registry.registerFactory<Sink::ApplicationDomain::Event, DummyEventAdaptorFactory>(PLUGIN_NAME);
 }
 
+void DummyResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)
+{
+    DummyResource::removeFromDisk(instanceIdentifier);
+}

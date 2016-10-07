@@ -594,3 +594,8 @@ void MaildirResourceFactory::registerAdaptorFactories(Sink::AdaptorFactoryRegist
     registry.registerFactory<Sink::ApplicationDomain::Folder, MaildirFolderAdaptorFactory>(PLUGIN_NAME);
 }
 
+void MaildirResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)
+{
+    MaildirResource::removeFromDisk(instanceIdentifier);
+}
+
