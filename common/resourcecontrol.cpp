@@ -53,8 +53,18 @@ KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
                 resourceAccess->open();
                 return resourceAccess->sendCommand(Sink::Commands::ShutdownCommand)
                     .addToContext(resourceAccess)
-                    .syncThen<void>([resourceAccess, time]() {
-                        resourceAccess->close();
+                    .then<void>([resourceAccess, time](KAsync::Future<void> &future) {
+                        SinkTrace() << "Shutdown command complete, waiting for shutdown." << Log::TraceTime(time->elapsed());
+                        if (!resourceAccess->isReady()) {
+                            future.setFinished();
+                            return;
+                        }
+                        QObject::connect(resourceAccess.data(), &ResourceAccess::ready, [&future](bool ready) {
+                                if (!ready) {
+                                    future.setFinished();
+                                }
+                            });
+                    }).syncThen<void>([time] {
                         SinkTrace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
                     });
             });
