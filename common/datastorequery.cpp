@@ -150,11 +150,47 @@ class Reduce : public FilterBase {
 public:
     typedef QSharedPointer<Reduce> Ptr;
 
+    struct Aggregator {
+        Query::Reduce::Aggregator::Operation operation;
+        QByteArray property;
+        QByteArray resultProperty;
+
+        Aggregator(Query::Reduce::Aggregator::Operation o, const QByteArray &property_, const QByteArray &resultProperty_)
+            : operation(o), property(property_), resultProperty(resultProperty_)
+        {
+
+        }
+
+        void process() {
+            if (operation == Query::Reduce::Aggregator::Count) {
+                mResult = mResult.toInt() + 1;
+            } else {
+                Q_ASSERT(false);
+            }
+        }
+
+        void process(const QVariant &value) {
+            if (operation == Query::Reduce::Aggregator::Collect) {
+                mResult = mResult.toList() << value;
+            } else {
+                Q_ASSERT(false);
+            }
+        }
+
+        QVariant result() const
+        {
+            return mResult;
+        }
+    private:
+        QVariant mResult;
+    };
+
     QHash<QByteArray, QVariant> mAggregateValues;
     QSet<QByteArray> mReducedValues;
     QByteArray mReductionProperty;
     QByteArray mSelectionProperty;
     Query::Reduce::Selector::Comparator mSelectionComparator;
+    QList<Aggregator> mAggregators;
 
     Reduce(const QByteArray &reductionProperty, const QByteArray &selectionProperty, Query::Reduce::Selector::Comparator comparator, FilterBase::Ptr source, DataStoreQuery *store)
         : FilterBase(source, store),
@@ -167,8 +203,7 @@ public:
 
     virtual ~Reduce(){}
 
-    static QByteArray getByteArray(const QVariant &value)
-    {
+    static QByteArray getByteArray(const QVariant &value) {
         if (value.type() == QVariant::DateTime) {
             return value.toDateTime().toString().toLatin1();
         }
@@ -178,8 +213,7 @@ public:
         return QByteArray();
     }
 
-    static bool compare(const QVariant &left, const QVariant &right, Query::Reduce::Selector::Comparator comparator)
-    {
+    static bool compare(const QVariant &left, const QVariant &right, Query::Reduce::Selector::Comparator comparator) {
         if (comparator == Query::Reduce::Selector::Max) {
             return left > right;
         }
@@ -196,8 +230,17 @@ public:
                     QVariant selectionResultValue;
                     QByteArray selectionResult;
                     auto results = indexLookup(mReductionProperty, reductionValue);
+
+                    QVariantList list;
                     for (const auto r : results) {
                         readEntity(r, [&, this](const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
+                            for (auto &aggregator : mAggregators) {
+                                if (!aggregator.property.isEmpty()) {
+                                    aggregator.process(getProperty(entityBuffer.entity(), aggregator.property));
+                                } else {
+                                    aggregator.process();
+                                }
+                            }
                             auto selectionValue = getProperty(entityBuffer.entity(), mSelectionProperty);
                             if (!selectionResultValue.isValid() || compare(selectionValue, selectionResultValue, mSelectionComparator)) {
                                 selectionResultValue = selectionValue;
@@ -205,10 +248,13 @@ public:
                             }
                         });
                     }
-                    int count = results.size();
+
+                    QMap<QByteArray, QVariant> aggregateValues;
+                    for (auto &aggregator : mAggregators) {
+                        aggregateValues.insert(aggregator.resultProperty, aggregator.result());
+                    }
+
                     readEntity(selectionResult, [&, this](const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
-                        QMap<QByteArray, QVariant> aggregateValues;
-                        aggregateValues.insert("count", count);
                         callback({uid, entityBuffer, Sink::Operation_Creation, aggregateValues});
                         foundValue = true;
                     });
@@ -462,7 +508,11 @@ void DataStoreQuery::setupQuery()
             f->propertyFilter = filter->propertyFilter;
             baseSet = f;
         } else if (auto filter = stage.dynamicCast<Query::Reduce>()) {
-            baseSet = Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
+            auto reduction = Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
+            for (const auto &aggregator : filter->aggregators) {
+                reduction->mAggregators << Reduce::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
+            }
+            baseSet = reduction;
         } else if (auto filter = stage.dynamicCast<Query::Bloom>()) {
             baseSet = Bloom::Ptr::create(filter->property, baseSet, this);
         }
