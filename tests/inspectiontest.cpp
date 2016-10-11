@@ -39,7 +39,7 @@ private slots:
         using namespace Sink;
         using namespace Sink::ApplicationDomain;
 
-        Mail mail(QByteArray("sink.dummy.instance1"), QByteArray("identifier"), 0, QSharedPointer<MemoryBufferAdaptor::MemoryBufferAdaptor>::create());
+        Mail mail(QByteArray("sink.dummy.instance1"), QByteArray("identifier"), 0, QSharedPointer<MemoryBufferAdaptor>::create());
 
         // testInspection is a magic property that the dummyresource supports
         auto inspectionCommand = ResourceControl::Inspection::PropertyInspection(mail, "testInspection", success);
