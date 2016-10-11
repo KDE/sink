@@ -13,6 +13,7 @@ static QHash<QByteArray, QString> specialPurposeFolders()
         //FIXME localize
     hash.insert("drafts", "Drafts");
     hash.insert("trash", "Trash");
+    hash.insert("inbox", "Inbox");
     return hash;
 }
 

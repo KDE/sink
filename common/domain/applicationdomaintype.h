@@ -338,6 +338,14 @@ namespace Mail {
 };
 };
 
+namespace SpecialPurpose {
+namespace Mail {
+    static constexpr const char *inbox = "inbox";
+    static constexpr const char *drafts = "drafts";
+    static constexpr const char *trash = "trash";
+};
+};
+
 /**
  * All types need to be registered here an MUST return a different name.
  *
