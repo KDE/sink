@@ -529,6 +529,61 @@ private slots:
         QCOMPARE(mails.first().getUid().toLatin1(), QByteArray("mail1"));
     }
 
+    void testLiveSubquery()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        folder1.setSpecialPurpose(QByteArrayList() << "purpose1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto folder2 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        folder2.setSpecialPurpose(QByteArrayList() << "purpose2");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setUid("mail1");
+            mail.setFolder(folder1);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setUid("mail2");
+            mail.setFolder(folder2);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
+
+        //Setup two folders with a mail each, ensure we only get the mail from the folder that matches the folder filter.
+        Query query;
+        query.filter<Mail::Folder>(Sink::Query().containsFilter<Folder::SpecialPurpose>("purpose1"));
+        query.request<Mail::Uid>();
+        query.liveQuery = true;
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+
+        //This folder should not make it through the query
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setUid("mail3");
+            mail.setFolder(folder2);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+
+        //But this one should
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setUid("mail4");
+            mail.setFolder(folder1);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+        QTRY_COMPARE(model->rowCount(), 2);
+
+    }
+
     void testResourceSubQuery()
     {
         using namespace Sink;
