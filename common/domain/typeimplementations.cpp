@@ -27,6 +27,7 @@
 #include "entitybuffer.h"
 #include "entity_generated.h"
 #include "mail/threadindexer.h"
+#include "mail/fulltextindexer.h"
 #include "domainadaptor.h"
 #include "typeimplementations_p.h"
 
@@ -45,7 +46,8 @@ typedef IndexConfig<Mail,
         SortedIndex<Mail::Folder, Mail::Date>,
         SecondaryIndex<Mail::MessageId, Mail::ThreadId>,
         SecondaryIndex<Mail::ThreadId, Mail::MessageId>,
-        CustomSecondaryIndex<Mail::MessageId, Mail::ThreadId, ThreadIndexer>
+        CustomSecondaryIndex<Mail::MessageId, Mail::ThreadId, ThreadIndexer>,
+        CustomSecondaryIndex<Mail::Subject, Mail::Subject, FulltextIndexer>
     > MailIndexConfig;
 
 typedef IndexConfig<Folder,

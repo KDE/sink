@@ -75,11 +75,13 @@ set(command_SRCS
     storage/entitystore.cpp
     indexer.cpp
     mail/threadindexer.cpp
+    mail/fulltextindexer.cpp
     notification.cpp
     commandprocessor.cpp
     inspector.cpp
     propertyparser.cpp
     utils.cpp
+    fulltextindex.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})
@@ -127,6 +129,7 @@ PRIVATE
     Qt5::Gui
     KF5::Mime
     KF5::Contacts
+    ${XAPIAN_LIBRARIES}
 )
 install(TARGETS ${PROJECT_NAME}
     EXPORT SinkTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )

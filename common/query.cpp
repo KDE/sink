@@ -34,6 +34,8 @@ QDebug operator<<(QDebug dbg, const Sink::QueryBase::Comparator &c)
         dbg.nospace() << "contains " << c.value;
     } else if (c.comparator == Sink::Query::Comparator::In) {
         dbg.nospace() << "in " << c.value;
+    } else if (c.comparator == Sink::Query::Comparator::Fulltext) {
+        dbg.nospace() << "fulltext contains " << c.value;
     } else {
         dbg.nospace() << "unknown comparator: " << c.value;
     }
@@ -169,6 +171,7 @@ bool QueryBase::Comparator::matches(const QVariant &v) const
                 return false;
             }
             return value.value<QByteArrayList>().contains(v.toByteArray());
+        case Fulltext:
         case Invalid:
         default:
             break;

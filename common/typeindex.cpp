@@ -20,6 +20,7 @@
 
 #include "log.h"
 #include "index.h"
+#include "fulltextindex.h"
 #include <QDateTime>
 #include <QDataStream>
 
@@ -158,7 +159,7 @@ void TypeIndex::addPropertyWithSorting<ApplicationDomain::Reference, QDateTime>(
     addPropertyWithSorting<QByteArray, QDateTime>(property, sortProperty);
 }
 
-void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
+void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
     for (const auto &property : mProperties) {
         const auto value = entity.getProperty(property);
@@ -172,7 +173,7 @@ void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::
         indexer(add, identifier, value, sortValue, transaction);
     }
     for (const auto &indexer : mCustomIndexer) {
-        indexer->setup(this, &transaction);
+        indexer->setup(this, &transaction, resourceInstanceId);
         if (add) {
             indexer->add(entity);
         } else {
@@ -182,14 +183,28 @@ void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::
 
 }
 
-void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
+void TypeIndex::commitTransaction()
 {
-    updateIndex(true, identifier, entity, transaction);
+    for (const auto &indexer : mCustomIndexer) {
+        indexer->commitTransaction();
+    }
 }
 
-void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
+void TypeIndex::abortTransaction()
 {
-    updateIndex(false, identifier, entity, transaction);
+    for (const auto &indexer : mCustomIndexer) {
+        indexer->abortTransaction();
+    }
+}
+
+void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
+{
+    updateIndex(true, identifier, entity, transaction, resourceInstanceId);
+}
+
+void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
+{
+    updateIndex(false, identifier, entity, transaction, resourceInstanceId);
 }
 
 static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filter)
@@ -211,13 +226,22 @@ static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filte
     return keys;
 }
 
-QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction)
+QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
-    QVector<QByteArray> keys;
+    const auto baseFilters = query.getBaseFilters();
+    for (auto it = baseFilters.constBegin(); it != baseFilters.constEnd(); it++) {
+        if (it.value().comparator == QueryBase::Comparator::Fulltext) {
+            FulltextIndex fulltextIndex{resourceInstanceId};
+            const auto keys = fulltextIndex.lookup(it.value().value.toString());
+            appliedFilters << it.key();
+            return keys;
+        }
+    }
+
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
         if (query.hasFilter(it.key()) && query.sortProperty() == it.value()) {
             Index index(indexName(it.key(), it.value()), transaction);
-            keys << indexLookup(index, query.getFilter(it.key()));
+            const auto keys = indexLookup(index, query.getFilter(it.key()));
             appliedFilters << it.key();
             appliedSorting = it.value();
             SinkTraceCtx(mLogCtx) << "Index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
@@ -227,14 +251,14 @@ QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
     for (const auto &property : mProperties) {
         if (query.hasFilter(property)) {
             Index index(indexName(property), transaction);
-            keys << indexLookup(index, query.getFilter(property));
+            const auto keys = indexLookup(index, query.getFilter(property));
             appliedFilters << property;
             SinkTraceCtx(mLogCtx) << "Index lookup on " << property << " found " << keys.size() << " keys.";
             return keys;
         }
     }
     SinkTraceCtx(mLogCtx) << "No matching index";
-    return keys;
+    return {};
 }
 
 QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)

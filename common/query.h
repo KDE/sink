@@ -35,7 +35,8 @@ public:
             Invalid,
             Equals,
             Contains,
-            In
+            In,
+            Fulltext
         };
 
         Comparator();

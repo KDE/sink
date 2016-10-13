@@ -162,23 +162,27 @@ void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMo
 {
     SinkTraceCtx(d->logCtx) << "Starting transaction: " << accessMode;
     Q_ASSERT(!d->transaction);
-    Sink::Storage::DataStore store(Sink::storageLocation(), dbLayout(d->resourceContext.instanceId()), accessMode);
-    d->transaction = store.createTransaction(accessMode);
+    d->transaction = Sink::Storage::DataStore(Sink::storageLocation(), dbLayout(d->resourceContext.instanceId()), accessMode).createTransaction(accessMode);
 }
 
 void EntityStore::commitTransaction()
 {
     SinkTraceCtx(d->logCtx) << "Committing transaction";
+
+    for (const auto &type : d->indexByType.keys()) {
+        d->typeIndex(type).commitTransaction();
+    }
+
     Q_ASSERT(d->transaction);
     d->transaction.commit();
-    d->transaction = Storage::DataStore::Transaction();
+    d->transaction = {};
 }
 
 void EntityStore::abortTransaction()
 {
     SinkTraceCtx(d->logCtx) << "Aborting transaction";
     d->transaction.abort();
-    d->transaction = Storage::DataStore::Transaction();
+    d->transaction = {};
 }
 
 bool EntityStore::hasTransaction() const
@@ -195,7 +199,7 @@ bool EntityStore::add(const QByteArray &type, ApplicationDomain::ApplicationDoma
 
     SinkTraceCtx(d->logCtx) << "New entity " << entity;
 
-    d->typeIndex(type).add(entity.identifier(), entity, d->transaction);
+    d->typeIndex(type).add(entity.identifier(), entity, d->transaction, d->resourceContext.instanceId());
 
     //The maxRevision may have changed meanwhile if the entity created sub-entities
     const qint64 newRevision = maxRevision() + 1;
@@ -262,8 +266,8 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
 {
     SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
 
-    d->typeIndex(type).remove(current.identifier(), current, d->transaction);
-    d->typeIndex(type).add(newEntity.identifier(), newEntity, d->transaction);
+    d->typeIndex(type).remove(current.identifier(), current, d->transaction, d->resourceContext.instanceId());
+    d->typeIndex(type).add(newEntity.identifier(), newEntity, d->transaction, d->resourceContext.instanceId());
 
     const qint64 newRevision = DataStore::maxRevision(d->transaction) + 1;
 
@@ -304,7 +308,7 @@ bool EntityStore::remove(const QByteArray &type, const Sink::ApplicationDomain::
         return false;
     }
 
-    d->typeIndex(type).remove(current.identifier(), current, d->transaction);
+    d->typeIndex(type).remove(current.identifier(), current, d->transaction, d->resourceContext.instanceId());
 
     SinkTraceCtx(d->logCtx) << "Removed entity " << current;
 
@@ -422,7 +426,7 @@ QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const Query
         SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
         return QVector<QByteArray>();
     }
-    return d->typeIndex(type).query(query, appliedFilters, appliedSorting, d->getTransaction());
+    return d->typeIndex(type).query(query, appliedFilters, appliedSorting, d->getTransaction(), d->resourceContext.instanceId());
 }
 
 QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value)

@@ -14,6 +14,8 @@
 #include "testutils.h"
 #include "applicationdomaintype.h"
 
+#include <KMime/Message>
+
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
@@ -1252,6 +1254,94 @@ private slots:
 
         //FIXME: this will result in a crash in the above still running query.
         VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
+    }
+
+    void testMailFulltextSubject()
+    {
+        // Setup
+        {
+            auto msg = KMime::Message::Ptr::create();
+            msg->subject()->from7BitString("Subject To Search");
+            msg->setBody("This is the searchable body.");
+            msg->assemble();
+            {
+                Mail mail("sink.dummy.instance1");
+                mail.setExtractedMessageId("test1");
+                mail.setExtractedSubject("Subject To Search");
+                mail.setFolder("folder1");
+                mail.setMimeMessage(msg->encodedContent());
+                VERIFYEXEC(Sink::Store::create<Mail>(mail));
+            }
+            {
+                Mail mail("sink.dummy.instance1");
+                mail.setExtractedMessageId("test2");
+                mail.setFolder("folder2");
+                mail.setExtractedSubject("Stuff");
+                VERIFYEXEC(Sink::Store::create<Mail>(mail));
+            }
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        }
+
+        // Test
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("Subject To Search"), QueryBase::Comparator::Fulltext));
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("Subject"), QueryBase::Comparator::Fulltext));
+            auto result = Sink::Store::read<Mail>(query);
+            QCOMPARE(result.size(), 1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("Search"), QueryBase::Comparator::Fulltext));
+            auto result = Sink::Store::read<Mail>(query);
+            QCOMPARE(result.size(), 1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("search"), QueryBase::Comparator::Fulltext));
+            auto result = Sink::Store::read<Mail>(query);
+            QCOMPARE(result.size(), 1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("sear*"), QueryBase::Comparator::Fulltext));
+            auto result = Sink::Store::read<Mail>(query);
+            QCOMPARE(result.size(), 1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::MimeMessage>(QueryBase::Comparator(QString("searchable"), QueryBase::Comparator::Fulltext));
+            auto result = Sink::Store::read<Mail>(query);
+            QCOMPARE(result.size(), 1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("Subject"), QueryBase::Comparator::Fulltext));
+            query.filter<Mail::Folder>("folder1");
+            auto result = Sink::Store::read<Mail>(query);
+            QCOMPARE(result.size(), 1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("Subject"), QueryBase::Comparator::Fulltext));
+            query.filter<Mail::Folder>("folder2");
+            auto result = Sink::Store::read<Mail>(query);
+            QCOMPARE(result.size(), 0);
+        }
     }
 
 };

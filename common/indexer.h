@@ -33,16 +33,18 @@ public:
     virtual ~Indexer() = default;
     typedef QSharedPointer<Indexer> Ptr;
     virtual void add(const ApplicationDomain::ApplicationDomainType &entity) = 0;
-    virtual void modify(const ApplicationDomain::ApplicationDomainType &old, const ApplicationDomain::ApplicationDomainType &entity) = 0;
     virtual void remove(const ApplicationDomain::ApplicationDomainType &entity) = 0;
+    virtual void commitTransaction() {};
+    virtual void abortTransaction() {};
 
 protected:
     Storage::DataStore::Transaction &transaction();
     TypeIndex &index();
+    QByteArray mResourceInstanceIdentifier;
 
 private:
     friend class ::TypeIndex;
-    void setup(TypeIndex *, Storage::DataStore::Transaction *);
+    void setup(TypeIndex *, Storage::DataStore::Transaction *, const QByteArray &resourceId);
     Storage::DataStore::Transaction *mTransaction;
     TypeIndex *mTypeIndex;
 };

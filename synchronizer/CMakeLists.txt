@@ -10,6 +10,7 @@ add_executable(${PROJECT_NAME} ${sinksynchronizer_SRCS})
 target_link_libraries(${PROJECT_NAME}
     sink
     Qt5::Core
+    Qt5::Gui
     Qt5::Network
     KAsync
     ${CMAKE_DL_LIBS}

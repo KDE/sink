@@ -98,11 +98,6 @@ void ThreadIndexer::add(const ApplicationDomain::ApplicationDomainType &entity)
     updateThreadingIndex(entity.identifier(), entity, transaction());
 }
 
-void ThreadIndexer::modify(const ApplicationDomain::ApplicationDomainType &old, const ApplicationDomain::ApplicationDomainType &entity)
-{
-
-}
-
 void ThreadIndexer::remove(const ApplicationDomain::ApplicationDomainType &entity)
 {
     auto messageId = entity.getProperty(Mail::MessageId::name);

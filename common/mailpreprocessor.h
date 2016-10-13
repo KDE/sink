@@ -29,4 +29,3 @@ public:
 protected:
     static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, const QByteArray &data);
 };
-

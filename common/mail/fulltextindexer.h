@@ -20,17 +20,20 @@
 
 #include "indexer.h"
 
+class FulltextIndex;
 namespace Sink {
 
-class ThreadIndexer : public Indexer
+class FulltextIndexer : public Indexer
 {
 public:
-    typedef QSharedPointer<ThreadIndexer> Ptr;
+    typedef QSharedPointer<FulltextIndexer> Ptr;
     virtual void add(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
     virtual void remove(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
+    virtual void commitTransaction() Q_DECL_OVERRIDE;
+    virtual void abortTransaction() Q_DECL_OVERRIDE;
     static QMap<QByteArray, int> databases();
 private:
-    void updateThreadingIndex(const QByteArray &identifier, const ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction);
+    QSharedPointer<FulltextIndex> index;
 };
 
 }

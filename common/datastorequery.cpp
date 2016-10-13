@@ -160,6 +160,10 @@ public:
         for (const auto &filterProperty : propertyFilter.keys()) {
             const auto property = entity.getProperty(filterProperty);
             const auto comparator = propertyFilter.value(filterProperty);
+            //We can't deal with a fulltext filter
+            if (comparator.comparator == QueryBase::Comparator::Fulltext) {
+                continue;
+            }
             if (!comparator.matches(property)) {
                 SinkTraceCtx(mDatastore->mLogCtx) << "Filtering entity due to property mismatch on filter: " << entity.identifier() << "Property: " << filterProperty << property << " Filter:" << comparator.value;
                 return false;

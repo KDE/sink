@@ -20,10 +20,11 @@
 
 using namespace Sink;
 
-void Indexer::setup(TypeIndex *index, Storage::DataStore::Transaction *transaction)
+void Indexer::setup(TypeIndex *index, Storage::DataStore::Transaction *transaction, const QByteArray &resourceId)
 {
     mTypeIndex = index;
     mTransaction = transaction;
+    mResourceInstanceIdentifier = resourceId;
 }
 
 Storage::DataStore::Transaction &Indexer::transaction()
