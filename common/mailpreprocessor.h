@@ -30,3 +30,19 @@ protected:
     static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, const QByteArray &data);
 };
 
+
+class FulltextIndex;
+class SINK_EXPORT SubjectIndexer : public Sink::EntityPreprocessor<Sink::ApplicationDomain::Mail>
+{
+public:
+    SubjectIndexer();
+    virtual ~SubjectIndexer(){}
+
+    void startBatch() Q_DECL_OVERRIDE;
+
+    void newEntity(Sink::ApplicationDomain::Mail &mail) Q_DECL_OVERRIDE;
+    void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail) Q_DECL_OVERRIDE;
+    void deletedEntity(const Sink::ApplicationDomain::Mail &mail) Q_DECL_OVERRIDE;
+private:
+    QSharedPointer<FulltextIndex> index;
+};
