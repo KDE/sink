@@ -42,8 +42,8 @@ void statResources(const QStringList &resources, const State &state)
 {
     qint64 total = 0;
     for (const auto &resource : resources) {
-        Sink::Storage storage(Sink::storageLocation(), resource, Sink::Storage::ReadOnly);
-        auto transaction = storage.createTransaction(Sink::Storage::ReadOnly);
+        Sink::Storage::DataStore storage(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
+        auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
 
         QList<QByteArray> databases = transaction.getDatabaseNames();
         for (const auto &databaseName : databases) {
@@ -57,7 +57,7 @@ void statResources(const QStringList &resources, const State &state)
 
         QDir dir(Sink::storageLocation());
         for (const auto &folder : dir.entryList(QStringList() << resource + "*")) {
-            diskUsage += Sink::Storage(Sink::storageLocation(), folder, Sink::Storage::ReadOnly).diskUsage();
+            diskUsage += Sink::Storage::DataStore(Sink::storageLocation(), folder, Sink::Storage::DataStore::ReadOnly).diskUsage();
         }
         auto size = diskUsage / 1024;
         state.printLine(QObject::tr("Disk usage [kb]: %1").arg(size), 1);

@@ -38,13 +38,13 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
 
     void populateDatabase(int count)
     {
-        Sink::Storage(Sink::storageLocation(), "identifier", Sink::Storage::ReadWrite).removeFromDisk();
+        Sink::Storage::DataStore(Sink::storageLocation(), "identifier", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
         // Setup
         auto domainTypeAdaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
         {
-            Sink::Storage storage(Sink::storageLocation(), identifier, Sink::Storage::ReadWrite);
-            auto transaction = storage.createTransaction(Sink::Storage::ReadWrite);
-            auto db = Sink::Storage::mainDatabase(transaction, "event");
+            Sink::Storage::DataStore storage(Sink::storageLocation(), identifier, Sink::Storage::DataStore::ReadWrite);
+            auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadWrite);
+            auto db = Sink::Storage::DataStore::mainDatabase(transaction, "event");
 
             int bufferSizeTotal = 0;
             int keysSizeTotal = 0;
@@ -58,15 +58,15 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
                 flatbuffers::FlatBufferBuilder fbb;
                 domainTypeAdaptorFactory->createBuffer(*domainObject, fbb);
                 const auto buffer = QByteArray::fromRawData(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
-                const auto key = Sink::Storage::generateUid();
+                const auto key = Sink::Storage::DataStore::generateUid();
                 db.write(key, buffer);
                 bufferSizeTotal += buffer.size();
                 keysSizeTotal += key.size();
             }
             transaction.commit();
 
-            transaction = storage.createTransaction(Sink::Storage::ReadOnly);
-            db = Sink::Storage::mainDatabase(transaction, "event");
+            transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
+            db = Sink::Storage::DataStore::mainDatabase(transaction, "event");
 
             auto dataSizeTotal = count * (QByteArray("uid").size() + QByteArray("summary").size() + attachment.size());
             auto size = db.getSize();
@@ -100,7 +100,11 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
 
         auto resultSet = QSharedPointer<Sink::ResultProvider<Sink::ApplicationDomain::Event::Ptr>>::create();
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
-        TestResourceFacade facade(identifier, resourceAccess);
+
+        QMap<QByteArray, DomainTypeAdaptorFactoryInterface::Ptr> factories;
+        Sink::ResourceContext context{identifier, "test", factories};
+        context.mResourceAccess = resourceAccess;
+        TestResourceFacade facade(context);
 
         auto ret = facade.load(query);
         ret.first.exec().waitForFinished();
@@ -118,7 +122,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         const auto finalRss = getCurrentRSS();
         const auto rssGrowth = finalRss - startingRss;
         // Since the database is memory mapped it is attributted to the resident set size.
-        const auto rssWithoutDb = finalRss - Sink::Storage(Sink::storageLocation(), identifier, Sink::Storage::ReadWrite).diskUsage();
+        const auto rssWithoutDb = finalRss - Sink::Storage::DataStore(Sink::storageLocation(), identifier, Sink::Storage::DataStore::ReadWrite).diskUsage();
         const auto peakRss = getPeakRSS();
         // How much peak deviates from final rss in percent (should be around 0)
         const auto percentageRssError = static_cast<double>(peakRss - finalRss) * 100.0 / static_cast<double>(finalRss);

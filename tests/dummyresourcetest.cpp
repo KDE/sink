@@ -13,6 +13,7 @@
 #include "log.h"
 #include "test.h"
 #include "testutils.h"
+#include "adaptorfactoryregistry.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -27,6 +28,11 @@ class DummyResourceTest : public QObject
     Q_OBJECT
 
     QTime time;
+
+    Sink::ResourceContext getContext()
+    {
+        return Sink::ResourceContext{"sink.dummy.instance1", "sink.dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("sink.dummy")};
+    }
 
 private slots:
     void initTestCase()
@@ -129,8 +135,7 @@ private slots:
 
     void testResourceSync()
     {
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create("sink.dummy.instance1");
-        ::DummyResource resource("sink.dummy.instance1", pipeline);
+        ::DummyResource resource(getContext());
         auto job = resource.synchronizeWithSource();
         // TODO pass in optional timeout?
         auto future = job.exec();

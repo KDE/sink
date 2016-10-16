@@ -4,15 +4,15 @@
 
 SINK_DEBUG_AREA("index")
 
-Index::Index(const QString &storageRoot, const QString &name, Sink::Storage::AccessMode mode)
-    : mTransaction(Sink::Storage(storageRoot, name, mode).createTransaction(mode)),
-      mDb(mTransaction.openDatabase(name.toLatin1(), std::function<void(const Sink::Storage::Error &)>(), true)),
+Index::Index(const QString &storageRoot, const QString &name, Sink::Storage::DataStore::AccessMode mode)
+    : mTransaction(Sink::Storage::DataStore(storageRoot, name, mode).createTransaction(mode)),
+      mDb(mTransaction.openDatabase(name.toLatin1(), std::function<void(const Sink::Storage::DataStore::Error &)>(), true)),
       mName(name)
 {
 }
 
-Index::Index(const QByteArray &name, Sink::Storage::Transaction &transaction)
-    : mDb(transaction.openDatabase(name, std::function<void(const Sink::Storage::Error &)>(), true)), mName(name)
+Index::Index(const QByteArray &name, Sink::Storage::DataStore::Transaction &transaction)
+    : mDb(transaction.openDatabase(name, std::function<void(const Sink::Storage::DataStore::Error &)>(), true)), mName(name)
 {
 }
 
@@ -33,7 +33,7 @@ void Index::lookup(const QByteArray &key, const std::function<void(const QByteAr
             resultHandler(value);
             return true;
         },
-        [this, errorHandler](const Sink::Storage::Error &error) {
+        [this, errorHandler](const Sink::Storage::DataStore::Error &error) {
             SinkWarning() << "Error while retrieving value" << error.message;
             errorHandler(Error(error.store, error.code, error.message));
         },

@@ -31,13 +31,9 @@
 using namespace Sink;
 
 template <class DomainType>
-GenericFacade<DomainType>::GenericFacade(
-    const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory, const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
-    : Sink::StoreFacade<DomainType>(), mResourceAccess(resourceAccess), mDomainTypeAdaptorFactory(adaptorFactory), mResourceInstanceIdentifier(resourceIdentifier)
+GenericFacade<DomainType>::GenericFacade(const ResourceContext &context)
+    : Sink::StoreFacade<DomainType>(), mResourceContext(context), mResourceAccess(mResourceContext.resourceAccess())
 {
-    if (!mResourceAccess) {
-        mResourceAccess = ResourceAccessFactory::instance().getAccess(resourceIdentifier, ResourceConfig::getResourceType(resourceIdentifier));
-    }
 }
 
 template <class DomainType>
@@ -55,25 +51,23 @@ QByteArray GenericFacade<DomainType>::bufferTypeForDomainType()
 template <class DomainType>
 KAsync::Job<void> GenericFacade<DomainType>::create(const DomainType &domainObject)
 {
-    if (!mDomainTypeAdaptorFactory) {
+    flatbuffers::FlatBufferBuilder entityFbb;
+    if (!mResourceContext.adaptorFactory<DomainType>().createBuffer(domainObject, entityFbb)) {
         SinkWarning() << "No domain type adaptor factory available";
         return KAsync::error<void>();
     }
-    flatbuffers::FlatBufferBuilder entityFbb;
-    mDomainTypeAdaptorFactory->createBuffer(domainObject, entityFbb);
     return mResourceAccess->sendCreateCommand(domainObject.identifier(), bufferTypeForDomainType(), BufferUtils::extractBuffer(entityFbb));
 }
 
 template <class DomainType>
 KAsync::Job<void> GenericFacade<DomainType>::modify(const DomainType &domainObject)
 {
-    if (!mDomainTypeAdaptorFactory) {
+    SinkTrace() << "Modifying entity: " << domainObject.identifier() << domainObject.changedProperties();
+    flatbuffers::FlatBufferBuilder entityFbb;
+    if (!mResourceContext.adaptorFactory<DomainType>().createBuffer(domainObject, entityFbb)) {
         SinkWarning() << "No domain type adaptor factory available";
         return KAsync::error<void>();
     }
-    SinkTrace() << "Modifying entity: " << domainObject.identifier() << domainObject.changedProperties();
-    flatbuffers::FlatBufferBuilder entityFbb;
-    mDomainTypeAdaptorFactory->createBuffer(domainObject, entityFbb);
     return mResourceAccess->sendModifyCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType(), QByteArrayList(), BufferUtils::extractBuffer(entityFbb), domainObject.changedProperties());
 }
 
@@ -87,7 +81,7 @@ template <class DomainType>
 QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> GenericFacade<DomainType>::load(const Sink::Query &query)
 {
     // The runner lives for the lifetime of the query
-    auto runner = new QueryRunner<DomainType>(query, mResourceAccess, mResourceInstanceIdentifier, mDomainTypeAdaptorFactory, bufferTypeForDomainType());
+    auto runner = new QueryRunner<DomainType>(query, mResourceContext, bufferTypeForDomainType());
     runner->setResultTransformation(mResultTransformation);
     return qMakePair(KAsync::null<void>(), runner->emitter());
 }

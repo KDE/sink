@@ -21,9 +21,8 @@
 
 using namespace Sink;
 
-EntityStore::EntityStore(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Sink::Storage::Transaction &transaction)
-    : mResourceType(resourceType), mResourceInstanceIdentifier(resourceInstanceIdentifier),
-    mTransaction(transaction)
+EntityStore::EntityStore(Storage::EntityStore &store_)
+    : store(store_)
 {
 
 }

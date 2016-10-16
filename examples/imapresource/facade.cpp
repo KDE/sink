@@ -25,8 +25,8 @@
 #include "domainadaptor.h"
 #include "queryrunner.h"
 
-ImapResourceMailFacade::ImapResourceMailFacade(const QByteArray &instanceIdentifier)
-    : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<ImapMailAdaptorFactory>::create())
+ImapResourceMailFacade::ImapResourceMailFacade(const Sink::ResourceContext &context)
+    : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(context)
 {
 }
 
@@ -34,8 +34,8 @@ ImapResourceMailFacade::~ImapResourceMailFacade()
 {
 }
 
-ImapResourceFolderFacade::ImapResourceFolderFacade(const QByteArray &instanceIdentifier)
-    : Sink::GenericFacade<Sink::ApplicationDomain::Folder>(instanceIdentifier, QSharedPointer<ImapFolderAdaptorFactory>::create())
+ImapResourceFolderFacade::ImapResourceFolderFacade(const Sink::ResourceContext &context)
+    : Sink::GenericFacade<Sink::ApplicationDomain::Folder>(context)
 {
 }
 

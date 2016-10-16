@@ -62,8 +62,7 @@ class MailQueryBenchmark : public QObject
     {
         TestResource::removeFromDisk(resourceIdentifier);
 
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create(resourceIdentifier);
-        pipeline->setResourceType("test");
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create(Sink::ResourceContext{resourceIdentifier, "test"});
 
         auto indexer = QSharedPointer<DefaultIndexUpdater<Mail>>::create();
 
@@ -94,10 +93,10 @@ class MailQueryBenchmark : public QObject
         // Benchmark
         QTime time;
         time.start();
-
         auto resultSet = QSharedPointer<Sink::ResultProvider<Mail::Ptr>>::create();
-        auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
-        TestMailResourceFacade facade(resourceIdentifier, resourceAccess);
+        Sink::ResourceContext context{resourceIdentifier, "test"};
+        context.mResourceAccess = QSharedPointer<TestResourceAccess>::create();
+        TestMailResourceFacade facade(context);
 
         auto ret = facade.load(query);
         ret.first.exec().waitForFinished();
@@ -115,7 +114,7 @@ class MailQueryBenchmark : public QObject
         const auto finalRss = getCurrentRSS();
         const auto rssGrowth = finalRss - startingRss;
         // Since the database is memory mapped it is attributted to the resident set size.
-        const auto rssWithoutDb = finalRss - Sink::Storage(Sink::storageLocation(), resourceIdentifier, Sink::Storage::ReadWrite).diskUsage();
+        const auto rssWithoutDb = finalRss - Sink::Storage::DataStore(Sink::storageLocation(), resourceIdentifier, Sink::Storage::DataStore::ReadWrite).diskUsage();
         const auto peakRss = getPeakRSS();
         // How much peak deviates from final rss in percent (should be around 0)
         const auto percentageRssError = static_cast<double>(peakRss - finalRss) * 100.0 / static_cast<double>(finalRss);

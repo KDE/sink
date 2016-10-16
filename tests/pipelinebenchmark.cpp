@@ -47,7 +47,7 @@
 
 // class IndexUpdater : public Sink::Preprocessor {
 // public:
-//     void newEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+//     void newEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
 //     {
 //         for (int i = 0; i < 10; i++) {
 //             Index ridIndex(QString("index.index%1").arg(i).toLatin1(), transaction);
@@ -56,11 +56,11 @@
 //     }
 //
 //     void modifiedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, const Sink::ApplicationDomain::BufferAdaptor &newEntity,
-//     Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+//     Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
 //     {
 //     }
 //
-//     void deletedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+//     void deletedEntity(const QByteArray &key, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
 //     {
 //     }
 // };
@@ -83,9 +83,8 @@ class PipelineBenchmark : public QObject
     {
         TestResource::removeFromDisk(resourceIdentifier);
 
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create(resourceIdentifier);
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create(Sink::ResourceContext{resourceIdentifier, "test"});
         pipeline->setPreprocessors("mail", preprocessors);
-        pipeline->setResourceType("test");
 
         QTime time;
         time.start();
@@ -112,7 +111,7 @@ class PipelineBenchmark : public QObject
         // Print memory layout, RSS is what is in memory
         // std::system("exec pmap -x \"$PPID\"");
         //
-        std::cout << "Size: " << Sink::Storage(Sink::storageLocation(), resourceIdentifier, Sink::Storage::ReadOnly).diskUsage() / 1024 << " [kb]" << std::endl;
+        std::cout << "Size: " << Sink::Storage::DataStore(Sink::storageLocation(), resourceIdentifier, Sink::Storage::DataStore::ReadOnly).diskUsage() / 1024 << " [kb]" << std::endl;
         std::cout << "Time: " << allProcessedTime << " [ms]" << std::endl;
 
         HAWD::Dataset dataset("pipeline", mHawdState);

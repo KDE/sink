@@ -22,11 +22,10 @@
 #include <QDir>
 #include <QFileInfo>
 
-#include "domainadaptor.h"
-#include "queryrunner.h"
+#include "query.h"
 
-MaildirResourceMailFacade::MaildirResourceMailFacade(const QByteArray &instanceIdentifier)
-    : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<MaildirMailAdaptorFactory>::create())
+MaildirResourceMailFacade::MaildirResourceMailFacade(const Sink::ResourceContext &context)
+    : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(context)
 {
     mResultTransformation = [](Sink::ApplicationDomain::ApplicationDomainType &value) {
         if (value.hasProperty("mimeMessage")) {
@@ -62,8 +61,8 @@ QPair<KAsync::Job<void>, Sink::ResultEmitter<Sink::ApplicationDomain::Mail::Ptr>
 }
 
 
-MaildirResourceFolderFacade::MaildirResourceFolderFacade(const QByteArray &instanceIdentifier)
-    : Sink::GenericFacade<Sink::ApplicationDomain::Folder>(instanceIdentifier, QSharedPointer<MaildirFolderAdaptorFactory>::create())
+MaildirResourceFolderFacade::MaildirResourceFolderFacade(const Sink::ResourceContext &context)
+    : Sink::GenericFacade<Sink::ApplicationDomain::Folder>(context)
 {
 }
 

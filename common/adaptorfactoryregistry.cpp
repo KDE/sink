@@ -61,8 +61,20 @@ std::shared_ptr<DomainTypeAdaptorFactoryInterface> AdaptorFactoryRegistry::getFa
     return std::static_pointer_cast<DomainTypeAdaptorFactoryInterface>(ptr);
 }
 
+QMap<QByteArray, DomainTypeAdaptorFactoryInterface::Ptr> AdaptorFactoryRegistry::getFactories(const QByteArray &resource)
+{
+    QMap<QByteArray, DomainTypeAdaptorFactoryInterface::Ptr> map;
+    for (const auto &type : mTypes.values(resource)) {
+        auto f = getFactory(resource, type);
+        //Convert the std::shared_ptr to a QSharedPointer
+        map.insert(type, DomainTypeAdaptorFactoryInterface::Ptr(f.get(), [](DomainTypeAdaptorFactoryInterface *) {}));
+    }
+    return map;
+}
+
 void AdaptorFactoryRegistry::registerFactory(const QByteArray &resource, const std::shared_ptr<void> &instance, const QByteArray typeName)
 {
+    mTypes.insert(resource, typeName);
     mRegistry.insert(key(resource, typeName), instance);
 }
 

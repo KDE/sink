@@ -24,6 +24,7 @@
 #include <Async/Async>
 
 #include "storage.h"
+#include "resourcecontext.h"
 
 namespace Sink {
 
@@ -38,7 +39,7 @@ class SINK_EXPORT ChangeReplay : public QObject
 {
     Q_OBJECT
 public:
-    ChangeReplay(const QByteArray &resourceName);
+    ChangeReplay(const ResourceContext &resourceContext);
 
     qint64 getLastReplayedRevision();
     bool allChangesReplayed();
@@ -53,20 +54,20 @@ public slots:
 protected:
     virtual KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) = 0;
     virtual bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) = 0;
-    Sink::Storage mStorage;
+    Sink::Storage::DataStore mStorage;
 
 private:
     void recordReplayedRevision(qint64 revision);
     KAsync::Job<void> replayNextRevision();
-    Sink::Storage mChangeReplayStore;
+    Sink::Storage::DataStore mChangeReplayStore;
     bool mReplayInProgress;
-    Sink::Storage::Transaction mMainStoreTransaction;
+    Sink::Storage::DataStore::Transaction mMainStoreTransaction;
 };
 
 class NullChangeReplay : public ChangeReplay
 {
 public:
-    NullChangeReplay(const QByteArray &resourceName) : ChangeReplay(resourceName) {}
+    NullChangeReplay(const ResourceContext &resourceContext) : ChangeReplay(resourceContext) {}
     KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE { return KAsync::null<void>(); }
     bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE { return false; }
 };

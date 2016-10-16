@@ -27,26 +27,27 @@
 SINK_DEBUG_AREA("storage")
 
 namespace Sink {
+namespace Storage {
 
 static const char *s_internalPrefix = "__internal";
 static const int s_internalPrefixSize = strlen(s_internalPrefix);
 
-void errorHandler(const Storage::Error &error)
+void errorHandler(const DataStore::Error &error)
 {
     SinkWarning() << "Database error in " << error.store << ", code " << error.code << ", message: " << error.message;
 }
 
-std::function<void(const Storage::Error &error)> Storage::basicErrorHandler()
+std::function<void(const DataStore::Error &error)> DataStore::basicErrorHandler()
 {
     return errorHandler;
 }
 
-void Storage::setDefaultErrorHandler(const std::function<void(const Storage::Error &error)> &errorHandler)
+void DataStore::setDefaultErrorHandler(const std::function<void(const DataStore::Error &error)> &errorHandler)
 {
     mErrorHandler = errorHandler;
 }
 
-std::function<void(const Storage::Error &error)> Storage::defaultErrorHandler() const
+std::function<void(const DataStore::Error &error)> DataStore::defaultErrorHandler() const
 {
     if (mErrorHandler) {
         return mErrorHandler;
@@ -54,12 +55,12 @@ std::function<void(const Storage::Error &error)> Storage::defaultErrorHandler() 
     return basicErrorHandler();
 }
 
-void Storage::setMaxRevision(Sink::Storage::Transaction &transaction, qint64 revision)
+void DataStore::setMaxRevision(DataStore::Transaction &transaction, qint64 revision)
 {
     transaction.openDatabase().write("__internal_maxRevision", QByteArray::number(revision));
 }
 
-qint64 Storage::maxRevision(const Sink::Storage::Transaction &transaction)
+qint64 DataStore::maxRevision(const DataStore::Transaction &transaction)
 {
     qint64 r = 0;
     transaction.openDatabase().scan("__internal_maxRevision",
@@ -68,19 +69,19 @@ qint64 Storage::maxRevision(const Sink::Storage::Transaction &transaction)
             return false;
         },
         [](const Error &error) {
-            if (error.code != Sink::Storage::NotFound) {
+            if (error.code != DataStore::NotFound) {
                 SinkWarning() << "Coultn'd find the maximum revision.";
             }
         });
     return r;
 }
 
-void Storage::setCleanedUpRevision(Sink::Storage::Transaction &transaction, qint64 revision)
+void DataStore::setCleanedUpRevision(DataStore::Transaction &transaction, qint64 revision)
 {
     transaction.openDatabase().write("__internal_cleanedUpRevision", QByteArray::number(revision));
 }
 
-qint64 Storage::cleanedUpRevision(const Sink::Storage::Transaction &transaction)
+qint64 DataStore::cleanedUpRevision(const DataStore::Transaction &transaction)
 {
     qint64 r = 0;
     transaction.openDatabase().scan("__internal_cleanedUpRevision",
@@ -89,14 +90,14 @@ qint64 Storage::cleanedUpRevision(const Sink::Storage::Transaction &transaction)
             return false;
         },
         [](const Error &error) {
-            if (error.code != Sink::Storage::NotFound) {
+            if (error.code != DataStore::NotFound) {
                 SinkWarning() << "Coultn'd find the maximum revision.";
             }
         });
     return r;
 }
 
-QByteArray Storage::getUidFromRevision(const Sink::Storage::Transaction &transaction, qint64 revision)
+QByteArray DataStore::getUidFromRevision(const DataStore::Transaction &transaction, qint64 revision)
 {
     QByteArray uid;
     transaction.openDatabase("revisions")
@@ -109,7 +110,7 @@ QByteArray Storage::getUidFromRevision(const Sink::Storage::Transaction &transac
     return uid;
 }
 
-QByteArray Storage::getTypeFromRevision(const Sink::Storage::Transaction &transaction, qint64 revision)
+QByteArray DataStore::getTypeFromRevision(const DataStore::Transaction &transaction, qint64 revision)
 {
     QByteArray type;
     transaction.openDatabase("revisionType")
@@ -122,25 +123,25 @@ QByteArray Storage::getTypeFromRevision(const Sink::Storage::Transaction &transa
     return type;
 }
 
-void Storage::recordRevision(Sink::Storage::Transaction &transaction, qint64 revision, const QByteArray &uid, const QByteArray &type)
+void DataStore::recordRevision(DataStore::Transaction &transaction, qint64 revision, const QByteArray &uid, const QByteArray &type)
 {
     // TODO use integerkeys
     transaction.openDatabase("revisions").write(QByteArray::number(revision), uid);
     transaction.openDatabase("revisionType").write(QByteArray::number(revision), type);
 }
 
-void Storage::removeRevision(Sink::Storage::Transaction &transaction, qint64 revision)
+void DataStore::removeRevision(DataStore::Transaction &transaction, qint64 revision)
 {
     transaction.openDatabase("revisions").remove(QByteArray::number(revision));
     transaction.openDatabase("revisionType").remove(QByteArray::number(revision));
 }
 
-bool Storage::isInternalKey(const char *key)
+bool DataStore::isInternalKey(const char *key)
 {
     return key && strncmp(key, s_internalPrefix, s_internalPrefixSize) == 0;
 }
 
-bool Storage::isInternalKey(void *key, int size)
+bool DataStore::isInternalKey(void *key, int size)
 {
     if (size < 1) {
         return false;
@@ -149,39 +150,39 @@ bool Storage::isInternalKey(void *key, int size)
     return key && strncmp(static_cast<char *>(key), s_internalPrefix, (size > s_internalPrefixSize ? s_internalPrefixSize : size)) == 0;
 }
 
-bool Storage::isInternalKey(const QByteArray &key)
+bool DataStore::isInternalKey(const QByteArray &key)
 {
     return key.startsWith(s_internalPrefix);
 }
 
-QByteArray Storage::assembleKey(const QByteArray &key, qint64 revision)
+QByteArray DataStore::assembleKey(const QByteArray &key, qint64 revision)
 {
     Q_ASSERT(revision <= 9223372036854775807);
     Q_ASSERT(key.size() == 38);
     return key + QByteArray::number(revision).rightJustified(19, '0', false);
 }
 
-QByteArray Storage::uidFromKey(const QByteArray &key)
+QByteArray DataStore::uidFromKey(const QByteArray &key)
 {
     return key.mid(0, 38);
 }
 
-qint64 Storage::revisionFromKey(const QByteArray &key)
+qint64 DataStore::revisionFromKey(const QByteArray &key)
 {
     return key.mid(39).toLongLong();
 }
 
-QByteArray Storage::generateUid()
+QByteArray DataStore::generateUid()
 {
     return QUuid::createUuid().toByteArray();
 }
 
-Storage::NamedDatabase Storage::mainDatabase(const Sink::Storage::Transaction &t, const QByteArray &type)
+DataStore::NamedDatabase DataStore::mainDatabase(const DataStore::Transaction &t, const QByteArray &type)
 {
     return t.openDatabase(type + ".main");
 }
 
-bool Storage::NamedDatabase::contains(const QByteArray &uid)
+bool DataStore::NamedDatabase::contains(const QByteArray &uid)
 {
     bool found = false;
     scan(uid,
@@ -189,8 +190,9 @@ bool Storage::NamedDatabase::contains(const QByteArray &uid)
             found = true;
             return false;
         },
-        [this](const Sink::Storage::Error &error) {}, true);
+        [this](const DataStore::Error &error) {}, true);
     return found;
 }
 
+}
 } // namespace Sink

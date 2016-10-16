@@ -30,9 +30,9 @@
 namespace Sink {
 
 namespace EntityReaderUtils {
-    SINK_EXPORT QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getLatest(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision);
-    SINK_EXPORT QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> get(const Sink::Storage::NamedDatabase &db, const QByteArray &key, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision);
-    SINK_EXPORT QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getPrevious(const Sink::Storage::NamedDatabase &db, const QByteArray &uid, qint64 revision, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision);
+    SINK_EXPORT QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getLatest(const Sink::Storage::DataStore::NamedDatabase &db, const QByteArray &uid, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision);
+    SINK_EXPORT QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> get(const Sink::Storage::DataStore::NamedDatabase &db, const QByteArray &key, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision);
+    SINK_EXPORT QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> getPrevious(const Sink::Storage::DataStore::NamedDatabase &db, const QByteArray &uid, qint64 revision, DomainTypeAdaptorFactoryInterface &adaptorFactory, qint64 &retrievedRevision);
 };
 
 /**
@@ -41,7 +41,7 @@ namespace EntityReaderUtils {
  * All callbacks will be called before the end of the function.
  * The caller must ensure passed in references remain valid for the lifetime of the object.
  *
- * This class is meaent to be instantiated temporarily during reads on the stack.
+ * This class is meant to be instantiated temporarily during reads on the stack.
  *
  * Note that all objects returned in callbacks are only valid during the execution of the callback and may start pointing into invalid memory if shallow-copied.
  */
@@ -51,8 +51,7 @@ class SINK_EXPORT EntityReader
     typedef std::function<bool(const typename DomainType::Ptr &domainObject, Sink::Operation operation, const QMap<QByteArray, QVariant> &aggregateValues)> ResultCallback;
 
 public:
-    EntityReader(const QByteArray &resourceType, const QByteArray &mResourceInstanceIdentifier, Sink::Storage::Transaction &transaction);
-    EntityReader(DomainTypeAdaptorFactoryInterface &domainTypeAdaptorFactory, const QByteArray &resourceInstanceIdentifier, Sink::Storage::Transaction &transaction);
+    EntityReader(Storage::EntityStore &store);
 
     /**
      * Reads the latest revision of an entity identified by @param uid
@@ -90,10 +89,7 @@ private:
     qint64 replaySet(ResultSet &resultSet, int offset, int batchSize, const ResultCallback &callback);
 
 private:
-    QByteArray mResourceInstanceIdentifier;
-    Sink::Storage::Transaction &mTransaction;
-    std::shared_ptr<DomainTypeAdaptorFactoryInterface> mDomainTypeAdaptorFactoryPtr;
-    DomainTypeAdaptorFactoryInterface &mDomainTypeAdaptorFactory;
+    Sink::Storage::EntityStore &mEntityStore;
 };
 
 }

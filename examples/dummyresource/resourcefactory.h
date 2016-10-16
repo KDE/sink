@@ -32,7 +32,7 @@
 class DummyResource : public Sink::GenericResource
 {
 public:
-    DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
+    DummyResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
     virtual ~DummyResource();
 
     KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE;
@@ -48,7 +48,7 @@ class DummyResourceFactory : public Sink::ResourceFactory
 public:
     DummyResourceFactory(QObject *parent = 0);
 
-    Sink::Resource *createResource(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
+    Sink::Resource *createResource(const Sink::ResourceContext &resourceContext) Q_DECL_OVERRIDE;
     void registerFacades(Sink::FacadeFactory &factory) Q_DECL_OVERRIDE;
     void registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry) Q_DECL_OVERRIDE;
     void removeDataFromDisk(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;

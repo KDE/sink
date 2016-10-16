@@ -42,7 +42,7 @@ struct Folder;
 class ImapResource : public Sink::GenericResource
 {
 public:
-    ImapResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
+    ImapResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
     static void removeFromDisk(const QByteArray &instanceIdentifier);
 
@@ -62,7 +62,7 @@ class ImapResourceFactory : public Sink::ResourceFactory
 public:
     ImapResourceFactory(QObject *parent = 0);
 
-    Sink::Resource *createResource(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
+    Sink::Resource *createResource(const Sink::ResourceContext &resourceContext) Q_DECL_OVERRIDE;
     void registerFacades(Sink::FacadeFactory &factory) Q_DECL_OVERRIDE;
     void registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry) Q_DECL_OVERRIDE;
     void removeDataFromDisk(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;

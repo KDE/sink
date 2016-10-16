@@ -85,13 +85,13 @@ class MaildirMimeMessageMover : public Sink::Preprocessor
 public:
     MaildirMimeMessageMover(const QByteArray &resourceInstanceIdentifier, const QString &maildirPath) : mResourceInstanceIdentifier(resourceInstanceIdentifier), mMaildirPath(maildirPath) {}
 
-    QString getPath(const QByteArray &folderIdentifier, Sink::Storage::Transaction &transaction)
+    QString getPath(const QByteArray &folderIdentifier, Sink::Storage::DataStore::Transaction &transaction)
     {
         if (folderIdentifier.isEmpty()) {
             return mMaildirPath;
         }
         QString folderPath;
-        auto db = Sink::Storage::mainDatabase(transaction, ENTITY_TYPE_FOLDER);
+        auto db = Sink::Storage::DataStore::mainDatabase(transaction, ENTITY_TYPE_FOLDER);
         db.findLatest(folderIdentifier, [&](const QByteArray &, const QByteArray &value) {
             Sink::EntityBuffer buffer(value);
             const Sink::Entity &entity = buffer.entity();
@@ -108,7 +108,7 @@ public:
         return folderPath;
     }
 
-    QString moveMessage(const QString &oldPath, const QByteArray &folder, Sink::Storage::Transaction &transaction)
+    QString moveMessage(const QString &oldPath, const QByteArray &folder, Sink::Storage::DataStore::Transaction &transaction)
     {
         if (oldPath.startsWith(Sink::temporaryFileLocation())) {
             const auto path = getPath(folder, transaction);
@@ -141,7 +141,7 @@ public:
         }
     }
 
-    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
         const auto mimeMessage = newEntity.getProperty("mimeMessage");
         if (mimeMessage.isValid()) {
@@ -150,7 +150,7 @@ public:
     }
 
     void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
-        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+        Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
         const auto mimeMessage = newEntity.getProperty("mimeMessage");
         const auto newFolder = newEntity.getProperty("folder");
@@ -185,7 +185,7 @@ public:
         maildir.changeEntryFlags(identifier, flags);
     }
 
-    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
         const auto filePath = getFilePathFromMimeMessagePath(oldEntity.getProperty("mimeMessage").toString());
         QFile::remove(filePath);
@@ -199,7 +199,7 @@ class FolderPreprocessor : public Sink::Preprocessor
 public:
     FolderPreprocessor(const QString maildirPath) : mMaildirPath(maildirPath) {}
 
-    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
         auto folderName = newEntity.getProperty("name").toString();
         const auto path = mMaildirPath + "/" + folderName;
@@ -208,11 +208,11 @@ public:
     }
 
     void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
-        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+        Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
     }
 
-    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
     }
     QString mMaildirPath;
@@ -221,8 +221,8 @@ public:
 
 class MaildirSynchronizer : public Sink::Synchronizer {
 public:
-    MaildirSynchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier)
-        : Sink::Synchronizer(resourceType, resourceInstanceIdentifier)
+    MaildirSynchronizer(const Sink::ResourceContext &resourceContext)
+        : Sink::Synchronizer(resourceContext)
     {
 
     }
@@ -278,19 +278,7 @@ public:
         const QByteArray bufferType = ENTITY_TYPE_FOLDER;
         QStringList folderList = listAvailableFolders();
         SinkTrace() << "Found folders " << folderList;
-
         scanForRemovals(bufferType,
-            [this, &bufferType](const std::function<void(const QByteArray &)> &callback) {
-                //TODO Instead of iterating over all entries in the database, which can also pick up the same item multiple times,
-                //we should rather iterate over an index that contains every uid exactly once. The remoteId index would be such an index,
-                //but we currently fail to iterate over all entries in an index it seems.
-                // auto remoteIds = synchronizationTransaction.openDatabase("rid.mapping." + bufferType, std::function<void(const Sink::Storage::Error &)>(), true);
-                auto mainDatabase = Sink::Storage::mainDatabase(transaction(), bufferType);
-                mainDatabase.scan("", [&](const QByteArray &key, const QByteArray &) {
-                    callback(key);
-                    return true;
-                });
-            },
             [&folderList](const QByteArray &remoteId) -> bool {
                 return folderList.contains(remoteId);
             }
@@ -323,16 +311,9 @@ public:
 
         const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, path.toUtf8());
 
-        auto property = "folder";
         scanForRemovals(bufferType,
             [&](const std::function<void(const QByteArray &)> &callback) {
-                Index index(bufferType + ".index." + property, transaction());
-                index.lookup(folderLocalId, [&](const QByteArray &sinkId) {
-                    callback(sinkId);
-                },
-                [&](const Index::Error &error) {
-                    SinkWarning() << "Error in index: " <<  error.message << property;
-                });
+                store().indexLookup<ApplicationDomain::Mail, ApplicationDomain::Mail::Folder>(folderLocalId, callback);
             },
             [](const QByteArray &remoteId) -> bool {
                 return QFile(remoteId).exists();
@@ -392,7 +373,7 @@ public:
 class MaildirWriteback : public Sink::SourceWriteBack
 {
 public:
-    MaildirWriteback(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : Sink::SourceWriteBack(resourceType, resourceInstanceIdentifier)
+    MaildirWriteback(const Sink::ResourceContext &resourceContext) : Sink::SourceWriteBack(resourceContext)
     {
 
     }
@@ -442,24 +423,24 @@ public:
 };
 
 
-MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
-    : Sink::GenericResource(PLUGIN_NAME, instanceIdentifier, pipeline)
+MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline)
+    : Sink::GenericResource(resourceContext, pipeline)
 {
-    auto config = ResourceConfig::getConfiguration(instanceIdentifier);
+    auto config = ResourceConfig::getConfiguration(resourceContext.instanceId());
     mMaildirPath = QDir::cleanPath(QDir::fromNativeSeparators(config.value("path").toString()));
     //Chop a trailing slash if necessary
     if (mMaildirPath.endsWith("/")) {
         mMaildirPath.chop(1);
     }
 
-    auto synchronizer = QSharedPointer<MaildirSynchronizer>::create(PLUGIN_NAME, instanceIdentifier);
+    auto synchronizer = QSharedPointer<MaildirSynchronizer>::create(resourceContext);
     synchronizer->mMaildirPath = mMaildirPath;
     setupSynchronizer(synchronizer);
-    auto changereplay = QSharedPointer<MaildirWriteback>::create(PLUGIN_NAME, instanceIdentifier);
+    auto changereplay = QSharedPointer<MaildirWriteback>::create(resourceContext);
     changereplay->mMaildirPath = mMaildirPath;
     setupChangereplay(changereplay);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(mResourceType, mResourceInstanceIdentifier) << new MaildirMimeMessageMover(mResourceInstanceIdentifier, mMaildirPath) << new MaildirMailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MaildirMimeMessageMover(resourceContext.instanceId(), mMaildirPath) << new MaildirMailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new FolderPreprocessor(mMaildirPath) << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 
     KPIM::Maildir dir(mMaildirPath, true);
@@ -480,24 +461,24 @@ MaildirResource::MaildirResource(const QByteArray &instanceIdentifier, const QSh
 void MaildirResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
     GenericResource::removeFromDisk(instanceIdentifier);
-    Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::ReadWrite).removeFromDisk();
+    Sink::Storage::DataStore(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
 }
 
 KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
-    auto synchronizationStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadOnly);
-    auto synchronizationTransaction = synchronizationStore->createTransaction(Sink::Storage::ReadOnly);
+    auto synchronizationStore = QSharedPointer<Sink::Storage::DataStore>::create(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::ReadOnly);
+    auto synchronizationTransaction = synchronizationStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
 
-    auto mainStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier, Sink::Storage::ReadOnly);
-    auto transaction = mainStore->createTransaction(Sink::Storage::ReadOnly);
+    auto mainStore = QSharedPointer<Sink::Storage::DataStore>::create(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadOnly);
+    auto transaction = mainStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
 
-    auto entityStore = QSharedPointer<EntityStore>::create(mResourceType, mResourceInstanceIdentifier, transaction);
+    Sink::Storage::EntityStore entityStore(mResourceContext);
     auto syncStore = QSharedPointer<RemoteIdMap>::create(synchronizationTransaction);
 
     SinkTrace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
 
     if (domainType == ENTITY_TYPE_MAIL) {
-        auto mail = entityStore->read<Sink::ApplicationDomain::Mail>(entityId);
+        auto mail = entityStore.readLatest<Sink::ApplicationDomain::Mail>(entityId);
         const auto filePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
 
         if (inspectionType == Sink::ResourceControl::Inspection::PropertyInspectionType) {
@@ -530,7 +511,7 @@ KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray 
     }
     if (domainType == ENTITY_TYPE_FOLDER) {
         const auto remoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, entityId);
-        auto folder = entityStore->read<Sink::ApplicationDomain::Folder>(entityId);
+        auto folder = entityStore.readLatest<Sink::ApplicationDomain::Folder>(entityId);
 
         if (inspectionType == Sink::ResourceControl::Inspection::CacheIntegrityInspectionType) {
             SinkTrace() << "Inspecting cache integrity" << remoteId;
@@ -577,9 +558,9 @@ MaildirResourceFactory::MaildirResourceFactory(QObject *parent)
 
 }
 
-Sink::Resource *MaildirResourceFactory::createResource(const QByteArray &instanceIdentifier)
+Sink::Resource *MaildirResourceFactory::createResource(const ResourceContext &context)
 {
-    return new MaildirResource(instanceIdentifier);
+    return new MaildirResource(context);
 }
 
 void MaildirResourceFactory::registerFacades(Sink::FacadeFactory &factory)

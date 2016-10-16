@@ -28,32 +28,32 @@ public:
     {
     }
 
-    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
         add(newEntity.getProperty(mProperty), uid, transaction);
     }
 
     void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
-        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+        Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
         remove(oldEntity.getProperty(mProperty), uid, transaction);
         add(newEntity.getProperty(mProperty), uid, transaction);
     }
 
-    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
         remove(oldEntity.getProperty(mProperty), uid, transaction);
     }
 
 private:
-    void add(const QVariant &value, const QByteArray &uid, Sink::Storage::Transaction &transaction)
+    void add(const QVariant &value, const QByteArray &uid, Sink::Storage::DataStore::Transaction &transaction)
     {
         if (value.isValid()) {
             Index(mIndexIdentifier, transaction).add(value.toByteArray(), uid);
         }
     }
 
-    void remove(const QVariant &value, const QByteArray &uid, Sink::Storage::Transaction &transaction)
+    void remove(const QVariant &value, const QByteArray &uid, Sink::Storage::DataStore::Transaction &transaction)
     {
         if (value.isValid()) {
             const auto data = value.toByteArray();
@@ -72,19 +72,19 @@ template <typename DomainType>
 class DefaultIndexUpdater : public Sink::Preprocessor
 {
 public:
-    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
         Sink::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
     }
 
     void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
-        Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+        Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
         Sink::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
         Sink::ApplicationDomain::TypeImplementation<DomainType>::index(uid, newEntity, transaction);
     }
 
-    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE
+    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
     {
         Sink::ApplicationDomain::TypeImplementation<DomainType>::removeIndex(uid, oldEntity, transaction);
     }

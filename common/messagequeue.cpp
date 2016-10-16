@@ -5,7 +5,7 @@
 
 SINK_DEBUG_AREA("messagequeue")
 
-MessageQueue::MessageQueue(const QString &storageRoot, const QString &name) : mStorage(storageRoot, name, Sink::Storage::ReadWrite)
+MessageQueue::MessageQueue(const QString &storageRoot, const QString &name) : mStorage(storageRoot, name, Sink::Storage::DataStore::ReadWrite)
 {
 }
 
@@ -27,13 +27,13 @@ void MessageQueue::startTransaction()
         return;
     }
     processRemovals();
-    mWriteTransaction = mStorage.createTransaction(Sink::Storage::ReadWrite);
+    mWriteTransaction = mStorage.createTransaction(Sink::Storage::DataStore::ReadWrite);
 }
 
 void MessageQueue::commit()
 {
     mWriteTransaction.commit();
-    mWriteTransaction = Sink::Storage::Transaction();
+    mWriteTransaction = Sink::Storage::DataStore::Transaction();
     processRemovals();
     emit messageReady();
 }
@@ -45,10 +45,10 @@ void MessageQueue::enqueue(const QByteArray &value)
         implicitTransaction = true;
         startTransaction();
     }
-    const qint64 revision = Sink::Storage::maxRevision(mWriteTransaction) + 1;
+    const qint64 revision = Sink::Storage::DataStore::maxRevision(mWriteTransaction) + 1;
     const QByteArray key = QString("%1").arg(revision).toUtf8();
     mWriteTransaction.openDatabase().write(key, value);
-    Sink::Storage::setMaxRevision(mWriteTransaction, revision);
+    Sink::Storage::DataStore::setMaxRevision(mWriteTransaction, revision);
     if (implicitTransaction) {
         commit();
     }
@@ -59,7 +59,7 @@ void MessageQueue::processRemovals()
     if (mWriteTransaction) {
         return;
     }
-    auto transaction = mStorage.createTransaction(Sink::Storage::ReadWrite);
+    auto transaction = mStorage.createTransaction(Sink::Storage::DataStore::ReadWrite);
     for (const auto &key : mPendingRemoval) {
         transaction.openDatabase().remove(key);
     }
@@ -82,7 +82,7 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
     return KAsync::start<void>([this, maxBatchSize, resultHandler, resultCount](KAsync::Future<void> &future) {
         int count = 0;
         QList<KAsync::Future<void>> waitCondition;
-        mStorage.createTransaction(Sink::Storage::ReadOnly)
+        mStorage.createTransaction(Sink::Storage::DataStore::ReadOnly)
             .openDatabase()
             .scan("",
                 [this, resultHandler, resultCount, &count, maxBatchSize, &waitCondition](const QByteArray &key, const QByteArray &value) -> bool {
@@ -101,7 +101,7 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
                     }
                     return false;
                 },
-                [](const Sink::Storage::Error &error) {
+                [](const Sink::Storage::DataStore::Error &error) {
                     SinkError() << "Error while retrieving value" << error.message;
                     // errorHandler(Error(error.store, error.code, error.message));
                 });
@@ -126,7 +126,7 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
 bool MessageQueue::isEmpty()
 {
     int count = 0;
-    auto t = mStorage.createTransaction(Sink::Storage::ReadOnly);
+    auto t = mStorage.createTransaction(Sink::Storage::DataStore::ReadOnly);
     auto db = t.openDatabase();
     if (db) {
         db.scan("",
@@ -137,7 +137,7 @@ bool MessageQueue::isEmpty()
                 }
                 return true;
             },
-            [](const Sink::Storage::Error &error) { SinkError() << "Error while checking if empty" << error.message; });
+            [](const Sink::Storage::DataStore::Error &error) { SinkError() << "Error while checking if empty" << error.message; });
     }
     return count == 0;
 }

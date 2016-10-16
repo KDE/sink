@@ -29,6 +29,7 @@
 
 #include "facadeinterface.h"
 #include "applicationdomaintype.h"
+#include "resourcecontext.h"
 #include "log.h"
 
 namespace Sink {
@@ -41,7 +42,7 @@ namespace Sink {
 class SINK_EXPORT FacadeFactory
 {
 public:
-    typedef std::function<std::shared_ptr<void>(const QByteArray &)> FactoryFunction;
+    typedef std::function<std::shared_ptr<void>(const ResourceContext &)> FactoryFunction;
 
     void registerStaticFacades();
 
@@ -52,13 +53,13 @@ public:
     template <class DomainType, class Facade>
     void registerFacade(const QByteArray &resource)
     {
-        registerFacade(resource, [](const QByteArray &instanceIdentifier) { return std::make_shared<Facade>(instanceIdentifier); }, ApplicationDomain::getTypeName<DomainType>());
+        registerFacade(resource, [](const ResourceContext &context) { return std::make_shared<Facade>(context); }, ApplicationDomain::getTypeName<DomainType>());
     }
 
     template <class DomainType, class Facade>
     void registerFacade()
     {
-        registerFacade(QByteArray(), [](const QByteArray &) { return std::make_shared<Facade>(); }, ApplicationDomain::getTypeName<DomainType>());
+        registerFacade(QByteArray(), [](const ResourceContext &) { return std::make_shared<Facade>(); }, ApplicationDomain::getTypeName<DomainType>());
     }
 
     /*

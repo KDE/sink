@@ -20,50 +20,42 @@
 #pragma once
 
 #include "sink_export.h"
-#include <domainadaptor.h>
 
-#include "storage.h"
-#include "adaptorfactoryregistry.h"
-#include "entityreader.h"
+#include "storage/entitystore.h"
 
 namespace Sink {
 
 class SINK_EXPORT EntityStore
 {
 public:
-    EntityStore(const QByteArray &resourceType, const QByteArray &mResourceInstanceIdentifier, Sink::Storage::Transaction &transaction);
+    EntityStore(Storage::EntityStore &store);
 
     template<typename T>
     T read(const QByteArray &identifier) const
     {
-        EntityReader<T> reader(mResourceType, mResourceInstanceIdentifier, mTransaction);
-        return reader.read(identifier);
+        return store.readLatest<T>(identifier);
     }
 
     template<typename T>
     T readFromKey(const QByteArray &key) const
     {
-        EntityReader<T> reader(mResourceType, mResourceInstanceIdentifier, mTransaction);
-        return reader.readFromKey(key);
+        return store.readEntity<T>(key);
     }
 
     template<typename T>
     T readPrevious(const QByteArray &uid, qint64 revision) const
     {
-        EntityReader<T> reader(mResourceType, mResourceInstanceIdentifier, mTransaction);
-        return reader.readPrevious(uid, revision);
+        return store.readPrevious<T>(uid, revision);
     }
 
-    template<typename T>
-    EntityReader<T> reader()
-    {
-        return EntityReader<T>(mResourceType, mResourceInstanceIdentifier, mTransaction);
-    }
+    /* template<typename T> */
+    /* EntityReader<T> reader() */
+    /* { */
+    /*     return EntityReader<T>(mResourceType, mResourceInstanceIdentifier, mTransaction); */
+    /* } */
 
 private:
-    QByteArray mResourceType;
-    QByteArray mResourceInstanceIdentifier;
-    Sink::Storage::Transaction &mTransaction;
+    Sink::Storage::EntityStore &store;
 };
 
 }

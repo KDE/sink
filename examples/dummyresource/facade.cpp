@@ -21,8 +21,8 @@
 
 #include "domainadaptor.h"
 
-DummyResourceFacade::DummyResourceFacade(const QByteArray &instanceIdentifier)
-    : Sink::GenericFacade<Sink::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<DummyEventAdaptorFactory>::create())
+DummyResourceFacade::DummyResourceFacade(const Sink::ResourceContext &context)
+    : Sink::GenericFacade<Sink::ApplicationDomain::Event>(context)
 {
 }
 
@@ -31,8 +31,8 @@ DummyResourceFacade::~DummyResourceFacade()
 }
 
 
-DummyResourceMailFacade::DummyResourceMailFacade(const QByteArray &instanceIdentifier)
-    : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<DummyMailAdaptorFactory>::create())
+DummyResourceMailFacade::DummyResourceMailFacade(const Sink::ResourceContext &context)
+    : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(context)
 {
 }
 
@@ -41,8 +41,8 @@ DummyResourceMailFacade::~DummyResourceMailFacade()
 }
 
 
-DummyResourceFolderFacade::DummyResourceFolderFacade(const QByteArray &instanceIdentifier)
-    : Sink::GenericFacade<Sink::ApplicationDomain::Folder>(instanceIdentifier, QSharedPointer<DummyFolderAdaptorFactory>::create())
+DummyResourceFolderFacade::DummyResourceFolderFacade(const Sink::ResourceContext &context)
+    : Sink::GenericFacade<Sink::ApplicationDomain::Folder>(context)
 {
 }
 

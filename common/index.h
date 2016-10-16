@@ -29,8 +29,8 @@ public:
         int code;
     };
 
-    Index(const QString &storageRoot, const QString &name, Sink::Storage::AccessMode mode = Sink::Storage::ReadOnly);
-    Index(const QByteArray &name, Sink::Storage::Transaction &);
+    Index(const QString &storageRoot, const QString &name, Sink::Storage::DataStore::AccessMode mode = Sink::Storage::DataStore::ReadOnly);
+    Index(const QByteArray &name, Sink::Storage::DataStore::Transaction &);
 
     void add(const QByteArray &key, const QByteArray &value);
     void remove(const QByteArray &key, const QByteArray &value);
@@ -41,8 +41,8 @@ public:
 
 private:
     Q_DISABLE_COPY(Index);
-    Sink::Storage::Transaction mTransaction;
-    Sink::Storage::NamedDatabase mDb;
+    Sink::Storage::DataStore::Transaction mTransaction;
+    Sink::Storage::DataStore::NamedDatabase mDb;
     QString mName;
     SINK_DEBUG_COMPONENT(mName.toLatin1())
 };

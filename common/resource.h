@@ -27,6 +27,7 @@
 namespace Sink {
 class FacadeFactory;
 class AdaptorFactoryRegistry;
+class ResourceContext;
 
 /**
  * Resource interface
@@ -75,7 +76,7 @@ public:
     ResourceFactory(QObject *parent);
     virtual ~ResourceFactory();
 
-    virtual Resource *createResource(const QByteArray &instanceIdentifier) = 0;
+    virtual Resource *createResource(const ResourceContext &context) = 0;
     virtual void registerFacades(FacadeFactory &factory) = 0;
     virtual void registerAdaptorFactories(AdaptorFactoryRegistry &registry) {};
     virtual void removeDataFromDisk(const QByteArray &instanceIdentifier) = 0;

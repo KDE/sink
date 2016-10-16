@@ -73,7 +73,7 @@ ApplicationDomainType::~ApplicationDomainType()
 
 QByteArray ApplicationDomainType::generateUid()
 {
-    return Sink::Storage::generateUid();
+    return Sink::Storage::DataStore::generateUid();
 }
 
 bool ApplicationDomainType::hasProperty(const QByteArray &key) const

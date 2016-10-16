@@ -21,6 +21,7 @@
 #include "applicationdomaintype.h"
 
 #include "storage.h"
+#include "storage/entitystore.h"
 
 class ResultSet;
 class QByteArray;
@@ -31,6 +32,8 @@ template<typename T>
 class WritePropertyMapper;
 
 class DataStoreQuery;
+
+class TypeIndex;
 
 namespace Sink {
     class Query;
@@ -51,10 +54,12 @@ class TypeImplementation<Sink::ApplicationDomain::Event> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Event Buffer;
     typedef Sink::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
+    static void configureIndex(TypeIndex &index);
     static QSet<QByteArray> indexedProperties();
-    static QSharedPointer<DataStoreQuery> prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction);
-    static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
-    static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction);
+    static QSharedPointer<DataStoreQuery> prepareQuery(const Sink::Query &query, Sink::Storage::EntityStore::Ptr store);
+
+    static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction);
+    static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction);
     static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();
     static QSharedPointer<WritePropertyMapper<BufferBuilder> > initializeWritePropertyMapper();
 };

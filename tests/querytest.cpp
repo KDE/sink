@@ -64,7 +64,7 @@ private slots:
         // Setup
         {
             Mail mail("sink.dummy.instance1");
-            Sink::Store::create<Mail>(mail).exec().waitForFinished();
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
         }
 
         // Test

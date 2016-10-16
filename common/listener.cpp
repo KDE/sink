@@ -23,6 +23,8 @@
 #include "common/resource.h"
 #include "common/log.h"
 #include "common/definitions.h"
+#include "common/resourcecontext.h"
+#include "common/adaptorfactoryregistry.h"
 
 // commands
 #include "common/commandcompletion_generated.h"
@@ -455,8 +457,8 @@ void Listener::notify(const Sink::Notification &notification)
 Sink::Resource &Listener::loadResource()
 {
     if (!m_resource) {
-        if (Sink::ResourceFactory *resourceFactory = Sink::ResourceFactory::load(m_resourceName)) {
-            m_resource = std::unique_ptr<Sink::Resource>(resourceFactory->createResource(m_resourceInstanceIdentifier));
+        if (auto resourceFactory = Sink::ResourceFactory::load(m_resourceName)) {
+            m_resource = std::unique_ptr<Sink::Resource>(resourceFactory->createResource(Sink::ResourceContext{m_resourceInstanceIdentifier, m_resourceName, Sink::AdaptorFactoryRegistry::instance().getFactories(m_resourceName)}));
             if (!m_resource) {
                 SinkError() << "Failed to instantiate the resource " << m_resourceName;
                 m_resource = std::unique_ptr<Sink::Resource>(new Sink::Resource);

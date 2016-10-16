@@ -41,6 +41,7 @@
 #include <pipeline.h>
 #include <mailpreprocessor.h>
 #include <indexupdater.h>
+#include <adaptorfactoryregistry.h>
 
 #define ENTITY_TYPE_MAIL "mail"
 
@@ -52,7 +53,7 @@ using namespace Sink;
 class MailtransportWriteback : public Sink::SourceWriteBack
 {
 public:
-    MailtransportWriteback(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : Sink::SourceWriteBack(resourceType, resourceInstanceIdentifier)
+    MailtransportWriteback(const Sink::ResourceContext &resourceContext) : Sink::SourceWriteBack(resourceContext)
     {
 
     }
@@ -74,9 +75,9 @@ public:
 
 class MailtransportSynchronizer : public Sink::Synchronizer {
 public:
-    MailtransportSynchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier)
-        : Sink::Synchronizer(resourceType, resourceInstanceIdentifier),
-        mResourceInstanceIdentifier(resourceInstanceIdentifier)
+    MailtransportSynchronizer(const Sink::ResourceContext &resourceContext)
+        : Sink::Synchronizer(resourceContext),
+        mResourceInstanceIdentifier(resourceContext.instanceId())
     {
 
     }
@@ -112,10 +113,9 @@ public:
     {
         SinkLog() << " Synchronizing";
         return KAsync::start<void>([this](KAsync::Future<void> future) {
-            Sink::Query query;
             QList<ApplicationDomain::Mail> toSend;
             SinkLog() << " Looking for mail";
-            store().reader<ApplicationDomain::Mail>().query(query, [&](const ApplicationDomain::Mail &mail) -> bool {
+            store().readAll<ApplicationDomain::Mail>([&](const ApplicationDomain::Mail &mail) -> bool {
                 SinkTrace() << "Found mail: " << mail.identifier();
                 if (!mail.getSent()) {
                     toSend << mail;
@@ -143,10 +143,10 @@ public:
     MailtransportResource::Settings mSettings;
 };
 
-MailtransportResource::MailtransportResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
-    : Sink::GenericResource(PLUGIN_NAME, instanceIdentifier, pipeline)
+MailtransportResource::MailtransportResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline)
+    : Sink::GenericResource(resourceContext, pipeline)
 {
-    auto config = ResourceConfig::getConfiguration(instanceIdentifier);
+    auto config = ResourceConfig::getConfiguration(resourceContext.instanceId());
     mSettings = {config.value("server").toString(),
                 config.value("username").toString(),
                 config.value("cacert").toString(),
@@ -154,11 +154,11 @@ MailtransportResource::MailtransportResource(const QByteArray &instanceIdentifie
                 config.value("testmode").toBool()
     };
 
-    auto synchronizer = QSharedPointer<MailtransportSynchronizer>::create(PLUGIN_NAME, instanceIdentifier);
+    auto synchronizer = QSharedPointer<MailtransportSynchronizer>::create(resourceContext);
     synchronizer->mSettings = mSettings;
     setupSynchronizer(synchronizer);
 
-    auto changereplay = QSharedPointer<MailtransportWriteback>::create(PLUGIN_NAME, instanceIdentifier);
+    auto changereplay = QSharedPointer<MailtransportWriteback>::create(resourceContext);
     changereplay->mSettings = mSettings;
     setupChangereplay(changereplay);
 
@@ -168,14 +168,14 @@ MailtransportResource::MailtransportResource(const QByteArray &instanceIdentifie
 void MailtransportResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
     GenericResource::removeFromDisk(instanceIdentifier);
-    Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::ReadWrite).removeFromDisk();
+    Sink::Storage::DataStore(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
 }
 
 KAsync::Job<void> MailtransportResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
     if (domainType == ENTITY_TYPE_MAIL) {
         if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
-            auto path = resourceStorageLocation(mResourceInstanceIdentifier) + "/test/" + entityId;
+            auto path = resourceStorageLocation(mResourceContext.instanceId()) + "/test/" + entityId;
             if (QFileInfo::exists(path)) {
                 return KAsync::null<void>();
             }
@@ -191,14 +191,14 @@ MailtransportResourceFactory::MailtransportResourceFactory(QObject *parent)
 
 }
 
-Sink::Resource *MailtransportResourceFactory::createResource(const QByteArray &instanceIdentifier)
+Sink::Resource *MailtransportResourceFactory::createResource(const Sink::ResourceContext &context)
 {
-    return new MailtransportResource(instanceIdentifier);
+    return new MailtransportResource(context);
 }
 
 void MailtransportResourceFactory::registerFacades(Sink::FacadeFactory &factory)
 {
-    factory.registerFacade<ApplicationDomain::Mail, DefaultFacade<ApplicationDomain::Mail, DomainTypeAdaptorFactory<ApplicationDomain::Mail>>>(PLUGIN_NAME);
+    factory.registerFacade<ApplicationDomain::Mail, DefaultFacade<ApplicationDomain::Mail>>(PLUGIN_NAME);
 }
 
 void MailtransportResourceFactory::registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry)

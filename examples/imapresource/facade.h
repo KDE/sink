@@ -24,13 +24,13 @@
 class ImapResourceMailFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Mail>
 {
 public:
-    ImapResourceMailFacade(const QByteArray &instanceIdentifier);
+    ImapResourceMailFacade(const Sink::ResourceContext &context);
     virtual ~ImapResourceMailFacade();
 };
 
 class ImapResourceFolderFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Folder>
 {
 public:
-    ImapResourceFolderFacade(const QByteArray &instanceIdentifier);
+    ImapResourceFolderFacade(const Sink::ResourceContext &context);
     virtual ~ImapResourceFolderFacade();
 };

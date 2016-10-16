@@ -28,6 +28,7 @@
 #include "event.h"
 
 using namespace Sink;
+using namespace Sink::Storage;
 
 
 SINK_DEBUG_AREA("datastorequery")
@@ -299,42 +300,18 @@ public:
     }
 };
 
-DataStoreQuery::DataStoreQuery(const Sink::Query &query, const QByteArray &type, Sink::Storage::Transaction &transaction, TypeIndex &typeIndex, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty)
-    : mQuery(query), mTransaction(transaction), mType(type), mTypeIndex(typeIndex), mDb(Storage::mainDatabase(mTransaction, mType)), mGetProperty(getProperty)
+DataStoreQuery::DataStoreQuery(const Sink::Query &query, const QByteArray &type, EntityStore::Ptr store, TypeIndex &typeIndex, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty)
+    : mQuery(query), mType(type), mTypeIndex(typeIndex), mGetProperty(getProperty), mStore(store)
 {
     setupQuery();
 }
 
-static inline QVector<QByteArray> fullScan(const Sink::Storage::Transaction &transaction, const QByteArray &bufferType)
-{
-    // TODO use a result set with an iterator, to read values on demand
-    SinkTrace() << "Looking for : " << bufferType;
-    //The scan can return duplicate results if we have multiple revisions, so we use a set to deduplicate.
-    QSet<QByteArray> keys;
-    Storage::mainDatabase(transaction, bufferType)
-        .scan(QByteArray(),
-            [&](const QByteArray &key, const QByteArray &value) -> bool {
-                if (keys.contains(Sink::Storage::uidFromKey(key))) {
-                    //Not something that should persist if the replay works, so we keep a message for now.
-                    SinkTrace() << "Multiple revisions for key: " << key;
-                }
-                keys << Sink::Storage::uidFromKey(key);
-                return true;
-            },
-            [](const Sink::Storage::Error &error) { SinkWarning() << "Error during query: " << error.message; });
-
-    SinkTrace() << "Full scan retrieved " << keys.size() << " results.";
-    return keys.toList().toVector();
-}
-
 void DataStoreQuery::readEntity(const QByteArray &key, const BufferCallback &resultCallback)
 {
-    mDb.findLatest(key,
-        [=](const QByteArray &key, const QByteArray &value) -> bool {
-            resultCallback(Sink::Storage::uidFromKey(key), Sink::EntityBuffer(value.data(), value.size()));
+    mStore->readLatest(mType, key, [=](const QByteArray &key, const Sink::EntityBuffer &buffer) {
+            resultCallback(DataStore::uidFromKey(key), buffer);
             return false;
-        },
-        [&](const Sink::Storage::Error &error) { SinkWarning() << "Error during query: " << error.message << key; });
+        });
 }
 
 QVariant DataStoreQuery::getProperty(const Sink::Entity &entity, const QByteArray &property)
@@ -344,7 +321,7 @@ QVariant DataStoreQuery::getProperty(const Sink::Entity &entity, const QByteArra
 
 QVector<QByteArray> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value)
 {
-    return mTypeIndex.lookup(property, value, mTransaction);
+    return mStore->indexLookup(mType, property, value);
 }
 
 /* ResultSet DataStoreQuery::filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, const QByteArray &sortProperty) */
@@ -444,7 +421,7 @@ QSharedPointer<DataStoreQuery> prepareQuery(const QByteArray &type, Args && ... 
 QByteArrayList DataStoreQuery::executeSubquery(const Query &subquery)
 {
     Q_ASSERT(!subquery.type.isEmpty());
-    auto sub = prepareQuery(subquery.type, subquery, mTransaction);
+    auto sub = prepareQuery(subquery.type, subquery, mStore);
     auto result = sub->execute();
     QByteArrayList ids;
     while (result.next([&ids](const ResultSet::Result &result) {
@@ -476,13 +453,13 @@ void DataStoreQuery::setupQuery()
     } else {
         QSet<QByteArray> appliedFilters;
 
-        auto resultSet = mTypeIndex.query(mQuery, appliedFilters, appliedSorting, mTransaction);
+        auto resultSet = mStore->indexLookup(mType, mQuery, appliedFilters, appliedSorting);
         remainingFilters = remainingFilters - appliedFilters;
 
         // We do a full scan if there were no indexes available to create the initial set.
         if (appliedFilters.isEmpty()) {
             // TODO this should be replaced by an index lookup on the uid index
-            mSource = Source::Ptr::create(fullScan(mTransaction, mType), this);
+            mSource = Source::Ptr::create(mStore->fullScan(mType), this);
         } else {
             mSource = Source::Ptr::create(resultSet, this);
         }
@@ -523,26 +500,11 @@ void DataStoreQuery::setupQuery()
 
 QVector<QByteArray> DataStoreQuery::loadIncrementalResultSet(qint64 baseRevision)
 {
-    const auto bufferType = mType;
     auto revisionCounter = QSharedPointer<qint64>::create(baseRevision);
     QVector<QByteArray> changedKeys;
-    const qint64 topRevision = Sink::Storage::maxRevision(mTransaction);
-    // Spit out the revision keys one by one.
-    while (*revisionCounter <= topRevision) {
-        const auto uid = Sink::Storage::getUidFromRevision(mTransaction, *revisionCounter);
-        const auto type = Sink::Storage::getTypeFromRevision(mTransaction, *revisionCounter);
-        // SinkTrace() << "Revision" << *revisionCounter << type << uid;
-        Q_ASSERT(!uid.isEmpty());
-        Q_ASSERT(!type.isEmpty());
-        if (type != bufferType) {
-            // Skip revision
-            *revisionCounter += 1;
-            continue;
-        }
-        const auto key = Sink::Storage::assembleKey(uid, *revisionCounter);
-        *revisionCounter += 1;
+    mStore->readRevisions(baseRevision, mType, [&](const QByteArray &key) {
         changedKeys << key;
-    }
+    });
     SinkTrace() << "Finished reading incremental result set:" << *revisionCounter;
     return changedKeys;
 }

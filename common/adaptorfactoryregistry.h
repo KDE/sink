@@ -54,11 +54,14 @@ public:
 
     std::shared_ptr<DomainTypeAdaptorFactoryInterface> getFactory(const QByteArray &resource, const QByteArray &typeName);
 
+    QMap<QByteArray, DomainTypeAdaptorFactoryInterface::Ptr> getFactories(const QByteArray &resource);
+
 private:
     AdaptorFactoryRegistry();
     void registerFactory(const QByteArray &resource, const std::shared_ptr<void> &instance, const QByteArray typeName);
 
     QHash<QByteArray, std::shared_ptr<void>> mRegistry;
+    QMultiHash<QByteArray, QByteArray> mTypes;
     static QMutex sMutex;
 };
 }

@@ -31,7 +31,7 @@ namespace Sink {
 class SINK_EXPORT RemoteIdMap
 {
 public:
-    RemoteIdMap(Sink::Storage::Transaction &);
+    RemoteIdMap(Sink::Storage::DataStore::Transaction &);
 
     /**
      * Records a localId to remoteId mapping
@@ -58,7 +58,7 @@ public:
     void writeValue(const QByteArray &key, const QByteArray &value);
 
 private:
-    Sink::Storage::Transaction &mTransaction;
+    Sink::Storage::DataStore::Transaction &mTransaction;
 };
 
 }

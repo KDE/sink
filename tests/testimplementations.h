@@ -83,8 +83,8 @@ public slots:
 class TestResourceFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Event>
 {
 public:
-    TestResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
-        : Sink::GenericFacade<Sink::ApplicationDomain::Event>(instanceIdentifier, QSharedPointer<TestEventAdaptorFactory>::create(), resourceAccess)
+    TestResourceFacade(const Sink::ResourceContext &resourceContext)
+        : Sink::GenericFacade<Sink::ApplicationDomain::Event>(resourceContext)
     {
     }
     virtual ~TestResourceFacade()
@@ -95,8 +95,8 @@ public:
 class TestMailResourceFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Mail>
 {
 public:
-    TestMailResourceFacade(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess)
-        : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(instanceIdentifier, QSharedPointer<TestMailAdaptorFactory>::create(), resourceAccess)
+    TestMailResourceFacade(const Sink::ResourceContext &resourceContext)
+        : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(resourceContext)
     {
     }
     virtual ~TestMailResourceFacade()
@@ -107,7 +107,7 @@ public:
 class TestResource : public Sink::GenericResource
 {
 public:
-    TestResource(const QByteArray &instanceIdentifier, QSharedPointer<Sink::Pipeline> pipeline) : Sink::GenericResource("test", instanceIdentifier, pipeline)
+    TestResource(const Sink::ResourceContext &resourceContext, QSharedPointer<Sink::Pipeline> pipeline) : Sink::GenericResource(resourceContext, pipeline)
     {
     }
 

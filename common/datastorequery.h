@@ -25,6 +25,7 @@
 #include "query.h"
 #include "entitybuffer.h"
 #include "log.h"
+#include "storage/entitystore.h"
 
 
 class Source;
@@ -35,11 +36,11 @@ class DataStoreQuery {
 public:
     typedef QSharedPointer<DataStoreQuery> Ptr;
 
-    DataStoreQuery(const Sink::Query &query, const QByteArray &type, Sink::Storage::Transaction &transaction, TypeIndex &typeIndex, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty);
+    DataStoreQuery(const Sink::Query &query, const QByteArray &type, Sink::Storage::EntityStore::Ptr store, TypeIndex &typeIndex, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty);
     ResultSet execute();
     ResultSet update(qint64 baseRevision);
 
-protected:
+private:
 
     typedef std::function<bool(const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> FilterFunction;
     typedef std::function<void(const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> BufferCallback;
@@ -56,14 +57,14 @@ protected:
     QByteArrayList executeSubquery(const Sink::Query &subquery);
 
     Sink::Query mQuery;
-    Sink::Storage::Transaction &mTransaction;
     const QByteArray mType;
     TypeIndex &mTypeIndex;
-    Sink::Storage::NamedDatabase mDb;
     std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> mGetProperty;
     bool mInitialQuery;
     QSharedPointer<FilterBase> mCollector;
     QSharedPointer<Source> mSource;
+
+    QSharedPointer<Sink::Storage::EntityStore> mStore;
 
     SINK_DEBUG_COMPONENT(mType)
 };

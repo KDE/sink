@@ -62,7 +62,7 @@ private slots:
 
     void cleanupTestCase()
     {
-        Sink::Storage store(testDataPath, dbName);
+        Sink::Storage::DataStore store(testDataPath, dbName);
         store.removeFromDisk();
     }
 
@@ -70,7 +70,7 @@ private slots:
     {
         auto event = createEvent();
 
-        QScopedPointer<Sink::Storage> store(new Sink::Storage(testDataPath, dbName, Sink::Storage::ReadWrite));
+        QScopedPointer<Sink::Storage::DataStore> store(new Sink::Storage::DataStore(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite));
 
         const char *keyPrefix = "key";
 
@@ -78,12 +78,12 @@ private slots:
         time.start();
         // Test db write time
         {
-            auto transaction = store->createTransaction(Sink::Storage::ReadWrite);
+            auto transaction = store->createTransaction(Sink::Storage::DataStore::ReadWrite);
             for (int i = 0; i < count; i++) {
                 transaction.openDatabase().write(keyPrefix + QByteArray::number(i), event);
                 if ((i % 10000) == 0) {
                     transaction.commit();
-                    transaction = store->createTransaction(Sink::Storage::ReadWrite);
+                    transaction = store->createTransaction(Sink::Storage::DataStore::ReadWrite);
                 }
             }
             transaction.commit();
@@ -105,7 +105,7 @@ private slots:
 
         // Db read time
         {
-            auto transaction = store->createTransaction(Sink::Storage::ReadOnly);
+            auto transaction = store->createTransaction(Sink::Storage::DataStore::ReadOnly);
             auto db = transaction.openDatabase();
             for (int i = 0; i < count; i++) {
                 db.scan(keyPrefix + QByteArray::number(i), [](const QByteArray &key, const QByteArray &value) -> bool { return true; });
@@ -126,7 +126,7 @@ private slots:
 
     void testSizes()
     {
-        Sink::Storage store(testDataPath, dbName);
+        Sink::Storage::DataStore store(testDataPath, dbName);
         qDebug() << "Database size [kb]: " << store.diskUsage() / 1024;
 
         QFileInfo fileInfo(filePath);
@@ -135,11 +135,11 @@ private slots:
 
     void testScan()
     {
-        QScopedPointer<Sink::Storage> store(new Sink::Storage(testDataPath, dbName, Sink::Storage::ReadOnly));
+        QScopedPointer<Sink::Storage::DataStore> store(new Sink::Storage::DataStore(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly));
 
         QBENCHMARK {
             int hit = 0;
-            store->createTransaction(Sink::Storage::ReadOnly)
+            store->createTransaction(Sink::Storage::DataStore::ReadOnly)
                 .openDatabase()
                 .scan("", [&](const QByteArray &key, const QByteArray &value) -> bool {
                     if (key == "key10000") {
@@ -154,8 +154,8 @@ private slots:
 
     void testKeyLookup()
     {
-        QScopedPointer<Sink::Storage> store(new Sink::Storage(testDataPath, dbName, Sink::Storage::ReadOnly));
-        auto transaction = store->createTransaction(Sink::Storage::ReadOnly);
+        QScopedPointer<Sink::Storage::DataStore> store(new Sink::Storage::DataStore(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly));
+        auto transaction = store->createTransaction(Sink::Storage::DataStore::ReadOnly);
         auto db = transaction.openDatabase();
 
         QBENCHMARK {
@@ -170,8 +170,8 @@ private slots:
 
     void testFindLatest()
     {
-        QScopedPointer<Sink::Storage> store(new Sink::Storage(testDataPath, dbName, Sink::Storage::ReadOnly));
-        auto transaction = store->createTransaction(Sink::Storage::ReadOnly);
+        QScopedPointer<Sink::Storage::DataStore> store(new Sink::Storage::DataStore(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly));
+        auto transaction = store->createTransaction(Sink::Storage::DataStore::ReadOnly);
         auto db = transaction.openDatabase();
 
         QBENCHMARK {

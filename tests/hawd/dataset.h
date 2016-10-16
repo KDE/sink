@@ -84,8 +84,8 @@ public:
 
 private:
     DatasetDefinition m_definition;
-    Sink::Storage m_storage;
-    Sink::Storage::Transaction m_transaction;
+    Sink::Storage::DataStore m_storage;
+    Sink::Storage::DataStore::Transaction m_transaction;
     QString m_commitHash;
 };
 

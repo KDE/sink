@@ -9,7 +9,6 @@
 #include "resourcecontrol.h"
 #include "commands.h"
 #include "entitybuffer.h"
-#include "pipeline.h"
 #include "log.h"
 #include "resourceconfig.h"
 #include "notification_generated.h"
@@ -151,8 +150,7 @@ private slots:
         QTime time;
         time.start();
 
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create("sink.dummy.instance1");
-        DummyResource resource("sink.dummy.instance1", pipeline);
+        DummyResource resource(Sink::ResourceContext{"sink.dummy.instance1", "test"});
 
         flatbuffers::FlatBufferBuilder eventFbb;
         eventFbb.Clear();

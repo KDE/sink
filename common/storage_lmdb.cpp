@@ -39,6 +39,7 @@ SINK_DEBUG_AREA("storage")
 // SINK_DEBUG_COMPONENT(d->storageRoot.toLatin1() + '/' + d->name.toLatin1())
 
 namespace Sink {
+namespace Storage {
 
 QMutex sMutex;
 QHash<QString, MDB_env *> sEnvironments;
@@ -47,17 +48,17 @@ int getErrorCode(int e)
 {
     switch (e) {
         case MDB_NOTFOUND:
-            return Storage::ErrorCodes::NotFound;
+            return DataStore::ErrorCodes::NotFound;
         default:
             break;
     }
     return -1;
 }
 
-class Storage::NamedDatabase::Private
+class DataStore::NamedDatabase::Private
 {
 public:
-    Private(const QByteArray &_db, bool _allowDuplicates, const std::function<void(const Storage::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_txn *_txn)
+    Private(const QByteArray &_db, bool _allowDuplicates, const std::function<void(const DataStore::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_txn *_txn)
         : db(_db), transaction(_txn), allowDuplicates(_allowDuplicates), defaultErrorHandler(_defaultErrorHandler), name(_name)
     {
     }
@@ -70,10 +71,10 @@ public:
     MDB_txn *transaction;
     MDB_dbi dbi;
     bool allowDuplicates;
-    std::function<void(const Storage::Error &error)> defaultErrorHandler;
+    std::function<void(const DataStore::Error &error)> defaultErrorHandler;
     QString name;
 
-    bool openDatabase(bool readOnly, std::function<void(const Storage::Error &error)> errorHandler)
+    bool openDatabase(bool readOnly, std::function<void(const DataStore::Error &error)> errorHandler)
     {
         unsigned int flags = 0;
         if (!readOnly) {
@@ -97,20 +98,20 @@ public:
     }
 };
 
-Storage::NamedDatabase::NamedDatabase() : d(nullptr)
+DataStore::NamedDatabase::NamedDatabase() : d(nullptr)
 {
 }
 
-Storage::NamedDatabase::NamedDatabase(NamedDatabase::Private *prv) : d(prv)
+DataStore::NamedDatabase::NamedDatabase(NamedDatabase::Private *prv) : d(prv)
 {
 }
 
-Storage::NamedDatabase::NamedDatabase(NamedDatabase &&other) : d(nullptr)
+DataStore::NamedDatabase::NamedDatabase(NamedDatabase &&other) : d(nullptr)
 {
     *this = std::move(other);
 }
 
-Storage::NamedDatabase &Storage::NamedDatabase::operator=(Storage::NamedDatabase &&other)
+DataStore::NamedDatabase &DataStore::NamedDatabase::operator=(DataStore::NamedDatabase &&other)
 {
     if (&other != this) {
         delete d;
@@ -120,12 +121,12 @@ Storage::NamedDatabase &Storage::NamedDatabase::operator=(Storage::NamedDatabase
     return *this;
 }
 
-Storage::NamedDatabase::~NamedDatabase()
+DataStore::NamedDatabase::~NamedDatabase()
 {
     delete d;
 }
 
-bool Storage::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sValue, const std::function<void(const Storage::Error &error)> &errorHandler)
+bool DataStore::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sValue, const std::function<void(const DataStore::Error &error)> &errorHandler)
 {
     if (!d || !d->transaction) {
         Error error("", ErrorCodes::GenericError, "Not open");
@@ -161,12 +162,12 @@ bool Storage::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sVa
     return !rc;
 }
 
-void Storage::NamedDatabase::remove(const QByteArray &k, const std::function<void(const Storage::Error &error)> &errorHandler)
+void DataStore::NamedDatabase::remove(const QByteArray &k, const std::function<void(const DataStore::Error &error)> &errorHandler)
 {
     remove(k, QByteArray(), errorHandler);
 }
 
-void Storage::NamedDatabase::remove(const QByteArray &k, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler)
+void DataStore::NamedDatabase::remove(const QByteArray &k, const QByteArray &value, const std::function<void(const DataStore::Error &error)> &errorHandler)
 {
     if (!d || !d->transaction) {
         if (d) {
@@ -195,8 +196,8 @@ void Storage::NamedDatabase::remove(const QByteArray &k, const QByteArray &value
     }
 }
 
-int Storage::NamedDatabase::scan(const QByteArray &k, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-    const std::function<void(const Storage::Error &error)> &errorHandler, bool findSubstringKeys, bool skipInternalKeys) const
+int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const DataStore::Error &error)> &errorHandler, bool findSubstringKeys, bool skipInternalKeys) const
 {
     if (!d || !d->transaction) {
         // Not an error. We rely on this to read nothing from non-existing databases.
@@ -278,8 +279,8 @@ int Storage::NamedDatabase::scan(const QByteArray &k, const std::function<bool(c
     return numberOfRetrievedValues;
 }
 
-void Storage::NamedDatabase::findLatest(const QByteArray &k, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
-    const std::function<void(const Storage::Error &error)> &errorHandler) const
+void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const DataStore::Error &error)> &errorHandler) const
 {
     if (!d || !d->transaction) {
         // Not an error. We rely on this to read nothing from non-existing databases.
@@ -346,7 +347,7 @@ void Storage::NamedDatabase::findLatest(const QByteArray &k, const std::function
     return;
 }
 
-qint64 Storage::NamedDatabase::getSize()
+qint64 DataStore::NamedDatabase::getSize()
 {
     if (!d || !d->transaction) {
         return -1;
@@ -368,10 +369,10 @@ qint64 Storage::NamedDatabase::getSize()
 }
 
 
-class Storage::Transaction::Private
+class DataStore::Transaction::Private
 {
 public:
-    Private(bool _requestRead, const std::function<void(const Storage::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
+    Private(bool _requestRead, const std::function<void(const DataStore::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
         : env(_env), transaction(nullptr), requestedRead(_requestRead), defaultErrorHandler(_defaultErrorHandler), name(_name), implicitCommit(false), error(false), modificationCounter(0)
     {
     }
@@ -383,7 +384,7 @@ public:
     MDB_txn *transaction;
     MDB_dbi dbi;
     bool requestedRead;
-    std::function<void(const Storage::Error &error)> defaultErrorHandler;
+    std::function<void(const DataStore::Error &error)> defaultErrorHandler;
     QString name;
     bool implicitCommit;
     bool error;
@@ -406,21 +407,21 @@ public:
     }
 };
 
-Storage::Transaction::Transaction() : d(nullptr)
+DataStore::Transaction::Transaction() : d(nullptr)
 {
 }
 
-Storage::Transaction::Transaction(Transaction::Private *prv) : d(prv)
+DataStore::Transaction::Transaction(Transaction::Private *prv) : d(prv)
 {
     d->startTransaction();
 }
 
-Storage::Transaction::Transaction(Transaction &&other) : d(nullptr)
+DataStore::Transaction::Transaction(Transaction &&other) : d(nullptr)
 {
     *this = std::move(other);
 }
 
-Storage::Transaction &Storage::Transaction::operator=(Storage::Transaction &&other)
+DataStore::Transaction &DataStore::Transaction::operator=(DataStore::Transaction &&other)
 {
     if (&other != this) {
         delete d;
@@ -430,7 +431,7 @@ Storage::Transaction &Storage::Transaction::operator=(Storage::Transaction &&oth
     return *this;
 }
 
-Storage::Transaction::~Transaction()
+DataStore::Transaction::~Transaction()
 {
     if (d && d->transaction) {
         if (d->implicitCommit && !d->error) {
@@ -443,12 +444,12 @@ Storage::Transaction::~Transaction()
     delete d;
 }
 
-Storage::Transaction::operator bool() const
+DataStore::Transaction::operator bool() const
 {
     return (d && d->transaction);
 }
 
-bool Storage::Transaction::commit(const std::function<void(const Storage::Error &error)> &errorHandler)
+bool DataStore::Transaction::commit(const std::function<void(const DataStore::Error &error)> &errorHandler)
 {
     if (!d || !d->transaction) {
         return false;
@@ -467,7 +468,7 @@ bool Storage::Transaction::commit(const std::function<void(const Storage::Error 
     return !rc;
 }
 
-void Storage::Transaction::abort()
+void DataStore::Transaction::abort()
 {
     if (!d || !d->transaction) {
         return;
@@ -481,7 +482,7 @@ void Storage::Transaction::abort()
 
 //Ensure that we opened the correct database by comparing the expected identifier with the one
 //we write to the database on first open.
-static bool ensureCorrectDb(Storage::NamedDatabase &database, const QByteArray &db, bool readOnly)
+static bool ensureCorrectDb(DataStore::NamedDatabase &database, const QByteArray &db, bool readOnly)
 {
     bool openedTheWrongDatabase = false;
     auto count = database.scan("__internal_dbname", [db, &openedTheWrongDatabase](const QByteArray &key, const QByteArray &value) ->bool {
@@ -491,7 +492,7 @@ static bool ensureCorrectDb(Storage::NamedDatabase &database, const QByteArray &
         }
         return false;
     },
-    [](const Storage::Error &error) -> bool{
+    [](const DataStore::Error &error) -> bool{
         return false;
     }, false);
     //This is the first time we open this database in a write transaction, write the db name
@@ -503,7 +504,7 @@ static bool ensureCorrectDb(Storage::NamedDatabase &database, const QByteArray &
     return !openedTheWrongDatabase;
 }
 
-bool Storage::Transaction::validateNamedDatabases()
+bool DataStore::Transaction::validateNamedDatabases()
 {
     auto databases = getDatabaseNames();
     for (const auto &dbName : databases) {
@@ -516,28 +517,28 @@ bool Storage::Transaction::validateNamedDatabases()
     return true;
 }
 
-Storage::NamedDatabase Storage::Transaction::openDatabase(const QByteArray &db, const std::function<void(const Storage::Error &error)> &errorHandler, bool allowDuplicates) const
+DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &db, const std::function<void(const DataStore::Error &error)> &errorHandler, bool allowDuplicates) const
 {
     if (!d) {
-        return Storage::NamedDatabase();
+        return DataStore::NamedDatabase();
     }
     Q_ASSERT(d->transaction);
     // We don't now if anything changed
     d->implicitCommit = true;
-    auto p = new Storage::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
+    auto p = new DataStore::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
     if (!p->openDatabase(d->requestedRead, errorHandler)) {
         delete p;
-        return Storage::NamedDatabase();
+        return DataStore::NamedDatabase();
     }
-    auto database = Storage::NamedDatabase(p);
+    auto database = DataStore::NamedDatabase(p);
     if (!ensureCorrectDb(database, db, d->requestedRead)) {
         SinkWarning() << "Failed to open the database" << db;
-        return Storage::NamedDatabase();
+        return DataStore::NamedDatabase();
     }
     return database;
 }
 
-QList<QByteArray> Storage::Transaction::getDatabaseNames() const
+QList<QByteArray> DataStore::Transaction::getDatabaseNames() const
 {
     if (!d) {
         SinkWarning() << "Invalid transaction";
@@ -574,7 +575,7 @@ QList<QByteArray> Storage::Transaction::getDatabaseNames() const
 }
 
 
-class Storage::Private
+class DataStore::Private
 {
 public:
     Private(const QString &s, const QString &n, AccessMode m);
@@ -587,7 +588,7 @@ public:
     AccessMode mode;
 };
 
-Storage::Private::Private(const QString &s, const QString &n, AccessMode m) : storageRoot(s), name(n), env(0), mode(m)
+DataStore::Private::Private(const QString &s, const QString &n, AccessMode m) : storageRoot(s), name(n), env(0), mode(m)
 {
     const QString fullPath(storageRoot + '/' + name);
     QFileInfo dirInfo(fullPath);
@@ -639,27 +640,27 @@ Storage::Private::Private(const QString &s, const QString &n, AccessMode m) : st
     }
 }
 
-Storage::Private::~Private()
+DataStore::Private::~Private()
 {
     //We never close the environment (unless we remove the db), since we should only open the environment once per process (as per lmdb docs)
     //and create storage instance from all over the place. Thus, we're not closing it here on purpose.
 }
 
-Storage::Storage(const QString &storageRoot, const QString &name, AccessMode mode) : d(new Private(storageRoot, name, mode))
+DataStore::DataStore(const QString &storageRoot, const QString &name, AccessMode mode) : d(new Private(storageRoot, name, mode))
 {
 }
 
-Storage::~Storage()
+DataStore::~DataStore()
 {
     delete d;
 }
 
-bool Storage::exists() const
+bool DataStore::exists() const
 {
     return (d->env != 0);
 }
 
-Storage::Transaction Storage::createTransaction(AccessMode type, const std::function<void(const Storage::Error &error)> &errorHandlerArg)
+DataStore::Transaction DataStore::createTransaction(AccessMode type, const std::function<void(const DataStore::Error &error)> &errorHandlerArg)
 {
     auto errorHandler = errorHandlerArg ? errorHandlerArg : defaultErrorHandler();
     if (!d->env) {
@@ -677,7 +678,7 @@ Storage::Transaction Storage::createTransaction(AccessMode type, const std::func
     return Transaction(new Transaction::Private(requestedRead, defaultErrorHandler(), d->name, d->env));
 }
 
-qint64 Storage::diskUsage() const
+qint64 DataStore::diskUsage() const
 {
     QFileInfo info(d->storageRoot + '/' + d->name + "/data.mdb");
     if (!info.exists()) {
@@ -686,7 +687,7 @@ qint64 Storage::diskUsage() const
     return info.size();
 }
 
-void Storage::removeFromDisk() const
+void DataStore::removeFromDisk() const
 {
     const QString fullPath(d->storageRoot + '/' + d->name);
     QMutexLocker locker(&sMutex);
@@ -701,7 +702,7 @@ void Storage::removeFromDisk() const
     }
 }
 
-void Storage::clearEnv()
+void DataStore::clearEnv()
 {
     for (auto env : sEnvironments) {
         mdb_env_close(env);
@@ -709,4 +710,5 @@ void Storage::clearEnv()
     sEnvironments.clear();
 }
 
+}
 } // namespace Sink

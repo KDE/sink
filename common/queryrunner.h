@@ -20,10 +20,10 @@
 #pragma once
 
 #include <QObject>
+#include "resourcecontext.h"
 #include "resourceaccess.h"
 #include "resultprovider.h"
 #include "domaintypeadaptorfactoryinterface.h"
-#include "storage.h"
 #include "query.h"
 #include "log.h"
 
@@ -84,8 +84,7 @@ template <typename DomainType>
 class QueryRunner : public QueryRunnerBase
 {
 public:
-    QueryRunner(const Sink::Query &query, const Sink::ResourceAccessInterface::Ptr &, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &,
-        const QByteArray &bufferType);
+    QueryRunner(const Sink::Query &query, const Sink::ResourceContext &context, const QByteArray &bufferType);
     virtual ~QueryRunner();
 
     /**
@@ -97,8 +96,8 @@ public:
     typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
 
 private:
-    QByteArray mResourceInstanceIdentifier;
-    SINK_DEBUG_COMPONENT(mResourceInstanceIdentifier)
+    Sink::ResourceContext mResourceContext;
+    SINK_DEBUG_COMPONENT(mResourceContext.resourceInstanceIdentifier)
     QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
     QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr>> mResultProvider;
     ResultTransformation mResultTransformation;

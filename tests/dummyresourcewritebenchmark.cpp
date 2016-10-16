@@ -9,7 +9,6 @@
 #include "store.h"
 #include "commands.h"
 #include "entitybuffer.h"
-#include "pipeline.h"
 #include "log.h"
 #include "resourceconfig.h"
 #include "definitions.h"
@@ -109,8 +108,7 @@ class DummyResourceWriteBenchmark : public QObject
         QTime time;
         time.start();
 
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create("sink.dummy.instance1");
-        DummyResource resource("sink.dummy.instance1", pipeline);
+        ::DummyResource resource(Sink::ResourceContext{"sink.dummy.instance1", "dummy"});
 
         int bufferSize = 0;
         auto command = createEntityBuffer(bufferSize);

@@ -27,31 +27,32 @@
 #include <QTimer>
 
 using namespace Sink;
+using namespace Sink::Storage;
 
 SINK_DEBUG_AREA("changereplay");
 
-ChangeReplay::ChangeReplay(const QByteArray &resourceName)
-    : mStorage(storageLocation(), resourceName, Storage::ReadOnly), mChangeReplayStore(storageLocation(), resourceName + ".changereplay", Storage::ReadWrite), mReplayInProgress(false)
+ChangeReplay::ChangeReplay(const ResourceContext &resourceContext)
+    : mStorage(storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly), mChangeReplayStore(storageLocation(), resourceContext.instanceId() + ".changereplay", DataStore::ReadWrite), mReplayInProgress(false)
 {
-    SinkTrace() << "Created change replay: " << resourceName;
+    SinkTrace() << "Created change replay: " << resourceContext.instanceId();
 }
 
 qint64 ChangeReplay::getLastReplayedRevision()
 {
     qint64 lastReplayedRevision = 0;
-    auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadOnly);
+    auto replayStoreTransaction = mChangeReplayStore.createTransaction(DataStore::ReadOnly);
     replayStoreTransaction.openDatabase().scan("lastReplayedRevision",
         [&lastReplayedRevision](const QByteArray &key, const QByteArray &value) -> bool {
             lastReplayedRevision = value.toLongLong();
             return false;
         },
-        [](const Storage::Error &) {});
+        [](const DataStore::Error &) {});
     return lastReplayedRevision;
 }
 
 bool ChangeReplay::allChangesReplayed()
 {
-    const qint64 topRevision = Storage::maxRevision(mStorage.createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
+    const qint64 topRevision = DataStore::maxRevision(mStorage.createTransaction(DataStore::ReadOnly, [](const Sink::Storage::DataStore::Error &error) {
         SinkWarning() << error.message;
     }));
     const qint64 lastReplayedRevision = getLastReplayedRevision();
@@ -61,7 +62,7 @@ bool ChangeReplay::allChangesReplayed()
 
 void ChangeReplay::recordReplayedRevision(qint64 revision)
 {
-    auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadWrite, [](const Sink::Storage::Error &error) {
+    auto replayStoreTransaction = mChangeReplayStore.createTransaction(DataStore::ReadWrite, [](const Sink::Storage::DataStore::Error &error) {
         SinkWarning() << error.message;
     });
     replayStoreTransaction.openDatabase().write("lastReplayedRevision", QByteArray::number(revision));
@@ -74,10 +75,10 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
     auto topRevision = QSharedPointer<qint64>::create(0);
     return KAsync::syncStart<void>([this, lastReplayedRevision, topRevision]() {
             mReplayInProgress = true;
-            mMainStoreTransaction = mStorage.createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
+            mMainStoreTransaction = mStorage.createTransaction(DataStore::ReadOnly, [](const Sink::Storage::DataStore::Error &error) {
                 SinkWarning() << error.message;
             });
-            auto replayStoreTransaction = mChangeReplayStore.createTransaction(Storage::ReadOnly, [](const Sink::Storage::Error &error) {
+            auto replayStoreTransaction = mChangeReplayStore.createTransaction(DataStore::ReadOnly, [](const Sink::Storage::DataStore::Error &error) {
                 SinkWarning() << error.message;
             });
             replayStoreTransaction.openDatabase().scan("lastReplayedRevision",
@@ -85,8 +86,8 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                     *lastReplayedRevision = value.toLongLong();
                     return false;
                 },
-                [](const Storage::Error &) {});
-            *topRevision = Storage::maxRevision(mMainStoreTransaction);
+                [](const DataStore::Error &) {});
+            *topRevision = DataStore::maxRevision(mMainStoreTransaction);
             SinkTrace() << "Changereplay from " << *lastReplayedRevision << " to " << *topRevision;
         })
         .then(KAsync::dowhile(
@@ -98,11 +99,11 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                     qint64 revision = *lastReplayedRevision + 1;
                     KAsync::Job<void> replayJob = KAsync::null<void>();
                     while (revision <= *topRevision) {
-                        const auto uid = Storage::getUidFromRevision(mMainStoreTransaction, revision);
-                        const auto type = Storage::getTypeFromRevision(mMainStoreTransaction, revision);
-                        const auto key = Storage::assembleKey(uid, revision);
+                        const auto uid = DataStore::getUidFromRevision(mMainStoreTransaction, revision);
+                        const auto type = DataStore::getTypeFromRevision(mMainStoreTransaction, revision);
+                        const auto key = DataStore::assembleKey(uid, revision);
                         bool exitLoop = false;
-                        Storage::mainDatabase(mMainStoreTransaction, type)
+                        DataStore::mainDatabase(mMainStoreTransaction, type)
                             .scan(key,
                                 [&lastReplayedRevision, type, this, &replayJob, &exitLoop, revision](const QByteArray &key, const QByteArray &value) -> bool {
                                     SinkTrace() << "Replaying " << key;
@@ -123,7 +124,7 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                                     }
                                     return false;
                                 },
-                                [key](const Storage::Error &) { SinkError() << "Failed to replay change " << key; });
+                                [key](const DataStore::Error &) { SinkError() << "Failed to replay change " << key; });
                         if (exitLoop) {
                             break;
                         }

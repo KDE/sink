@@ -25,6 +25,7 @@
 #include "storage.h"
 #include "entitystore.h"
 #include "remoteidmap.h"
+#include "metadata_generated.h"
 
 namespace Sink {
 
@@ -34,7 +35,7 @@ namespace Sink {
 class SINK_EXPORT SourceWriteBack : public ChangeReplay
 {
 public:
-    SourceWriteBack(const QByteArray &resourceType,const QByteArray &resourceInstanceIdentifier);
+    SourceWriteBack(const ResourceContext &resourceContext);
 
 protected:
     ///Base implementation calls the replay$Type calls
@@ -58,12 +59,12 @@ protected:
 private:
     //Read only access to main storage
     EntityStore &store();
-
-    Sink::Storage mSyncStorage;
+    ResourceContext mResourceContext;
+    Sink::Storage::DataStore mSyncStorage;
     QSharedPointer<RemoteIdMap> mSyncStore;
-    QSharedPointer<EntityStore> mEntityStore;
-    Sink::Storage::Transaction mTransaction;
-    Sink::Storage::Transaction mSyncTransaction;
+    QSharedPointer<Storage::EntityStore> mEntityStore;
+    QSharedPointer<EntityStore> mEntityStoreWrapper;
+    Sink::Storage::DataStore::Transaction mSyncTransaction;
     QByteArray mResourceType;
     QByteArray mResourceInstanceIdentifier;
 };

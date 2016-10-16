@@ -104,11 +104,11 @@ public:
         facade->mTestAccount = testAccount;
         map.insert(instanceIdentifier, facade);
         bool alwaysReturnFacade = instanceIdentifier.isEmpty();
-        Sink::FacadeFactory::instance().registerFacade<T, TestFacade<T>>("testresource", [alwaysReturnFacade](const QByteArray &instanceIdentifier) {
+        Sink::FacadeFactory::instance().registerFacade<T, TestFacade<T>>("testresource", [alwaysReturnFacade](const Sink::ResourceContext &context) {
             if (alwaysReturnFacade) {
                 return map.value(QByteArray());
             }
-            return map.value(instanceIdentifier);
+            return map.value(context.resourceInstanceIdentifier);
         });
         return facade;
     }

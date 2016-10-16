@@ -44,25 +44,30 @@ static QMutex sMutex;
 
 using namespace Sink::ApplicationDomain;
 
+void TypeImplementation<Folder>::configureIndex(TypeIndex &index)
+{
+    index.addProperty<QByteArray>(Folder::Parent::name);
+    index.addProperty<QString>(Folder::Name::name);
+}
+
 static TypeIndex &getIndex()
 {
     QMutexLocker locker(&sMutex);
     static TypeIndex *index = 0;
     if (!index) {
         index = new TypeIndex("folder");
-        index->addProperty<QByteArray>("parent");
-        index->addProperty<QString>("name");
+        TypeImplementation<Folder>::configureIndex(*index);
     }
     return *index;
 }
 
-void TypeImplementation<Folder>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
+void TypeImplementation<Folder>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
 {
     SinkTrace() << "Indexing " << identifier;
     getIndex().add(identifier, bufferAdaptor, transaction);
 }
 
-void TypeImplementation<Folder>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
+void TypeImplementation<Folder>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
 {
     getIndex().remove(identifier, bufferAdaptor, transaction);
 }
@@ -87,10 +92,10 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Folder>::BufferBuilder> > 
     return propertyMapper;
 }
 
-DataStoreQuery::Ptr TypeImplementation<Folder>::prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction)
+DataStoreQuery::Ptr TypeImplementation<Folder>::prepareQuery(const Sink::Query &query, Sink::Storage::EntityStore::Ptr store)
 {
     auto mapper = initializeReadPropertyMapper();
-    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Folder>(), transaction, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
+    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Folder>(), store, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
         const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
         return mapper->getProperty(property, localBuffer);
     });

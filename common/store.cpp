@@ -230,7 +230,7 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 {
     // All databases are going to become invalid, nuke the environments
     // TODO: all clients should react to a notification the resource
-    Sink::Storage::clearEnv();
+    Sink::Storage::DataStore::clearEnv();
     SinkTrace() << "Remove data from disk " << identifier;
     auto time = QSharedPointer<QTime>::create();
     time->start();

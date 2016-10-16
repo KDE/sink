@@ -76,6 +76,7 @@ set(command_SRCS
     mailpreprocessor.cpp
     specialpurposepreprocessor.cpp
     datastorequery.cpp
+    storage/entitystore.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

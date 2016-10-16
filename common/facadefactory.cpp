@@ -21,6 +21,7 @@
 
 #include "resourcefacade.h"
 #include "resource.h"
+#include "adaptorfactoryregistry.h"
 
 using namespace Sink;
 
@@ -72,7 +73,7 @@ std::shared_ptr<void> FacadeFactory::getFacade(const QByteArray &resource, const
     }
 
     if (auto factoryFunction = mFacadeRegistry.value(k)) {
-        return factoryFunction(instanceIdentifier);
+        return factoryFunction(ResourceContext{instanceIdentifier, resource, AdaptorFactoryRegistry::instance().getFactories(resource)});
     }
     qWarning() << "Failed to find facade for resource: " << resource << " and type: " << typeName;
     return std::shared_ptr<void>();

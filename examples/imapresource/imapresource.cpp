@@ -50,8 +50,8 @@
 #include <QtAlgorithms>
 
 #include "imapserverproxy.h"
-#include "entityreader.h"
 #include "mailpreprocessor.h"
+#include "adaptorfactoryregistry.h"
 #include "specialpurposepreprocessor.h"
 
 //This is the resources entity type, and not the domain type
@@ -92,8 +92,8 @@ static QByteArray assembleMailRid(const ApplicationDomain::Mail &mail, qint64 im
 
 class ImapSynchronizer : public Sink::Synchronizer {
 public:
-    ImapSynchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier)
-        : Sink::Synchronizer(resourceType, resourceInstanceIdentifier)
+    ImapSynchronizer(const ResourceContext &resourceContext)
+        : Sink::Synchronizer(resourceContext)
     {
 
     }
@@ -126,17 +126,6 @@ public:
         SinkTrace() << "Found folders " << folderList.size();
 
         scanForRemovals(bufferType,
-            [this, &bufferType](const std::function<void(const QByteArray &)> &callback) {
-                //TODO Instead of iterating over all entries in the database, which can also pick up the same item multiple times,
-                //we should rather iterate over an index that contains every uid exactly once. The remoteId index would be such an index,
-                //but we currently fail to iterate over all entries in an index it seems.
-                // auto remoteIds = synchronizationTransaction.openDatabase("rid.mapping." + bufferType, std::function<void(const Sink::Storage::Error &)>(), true);
-                auto mainDatabase = Sink::Storage::mainDatabase(transaction(), bufferType);
-                mainDatabase.scan("", [&](const QByteArray &key, const QByteArray &) {
-                    callback(key);
-                    return true;
-                });
-            },
             [&folderList](const QByteArray &remoteId) -> bool {
                 // folderList.contains(remoteId)
                 for (const auto &folderPath : folderList) {
@@ -190,18 +179,12 @@ public:
         const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, path.toUtf8());
 
         int count = 0;
-        auto property = Sink::ApplicationDomain::Mail::Folder::name;
+
         scanForRemovals(bufferType,
             [&](const std::function<void(const QByteArray &)> &callback) {
-                Index index(bufferType + ".index." + property, transaction());
-                index.lookup(folderLocalId, [&](const QByteArray &sinkId) {
-                    callback(sinkId);
-                },
-                [&](const Index::Error &error) {
-                    SinkWarning() << "Error in index: " <<  error.message << property;
-                });
+                store().indexLookup<ApplicationDomain::Mail, ApplicationDomain::Mail::Folder>(folderLocalId, callback);
             },
-            [messages, path, &count](const QByteArray &remoteId) -> bool {
+            [&](const QByteArray &remoteId) -> bool {
                 if (messages.contains(uidFromMailRid(remoteId))) {
                     return true;
                 }
@@ -347,7 +330,7 @@ public:
 class ImapWriteback : public Sink::SourceWriteBack
 {
 public:
-    ImapWriteback(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : Sink::SourceWriteBack(resourceType, resourceInstanceIdentifier)
+    ImapWriteback(const ResourceContext &resourceContext) : Sink::SourceWriteBack(resourceContext)
     {
 
     }
@@ -514,10 +497,10 @@ public:
     QByteArray mResourceInstanceIdentifier;
 };
 
-ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
-    : Sink::GenericResource(PLUGIN_NAME, instanceIdentifier, pipeline)
+ImapResource::ImapResource(const ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline)
+    : Sink::GenericResource(resourceContext, pipeline)
 {
-    auto config = ResourceConfig::getConfiguration(instanceIdentifier);
+    auto config = ResourceConfig::getConfiguration(resourceContext.instanceId());
     mServer = config.value("server").toString();
     mPort = config.value("port").toInt();
     mUser = config.value("username").toString();
@@ -532,46 +515,45 @@ ImapResource::ImapResource(const QByteArray &instanceIdentifier, const QSharedPo
         mPort = list.at(1).toInt();
     }
 
-    auto synchronizer = QSharedPointer<ImapSynchronizer>::create(PLUGIN_NAME, instanceIdentifier);
+    auto synchronizer = QSharedPointer<ImapSynchronizer>::create(resourceContext);
     synchronizer->mServer = mServer;
     synchronizer->mPort = mPort;
     synchronizer->mUser = mUser;
     synchronizer->mPassword = mPassword;
-    synchronizer->mResourceInstanceIdentifier = instanceIdentifier;
     setupSynchronizer(synchronizer);
-    auto changereplay = QSharedPointer<ImapWriteback>::create(PLUGIN_NAME, instanceIdentifier);
+    auto changereplay = QSharedPointer<ImapWriteback>::create(resourceContext);
     changereplay->mServer = mServer;
     changereplay->mPort = mPort;
     changereplay->mUser = mUser;
     changereplay->mPassword = mPassword;
     setupChangereplay(changereplay);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(mResourceType, mResourceInstanceIdentifier) << new MimeMessageMover << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MimeMessageMover << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
 }
 
 void ImapResource::removeFromDisk(const QByteArray &instanceIdentifier)
 {
     GenericResource::removeFromDisk(instanceIdentifier);
-    Sink::Storage(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::ReadWrite).removeFromDisk();
+    Sink::Storage::DataStore(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
 }
 
 KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
 {
-    auto synchronizationStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadOnly);
-    auto synchronizationTransaction = synchronizationStore->createTransaction(Sink::Storage::ReadOnly);
+    auto synchronizationStore = QSharedPointer<Sink::Storage::DataStore>::create(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::ReadOnly);
+    auto synchronizationTransaction = synchronizationStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
 
-    auto mainStore = QSharedPointer<Sink::Storage>::create(Sink::storageLocation(), mResourceInstanceIdentifier, Sink::Storage::ReadOnly);
-    auto transaction = mainStore->createTransaction(Sink::Storage::ReadOnly);
+    auto mainStore = QSharedPointer<Sink::Storage::DataStore>::create(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadOnly);
+    auto transaction = mainStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
 
-    auto entityStore = QSharedPointer<Sink::EntityStore>::create(mResourceType, mResourceInstanceIdentifier, transaction);
+    Sink::Storage::EntityStore entityStore(mResourceContext);
     auto syncStore = QSharedPointer<Sink::RemoteIdMap>::create(synchronizationTransaction);
 
     SinkTrace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
 
     if (domainType == ENTITY_TYPE_MAIL) {
-        const auto mail = entityStore->read<Sink::ApplicationDomain::Mail>(entityId);
-        const auto folder = entityStore->read<Sink::ApplicationDomain::Folder>(mail.getFolder());
+        const auto mail = entityStore.readLatest<Sink::ApplicationDomain::Mail>(entityId);
+        const auto folder = entityStore.readLatest<Sink::ApplicationDomain::Folder>(mail.getFolder());
         const auto folderRemoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
         const auto mailRemoteId = syncStore->resolveLocalId(ENTITY_TYPE_MAIL, mail.identifier());
         if (mailRemoteId.isEmpty() || folderRemoteId.isEmpty()) {
@@ -635,7 +617,7 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
     }
     if (domainType == ENTITY_TYPE_FOLDER) {
         const auto remoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, entityId);
-        const auto folder = entityStore->read<Sink::ApplicationDomain::Folder>(entityId);
+        const auto folder = entityStore.readLatest<Sink::ApplicationDomain::Folder>(entityId);
 
         if (inspectionType == Sink::ResourceControl::Inspection::CacheIntegrityInspectionType) {
             SinkLog() << "Inspecting cache integrity" << remoteId;
@@ -698,9 +680,9 @@ ImapResourceFactory::ImapResourceFactory(QObject *parent)
 
 }
 
-Sink::Resource *ImapResourceFactory::createResource(const QByteArray &instanceIdentifier)
+Sink::Resource *ImapResourceFactory::createResource(const ResourceContext &context)
 {
-    return new ImapResource(instanceIdentifier);
+    return new ImapResource(context);
 }
 
 void ImapResourceFactory::registerFacades(Sink::FacadeFactory &factory)

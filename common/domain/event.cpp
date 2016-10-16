@@ -42,23 +42,28 @@ static QMutex sMutex;
 
 using namespace Sink::ApplicationDomain;
 
+void TypeImplementation<Event>::configureIndex(TypeIndex &index)
+{
+    index.addProperty<QByteArray>(Event::Uid::name);
+}
+
 static TypeIndex &getIndex()
 {
     QMutexLocker locker(&sMutex);
     static TypeIndex *index = 0;
     if (!index) {
         index = new TypeIndex("event");
-        index->addProperty<QByteArray>("uid");
+        TypeImplementation<Event>::configureIndex(*index);
     }
     return *index;
 }
 
-void TypeImplementation<Event>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
+void TypeImplementation<Event>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
 {
     return getIndex().add(identifier, bufferAdaptor, transaction);
 }
 
-void TypeImplementation<Event>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
+void TypeImplementation<Event>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
 {
     return getIndex().remove(identifier, bufferAdaptor, transaction);
 }
@@ -83,10 +88,10 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Event>::BufferBuilder> > T
     return propertyMapper;
 }
 
-DataStoreQuery::Ptr TypeImplementation<Event>::prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction)
+DataStoreQuery::Ptr TypeImplementation<Event>::prepareQuery(const Sink::Query &query, Sink::Storage::EntityStore::Ptr store)
 {
     auto mapper = initializeReadPropertyMapper();
-    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Event>(), transaction, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
+    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Event>(), store, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
 
         const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
         return mapper->getProperty(property, localBuffer);

@@ -66,7 +66,7 @@ QByteArray TypeIndex::indexName(const QByteArray &property, const QByteArray &so
 template <>
 void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 {
-    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
+    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
         // SinkTrace() << "Indexing " << mType + ".index." + property << value.toByteArray();
         Index(indexName(property), transaction).add(getByteArray(value), identifier);
     };
@@ -77,7 +77,7 @@ void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 template <>
 void TypeIndex::addProperty<QString>(const QByteArray &property)
 {
-    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
+    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
         // SinkTrace() << "Indexing " << mType + ".index." + property << value.toByteArray();
         Index(indexName(property), transaction).add(getByteArray(value), identifier);
     };
@@ -88,7 +88,7 @@ void TypeIndex::addProperty<QString>(const QByteArray &property)
 template <>
 void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
 {
-    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::Transaction &transaction) {
+    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
         //SinkTrace() << "Indexing " << mType + ".index." + property << getByteArray(value);
         Index(indexName(property), transaction).add(getByteArray(value), identifier);
     };
@@ -99,7 +99,7 @@ void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
 template <>
 void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &property, const QByteArray &sortProperty)
 {
-    auto indexer = [=](const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::Transaction &transaction) {
+    auto indexer = [=](const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction) {
         const auto date = sortValue.toDateTime();
         const auto propertyValue = getByteArray(value);
         Index(indexName(property, sortProperty), transaction).add(propertyValue + toSortableByteArray(date), identifier);
@@ -108,7 +108,7 @@ void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &
     mSortedProperties.insert(property, sortProperty);
 }
 
-void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
+void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
 {
     for (const auto &property : mProperties) {
         const auto value = bufferAdaptor.getProperty(property);
@@ -123,7 +123,7 @@ void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain:
     }
 }
 
-void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
+void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
 {
     for (const auto &property : mProperties) {
         const auto value = bufferAdaptor.getProperty(property);
@@ -159,7 +159,7 @@ static QVector<QByteArray> indexLookup(Index &index, Query::Comparator filter)
     return keys;
 }
 
-QVector<QByteArray> TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::Transaction &transaction)
+QVector<QByteArray> TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction)
 {
     QVector<QByteArray> keys;
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
@@ -185,7 +185,7 @@ QVector<QByteArray> TypeIndex::query(const Sink::Query &query, QSet<QByteArray> 
     return keys;
 }
 
-QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant &value, Sink::Storage::Transaction &transaction)
+QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)
 {
     SinkTrace() << "Index lookup on property: " << property << mSecondaryProperties.keys() << mProperties;
     if (mProperties.contains(property)) {
@@ -218,19 +218,19 @@ QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant
 }
 
 template <>
-void TypeIndex::index<QByteArray, QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::Transaction &transaction)
+void TypeIndex::index<QByteArray, QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction)
 {
     Index(indexName(leftName + rightName), transaction).add(getByteArray(leftValue), getByteArray(rightValue));
 }
 
 template <>
-void TypeIndex::index<QString, QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::Transaction &transaction)
+void TypeIndex::index<QString, QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction)
 {
     Index(indexName(leftName + rightName), transaction).add(getByteArray(leftValue), getByteArray(rightValue));
 }
 
 template <>
-QVector<QByteArray> TypeIndex::secondaryLookup<QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value, Sink::Storage::Transaction &transaction)
+QVector<QByteArray> TypeIndex::secondaryLookup<QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)
 {
     QVector<QByteArray> keys;
     Index index(indexName(leftName + rightName), transaction);
@@ -242,7 +242,7 @@ QVector<QByteArray> TypeIndex::secondaryLookup<QByteArray>(const QByteArray &lef
 }
 
 template <>
-QVector<QByteArray> TypeIndex::secondaryLookup<QString>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value, Sink::Storage::Transaction &transaction)
+QVector<QByteArray> TypeIndex::secondaryLookup<QString>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)
 {
     QVector<QByteArray> keys;
     Index index(indexName(leftName + rightName), transaction);

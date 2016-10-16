@@ -24,8 +24,8 @@ class SINK_EXPORT MailPropertyExtractor : public Sink::EntityPreprocessor<Sink::
 {
 public:
     virtual ~MailPropertyExtractor(){}
-    virtual void newEntity(Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE;
-    virtual void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail,Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE;
+    virtual void newEntity(Sink::ApplicationDomain::Mail &mail, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE;
+    virtual void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail,Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE;
 protected:
     virtual QString getFilePathFromMimeMessagePath(const QString &) const;
 };
@@ -36,9 +36,9 @@ public:
     MimeMessageMover();
     virtual ~MimeMessageMover(){}
 
-    void newEntity(Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE;
-    void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE;
-    void deletedEntity(const Sink::ApplicationDomain::Mail &mail, Sink::Storage::Transaction &transaction) Q_DECL_OVERRIDE;
+    void newEntity(Sink::ApplicationDomain::Mail &mail, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE;
+    void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE;
+    void deletedEntity(const Sink::ApplicationDomain::Mail &mail, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE;
 
 private:
     QString moveMessage(const QString &oldPath, const Sink::ApplicationDomain::Mail &mail);

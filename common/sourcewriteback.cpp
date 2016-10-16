@@ -22,6 +22,8 @@
 #include "definitions.h"
 #include "log.h"
 #include "bufferutils.h"
+#include "entitybuffer.h"
+#include "entity_generated.h"
 
 #define ENTITY_TYPE_MAIL "mail"
 #define ENTITY_TYPE_FOLDER "folder"
@@ -30,21 +32,21 @@ SINK_DEBUG_AREA("sourcewriteback")
 
 using namespace Sink;
 
-SourceWriteBack::SourceWriteBack(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier)
-    : ChangeReplay(resourceInstanceIdentifier),
-    mSyncStorage(Sink::storageLocation(), resourceInstanceIdentifier + ".synchronization", Sink::Storage::ReadWrite),
-    mResourceType(resourceType),
-    mResourceInstanceIdentifier(resourceInstanceIdentifier)
+SourceWriteBack::SourceWriteBack(const ResourceContext &context)
+    : ChangeReplay(context),
+    mResourceContext(context),
+    mSyncStorage(Sink::storageLocation(), context.instanceId() + ".synchronization", Sink::Storage::DataStore::ReadWrite),
+    mEntityStore(QSharedPointer<Storage::EntityStore>::create(mResourceContext))
 {
 
 }
 
 EntityStore &SourceWriteBack::store()
 {
-    if (!mEntityStore) {
-        mEntityStore = QSharedPointer<EntityStore>::create(mResourceType, mResourceInstanceIdentifier, mTransaction);
+    if (!mEntityStoreWrapper) {
+        mEntityStoreWrapper = QSharedPointer<EntityStore>::create(*mEntityStore);
     }
-    return *mEntityStore;
+    return *mEntityStoreWrapper;
 }
 
 RemoteIdMap &SourceWriteBack::syncStore()
@@ -76,15 +78,14 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
     const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
     Q_ASSERT(metadataBuffer);
     Q_ASSERT(!mSyncStore);
-    Q_ASSERT(!mEntityStore);
-    Q_ASSERT(!mTransaction);
+    Q_ASSERT(!mEntityStoreWrapper);
     Q_ASSERT(!mSyncTransaction);
-    mTransaction = mStorage.createTransaction(Sink::Storage::ReadOnly);
-    mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::ReadWrite);
+    mEntityStore->startTransaction(Storage::DataStore::ReadOnly);
+    mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::DataStore::ReadWrite);
 
     // const qint64 revision = metadataBuffer ? metadataBuffer->revision() : -1;
     const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
-    const auto uid = Sink::Storage::uidFromKey(key);
+    const auto uid = Sink::Storage::DataStore::uidFromKey(key);
     const auto modifiedProperties = metadataBuffer->modifiedProperties() ? BufferUtils::fromVector(*metadataBuffer->modifiedProperties()) : QByteArrayList();
     QByteArray oldRemoteId;
 
@@ -133,9 +134,9 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
             SinkWarning() << "Failed to replay change: " << error.errorMessage;
         }
         mSyncStore.clear();
-        mEntityStore.clear();
-        mTransaction.abort();
+        mEntityStoreWrapper.clear();
         mSyncTransaction.commit();
+        mEntityStore->abortTransaction();
     });
 }
 

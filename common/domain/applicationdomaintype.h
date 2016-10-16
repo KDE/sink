@@ -241,6 +241,8 @@ struct SINK_EXPORT SinkResource : public ApplicationDomainType {
 struct SINK_EXPORT Entity : public ApplicationDomainType {
     typedef QSharedPointer<Entity> Ptr;
     using ApplicationDomainType::ApplicationDomainType;
+    Entity() = default;
+    Entity(const ApplicationDomainType &other) : ApplicationDomainType(other) {}
     virtual ~Entity();
 };
 

@@ -45,25 +45,31 @@ static QMutex sMutex;
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
+void TypeImplementation<Mail>::configureIndex(TypeIndex &index)
+{
+    index.addProperty<QByteArray>(Mail::Uid::name);
+    index.addProperty<QByteArray>(Mail::Sender::name);
+    index.addProperty<QByteArray>(Mail::SenderName::name);
+    /* index->addProperty<QString>(Mail::Subject::name); */
+    /* index->addFulltextProperty<QString>(Mail::Subject::name); */
+    index.addProperty<QDateTime>(Mail::Date::name);
+    index.addProperty<QByteArray>(Mail::Folder::name);
+    index.addPropertyWithSorting<QByteArray, QDateTime>(Mail::Folder::name, Mail::Date::name);
+    index.addProperty<QByteArray>(Mail::MessageId::name);
+    index.addProperty<QByteArray>(Mail::ParentMessageId::name);
+
+    index.addProperty<Mail::MessageId>();
+    index.addSecondaryProperty<Mail::MessageId, Mail::ThreadId>();
+    index.addSecondaryProperty<Mail::ThreadId, Mail::MessageId>();
+}
+
 static TypeIndex &getIndex()
 {
     QMutexLocker locker(&sMutex);
     static TypeIndex *index = 0;
     if (!index) {
         index = new TypeIndex("mail");
-        index->addProperty<QByteArray>(Mail::Uid::name);
-        index->addProperty<QByteArray>(Mail::Sender::name);
-        index->addProperty<QByteArray>(Mail::SenderName::name);
-        index->addProperty<QString>(Mail::Subject::name);
-        index->addProperty<QDateTime>(Mail::Date::name);
-        index->addProperty<QByteArray>(Mail::Folder::name);
-        index->addPropertyWithSorting<QByteArray, QDateTime>(Mail::Folder::name, Mail::Date::name);
-        index->addProperty<QByteArray>(Mail::MessageId::name);
-        index->addProperty<QByteArray>(Mail::ParentMessageId::name);
-
-        index->addProperty<Mail::MessageId>();
-        index->addSecondaryProperty<Mail::MessageId, Mail::ThreadId>();
-        index->addSecondaryProperty<Mail::ThreadId, Mail::MessageId>();
+        TypeImplementation<Mail>::configureIndex(*index);
     }
     return *index;
 }
@@ -122,7 +128,7 @@ static QString stripOffPrefixes(const QString &subject)
 }
 
 
-static void updateThreadingIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
+static void updateThreadingIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
 {
     auto messageId = bufferAdaptor.getProperty(Mail::MessageId::name);
     auto parentMessageId = bufferAdaptor.getProperty(Mail::ParentMessageId::name);
@@ -164,16 +170,17 @@ static void updateThreadingIndex(const QByteArray &identifier, const BufferAdapt
     }
 }
 
-void TypeImplementation<Mail>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
+void TypeImplementation<Mail>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
 {
     SinkTrace() << "Indexing " << identifier;
     getIndex().add(identifier, bufferAdaptor, transaction);
     updateThreadingIndex(identifier, bufferAdaptor, transaction);
 }
 
-void TypeImplementation<Mail>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::Transaction &transaction)
+void TypeImplementation<Mail>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
 {
     getIndex().remove(identifier, bufferAdaptor, transaction);
+    //TODO cleanup threading index
 }
 
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Mail>::Buffer> > TypeImplementation<Mail>::initializeReadPropertyMapper()
@@ -218,18 +225,21 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Mail>::BufferBuilder> > Ty
 }
 
 
-DataStoreQuery::Ptr TypeImplementation<Mail>::prepareQuery(const Sink::Query &query, Sink::Storage::Transaction &transaction)
+DataStoreQuery::Ptr TypeImplementation<Mail>::prepareQuery(const Sink::Query &query, Sink::Storage::EntityStore::Ptr store)
 {
     auto mapper = initializeReadPropertyMapper();
-    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Mail>(), transaction, getIndex(), [mapper, &transaction](const Sink::Entity &entity, const QByteArray &property) -> QVariant {
+    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Mail>(), store, getIndex(), [mapper, store](const Sink::Entity &entity, const QByteArray &property) -> QVariant {
         if (property == Mail::ThreadId::name) {
             const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
             Q_ASSERT(localBuffer);
             auto messageId = mapper->getProperty(Mail::MessageId::name, localBuffer);
+            //FIXME
             //This is an index property that we have too lookup
-            auto thread = getIndex().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId, transaction);
-            Q_ASSERT(!thread.isEmpty());
-            return thread.first();
+            /* auto thread = getIndex().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId); */
+            /* auto thread = store->secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId); */
+            /* Q_ASSERT(!thread.isEmpty()); */
+            /* return thread.first(); */
+            return QVariant();
         } else {
             const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
             Q_ASSERT(localBuffer);

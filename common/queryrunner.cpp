@@ -28,11 +28,13 @@
 #include "definitions.h"
 #include "domainadaptor.h"
 #include "asyncutils.h"
-#include "entityreader.h"
+#include "storage.h"
+#include "datastorequery.h"
 
 SINK_DEBUG_AREA("queryrunner")
 
 using namespace Sink;
+using namespace Sink::Storage;
 
 /*
  * This class wraps the actual query implementation.
@@ -43,30 +45,28 @@ using namespace Sink;
 template <typename DomainType>
 class QueryWorker : public QObject
 {
+    typedef std::function<bool(const typename DomainType::Ptr &domainObject, Sink::Operation operation, const QMap<QByteArray, QVariant> &aggregateValues)> ResultCallback;
     // SINK_DEBUG_COMPONENT(mResourceInstanceIdentifier, mId)
-    SINK_DEBUG_COMPONENT(mResourceInstanceIdentifier)
+    SINK_DEBUG_COMPONENT(mResourceContext.resourceInstanceIdentifier)
 public:
-    QueryWorker(const Sink::Query &query, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &, const QByteArray &bufferType,
-        const QueryRunnerBase::ResultTransformation &transformation);
+    QueryWorker(const Sink::Query &query, const ResourceContext &context, const QByteArray &bufferType, const QueryRunnerBase::ResultTransformation &transformation);
     virtual ~QueryWorker();
 
+    qint64 replaySet(ResultSet &resultSet, int offset, int batchSize, const ResultCallback &callback);
     QPair<qint64, qint64> executeIncrementalQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
     QPair<qint64, qint64> executeInitialQuery(const Sink::Query &query, const typename DomainType::Ptr &parent, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, int offset, int batchsize);
 
 private:
-    Storage::Transaction getTransaction();
     std::function<bool(const typename DomainType::Ptr &, Sink::Operation, const QMap<QByteArray, QVariant> &)> resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
 
     QueryRunnerBase::ResultTransformation mResultTransformation;
-    DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
-    QByteArray mResourceInstanceIdentifier;
+    ResourceContext mResourceContext;
     QByteArray mId; //Used for identification in debug output
 };
 
 template <class DomainType>
-QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::ResourceAccessInterface::Ptr &resourceAccess, const QByteArray &instanceIdentifier,
-    const DomainTypeAdaptorFactoryInterface::Ptr &factory, const QByteArray &bufferType)
-    : QueryRunnerBase(), mResourceInstanceIdentifier(instanceIdentifier), mResourceAccess(resourceAccess), mResultProvider(new ResultProvider<typename DomainType::Ptr>), mBatchSize(query.limit)
+QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::ResourceContext &context, const QByteArray &bufferType)
+    : QueryRunnerBase(), mResourceContext(context), mResourceAccess(mResourceContext.resourceAccess()), mResultProvider(new ResultProvider<typename DomainType::Ptr>), mBatchSize(query.limit)
 {
     SinkTrace() << "Starting query";
     if (query.limit && query.sortProperty.isEmpty()) {
@@ -79,16 +79,17 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
         SinkTrace() << "Running fetcher. Offset: " << mOffset[parentId] << " Batchsize: " << mBatchSize;
         auto resultProvider = mResultProvider;
         if (query.synchronousQuery) {
-            QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType, mResultTransformation);
+            QueryWorker<DomainType> worker(query, mResourceContext, bufferType, mResultTransformation);
             worker.executeInitialQuery(query, parent, *resultProvider, mOffset[parentId], mBatchSize);
             resultProvider->initialResultSetComplete(parent);
         } else {
             auto resultTransformation = mResultTransformation;
             auto offset = mOffset[parentId];
             auto batchSize = mBatchSize;
+            auto resourceContext = mResourceContext;
             //The lambda will be executed in a separate thread, so we're extra careful
-            async::run<QPair<qint64, qint64> >([resultTransformation, offset, batchSize, query, bufferType, instanceIdentifier, factory, resultProvider, parent]() {
-                QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType, resultTransformation);
+            async::run<QPair<qint64, qint64> >([resultTransformation, offset, batchSize, query, bufferType, resourceContext, resultProvider, parent]() {
+                QueryWorker<DomainType> worker(query, resourceContext, bufferType, resultTransformation);
                 const auto  newRevisionAndReplayedEntities = worker.executeInitialQuery(query, parent, *resultProvider, offset, batchSize);
                 return newRevisionAndReplayedEntities;
             })
@@ -115,8 +116,9 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
         // Incremental updates are always loaded directly, leaving it up to the result to discard the changes if they are not interesting
         setQuery([=]() -> KAsync::Job<void> {
             auto resultProvider = mResultProvider;
+            auto resourceContext = mResourceContext;
             return async::run<QPair<qint64, qint64> >([=]() {
-                       QueryWorker<DomainType> worker(query, instanceIdentifier, factory, bufferType, mResultTransformation);
+                       QueryWorker<DomainType> worker(query, resourceContext, bufferType, mResultTransformation);
                        const auto newRevisionAndReplayedEntities = worker.executeIncrementalQuery(query, *resultProvider);
                        return newRevisionAndReplayedEntities;
                    })
@@ -158,11 +160,10 @@ typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr QueryRunner<DomainTy
     return mResultProvider->emitter();
 }
 
-
 template <class DomainType>
-QueryWorker<DomainType>::QueryWorker(const Sink::Query &query, const QByteArray &instanceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &factory,
+QueryWorker<DomainType>::QueryWorker(const Sink::Query &query, const Sink::ResourceContext &resourceContext,
     const QByteArray &bufferType, const QueryRunnerBase::ResultTransformation &transformation)
-    : QObject(), mResultTransformation(transformation), mDomainTypeAdaptorFactory(factory), mResourceInstanceIdentifier(instanceIdentifier), mId(QUuid::createUuid().toByteArray())
+    : QObject(), mResultTransformation(transformation), mResourceContext(resourceContext), mId(QUuid::createUuid().toByteArray())
 {
     SinkTrace() << "Starting query worker";
 }
@@ -203,41 +204,46 @@ std::function<bool(const typename DomainType::Ptr &, Sink::Operation, const QMap
 }
 
 template <class DomainType>
+qint64 QueryWorker<DomainType>::replaySet(ResultSet &resultSet, int offset, int batchSize, const ResultCallback &callback)
+{
+    SinkTrace() << "Skipping over " << offset << " results";
+    resultSet.skip(offset);
+    int counter = 0;
+    while (!batchSize || (counter < batchSize)) {
+        const bool ret =
+            resultSet.next([this, &counter, callback](const ResultSet::Result &result) -> bool {
+                counter++;
+                auto adaptor = mResourceContext.adaptorFactory<DomainType>().createAdaptor(result.buffer.entity());
+                Q_ASSERT(adaptor);
+                return callback(QSharedPointer<DomainType>::create(mResourceContext.instanceId(), result.uid, result.buffer.revision(), adaptor), result.operation, result.aggregateValues);
+            });
+        if (!ret) {
+            break;
+        }
+    };
+    SinkTrace() << "Replayed " << counter << " results."
+            << "Limit " << batchSize;
+    return counter;
+}
+
+template <class DomainType>
 QPair<qint64, qint64> QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
 {
     QTime time;
     time.start();
 
-    auto transaction = getTransaction();
+    auto entityStore = EntityStore::Ptr::create(mResourceContext);
 
-    Sink::EntityReader<DomainType> reader(*mDomainTypeAdaptorFactory, mResourceInstanceIdentifier, transaction);
-    auto revisionAndReplayedEntities = reader.executeIncrementalQuery(query, resultProvider.revision(), resultProviderCallback(query, resultProvider));
+    const qint64 baseRevision = resultProvider.revision() + 1;
+
+    auto preparedQuery = ApplicationDomain::TypeImplementation<DomainType>::prepareQuery(query, entityStore);
+    auto resultSet = preparedQuery->update(baseRevision);
+
+    SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
+    auto replayedEntities = replaySet(resultSet, 0, 0, resultProviderCallback(query, resultProvider));
+
     SinkTrace() << "Incremental query took: " << Log::TraceTime(time.elapsed());
-    return revisionAndReplayedEntities;
-}
-
-template <class DomainType>
-Storage::Transaction QueryWorker<DomainType>::getTransaction()
-{
-    Sink::Storage::Transaction transaction;
-    {
-        Sink::Storage storage(Sink::storageLocation(), mResourceInstanceIdentifier);
-        if (!storage.exists()) {
-            //This is not an error if the resource wasn't started before
-            SinkLog() << "Store doesn't exist: " << mResourceInstanceIdentifier;
-            return Sink::Storage::Transaction();
-        }
-        storage.setDefaultErrorHandler([this](const Sink::Storage::Error &error) { SinkWarning() << "Error during query: " << error.store << error.message; });
-        transaction = storage.createTransaction(Sink::Storage::ReadOnly);
-    }
-
-    //FIXME this is a temporary measure to recover from a failure to open the named databases correctly.
-    //Once the actual problem is fixed it will be enough to simply crash if we open the wrong database (which we check in openDatabase already).
-    while (!transaction.validateNamedDatabases()) {
-        Sink::Storage storage(Sink::storageLocation(), mResourceInstanceIdentifier);
-        transaction = storage.createTransaction(Sink::Storage::ReadOnly);
-    }
-    return transaction;
+    return qMakePair(entityStore->maxRevision(), replayedEntities);
 }
 
 template <class DomainType>
@@ -258,12 +264,16 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeInitialQuery(
         }
     }
 
-    auto transaction = getTransaction();
+    auto entityStore = EntityStore::Ptr::create(mResourceContext);
 
-    Sink::EntityReader<DomainType> reader(*mDomainTypeAdaptorFactory, mResourceInstanceIdentifier, transaction);
-    auto revisionAndReplayedEntities = reader.executeInitialQuery(modifiedQuery, offset, batchsize, resultProviderCallback(query, resultProvider));
+    auto preparedQuery = ApplicationDomain::TypeImplementation<DomainType>::prepareQuery(query, entityStore);
+    auto resultSet = preparedQuery->execute();
+
+    SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
+    auto replayedEntities = replaySet(resultSet, offset, batchsize, resultProviderCallback(query, resultProvider));
+
     SinkTrace() << "Initial query took: " << Log::TraceTime(time.elapsed());
-    return revisionAndReplayedEntities;
+    return qMakePair(entityStore->maxRevision(), replayedEntities);
 }
 
 template class QueryRunner<Sink::ApplicationDomain::Folder>;

@@ -22,11 +22,13 @@ public:
         auto facade = std::make_shared<TestDummyResourceFacade<T>>();
         map.insert(instanceIdentifier, facade);
         bool alwaysReturnFacade = instanceIdentifier.isEmpty();
-        Sink::FacadeFactory::instance().registerFacade<T, TestDummyResourceFacade<T>>("dummyresource", [alwaysReturnFacade](const QByteArray &instanceIdentifier) {
+        Sink::FacadeFactory::instance().registerFacade<T, TestDummyResourceFacade<T>>("dummyresource", [alwaysReturnFacade](const Sink::ResourceContext &context) {
             if (alwaysReturnFacade) {
+                Q_ASSERT(map.contains(QByteArray()));
                 return map.value(QByteArray());
             }
-            return map.value(instanceIdentifier);
+            Q_ASSERT(map.contains(context.instanceId()));
+            return map.value(context.instanceId());
         });
         return facade;
     }

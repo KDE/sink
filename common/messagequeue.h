@@ -56,7 +56,7 @@ private slots:
 
 private:
     Q_DISABLE_COPY(MessageQueue);
-    Sink::Storage mStorage;
-    Sink::Storage::Transaction mWriteTransaction;
+    Sink::Storage::DataStore mStorage;
+    Sink::Storage::DataStore::Transaction mWriteTransaction;
     QByteArrayList mPendingRemoval;
 };

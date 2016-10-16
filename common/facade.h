@@ -28,6 +28,7 @@
 #include "resourceaccess.h"
 #include "domaintypeadaptorfactoryinterface.h"
 #include "storage.h"
+#include "resourcecontext.h"
 
 namespace Sink {
 
@@ -48,7 +49,7 @@ class SINK_EXPORT GenericFacade : public Sink::StoreFacade<DomainType>
 {
 protected:
     SINK_DEBUG_AREA("facade")
-    SINK_DEBUG_COMPONENT(mResourceInstanceIdentifier)
+    SINK_DEBUG_COMPONENT(mResourceContext.resourceInstanceIdentifier)
 public:
     /**
      * Create a new GenericFacade
@@ -56,8 +57,7 @@ public:
      * @param resourceIdentifier is the identifier of the resource instance
      * @param adaptorFactory is the adaptor factory used to generate the mappings from domain to resource types and vice versa
      */
-    GenericFacade(const QByteArray &resourceIdentifier, const DomainTypeAdaptorFactoryInterface::Ptr &adaptorFactory = DomainTypeAdaptorFactoryInterface::Ptr(),
-        const QSharedPointer<Sink::ResourceAccessInterface> resourceAccess = QSharedPointer<Sink::ResourceAccessInterface>());
+    GenericFacade(const ResourceContext &context);
     virtual ~GenericFacade();
 
     static QByteArray bufferTypeForDomainType();
@@ -68,20 +68,18 @@ public:
 
 protected:
     std::function<void(Sink::ApplicationDomain::ApplicationDomainType &domainObject)> mResultTransformation;
-    // TODO use one resource access instance per application & per resource
-    QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
-    DomainTypeAdaptorFactoryInterface::Ptr mDomainTypeAdaptorFactory;
-    QByteArray mResourceInstanceIdentifier;
+    ResourceContext mResourceContext;
+    Sink::ResourceAccessInterface::Ptr mResourceAccess;
 };
 
 /**
- * A default facade implemenation that simply instantiates a generic resource with the given DomainTypeAdaptorFactory
+ * A default facade implemenation that simply instantiates a generic resource
  */
-template<typename DomainType, typename DomainTypeAdaptorFactory>
+template<typename DomainType>
 class DefaultFacade : public GenericFacade<DomainType>
 {
 public:
-    DefaultFacade(const QByteArray &resourceIdentifier) : GenericFacade<DomainType>(resourceIdentifier, QSharedPointer<DomainTypeAdaptorFactory>::create()) {}
+    DefaultFacade(const ResourceContext &context) : GenericFacade<DomainType>(context) {}
     virtual ~DefaultFacade(){}
 };
 

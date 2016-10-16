@@ -53,8 +53,8 @@ SINK_DEBUG_AREA("dummyresource")
 class DummySynchronizer : public Sink::Synchronizer {
     public:
 
-    DummySynchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier)
-        : Sink::Synchronizer(resourceType, resourceInstanceIdentifier)
+    DummySynchronizer(const Sink::ResourceContext &context)
+        : Sink::Synchronizer(context)
     {
 
     }
@@ -129,11 +129,11 @@ class DummySynchronizer : public Sink::Synchronizer {
 
 };
 
-DummyResource::DummyResource(const QByteArray &instanceIdentifier, const QSharedPointer<Sink::Pipeline> &pipeline)
-    : Sink::GenericResource(PLUGIN_NAME, instanceIdentifier, pipeline)
+DummyResource::DummyResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline)
+    : Sink::GenericResource(resourceContext, pipeline)
 {
-    setupSynchronizer(QSharedPointer<DummySynchronizer>::create(PLUGIN_NAME, instanceIdentifier));
-    setupChangereplay(QSharedPointer<Sink::NullChangeReplay>::create(instanceIdentifier));
+    setupSynchronizer(QSharedPointer<DummySynchronizer>::create(resourceContext));
+    setupChangereplay(QSharedPointer<Sink::NullChangeReplay>::create(resourceContext));
     setupPreprocessors(ENTITY_TYPE_MAIL,
             QVector<Sink::Preprocessor*>() << new MailPropertyExtractor <<  new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
     setupPreprocessors(ENTITY_TYPE_FOLDER,
@@ -182,9 +182,9 @@ DummyResourceFactory::DummyResourceFactory(QObject *parent)
 
 }
 
-Sink::Resource *DummyResourceFactory::createResource(const QByteArray &instanceIdentifier)
+Sink::Resource *DummyResourceFactory::createResource(const Sink::ResourceContext &resourceContext)
 {
-    return new DummyResource(instanceIdentifier);
+    return new DummyResource(resourceContext);
 }
 
 void DummyResourceFactory::registerFacades(Sink::FacadeFactory &factory)

@@ -27,7 +27,7 @@ using namespace Sink;
 
 SINK_DEBUG_AREA("remoteidmap")
 
-RemoteIdMap::RemoteIdMap(Sink::Storage::Transaction &transaction)
+RemoteIdMap::RemoteIdMap(Sink::Storage::DataStore::Transaction &transaction)
     : mTransaction(transaction)
 {
 
@@ -58,7 +58,7 @@ QByteArray RemoteIdMap::resolveRemoteId(const QByteArray &bufferType, const QByt
     Index index("rid.mapping." + bufferType, mTransaction);
     QByteArray sinkId = index.lookup(remoteId);
     if (sinkId.isEmpty()) {
-        sinkId = Sink::Storage::generateUid();
+        sinkId = Sink::Storage::DataStore::generateUid();
         index.add(remoteId, sinkId);
         Index("localid.mapping." + bufferType, mTransaction).add(sinkId, remoteId);
     }
@@ -81,7 +81,7 @@ QByteArray RemoteIdMap::readValue(const QByteArray &key)
     mTransaction.openDatabase("values").scan(key, [&value](const QByteArray &, const QByteArray &v) {
         value = v;
         return false;
-    }, [](const Sink::Storage::Error &) {
+    }, [](const Sink::Storage::DataStore::Error &) {
         //Ignore errors because we may not find the value
     });
     return value;

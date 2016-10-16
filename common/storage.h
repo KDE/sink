@@ -27,8 +27,9 @@
 #include <QString>
 
 namespace Sink {
+namespace Storage {
 
-class SINK_EXPORT Storage
+class SINK_EXPORT DataStore
 {
 public:
     enum AccessMode
@@ -66,16 +67,16 @@ public:
         /**
          * Write a value
          */
-        bool write(const QByteArray &key, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+        bool write(const QByteArray &key, const QByteArray &value, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
 
         /**
          * Remove a key
          */
-        void remove(const QByteArray &key, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+        void remove(const QByteArray &key, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
         /**
          * Remove a key-value pair
          */
-        void remove(const QByteArray &key, const QByteArray &value, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+        void remove(const QByteArray &key, const QByteArray &value, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
 
         /**
         * Read values with a given key.
@@ -87,7 +88,7 @@ public:
         * @return The number of values retrieved.
         */
         int scan(const QByteArray &key, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-            const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool findSubstringKeys = false, bool skipInternalKeys = true) const;
+            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>(), bool findSubstringKeys = false, bool skipInternalKeys = true) const;
 
         /**
          * Finds the last value in a series matched by prefix.
@@ -96,7 +97,7 @@ public:
          * Note that this relies on a key scheme like $uid$revision.
          */
         void findLatest(const QByteArray &uid, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
-            const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>()) const;
+            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>()) const;
 
         /**
          * Returns true if the database contains the substring key.
@@ -127,14 +128,14 @@ public:
     public:
         Transaction();
         ~Transaction();
-        bool commit(const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+        bool commit(const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
         void abort();
 
         QList<QByteArray> getDatabaseNames() const;
         bool validateNamedDatabases();
 
         NamedDatabase openDatabase(const QByteArray &name = QByteArray("default"),
-            const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>(), bool allowDuplicates = false) const;
+            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>(), bool allowDuplicates = false) const;
 
         Transaction(Transaction &&other);
         Transaction &operator=(Transaction &&other);
@@ -144,29 +145,29 @@ public:
     private:
         Transaction(Transaction &other);
         Transaction &operator=(Transaction &other);
-        friend Storage;
+        friend DataStore;
         class Private;
         Transaction(Private *);
         Private *d;
     };
 
-    Storage(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly);
-    ~Storage();
+    DataStore(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly);
+    ~DataStore();
 
-    Transaction createTransaction(AccessMode mode = ReadWrite, const std::function<void(const Storage::Error &error)> &errorHandler = std::function<void(const Storage::Error &error)>());
+    Transaction createTransaction(AccessMode mode = ReadWrite, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
 
     /**
      * Set the default error handler.
      */
-    void setDefaultErrorHandler(const std::function<void(const Storage::Error &error)> &errorHandler);
-    std::function<void(const Storage::Error &error)> defaultErrorHandler() const;
+    void setDefaultErrorHandler(const std::function<void(const DataStore::Error &error)> &errorHandler);
+    std::function<void(const DataStore::Error &error)> defaultErrorHandler() const;
 
     /**
      * A basic error handler that writes to std::cerr.
      *
      * Used if nothing else is configured.
      */
-    static std::function<void(const Storage::Error &error)> basicErrorHandler();
+    static std::function<void(const DataStore::Error &error)> basicErrorHandler();
 
     qint64 diskUsage() const;
     void removeFromDisk() const;
@@ -178,16 +179,16 @@ public:
      */
     static void clearEnv();
 
-    static qint64 maxRevision(const Sink::Storage::Transaction &);
-    static void setMaxRevision(Sink::Storage::Transaction &, qint64 revision);
+    static qint64 maxRevision(const Transaction &);
+    static void setMaxRevision(Transaction &, qint64 revision);
 
-    static qint64 cleanedUpRevision(const Sink::Storage::Transaction &);
-    static void setCleanedUpRevision(Sink::Storage::Transaction &, qint64 revision);
+    static qint64 cleanedUpRevision(const Transaction &);
+    static void setCleanedUpRevision(Transaction &, qint64 revision);
 
-    static QByteArray getUidFromRevision(const Sink::Storage::Transaction &, qint64 revision);
-    static QByteArray getTypeFromRevision(const Sink::Storage::Transaction &, qint64 revision);
-    static void recordRevision(Sink::Storage::Transaction &, qint64 revision, const QByteArray &uid, const QByteArray &type);
-    static void removeRevision(Sink::Storage::Transaction &, qint64 revision);
+    static QByteArray getUidFromRevision(const Transaction &, qint64 revision);
+    static QByteArray getTypeFromRevision(const Transaction &, qint64 revision);
+    static void recordRevision(Transaction &, qint64 revision, const QByteArray &uid, const QByteArray &type);
+    static void removeRevision(Transaction &, qint64 revision);
 
     bool exists() const;
 
@@ -199,16 +200,17 @@ public:
     static QByteArray uidFromKey(const QByteArray &key);
     static qint64 revisionFromKey(const QByteArray &key);
 
-    static NamedDatabase mainDatabase(const Sink::Storage::Transaction &, const QByteArray &type);
+    static NamedDatabase mainDatabase(const Transaction &, const QByteArray &type);
 
     static QByteArray generateUid();
 
 private:
-    std::function<void(const Storage::Error &error)> mErrorHandler;
+    std::function<void(const DataStore::Error &error)> mErrorHandler;
 
 private:
     class Private;
     Private *const d;
 };
 
+}
 } // namespace Sink

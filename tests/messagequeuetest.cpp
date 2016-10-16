@@ -21,7 +21,7 @@ private slots:
     void initTestCase()
     {
         Sink::Test::initTest();
-        Sink::Storage store(Sink::Store::storageLocation(), "sink.dummy.testqueue", Sink::Storage::ReadWrite);
+        Sink::Storage::DataStore store(Sink::Store::storageLocation(), "sink.dummy.testqueue", Sink::Storage::DataStore::ReadWrite);
         store.removeFromDisk();
     }
 
@@ -31,7 +31,7 @@ private slots:
 
     void cleanup()
     {
-        Sink::Storage store(Sink::Store::storageLocation(), "sink.dummy.testqueue", Sink::Storage::ReadWrite);
+        Sink::Storage::DataStore store(Sink::Store::storageLocation(), "sink.dummy.testqueue", Sink::Storage::DataStore::ReadWrite);
         store.removeFromDisk();
     }
 

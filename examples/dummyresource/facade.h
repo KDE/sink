@@ -25,20 +25,20 @@
 class DummyResourceFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Event>
 {
 public:
-    DummyResourceFacade(const QByteArray &instanceIdentifier);
+    DummyResourceFacade(const Sink::ResourceContext &context);
     virtual ~DummyResourceFacade();
 };
 
 class DummyResourceMailFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Mail>
 {
 public:
-    DummyResourceMailFacade(const QByteArray &instanceIdentifier);
+    DummyResourceMailFacade(const Sink::ResourceContext &context);
     virtual ~DummyResourceMailFacade();
 };
 
 class DummyResourceFolderFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Folder>
 {
 public:
-    DummyResourceFolderFacade(const QByteArray &instanceIdentifier);
+    DummyResourceFolderFacade(const Sink::ResourceContext &context);
     virtual ~DummyResourceFolderFacade();
 };

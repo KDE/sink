@@ -37,31 +37,28 @@ class RemoteIdMap;
 class SINK_EXPORT Synchronizer
 {
 public:
-    Synchronizer(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier);
+    Synchronizer(const Sink::ResourceContext &resourceContext);
     virtual ~Synchronizer();
 
     void setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback, MessageQueue &messageQueue);
     KAsync::Job<void> synchronize();
 
     //Read only access to main storage
-    EntityStore &store();
+    Storage::EntityStore &store();
 
     //Read/Write access to sync storage
     RemoteIdMap &syncStore();
 
     void commit();
-    Sink::Storage::Transaction &transaction();
-    Sink::Storage::Transaction &syncTransaction();
+    Sink::Storage::DataStore::Transaction &syncTransaction();
 
 protected:
     ///Calls the callback to enqueue the command
     void enqueueCommand(int commandId, const QByteArray &data);
 
-    static void createEntity(const QByteArray &localId, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject,
-        DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback);
-    static void modifyEntity(const QByteArray &localId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject,
-        DomainTypeAdaptorFactoryInterface &adaptorFactory, std::function<void(const QByteArray &)> callback);
-    static void deleteEntity(const QByteArray &localId, qint64 revision, const QByteArray &bufferType, std::function<void(const QByteArray &)> callback);
+    void createEntity(const QByteArray &localId, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject);
+    void modifyEntity(const QByteArray &localId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject);
+    void deleteEntity(const QByteArray &localId, qint64 revision, const QByteArray &bufferType);
 
     /**
     * A synchronous algorithm to remove entities that are no longer existing.
@@ -74,7 +71,8 @@ protected:
     * All functions are called synchronously, and both @param entryGenerator and @param exists need to be synchronous.
     */
     void scanForRemovals(const QByteArray &bufferType,
-        const std::function<void(const std::function<void(const QByteArray &key)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists);
+        const std::function<void(const std::function<void(const QByteArray &sinkId)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists);
+    void scanForRemovals(const QByteArray &bufferType, std::function<bool(const QByteArray &remoteId)> exists);
 
     /**
      * An algorithm to create or modify the entity.
@@ -96,14 +94,13 @@ protected:
     virtual KAsync::Job<void> synchronizeWithSource() = 0;
 
 private:
+    void modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
+
+    Sink::ResourceContext mResourceContext;
+    Sink::Storage::EntityStore::Ptr mEntityStore;
     QSharedPointer<RemoteIdMap> mSyncStore;
-    QSharedPointer<EntityStore> mEntityStore;
-    Sink::Storage mStorage;
-    Sink::Storage mSyncStorage;
-    QByteArray mResourceType;
-    QByteArray mResourceInstanceIdentifier;
-    Sink::Storage::Transaction mTransaction;
-    Sink::Storage::Transaction mSyncTransaction;
+    Sink::Storage::DataStore mSyncStorage;
+    Sink::Storage::DataStore::Transaction mSyncTransaction;
     std::function<void(int commandId, const QByteArray &data)> mEnqueue;
     MessageQueue *mMessageQueue;
     bool mSyncInProgress;
