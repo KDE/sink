@@ -69,7 +69,6 @@ set(command_SRCS
     changereplay.cpp
     adaptorfactoryregistry.cpp
     synchronizer.cpp
-    entitystore.cpp
     remoteidmap.cpp
     sourcewriteback.cpp
     entityreader.cpp

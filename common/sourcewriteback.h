@@ -23,7 +23,7 @@
 
 #include "changereplay.h"
 #include "storage.h"
-#include "entitystore.h"
+#include "storage/entitystore.h"
 #include "remoteidmap.h"
 #include "metadata_generated.h"
 
@@ -58,12 +58,11 @@ protected:
 
 private:
     //Read only access to main storage
-    EntityStore &store();
+    Storage::EntityStore &store();
     ResourceContext mResourceContext;
     Sink::Storage::DataStore mSyncStorage;
     QSharedPointer<RemoteIdMap> mSyncStore;
     QSharedPointer<Storage::EntityStore> mEntityStore;
-    QSharedPointer<EntityStore> mEntityStoreWrapper;
     Sink::Storage::DataStore::Transaction mSyncTransaction;
     QByteArray mResourceType;
     QByteArray mResourceInstanceIdentifier;

@@ -41,12 +41,9 @@ SourceWriteBack::SourceWriteBack(const ResourceContext &context)
 
 }
 
-EntityStore &SourceWriteBack::store()
+Storage::EntityStore &SourceWriteBack::store()
 {
-    if (!mEntityStoreWrapper) {
-        mEntityStoreWrapper = QSharedPointer<EntityStore>::create(*mEntityStore);
-    }
-    return *mEntityStoreWrapper;
+    return *mEntityStore;
 }
 
 RemoteIdMap &SourceWriteBack::syncStore()
@@ -78,7 +75,6 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
     const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
     Q_ASSERT(metadataBuffer);
     Q_ASSERT(!mSyncStore);
-    Q_ASSERT(!mEntityStoreWrapper);
     Q_ASSERT(!mSyncTransaction);
     mEntityStore->startTransaction(Storage::DataStore::ReadOnly);
     mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::DataStore::ReadWrite);
@@ -100,10 +96,10 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
 
     KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
     if (type == ENTITY_TYPE_FOLDER) {
-        auto folder = store().readFromKey<ApplicationDomain::Folder>(key);
+        auto folder = store().readEntity<ApplicationDomain::Folder>(key);
         job = replay(folder, operation, oldRemoteId, modifiedProperties);
     } else if (type == ENTITY_TYPE_MAIL) {
-        auto mail = store().readFromKey<ApplicationDomain::Mail>(key);
+        auto mail = store().readEntity<ApplicationDomain::Mail>(key);
         job = replay(mail, operation, oldRemoteId, modifiedProperties);
     }
 
@@ -134,7 +130,6 @@ KAsync::Job<void> SourceWriteBack::replay(const QByteArray &type, const QByteArr
             SinkWarning() << "Failed to replay change: " << error.errorMessage;
         }
         mSyncStore.clear();
-        mEntityStoreWrapper.clear();
         mSyncTransaction.commit();
         mEntityStore->abortTransaction();
     });

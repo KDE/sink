@@ -28,7 +28,6 @@
 #include <storage.h>
 
 namespace Sink {
-class EntityStore;
 class RemoteIdMap;
 
 /**

@@ -22,7 +22,6 @@
 #include "definitions.h"
 #include "commands.h"
 #include "bufferutils.h"
-#include "entitystore.h"
 #include "remoteidmap.h"
 #include "entityreader.h"
 #include "createentity_generated.h"

@@ -37,7 +37,6 @@
 #include "inspection.h"
 #include "synchronizer.h"
 #include "sourcewriteback.h"
-#include "entitystore.h"
 #include "remoteidmap.h"
 #include "query.h"
 
