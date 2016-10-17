@@ -55,6 +55,8 @@ public:
 
     void skip(int number);
 
+    qint64 replaySet(int offset, int batchSize, const Callback &callback);
+
     QByteArray id();
 
     bool isEmpty();

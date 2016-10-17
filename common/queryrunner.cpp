@@ -52,12 +52,11 @@ public:
     QueryWorker(const Sink::Query &query, const ResourceContext &context, const QByteArray &bufferType, const QueryRunnerBase::ResultTransformation &transformation);
     virtual ~QueryWorker();
 
-    qint64 replaySet(ResultSet &resultSet, int offset, int batchSize, const ResultCallback &callback);
     QPair<qint64, qint64> executeIncrementalQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
     QPair<qint64, qint64> executeInitialQuery(const Sink::Query &query, const typename DomainType::Ptr &parent, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, int offset, int batchsize);
 
 private:
-    std::function<bool(const typename DomainType::Ptr &, Sink::Operation, const QMap<QByteArray, QVariant> &)> resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
+    void resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const ResultSet::Result &result);
 
     QueryRunnerBase::ResultTransformation mResultTransformation;
     ResourceContext mResourceContext;
@@ -175,55 +174,32 @@ QueryWorker<DomainType>::~QueryWorker()
 }
 
 template <class DomainType>
-std::function<bool(const typename DomainType::Ptr &, Sink::Operation, const QMap<QByteArray, QVariant> &)> QueryWorker<DomainType>::resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
+void QueryWorker<DomainType>::resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const ResultSet::Result &result)
 {
-    return [this, &query, &resultProvider](const typename DomainType::Ptr &domainObject, Sink::Operation operation, const QMap<QByteArray, QVariant> &aggregateValues) -> bool {
-        auto valueCopy = Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(*domainObject, query.requestedProperties).template staticCast<DomainType>();
-        for (auto it = aggregateValues.constBegin(); it != aggregateValues.constEnd(); it++) {
-            valueCopy->setProperty(it.key(), it.value());
-        }
-        if (mResultTransformation) {
-            mResultTransformation(*valueCopy);
-        }
-        switch (operation) {
-            case Sink::Operation_Creation:
-                // SinkTrace() << "Got creation";
-                resultProvider.add(valueCopy);
-                break;
-            case Sink::Operation_Modification:
-                // SinkTrace() << "Got modification";
-                resultProvider.modify(valueCopy);
-                break;
-            case Sink::Operation_Removal:
-                // SinkTrace() << "Got removal";
-                resultProvider.remove(valueCopy);
-                break;
-        }
-        return true;
-    };
-}
-
-template <class DomainType>
-qint64 QueryWorker<DomainType>::replaySet(ResultSet &resultSet, int offset, int batchSize, const ResultCallback &callback)
-{
-    SinkTrace() << "Skipping over " << offset << " results";
-    resultSet.skip(offset);
-    int counter = 0;
-    while (!batchSize || (counter < batchSize)) {
-        const bool ret =
-            resultSet.next([this, &counter, callback](const ResultSet::Result &result) -> bool {
-                counter++;
-                auto adaptor = mResourceContext.adaptorFactory<DomainType>().createAdaptor(result.buffer.entity());
-                Q_ASSERT(adaptor);
-                return callback(QSharedPointer<DomainType>::create(mResourceContext.instanceId(), result.uid, result.buffer.revision(), adaptor), result.operation, result.aggregateValues);
-            });
-        if (!ret) {
+    auto adaptor = mResourceContext.adaptorFactory<DomainType>().createAdaptor(result.buffer.entity());
+    Q_ASSERT(adaptor);
+    auto domainObject = DomainType{mResourceContext.instanceId(), result.uid, result.buffer.revision(), adaptor};
+    auto valueCopy = Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(domainObject, query.requestedProperties).template staticCast<DomainType>();
+    for (auto it = result.aggregateValues.constBegin(); it != result.aggregateValues.constEnd(); it++) {
+        valueCopy->setProperty(it.key(), it.value());
+    }
+    if (mResultTransformation) {
+        mResultTransformation(*valueCopy);
+    }
+    switch (result.operation) {
+        case Sink::Operation_Creation:
+            // SinkTrace() << "Got creation";
+            resultProvider.add(valueCopy);
             break;
-        }
-    };
-    SinkTrace() << "Replayed " << counter << " results."
-            << "Limit " << batchSize;
-    return counter;
+        case Sink::Operation_Modification:
+            // SinkTrace() << "Got modification";
+            resultProvider.modify(valueCopy);
+            break;
+        case Sink::Operation_Removal:
+            // SinkTrace() << "Got removal";
+            resultProvider.remove(valueCopy);
+            break;
+    }
 }
 
 template <class DomainType>
@@ -238,9 +214,10 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeIncrementalQuery(const Sin
 
     auto preparedQuery = ApplicationDomain::TypeImplementation<DomainType>::prepareQuery(query, entityStore);
     auto resultSet = preparedQuery->update(baseRevision);
-
     SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
-    auto replayedEntities = replaySet(resultSet, 0, 0, resultProviderCallback(query, resultProvider));
+    auto replayedEntities = resultSet.replaySet(0, 0, [this, query, &resultProvider](const ResultSet::Result &result) {
+        resultProviderCallback(query, resultProvider, result);
+    });
 
     SinkTrace() << "Incremental query took: " << Log::TraceTime(time.elapsed());
     return qMakePair(entityStore->maxRevision(), replayedEntities);
@@ -270,7 +247,9 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeInitialQuery(
     auto resultSet = preparedQuery->execute();
 
     SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
-    auto replayedEntities = replaySet(resultSet, offset, batchsize, resultProviderCallback(query, resultProvider));
+    auto replayedEntities = resultSet.replaySet(offset, batchsize, [this, query, &resultProvider](const ResultSet::Result &result) {
+        resultProviderCallback(query, resultProvider, result);
+    });
 
     SinkTrace() << "Initial query took: " << Log::TraceTime(time.elapsed());
     return qMakePair(entityStore->maxRevision(), replayedEntities);

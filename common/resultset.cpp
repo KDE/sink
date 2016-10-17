@@ -98,6 +98,22 @@ void ResultSet::skip(int number)
     }
 }
 
+qint64 ResultSet::replaySet(int offset, int batchSize, const Callback &callback)
+{
+    skip(offset);
+    int counter = 0;
+    while (!batchSize || (counter < batchSize)) {
+        const bool ret = next([this, &counter, callback](const ResultSet::Result &result) {
+                counter++;
+                callback(result);
+            });
+        if (!ret) {
+            break;
+        }
+    };
+    return counter;
+}
+
 QByteArray ResultSet::id()
 {
     if (mIt) {
