@@ -21,7 +21,6 @@
 #include "query.h"
 #include "storage.h"
 #include "resultset.h"
-#include "typeindex.h"
 #include "query.h"
 #include "entitybuffer.h"
 #include "log.h"
@@ -36,7 +35,7 @@ class DataStoreQuery {
 public:
     typedef QSharedPointer<DataStoreQuery> Ptr;
 
-    DataStoreQuery(const Sink::Query &query, const QByteArray &type, Sink::Storage::EntityStore::Ptr store, TypeIndex &typeIndex, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty);
+    DataStoreQuery(const Sink::Query &query, const QByteArray &type, Sink::Storage::EntityStore::Ptr store, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty);
     ResultSet execute();
     ResultSet update(qint64 baseRevision);
 
@@ -58,7 +57,6 @@ private:
 
     Sink::Query mQuery;
     const QByteArray mType;
-    TypeIndex &mTypeIndex;
     std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> mGetProperty;
     bool mInitialQuery;
     QSharedPointer<FilterBase> mCollector;

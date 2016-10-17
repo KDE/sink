@@ -95,7 +95,7 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Folder>::BufferBuilder> > 
 DataStoreQuery::Ptr TypeImplementation<Folder>::prepareQuery(const Sink::Query &query, Sink::Storage::EntityStore::Ptr store)
 {
     auto mapper = initializeReadPropertyMapper();
-    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Folder>(), store, getIndex(), [mapper](const Sink::Entity &entity, const QByteArray &property) {
+    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Folder>(), store, [mapper](const Sink::Entity &entity, const QByteArray &property) {
         const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
         return mapper->getProperty(property, localBuffer);
     });

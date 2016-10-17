@@ -228,7 +228,7 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Mail>::BufferBuilder> > Ty
 DataStoreQuery::Ptr TypeImplementation<Mail>::prepareQuery(const Sink::Query &query, Sink::Storage::EntityStore::Ptr store)
 {
     auto mapper = initializeReadPropertyMapper();
-    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Mail>(), store, getIndex(), [mapper, store](const Sink::Entity &entity, const QByteArray &property) -> QVariant {
+    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Mail>(), store, [mapper, store](const Sink::Entity &entity, const QByteArray &property) -> QVariant {
         if (property == Mail::ThreadId::name) {
             const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
             Q_ASSERT(localBuffer);

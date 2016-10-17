@@ -300,8 +300,8 @@ public:
     }
 };
 
-DataStoreQuery::DataStoreQuery(const Sink::Query &query, const QByteArray &type, EntityStore::Ptr store, TypeIndex &typeIndex, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty)
-    : mQuery(query), mType(type), mTypeIndex(typeIndex), mGetProperty(getProperty), mStore(store)
+DataStoreQuery::DataStoreQuery(const Sink::Query &query, const QByteArray &type, EntityStore::Ptr store, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty)
+    : mQuery(query), mType(type), mGetProperty(getProperty), mStore(store)
 {
     setupQuery();
 }
