@@ -49,7 +49,6 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Folder Buffer;
     typedef Sink::ApplicationDomain::Buffer::FolderBuilder BufferBuilder;
     static void configureIndex(TypeIndex &index);
-    static QSharedPointer<DataStoreQuery> prepareQuery(const Sink::Query &query, Sink::Storage::EntityStore::Ptr store);
     static QSet<QByteArray> indexedProperties();
     static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction);
     static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction);

@@ -184,6 +184,15 @@ void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, cons
     });
 }
 
+void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &, Sink::Operation)> callback)
+{
+    readLatest(type, uid, [&](const QByteArray &uid, const EntityBuffer &buffer) {
+        auto adaptor = d->resourceContext.adaptorFactory(type).createAdaptor(buffer.entity());
+        //TODO cache max revision for the duration of the transaction.
+        callback(ApplicationDomain::ApplicationDomainType{d->resourceContext.instanceId(), uid, DataStore::maxRevision(d->getTransaction()), adaptor}, buffer.operation());
+    });
+}
+
 ApplicationDomain::ApplicationDomainType EntityStore::readLatest(const QByteArray &type, const QByteArray &uid)
 {
     ApplicationDomain::ApplicationDomainType dt;

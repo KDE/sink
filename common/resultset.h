@@ -24,6 +24,7 @@
 #include <functional>
 #include "metadata_generated.h"
 #include "entitybuffer.h"
+#include "applicationdomaintype.h"
 
 /*
  * An iterator to a result set.
@@ -34,8 +35,7 @@ class ResultSet
 {
 public:
     struct Result {
-        QByteArray uid;
-        Sink::EntityBuffer buffer;
+        Sink::ApplicationDomain::ApplicationDomainType entity;
         Sink::Operation operation;
         QMap<QByteArray, QVariant> aggregateValues;
     };

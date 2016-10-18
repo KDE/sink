@@ -19,8 +19,6 @@
 #include "datastorequery.h"
 
 #include "log.h"
-#include "entitybuffer.h"
-#include "entity_generated.h"
 #include "applicationdomaintype.h"
 
 #include "folder.h"
@@ -68,8 +66,8 @@ class Source : public FilterBase {
         if (mIt == mIds.constEnd()) {
             return false;
         }
-        readEntity(*mIt, [callback](const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
-            callback({uid, entityBuffer, entityBuffer.operation()});
+        readEntity(*mIt, [callback](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+            callback({entity, operation});
         });
         mIt++;
         return mIt != mIds.constEnd();
@@ -110,23 +108,23 @@ public:
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
-                SinkTrace() << "Filter: " << result.uid << result.operation;
+                SinkTrace() << "Filter: " << result.entity.identifier() << result.operation;
 
                 //Always accept removals. They can't match the filter since the data is gone.
                 if (result.operation == Sink::Operation_Removal) {
-                    SinkTrace() << "Removal: " << result.uid << result.operation;
+                    SinkTrace() << "Removal: " << result.entity.identifier() << result.operation;
                     callback(result);
                     foundValue = true;
-                } else if (matchesFilter(result.uid, result.buffer)) {
-                    SinkTrace() << "Accepted: " << result.uid << result.operation;
+                } else if (matchesFilter(result.entity)) {
+                    SinkTrace() << "Accepted: " << result.entity.identifier() << result.operation;
                     callback(result);
                     foundValue = true;
                     //TODO if something did not match the filter so far but does now, turn into an add operation.
                 } else {
-                    SinkTrace() << "Rejected: " << result.uid << result.operation;
+                    SinkTrace() << "Rejected: " << result.entity.identifier() << result.operation;
                     //TODO emit a removal if we had the uid in the result set and this is a modification.
                     //We don't know if this results in a removal from the dataset, so we emit a removal notification anyways
-                    callback({result.uid, result.buffer, Sink::Operation_Removal, result.aggregateValues});
+                    callback({result.entity, Sink::Operation_Removal, result.aggregateValues});
                 }
                 return false;
             }))
@@ -134,9 +132,9 @@ public:
         return foundValue;
     }
 
-    bool matchesFilter(const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
+    bool matchesFilter(const ApplicationDomain::ApplicationDomainType &entity) {
         for (const auto &filterProperty : propertyFilter.keys()) {
-            const auto property = getProperty(entityBuffer.entity(), filterProperty);
+            const auto property = entity.getProperty(filterProperty);
             const auto comparator = propertyFilter.value(filterProperty);
             if (!comparator.matches(property)) {
                 SinkTrace() << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << comparator.value;
@@ -224,7 +222,7 @@ public:
     bool next(const std::function<void(const ResultSet::Result &)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
-                auto reductionValue = getProperty(result.buffer.entity(), mReductionProperty);
+                auto reductionValue = result.entity.getProperty(mReductionProperty);
                 if (!mReducedValues.contains(getByteArray(reductionValue))) {
                     //Only reduce every value once.
                     mReducedValues.insert(getByteArray(reductionValue));
@@ -234,18 +232,18 @@ public:
 
                     QVariantList list;
                     for (const auto r : results) {
-                        readEntity(r, [&, this](const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
+                        readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                             for (auto &aggregator : mAggregators) {
                                 if (!aggregator.property.isEmpty()) {
-                                    aggregator.process(getProperty(entityBuffer.entity(), aggregator.property));
+                                    aggregator.process(entity.getProperty(aggregator.property));
                                 } else {
                                     aggregator.process();
                                 }
                             }
-                            auto selectionValue = getProperty(entityBuffer.entity(), mSelectionProperty);
+                            auto selectionValue = entity.getProperty(mSelectionProperty);
                             if (!selectionResultValue.isValid() || compare(selectionValue, selectionResultValue, mSelectionComparator)) {
                                 selectionResultValue = selectionValue;
-                                selectionResult = uid;
+                                selectionResult = entity.identifier();
                             }
                         });
                     }
@@ -255,8 +253,8 @@ public:
                         aggregateValues.insert(aggregator.resultProperty, aggregator.result());
                     }
 
-                    readEntity(selectionResult, [&, this](const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
-                        callback({uid, entityBuffer, Sink::Operation_Creation, aggregateValues});
+                    readEntity(selectionResult, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+                        callback({entity, Sink::Operation_Creation, aggregateValues});
                         foundValue = true;
                     });
                 }
@@ -285,11 +283,11 @@ public:
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
-                auto bloomValue = getProperty(result.buffer.entity(), mBloomProperty);
+                auto bloomValue = result.entity.getProperty(mBloomProperty);
                 auto results = indexLookup(mBloomProperty, bloomValue);
                 for (const auto r : results) {
-                    readEntity(r, [&, this](const QByteArray &uid, const Sink::EntityBuffer &entityBuffer) {
-                        callback({uid, entityBuffer, Sink::Operation_Creation});
+                    readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+                        callback({entity, Sink::Operation_Creation});
                         foundValue = true;
                     });
                 }
@@ -300,23 +298,15 @@ public:
     }
 };
 
-DataStoreQuery::DataStoreQuery(const Sink::Query &query, const QByteArray &type, EntityStore::Ptr store, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty)
-    : mQuery(query), mType(type), mGetProperty(getProperty), mStore(store)
+DataStoreQuery::DataStoreQuery(const Sink::Query &query, const QByteArray &type, EntityStore::Ptr store)
+    : mQuery(query), mType(type), mStore(store)
 {
     setupQuery();
 }
 
 void DataStoreQuery::readEntity(const QByteArray &key, const BufferCallback &resultCallback)
 {
-    mStore->readLatest(mType, key, [=](const QByteArray &key, const Sink::EntityBuffer &buffer) {
-            resultCallback(DataStore::uidFromKey(key), buffer);
-            return false;
-        });
-}
-
-QVariant DataStoreQuery::getProperty(const Sink::Entity &entity, const QByteArray &property)
-{
-    return mGetProperty(entity, property);
+    mStore->readLatest(mType, key, resultCallback);
 }
 
 QVector<QByteArray> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value)
@@ -404,28 +394,28 @@ QVector<QByteArray> DataStoreQuery::indexLookup(const QByteArray &property, cons
 /*     } */
 /* } */
 
-template <typename ... Args>
-QSharedPointer<DataStoreQuery> prepareQuery(const QByteArray &type, Args && ... args)
-{
-    if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
-        return ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::prepareQuery(std::forward<Args>(args)...);
-    } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
-        return ApplicationDomain::TypeImplementation<ApplicationDomain::Mail>::prepareQuery(std::forward<Args>(args)...);
-    } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Event>()) {
-        return ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::prepareQuery(std::forward<Args>(args)...);
-    }
-    Q_ASSERT(false);
-    return QSharedPointer<DataStoreQuery>();
-}
+/* template <typename ... Args> */
+/* QSharedPointer<DataStoreQuery> prepareQuery(const QByteArray &type, Args && ... args) */
+/* { */
+/*     if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) { */
+/*         return ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::prepareQuery(std::forward<Args>(args)...); */
+/*     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) { */
+/*         return ApplicationDomain::TypeImplementation<ApplicationDomain::Mail>::prepareQuery(std::forward<Args>(args)...); */
+/*     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Event>()) { */
+/*         return ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::prepareQuery(std::forward<Args>(args)...); */
+/*     } */
+/*     Q_ASSERT(false); */
+/*     return QSharedPointer<DataStoreQuery>(); */
+/* } */
 
 QByteArrayList DataStoreQuery::executeSubquery(const Query &subquery)
 {
     Q_ASSERT(!subquery.type.isEmpty());
-    auto sub = prepareQuery(subquery.type, subquery, mStore);
-    auto result = sub->execute();
+    auto sub = DataStoreQuery(subquery, subquery.type, mStore);
+    auto result = sub.execute();
     QByteArrayList ids;
     while (result.next([&ids](const ResultSet::Result &result) {
-            ids << result.uid;
+            ids << result.entity.identifier();
         }))
     {}
     return ids;
@@ -518,7 +508,7 @@ ResultSet DataStoreQuery::update(qint64 baseRevision)
     mSource->add(incrementalResultSet);
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
         if (mCollector->next([this, callback](const ResultSet::Result &result) {
-                SinkTrace() << "Got incremental result: " << result.uid << result.operation;
+                SinkTrace() << "Got incremental result: " << result.entity.identifier() << result.operation;
                 callback(result);
             }))
         {
@@ -537,8 +527,8 @@ ResultSet DataStoreQuery::execute()
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
         if (mCollector->next([this, callback](const ResultSet::Result &result) {
                 if (result.operation != Sink::Operation_Removal) {
-                    SinkTrace() << "Got initial result: " << result.uid << result.operation;
-                    callback(ResultSet::Result{result.uid, result.buffer, Sink::Operation_Creation, result.aggregateValues});
+                    SinkTrace() << "Got initial result: " << result.entity.identifier() << result.operation;
+                    callback(ResultSet::Result{result.entity, Sink::Operation_Creation, result.aggregateValues});
                 }
             }))
         {

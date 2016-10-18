@@ -87,13 +87,3 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Event>::BufferBuilder> > T
     propertyMapper->addMapping<Event::Attachment>(&BufferBuilder::add_attachment);
     return propertyMapper;
 }
-
-DataStoreQuery::Ptr TypeImplementation<Event>::prepareQuery(const Sink::Query &query, Sink::Storage::EntityStore::Ptr store)
-{
-    auto mapper = initializeReadPropertyMapper();
-    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Event>(), store, [mapper](const Sink::Entity &entity, const QByteArray &property) {
-
-        const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
-        return mapper->getProperty(property, localBuffer);
-    });
-}

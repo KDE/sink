@@ -176,10 +176,7 @@ QueryWorker<DomainType>::~QueryWorker()
 template <class DomainType>
 void QueryWorker<DomainType>::resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const ResultSet::Result &result)
 {
-    auto adaptor = mResourceContext.adaptorFactory<DomainType>().createAdaptor(result.buffer.entity());
-    Q_ASSERT(adaptor);
-    auto domainObject = DomainType{mResourceContext.instanceId(), result.uid, result.buffer.revision(), adaptor};
-    auto valueCopy = Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(domainObject, query.requestedProperties).template staticCast<DomainType>();
+    auto valueCopy = Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<DomainType>(result.entity, query.requestedProperties).template staticCast<DomainType>();
     for (auto it = result.aggregateValues.constBegin(); it != result.aggregateValues.constEnd(); it++) {
         valueCopy->setProperty(it.key(), it.value());
     }
@@ -208,12 +205,10 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeIncrementalQuery(const Sin
     QTime time;
     time.start();
 
-    auto entityStore = EntityStore::Ptr::create(mResourceContext);
-
     const qint64 baseRevision = resultProvider.revision() + 1;
-
-    auto preparedQuery = ApplicationDomain::TypeImplementation<DomainType>::prepareQuery(query, entityStore);
-    auto resultSet = preparedQuery->update(baseRevision);
+    auto entityStore = EntityStore::Ptr::create(mResourceContext);
+    auto preparedQuery = DataStoreQuery{query, ApplicationDomain::getTypeName<DomainType>(), entityStore};
+    auto resultSet = preparedQuery.update(baseRevision);
     SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
     auto replayedEntities = resultSet.replaySet(0, 0, [this, query, &resultProvider](const ResultSet::Result &result) {
         resultProviderCallback(query, resultProvider, result);
@@ -242,9 +237,8 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeInitialQuery(
     }
 
     auto entityStore = EntityStore::Ptr::create(mResourceContext);
-
-    auto preparedQuery = ApplicationDomain::TypeImplementation<DomainType>::prepareQuery(query, entityStore);
-    auto resultSet = preparedQuery->execute();
+    auto preparedQuery = DataStoreQuery{query, ApplicationDomain::getTypeName<DomainType>(), entityStore};
+    auto resultSet = preparedQuery.execute();
 
     SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
     auto replayedEntities = resultSet.replaySet(offset, batchsize, [this, query, &resultProvider](const ResultSet::Result &result) {

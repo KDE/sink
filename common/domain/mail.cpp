@@ -225,26 +225,3 @@ QSharedPointer<WritePropertyMapper<TypeImplementation<Mail>::BufferBuilder> > Ty
 }
 
 
-DataStoreQuery::Ptr TypeImplementation<Mail>::prepareQuery(const Sink::Query &query, Sink::Storage::EntityStore::Ptr store)
-{
-    auto mapper = initializeReadPropertyMapper();
-    return DataStoreQuery::Ptr::create(query, ApplicationDomain::getTypeName<Mail>(), store, [mapper, store](const Sink::Entity &entity, const QByteArray &property) -> QVariant {
-        if (property == Mail::ThreadId::name) {
-            const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
-            Q_ASSERT(localBuffer);
-            auto messageId = mapper->getProperty(Mail::MessageId::name, localBuffer);
-            //FIXME
-            //This is an index property that we have too lookup
-            /* auto thread = getIndex().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId); */
-            /* auto thread = store->secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId); */
-            /* Q_ASSERT(!thread.isEmpty()); */
-            /* return thread.first(); */
-            return QVariant();
-        } else {
-            const auto localBuffer = Sink::EntityBuffer::readBuffer<Buffer>(entity.local());
-            Q_ASSERT(localBuffer);
-            return mapper->getProperty(property, localBuffer);
-        }
-    });
-}
-

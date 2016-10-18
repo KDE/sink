@@ -35,21 +35,20 @@ class DataStoreQuery {
 public:
     typedef QSharedPointer<DataStoreQuery> Ptr;
 
-    DataStoreQuery(const Sink::Query &query, const QByteArray &type, Sink::Storage::EntityStore::Ptr store, std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> getProperty);
+    DataStoreQuery(const Sink::Query &query, const QByteArray &type, Sink::Storage::EntityStore::Ptr store);
     ResultSet execute();
     ResultSet update(qint64 baseRevision);
 
 private:
 
-    typedef std::function<bool(const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> FilterFunction;
-    typedef std::function<void(const QByteArray &uid, const Sink::EntityBuffer &entityBuffer)> BufferCallback;
+    typedef std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> FilterFunction;
+    typedef std::function<void(const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> BufferCallback;
 
-    virtual QVariant getProperty(const Sink::Entity &entity, const QByteArray &property);
     QVector<QByteArray> indexLookup(const QByteArray &property, const QVariant &value);
 
     virtual void readEntity(const QByteArray &key, const BufferCallback &resultCallback);
 
-    ResultSet createFilteredSet(ResultSet &resultSet, const std::function<bool(const QByteArray &, const Sink::EntityBuffer &buffer)> &);
+    ResultSet createFilteredSet(ResultSet &resultSet, const FilterFunction &);
     QVector<QByteArray> loadIncrementalResultSet(qint64 baseRevision);
 
     void setupQuery();
@@ -57,7 +56,6 @@ private:
 
     Sink::Query mQuery;
     const QByteArray mType;
-    std::function<QVariant(const Sink::Entity &entity, const QByteArray &property)> mGetProperty;
     bool mInitialQuery;
     QSharedPointer<FilterBase> mCollector;
     QSharedPointer<Source> mSource;
@@ -85,16 +83,10 @@ public:
 
     virtual ~FilterBase(){}
 
-    void readEntity(const QByteArray &key, const std::function<void(const QByteArray &, const Sink::EntityBuffer &buffer)> &callback)
+    void readEntity(const QByteArray &key, const std::function<void(const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> &callback)
     {
         Q_ASSERT(mDatastore);
         mDatastore->readEntity(key, callback);
-    }
-
-    QVariant getProperty(const Sink::Entity &entity, const QByteArray &property)
-    {
-        Q_ASSERT(mDatastore);
-        return mDatastore->getProperty(entity, property);
     }
 
     QVector<QByteArray> indexLookup(const QByteArray &property, const QVariant &value)

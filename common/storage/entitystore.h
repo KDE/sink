@@ -26,6 +26,7 @@
 #include "query.h"
 #include "storage.h"
 #include "resourcecontext.h"
+#include "metadata_generated.h"
 
 namespace Sink {
 class EntityBuffer;
@@ -56,6 +57,7 @@ public:
 
     void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback);
     void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity)> callback);
+    void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> callback);
 
     ApplicationDomain::ApplicationDomainType readLatest(const QByteArray &type, const QByteArray &uid);
 
