@@ -23,7 +23,7 @@
 #include "commands.h"
 #include "bufferutils.h"
 #include "remoteidmap.h"
-#include "entityreader.h"
+#include "datastorequery.h"
 #include "createentity_generated.h"
 #include "modifyentity_generated.h"
 #include "deleteentity_generated.h"
@@ -200,15 +200,15 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
                 query.filter(it.key(), it.value());
             }
             bool merge = false;
-            Storage::EntityStore store(mResourceContext);
-            Sink::EntityReader<DomainType> reader(store);
-            reader.query(query,
-                [this, bufferType, remoteId, &merge](const DomainType &o) -> bool{
-                    merge = true;
-                    SinkTrace() << "Merging local entity with remote entity: " << o.identifier() << remoteId;
-                    syncStore().recordRemoteId(bufferType, o.identifier(), remoteId);
-                    return false;
-                });
+            Storage::EntityStore store{mResourceContext};
+            DataStoreQuery dataStoreQuery{query, ApplicationDomain::getTypeName<DomainType>(), store};
+            auto resultSet = dataStoreQuery.execute();
+            resultSet.replaySet(0, 1, [this, &merge, bufferType, remoteId](const ResultSet::Result &r) {
+                merge = true;
+                SinkTrace() << "Merging local entity with remote entity: " << r.entity.identifier() << remoteId;
+                syncStore().recordRemoteId(bufferType, r.entity.identifier(), remoteId);
+            });
+
             if (!merge) {
                 SinkTrace() << "Found a new entity: " << remoteId;
                 createEntity(sinkId, bufferType, entity);

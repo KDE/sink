@@ -206,7 +206,7 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeIncrementalQuery(const Sin
     time.start();
 
     const qint64 baseRevision = resultProvider.revision() + 1;
-    auto entityStore = EntityStore::Ptr::create(mResourceContext);
+    auto entityStore = EntityStore{mResourceContext};
     auto preparedQuery = DataStoreQuery{query, ApplicationDomain::getTypeName<DomainType>(), entityStore};
     auto resultSet = preparedQuery.update(baseRevision);
     SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
@@ -215,7 +215,7 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeIncrementalQuery(const Sin
     });
 
     SinkTrace() << "Incremental query took: " << Log::TraceTime(time.elapsed());
-    return qMakePair(entityStore->maxRevision(), replayedEntities);
+    return qMakePair(entityStore.maxRevision(), replayedEntities);
 }
 
 template <class DomainType>
@@ -236,7 +236,7 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeInitialQuery(
         }
     }
 
-    auto entityStore = EntityStore::Ptr::create(mResourceContext);
+    auto entityStore = EntityStore{mResourceContext};
     auto preparedQuery = DataStoreQuery{query, ApplicationDomain::getTypeName<DomainType>(), entityStore};
     auto resultSet = preparedQuery.execute();
 
@@ -246,7 +246,7 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeInitialQuery(
     });
 
     SinkTrace() << "Initial query took: " << Log::TraceTime(time.elapsed());
-    return qMakePair(entityStore->maxRevision(), replayedEntities);
+    return qMakePair(entityStore.maxRevision(), replayedEntities);
 }
 
 template class QueryRunner<Sink::ApplicationDomain::Folder>;

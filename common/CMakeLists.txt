@@ -71,7 +71,6 @@ set(command_SRCS
     synchronizer.cpp
     remoteidmap.cpp
     sourcewriteback.cpp
-    entityreader.cpp
     mailpreprocessor.cpp
     specialpurposepreprocessor.cpp
     datastorequery.cpp

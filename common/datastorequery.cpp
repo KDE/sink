@@ -298,7 +298,7 @@ public:
     }
 };
 
-DataStoreQuery::DataStoreQuery(const Sink::Query &query, const QByteArray &type, EntityStore::Ptr store)
+DataStoreQuery::DataStoreQuery(const Sink::Query &query, const QByteArray &type, EntityStore &store)
     : mQuery(query), mType(type), mStore(store)
 {
     setupQuery();
@@ -306,12 +306,12 @@ DataStoreQuery::DataStoreQuery(const Sink::Query &query, const QByteArray &type,
 
 void DataStoreQuery::readEntity(const QByteArray &key, const BufferCallback &resultCallback)
 {
-    mStore->readLatest(mType, key, resultCallback);
+    mStore.readLatest(mType, key, resultCallback);
 }
 
 QVector<QByteArray> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value)
 {
-    return mStore->indexLookup(mType, property, value);
+    return mStore.indexLookup(mType, property, value);
 }
 
 /* ResultSet DataStoreQuery::filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, const QByteArray &sortProperty) */
@@ -443,13 +443,13 @@ void DataStoreQuery::setupQuery()
     } else {
         QSet<QByteArray> appliedFilters;
 
-        auto resultSet = mStore->indexLookup(mType, mQuery, appliedFilters, appliedSorting);
+        auto resultSet = mStore.indexLookup(mType, mQuery, appliedFilters, appliedSorting);
         remainingFilters = remainingFilters - appliedFilters;
 
         // We do a full scan if there were no indexes available to create the initial set.
         if (appliedFilters.isEmpty()) {
             // TODO this should be replaced by an index lookup on the uid index
-            mSource = Source::Ptr::create(mStore->fullScan(mType), this);
+            mSource = Source::Ptr::create(mStore.fullScan(mType), this);
         } else {
             mSource = Source::Ptr::create(resultSet, this);
         }
@@ -492,7 +492,7 @@ QVector<QByteArray> DataStoreQuery::loadIncrementalResultSet(qint64 baseRevision
 {
     auto revisionCounter = QSharedPointer<qint64>::create(baseRevision);
     QVector<QByteArray> changedKeys;
-    mStore->readRevisions(baseRevision, mType, [&](const QByteArray &key) {
+    mStore.readRevisions(baseRevision, mType, [&](const QByteArray &key) {
         changedKeys << key;
     });
     SinkTrace() << "Finished reading incremental result set:" << *revisionCounter;
