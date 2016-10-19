@@ -59,9 +59,9 @@ class CommandProcessor : public QObject
 public:
     CommandProcessor(Sink::Pipeline *pipeline, QList<MessageQueue *> commandQueues) : QObject(), mPipeline(pipeline), mCommandQueues(commandQueues), mProcessingLock(false)
     {
-        mLowerBoundRevision = DataStore::maxRevision(mPipeline->storage().createTransaction(DataStore::ReadOnly, [](const Sink::Storage::DataStore::Error &error) {
-            SinkWarning() << error.message;
-        }));
+        mPipeline->startTransaction();
+        mLowerBoundRevision = mPipeline->revision();
+        mPipeline->commit();
 
         for (auto queue : mCommandQueues) {
             const bool ret = connect(queue, &MessageQueue::messageReady, this, &CommandProcessor::process);

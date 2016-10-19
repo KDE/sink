@@ -31,7 +31,8 @@
 
 #include <Async/Async>
 
-#include "domainadaptor.h"
+#include <bufferadaptor.h>
+#include <resourcecontext.h>
 
 namespace Sink {
 
@@ -45,16 +46,14 @@ public:
     Pipeline(const ResourceContext &context);
     ~Pipeline();
 
-    Storage::DataStore &storage() const;
-
     void setPreprocessors(const QString &entityType, const QVector<Preprocessor *> &preprocessors);
     void startTransaction();
     void commit();
-    Storage::DataStore::Transaction &transaction();
 
     KAsync::Job<qint64> newEntity(void const *command, size_t size);
     KAsync::Job<qint64> modifiedEntity(void const *command, size_t size);
     KAsync::Job<qint64> deletedEntity(void const *command, size_t size);
+
     /*
      * Cleans up a single revision.
      *
@@ -66,6 +65,7 @@ public:
      * Returns the latest cleaned up revision.
      */
     qint64 cleanedUpRevision();
+    qint64 revision();
 
 signals:
     void revisionUpdated(qint64);
@@ -82,11 +82,10 @@ public:
     virtual ~Preprocessor();
 
     virtual void startBatch();
-    virtual void newEntity(const QByteArray &uid, qint64 revision, ApplicationDomain::BufferAdaptor &newEntity, Storage::DataStore::Transaction &transaction) {};
-    virtual void modifiedEntity(const QByteArray &uid, qint64 revision, const ApplicationDomain::BufferAdaptor &oldEntity,
-        ApplicationDomain::BufferAdaptor &newEntity, Storage::DataStore::Transaction &transaction) {};
-    virtual void deletedEntity(const QByteArray &uid, qint64 revision, const ApplicationDomain::BufferAdaptor &oldEntity, Storage::DataStore::Transaction &transaction) {};
-    virtual void finalize();
+    virtual void newEntity(ApplicationDomain::ApplicationDomainType &newEntity) {};
+    virtual void modifiedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity, ApplicationDomain::ApplicationDomainType &newEntity) {};
+    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) {};
+    virtual void finalizeBatch();
 
     void setup(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Pipeline *);
 
@@ -110,27 +109,28 @@ template<typename DomainType>
 class SINK_EXPORT EntityPreprocessor: public Preprocessor
 {
 public:
-    virtual void newEntity(DomainType &, Storage::DataStore::Transaction &transaction) {};
-    virtual void modifiedEntity(const DomainType &oldEntity, DomainType &newEntity, Storage::DataStore::Transaction &transaction) {};
-    virtual void deletedEntity(const DomainType &oldEntity, Storage::DataStore::Transaction &transaction) {};
+    virtual void newEntity(DomainType &) {};
+    virtual void modifiedEntity(const DomainType &oldEntity, DomainType &newEntity) {};
+    virtual void deletedEntity(const DomainType &oldEntity) {};
 
 private:
-    static void nullDeleter(ApplicationDomain::BufferAdaptor *) {}
-    virtual void newEntity(const QByteArray &uid, qint64 revision, ApplicationDomain::BufferAdaptor &bufferAdaptor, Storage::DataStore::Transaction &transaction)  Q_DECL_OVERRIDE
+    virtual void newEntity(ApplicationDomain::ApplicationDomainType &newEntity_)  Q_DECL_OVERRIDE
     {
-        auto o = DomainType("", uid, revision, QSharedPointer<ApplicationDomain::BufferAdaptor>(&bufferAdaptor, nullDeleter));
-        newEntity(o, transaction);
+        //Modifications still work due to the underlying shared adaptor
+        auto newEntityCopy = DomainType(newEntity_);
+        newEntity(newEntityCopy);
     }
 
-    virtual void modifiedEntity(const QByteArray &uid, qint64 revision, const ApplicationDomain::BufferAdaptor &oldEntity,
-        ApplicationDomain::BufferAdaptor &bufferAdaptor, Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
+    virtual void modifiedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity, ApplicationDomain::ApplicationDomainType &newEntity_) Q_DECL_OVERRIDE
     {
-        auto o = DomainType("", uid, revision, QSharedPointer<ApplicationDomain::BufferAdaptor>(&bufferAdaptor, nullDeleter));
-        modifiedEntity(DomainType("", uid, 0, QSharedPointer<ApplicationDomain::BufferAdaptor>(const_cast<ApplicationDomain::BufferAdaptor*>(&oldEntity), nullDeleter)), o, transaction);
+        //Modifications still work due to the underlying shared adaptor
+        auto newEntityCopy = DomainType(newEntity_);
+        modifiedEntity(DomainType(oldEntity), newEntityCopy);
     }
-    virtual void deletedEntity(const QByteArray &uid, qint64 revision, const ApplicationDomain::BufferAdaptor &bufferAdaptor, Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
+
+    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
     {
-        deletedEntity(DomainType("", uid, revision, QSharedPointer<ApplicationDomain::BufferAdaptor>(const_cast<ApplicationDomain::BufferAdaptor*>(&bufferAdaptor), nullDeleter)), transaction);
+        deletedEntity(DomainType(oldEntity));
     }
 };
 

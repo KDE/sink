@@ -46,11 +46,11 @@ QByteArray getSpecialPurposeType(const QString &name)
 
 SpecialPurposeProcessor::SpecialPurposeProcessor(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : mResourceType(resourceType), mResourceInstanceIdentifier(resourceInstanceIdentifier) {}
 
-QByteArray SpecialPurposeProcessor::ensureFolder(Sink::Storage::DataStore::Transaction &transaction, const QByteArray &specialPurpose)
+QByteArray SpecialPurposeProcessor::ensureFolder(const QByteArray &specialPurpose)
 {
     /* if (!mSpecialPurposeFolders.contains(specialPurpose)) { */
     /*     //Try to find an existing drafts folder */
-    /*     Sink::EntityReader<ApplicationDomain::Folder> reader(mResourceType, mResourceInstanceIdentifier, transaction); */
+    /*     Sink::EntityReader<ApplicationDomain::Folder> reader(mResourceType, mResourceInstanceIdentifier); */
     /*     reader.query(Sink::Query().filter<ApplicationDomain::Folder::SpecialPurpose>(Query::Comparator(specialPurpose, Query::Comparator::Contains)), */
     /*         [this, specialPurpose](const ApplicationDomain::Folder &f) -> bool{ */
     /*             mSpecialPurposeFolders.insert(specialPurpose, f.identifier()); */
@@ -70,23 +70,23 @@ QByteArray SpecialPurposeProcessor::ensureFolder(Sink::Storage::DataStore::Trans
     return mSpecialPurposeFolders.value(specialPurpose);
 }
 
-void SpecialPurposeProcessor::moveToFolder(Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::DataStore::Transaction &transaction)
+void SpecialPurposeProcessor::moveToFolder(Sink::ApplicationDomain::ApplicationDomainType &newEntity)
 {
     if (newEntity.getProperty("trash").toBool()) {
-        newEntity.setProperty("folder", ensureFolder(transaction, "trash"));
+        newEntity.setProperty("folder", ensureFolder("trash"));
         return;
     }
     if (newEntity.getProperty("draft").toBool()) {
-        newEntity.setProperty("folder", ensureFolder(transaction, "drafts"));
+        newEntity.setProperty("folder", ensureFolder("drafts"));
     }
 }
 
-void SpecialPurposeProcessor::newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::DataStore::Transaction &transaction)
+void SpecialPurposeProcessor::newEntity(Sink::ApplicationDomain::ApplicationDomainType &newEntity)
 {
-    moveToFolder(newEntity, transaction);
+    moveToFolder(newEntity);
 }
 
-void SpecialPurposeProcessor::modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::DataStore::Transaction &transaction)
+void SpecialPurposeProcessor::modifiedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, Sink::ApplicationDomain::ApplicationDomainType &newEntity)
 {
-    moveToFolder(newEntity, transaction);
+    moveToFolder(newEntity);
 }

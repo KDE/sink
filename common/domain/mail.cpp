@@ -170,19 +170,6 @@ static void updateThreadingIndex(const QByteArray &identifier, const BufferAdapt
     }
 }
 
-void TypeImplementation<Mail>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
-{
-    SinkTrace() << "Indexing " << identifier;
-    getIndex().add(identifier, bufferAdaptor, transaction);
-    updateThreadingIndex(identifier, bufferAdaptor, transaction);
-}
-
-void TypeImplementation<Mail>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
-{
-    getIndex().remove(identifier, bufferAdaptor, transaction);
-    //TODO cleanup threading index
-}
-
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Mail>::Buffer> > TypeImplementation<Mail>::initializeReadPropertyMapper()
 {
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();

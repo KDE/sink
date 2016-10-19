@@ -87,11 +87,11 @@ static void createBufferPartBuffer(const Sink::ApplicationDomain::ApplicationDom
  * A generic adaptor implementation that uses a property mapper to read/write values.
  */
 template <class LocalBuffer, class ResourceBuffer>
-class GenericBufferAdaptor : public Sink::ApplicationDomain::BufferAdaptor
+class DatastoreBufferAdaptor : public Sink::ApplicationDomain::BufferAdaptor
 {
     SINK_DEBUG_AREA("bufferadaptor")
 public:
-    GenericBufferAdaptor() : BufferAdaptor()
+    DatastoreBufferAdaptor() : BufferAdaptor()
     {
     }
 
@@ -148,18 +148,14 @@ public:
     /**
      * Creates an adaptor for the given domain and resource types.
      *
-     * This returns by default a GenericBufferAdaptor initialized with the corresponding property mappers.
+     * This returns by default a DatastoreBufferAdaptor initialized with the corresponding property mappers.
      */
     virtual QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> createAdaptor(const Sink::Entity &entity) Q_DECL_OVERRIDE
     {
-        const auto resourceBuffer = Sink::EntityBuffer::readBuffer<ResourceBuffer>(entity.resource());
-        const auto localBuffer = Sink::EntityBuffer::readBuffer<LocalBuffer>(entity.local());
-        // const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
-
-        auto adaptor = QSharedPointer<GenericBufferAdaptor<LocalBuffer, ResourceBuffer>>::create();
-        adaptor->mLocalBuffer = localBuffer;
+        auto adaptor = QSharedPointer<DatastoreBufferAdaptor<LocalBuffer, ResourceBuffer>>::create();
+        adaptor->mLocalBuffer = Sink::EntityBuffer::readBuffer<LocalBuffer>(entity.local());
         adaptor->mLocalMapper = mLocalMapper;
-        adaptor->mResourceBuffer = resourceBuffer;
+        adaptor->mResourceBuffer = Sink::EntityBuffer::readBuffer<ResourceBuffer>(entity.resource());
         adaptor->mResourceMapper = mResourceMapper;
         return adaptor;
     }

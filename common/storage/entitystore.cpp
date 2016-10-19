@@ -25,6 +25,8 @@
 #include "definitions.h"
 #include "resourcecontext.h"
 #include "index.h"
+#include "bufferutils.h"
+#include "entity_generated.h"
 
 #include "mail.h"
 #include "folder.h"
@@ -108,14 +110,197 @@ void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMo
 
 void EntityStore::commitTransaction()
 {
+    SinkTrace() << "Committing transaction";
     d->transaction.commit();
     d->transaction = Storage::DataStore::Transaction();
 }
 
 void EntityStore::abortTransaction()
 {
+    SinkTrace() << "Aborting transaction";
     d->transaction.abort();
     d->transaction = Storage::DataStore::Transaction();
+}
+
+bool EntityStore::add(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &entity_, bool replayToSource, const PreprocessCreation &preprocess)
+{
+    if (entity_.identifier().isEmpty()) {
+        SinkWarning() << "Can't write entity with an empty identifier";
+        return false;
+    }
+
+    auto entity = *ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(entity_, entity_.availableProperties());
+    entity.setChangedProperties(entity.availableProperties().toSet());
+
+    preprocess(entity);
+    d->typeIndex(type).add(entity.identifier(), entity, d->transaction);
+
+    //The maxRevision may have changed meanwhile if the entity created sub-entities
+    const qint64 newRevision = maxRevision() + 1;
+
+    // Add metadata buffer
+    flatbuffers::FlatBufferBuilder metadataFbb;
+    auto metadataBuilder = MetadataBuilder(metadataFbb);
+    metadataBuilder.add_revision(newRevision);
+    metadataBuilder.add_operation(Operation_Creation);
+    metadataBuilder.add_replayToSource(replayToSource);
+    auto metadataBuffer = metadataBuilder.Finish();
+    FinishMetadataBuffer(metadataFbb, metadataBuffer);
+
+    flatbuffers::FlatBufferBuilder fbb;
+    d->resourceContext.adaptorFactory(type).createBuffer(entity, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
+
+    DataStore::mainDatabase(d->transaction, type)
+        .write(DataStore::assembleKey(entity.identifier(), newRevision), BufferUtils::extractBuffer(fbb),
+            [&](const DataStore::Error &error) { SinkWarning() << "Failed to write entity" << entity.identifier() << newRevision; });
+    DataStore::setMaxRevision(d->transaction, newRevision);
+    DataStore::recordRevision(d->transaction, newRevision, entity.identifier(), type);
+    SinkTrace() << "Wrote entity: " << entity.identifier() << type << newRevision;
+    return true;
+}
+
+bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions, bool replayToSource, const PreprocessModification &preprocess)
+{
+    auto changeset = diff.changedProperties();
+    //TODO handle errors
+    const auto current = readLatest(type, diff.identifier());
+    if (current.identifier().isEmpty()) {
+        SinkWarning() << "Failed to read current version: " << diff.identifier();
+        return false;
+    }
+
+    auto newEntity = *ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(current, current.availableProperties());
+
+    // Apply diff
+    //SinkTrace() << "Applying changed properties: " << changeset;
+    for (const auto &property : changeset) {
+        const auto value = diff.getProperty(property);
+        if (value.isValid()) {
+            //SinkTrace() << "Setting property: " << property;
+            newEntity.setProperty(property, value);
+        }
+    }
+
+    // Remove deletions
+    for (const auto property : deletions) {
+        //SinkTrace() << "Removing property: " << property;
+        newEntity.setProperty(property, QVariant());
+    }
+
+    preprocess(current, newEntity);
+    d->typeIndex(type).remove(current.identifier(), current, d->transaction);
+    d->typeIndex(type).add(newEntity.identifier(), newEntity, d->transaction);
+
+    const qint64 newRevision = DataStore::maxRevision(d->transaction) + 1;
+
+    // Add metadata buffer
+    flatbuffers::FlatBufferBuilder metadataFbb;
+    {
+        //We add availableProperties to account for the properties that have been changed by the preprocessors
+        auto modifiedProperties = BufferUtils::toVector(metadataFbb, changeset + newEntity.changedProperties());
+        auto metadataBuilder = MetadataBuilder(metadataFbb);
+        metadataBuilder.add_revision(newRevision);
+        metadataBuilder.add_operation(Operation_Modification);
+        metadataBuilder.add_replayToSource(replayToSource);
+        metadataBuilder.add_modifiedProperties(modifiedProperties);
+        auto metadataBuffer = metadataBuilder.Finish();
+        FinishMetadataBuffer(metadataFbb, metadataBuffer);
+    }
+
+    newEntity.setChangedProperties(newEntity.availableProperties().toSet());
+    SinkTrace() << "All properties: " << newEntity.availableProperties();
+
+    flatbuffers::FlatBufferBuilder fbb;
+    d->resourceContext.adaptorFactory(type).createBuffer(newEntity, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
+
+    DataStore::mainDatabase(d->transaction, type)
+        .write(DataStore::assembleKey(newEntity.identifier(), newRevision), BufferUtils::extractBuffer(fbb),
+            [&](const DataStore::Error &error) { SinkWarning() << "Failed to write entity" << newEntity.identifier() << newRevision; });
+    DataStore::setMaxRevision(d->transaction, newRevision);
+    DataStore::recordRevision(d->transaction, newRevision, newEntity.identifier(), type);
+    SinkTrace() << "Wrote modified entity: " << newEntity.identifier() << type << newRevision;
+    return true;
+}
+
+bool EntityStore::remove(const QByteArray &type, const QByteArray &uid, bool replayToSource, const PreprocessRemoval &preprocess)
+{
+    bool found = false;
+    bool alreadyRemoved = false;
+    DataStore::mainDatabase(d->transaction, type)
+        .findLatest(uid,
+            [&found, &alreadyRemoved](const QByteArray &key, const QByteArray &data) -> bool {
+                auto entity = GetEntity(data.data());
+                if (entity && entity->metadata()) {
+                    auto metadata = GetMetadata(entity->metadata()->Data());
+                    found = true;
+                    if (metadata->operation() == Operation_Removal) {
+                        alreadyRemoved = true;
+                    }
+                }
+                return false;
+            },
+            [](const DataStore::Error &error) { SinkWarning() << "Failed to read old revision from storage: " << error.message; });
+
+    if (!found) {
+        SinkWarning() << "Failed to find entity " << uid;
+        return false;
+    }
+    if (alreadyRemoved) {
+        SinkWarning() << "Entity is already removed " << uid;
+        return false;
+    }
+
+    const auto current = readLatest(type, uid);
+    preprocess(current);
+    d->typeIndex(type).remove(current.identifier(), current, d->transaction);
+
+    const qint64 newRevision = DataStore::maxRevision(d->transaction) + 1;
+
+    // Add metadata buffer
+    flatbuffers::FlatBufferBuilder metadataFbb;
+    auto metadataBuilder = MetadataBuilder(metadataFbb);
+    metadataBuilder.add_revision(newRevision);
+    metadataBuilder.add_operation(Operation_Removal);
+    metadataBuilder.add_replayToSource(replayToSource);
+    auto metadataBuffer = metadataBuilder.Finish();
+    FinishMetadataBuffer(metadataFbb, metadataBuffer);
+
+    flatbuffers::FlatBufferBuilder fbb;
+    EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), 0, 0, 0, 0);
+
+    DataStore::mainDatabase(d->transaction, type)
+        .write(DataStore::assembleKey(uid, newRevision), BufferUtils::extractBuffer(fbb),
+            [&](const DataStore::Error &error) { SinkWarning() << "Failed to write entity" << uid << newRevision; });
+    DataStore::setMaxRevision(d->transaction, newRevision);
+    DataStore::recordRevision(d->transaction, newRevision, uid, type);
+    return true;
+}
+
+void EntityStore::cleanupRevision(qint64 revision)
+{
+    const auto uid = DataStore::getUidFromRevision(d->transaction, revision);
+    const auto bufferType = DataStore::getTypeFromRevision(d->transaction, revision);
+    SinkTrace() << "Cleaning up revision " << revision << uid << bufferType;
+    DataStore::mainDatabase(d->transaction, bufferType)
+        .scan(uid,
+            [&](const QByteArray &key, const QByteArray &data) -> bool {
+                EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+                if (!buffer.isValid()) {
+                    SinkWarning() << "Read invalid buffer from disk";
+                } else {
+                    const auto metadata = flatbuffers::GetRoot<Metadata>(buffer.metadataBuffer());
+                    const qint64 rev = metadata->revision();
+                    // Remove old revisions, and the current if the entity has already been removed
+                    if (rev < revision || metadata->operation() == Operation_Removal) {
+                        DataStore::removeRevision(d->transaction, rev);
+                        DataStore::mainDatabase(d->transaction, bufferType).remove(key);
+                    }
+                }
+
+                return true;
+            },
+            [](const DataStore::Error &error) { SinkWarning() << "Error while reading: " << error.message; }, true);
+    DataStore::setCleanedUpRevision(d->transaction, revision);
 }
 
 QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)

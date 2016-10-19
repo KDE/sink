@@ -38,9 +38,14 @@ public:
     typedef QSharedPointer<EntityStore> Ptr;
     EntityStore(const ResourceContext &resourceContext);
 
-    void add(const ApplicationDomain::ApplicationDomainType &);
-    void modify(const ApplicationDomain::ApplicationDomainType &);
-    void remove(const ApplicationDomain::ApplicationDomainType &);
+    typedef std::function<void(const ApplicationDomain::ApplicationDomainType &, ApplicationDomain::ApplicationDomainType &)> PreprocessModification;
+    typedef std::function<void(ApplicationDomain::ApplicationDomainType &)> PreprocessCreation;
+    typedef std::function<void(const ApplicationDomain::ApplicationDomainType &)> PreprocessRemoval;
+
+    bool add(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &, bool replayToSource, const PreprocessCreation &);
+    bool modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &, const QByteArrayList &deletions, bool replayToSource, const PreprocessModification &);
+    bool remove(const QByteArray &type, const QByteArray &uid, bool replayToSource, const PreprocessRemoval &);
+    void cleanupRevision(qint64 revision);
 
     void startTransaction(Sink::Storage::DataStore::AccessMode);
     void commitTransaction();

@@ -50,28 +50,6 @@ void TypeImplementation<Folder>::configureIndex(TypeIndex &index)
     index.addProperty<QString>(Folder::Name::name);
 }
 
-static TypeIndex &getIndex()
-{
-    QMutexLocker locker(&sMutex);
-    static TypeIndex *index = 0;
-    if (!index) {
-        index = new TypeIndex("folder");
-        TypeImplementation<Folder>::configureIndex(*index);
-    }
-    return *index;
-}
-
-void TypeImplementation<Folder>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
-{
-    SinkTrace() << "Indexing " << identifier;
-    getIndex().add(identifier, bufferAdaptor, transaction);
-}
-
-void TypeImplementation<Folder>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
-{
-    getIndex().remove(identifier, bufferAdaptor, transaction);
-}
-
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Folder>::Buffer> > TypeImplementation<Folder>::initializeReadPropertyMapper()
 {
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();

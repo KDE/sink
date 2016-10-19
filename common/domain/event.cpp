@@ -47,27 +47,6 @@ void TypeImplementation<Event>::configureIndex(TypeIndex &index)
     index.addProperty<QByteArray>(Event::Uid::name);
 }
 
-static TypeIndex &getIndex()
-{
-    QMutexLocker locker(&sMutex);
-    static TypeIndex *index = 0;
-    if (!index) {
-        index = new TypeIndex("event");
-        TypeImplementation<Event>::configureIndex(*index);
-    }
-    return *index;
-}
-
-void TypeImplementation<Event>::index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
-{
-    return getIndex().add(identifier, bufferAdaptor, transaction);
-}
-
-void TypeImplementation<Event>::removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
-{
-    return getIndex().remove(identifier, bufferAdaptor, transaction);
-}
-
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Event>::Buffer> > TypeImplementation<Event>::initializeReadPropertyMapper()
 {
     auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();

@@ -33,7 +33,6 @@
 #include "domain/mail.h"
 #include "definitions.h"
 #include "facadefactory.h"
-#include "indexupdater.h"
 #include "inspection.h"
 #include "synchronizer.h"
 #include "sourcewriteback.h"
@@ -527,8 +526,8 @@ ImapResource::ImapResource(const ResourceContext &resourceContext, const QShared
     changereplay->mPassword = mPassword;
     setupChangereplay(changereplay);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MimeMessageMover << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
-    setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MimeMessageMover << new MailPropertyExtractor);
+    setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>());
 }
 
 void ImapResource::removeFromDisk(const QByteArray &instanceIdentifier)

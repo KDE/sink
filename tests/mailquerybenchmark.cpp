@@ -32,7 +32,6 @@
 #include <common/store.h>
 #include <common/pipeline.h>
 #include <common/index.h>
-#include <common/indexupdater.h>
 #include <common/adaptorfactoryregistry.h>
 
 #include "hawd/dataset.h"
@@ -63,10 +62,6 @@ class MailQueryBenchmark : public QObject
         TestResource::removeFromDisk(resourceIdentifier);
 
         auto pipeline = QSharedPointer<Sink::Pipeline>::create(Sink::ResourceContext{resourceIdentifier, "test"});
-
-        auto indexer = QSharedPointer<DefaultIndexUpdater<Mail>>::create();
-
-        pipeline->setPreprocessors("mail", QVector<Sink::Preprocessor *>() << indexer.data());
 
         auto domainTypeAdaptorFactory = QSharedPointer<TestMailAdaptorFactory>::create();
 

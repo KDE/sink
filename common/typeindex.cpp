@@ -108,30 +108,30 @@ void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &
     mSortedProperties.insert(property, sortProperty);
 }
 
-void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
+void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
 {
     for (const auto &property : mProperties) {
-        const auto value = bufferAdaptor.getProperty(property);
+        const auto value = entity.getProperty(property);
         auto indexer = mIndexer.value(property);
         indexer(identifier, value, transaction);
     }
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
-        const auto value = bufferAdaptor.getProperty(it.key());
-        const auto sortValue = bufferAdaptor.getProperty(it.value());
+        const auto value = entity.getProperty(it.key());
+        const auto sortValue = entity.getProperty(it.value());
         auto indexer = mSortIndexer.value(it.key() + it.value());
         indexer(identifier, value, sortValue, transaction);
     }
 }
 
-void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
+void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
 {
     for (const auto &property : mProperties) {
-        const auto value = bufferAdaptor.getProperty(property);
+        const auto value = entity.getProperty(property);
         Index(indexName(property), transaction).remove(getByteArray(value), identifier);
     }
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
-        const auto propertyValue = bufferAdaptor.getProperty(it.key());
-        const auto sortValue = bufferAdaptor.getProperty(it.value());
+        const auto propertyValue = entity.getProperty(it.key());
+        const auto sortValue = entity.getProperty(it.value());
         if (sortValue.type() == QVariant::DateTime) {
             Index(indexName(it.key(), it.value()), transaction).remove(propertyValue.toByteArray() + toSortableByteArray(sortValue.toDateTime()), identifier);
         } else {

@@ -35,7 +35,6 @@
 #include "dummystore.h"
 #include "definitions.h"
 #include "facadefactory.h"
-#include "indexupdater.h"
 #include "adaptorfactoryregistry.h"
 #include "synchronizer.h"
 #include "mailpreprocessor.h"
@@ -135,11 +134,11 @@ DummyResource::DummyResource(const Sink::ResourceContext &resourceContext, const
     setupSynchronizer(QSharedPointer<DummySynchronizer>::create(resourceContext));
     setupChangereplay(QSharedPointer<Sink::NullChangeReplay>::create(resourceContext));
     setupPreprocessors(ENTITY_TYPE_MAIL,
-            QVector<Sink::Preprocessor*>() << new MailPropertyExtractor <<  new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+            QVector<Sink::Preprocessor*>() << new MailPropertyExtractor);
     setupPreprocessors(ENTITY_TYPE_FOLDER,
-            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
+            QVector<Sink::Preprocessor*>());
     setupPreprocessors(ENTITY_TYPE_EVENT,
-            QVector<Sink::Preprocessor*>() << new DefaultIndexUpdater<Sink::ApplicationDomain::Event>);
+            QVector<Sink::Preprocessor*>());
 }
 
 DummyResource::~DummyResource()

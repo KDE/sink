@@ -40,7 +40,6 @@
 #include <resourceconfig.h>
 #include <pipeline.h>
 #include <mailpreprocessor.h>
-#include <indexupdater.h>
 #include <adaptorfactoryregistry.h>
 
 #define ENTITY_TYPE_MAIL "mail"
@@ -162,7 +161,7 @@ MailtransportResource::MailtransportResource(const Sink::ResourceContext &resour
     changereplay->mSettings = mSettings;
     setupChangereplay(changereplay);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MimeMessageMover << new MailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MimeMessageMover << new MailPropertyExtractor);
 }
 
 void MailtransportResource::removeFromDisk(const QByteArray &instanceIdentifier)

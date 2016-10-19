@@ -33,7 +33,6 @@
 #include "domain/mail.h"
 #include "definitions.h"
 #include "facadefactory.h"
-#include "indexupdater.h"
 #include "libmaildir/maildir.h"
 #include "inspection.h"
 #include "synchronizer.h"
@@ -85,7 +84,7 @@ class MaildirMimeMessageMover : public Sink::Preprocessor
 public:
     MaildirMimeMessageMover(const QByteArray &resourceInstanceIdentifier, const QString &maildirPath) : mResourceInstanceIdentifier(resourceInstanceIdentifier), mMaildirPath(maildirPath) {}
 
-    QString getPath(const QByteArray &folderIdentifier, Sink::Storage::DataStore::Transaction &transaction)
+    QString getPath(const QByteArray &folderIdentifier)
     {
         if (folderIdentifier.isEmpty()) {
             return mMaildirPath;
@@ -108,10 +107,10 @@ public:
         return folderPath;
     }
 
-    QString moveMessage(const QString &oldPath, const QByteArray &folder, Sink::Storage::DataStore::Transaction &transaction)
+    QString moveMessage(const QString &oldPath, const QByteArray &folder)
     {
         if (oldPath.startsWith(Sink::temporaryFileLocation())) {
-            const auto path = getPath(folder, transaction);
+            const auto path = getPath(folder);
             KPIM::Maildir maildir(path, false);
             if (!maildir.isValid(true)) {
                 SinkWarning() << "Maildir is not existing: " << path;
@@ -120,7 +119,7 @@ public:
             return path + "/" + identifier;
         } else {
             //Handle moves
-            const auto path = getPath(folder, transaction);
+            const auto path = getPath(folder);
             KPIM::Maildir maildir(path, false);
             if (!maildir.isValid(true)) {
                 SinkWarning() << "Maildir is not existing: " << path;
@@ -141,16 +140,15 @@ public:
         }
     }
 
-    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
+    void newEntity(Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE
     {
         const auto mimeMessage = newEntity.getProperty("mimeMessage");
         if (mimeMessage.isValid()) {
-            newEntity.setProperty("mimeMessage", moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray(), transaction));
+            newEntity.setProperty("mimeMessage", moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray()));
         }
     }
 
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
-        Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE
     {
         const auto mimeMessage = newEntity.getProperty("mimeMessage");
         const auto newFolder = newEntity.getProperty("folder");
@@ -158,7 +156,7 @@ public:
         const bool folderChanged = newFolder.isValid() && newFolder.toString() != oldEntity.getProperty("mimeMessage").toString();
         if (mimeMessageChanged || folderChanged) {
             SinkTrace() << "Moving mime message: " << mimeMessageChanged << folderChanged;
-            auto newPath = moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray(), transaction);
+            auto newPath = moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray());
             if (newPath != oldEntity.getProperty("mimeMessage").toString()) {
                 const auto oldPath = getFilePathFromMimeMessagePath(oldEntity.getProperty("mimeMessage").toString());
                 newEntity.setProperty("mimeMessage", newPath);
@@ -168,7 +166,7 @@ public:
         }
 
         auto mimeMessagePath = newEntity.getProperty("mimeMessage").toString();
-        const auto maildirPath = getPath(newEntity.getProperty("folder").toByteArray(), transaction);
+        const auto maildirPath = getPath(newEntity.getProperty("folder").toByteArray());
         KPIM::Maildir maildir(maildirPath, false);
         const auto file = getFilePathFromMimeMessagePath(mimeMessagePath);
         QString identifier = KPIM::Maildir::getKeyFromFile(file);
@@ -185,7 +183,7 @@ public:
         maildir.changeEntryFlags(identifier, flags);
     }
 
-    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
+    void deletedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
     {
         const auto filePath = getFilePathFromMimeMessagePath(oldEntity.getProperty("mimeMessage").toString());
         QFile::remove(filePath);
@@ -199,7 +197,7 @@ class FolderPreprocessor : public Sink::Preprocessor
 public:
     FolderPreprocessor(const QString maildirPath) : mMaildirPath(maildirPath) {}
 
-    void newEntity(const QByteArray &uid, qint64 revision, Sink::ApplicationDomain::BufferAdaptor &newEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
+    void newEntity(Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE
     {
         auto folderName = newEntity.getProperty("name").toString();
         const auto path = mMaildirPath + "/" + folderName;
@@ -207,12 +205,11 @@ public:
         maildir.create();
     }
 
-    void modifiedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::ApplicationDomain::BufferAdaptor &newEntity,
-        Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
+    void modifiedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE
     {
     }
 
-    void deletedEntity(const QByteArray &uid, qint64 revision, const Sink::ApplicationDomain::BufferAdaptor &oldEntity, Sink::Storage::DataStore::Transaction &transaction) Q_DECL_OVERRIDE
+    void deletedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
     {
     }
     QString mMaildirPath;
@@ -440,8 +437,8 @@ MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext, c
     changereplay->mMaildirPath = mMaildirPath;
     setupChangereplay(changereplay);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MaildirMimeMessageMover(resourceContext.instanceId(), mMaildirPath) << new MaildirMailPropertyExtractor << new DefaultIndexUpdater<Sink::ApplicationDomain::Mail>);
-    setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new FolderPreprocessor(mMaildirPath) << new DefaultIndexUpdater<Sink::ApplicationDomain::Folder>);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MaildirMimeMessageMover(resourceContext.instanceId(), mMaildirPath) << new MaildirMailPropertyExtractor);
+    setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new FolderPreprocessor(mMaildirPath));
 
     KPIM::Maildir dir(mMaildirPath, true);
     SinkTrace() << "Started maildir resource for maildir: " << mMaildirPath;

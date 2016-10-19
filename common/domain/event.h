@@ -56,8 +56,6 @@ public:
     typedef Sink::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
     static void configureIndex(TypeIndex &index);
     static QSet<QByteArray> indexedProperties();
-    static void index(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction);
-    static void removeIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction);
     static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();
     static QSharedPointer<WritePropertyMapper<BufferBuilder> > initializeWritePropertyMapper();
 };
