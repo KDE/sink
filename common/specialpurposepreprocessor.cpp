@@ -1,6 +1,7 @@
 #include "specialpurposepreprocessor.h"
 #include "query.h"
 #include "applicationdomaintype.h"
+#include "datastorequery.h"
 
 using namespace Sink;
 
@@ -48,25 +49,25 @@ SpecialPurposeProcessor::SpecialPurposeProcessor(const QByteArray &resourceType,
 
 QByteArray SpecialPurposeProcessor::ensureFolder(const QByteArray &specialPurpose)
 {
-    /* if (!mSpecialPurposeFolders.contains(specialPurpose)) { */
-    /*     //Try to find an existing drafts folder */
-    /*     Sink::EntityReader<ApplicationDomain::Folder> reader(mResourceType, mResourceInstanceIdentifier); */
-    /*     reader.query(Sink::Query().filter<ApplicationDomain::Folder::SpecialPurpose>(Query::Comparator(specialPurpose, Query::Comparator::Contains)), */
-    /*         [this, specialPurpose](const ApplicationDomain::Folder &f) -> bool{ */
-    /*             mSpecialPurposeFolders.insert(specialPurpose, f.identifier()); */
-    /*             return false; */
-    /*         }); */
-    /*     if (!mSpecialPurposeFolders.contains(specialPurpose)) { */
-    /*         SinkTrace() << "Failed to find a drafts folder, creating a new one"; */
-    /*         auto folder = ApplicationDomain::Folder::create(mResourceInstanceIdentifier); */
-    /*         folder.setSpecialPurpose(QByteArrayList() << specialPurpose); */
-    /*         folder.setName(sSpecialPurposeFolders.value(specialPurpose)); */
-    /*         folder.setIcon("folder"); */
-    /*         //This processes the pipeline synchronously */
-    /*         createEntity(folder); */
-    /*         mSpecialPurposeFolders.insert(specialPurpose, folder.identifier()); */
-    /*     } */
-    /* } */
+    if (!mSpecialPurposeFolders.contains(specialPurpose)) {
+        //Try to find an existing drafts folder
+        DataStoreQuery dataStoreQuery{Sink::Query().filter<ApplicationDomain::Folder::SpecialPurpose>(Query::Comparator(specialPurpose, Query::Comparator::Contains)), ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), entityStore()};
+        auto resultSet = dataStoreQuery.execute();
+        resultSet.replaySet(0, 1, [&, this](const ResultSet::Result &r) {
+            mSpecialPurposeFolders.insert(specialPurpose, r.entity.identifier());
+        });
+
+        if (!mSpecialPurposeFolders.contains(specialPurpose)) {
+            SinkTrace() << "Failed to find a drafts folder, creating a new one";
+            auto folder = ApplicationDomain::Folder::create(mResourceInstanceIdentifier);
+            folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
+            folder.setName(sSpecialPurposeFolders.value(specialPurpose));
+            folder.setIcon("folder");
+            //This processes the pipeline synchronously
+            createEntity(folder);
+            mSpecialPurposeFolders.insert(specialPurpose, folder.identifier());
+        }
+    }
     return mSpecialPurposeFolders.value(specialPurpose);
 }
 

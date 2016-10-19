@@ -73,7 +73,7 @@ void Pipeline::setPreprocessors(const QString &entityType, const QVector<Preproc
     auto &list = d->processors[entityType];
     list.clear();
     for (auto p : processors) {
-        p->setup(d->resourceContext.resourceType, d->resourceContext.instanceId(), this);
+        p->setup(d->resourceContext.resourceType, d->resourceContext.instanceId(), this, &d->entityStore);
         list.append(QSharedPointer<Preprocessor>(p));
     }
 }
@@ -307,6 +307,7 @@ public:
     QByteArray resourceType;
     QByteArray resourceInstanceIdentifier;
     Pipeline *pipeline;
+    Storage::EntityStore *entityStore;
 };
 
 Preprocessor::Preprocessor() : d(new Preprocessor::Private)
@@ -317,11 +318,12 @@ Preprocessor::~Preprocessor()
 {
 }
 
-void Preprocessor::setup(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Pipeline *pipeline)
+void Preprocessor::setup(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Pipeline *pipeline, Storage::EntityStore *entityStore)
 {
     d->resourceType = resourceType;
     d->resourceInstanceIdentifier = resourceInstanceIdentifier;
     d->pipeline = pipeline;
+    d->entityStore = entityStore;
 }
 
 void Preprocessor::startBatch()
@@ -335,6 +337,11 @@ void Preprocessor::finalizeBatch()
 QByteArray Preprocessor::resourceInstanceIdentifier() const
 {
     return d->resourceInstanceIdentifier;
+}
+
+Storage::EntityStore &Preprocessor::entityStore() const
+{
+    return *d->entityStore;
 }
 
 void Preprocessor::createEntity(const Sink::ApplicationDomain::ApplicationDomainType &entity, const QByteArray &typeName)

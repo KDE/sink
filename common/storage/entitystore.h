@@ -42,6 +42,7 @@ public:
     typedef std::function<void(ApplicationDomain::ApplicationDomainType &)> PreprocessCreation;
     typedef std::function<void(const ApplicationDomain::ApplicationDomainType &)> PreprocessRemoval;
 
+    //Only the pipeline may call the following functions outside of tests
     bool add(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &, bool replayToSource, const PreprocessCreation &);
     bool modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &, const QByteArrayList &deletions, bool replayToSource, const PreprocessModification &);
     bool remove(const QByteArray &type, const QByteArray &uid, bool replayToSource, const PreprocessRemoval &);

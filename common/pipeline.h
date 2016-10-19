@@ -35,6 +35,9 @@
 #include <resourcecontext.h>
 
 namespace Sink {
+namespace Storage {
+    class EntityStore;
+}
 
 class Preprocessor;
 
@@ -87,7 +90,7 @@ public:
     virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) {};
     virtual void finalizeBatch();
 
-    void setup(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Pipeline *);
+    void setup(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Pipeline *, Storage::EntityStore *entityStore);
 
 protected:
     template <typename DomainType>
@@ -98,6 +101,8 @@ protected:
     void createEntity(const ApplicationDomain::ApplicationDomainType &entity, const QByteArray &type);
 
     QByteArray resourceInstanceIdentifier() const;
+
+    Storage::EntityStore &entityStore() const;
 
 private:
     friend class Pipeline;
