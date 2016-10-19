@@ -282,25 +282,12 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     return KAsync::value(d->entityStore.maxRevision());
 }
 
-void Pipeline::cleanupRevision(qint64 revision)
+void Pipeline::cleanupRevisions(qint64 revision)
 {
-    d->entityStore.cleanupRevision(revision);
+    d->entityStore.cleanupRevisions(revision);
     d->revisionChanged = true;
 }
 
-qint64 Pipeline::cleanedUpRevision()
-{
-    /* return d->entityStore.cleanedUpRevision(); */
-    /* return DataStore::cleanedUpRevision(d->transaction); */
-    //FIXME Just move the whole cleanup revision iteration into the entitystore
-    return 0;
-}
-
-qint64 Pipeline::revision()
-{
-    //FIXME Just move the whole cleanup revision iteration into the entitystore
-    return 0;
-}
 
 class Preprocessor::Private {
 public:

@@ -58,17 +58,10 @@ public:
     KAsync::Job<qint64> deletedEntity(void const *command, size_t size);
 
     /*
-     * Cleans up a single revision.
-     *
-     * This has to be called for every revision in consecutive order.
+     * Cleans up all revisions until @param revision.
      */
-    void cleanupRevision(qint64 revision);
+    void cleanupRevisions(qint64 revision);
 
-    /*
-     * Returns the latest cleaned up revision.
-     */
-    qint64 cleanedUpRevision();
-    qint64 revision();
 
 signals:
     void revisionUpdated(qint64);

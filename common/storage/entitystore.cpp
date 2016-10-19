@@ -303,6 +303,15 @@ void EntityStore::cleanupRevision(qint64 revision)
     DataStore::setCleanedUpRevision(d->transaction, revision);
 }
 
+void EntityStore::cleanupRevisions(qint64 revision)
+{
+    const auto lastCleanRevision = DataStore::cleanedUpRevision(d->transaction);
+    SinkTrace() << "Cleaning up from " << lastCleanRevision + 1 << " to " << revision;
+    for (qint64 rev = lastCleanRevision + 1; rev <= revision; rev++) {
+        cleanupRevision(revision);
+    }
+}
+
 QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)
 {
     SinkTrace() << "Looking for : " << type;

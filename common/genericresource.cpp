@@ -57,12 +57,8 @@ class CommandProcessor : public QObject
     SINK_DEBUG_AREA("commandprocessor")
 
 public:
-    CommandProcessor(Sink::Pipeline *pipeline, QList<MessageQueue *> commandQueues) : QObject(), mPipeline(pipeline), mCommandQueues(commandQueues), mProcessingLock(false)
+    CommandProcessor(Sink::Pipeline *pipeline, QList<MessageQueue *> commandQueues) : QObject(), mPipeline(pipeline), mCommandQueues(commandQueues), mProcessingLock(false), mLowerBoundRevision(0)
     {
-        mPipeline->startTransaction();
-        mLowerBoundRevision = mPipeline->revision();
-        mPipeline->commit();
-
         for (auto queue : mCommandQueues) {
             const bool ret = connect(queue, &MessageQueue::messageReady, this, &CommandProcessor::process);
             Q_UNUSED(ret);
@@ -191,10 +187,7 @@ private slots:
         auto time = QSharedPointer<QTime>::create();
         time->start();
         mPipeline->startTransaction();
-        SinkTrace() << "Cleaning up from " << mPipeline->cleanedUpRevision() + 1 << " to " << mLowerBoundRevision;
-        for (qint64 revision = mPipeline->cleanedUpRevision() + 1; revision <= mLowerBoundRevision; revision++) {
-            mPipeline->cleanupRevision(revision);
-        }
+        mPipeline->cleanupRevisions(mLowerBoundRevision);
         mPipeline->commit();
         SinkTrace() << "Cleanup done." << Log::TraceTime(time->elapsed());
 
@@ -280,7 +273,6 @@ GenericResource::GenericResource(const ResourceContext &resourceContext, const Q
         auto ret = QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
         Q_ASSERT(ret);
     }
-    mClientLowerBoundRevision = mPipeline->cleanedUpRevision();
 
     mCommitQueueTimer.setInterval(sCommitInterval);
     mCommitQueueTimer.setSingleShot(true);

@@ -272,7 +272,7 @@ private slots:
 
         // Cleanup old revisions
         pipeline.startTransaction();
-        pipeline.cleanupRevision(2);
+        pipeline.cleanupRevisions(2);
         pipeline.commit();
 
         // And now only the latest revision is left
@@ -350,7 +350,7 @@ private slots:
 
         // Cleanup old revisions
         pipeline.startTransaction();
-        pipeline.cleanupRevision(2);
+        pipeline.cleanupRevisions(2);
         pipeline.commit();
 
         // And all revisions are gone

@@ -47,6 +47,7 @@ public:
     bool modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &, const QByteArrayList &deletions, bool replayToSource, const PreprocessModification &);
     bool remove(const QByteArray &type, const QByteArray &uid, bool replayToSource, const PreprocessRemoval &);
     void cleanupRevision(qint64 revision);
+    void cleanupRevisions(qint64 revision);
 
     void startTransaction(Sink::Storage::DataStore::AccessMode);
     void commitTransaction();
