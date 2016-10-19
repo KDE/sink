@@ -90,20 +90,14 @@ public:
             return mMaildirPath;
         }
         QString folderPath;
-        auto db = Sink::Storage::DataStore::mainDatabase(transaction, ENTITY_TYPE_FOLDER);
-        db.findLatest(folderIdentifier, [&](const QByteArray &, const QByteArray &value) {
-            Sink::EntityBuffer buffer(value);
-            const Sink::Entity &entity = buffer.entity();
-            const auto adaptor = Sink::AdaptorFactoryRegistry::instance().getFactory<Sink::ApplicationDomain::Folder>(PLUGIN_NAME)->createAdaptor(entity);
-            auto parentFolder = adaptor->getProperty("parent").toString();
-            if (mMaildirPath.endsWith(adaptor->getProperty("name").toString())) {
-                folderPath = mMaildirPath;
-            } else {
-                auto folderName = adaptor->getProperty("name").toString();
-                //FIXME handle non toplevel folders
-                folderPath = mMaildirPath + "/" + folderName;
-            }
-        });
+        const auto folder = entityStore().readLatest<ApplicationDomain::Folder>(folderIdentifier);
+        if (mMaildirPath.endsWith(folder.getName())) {
+            folderPath = mMaildirPath;
+        } else {
+            auto folderName = folder.getName();
+            //FIXME handle non toplevel folders
+            folderPath = mMaildirPath + "/" + folderName;
+        }
         return folderPath;
     }
 
