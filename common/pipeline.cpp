@@ -62,6 +62,9 @@ public:
 
 Pipeline::Pipeline(const ResourceContext &context) : QObject(nullptr), d(new Private(context))
 {
+    //Create main store immediately on first start
+    d->entityStore.startTransaction(DataStore::ReadWrite);
+    d->entityStore.commitTransaction();
 }
 
 Pipeline::~Pipeline()
