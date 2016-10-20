@@ -51,3 +51,8 @@ void TypeImplementation<Folder>::configure(WritePropertyMapper<BufferBuilder> &p
     propertyMapper.addMapping<Folder::Icon>(&BufferBuilder::add_icon);
     propertyMapper.addMapping<Folder::SpecialPurpose>(&BufferBuilder::add_specialpurpose);
 }
+
+void TypeImplementation<Folder>::configure(IndexPropertyMapper &)
+{
+
+}

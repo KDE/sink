@@ -69,9 +69,8 @@ public:
     /*     return *index; */
     /* } */
 
-    TypeIndex &typeIndex(const QByteArray &type)
+    TypeIndex &cachedIndex(const QByteArray &type)
     {
-        /* return applyType<typeIndex>(type); */
         if (indexByType.contains(type)) {
             return *indexByType.value(type);
         }
@@ -92,7 +91,19 @@ public:
         }
         indexByType.insert(type, index);
         return *index;
+    TypeIndex &typeIndex(const QByteArray &type)
+    {
+        auto &index = cachedIndex(type);
+        index.mTransaction = &transaction;
+        return index;
     }
+
+    ApplicationDomain::ApplicationDomainType createApplicationDomainType(const QByteArray &type, const QByteArray &uid, qint64 revision, const EntityBuffer &buffer)
+    {
+        auto adaptor = resourceContext.adaptorFactory(type).createAdaptor(buffer.entity(), &typeIndex(type));
+        return ApplicationDomain::ApplicationDomainType{resourceContext.instanceId(), uid, revision, adaptor};
+    }
+
 };
 
 EntityStore::EntityStore(const ResourceContext &context)
@@ -373,17 +384,16 @@ void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, cons
 void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &)> callback)
 {
     readLatest(type, uid, [&](const QByteArray &uid, const EntityBuffer &buffer) {
-        auto adaptor = d->resourceContext.adaptorFactory(type).createAdaptor(buffer.entity());
-        callback(ApplicationDomain::ApplicationDomainType{d->resourceContext.instanceId(), uid, DataStore::maxRevision(d->getTransaction()), adaptor});
+        //TODO cache max revision for the duration of the transaction.
+        callback(d->createApplicationDomainType(type, uid, DataStore::maxRevision(d->getTransaction()), buffer));
     });
 }
 
 void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &, Sink::Operation)> callback)
 {
     readLatest(type, uid, [&](const QByteArray &uid, const EntityBuffer &buffer) {
-        auto adaptor = d->resourceContext.adaptorFactory(type).createAdaptor(buffer.entity());
         //TODO cache max revision for the duration of the transaction.
-        callback(ApplicationDomain::ApplicationDomainType{d->resourceContext.instanceId(), uid, DataStore::maxRevision(d->getTransaction()), adaptor}, buffer.operation());
+        callback(d->createApplicationDomainType(type, uid, DataStore::maxRevision(d->getTransaction()), buffer), buffer.operation());
     });
 }
 
@@ -410,8 +420,7 @@ void EntityStore::readEntity(const QByteArray &type, const QByteArray &key, cons
 void EntityStore::readEntity(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &)> callback)
 {
     readEntity(type, uid, [&](const QByteArray &uid, const EntityBuffer &buffer) {
-        auto adaptor = d->resourceContext.adaptorFactory(type).createAdaptor(buffer.entity());
-        callback(ApplicationDomain::ApplicationDomainType{d->resourceContext.instanceId(), uid, DataStore::maxRevision(d->getTransaction()), adaptor});
+        callback(d->createApplicationDomainType(type, uid, DataStore::maxRevision(d->getTransaction()), buffer));
     });
 }
 
@@ -432,8 +441,7 @@ void EntityStore::readAll(const QByteArray &type, const std::function<void(const
         [=](const QByteArray &key, const QByteArray &value) -> bool {
             auto uid = DataStore::uidFromKey(key);
             auto buffer = Sink::EntityBuffer{value.data(), value.size()};
-            auto adaptor = d->resourceContext.adaptorFactory(type).createAdaptor(buffer.entity());
-            callback(ApplicationDomain::ApplicationDomainType{d->resourceContext.instanceId(), uid, DataStore::maxRevision(d->getTransaction()), adaptor});
+            callback(d->createApplicationDomainType(type, uid, DataStore::maxRevision(d->getTransaction()), buffer));
             return true;
         },
         [&](const DataStore::Error &error) { SinkWarning() << "Error during query: " << error.message; });
@@ -480,8 +488,7 @@ void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qi
 void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const ApplicationDomain::ApplicationDomainType &)> callback)
 {
     readPrevious(type, uid, revision, [&](const QByteArray &uid, const EntityBuffer &buffer) {
-        auto adaptor = d->resourceContext.adaptorFactory(type).createAdaptor(buffer.entity());
-        callback(ApplicationDomain::ApplicationDomainType{d->resourceContext.instanceId(), uid, DataStore::maxRevision(d->getTransaction()), adaptor});
+        callback(d->createApplicationDomainType(type, uid, DataStore::maxRevision(d->getTransaction()), buffer));
     });
 }
 

@@ -238,10 +238,10 @@ void TypeIndex::index<QString, QByteArray>(const QByteArray &leftName, const QBy
 }
 
 template <>
-QVector<QByteArray> TypeIndex::secondaryLookup<QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)
+QVector<QByteArray> TypeIndex::secondaryLookup<QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value)
 {
     QVector<QByteArray> keys;
-    Index index(indexName(leftName + rightName), transaction);
+    Index index(indexName(leftName + rightName), *mTransaction);
     const auto lookupKey = getByteArray(value);
     index.lookup(
         lookupKey, [&](const QByteArray &value) { keys << value; }, [=](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << value; });
@@ -250,10 +250,10 @@ QVector<QByteArray> TypeIndex::secondaryLookup<QByteArray>(const QByteArray &lef
 }
 
 template <>
-QVector<QByteArray> TypeIndex::secondaryLookup<QString>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)
+QVector<QByteArray> TypeIndex::secondaryLookup<QString>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value)
 {
     QVector<QByteArray> keys;
-    Index index(indexName(leftName + rightName), transaction);
+    Index index(indexName(leftName + rightName), *mTransaction);
     const auto lookupKey = getByteArray(value);
     index.lookup(
         lookupKey, [&](const QByteArray &value) { keys << value; }, [=](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << value; });

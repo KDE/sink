@@ -27,6 +27,7 @@
 #include "entitybuffer.h"
 #include "entity_generated.h"
 #include "mail/threadindexer.h"
+#include "domainadaptor.h"
 
 #include "mail_generated.h"
 
@@ -53,6 +54,15 @@ void TypeImplementation<Mail>::configure(TypeIndex &index)
     index.addSecondaryProperty<Mail::ThreadId, Mail::MessageId>();
 }
 
+void TypeImplementation<Mail>::configure(IndexPropertyMapper &indexPropertyMapper)
+{
+    indexPropertyMapper.addIndexLookupProperty<Mail::ThreadId>([](TypeIndex &index, const ApplicationDomain::BufferAdaptor &entity) {
+            auto messageId = entity.getProperty(Mail::MessageId::name);
+            auto thread = index.secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
+            Q_ASSERT(!thread.isEmpty());
+            return thread.first();
+        });
+}
 
 void TypeImplementation<Mail>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
 {

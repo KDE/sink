@@ -50,3 +50,8 @@ void TypeImplementation<Event>::configure(WritePropertyMapper<BufferBuilder> &pr
     propertyMapper.addMapping<Event::Uid>(&BufferBuilder::add_uid);
     propertyMapper.addMapping<Event::Attachment>(&BufferBuilder::add_attachment);
 }
+
+void TypeImplementation<Event>::configure(IndexPropertyMapper &)
+{
+
+}

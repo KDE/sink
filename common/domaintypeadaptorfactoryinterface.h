@@ -20,6 +20,7 @@
 
 #include <QSharedPointer>
 
+class TypeIndex;
 namespace Sink {
 namespace ApplicationDomain {
 class BufferAdaptor;
@@ -37,7 +38,7 @@ class DomainTypeAdaptorFactoryInterface
 public:
     typedef QSharedPointer<DomainTypeAdaptorFactoryInterface> Ptr;
     virtual ~DomainTypeAdaptorFactoryInterface(){};
-    virtual QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> createAdaptor(const Sink::Entity &entity) = 0;
+    virtual QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> createAdaptor(const Sink::Entity &entity, TypeIndex *index = nullptr) = 0;
 
     /*
      * Creates a buffer from @param domainType

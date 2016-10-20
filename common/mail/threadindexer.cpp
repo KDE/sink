@@ -91,16 +91,16 @@ void ThreadIndexer::updateThreadingIndex(const QByteArray &identifier, const App
     QVector<QByteArray> thread;
 
     //a child already registered our thread.
-    thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId, transaction);
+    thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
 
     //If parent is already available, add to thread of parent
     if (thread.isEmpty() && parentMessageId.isValid()) {
-        thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId, transaction);
+        thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId);
         SinkTrace() << "Found parent";
     }
     if (thread.isEmpty()) {
         //Try to lookup the thread by subject:
-        thread = index().secondaryLookup<Mail::Subject, Mail::ThreadId>(normalizedSubject, transaction);
+        thread = index().secondaryLookup<Mail::Subject, Mail::ThreadId>(normalizedSubject);
         if (thread.isEmpty()) {
             SinkTrace() << "Created a new thread ";
             thread << QUuid::createUuid().toByteArray();

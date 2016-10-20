@@ -24,6 +24,7 @@ template<typename T>
 class ReadPropertyMapper;
 template<typename T>
 class WritePropertyMapper;
+class IndexPropertyMapper;
 
 class TypeIndex;
 
@@ -43,6 +44,7 @@ public:
     static void configure(TypeIndex &);
     static void configure(ReadPropertyMapper<Buffer> &);
     static void configure(WritePropertyMapper<BufferBuilder> &);
+    static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
 }

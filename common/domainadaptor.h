@@ -83,6 +83,42 @@ static void createBufferPartBuffer(const Sink::ApplicationDomain::ApplicationDom
     }
 }
 
+class IndexPropertyMapper
+{
+public:
+    typedef std::function<QVariant(TypeIndex &index, const Sink::ApplicationDomain::BufferAdaptor &adaptor)> Accessor;
+    virtual ~IndexPropertyMapper(){};
+
+    virtual QVariant getProperty(const QByteArray &key, TypeIndex &index, const Sink::ApplicationDomain::BufferAdaptor &adaptor) const
+    {
+        auto accessor = mReadAccessors.value(key);
+        Q_ASSERT(accessor);
+        if (!accessor) {
+            return QVariant();
+        }
+        return accessor(index, adaptor);
+    }
+
+    bool hasMapping(const QByteArray &key) const
+    {
+        return mReadAccessors.contains(key);
+    }
+
+    QList<QByteArray> availableProperties() const
+    {
+        return mReadAccessors.keys();
+    }
+
+    template<typename Property>
+    void addIndexLookupProperty(const Accessor &accessor)
+    {
+        mReadAccessors.insert(Property::name, accessor);
+    }
+
+private:
+    QHash<QByteArray, Accessor> mReadAccessors;
+};
+
 /**
  * A generic adaptor implementation that uses a property mapper to read/write values.
  */
@@ -107,6 +143,8 @@ public:
             return mResourceMapper->getProperty(key, mResourceBuffer);
         } else if (mLocalBuffer && mLocalMapper->hasMapping(key)) {
             return mLocalMapper->getProperty(key, mLocalBuffer);
+        } else if (mIndex && mIndexMapper->hasMapping(key)) {
+            return mIndexMapper->getProperty(key, *mIndex, *this);
         }
         SinkWarning() << "No mapping available for key " << key << mLocalBuffer << mResourceBuffer;
         return QVariant();
@@ -117,13 +155,15 @@ public:
      */
     virtual QList<QByteArray> availableProperties() const Q_DECL_OVERRIDE
     {
-        return mResourceMapper->availableProperties() + mLocalMapper->availableProperties();
+        return mResourceMapper->availableProperties() + mLocalMapper->availableProperties() + mIndexMapper->availableProperties();
     }
 
     LocalBuffer const *mLocalBuffer;
     ResourceBuffer const *mResourceBuffer;
     QSharedPointer<ReadPropertyMapper<LocalBuffer>> mLocalMapper;
     QSharedPointer<ReadPropertyMapper<ResourceBuffer>> mResourceMapper;
+    QSharedPointer<IndexPropertyMapper> mIndexMapper;
+    TypeIndex *mIndex;
 };
 
 /**
@@ -142,11 +182,14 @@ public:
         : mLocalMapper(QSharedPointer<ReadPropertyMapper<LocalBuffer>>::create()),
           mResourceMapper(QSharedPointer<ReadPropertyMapper<ResourceBuffer>>::create()),
           mLocalWriteMapper(QSharedPointer<WritePropertyMapper<LocalBuilder>>::create()),
-          mResourceWriteMapper(QSharedPointer<WritePropertyMapper<ResourceBuilder>>::create())
+          mResourceWriteMapper(QSharedPointer<WritePropertyMapper<ResourceBuilder>>::create()),
+          mIndexMapper(QSharedPointer<IndexPropertyMapper>::create())
     {
         Sink::ApplicationDomain::TypeImplementation<DomainType>::configure(*mLocalMapper);
         Sink::ApplicationDomain::TypeImplementation<DomainType>::configure(*mLocalWriteMapper);
+        Sink::ApplicationDomain::TypeImplementation<DomainType>::configure(*mIndexMapper);
     }
+
     virtual ~DomainTypeAdaptorFactory(){};
 
     /**
@@ -154,13 +197,15 @@ public:
      *
      * This returns by default a DatastoreBufferAdaptor initialized with the corresponding property mappers.
      */
-    virtual QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> createAdaptor(const Sink::Entity &entity) Q_DECL_OVERRIDE
+    virtual QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> createAdaptor(const Sink::Entity &entity, TypeIndex *index = nullptr) Q_DECL_OVERRIDE
     {
         auto adaptor = QSharedPointer<DatastoreBufferAdaptor<LocalBuffer, ResourceBuffer>>::create();
         adaptor->mLocalBuffer = Sink::EntityBuffer::readBuffer<LocalBuffer>(entity.local());
         adaptor->mLocalMapper = mLocalMapper;
         adaptor->mResourceBuffer = Sink::EntityBuffer::readBuffer<ResourceBuffer>(entity.resource());
         adaptor->mResourceMapper = mResourceMapper;
+        adaptor->mIndexMapper = mIndexMapper;
+        adaptor->mIndex = index;
         return adaptor;
     }
 
@@ -198,4 +243,5 @@ protected:
     QSharedPointer<ReadPropertyMapper<ResourceBuffer>> mResourceMapper;
     QSharedPointer<WritePropertyMapper<LocalBuilder>> mLocalWriteMapper;
     QSharedPointer<WritePropertyMapper<ResourceBuilder>> mResourceWriteMapper;
+    QSharedPointer<IndexPropertyMapper> mIndexMapper;
 };

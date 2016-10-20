@@ -25,6 +25,12 @@
 #include "indexer.h"
 #include <QByteArray>
 
+namespace Sink {
+namespace Storage {
+    class EntityStore;
+}
+}
+
 class TypeIndex
 {
 public:
@@ -66,13 +72,13 @@ public:
     QVector<QByteArray> lookup(const QByteArray &property, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction);
 
     template <typename Left, typename Right>
-    QVector<QByteArray> secondaryLookup(const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)
+    QVector<QByteArray> secondaryLookup(const QVariant &value)
     {
-        return secondaryLookup<typename Left::Type>(Left::name, Right::name, value, transaction);
+        return secondaryLookup<typename Left::Type>(Left::name, Right::name, value);
     }
 
     template <typename Type>
-    QVector<QByteArray> secondaryLookup(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction);
+    QVector<QByteArray> secondaryLookup(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value);
 
     template <typename Left, typename Right>
     void index(const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction)
@@ -85,6 +91,7 @@ public:
 
 
 private:
+    friend class Sink::Storage::EntityStore;
     QByteArray indexName(const QByteArray &property, const QByteArray &sortProperty = QByteArray()) const;
     QByteArray mType;
     SINK_DEBUG_COMPONENT(mType)
@@ -93,6 +100,7 @@ private:
     //<Property, ResultProperty>
     QMap<QByteArray, QByteArray> mSecondaryProperties;
     QList<Sink::Indexer::Ptr> mCustomIndexer;
+    Sink::Storage::DataStore::Transaction *mTransaction;
     QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mIndexer;
     QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction)>> mSortIndexer;
 };
