@@ -64,7 +64,7 @@ public:
     /*         return *indexByType.value(type); */
     /*     } */
     /*     auto index = QSharedPointer<TypeIndex>::create(type); */
-    /*     ApplicationDomain::TypeImplementation<T>::configureIndex(*index); */
+    /*     ApplicationDomain::TypeImplementation<T>::configure(*index); */
     /*     indexByType.insert(type, index); */
     /*     return *index; */
     /* } */
@@ -81,11 +81,11 @@ public:
         // Try this: (T would i.e. become
         // TypeHelper<ApplicationDomain::TypeImplementation>::T::configureIndex(*index);
         if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
-            ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::configureIndex(*index);
+            ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::configure(*index);
         } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
-            ApplicationDomain::TypeImplementation<ApplicationDomain::Mail>::configureIndex(*index);
+            ApplicationDomain::TypeImplementation<ApplicationDomain::Mail>::configure(*index);
         } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Event>()) {
-            ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::configureIndex(*index);
+            ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::configure(*index);
         } else {
             Q_ASSERT(false);
             SinkError() << "Unkonwn type " << type;

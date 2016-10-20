@@ -21,48 +21,32 @@
 #include <QVector>
 #include <QByteArray>
 #include <QString>
-#include <QMutex>
-#include <QMutexLocker>
 
-#include "../resultset.h"
-#include "../index.h"
-#include "../storage.h"
-#include "../log.h"
 #include "../propertymapper.h"
-#include "../query.h"
-#include "../definitions.h"
 #include "../typeindex.h"
-#include "entitybuffer.h"
-#include "datastorequery.h"
 #include "entity_generated.h"
 
 #include "event_generated.h"
 
-static QMutex sMutex;
-
 using namespace Sink::ApplicationDomain;
 
-void TypeImplementation<Event>::configureIndex(TypeIndex &index)
+void TypeImplementation<Event>::configure(TypeIndex &index)
 {
     index.addProperty<QByteArray>(Event::Uid::name);
 }
 
-QSharedPointer<ReadPropertyMapper<TypeImplementation<Event>::Buffer> > TypeImplementation<Event>::initializeReadPropertyMapper()
+void TypeImplementation<Event>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
 {
-    auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();
-    propertyMapper->addMapping<Event::Summary, Buffer>(&Buffer::summary);
-    propertyMapper->addMapping<Event::Description, Buffer>(&Buffer::description);
-    propertyMapper->addMapping<Event::Uid, Buffer>(&Buffer::uid);
-    propertyMapper->addMapping<Event::Attachment, Buffer>(&Buffer::attachment);
-    return propertyMapper;
+    propertyMapper.addMapping<Event::Summary, Buffer>(&Buffer::summary);
+    propertyMapper.addMapping<Event::Description, Buffer>(&Buffer::description);
+    propertyMapper.addMapping<Event::Uid, Buffer>(&Buffer::uid);
+    propertyMapper.addMapping<Event::Attachment, Buffer>(&Buffer::attachment);
 }
 
-QSharedPointer<WritePropertyMapper<TypeImplementation<Event>::BufferBuilder> > TypeImplementation<Event>::initializeWritePropertyMapper()
+void TypeImplementation<Event>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
 {
-    auto propertyMapper = QSharedPointer<WritePropertyMapper<BufferBuilder> >::create();
-    propertyMapper->addMapping<Event::Summary>(&BufferBuilder::add_summary);
-    propertyMapper->addMapping<Event::Description>(&BufferBuilder::add_description);
-    propertyMapper->addMapping<Event::Uid>(&BufferBuilder::add_uid);
-    propertyMapper->addMapping<Event::Attachment>(&BufferBuilder::add_attachment);
-    return propertyMapper;
+    propertyMapper.addMapping<Event::Summary>(&BufferBuilder::add_summary);
+    propertyMapper.addMapping<Event::Description>(&BufferBuilder::add_description);
+    propertyMapper.addMapping<Event::Uid>(&BufferBuilder::add_uid);
+    propertyMapper.addMapping<Event::Attachment>(&BufferBuilder::add_attachment);
 }

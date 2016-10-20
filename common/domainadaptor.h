@@ -139,10 +139,14 @@ class SINK_EXPORT DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInte
 
 public:
     DomainTypeAdaptorFactory()
-        : mLocalMapper(Sink::ApplicationDomain::TypeImplementation<DomainType>::initializeReadPropertyMapper()),
+        : mLocalMapper(QSharedPointer<ReadPropertyMapper<LocalBuffer>>::create()),
           mResourceMapper(QSharedPointer<ReadPropertyMapper<ResourceBuffer>>::create()),
-          mLocalWriteMapper(Sink::ApplicationDomain::TypeImplementation<DomainType>::initializeWritePropertyMapper()),
-          mResourceWriteMapper(QSharedPointer<WritePropertyMapper<ResourceBuilder>>::create()){};
+          mLocalWriteMapper(QSharedPointer<WritePropertyMapper<LocalBuilder>>::create()),
+          mResourceWriteMapper(QSharedPointer<WritePropertyMapper<ResourceBuilder>>::create())
+    {
+        Sink::ApplicationDomain::TypeImplementation<DomainType>::configure(*mLocalMapper);
+        Sink::ApplicationDomain::TypeImplementation<DomainType>::configure(*mLocalWriteMapper);
+    }
     virtual ~DomainTypeAdaptorFactory(){};
 
     /**

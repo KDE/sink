@@ -26,6 +26,7 @@
 #include <query.h>
 #include <messagequeue.h>
 #include <storage.h>
+#include <storage/entitystore.h>
 
 namespace Sink {
 class RemoteIdMap;

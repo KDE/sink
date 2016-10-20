@@ -18,54 +18,36 @@
  */
 #include "folder.h"
 
-#include <QVector>
 #include <QByteArray>
 #include <QString>
-#include <QMutex>
-#include <QMutexLocker>
 
-#include "../resultset.h"
-#include "../index.h"
-#include "../storage.h"
-#include "../log.h"
 #include "../propertymapper.h"
-#include "../query.h"
-#include "../definitions.h"
 #include "../typeindex.h"
 #include "entitybuffer.h"
-#include "datastorequery.h"
 #include "entity_generated.h"
 
 #include "folder_generated.h"
 
-SINK_DEBUG_AREA("folder");
-
-static QMutex sMutex;
-
 using namespace Sink::ApplicationDomain;
 
-void TypeImplementation<Folder>::configureIndex(TypeIndex &index)
+void TypeImplementation<Folder>::configure(TypeIndex &index)
 {
     index.addProperty<QByteArray>(Folder::Parent::name);
     index.addProperty<QString>(Folder::Name::name);
 }
 
-QSharedPointer<ReadPropertyMapper<TypeImplementation<Folder>::Buffer> > TypeImplementation<Folder>::initializeReadPropertyMapper()
+void TypeImplementation<Folder>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
 {
-    auto propertyMapper = QSharedPointer<ReadPropertyMapper<Buffer> >::create();
-    propertyMapper->addMapping<Folder::Parent, Buffer>(&Buffer::parent);
-    propertyMapper->addMapping<Folder::Name, Buffer>(&Buffer::name);
-    propertyMapper->addMapping<Folder::Icon, Buffer>(&Buffer::icon);
-    propertyMapper->addMapping<Folder::SpecialPurpose, Buffer>(&Buffer::specialpurpose);
-    return propertyMapper;
+    propertyMapper.addMapping<Folder::Parent, Buffer>(&Buffer::parent);
+    propertyMapper.addMapping<Folder::Name, Buffer>(&Buffer::name);
+    propertyMapper.addMapping<Folder::Icon, Buffer>(&Buffer::icon);
+    propertyMapper.addMapping<Folder::SpecialPurpose, Buffer>(&Buffer::specialpurpose);
 }
 
-QSharedPointer<WritePropertyMapper<TypeImplementation<Folder>::BufferBuilder> > TypeImplementation<Folder>::initializeWritePropertyMapper()
+void TypeImplementation<Folder>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
 {
-    auto propertyMapper = QSharedPointer<WritePropertyMapper<BufferBuilder> >::create();
-    propertyMapper->addMapping<Folder::Parent>(&BufferBuilder::add_parent);
-    propertyMapper->addMapping<Folder::Name>(&BufferBuilder::add_name);
-    propertyMapper->addMapping<Folder::Icon>(&BufferBuilder::add_icon);
-    propertyMapper->addMapping<Folder::SpecialPurpose>(&BufferBuilder::add_specialpurpose);
-    return propertyMapper;
+    propertyMapper.addMapping<Folder::Parent>(&BufferBuilder::add_parent);
+    propertyMapper.addMapping<Folder::Name>(&BufferBuilder::add_name);
+    propertyMapper.addMapping<Folder::Icon>(&BufferBuilder::add_icon);
+    propertyMapper.addMapping<Folder::SpecialPurpose>(&BufferBuilder::add_specialpurpose);
 }

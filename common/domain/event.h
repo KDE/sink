@@ -20,10 +20,6 @@
 
 #include "applicationdomaintype.h"
 
-#include "storage.h"
-#include "storage/entitystore.h"
-
-class ResultSet;
 class QByteArray;
 
 template<typename T>
@@ -31,13 +27,9 @@ class ReadPropertyMapper;
 template<typename T>
 class WritePropertyMapper;
 
-class DataStoreQuery;
-
 class TypeIndex;
 
 namespace Sink {
-    class Query;
-
 namespace ApplicationDomain {
     namespace Buffer {
         struct Event;
@@ -54,10 +46,9 @@ class TypeImplementation<Sink::ApplicationDomain::Event> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Event Buffer;
     typedef Sink::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
-    static void configureIndex(TypeIndex &index);
-    static QSet<QByteArray> indexedProperties();
-    static QSharedPointer<ReadPropertyMapper<Buffer> > initializeReadPropertyMapper();
-    static QSharedPointer<WritePropertyMapper<BufferBuilder> > initializeWritePropertyMapper();
+    static void configure(TypeIndex &);
+    static void configure(ReadPropertyMapper<Buffer> &);
+    static void configure(WritePropertyMapper<BufferBuilder> &);
 };
 
 }

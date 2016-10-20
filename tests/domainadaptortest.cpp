@@ -18,7 +18,8 @@ class TestFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Eve
 public:
     TestFactory()
     {
-        mResourceWriteMapper = Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Event>::initializeWritePropertyMapper();
+        mResourceWriteMapper = QSharedPointer<WritePropertyMapper<Sink::ApplicationDomain::Buffer::EventBuilder>>::create();
+        Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Event>::configure(*mResourceWriteMapper);
     }
 };
 
@@ -39,7 +40,8 @@ private slots:
 
     void testCreateBufferPart()
     {
-        auto writeMapper = Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Event>::initializeWritePropertyMapper();
+        auto writeMapper = QSharedPointer<WritePropertyMapper<Sink::ApplicationDomain::Buffer::EventBuilder>>::create();
+        Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Event>::configure(*writeMapper);
 
         Sink::ApplicationDomain::Event event;
         event.setProperty("summary", "foo");
