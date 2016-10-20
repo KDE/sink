@@ -121,6 +121,10 @@ void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain:
         auto indexer = mSortIndexer.value(it.key() + it.value());
         indexer(identifier, value, sortValue, transaction);
     }
+    for (const auto &indexer : mCustomIndexer) {
+        indexer->setup(this, &transaction);
+        indexer->add(entity);
+    }
 }
 
 void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
@@ -137,6 +141,10 @@ void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDoma
         } else {
             Index(indexName(it.key(), it.value()), transaction).remove(propertyValue.toByteArray() + sortValue.toByteArray(), identifier);
         }
+    }
+    for (const auto &indexer : mCustomIndexer) {
+        indexer->setup(this, &transaction);
+        indexer->remove(entity);
     }
 }
 

@@ -22,6 +22,7 @@
 #include "storage.h"
 #include "query.h"
 #include "log.h"
+#include "indexer.h"
 #include <QByteArray>
 
 class TypeIndex
@@ -51,6 +52,13 @@ public:
     {
         mSecondaryProperties.insert(Left::name, Right::name);
     }
+
+    template <typename Left, typename Right, typename CustomIndexer>
+    void addSecondaryPropertyIndexer()
+    {
+        mCustomIndexer << CustomIndexer::Ptr::create();
+    }
+
     void add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction);
     void remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction);
 
@@ -84,6 +92,7 @@ private:
     QMap<QByteArray, QByteArray> mSortedProperties;
     //<Property, ResultProperty>
     QMap<QByteArray, QByteArray> mSecondaryProperties;
+    QList<Sink::Indexer::Ptr> mCustomIndexer;
     QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mIndexer;
     QHash<QByteArray, std::function<void(const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction)>> mSortIndexer;
 };

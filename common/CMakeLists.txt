@@ -75,6 +75,8 @@ set(command_SRCS
     specialpurposepreprocessor.cpp
     datastorequery.cpp
     storage/entitystore.cpp
+    indexer.cpp
+    mail/threadindexer.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

@@ -35,6 +35,7 @@
 #include "entitybuffer.h"
 #include "datastorequery.h"
 #include "entity_generated.h"
+#include "mail/threadindexer.h"
 
 #include "mail_generated.h"
 
@@ -59,6 +60,8 @@ void TypeImplementation<Mail>::configureIndex(TypeIndex &index)
     index.addProperty<QByteArray>(Mail::ParentMessageId::name);
 
     index.addProperty<Mail::MessageId>();
+
+    index.addSecondaryPropertyIndexer<Mail::MessageId, Mail::ThreadId, ThreadIndexer>();
     index.addSecondaryProperty<Mail::MessageId, Mail::ThreadId>();
     index.addSecondaryProperty<Mail::ThreadId, Mail::MessageId>();
 }
@@ -72,102 +75,6 @@ static TypeIndex &getIndex()
         TypeImplementation<Mail>::configureIndex(*index);
     }
     return *index;
-}
-
-static QString stripOffPrefixes(const QString &subject)
-{
-    //TODO this hardcoded list is probably not good enough (especially regarding internationalization)
-    //TODO this whole routine, including internationalized re/fwd ... should go into some library.
-    //We'll require the same for generating reply/forward subjects in kube
-    static QStringList defaultReplyPrefixes = QStringList() << QLatin1String("Re\\s*:")
-                                                            << QLatin1String("Re\\[\\d+\\]:")
-                                                            << QLatin1String("Re\\d+:");
-
-    static QStringList defaultForwardPrefixes = QStringList() << QLatin1String("Fwd:")
-                                                              << QLatin1String("FW:");
-
-    QStringList replyPrefixes; // = GlobalSettings::self()->replyPrefixes();
-    if (replyPrefixes.isEmpty()) {
-        replyPrefixes = defaultReplyPrefixes;
-    }
-
-    QStringList forwardPrefixes; // = GlobalSettings::self()->forwardPrefixes();
-    if (forwardPrefixes.isEmpty()) {
-        forwardPrefixes = defaultReplyPrefixes;
-    }
-
-    const QStringList prefixRegExps = replyPrefixes + forwardPrefixes;
-
-    // construct a big regexp that
-    // 1. is anchored to the beginning of str (sans whitespace)
-    // 2. matches at least one of the part regexps in prefixRegExps
-    const QString bigRegExp = QString::fromLatin1("^(?:\\s+|(?:%1))+\\s*").arg(prefixRegExps.join(QLatin1String(")|(?:")));
-
-    static QString regExpPattern;
-    static QRegExp regExp;
-
-    regExp.setCaseSensitivity(Qt::CaseInsensitive);
-    if (regExpPattern != bigRegExp) {
-        // the prefixes have changed, so update the regexp
-        regExpPattern = bigRegExp;
-        regExp.setPattern(regExpPattern);
-    }
-
-    if(regExp.isValid()) {
-        QString tmp = subject;
-        if (regExp.indexIn( tmp ) == 0) {
-            return tmp.remove(0, regExp.matchedLength());
-        }
-    } else {
-        SinkWarning() << "bigRegExp = \""
-                   << bigRegExp << "\"\n"
-                   << "prefix regexp is invalid!";
-    }
-
-    return subject;
-}
-
-
-static void updateThreadingIndex(const QByteArray &identifier, const BufferAdaptor &bufferAdaptor, Sink::Storage::DataStore::Transaction &transaction)
-{
-    auto messageId = bufferAdaptor.getProperty(Mail::MessageId::name);
-    auto parentMessageId = bufferAdaptor.getProperty(Mail::ParentMessageId::name);
-    auto subject = bufferAdaptor.getProperty(Mail::Subject::name);
-
-    auto normalizedSubject = stripOffPrefixes(subject.toString()).toUtf8();
-
-    QVector<QByteArray> thread;
-
-    //a child already registered our thread.
-    thread = getIndex().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId, transaction);
-
-    //If parent is already available, add to thread of parent
-    if (thread.isEmpty() && parentMessageId.isValid()) {
-        thread = getIndex().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId, transaction);
-        SinkTrace() << "Found parent";
-    }
-    if (thread.isEmpty()) {
-        //Try to lookup the thread by subject:
-        thread = getIndex().secondaryLookup<Mail::Subject, Mail::ThreadId>(normalizedSubject, transaction);
-        if (thread.isEmpty()) {
-            SinkTrace() << "Created a new thread ";
-            thread << QUuid::createUuid().toByteArray();
-        } else {
-        }
-    }
-
-    //We should have found the thread by now
-    if (!thread.isEmpty()) {
-        if (parentMessageId.isValid()) {
-            //Register parent with thread for when it becomes available
-            getIndex().index<Mail::MessageId, Mail::ThreadId>(parentMessageId, thread.first(), transaction);
-        }
-        getIndex().index<Mail::MessageId, Mail::ThreadId>(messageId, thread.first(), transaction);
-        getIndex().index<Mail::ThreadId, Mail::MessageId>(thread.first(), messageId, transaction);
-        getIndex().index<Mail::Subject, Mail::ThreadId>(normalizedSubject, thread.first(), transaction);
-    } else {
-        SinkWarning() << "Couldn't find a thread for: " << messageId;
-    }
 }
 
 QSharedPointer<ReadPropertyMapper<TypeImplementation<Mail>::Buffer> > TypeImplementation<Mail>::initializeReadPropertyMapper()
