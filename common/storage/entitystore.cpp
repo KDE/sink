@@ -57,17 +57,20 @@ public:
         return transaction;
     }
 
-    /* template<typename T> */
-    /* TypeIndex &typeIndex(const QByteArray &type) */
-    /* { */
-    /*     if (indexByType.contains(type)) { */
-    /*         return *indexByType.value(type); */
-    /*     } */
-    /*     auto index = QSharedPointer<TypeIndex>::create(type); */
-    /*     ApplicationDomain::TypeImplementation<T>::configure(*index); */
-    /*     indexByType.insert(type, index); */
-    /*     return *index; */
-    /* } */
+    template<typename ...Args>
+    void configure(const QByteArray &type, Args && ... args)
+    {
+        if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
+            ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::configure(std::forward<Args...>(args...));
+        } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
+            ApplicationDomain::TypeImplementation<ApplicationDomain::Mail>::configure(std::forward<Args...>(args...));
+        } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Event>()) {
+            ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::configure(std::forward<Args...>(args...));
+        } else {
+            Q_ASSERT(false);
+            SinkError() << "Unkonwn type " << type;
+        }
+    }
 
     TypeIndex &cachedIndex(const QByteArray &type)
     {
@@ -75,22 +78,12 @@ public:
             return *indexByType.value(type);
         }
         auto index = QSharedPointer<TypeIndex>::create(type);
-        //TODO expand for all types
-        /* TypeHelper<type>::configureIndex(*index); */
-        // Try this: (T would i.e. become
-        // TypeHelper<ApplicationDomain::TypeImplementation>::T::configureIndex(*index);
-        if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
-            ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::configure(*index);
-        } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
-            ApplicationDomain::TypeImplementation<ApplicationDomain::Mail>::configure(*index);
-        } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Event>()) {
-            ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::configure(*index);
-        } else {
-            Q_ASSERT(false);
-            SinkError() << "Unkonwn type " << type;
-        }
+        configure(type, *index);
         indexByType.insert(type, index);
         return *index;
+
+    }
+
     TypeIndex &typeIndex(const QByteArray &type)
     {
         auto &index = cachedIndex(type);
@@ -114,6 +107,7 @@ EntityStore::EntityStore(const ResourceContext &context)
 
 void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMode)
 {
+    SinkTrace() << "Starting transaction";
     Sink::Storage::DataStore store(Sink::storageLocation(), d->resourceContext.instanceId(), accessMode);
     d->transaction = store.createTransaction(accessMode);
     Q_ASSERT(d->transaction.validateNamedDatabases());
@@ -173,7 +167,6 @@ bool EntityStore::add(const QByteArray &type, const ApplicationDomain::Applicati
 bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions, bool replayToSource, const PreprocessModification &preprocess)
 {
     auto changeset = diff.changedProperties();
-    //TODO handle errors
     const auto current = readLatest(type, diff.identifier());
     if (current.identifier().isEmpty()) {
         SinkWarning() << "Failed to read current version: " << diff.identifier();
