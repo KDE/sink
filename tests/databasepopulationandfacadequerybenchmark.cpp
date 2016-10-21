@@ -102,6 +102,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         auto resourceAccess = QSharedPointer<TestResourceAccess>::create();
 
         QMap<QByteArray, DomainTypeAdaptorFactoryInterface::Ptr> factories;
+        factories.insert("event", QSharedPointer<TestEventAdaptorFactory>::create());
         Sink::ResourceContext context{identifier, "test", factories};
         context.mResourceAccess = resourceAccess;
         TestResourceFacade facade(context);
