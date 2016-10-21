@@ -186,18 +186,18 @@ Sink::Resource *DummyResourceFactory::createResource(const Sink::ResourceContext
     return new DummyResource(resourceContext);
 }
 
-void DummyResourceFactory::registerFacades(Sink::FacadeFactory &factory)
+void DummyResourceFactory::registerFacades(const QByteArray &resourceName, Sink::FacadeFactory &factory)
 {
-    factory.registerFacade<Sink::ApplicationDomain::Event, DummyResourceFacade>(PLUGIN_NAME);
-    factory.registerFacade<Sink::ApplicationDomain::Mail, DummyResourceMailFacade>(PLUGIN_NAME);
-    factory.registerFacade<Sink::ApplicationDomain::Folder, DummyResourceFolderFacade>(PLUGIN_NAME);
+    factory.registerFacade<Sink::ApplicationDomain::Event, DummyResourceFacade>(resourceName);
+    factory.registerFacade<Sink::ApplicationDomain::Mail, DummyResourceMailFacade>(resourceName);
+    factory.registerFacade<Sink::ApplicationDomain::Folder, DummyResourceFolderFacade>(resourceName);
 }
 
-void DummyResourceFactory::registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry)
+void DummyResourceFactory::registerAdaptorFactories(const QByteArray &resourceName, Sink::AdaptorFactoryRegistry &registry)
 {
-    registry.registerFactory<Sink::ApplicationDomain::Folder, DummyFolderAdaptorFactory>(PLUGIN_NAME);
-    registry.registerFactory<Sink::ApplicationDomain::Mail, DummyMailAdaptorFactory>(PLUGIN_NAME);
-    registry.registerFactory<Sink::ApplicationDomain::Event, DummyEventAdaptorFactory>(PLUGIN_NAME);
+    registry.registerFactory<Sink::ApplicationDomain::Event, DummyEventAdaptorFactory>(resourceName);
+    registry.registerFactory<Sink::ApplicationDomain::Mail, DummyMailAdaptorFactory>(resourceName);
+    registry.registerFactory<Sink::ApplicationDomain::Folder, DummyFolderAdaptorFactory>(resourceName);
 }
 
 void DummyResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)

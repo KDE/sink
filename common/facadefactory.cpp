@@ -68,7 +68,7 @@ std::shared_ptr<void> FacadeFactory::getFacade(const QByteArray &resource, const
     if (!mFacadeRegistry.contains(k)) {
         locker.unlock();
         // This will call FacadeFactory::instace() internally
-        Sink::ResourceFactory::load(QString::fromLatin1(resource));
+        Sink::ResourceFactory::load(resource);
         locker.relock();
     }
 

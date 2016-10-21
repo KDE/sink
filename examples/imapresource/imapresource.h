@@ -25,9 +25,6 @@
 
 #include <flatbuffers/flatbuffers.h>
 
-//TODO: a little ugly to have this in two places, once here and once in Q_PLUGIN_METADATA
-#define PLUGIN_NAME "sink.imap"
-
 class ImapMailAdaptorFactory;
 class ImapFolderAdaptorFactory;
 
@@ -63,8 +60,8 @@ public:
     ImapResourceFactory(QObject *parent = 0);
 
     Sink::Resource *createResource(const Sink::ResourceContext &resourceContext) Q_DECL_OVERRIDE;
-    void registerFacades(Sink::FacadeFactory &factory) Q_DECL_OVERRIDE;
-    void registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry) Q_DECL_OVERRIDE;
+    void registerFacades(const QByteArray &name, Sink::FacadeFactory &factory) Q_DECL_OVERRIDE;
+    void registerAdaptorFactories(const QByteArray &name, Sink::AdaptorFactoryRegistry &registry) Q_DECL_OVERRIDE;
     void removeDataFromDisk(const QByteArray &instanceIdentifier) Q_DECL_OVERRIDE;
 };
 

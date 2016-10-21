@@ -80,7 +80,7 @@ ResourceFactory::~ResourceFactory()
     // delete d;
 }
 
-ResourceFactory *ResourceFactory::load(const QString &resourceName)
+ResourceFactory *ResourceFactory::load(const QByteArray &resourceName)
 {
     ResourceFactory *factory = Private::s_loadedFactories.value(resourceName);
     if (factory) {
@@ -106,8 +106,9 @@ ResourceFactory *ResourceFactory::load(const QString &resourceName)
                         factory = qobject_cast<ResourceFactory *>(object);
                         if (factory) {
                             Private::s_loadedFactories.insert(resourceName, factory);
-                            factory->registerFacades(FacadeFactory::instance());
-                            factory->registerAdaptorFactories(AdaptorFactoryRegistry::instance());
+                            //TODO: Instead of always loading both facades and adaptorfactories into the respective singletons, we could also leave this up to the caller. (ResourceFactory::loadFacades(...))
+                            factory->registerFacades(resourceName, FacadeFactory::instance());
+                            factory->registerAdaptorFactories(resourceName, AdaptorFactoryRegistry::instance());
                             // TODO: if we need more data on it const QJsonObject json = loader.metaData()[QStringLiteral("MetaData")].toObject();
                             return factory;
                         } else {

@@ -554,16 +554,16 @@ Sink::Resource *MaildirResourceFactory::createResource(const ResourceContext &co
     return new MaildirResource(context);
 }
 
-void MaildirResourceFactory::registerFacades(Sink::FacadeFactory &factory)
+void MaildirResourceFactory::registerFacades(const QByteArray &name, Sink::FacadeFactory &factory)
 {
-    factory.registerFacade<Sink::ApplicationDomain::Mail, MaildirResourceMailFacade>(PLUGIN_NAME);
-    factory.registerFacade<Sink::ApplicationDomain::Folder, MaildirResourceFolderFacade>(PLUGIN_NAME);
+    factory.registerFacade<Sink::ApplicationDomain::Mail, MaildirResourceMailFacade>(name);
+    factory.registerFacade<Sink::ApplicationDomain::Folder, MaildirResourceFolderFacade>(name);
 }
 
-void MaildirResourceFactory::registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry)
+void MaildirResourceFactory::registerAdaptorFactories(const QByteArray &name, Sink::AdaptorFactoryRegistry &registry)
 {
-    registry.registerFactory<Sink::ApplicationDomain::Mail, MaildirMailAdaptorFactory>(PLUGIN_NAME);
-    registry.registerFactory<Sink::ApplicationDomain::Folder, MaildirFolderAdaptorFactory>(PLUGIN_NAME);
+    registry.registerFactory<Sink::ApplicationDomain::Mail, MaildirMailAdaptorFactory>(name);
+    registry.registerFactory<Sink::ApplicationDomain::Folder, MaildirFolderAdaptorFactory>(name);
 }
 
 void MaildirResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)

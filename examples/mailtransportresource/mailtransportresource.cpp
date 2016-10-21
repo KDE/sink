@@ -195,14 +195,14 @@ Sink::Resource *MailtransportResourceFactory::createResource(const Sink::Resourc
     return new MailtransportResource(context);
 }
 
-void MailtransportResourceFactory::registerFacades(Sink::FacadeFactory &factory)
+void MailtransportResourceFactory::registerFacades(const QByteArray &resourceName, Sink::FacadeFactory &factory)
 {
-    factory.registerFacade<ApplicationDomain::Mail, DefaultFacade<ApplicationDomain::Mail>>(PLUGIN_NAME);
+    factory.registerFacade<ApplicationDomain::Mail, DefaultFacade<ApplicationDomain::Mail>>(resourceName);
 }
 
-void MailtransportResourceFactory::registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry)
+void MailtransportResourceFactory::registerAdaptorFactories(const QByteArray &resourceName, Sink::AdaptorFactoryRegistry &registry)
 {
-    registry.registerFactory<Sink::ApplicationDomain::Mail, DomainTypeAdaptorFactory<ApplicationDomain::Mail>>(PLUGIN_NAME);
+    registry.registerFactory<Sink::ApplicationDomain::Mail, DomainTypeAdaptorFactory<ApplicationDomain::Mail>>(resourceName);
 }
 
 void MailtransportResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)

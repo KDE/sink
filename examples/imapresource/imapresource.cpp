@@ -683,16 +683,16 @@ Sink::Resource *ImapResourceFactory::createResource(const ResourceContext &conte
     return new ImapResource(context);
 }
 
-void ImapResourceFactory::registerFacades(Sink::FacadeFactory &factory)
+void ImapResourceFactory::registerFacades(const QByteArray &name, Sink::FacadeFactory &factory)
 {
-    factory.registerFacade<Sink::ApplicationDomain::Mail, ImapResourceMailFacade>(PLUGIN_NAME);
-    factory.registerFacade<Sink::ApplicationDomain::Folder, ImapResourceFolderFacade>(PLUGIN_NAME);
+    factory.registerFacade<Sink::ApplicationDomain::Mail, ImapResourceMailFacade>(name);
+    factory.registerFacade<Sink::ApplicationDomain::Folder, ImapResourceFolderFacade>(name);
 }
 
-void ImapResourceFactory::registerAdaptorFactories(Sink::AdaptorFactoryRegistry &registry)
+void ImapResourceFactory::registerAdaptorFactories(const QByteArray &name, Sink::AdaptorFactoryRegistry &registry)
 {
-    registry.registerFactory<Sink::ApplicationDomain::Mail, ImapMailAdaptorFactory>(PLUGIN_NAME);
-    registry.registerFactory<Sink::ApplicationDomain::Folder, ImapFolderAdaptorFactory>(PLUGIN_NAME);
+    registry.registerFactory<Sink::ApplicationDomain::Mail, ImapMailAdaptorFactory>(name);
+    registry.registerFactory<Sink::ApplicationDomain::Folder, ImapFolderAdaptorFactory>(name);
 }
 
 void ImapResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)
