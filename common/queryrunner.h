@@ -21,9 +21,7 @@
 
 #include <QObject>
 #include "resourcecontext.h"
-#include "resourceaccess.h"
 #include "resultprovider.h"
-#include "domaintypeadaptorfactoryinterface.h"
 #include "query.h"
 #include "log.h"
 

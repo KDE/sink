@@ -19,10 +19,7 @@
 #pragma once
 
 #include "query.h"
-#include "storage.h"
 #include "resultset.h"
-#include "query.h"
-#include "entitybuffer.h"
 #include "log.h"
 #include "storage/entitystore.h"
 

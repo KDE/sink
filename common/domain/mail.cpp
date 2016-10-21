@@ -66,8 +66,6 @@ void TypeImplementation<Mail>::configure(IndexPropertyMapper &indexPropertyMappe
 
 void TypeImplementation<Mail>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
 {
-
-
     propertyMapper.addMapping<Mail::Uid, Buffer>(&Buffer::uid);
     propertyMapper.addMapping<Mail::Sender, Buffer>(&Buffer::sender);
     propertyMapper.addMapping<Mail::SenderName, Buffer>(&Buffer::senderName);

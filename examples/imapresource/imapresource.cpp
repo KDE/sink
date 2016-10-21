@@ -18,21 +18,14 @@
  */
 
 #include "imapresource.h"
+
 #include "facade.h"
-#include "entitybuffer.h"
 #include "pipeline.h"
-#include "mail_generated.h"
-#include "createentity_generated.h"
-#include "modifyentity_generated.h"
-#include "deleteentity_generated.h"
-#include "domainadaptor.h"
 #include "resourceconfig.h"
 #include "commands.h"
 #include "index.h"
 #include "log.h"
-#include "domain/mail.h"
 #include "definitions.h"
-#include "facadefactory.h"
 #include "inspection.h"
 #include "synchronizer.h"
 #include "sourcewriteback.h"
@@ -41,15 +34,14 @@
 
 #include <QtGlobal>
 #include <QDate>
-#include <QUuid>
-#include <QDir>
-#include <QDirIterator>
 #include <QDateTime>
 #include <QtAlgorithms>
 
+#include "facadefactory.h"
+#include "adaptorfactoryregistry.h"
+
 #include "imapserverproxy.h"
 #include "mailpreprocessor.h"
-#include "adaptorfactoryregistry.h"
 #include "specialpurposepreprocessor.h"
 
 //This is the resources entity type, and not the domain type

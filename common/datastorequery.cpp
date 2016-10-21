@@ -21,10 +21,6 @@
 #include "log.h"
 #include "applicationdomaintype.h"
 
-#include "folder.h"
-#include "mail.h"
-#include "event.h"
-
 using namespace Sink;
 using namespace Sink::Storage;
 
@@ -392,20 +388,6 @@ QVector<QByteArray> DataStoreQuery::indexLookup(const QByteArray &property, cons
 /*         auto skip = [resultSetPtr]() { resultSetPtr->skip(1); }; */
 /*         return ResultSet(generator, skip); */
 /*     } */
-/* } */
-
-/* template <typename ... Args> */
-/* QSharedPointer<DataStoreQuery> prepareQuery(const QByteArray &type, Args && ... args) */
-/* { */
-/*     if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) { */
-/*         return ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::prepareQuery(std::forward<Args>(args)...); */
-/*     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) { */
-/*         return ApplicationDomain::TypeImplementation<ApplicationDomain::Mail>::prepareQuery(std::forward<Args>(args)...); */
-/*     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Event>()) { */
-/*         return ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::prepareQuery(std::forward<Args>(args)...); */
-/*     } */
-/*     Q_ASSERT(false); */
-/*     return QSharedPointer<DataStoreQuery>(); */
 /* } */
 
 QByteArrayList DataStoreQuery::executeSubquery(const Query &subquery)

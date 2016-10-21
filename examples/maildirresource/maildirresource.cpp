@@ -18,30 +18,24 @@
  */
 
 #include "maildirresource.h"
+
 #include "facade.h"
-#include "entitybuffer.h"
 #include "pipeline.h"
-#include "mail_generated.h"
-#include "createentity_generated.h"
-#include "modifyentity_generated.h"
-#include "deleteentity_generated.h"
-#include "domainadaptor.h"
 #include "resourceconfig.h"
-#include "commands.h"
 #include "index.h"
 #include "log.h"
-#include "domain/mail.h"
 #include "definitions.h"
-#include "facadefactory.h"
 #include "libmaildir/maildir.h"
 #include "inspection.h"
 #include "synchronizer.h"
 #include "sourcewriteback.h"
+
+#include "facadefactory.h"
 #include "adaptorfactoryregistry.h"
+
 #include "mailpreprocessor.h"
 #include "specialpurposepreprocessor.h"
-#include <QDate>
-#include <QUuid>
+
 #include <QDir>
 #include <QDirIterator>
 #include <KMime/KMime/KMimeMessage>

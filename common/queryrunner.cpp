@@ -23,12 +23,7 @@
 #include <QPointer>
 
 #include "commands.h"
-#include "log.h"
-#include "storage.h"
-#include "definitions.h"
-#include "domainadaptor.h"
 #include "asyncutils.h"
-#include "storage.h"
 #include "datastorequery.h"
 
 SINK_DEBUG_AREA("queryrunner")
