@@ -154,7 +154,8 @@ bool ModelResult<T, Ptr>::hasChildren(const QModelIndex &parent) const
         return false;
     }
     //Figure out whether we have children
-    if (canFetchMore(parent)) {
+    const auto id = parent.internalId();
+    if (!mEntityChildrenFetched.contains(id)) {
         //Since we don't retrieve that information as part of the entity,
         //we have to query for the children to see if we have some
         auto p = const_cast<ModelResult<T, Ptr>*>(this);
