@@ -22,8 +22,6 @@
 
 #include <functional>
 #include <memory>
-#include "resultset.h"
-#include "log.h"
 
 namespace Sink {
 

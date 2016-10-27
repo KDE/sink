@@ -22,7 +22,6 @@
 #include <QDebug>
 #include <QThread>
 
-#include "domain/folder.h"
 #include "log.h"
 
 SINK_DEBUG_AREA("modelresult")
