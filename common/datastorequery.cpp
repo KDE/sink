@@ -172,6 +172,11 @@ public:
             }
         }
 
+        void reset()
+        {
+            mResult.clear();
+        }
+
         QVariant result() const
         {
             return mResult;
@@ -225,6 +230,9 @@ public:
                     QVariant selectionResultValue;
                     QByteArray selectionResult;
                     auto results = indexLookup(mReductionProperty, reductionValue);
+                    for (auto &aggregator : mAggregators) {
+                        aggregator.reset();
+                    }
 
                     QVariantList list;
                     for (const auto r : results) {
