@@ -86,7 +86,7 @@ QVariant ApplicationDomainType::getProperty(const QByteArray &key) const
 {
     Q_ASSERT(mAdaptor);
     if (!mAdaptor->availableProperties().contains(key)) {
-        SinkWarning() << "No such property available " << key;
+        return QVariant();
     }
     return mAdaptor->getProperty(key);
 }
