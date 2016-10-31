@@ -278,10 +278,10 @@ struct SINK_EXPORT Mail : public Entity {
 
     SINK_ENTITY(Mail);
     SINK_PROPERTY(QString, Uid, uid);
-    SINK_PROPERTY(Contact, Sender, sender);
-    SINK_PROPERTY(QList<Contact>, To, to);
-    SINK_PROPERTY(QList<Contact>, Cc, cc);
-    SINK_PROPERTY(QList<Contact>, Bcc, bcc);
+    SINK_EXTRACTED_PROPERTY(Contact, Sender, sender);
+    SINK_EXTRACTED_PROPERTY(QList<Contact>, To, to);
+    SINK_EXTRACTED_PROPERTY(QList<Contact>, Cc, cc);
+    SINK_EXTRACTED_PROPERTY(QList<Contact>, Bcc, bcc);
     SINK_EXTRACTED_PROPERTY(QString, Subject, subject);
     SINK_EXTRACTED_PROPERTY(QDateTime, Date, date);
     SINK_PROPERTY(bool, Unread, unread);
