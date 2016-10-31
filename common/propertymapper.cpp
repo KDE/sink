@@ -18,7 +18,10 @@
  */
 
 #include "propertymapper.h"
+
+#include "applicationdomaintype.h"
 #include <QDateTime>
+#include "mail_generated.h"
 
 template <>
 flatbuffers::uoffset_t variantToProperty<QString>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
@@ -60,6 +63,26 @@ flatbuffers::uoffset_t variantToProperty<QByteArrayList>(const QVariant &propert
         return fbb.CreateVector(vector).o;
     }
     return 0;
+}
+
+template <>
+flatbuffers::uoffset_t variantToProperty<Sink::ApplicationDomain::Mail::Contact>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
+{
+    if (property.isValid()) {
+        const auto value = property.value<Sink::ApplicationDomain::Mail::Contact>();
+        return Sink::ApplicationDomain::Buffer::CreateMailContactDirect(fbb, value.name.toUtf8().constData(), value.name.toUtf8().constData()).o;
+    }
+    return 0;
+}
+
+
+QString propertyToString(const flatbuffers::String *property)
+{
+    if (property) {
+        // We have to copy the memory, otherwise it would become eventually invalid
+        return QString::fromStdString(property->c_str());
+    }
+    return QString();
 }
 
 template <>
@@ -105,6 +128,16 @@ QVariant propertyToVariant<QByteArrayList>(const flatbuffers::Vector<flatbuffers
         return QVariant::fromValue(list);
     }
     return QVariant();
+}
+
+template <>
+QVariant propertyToVariant<Sink::ApplicationDomain::Mail::Contact>(const Sink::ApplicationDomain::Buffer::MailContact *property)
+{
+    if (property) {
+        return QVariant::fromValue(Sink::ApplicationDomain::Mail::Contact{propertyToString(property->name()), propertyToString(property->email())});
+    }
+    return QVariant();
+
 }
 
 template <>

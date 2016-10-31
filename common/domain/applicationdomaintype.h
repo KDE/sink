@@ -271,10 +271,17 @@ struct SINK_EXPORT Folder : public Entity {
 };
 
 struct SINK_EXPORT Mail : public Entity {
+    struct SINK_EXPORT Contact {
+        QString name;
+        QString emailAddress;
+    };
+
     SINK_ENTITY(Mail);
     SINK_PROPERTY(QString, Uid, uid);
-    SINK_EXTRACTED_PROPERTY(QString, Sender, sender);
-    SINK_EXTRACTED_PROPERTY(QString, SenderName, senderName);
+    SINK_PROPERTY(Contact, Sender, sender);
+    SINK_PROPERTY(QList<Contact>, To, to);
+    SINK_PROPERTY(QList<Contact>, Cc, cc);
+    SINK_PROPERTY(QList<Contact>, Bcc, bcc);
     SINK_EXTRACTED_PROPERTY(QString, Subject, subject);
     SINK_EXTRACTED_PROPERTY(QDateTime, Date, date);
     SINK_PROPERTY(bool, Unread, unread);
@@ -417,5 +424,6 @@ Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkAccount)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkAccount::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Identity)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Identity::Ptr)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Mail::Contact)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Error)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Progress)

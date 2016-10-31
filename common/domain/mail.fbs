@@ -1,10 +1,17 @@
 namespace Sink.ApplicationDomain.Buffer;
 
+table MailContact {
+    name: string;
+    email: string;
+}
+
 table Mail {
   uid:string;
   folder:string;
-  sender:string;
-  senderName:string;
+  sender:MailContact;
+  to:[MailContact];
+  cc:[MailContact];
+  bcc:[MailContact];
   subject:string;
   date:string;
   unread:bool = false;

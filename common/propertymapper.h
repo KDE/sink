@@ -25,6 +25,14 @@
 #include <functional>
 #include <flatbuffers/flatbuffers.h>
 
+namespace Sink {
+namespace ApplicationDomain {
+namespace Buffer {
+    struct MailContact;
+}
+}
+}
+
 /**
  * Defines how to convert qt primitives to flatbuffer ones
  */
@@ -42,6 +50,8 @@ template <typename T>
 QVariant SINK_EXPORT propertyToVariant(const flatbuffers::Vector<uint8_t> *);
 template <typename T>
 QVariant SINK_EXPORT propertyToVariant(const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> *);
+template <typename T>
+QVariant SINK_EXPORT propertyToVariant(const Sink::ApplicationDomain::Buffer::MailContact *);
 
 /**
  * The property mapper is a non-typesafe virtual dispatch.
@@ -103,6 +113,12 @@ public:
 
     template <typename T, typename Buffer>
     void addMapping(const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> *(Buffer::*f)() const)
+    {
+        addMapping(T::name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<typename T::Type>((buffer->*f)()); });
+    }
+
+    template <typename T, typename Buffer>
+    void addMapping(const Sink::ApplicationDomain::Buffer::MailContact *(Buffer::*f)() const)
     {
         addMapping(T::name, [f](Buffer const *buffer) -> QVariant { return propertyToVariant<typename T::Type>((buffer->*f)()); });
     }
@@ -169,6 +185,15 @@ public:
 
     template <typename T>
     void addMapping(void (BufferBuilder::*f)(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>>))
+    {
+        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+            auto offset = variantToProperty<typename T::Type>(value, fbb);
+            return [offset, f](BufferBuilder &builder) { (builder.*f)(offset); };
+        });
+    }
+
+    template <typename T>
+    void addMapping(void (BufferBuilder::*f)(flatbuffers::Offset<Sink::ApplicationDomain::Buffer::MailContact>))
     {
         addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
             auto offset = variantToProperty<typename T::Type>(value, fbb);

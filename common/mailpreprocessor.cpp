@@ -84,8 +84,8 @@ struct MimeMessageReader {
 static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, KMime::Message::Ptr msg)
 {
     mail.setExtractedSubject(msg->subject(true)->asUnicodeString());
-    mail.setExtractedSender(msg->from(true)->asUnicodeString());
-    mail.setExtractedSenderName(msg->from(true)->asUnicodeString());
+    /* mail.setExtractedSender(msg->from(true)->asUnicodeString()); */
+    /* mail.setExtractedSenderName(msg->from(true)->asUnicodeString()); */
     mail.setExtractedDate(msg->date(true)->dateTime());
 
     //The rest should never change, unless we didn't have the headers available initially.

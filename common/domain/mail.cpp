@@ -38,7 +38,7 @@ void TypeImplementation<Mail>::configure(TypeIndex &index)
 {
     index.addProperty<QByteArray>(Mail::Uid::name);
     index.addProperty<QByteArray>(Mail::Sender::name);
-    index.addProperty<QByteArray>(Mail::SenderName::name);
+    /* index.addProperty<QByteArray>(Mail::SenderName::name); */
     /* index->addProperty<QString>(Mail::Subject::name); */
     /* index->addFulltextProperty<QString>(Mail::Subject::name); */
     index.addProperty<QDateTime>(Mail::Date::name);
@@ -68,7 +68,7 @@ void TypeImplementation<Mail>::configure(ReadPropertyMapper<Buffer> &propertyMap
 {
     propertyMapper.addMapping<Mail::Uid, Buffer>(&Buffer::uid);
     propertyMapper.addMapping<Mail::Sender, Buffer>(&Buffer::sender);
-    propertyMapper.addMapping<Mail::SenderName, Buffer>(&Buffer::senderName);
+    /* propertyMapper.addMapping<Mail::Recepients, Buffer>(&Buffer::recepients); */
     propertyMapper.addMapping<Mail::Subject, Buffer>(&Buffer::subject);
     propertyMapper.addMapping<Mail::Date, Buffer>(&Buffer::date);
     propertyMapper.addMapping<Mail::Unread, Buffer>(&Buffer::unread);
@@ -86,7 +86,7 @@ void TypeImplementation<Mail>::configure(WritePropertyMapper<BufferBuilder> &pro
 {
     propertyMapper.addMapping<Mail::Uid>(&BufferBuilder::add_uid);
     propertyMapper.addMapping<Mail::Sender>(&BufferBuilder::add_sender);
-    propertyMapper.addMapping<Mail::SenderName>(&BufferBuilder::add_senderName);
+    /* propertyMapper.addMapping<Mail::Recepients>(&BufferBuilder::add_senderName); */
     propertyMapper.addMapping<Mail::Subject>(&BufferBuilder::add_subject);
     propertyMapper.addMapping<Mail::Date>(&BufferBuilder::add_date);
     propertyMapper.addMapping<Mail::Unread>(&BufferBuilder::add_unread);
