@@ -70,7 +70,22 @@ flatbuffers::uoffset_t variantToProperty<Sink::ApplicationDomain::Mail::Contact>
 {
     if (property.isValid()) {
         const auto value = property.value<Sink::ApplicationDomain::Mail::Contact>();
-        return Sink::ApplicationDomain::Buffer::CreateMailContactDirect(fbb, value.name.toUtf8().constData(), value.name.toUtf8().constData()).o;
+        return Sink::ApplicationDomain::Buffer::CreateMailContactDirect(fbb, value.name.toUtf8().constData(), value.emailAddress.toUtf8().constData()).o;
+    }
+    return 0;
+}
+
+template <>
+flatbuffers::uoffset_t variantToProperty<QList<Sink::ApplicationDomain::Mail::Contact>>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
+{
+    if (property.isValid()) {
+        const auto list = property.value<QList<Sink::ApplicationDomain::Mail::Contact>>();
+        std::vector<flatbuffers::Offset<Sink::ApplicationDomain::Buffer::MailContact>> vector;
+        for (const auto &value : list) {
+            auto offset = Sink::ApplicationDomain::Buffer::CreateMailContactDirect(fbb, value.name.toUtf8().constData(), value.emailAddress.toUtf8().constData()).o;
+            vector.push_back(offset);
+        }
+        return fbb.CreateVector(vector).o;
     }
     return 0;
 }
@@ -138,6 +153,21 @@ QVariant propertyToVariant<Sink::ApplicationDomain::Mail::Contact>(const Sink::A
     }
     return QVariant();
 
+}
+
+template <>
+QVariant propertyToVariant<QList<Sink::ApplicationDomain::Mail::Contact>>(const flatbuffers::Vector<flatbuffers::Offset<Sink::ApplicationDomain::Buffer::MailContact>> *property)
+{
+    if (property) {
+        QList<Sink::ApplicationDomain::Mail::Contact> list;
+        for (auto it = property->begin(); it != property->end();) {
+            // We have to copy the memory, otherwise it would become eventually invalid
+            list << Sink::ApplicationDomain::Mail::Contact{propertyToString(it->name()), propertyToString(it->email())};
+            it.operator++();
+        }
+        return QVariant::fromValue(list);
+    }
+    return QVariant();
 }
 
 template <>

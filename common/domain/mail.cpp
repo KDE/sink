@@ -68,7 +68,9 @@ void TypeImplementation<Mail>::configure(ReadPropertyMapper<Buffer> &propertyMap
 {
     propertyMapper.addMapping<Mail::Uid, Buffer>(&Buffer::uid);
     propertyMapper.addMapping<Mail::Sender, Buffer>(&Buffer::sender);
-    /* propertyMapper.addMapping<Mail::Recepients, Buffer>(&Buffer::recepients); */
+    propertyMapper.addMapping<Mail::To, Buffer>(&Buffer::to);
+    propertyMapper.addMapping<Mail::Cc, Buffer>(&Buffer::cc);
+    propertyMapper.addMapping<Mail::Bcc, Buffer>(&Buffer::bcc);
     propertyMapper.addMapping<Mail::Subject, Buffer>(&Buffer::subject);
     propertyMapper.addMapping<Mail::Date, Buffer>(&Buffer::date);
     propertyMapper.addMapping<Mail::Unread, Buffer>(&Buffer::unread);
@@ -86,7 +88,9 @@ void TypeImplementation<Mail>::configure(WritePropertyMapper<BufferBuilder> &pro
 {
     propertyMapper.addMapping<Mail::Uid>(&BufferBuilder::add_uid);
     propertyMapper.addMapping<Mail::Sender>(&BufferBuilder::add_sender);
-    /* propertyMapper.addMapping<Mail::Recepients>(&BufferBuilder::add_senderName); */
+    propertyMapper.addMapping<Mail::To>(&BufferBuilder::add_to);
+    propertyMapper.addMapping<Mail::Cc>(&BufferBuilder::add_cc);
+    propertyMapper.addMapping<Mail::Bcc>(&BufferBuilder::add_bcc);
     propertyMapper.addMapping<Mail::Subject>(&BufferBuilder::add_subject);
     propertyMapper.addMapping<Mail::Date>(&BufferBuilder::add_date);
     propertyMapper.addMapping<Mail::Unread>(&BufferBuilder::add_unread);

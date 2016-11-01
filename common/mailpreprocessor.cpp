@@ -81,17 +81,29 @@ struct MimeMessageReader {
     qint64 mappedSize;
 };
 
-static Sink::ApplicationDomain::Mail::Contact getContact(const KMime::Headers::From *header)
+static Sink::ApplicationDomain::Mail::Contact getContact(const KMime::Headers::Generics::MailboxList *header)
 {
     const auto name = header->displayNames().isEmpty() ? QString() : header->displayNames().first();
     const auto address = header->addresses().isEmpty() ? QString() : header->addresses().first();
     return Sink::ApplicationDomain::Mail::Contact{name, address};
 }
 
+static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime::Headers::Generics::AddressList *header)
+{
+    QList<Sink::ApplicationDomain::Mail::Contact> list;
+    for (const auto mb : header->mailboxes()) {
+        list << Sink::ApplicationDomain::Mail::Contact{mb.name(), mb.address()};
+    }
+    return list;
+}
+
 static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, KMime::Message::Ptr msg)
 {
     mail.setExtractedSubject(msg->subject(true)->asUnicodeString());
     mail.setExtractedSender(getContact(msg->from(true)));
+    mail.setExtractedTo(getContactList(msg->to(true)));
+    mail.setExtractedCc(getContactList(msg->cc(true)));
+    mail.setExtractedBcc(getContactList(msg->bcc(true)));
     mail.setExtractedDate(msg->date(true)->dateTime());
 
     //The rest should never change, unless we didn't have the headers available initially.
