@@ -32,7 +32,7 @@ class DataStoreQuery {
 public:
     typedef QSharedPointer<DataStoreQuery> Ptr;
 
-    DataStoreQuery(const Sink::Query &query, const QByteArray &type, Sink::Storage::EntityStore &store);
+    DataStoreQuery(const Sink::QueryBase &query, const QByteArray &type, Sink::Storage::EntityStore &store);
     ResultSet execute();
     ResultSet update(qint64 baseRevision);
 
@@ -49,9 +49,9 @@ private:
     QVector<QByteArray> loadIncrementalResultSet(qint64 baseRevision);
 
     void setupQuery();
-    QByteArrayList executeSubquery(const Sink::Query &subquery);
+    QByteArrayList executeSubquery(const Sink::QueryBase &subquery);
 
-    Sink::Query mQuery;
+    Sink::QueryBase mQuery;
     const QByteArray mType;
     bool mInitialQuery;
     QSharedPointer<FilterBase> mCollector;

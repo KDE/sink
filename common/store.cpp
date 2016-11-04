@@ -135,7 +135,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     SinkTrace() << "  Parent: " << query.parentProperty;
     SinkTrace() << "  Ids: " << query.ids();
     SinkTrace() << "  IsLive: " << query.liveQuery();
-    SinkTrace() << "  Sorting: " << query.sortProperty;
+    SinkTrace() << "  Sorting: " << query.sortProperty();
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties);
 
     //* Client defines lifetime of model

@@ -73,6 +73,11 @@ public:
         return mBaseFilterStage.propertyFilter;
     }
 
+    Filter getFilter() const
+    {
+        return mBaseFilterStage;
+    }
+
     QByteArrayList ids() const
     {
         return mBaseFilterStage.ids;
@@ -103,131 +108,14 @@ public:
         return mType;
     }
 
-private:
-    Filter mBaseFilterStage;
-    QByteArray mType;
-};
-
-/**
- * A query that matches a set of entities.
- */
-class SINK_EXPORT Query : public QueryBase
-{
-public:
-    enum Flag
+    void setSortProperty(const QByteArray &property)
     {
-        /** Leave the query running and continuously update the result set. */
-        LiveQuery,
-        /** Run the query synchronously. */
-        SynchronousQuery
-    };
-    Q_DECLARE_FLAGS(Flags, Flag)
-
-    template <typename T>
-    Query &request()
-    {
-        requestedProperties << T::name;
-        return *this;
+        mSortPorperty = property;
     }
 
-    template <typename T>
-    Query &requestTree()
+    QByteArray sortProperty() const
     {
-        parentProperty = T::name;
-        return *this;
-    }
-
-    template <typename T>
-    Query &sort()
-    {
-        sortProperty = T::name;
-        return *this;
-    }
-
-    template <typename T>
-    Query &filter(const QVariant &value)
-    {
-        filter(T::name, value);
-        return *this;
-    }
-
-    template <typename T>
-    Query &containsFilter(const QVariant &value)
-    {
-        QueryBase::filter(T::name, QueryBase::Comparator(value, QueryBase::Comparator::Contains));
-        return *this;
-    }
-
-    template <typename T>
-    Query &filter(const QueryBase::Comparator &comparator)
-    {
-        QueryBase::filter(T::name, comparator);
-        return *this;
-    }
-
-    Query &filter(const QByteArray &id)
-    {
-        QueryBase::filter(id);
-        return *this;
-    }
-
-    Query &filter(const QByteArrayList &ids)
-    {
-        QueryBase::filter(ids);
-        return *this;
-    }
-
-    Query &filter(const QByteArray &property, const QueryBase::Comparator &comparator)
-    {
-        QueryBase::filter(property, comparator);
-        return *this;
-    }
-
-    template <typename T>
-    Query &filter(const ApplicationDomain::Entity &value)
-    {
-        filter(T::name, QVariant::fromValue(value.identifier()));
-        return *this;
-    }
-
-    template <typename T>
-    Query &filter(const Query &query)
-    {
-        auto q = query;
-        q.setType(ApplicationDomain::getTypeName<typename T::ReferenceType>());
-        filter(T::name, QVariant::fromValue(q));
-        return *this;
-    }
-
-
-    Query(const ApplicationDomain::Entity &value) : limit(0)
-    {
-        filter(value.identifier());
-        resourceFilter(value.resourceInstanceIdentifier());
-    }
-
-    Query(Flags flags = Flags()) : limit(0), mFlags(flags)
-    {
-    }
-
-    QByteArrayList requestedProperties;
-    QByteArray parentProperty;
-    QByteArray sortProperty;
-    int limit;
-
-    void setFlags(Flags flags)
-    {
-        mFlags = flags;
-    }
-
-    bool liveQuery() const
-    {
-        return mFlags & LiveQuery;
-    }
-
-    bool synchronousQuery() const
-    {
-        return mFlags & SynchronousQuery;
+        return mSortPorperty;
     }
 
     class FilterStage {
@@ -238,42 +126,6 @@ public:
     QList<QSharedPointer<FilterStage>> getFilterStages()
     {
         return mFilterStages;
-    }
-
-    Filter getResourceFilter() const
-    {
-        return mResourceFilter;
-    }
-
-    Query &resourceFilter(const QByteArray &id)
-    {
-        mResourceFilter.ids << id;
-        return *this;
-    }
-
-    template <typename T>
-    Query &resourceFilter(const ApplicationDomain::ApplicationDomainType &entity)
-    {
-        mResourceFilter.propertyFilter.insert(T::name, Comparator(entity.identifier()));
-        return *this;
-    }
-
-    Query &resourceFilter(const QByteArray &name, const Comparator &comparator)
-    {
-        mResourceFilter.propertyFilter.insert(name, comparator);
-        return *this;
-    }
-
-    template <typename T>
-    Query &resourceContainsFilter(const QVariant &value)
-    {
-        return resourceFilter(T::name, Comparator(value, Comparator::Contains));
-    }
-
-    template <typename T>
-    Query &resourceFilter(const QVariant &value)
-    {
-        return resourceFilter(T::name, value);
     }
 
     class Reduce : public FilterStage {
@@ -389,9 +241,219 @@ public:
     }
 
 private:
+    Filter mBaseFilterStage;
+    QList<QSharedPointer<FilterStage>> mFilterStages;
+    QByteArray mType;
+    QByteArray mSortPorperty;
+};
+
+/**
+ * A query that matches a set of entities.
+ */
+class SINK_EXPORT Query : public QueryBase
+{
+public:
+    enum Flag
+    {
+        /** Leave the query running and continuously update the result set. */
+        LiveQuery,
+        /** Run the query synchronously. */
+        SynchronousQuery
+    };
+    Q_DECLARE_FLAGS(Flags, Flag)
+
+    template <typename T>
+    Query &request()
+    {
+        requestedProperties << T::name;
+        return *this;
+    }
+
+    template <typename T>
+    Query &requestTree()
+    {
+        parentProperty = T::name;
+        return *this;
+    }
+
+    template <typename T>
+    Query &sort()
+    {
+        setSortProperty(T::name);
+        return *this;
+    }
+
+    template <typename T>
+    Query &filter(const QVariant &value)
+    {
+        filter(T::name, value);
+        return *this;
+    }
+
+    template <typename T>
+    Query &containsFilter(const QVariant &value)
+    {
+        QueryBase::filter(T::name, QueryBase::Comparator(value, QueryBase::Comparator::Contains));
+        return *this;
+    }
+
+    template <typename T>
+    Query &filter(const QueryBase::Comparator &comparator)
+    {
+        QueryBase::filter(T::name, comparator);
+        return *this;
+    }
+
+    Query &filter(const QByteArray &id)
+    {
+        QueryBase::filter(id);
+        return *this;
+    }
+
+    Query &filter(const QByteArrayList &ids)
+    {
+        QueryBase::filter(ids);
+        return *this;
+    }
+
+    Query &filter(const QByteArray &property, const QueryBase::Comparator &comparator)
+    {
+        QueryBase::filter(property, comparator);
+        return *this;
+    }
+
+    template <typename T>
+    Query &filter(const ApplicationDomain::Entity &value)
+    {
+        filter(T::name, QVariant::fromValue(value.identifier()));
+        return *this;
+    }
+
+    template <typename T>
+    Query &filter(const Query &query)
+    {
+        auto q = query;
+        q.setType(ApplicationDomain::getTypeName<typename T::ReferenceType>());
+        filter(T::name, QVariant::fromValue(q));
+        return *this;
+    }
+
+
+    Query(const ApplicationDomain::Entity &value) : limit(0)
+    {
+        filter(value.identifier());
+        resourceFilter(value.resourceInstanceIdentifier());
+    }
+
+    Query(Flags flags = Flags()) : limit(0), mFlags(flags)
+    {
+    }
+
+    QByteArrayList requestedProperties;
+    QByteArray parentProperty;
+    int limit;
+
+    void setFlags(Flags flags)
+    {
+        mFlags = flags;
+    }
+
+    bool liveQuery() const
+    {
+        return mFlags & LiveQuery;
+    }
+
+    bool synchronousQuery() const
+    {
+        return mFlags & SynchronousQuery;
+    }
+
+    Filter getResourceFilter() const
+    {
+        return mResourceFilter;
+    }
+
+    Query &resourceFilter(const QByteArray &id)
+    {
+        mResourceFilter.ids << id;
+        return *this;
+    }
+
+    template <typename T>
+    Query &resourceFilter(const ApplicationDomain::ApplicationDomainType &entity)
+    {
+        mResourceFilter.propertyFilter.insert(T::name, Comparator(entity.identifier()));
+        return *this;
+    }
+
+    Query &resourceFilter(const QByteArray &name, const Comparator &comparator)
+    {
+        mResourceFilter.propertyFilter.insert(name, comparator);
+        return *this;
+    }
+
+    template <typename T>
+    Query &resourceContainsFilter(const QVariant &value)
+    {
+        return resourceFilter(T::name, Comparator(value, Comparator::Contains));
+    }
+
+    template <typename T>
+    Query &resourceFilter(const QVariant &value)
+    {
+        return resourceFilter(T::name, value);
+    }
+
+private:
     Flags mFlags;
     Filter mResourceFilter;
-    QList<QSharedPointer<FilterStage>> mFilterStages;
+};
+
+class SyncScope : public QueryBase {
+public:
+    template<typename T>
+    SyncScope()
+    {
+        setType(ApplicationDomain::getTypeName<T>());
+    }
+
+    Query::Filter getResourceFilter() const
+    {
+        return mResourceFilter;
+    }
+
+    SyncScope &resourceFilter(const QByteArray &id)
+    {
+        mResourceFilter.ids << id;
+        return *this;
+    }
+
+    template <typename T>
+    SyncScope &filter(const Query::Comparator &comparator)
+    {
+        return filter(T::name, comparator);
+    }
+
+    SyncScope &filter(const QByteArray &id)
+    {
+        QueryBase::filter(id);
+        return *this;
+    }
+
+    SyncScope &filter(const QByteArrayList &ids)
+    {
+        QueryBase::filter(ids);
+        return *this;
+    }
+
+    SyncScope &filter(const QByteArray &property, const Query::Comparator &comparator)
+    {
+        QueryBase::filter(property, comparator);
+        return *this;
+    }
+
+private:
+    Query::Filter mResourceFilter;
 };
 
 }

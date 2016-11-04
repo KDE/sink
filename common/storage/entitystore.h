@@ -54,7 +54,7 @@ public:
     void abortTransaction();
 
     QVector<QByteArray> fullScan(const QByteArray &type);
-    QVector<QByteArray> indexLookup(const QByteArray &type, const Query &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting);
+    QVector<QByteArray> indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting);
     QVector<QByteArray> indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value);
     void indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value, const std::function<void(const QByteArray &uid)> &callback);
     template<typename EntityType, typename PropertyType>

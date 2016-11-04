@@ -91,7 +91,7 @@ class Filter : public FilterBase {
 public:
     typedef QSharedPointer<Filter> Ptr;
 
-    QHash<QByteArray, Sink::Query::Comparator> propertyFilter;
+    QHash<QByteArray, Sink::QueryBase::Comparator> propertyFilter;
 
     Filter(FilterBase::Ptr source, DataStoreQuery *store)
         : FilterBase(source, store)
@@ -146,18 +146,18 @@ public:
     typedef QSharedPointer<Reduce> Ptr;
 
     struct Aggregator {
-        Query::Reduce::Aggregator::Operation operation;
+        QueryBase::Reduce::Aggregator::Operation operation;
         QByteArray property;
         QByteArray resultProperty;
 
-        Aggregator(Query::Reduce::Aggregator::Operation o, const QByteArray &property_, const QByteArray &resultProperty_)
+        Aggregator(QueryBase::Reduce::Aggregator::Operation o, const QByteArray &property_, const QByteArray &resultProperty_)
             : operation(o), property(property_), resultProperty(resultProperty_)
         {
 
         }
 
         void process() {
-            if (operation == Query::Reduce::Aggregator::Count) {
+            if (operation == QueryBase::Reduce::Aggregator::Count) {
                 mResult = mResult.toInt() + 1;
             } else {
                 Q_ASSERT(false);
@@ -165,7 +165,7 @@ public:
         }
 
         void process(const QVariant &value) {
-            if (operation == Query::Reduce::Aggregator::Collect) {
+            if (operation == QueryBase::Reduce::Aggregator::Collect) {
                 mResult = mResult.toList() << value;
             } else {
                 Q_ASSERT(false);
@@ -189,10 +189,10 @@ public:
     QSet<QByteArray> mReducedValues;
     QByteArray mReductionProperty;
     QByteArray mSelectionProperty;
-    Query::Reduce::Selector::Comparator mSelectionComparator;
+    QueryBase::Reduce::Selector::Comparator mSelectionComparator;
     QList<Aggregator> mAggregators;
 
-    Reduce(const QByteArray &reductionProperty, const QByteArray &selectionProperty, Query::Reduce::Selector::Comparator comparator, FilterBase::Ptr source, DataStoreQuery *store)
+    Reduce(const QByteArray &reductionProperty, const QByteArray &selectionProperty, QueryBase::Reduce::Selector::Comparator comparator, FilterBase::Ptr source, DataStoreQuery *store)
         : FilterBase(source, store),
         mReductionProperty(reductionProperty),
         mSelectionProperty(selectionProperty),
@@ -213,8 +213,8 @@ public:
         return QByteArray();
     }
 
-    static bool compare(const QVariant &left, const QVariant &right, Query::Reduce::Selector::Comparator comparator) {
-        if (comparator == Query::Reduce::Selector::Max) {
+    static bool compare(const QVariant &left, const QVariant &right, QueryBase::Reduce::Selector::Comparator comparator) {
+        if (comparator == QueryBase::Reduce::Selector::Max) {
             return left > right;
         }
         return false;
@@ -302,7 +302,7 @@ public:
     }
 };
 
-DataStoreQuery::DataStoreQuery(const Sink::Query &query, const QByteArray &type, EntityStore &store)
+DataStoreQuery::DataStoreQuery(const Sink::QueryBase &query, const QByteArray &type, EntityStore &store)
     : mQuery(query), mType(type), mStore(store)
 {
     setupQuery();
@@ -398,7 +398,7 @@ QVector<QByteArray> DataStoreQuery::indexLookup(const QByteArray &property, cons
 /*     } */
 /* } */
 
-QByteArrayList DataStoreQuery::executeSubquery(const Query &subquery)
+QByteArrayList DataStoreQuery::executeSubquery(const QueryBase &subquery)
 {
     Q_ASSERT(!subquery.type().isEmpty());
     auto sub = DataStoreQuery(subquery, subquery.type(), mStore);

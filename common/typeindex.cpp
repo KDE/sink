@@ -148,7 +148,7 @@ void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDoma
     }
 }
 
-static QVector<QByteArray> indexLookup(Index &index, Query::Comparator filter)
+static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filter)
 {
     QVector<QByteArray> keys;
     QByteArrayList lookupKeys;
@@ -167,11 +167,11 @@ static QVector<QByteArray> indexLookup(Index &index, Query::Comparator filter)
     return keys;
 }
 
-QVector<QByteArray> TypeIndex::query(const Sink::Query &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction)
+QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction)
 {
     QVector<QByteArray> keys;
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
-        if (query.hasFilter(it.key()) && query.sortProperty == it.value()) {
+        if (query.hasFilter(it.key()) && query.sortProperty() == it.value()) {
             Index index(indexName(it.key(), it.value()), transaction);
             keys << indexLookup(index, query.getFilter(it.key()));
             appliedFilters << it.key();

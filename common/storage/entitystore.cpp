@@ -338,7 +338,7 @@ QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)
     return keys.toList().toVector();
 }
 
-QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const Query &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting)
+QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting)
 {
     return d->typeIndex(type).query(query, appliedFilters, appliedSorting, d->getTransaction());
 }

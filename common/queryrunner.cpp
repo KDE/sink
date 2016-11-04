@@ -63,7 +63,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
     : QueryRunnerBase(), mResourceContext(context), mResourceAccess(mResourceContext.resourceAccess()), mResultProvider(new ResultProvider<typename DomainType::Ptr>), mBatchSize(query.limit)
 {
     SinkTrace() << "Starting query";
-    if (query.limit && query.sortProperty.isEmpty()) {
+    if (query.limit && query.sortProperty().isEmpty()) {
         SinkWarning() << "A limited query without sorting is typically a bad idea.";
     }
     auto guardPtr = QPointer<QObject>(&guard);
