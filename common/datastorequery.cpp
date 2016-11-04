@@ -400,8 +400,8 @@ QVector<QByteArray> DataStoreQuery::indexLookup(const QByteArray &property, cons
 
 QByteArrayList DataStoreQuery::executeSubquery(const Query &subquery)
 {
-    Q_ASSERT(!subquery.type.isEmpty());
-    auto sub = DataStoreQuery(subquery, subquery.type, mStore);
+    Q_ASSERT(!subquery.type().isEmpty());
+    auto sub = DataStoreQuery(subquery, subquery.type(), mStore);
     auto result = sub.execute();
     QByteArrayList ids;
     while (result.next([&ids](const ResultSet::Result &result) {
