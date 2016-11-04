@@ -57,15 +57,15 @@ QString Store::getTemporaryFilePath()
 /*
  * Returns a map of resource instance identifiers and resource type
  */
-static QMap<QByteArray, QByteArray> getResources(const Sink::Query &query, const QByteArray &type = QByteArray())
+static QMap<QByteArray, QByteArray> getResources(const Sink::Query::Filter &query, const QByteArray &type = QByteArray())
 {
-    const QList<QByteArray> resourceFilter = query.getResourceFilter().ids;
+    const QList<QByteArray> resourceFilter = query.ids;
 
 
     const auto filterResource = [&](const QByteArray &res) {
         const auto configuration = ResourceConfig::getConfiguration(res);
-        for (const auto &filterProperty : query.getResourceFilter().propertyFilter.keys()) {
-            const auto filter = query.getResourceFilter().propertyFilter.value(filterProperty);
+        for (const auto &filterProperty : query.propertyFilter.keys()) {
+            const auto filter = query.propertyFilter.value(filterProperty);
             if (!filter.matches(configuration.value(filterProperty))) {
                 return true;
             }
@@ -145,7 +145,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     //* The result provider needs to live for as long as results are provided (until the last thread exits).
 
     // Query all resources and aggregate results
-    auto resources = getResources(query, ApplicationDomain::getTypeName<DomainType>());
+    auto resources = getResources(query.getResourceFilter(), ApplicationDomain::getTypeName<DomainType>());
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     model->setEmitter(aggregatingEmitter);
 
@@ -257,33 +257,22 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
-    auto resources = getResources(query).keys();
+    auto resources = getResources(query.getResourceFilter()).keys();
     SinkTrace() << "synchronize" << resources;
-    //FIXME only necessary because each doesn't propagate errors
-    auto errorFlag = new bool;
     return KAsync::value(resources)
-        .template each([query, errorFlag](const QByteArray &resource) {
+        .template each([query](const QByteArray &resource) {
             SinkTrace() << "Synchronizing " << resource;
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
-            resourceAccess->open();
             return resourceAccess->synchronizeResource(true, false)
                 .addToContext(resourceAccess)
-                .then<void>([errorFlag](const KAsync::Error &error) {
+                .then<void>([](const KAsync::Error &error) {
                         if (error) {
-                            *errorFlag = true;
                             SinkWarning() << "Error during sync.";
                             return KAsync::error<void>(error);
                         }
                         SinkTrace() << "synced.";
                         return KAsync::null<void>();
                     });
-        })
-        .then<void>([errorFlag]() {
-            if (*errorFlag) {
-                return KAsync::error<void>("Error during sync.");
-            }
-            delete errorFlag;
-            return KAsync::null<void>();
         });
 }
 
@@ -358,7 +347,7 @@ QList<DomainType> Store::read(const Sink::Query &q)
     query.synchronousQuery = true;
     query.liveQuery = false;
     QList<DomainType> list;
-    auto resources = getResources(query, ApplicationDomain::getTypeName<DomainType>());
+    auto resources = getResources(query.getResourceFilter(), ApplicationDomain::getTypeName<DomainType>());
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     aggregatingEmitter->onAdded([&list](const typename DomainType::Ptr &value){
         SinkTrace() << "Found value: " << value->identifier();
