@@ -68,8 +68,6 @@ bool list(const QStringList &args, State &state)
 
     }
 
-    query.liveQuery = false;
-
     query.requestedProperties = SinkshUtils::requestedProperties(type);
 
     QStringList line;

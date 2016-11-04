@@ -99,7 +99,7 @@ private slots:
         Store::create(account).exec().waitForFinished();
 
         Query query;
-        query.liveQuery = true;
+        query.setFlags(Query::LiveQuery);
         auto model = Store::loadModel<SinkAccount>(query);
         QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
 
@@ -130,7 +130,7 @@ private slots:
         VERIFYEXEC(Sink::Store::create(res));
         {
             Sink::Query query;
-            query.liveQuery = true;
+            query.setFlags(Query::LiveQuery);
             query.request<Sink::ApplicationDomain::SinkAccount::Status>();
 
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkAccount>(query);

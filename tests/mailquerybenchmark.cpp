@@ -152,7 +152,6 @@ private slots:
     void test50k()
     {
         Sink::Query query;
-        query.liveQuery = false;
         query.request<Mail::Uid>()
              .request<Mail::Subject>()
              .request<Mail::Date>();

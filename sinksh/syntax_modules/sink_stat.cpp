@@ -69,7 +69,6 @@ void statResources(const QStringList &resources, const State &state)
 bool statAllResources(State &state)
 {
     Sink::Query query;
-    query.liveQuery = false;
     QStringList resources;
     for (const auto &r : SinkshUtils::getStore("resource").read(query)) {
         resources << r.identifier();

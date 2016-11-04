@@ -78,7 +78,7 @@ private slots:
 
         Sink::Query query;
         query.resourceFilter("sink.dummy.instance1");
-        query.liveQuery = true;
+        query.setFlags(Sink::Query::LiveQuery);
 
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 

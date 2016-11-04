@@ -62,7 +62,6 @@ bool show(const QStringList &args, State &state)
     } else {
         query.resourceFilter(resource.toLatin1());
     }
-    query.liveQuery = false;
 
     QTime time;
     time.start();

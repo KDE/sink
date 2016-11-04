@@ -53,7 +53,6 @@ bool count(const QStringList &args, State &state)
     for (const auto &res : resources) {
         query.resourceFilter(res.toLatin1());
     }
-    query.liveQuery = false;
 
     auto model = SinkshUtils::loadModel(type, query);
     QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {

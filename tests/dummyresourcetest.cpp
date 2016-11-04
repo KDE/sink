@@ -238,7 +238,7 @@ private slots:
     void testWriteModifyDeleteLive()
     {
         auto query = Query().resourceFilter("sink.dummy.instance1");
-        query.liveQuery = true;
+        query.setFlags(Query::LiveQuery);
         query.filter<Event::Uid>("testuid");
 
         auto model = Sink::Store::loadModel<Event>(query);

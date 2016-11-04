@@ -89,7 +89,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
         mResultProvider->initialResultSetComplete(typename DomainType::Ptr());
         mResultProvider->complete();
     });
-    if (query.liveQuery) {
+    if (query.liveQuery()) {
         {
             auto ret = QObject::connect(&configNotifier, &ConfigNotifier::added, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
                 auto entity = entry.staticCast<DomainType>();

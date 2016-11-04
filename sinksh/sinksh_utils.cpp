@@ -90,7 +90,6 @@ QSharedPointer<QAbstractItemModel> loadModel(const QString &type, Sink::Query qu
 QStringList resourceIds()
 {
     Sink::Query query;
-    query.liveQuery = false;
     QStringList resources;
     for (const auto &r : getStore("resource").read(query)) {
         resources << r.identifier();

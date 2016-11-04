@@ -200,13 +200,13 @@ public:
     }
 
 
-    Query(const ApplicationDomain::Entity &value) : limit(0), liveQuery(false), synchronousQuery(false)
+    Query(const ApplicationDomain::Entity &value) : limit(0)
     {
         filter(value.identifier());
         resourceFilter(value.resourceInstanceIdentifier());
     }
 
-    Query(Flags flags = Flags()) : limit(0), liveQuery(false), synchronousQuery(false)
+    Query(Flags flags = Flags()) : limit(0), mFlags(flags)
     {
     }
 
@@ -214,8 +214,21 @@ public:
     QByteArray parentProperty;
     QByteArray sortProperty;
     int limit;
-    bool liveQuery;
-    bool synchronousQuery;
+
+    void setFlags(Flags flags)
+    {
+        mFlags = flags;
+    }
+
+    bool liveQuery() const
+    {
+        return mFlags & LiveQuery;
+    }
+
+    bool synchronousQuery() const
+    {
+        return mFlags & SynchronousQuery;
+    }
 
     class FilterStage {
     public:
@@ -376,6 +389,7 @@ public:
     }
 
 private:
+    Flags mFlags;
     Filter mResourceFilter;
     QList<QSharedPointer<FilterStage>> mFilterStages;
 };

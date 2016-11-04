@@ -134,7 +134,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     SinkTrace() << "  Filter: " << query.getBaseFilters();
     SinkTrace() << "  Parent: " << query.parentProperty;
     SinkTrace() << "  Ids: " << query.ids();
-    SinkTrace() << "  IsLive: " << query.liveQuery;
+    SinkTrace() << "  IsLive: " << query.liveQuery();
     SinkTrace() << "  Sorting: " << query.sortProperty;
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties);
 
@@ -149,12 +149,12 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     model->setEmitter(aggregatingEmitter);
 
-    if (query.liveQuery && query.getResourceFilter().ids.isEmpty() && !ApplicationDomain::isGlobalType(ApplicationDomain::getTypeName<DomainType>())) {
+    if (query.liveQuery() && query.getResourceFilter().ids.isEmpty() && !ApplicationDomain::isGlobalType(ApplicationDomain::getTypeName<DomainType>())) {
         SinkTrace() << "Listening for new resources";
         auto facade = FacadeFactory::instance().getFacade<ApplicationDomain::SinkResource>("", "");
         Q_ASSERT(facade);
         Sink::Query resourceQuery;
-        resourceQuery.liveQuery = query.liveQuery;
+        query.setFlags(Query::LiveQuery);
         auto result = facade->load(resourceQuery);
         auto emitter = result.second;
         emitter->onAdded([query, aggregatingEmitter](const ApplicationDomain::SinkResource::Ptr &resource) {
@@ -344,8 +344,7 @@ template <class DomainType>
 QList<DomainType> Store::read(const Sink::Query &q)
 {
     auto query = q;
-    query.synchronousQuery = true;
-    query.liveQuery = false;
+    query.setFlags(Query::SynchronousQuery);
     QList<DomainType> list;
     auto resources = getResources(query.getResourceFilter(), ApplicationDomain::getTypeName<DomainType>());
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();

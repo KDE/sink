@@ -107,7 +107,6 @@ private slots:
 
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
-        query.liveQuery = false;
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -118,7 +117,6 @@ private slots:
     {
         Sink::Query query;
         query.resourceFilter("nonexisting.resource");
-        query.liveQuery = false;
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -132,7 +130,6 @@ private slots:
 
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
-        query.liveQuery = false;
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         QTRY_COMPARE(model->rowCount(), 1);
@@ -150,7 +147,6 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
-        query.liveQuery = false;
         query.parentProperty = "parent";
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
@@ -173,7 +169,6 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
-        query.liveQuery = false;
         query.parentProperty = "parent";
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
@@ -196,7 +191,7 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
-        query.liveQuery = true;
+        query.setFlags(Sink::Query::LiveQuery);
         query.parentProperty = "parent";
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
@@ -247,7 +242,6 @@ private slots:
         ResourceConfig::addResource("dummyresource.instance2", "dummyresource");
 
         Sink::Query query;
-        query.liveQuery = false;
 
         int childrenFetchedCount = 0;
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
@@ -271,7 +265,6 @@ private slots:
 
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
-        query.liveQuery = false;
 
         bool gotValue = false;
         auto result = Sink::Store::fetchOne<Sink::ApplicationDomain::Event>(query)

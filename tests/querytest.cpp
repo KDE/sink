@@ -50,7 +50,7 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("foobar");
-        query.liveQuery = true;
+        query.setFlags(Query::LiveQuery);
 
         // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Mail>(query);
@@ -70,7 +70,7 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("sink.dummy.instance1");
-        query.liveQuery = true;
+        query.setFlags(Query::LiveQuery);
 
         // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Mail>(query);
@@ -88,7 +88,6 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("sink.dummy.instance1");
-        query.liveQuery = false;
 
         // Ensure all local data is processed
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
@@ -119,7 +118,7 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("sink.dummy.instance1");
-        query.liveQuery = true;
+        query.setFlags(Query::LiveQuery);
         query.filter<Mail::Folder>("folder1");
 
         // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
@@ -182,7 +181,7 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("sink.dummy.instance1");
-        query.liveQuery = true;
+        query.setFlags(Query::LiveQuery);
 
         // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Folder>(query);
@@ -253,7 +252,6 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("sink.dummy.instance1");
-        query.liveQuery = false;
         query.filter<Mail::Uid>("test1");
 
         // Ensure all local data is processed
@@ -412,7 +410,6 @@ private slots:
         query.filter<Mail::Folder>(*folderEntity);
         query.sort<Mail::Date>();
         query.limit = 1;
-        query.liveQuery = false;
 
         // Ensure all local data is processed
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
@@ -433,7 +430,7 @@ private slots:
     void testReactToNewResource()
     {
         Sink::Query query;
-        query.liveQuery = true;
+        query.setFlags(Query::LiveQuery);
         auto model = Sink::Store::loadModel<Folder>(query);
         QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
 
@@ -560,7 +557,7 @@ private slots:
         Query query;
         query.filter<Mail::Folder>(Sink::Query().containsFilter<Folder::SpecialPurpose>("purpose1"));
         query.request<Mail::Uid>();
-        query.liveQuery = true;
+        query.setFlags(Query::LiveQuery);
 
         auto model = Sink::Store::loadModel<Mail>(query);
         QTRY_COMPARE(model->rowCount(), 1);

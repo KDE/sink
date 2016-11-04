@@ -72,7 +72,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
         const QByteArray parentId = parent ? parent->identifier() : QByteArray();
         SinkTrace() << "Running fetcher. Offset: " << mOffset[parentId] << " Batchsize: " << mBatchSize;
         auto resultProvider = mResultProvider;
-        if (query.synchronousQuery) {
+        if (query.synchronousQuery()) {
             QueryWorker<DomainType> worker(query, mResourceContext, bufferType, mResultTransformation);
             worker.executeInitialQuery(query, parent, *resultProvider, mOffset[parentId], mBatchSize);
             resultProvider->initialResultSetComplete(parent);
@@ -94,7 +94,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                     }
                     mOffset[parentId] += newRevisionAndReplayedEntities.second;
                     // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
-                    if (query.liveQuery) {
+                    if (query.liveQuery()) {
                         mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.first);
                     }
                     resultProvider->setRevision(newRevisionAndReplayedEntities.first);
@@ -105,8 +105,8 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
     });
 
     // In case of a live query we keep the runner for as long alive as the result provider exists
-    if (query.liveQuery) {
-        Q_ASSERT(!query.synchronousQuery);
+    if (query.liveQuery()) {
+        Q_ASSERT(!query.synchronousQuery());
         // Incremental updates are always loaded directly, leaving it up to the result to discard the changes if they are not interesting
         setQuery([=]() -> KAsync::Job<void> {
             auto resultProvider = mResultProvider;

@@ -90,7 +90,6 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         const auto startingRss = getCurrentRSS();
 
         Sink::Query query;
-        query.liveQuery = false;
         query.requestedProperties << "uid"
                                   << "summary";
 
