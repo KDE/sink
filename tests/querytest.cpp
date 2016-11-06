@@ -45,6 +45,41 @@ private slots:
         qDebug();
     }
 
+    void testSerialization()
+    {
+        qRegisterMetaTypeStreamOperators<Sink::QueryBase>();
+
+        auto type = QByteArray("type");
+        auto sort = QByteArray("sort");
+
+        Sink::QueryBase::Filter filter;
+        filter.ids << "id";
+        filter.propertyFilter.insert("foo", QVariant::fromValue(QByteArray("bar")));
+
+        Sink::Query query;
+        query.setFilter(filter);
+        query.setType(type);
+        query.setSortProperty(sort);
+
+        QByteArray data;
+        {
+            QDataStream stream(&data, QIODevice::WriteOnly);
+            stream << query;
+        }
+
+        Sink::Query deserializedQuery;
+        {
+            QDataStream stream(&data, QIODevice::ReadOnly);
+            stream >> deserializedQuery;
+        }
+
+        QCOMPARE(deserializedQuery.type(), type);
+        QCOMPARE(deserializedQuery.sortProperty(), sort);
+        QCOMPARE(deserializedQuery.getFilter().ids, filter.ids);
+        QCOMPARE(deserializedQuery.getFilter().propertyFilter.keys(), filter.propertyFilter.keys());
+        QCOMPARE(deserializedQuery.getFilter().propertyFilter, filter.propertyFilter);
+    }
+
     void testNoResources()
     {
         // Test

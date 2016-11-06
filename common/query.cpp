@@ -19,6 +19,9 @@
  */
 #include "query.h"
 
+#include <QList>
+#include <QDataStream>
+
 using namespace Sink;
 
 QDebug operator<<(QDebug dbg, const Sink::Query::Comparator &c)
@@ -34,19 +37,85 @@ QDebug operator<<(QDebug dbg, const Sink::Query::Comparator &c)
     return dbg.space();
 }
 
-Query::Comparator::Comparator() : comparator(Invalid)
+QDataStream & operator<< (QDataStream &stream, const Sink::QueryBase::Comparator &comparator)
+{
+    stream << comparator.comparator;
+    stream << comparator.value;
+    return stream;
+}
+
+QDataStream & operator>> (QDataStream &stream, Sink::QueryBase::Comparator &comparator)
+{
+    int c;
+    stream >> c;
+    comparator.comparator = static_cast<Sink::QueryBase::Comparator::Comparators>(c);
+    stream >> comparator.value;
+    return stream;
+}
+
+QDataStream & operator<< (QDataStream &stream, const Sink::QueryBase::Filter &filter)
+{
+    stream << filter.ids;
+    stream << filter.propertyFilter;
+    return stream;
+}
+
+QDataStream & operator>> (QDataStream &stream, Sink::QueryBase::Filter &filter)
+{
+    stream >> filter.ids;
+    stream >> filter.propertyFilter;
+    return stream;
+}
+
+QDataStream & operator<< (QDataStream &stream, const Sink::QueryBase &query)
+{
+    stream << query.type();
+    stream << query.sortProperty();
+    stream << query.getFilter();
+    return stream;
+}
+
+QDataStream & operator>> (QDataStream &stream, Sink::QueryBase &query)
+{
+    QByteArray type;
+    stream >> type;
+    query.setType(type);
+    QByteArray sortProperty;
+    stream >> sortProperty;
+    query.setSortProperty(sortProperty);
+    Sink::QueryBase::Filter filter;
+    stream >> filter;
+    query.setFilter(filter);
+    return stream;
+}
+
+bool QueryBase::Filter::operator==(const QueryBase::Filter &other) const
+{
+    auto ret = ids == other.ids && propertyFilter == other.propertyFilter;
+    return ret;
+}
+
+bool QueryBase::operator==(const QueryBase &other) const
+{
+    auto ret = mType == other.mType 
+        && mSortProperty == other.mSortProperty 
+        && mBaseFilterStage == other.mBaseFilterStage;
+    return ret;
+}
+
+QueryBase::Comparator::Comparator() : comparator(Invalid)
 {
 }
 
-Query::Comparator::Comparator(const QVariant &v) : value(v), comparator(Equals)
+QueryBase::Comparator::Comparator(const QVariant &v) : value(v), comparator(Equals)
 {
 }
 
-Query::Comparator::Comparator(const QVariant &v, Comparators c) : value(v), comparator(c)
+QueryBase::Comparator::Comparator(const QVariant &v, Comparators c) : value(v), comparator(c)
 {
 }
 
-bool Query::Comparator::matches(const QVariant &v) const
+bool QueryBase::Comparator::matches(const QVariant &v) const
 {
     switch(comparator) {
         case Equals:
@@ -72,4 +141,9 @@ bool Query::Comparator::matches(const QVariant &v) const
             break;
     }
     return false;
+}
+
+bool Query::Comparator::operator==(const Query::Comparator &other) const
+{
+    return value == other.value && comparator == other.comparator;
 }

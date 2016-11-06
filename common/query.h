@@ -42,6 +42,7 @@ public:
         Comparator(const QVariant &v);
         Comparator(const QVariant &v, Comparators c);
         bool matches(const QVariant &v) const;
+        bool operator==(const Comparator &other) const;
 
         QVariant value;
         Comparators comparator;
@@ -51,7 +52,10 @@ public:
     public:
         QByteArrayList ids;
         QHash<QByteArray, Comparator> propertyFilter;
+        bool operator==(const Filter &other) const;
     };
+
+    bool operator==(const QueryBase &other) const;
 
     Comparator getFilter(const QByteArray &property) const
     {
@@ -66,6 +70,11 @@ public:
     void setBaseFilters(const QHash<QByteArray, Comparator> &filter)
     {
         mBaseFilterStage.propertyFilter = filter;
+    }
+
+    void setFilter(const Filter &filter)
+    {
+        mBaseFilterStage = filter;
     }
 
     QHash<QByteArray, Comparator> getBaseFilters() const
@@ -110,12 +119,12 @@ public:
 
     void setSortProperty(const QByteArray &property)
     {
-        mSortPorperty = property;
+        mSortProperty = property;
     }
 
     QByteArray sortProperty() const
     {
-        return mSortPorperty;
+        return mSortProperty;
     }
 
     class FilterStage {
@@ -244,7 +253,7 @@ private:
     Filter mBaseFilterStage;
     QList<QSharedPointer<FilterStage>> mFilterStages;
     QByteArray mType;
-    QByteArray mSortPorperty;
+    QByteArray mSortProperty;
 };
 
 /**
@@ -458,7 +467,10 @@ private:
 
 }
 
-QDebug operator<<(QDebug dbg, const Sink::Query::Comparator &c);
+QDebug SINK_EXPORT operator<<(QDebug dbg, const Sink::Query::Comparator &c);
+QDataStream & SINK_EXPORT operator<< (QDataStream &stream, const Sink::QueryBase &query);
+QDataStream & SINK_EXPORT operator>> (QDataStream &stream, Sink::QueryBase &query);
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Sink::Query::Flags)
+Q_DECLARE_METATYPE(Sink::QueryBase);
 Q_DECLARE_METATYPE(Sink::Query);
