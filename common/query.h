@@ -369,12 +369,12 @@ public:
 
     bool liveQuery() const
     {
-        return mFlags & LiveQuery;
+        return mFlags.testFlag(LiveQuery);
     }
 
     bool synchronousQuery() const
     {
-        return mFlags & SynchronousQuery;
+        return mFlags.testFlag(SynchronousQuery);
     }
 
     Filter getResourceFilter() const
