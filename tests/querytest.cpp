@@ -47,7 +47,6 @@ private slots:
 
     void testSerialization()
     {
-        qRegisterMetaTypeStreamOperators<Sink::QueryBase>();
 
         auto type = QByteArray("type");
         auto sort = QByteArray("sort");
