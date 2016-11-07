@@ -32,7 +32,7 @@ public:
     DummyResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
     virtual ~DummyResource();
 
-    KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE;
+    KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &) Q_DECL_OVERRIDE;
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
 };
 

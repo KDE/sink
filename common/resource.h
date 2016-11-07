@@ -28,6 +28,7 @@ namespace Sink {
 class FacadeFactory;
 class AdaptorFactoryRegistry;
 class ResourceContext;
+class QueryBase;
 
 /**
  * Resource interface
@@ -44,7 +45,7 @@ public:
     /**
      * Execute synchronization with the source.
      */
-    virtual KAsync::Job<void> synchronizeWithSource();
+    virtual KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &);
 
     /**
      * Process all internal messages, thus ensuring the store is up to date and no pending modifications are left.

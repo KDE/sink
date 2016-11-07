@@ -87,7 +87,7 @@ private slots:
         MaildirResource resource("sink.maildir.test1", pipeline);
         QTime time;
         time.start();
-        resource.Sink::GenericResource::synchronizeWithSource().exec().waitForFinished();
+        resource.Sink::GenericResource::synchronizeWithSource(Sink::QueryBase()).exec().waitForFinished();
         std::cout << "Sync took " << time.elapsed() << std::endl;
         resource.processAllMessages().exec().waitForFinished();
         const auto allProcessedTime = time.elapsed();

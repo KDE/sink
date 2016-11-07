@@ -62,7 +62,7 @@ template <class DomainType>
 QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::ResourceContext &context, const QByteArray &bufferType)
     : QueryRunnerBase(), mResourceContext(context), mResourceAccess(mResourceContext.resourceAccess()), mResultProvider(new ResultProvider<typename DomainType::Ptr>), mBatchSize(query.limit)
 {
-    SinkTrace() << "Starting query";
+    SinkTrace() << "Starting query. Is live:" << query.liveQuery() << " Limit: " << query.limit;
     if (query.limit && query.sortProperty().isEmpty()) {
         SinkWarning() << "A limited query without sorting is typically a bad idea.";
     }

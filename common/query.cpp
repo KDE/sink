@@ -26,7 +26,7 @@ using namespace Sink;
 
 static const int registerQuery = qRegisterMetaTypeStreamOperators<Sink::QueryBase>();
 
-QDebug operator<<(QDebug dbg, const Sink::Query::Comparator &c)
+QDebug operator<<(QDebug dbg, const Sink::QueryBase::Comparator &c)
 {
     if (c.comparator == Sink::Query::Comparator::Equals) {
         dbg.nospace() << "== " << c.value;
@@ -37,6 +37,24 @@ QDebug operator<<(QDebug dbg, const Sink::Query::Comparator &c)
     }
 
     return dbg.space();
+}
+
+QDebug operator<<(QDebug dbg, const Sink::QueryBase &query)
+{
+    dbg.nospace() << "Query [" << query.type() << "]\n";
+    dbg.nospace() << "  Filter: " << query.getBaseFilters() << "\n";
+    dbg.nospace() << "  Ids: " << query.ids() << "\n";
+    dbg.nospace() << "  Sorting: " << query.sortProperty() << "\n";
+    return dbg.maybeSpace();
+}
+
+QDebug operator<<(QDebug dbg, const Sink::Query &query)
+{
+    dbg << static_cast<Sink::QueryBase>(query);
+    dbg.nospace() << "  Requested: " << query.requestedProperties << "\n";
+    dbg.nospace() << "  Parent: " << query.parentProperty << "\n";
+    dbg.nospace() << "  IsLive: " << query.liveQuery() << "\n";
+    return dbg.maybeSpace();
 }
 
 QDataStream & operator<< (QDataStream &stream, const Sink::QueryBase::Comparator &comparator)

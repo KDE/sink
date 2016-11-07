@@ -129,13 +129,8 @@ KAsync::Job<void> queryResource(const QByteArray resourceType, const QByteArray 
 template <class DomainType>
 QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 {
-    SinkTrace() << "Query: " << ApplicationDomain::getTypeName<DomainType>();
-    SinkTrace() << "  Requested: " << query.requestedProperties;
-    SinkTrace() << "  Filter: " << query.getBaseFilters();
-    SinkTrace() << "  Parent: " << query.parentProperty;
-    SinkTrace() << "  Ids: " << query.ids();
-    SinkTrace() << "  IsLive: " << query.liveQuery();
-    SinkTrace() << "  Sorting: " << query.sortProperty();
+    query.setType(ApplicationDomain::getTypeName<DomainType>());
+    SinkTrace() << "Loading model: " << query;
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties);
 
     //* Client defines lifetime of model
@@ -264,6 +259,27 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
             SinkTrace() << "Synchronizing " << resource;
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
             return resourceAccess->synchronizeResource(true, false)
+                .addToContext(resourceAccess)
+                .then<void>([](const KAsync::Error &error) {
+                        if (error) {
+                            SinkWarning() << "Error during sync.";
+                            return KAsync::error<void>(error);
+                        }
+                        SinkTrace() << "synced.";
+                        return KAsync::null<void>();
+                    });
+        });
+}
+
+KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
+{
+    auto resources = getResources(scope.getResourceFilter()).keys();
+    SinkTrace() << "synchronize" << resources;
+    return KAsync::value(resources)
+        .template each([scope](const QByteArray &resource) {
+            SinkTrace() << "Synchronizing " << resource;
+            auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
+            return resourceAccess->synchronizeResource(scope)
                 .addToContext(resourceAccess)
                 .then<void>([](const KAsync::Error &error) {
                         if (error) {

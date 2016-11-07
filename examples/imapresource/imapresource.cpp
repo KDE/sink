@@ -272,7 +272,7 @@ public:
 
     }
 
-    KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
+    KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
         SinkLog() << " Synchronizing";
         return KAsync::start<void>([this]() {

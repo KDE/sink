@@ -136,7 +136,7 @@ private slots:
     void testResourceSync()
     {
         ::DummyResource resource(getContext());
-        auto job = resource.synchronizeWithSource();
+        auto job = resource.synchronizeWithSource(Sink::QueryBase());
         // TODO pass in optional timeout?
         auto future = job.exec();
         future.waitForFinished();

@@ -70,6 +70,10 @@ public:
     {
         return KAsync::null<void>();
     }
+    KAsync::Job<void> synchronizeResource(const Sink::QueryBase &) Q_DECL_OVERRIDE
+    {
+        return KAsync::null<void>();
+    }
 
 public slots:
     void open() Q_DECL_OVERRIDE
@@ -111,7 +115,7 @@ public:
     {
     }
 
-    KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
+    KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
         return KAsync::null<void>();
     }

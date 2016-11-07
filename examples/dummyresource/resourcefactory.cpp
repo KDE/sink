@@ -109,7 +109,7 @@ class DummySynchronizer : public Sink::Synchronizer {
         SinkTrace() << "Sync of " << count << " entities of type " << bufferType << " done." << Sink::Log::TraceTime(time->elapsed());
     }
 
-    KAsync::Job<void> synchronizeWithSource() Q_DECL_OVERRIDE
+    KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &) Q_DECL_OVERRIDE
     {
         SinkLog() << " Synchronizing with the source";
         return KAsync::syncStart<void>([this]() {
@@ -146,7 +146,7 @@ DummyResource::~DummyResource()
 
 }
 
-KAsync::Job<void> DummyResource::synchronizeWithSource()
+KAsync::Job<void> DummyResource::synchronizeWithSource(const Sink::QueryBase &query)
 {
     SinkTrace() << "Synchronize with source and sending a notification about it";
     Sink::Notification n;
@@ -155,7 +155,7 @@ KAsync::Job<void> DummyResource::synchronizeWithSource()
     n.message = "We're connected";
     n.code = Sink::ApplicationDomain::ConnectedStatus;
     emit notify(n);
-    return GenericResource::synchronizeWithSource();
+    return GenericResource::synchronizeWithSource(query);
 }
 
 KAsync::Job<void> DummyResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)

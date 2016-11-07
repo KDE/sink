@@ -86,6 +86,8 @@ KAsync::Job<void> SINK_EXPORT remove(const DomainType &domainObject);
  */
 KAsync::Job<void> SINK_EXPORT synchronize(const Sink::Query &query);
 
+KAsync::Job<void> SINK_EXPORT synchronize(const Sink::SyncScope &query);
+
 /**
  * Removes all resource data from disk.
  *

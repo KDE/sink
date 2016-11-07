@@ -301,6 +301,25 @@ KAsync::Job<void> ResourceAccess::synchronizeResource(bool sourceSync, bool loca
     return sendCommand(Commands::SynchronizeCommand, fbb);
 }
 
+KAsync::Job<void> ResourceAccess::synchronizeResource(const Sink::QueryBase &query)
+{
+    flatbuffers::FlatBufferBuilder fbb;
+    QByteArray queryString;
+    {
+        QDataStream stream(&queryString, QIODevice::WriteOnly);
+        stream << query;
+    }
+    auto q = fbb.CreateString(queryString.toStdString());
+    auto builder = Sink::Commands::SynchronizeBuilder(fbb);
+    builder.add_sourceSync(true);
+    builder.add_localSync(false);
+    builder.add_query(q);
+    Sink::Commands::FinishSynchronizeBuffer(fbb, builder.Finish());
+
+    open();
+    return sendCommand(Commands::SynchronizeCommand, fbb);
+}
+
 KAsync::Job<void> ResourceAccess::sendCreateCommand(const QByteArray &uid, const QByteArray &resourceBufferType, const QByteArray &buffer)
 {
     flatbuffers::FlatBufferBuilder fbb;

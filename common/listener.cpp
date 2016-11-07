@@ -245,7 +245,13 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 timer->start();
                 auto job = KAsync::null<void>();
                 if (buffer->sourceSync()) {
-                    job = loadResource().synchronizeWithSource();
+                    Sink::QueryBase query;
+                    if (buffer->query()) {
+                        auto data = QByteArray::fromStdString(buffer->query()->str());
+                        QDataStream stream(&data, QIODevice::ReadOnly);
+                        stream >> query;
+                    }
+                    job = loadResource().synchronizeWithSource(query);
                 }
                 if (buffer->localSync()) {
                     job = job.then<void>(loadResource().processAllMessages());

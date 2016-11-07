@@ -41,7 +41,7 @@ public:
     virtual ~Synchronizer();
 
     void setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback, MessageQueue &messageQueue);
-    KAsync::Job<void> synchronize();
+    KAsync::Job<void> synchronize(const Sink::QueryBase &query);
 
     //Read only access to main storage
     Storage::EntityStore &store();
@@ -91,7 +91,7 @@ protected:
     // template <typename DomainType>
     // void remove(const DomainType &entity);
 
-    virtual KAsync::Job<void> synchronizeWithSource() = 0;
+    virtual KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) = 0;
 
 private:
     void modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity);

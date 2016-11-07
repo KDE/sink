@@ -467,7 +467,9 @@ private:
 
 }
 
-QDebug SINK_EXPORT operator<<(QDebug dbg, const Sink::Query::Comparator &c);
+QDebug SINK_EXPORT operator<<(QDebug dbg, const Sink::QueryBase::Comparator &);
+QDebug SINK_EXPORT operator<<(QDebug dbg, const Sink::QueryBase &);
+QDebug SINK_EXPORT operator<<(QDebug dbg, const Sink::Query &);
 QDataStream & SINK_EXPORT operator<< (QDataStream &stream, const Sink::QueryBase &query);
 QDataStream & SINK_EXPORT operator>> (QDataStream &stream, Sink::QueryBase &query);
 

@@ -228,12 +228,12 @@ void Synchronizer::modify(const DomainType &entity)
     modifyEntity(entity.identifier(), entity.revision(), ApplicationDomain::getTypeName<DomainType>(), entity);
 }
 
-KAsync::Job<void> Synchronizer::synchronize()
+KAsync::Job<void> Synchronizer::synchronize(const Sink::QueryBase &query)
 {
     SinkTrace() << "Synchronizing";
     mSyncInProgress = true;
     mMessageQueue->startTransaction();
-    return synchronizeWithSource().syncThen<void>([this]() {
+    return synchronizeWithSource(query).syncThen<void>([this]() {
         mSyncStore.clear();
         mMessageQueue->commit();
         mSyncInProgress = false;

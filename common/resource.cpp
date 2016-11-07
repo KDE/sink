@@ -46,7 +46,7 @@ void Resource::processCommand(int commandId, const QByteArray &data)
     Q_UNUSED(data)
 }
 
-KAsync::Job<void> Resource::synchronizeWithSource()
+KAsync::Job<void> Resource::synchronizeWithSource(const Sink::QueryBase &query)
 {
     return KAsync::null<void>();
 }

@@ -399,9 +399,9 @@ void GenericResource::processCommand(int commandId, const QByteArray &data)
     }
 }
 
-KAsync::Job<void> GenericResource::synchronizeWithSource()
+KAsync::Job<void> GenericResource::synchronizeWithSource(const Sink::QueryBase &query)
 {
-    return KAsync::start<void>([this]() {
+    return KAsync::start<void>([this, query] {
 
         Sink::Notification n;
         n.id = "sync";
@@ -413,7 +413,7 @@ KAsync::Job<void> GenericResource::synchronizeWithSource()
         SinkLog() << " Synchronizing";
         // Changereplay would deadlock otherwise when trying to open the synchronization store
         enableChangeReplay(false);
-        return mSynchronizer->synchronize()
+        return mSynchronizer->synchronize(query)
             .then<void>([this](const KAsync::Error &error) {
                 enableChangeReplay(true);
                 if (!error) {
