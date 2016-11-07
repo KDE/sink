@@ -55,14 +55,16 @@ void Sink::Test::initTest()
 
     //We copy those files so we can control debug output from outside the test with sinksh
     {
+        QDir dir;
+        dir.mkpath(Sink::configLocation());
+
         QFile file(logIniFile);
         if (!file.open(QIODevice::ReadOnly)) {
             qWarning() << "Failed to open the file: " << logIniFile;
-        }
-        QDir dir;
-        dir.mkpath(Sink::configLocation());
-        if (!file.copy(Sink::configLocation() + "/log.ini")) {
-            qWarning() << "Failed to move the file: " << Sink::configLocation() + "/log.ini";
+        } else {
+            if (!file.copy(Sink::configLocation() + "/log.ini")) {
+                qWarning() << "Failed to move the file: " << Sink::configLocation() + "/log.ini";
+            }
         }
     }
     {
