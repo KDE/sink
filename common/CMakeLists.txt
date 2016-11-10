@@ -77,6 +77,7 @@ set(command_SRCS
     storage/entitystore.cpp
     indexer.cpp
     mail/threadindexer.cpp
+    notification.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

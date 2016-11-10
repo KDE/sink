@@ -17,38 +17,10 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
-#pragma once
+#include "notification.h"
 
-#include "sink_export.h"
-#include <QString>
-#include <QDebug>
-
-namespace Sink {
-
-/**
- * A notification
- */
-class SINK_EXPORT Notification
+QDebug operator<<(QDebug dbg, const Sink::Notification &n)
 {
-public:
-    enum NoticationType {
-        Shutdown,
-        Status,
-        Warning,
-        Progress,
-        Inspection,
-        RevisionUpdate
-    };
-    enum InspectionCode {
-        Success,
-        Failure
-    };
-
-    QByteArray id;
-    int type;
-    QString message;
-    int code;
-};
+    dbg << "Notification(Id: " << n.id << ", Type: " << n.type  << ", Code: " << n.code << ", Message: " << n.message << ")";
+    return dbg.space();
 }
-
-QDebug SINK_EXPORT operator<<(QDebug dbg, const Sink::Notification &n);
