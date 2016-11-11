@@ -22,6 +22,7 @@
 #include "sink_export.h"
 
 #include "storage.h"
+#include <QByteArrayList>
 
 namespace Sink {
 
@@ -53,6 +54,7 @@ public:
      * This can fail if the entity hasn't been written back to the server yet.
      */
     QByteArray resolveLocalId(const QByteArray &bufferType, const QByteArray &localId);
+    QByteArrayList resolveLocalIds(const QByteArray &bufferType, const QByteArrayList &localId);
 
     QByteArray readValue(const QByteArray &key);
     void writeValue(const QByteArray &key, const QByteArray &value);

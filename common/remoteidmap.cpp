@@ -75,6 +75,15 @@ QByteArray RemoteIdMap::resolveLocalId(const QByteArray &bufferType, const QByte
     return remoteId;
 }
 
+QByteArrayList RemoteIdMap::resolveLocalIds(const QByteArray &bufferType, const QByteArrayList &localIds)
+{
+    QByteArrayList result;
+    for (const auto &l : localIds) {
+        result << resolveLocalId(bufferType, l);
+    }
+    return result;
+}
+
 QByteArray RemoteIdMap::readValue(const QByteArray &key)
 {
     QByteArray value;

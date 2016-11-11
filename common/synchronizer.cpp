@@ -222,21 +222,71 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
     }
 }
 
+QByteArrayList Synchronizer::resolveFilter(const QueryBase::Comparator &filter)
+{
+    QByteArrayList result;
+    if (filter.value.canConvert<QByteArray>()) {
+        result << filter.value.value<QByteArray>();
+    } else if (filter.value.canConvert<QueryBase>()) {
+        auto query = filter.value.value<QueryBase>();
+        Storage::EntityStore store{mResourceContext};
+        DataStoreQuery dataStoreQuery{query, query.type(), store};
+        auto resultSet = dataStoreQuery.execute();
+        resultSet.replaySet(0, 0, [this, &result](const ResultSet::Result &r) {
+            result << r.entity.identifier();
+        });
+    } else {
+        SinkWarning() << "unknown filter type: " << filter;
+        Q_ASSERT(false);
+    }
+    return result;
+}
+
 template<typename DomainType>
 void Synchronizer::modify(const DomainType &entity)
 {
     modifyEntity(entity.identifier(), entity.revision(), ApplicationDomain::getTypeName<DomainType>(), entity);
 }
 
+QList<Synchronizer::SyncRequest> Synchronizer::getSyncRequests(const Sink::QueryBase &query)
+{
+    QList<Synchronizer::SyncRequest> list;
+    list << Synchronizer::SyncRequest{query};
+    return list;
+}
+
 KAsync::Job<void> Synchronizer::synchronize(const Sink::QueryBase &query)
 {
     SinkTrace() << "Synchronizing";
+    mSyncRequestQueue << getSyncRequests(query);
+    return processSyncQueue();
+}
+
+KAsync::Job<void> Synchronizer::processSyncQueue()
+{
+    if (mSyncRequestQueue.isEmpty() || mSyncInProgress) {
+        return KAsync::null<void>();
+    }
     mSyncInProgress = true;
     mMessageQueue->startTransaction();
-    return synchronizeWithSource(query).syncThen<void>([this]() {
+
+    auto job = KAsync::null<void>();
+    while (!mSyncRequestQueue.isEmpty()) {
+        auto request = mSyncRequestQueue.takeFirst();
+        job = job.then(synchronizeWithSource(request.query)).syncThen<void>([this] {
+            //Commit after every request, so implementations only have to commit more if they add a lot of data.
+            commit();
+        });
+    }
+    return job.then<void>([this](const KAsync::Error &error) {
         mSyncStore.clear();
         mMessageQueue->commit();
         mSyncInProgress = false;
+        if (error) {
+            SinkWarning() << "Error during sync: " << error.errorMessage;
+            return KAsync::error(error);
+        }
+        return KAsync::null<void>();
     });
 }
 

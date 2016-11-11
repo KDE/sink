@@ -330,25 +330,57 @@ public:
         SinkLog() << "Synchronized " << count << " mails in " << listingPath << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
 
+    QList<Synchronizer::SyncRequest> getSyncRequests(const Sink::QueryBase &query) Q_DECL_OVERRIDE
+    {
+        QList<Synchronizer::SyncRequest> list;
+        if (!query.type().isEmpty()) {
+            //We want to synchronize something specific
+            list << Synchronizer::SyncRequest{query};
+        } else {
+            //We want to synchronize everything
+            list << Synchronizer::SyncRequest{Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Folder>())};
+            //FIXME we can't process the second synchronization before the pipeline of the first one is processed, otherwise we can't execute a query on the local data.
+            /* list << Synchronizer::SyncRequest{Flush}; */
+            list << Synchronizer::SyncRequest{Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Mail>())};
+        }
+        return list;
+    }
+
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
-        SinkLog() << " Synchronizing";
-        return KAsync::start<void>([this]() {
+        auto job = KAsync::start<void>([this] {
             KPIM::Maildir maildir(mMaildirPath, true);
             if (!maildir.isValid(false)) {
                 return KAsync::error<void>(1, "Maildir path doesn't point to a valid maildir: " + mMaildirPath);
             }
-            synchronizeFolders();
-            //The next sync needs the folders available
-            commit();
-            for (const auto &folder : listAvailableFolders()) {
-                synchronizeMails(folder);
-                //Don't let the transaction grow too much
-                commit();
-            }
-            SinkLog() << "Done Synchronizing";
             return KAsync::null<void>();
         });
+
+        if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
+            job = job.syncThen<void>([this] {
+                synchronizeFolders();
+            });
+        } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
+            job = job.syncThen<void>([this, query] {
+                QStringList folders;
+                if (query.hasFilter<ApplicationDomain::Mail::Folder>()) {
+                    auto folderFilter = query.getFilter<ApplicationDomain::Mail::Folder>();
+                    auto localIds = resolveFilter(folderFilter);
+                    auto folderRemoteIds = syncStore().resolveLocalIds(ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), localIds);
+                    for (const auto &r : folderRemoteIds) {
+                        folders << r;
+                    }
+                } else {
+                    folders = listAvailableFolders();
+                }
+                for (const auto &folder : folders) {
+                    synchronizeMails(folder);
+                    //Don't let the transaction grow too much
+                    commit();
+                }
+            });
+        }
+        return job;
     }
 
 public:

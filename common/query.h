@@ -55,6 +55,9 @@ public:
         bool operator==(const Filter &other) const;
     };
 
+    QueryBase() = default;
+    QueryBase(const QByteArray &type) : mType(type) {}
+
     bool operator==(const QueryBase &other) const;
 
     Comparator getFilter(const QByteArray &property) const
@@ -62,9 +65,21 @@ public:
         return mBaseFilterStage.propertyFilter.value(property);
     }
 
+    template <class T>
+    Comparator getFilter() const
+    {
+        return getFilter(T::name);
+    }
+
     bool hasFilter(const QByteArray &property) const
     {
         return mBaseFilterStage.propertyFilter.contains(property);
+    }
+
+    template <class T>
+    bool hasFilter() const
+    {
+        return hasFilter(T::name);
     }
 
     void setBaseFilters(const QHash<QByteArray, Comparator> &filter)

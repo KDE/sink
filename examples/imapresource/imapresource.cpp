@@ -272,41 +272,102 @@ public:
 
     }
 
+    QList<Synchronizer::SyncRequest> getSyncRequests(const Sink::QueryBase &query) Q_DECL_OVERRIDE
+    {
+        QList<Synchronizer::SyncRequest> list;
+        if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
+            list << Synchronizer::SyncRequest{query};
+        } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
+            list << Synchronizer::SyncRequest{query};
+        } else {
+            list << Synchronizer::SyncRequest{Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Folder>())};
+            list << Synchronizer::SyncRequest{Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Mail>())};
+        }
+        return list;
+    }
+
+    KAsync::Job<void> login(QSharedPointer<ImapServerProxy> imap)
+    {
+        SinkTrace() << "Connecting to:" << mServer << mPort;
+        SinkTrace() << "as:" << mUser;
+        return imap->login(mUser, mPassword)
+        .addToContext(imap)
+        .onError([](const KAsync::Error &error) {
+            SinkWarning() << "Login failed.";
+        });
+    }
+
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
-        SinkLog() << " Synchronizing";
-        return KAsync::start<void>([this]() {
-            SinkTrace() << "Connecting to:" << mServer << mPort;
-            SinkTrace() << "as:" << mUser;
-            auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
-
-            return imap->login(mUser, mPassword)
-            .addToContext(imap)
-            .onError([](const KAsync::Error &error) {
-                SinkWarning() << "Login failed.";
-            })
-            .then<QVector<Folder>>([this, imap]() {
-                auto folderList = QSharedPointer<QVector<Folder>>::create();
-                SinkLog() << "Login was successful";
-                return  imap->fetchFolders([folderList](const Folder &folder) {
-                    *folderList << folder;
-                })
-                .onError([](const KAsync::Error &error) {
-                    SinkWarning() << "Folder list sync failed.";
-                })
-                .syncThen<QVector<Folder>>([this, folderList]() {
-                    synchronizeFolders(*folderList);
-                    commit();
-                    return *folderList;
+        if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
+            return KAsync::start<void>([this]() {
+                auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+                auto job = login(imap);
+                job = job.then<QVector<Folder>>([this, imap]() {
+                    auto folderList = QSharedPointer<QVector<Folder>>::create();
+                    return  imap->fetchFolders([folderList](const Folder &folder) {
+                        *folderList << folder;
+                    })
+                    .onError([](const KAsync::Error &error) {
+                        SinkWarning() << "Folder list sync failed.";
+                    })
+                    .syncThen<QVector<Folder>>([this, folderList]() {
+                        synchronizeFolders(*folderList);
+                        commit();
+                        return *folderList;
+                    });
                 });
-            })
-            .serialEach<void>([this, imap](const Folder &folder) {
-                if (folder.noselect) {
-                    return KAsync::null<void>();
-                }
-                return synchronizeFolder(imap, folder);
+                return job;
             });
-        });
+        } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
+            //TODO
+            //if we have a folder filter:
+            //* execute the folder query and resolve the results to the remote identifier
+            //* query only those folders
+            //if we have a date filter:
+            //* apply the date filter to the fetch
+            //if we have no folder filter:
+            //* fetch list of folders from server directly and sync (because we have no guarantee that the folder sync was already processed by the pipeline).
+            return KAsync::start<void>([this, query]() {
+                auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+                auto job = login(imap);
+                job = job.then<QVector<Folder>>([this, imap, query]() {
+                    SinkLog() << "Login was successful";
+                    //FIXME If we were able to to flush in between we could just query the local store for the folder list.
+                    //
+                    if (query.hasFilter<ApplicationDomain::Mail::Folder>()) {
+                        QVector<Folder> folders;
+                        auto folderFilter = query.getFilter<ApplicationDomain::Mail::Folder>();
+                        auto localIds = resolveFilter(folderFilter);
+                        auto folderRemoteIds = syncStore().resolveLocalIds(ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), localIds);
+                        for (const auto &r : folderRemoteIds) {
+                            folders << Folder{r};
+                        }
+                        return KAsync::value(folders);
+                    } else {
+                        auto folderList = QSharedPointer<QVector<Folder>>::create();
+                        return  imap->fetchFolders([folderList](const Folder &folder) {
+                            *folderList << folder;
+                        })
+                        .onError([](const KAsync::Error &error) {
+                            SinkWarning() << "Folder list sync failed.";
+                        })
+                        .syncThen<QVector<Folder>>([this, folderList]() {
+                            return *folderList;
+                        });
+                    }
+                })
+                .serialEach<void>([this, imap](const Folder &folder) {
+                    if (folder.noselect) {
+                        return KAsync::null<void>();
+                    }
+                    return synchronizeFolder(imap, folder);
+                });
+
+                return job;
+            });
+        }
+        return KAsync::error<void>("Nothing to do");
     }
 
 public:

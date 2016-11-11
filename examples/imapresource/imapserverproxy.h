@@ -58,6 +58,20 @@ struct Message {
 };
 
 struct Folder {
+    Folder() = default;
+    Folder(QList<QString> pathParts_, const QString &path_, const QChar &separator_, bool noselect_)
+        : pathParts(pathParts_),
+        path(path_),
+        separator(separator_),
+        noselect(noselect_)
+    {
+    }
+
+    Folder(const QString &path_)
+        : path(path_)
+    {
+    }
+
     QString normalizedPath() const
     {
         return pathParts.join('/');
@@ -73,7 +87,7 @@ struct Folder {
     QList<QString> pathParts;
     QString path;
     QChar separator;
-    bool noselect;
+    bool noselect = false;
 };
 
 struct SelectResult {

@@ -90,11 +90,42 @@ protected:
     void modify(const DomainType &entity);
     // template <typename DomainType>
     // void remove(const DomainType &entity);
+    QByteArrayList resolveFilter(const QueryBase::Comparator &filter);
 
     virtual KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) = 0;
 
+    struct SyncRequest {
+        SyncRequest(const Sink::QueryBase &q)
+            : flushQueue(false),
+            query(q)
+        {
+        }
+
+        bool flushQueue;
+        Sink::QueryBase query;
+    };
+
+    /**
+     * This allows the synchronizer to turn a single query into multiple synchronization requests.
+     *
+     * The idea is the following;
+     * The input query is a specification by the application of what data needs to be made available.
+     * Requests could be:
+     * * Give me everything (signified by the default constructed/empty query)
+     * * Give me all mails of folder X
+     * * Give me all mails of folders matching some constraints
+     *
+     * getSyncRequests allows the resource implementation to apply it's own defaults to that request;
+     * * While a maildir resource might give you always all emails of a folder, an IMAP resource might have a date limit, to i.e. only retrieve the last 14 days worth of data.
+     * * A resource get's to define what "give me everything" means. For email that may be turned into first a requests for folders, and then a request for all emails in those folders.
+     *
+     * This will allow synchronizeWithSource to focus on just getting to the content.
+     */
+    virtual QList<Synchronizer::SyncRequest> getSyncRequests(const Sink::QueryBase &query);
+
 private:
     void modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
+    KAsync::Job<void> processSyncQueue();
 
     Sink::ResourceContext mResourceContext;
     Sink::Storage::EntityStore::Ptr mEntityStore;
@@ -102,6 +133,7 @@ private:
     Sink::Storage::DataStore mSyncStorage;
     Sink::Storage::DataStore::Transaction mSyncTransaction;
     std::function<void(int commandId, const QByteArray &data)> mEnqueue;
+    QList<SyncRequest> mSyncRequestQueue;
     MessageQueue *mMessageQueue;
     bool mSyncInProgress;
 };
