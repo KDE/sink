@@ -394,8 +394,12 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
 
 QString ImapServerProxy::mailboxFromFolder(const Folder &folder) const
 {
-    Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
-    return folder.pathParts.join(mPersonalNamespaceSeparator);
+    if (folder.path.isEmpty()) {
+        Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
+        return folder.pathParts.join(mPersonalNamespaceSeparator);
+    } else {
+        return folder.path;
+    }
 }
 
 KAsync::Job<SelectResult> ImapServerProxy::fetchFlags(const Folder &folder, const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback)
