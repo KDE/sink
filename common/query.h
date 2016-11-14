@@ -382,6 +382,11 @@ public:
         mFlags = flags;
     }
 
+    void setLimit(int l)
+    {
+        limit = l;
+    }
+
     bool liveQuery() const
     {
         return mFlags.testFlag(LiveQuery);
