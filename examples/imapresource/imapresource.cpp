@@ -119,7 +119,7 @@ public:
             [&folderList](const QByteArray &remoteId) -> bool {
                 // folderList.contains(remoteId)
                 for (const auto &folderPath : folderList) {
-                    if (folderPath.path == remoteId) {
+                    if (folderPath.path() == remoteId) {
                         return true;
                     }
                 }
@@ -128,7 +128,7 @@ public:
         );
 
         for (const auto &f : folderList) {
-            createFolder(f.pathParts.last(), f.path, f.parentPath(), "folder");
+            createFolder(f.name(), f.path(), f.parentPath(), "folder");
         }
     }
 
@@ -190,12 +190,12 @@ public:
     KAsync::Job<void> synchronizeFolder(QSharedPointer<ImapServerProxy> imap, const Imap::Folder &folder)
     {
         QSet<qint64> uids;
-        SinkLog() << "Synchronizing mails" << folder.normalizedPath();
+        SinkLog() << "Synchronizing mails" << folder.path();
         auto capabilities = imap->getCapabilities();
         bool canDoIncrementalRemovals = false;
         return KAsync::start<void>([=]() {
             //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
-            SinkLog() << "About to update flags" << folder.normalizedPath();
+            SinkLog() << "About to update flags" << folder.path();
             auto uidNext = syncStore().readValue(folder.normalizedPath().toUtf8() + "uidnext").toLongLong();
             const auto changedsince = syncStore().readValue(folder.normalizedPath().toUtf8() + "changedsince").toLongLong();
             return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(uidNext, qint64(1))), changedsince, [this, folder](const Message &message) {
@@ -361,7 +361,10 @@ public:
                     if (folder.noselect) {
                         return KAsync::null<void>();
                     }
-                    return synchronizeFolder(imap, folder);
+                    return synchronizeFolder(imap, folder)
+                        .onError([folder](const KAsync::Error &error) {
+                            SinkWarning() << "Failed to sync folder: ." << folder.normalizedPath();
+                        });
                 });
 
                 return job;
@@ -492,8 +495,8 @@ public:
                 auto  specialPurposeFolders = QSharedPointer<QHash<QByteArray, QString>>::create();
                 auto mergeJob = imap->login(mUser, mPassword)
                     .then<void>(imap->fetchFolders([=](const Imap::Folder &folder) {
-                        if (SpecialPurpose::isSpecialPurposeFolderName(folder.pathParts.last())) {
-                            specialPurposeFolders->insert(SpecialPurpose::getSpecialPurposeType(folder.pathParts.last()), folder.path);
+                        if (SpecialPurpose::isSpecialPurposeFolderName(folder.name())) {
+                            specialPurposeFolders->insert(SpecialPurpose::getSpecialPurposeType(folder.name()), folder.path());
                         };
                     }))
                     .then<void>([specialPurposeFolders, folder, imap, parentFolder, rid]() -> KAsync::Job<void> {
@@ -707,7 +710,7 @@ KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &in
             auto inspectionJob = imap->login(mUser, mPassword)
                 .then<void>(imap->fetchFolders([=](const Imap::Folder &f) {
                     *folderByPath << f.normalizedPath();
-                    *folderByName << f.pathParts.last();
+                    *folderByName << f.name();
                 }))
                 .then<void>([this, folderByName, folderByPath, folder, remoteId, imap]() {
                     if (!folderByName->contains(folder.getName())) {

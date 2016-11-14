@@ -59,35 +59,64 @@ struct Message {
 
 struct Folder {
     Folder() = default;
-    Folder(QList<QString> pathParts_, const QString &path_, const QChar &separator_, bool noselect_)
-        : pathParts(pathParts_),
-        path(path_),
-        separator(separator_),
-        noselect(noselect_)
+    Folder(const QString &path, const QChar &separator, bool noselect_)
+        : noselect(noselect_),
+        mPath(path),
+        pathParts(path.split(separator)),
+        mSeparator(separator)
     {
     }
 
     Folder(const QString &path_)
-        : path(path_)
+        : mPath(path_)
     {
     }
 
     QString normalizedPath() const
     {
-        return pathParts.join('/');
+        return path('/');
+    }
+
+    QString path(const QChar &s) const
+    {
+        Q_ASSERT(!s.isNull());
+        return pathParts.join(s);
+    }
+
+    QString path() const
+    {
+        Q_ASSERT(!mPath.isEmpty());
+        return mPath;
     }
 
     QString parentPath() const
     {
+        Q_ASSERT(!mSeparator.isNull());
         auto parts = pathParts;
         parts.removeLast();
-        return parts.join(separator);
+        return parts.join(mSeparator);
     }
 
-    QList<QString> pathParts;
-    QString path;
-    QChar separator;
+    QString normalizedParentPath() const
+    {
+        Q_ASSERT(!pathParts.isEmpty());
+        auto parts = pathParts;
+        parts.removeLast();
+        return parts.join('/');
+    }
+
+    QString name() const
+    {
+        Q_ASSERT(!pathParts.isEmpty());
+        return pathParts.last();
+    }
+
     bool noselect = false;
+
+private:
+    QString mPath;
+    QList<QString> pathParts;
+    QChar mSeparator;
 };
 
 struct SelectResult {

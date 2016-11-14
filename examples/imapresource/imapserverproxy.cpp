@@ -157,6 +157,8 @@ KAsync::Job<SelectResult> ImapServerProxy::select(const QString &mailbox)
     select->setCondstoreEnabled(mCapabilities.contains("CONDSTORE"));
     return runJob<SelectResult>(select, [select](KJob* job) -> SelectResult {
         return {select->uidValidity(), select->nextUid(), select->highestModSequence()};
+    }).onError([=] (const KAsync::Error &error) {
+        SinkWarning() << "Select failed: " << mailbox;
     });
 }
 
@@ -388,17 +390,16 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
     return list(KIMAP2::ListJob::IncludeUnsubscribed, [callback](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &flags){
             bool noselect = flags.contains(QByteArray(FolderFlags::Noselect).toLower()) || flags.contains(QByteArray(FolderFlags::Noselect));
             SinkLog() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect;
-            callback(Folder{mailbox.name.split(mailbox.separator), mailbox.name, mailbox.separator, noselect});
+            callback(Folder{mailbox.name, mailbox.separator, noselect});
     });
 }
 
 QString ImapServerProxy::mailboxFromFolder(const Folder &folder) const
 {
-    if (folder.path.isEmpty()) {
-        Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
-        return folder.pathParts.join(mPersonalNamespaceSeparator);
+    if (folder.path().isEmpty()) {
+        return folder.path(mPersonalNamespaceSeparator);
     } else {
-        return folder.path;
+        return folder.path();
     }
 }
 
