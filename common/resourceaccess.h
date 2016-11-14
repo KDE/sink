@@ -29,6 +29,7 @@
 
 #include <flatbuffers/flatbuffers.h>
 #include "notification.h"
+#include "query.h"
 #include "log.h"
 
 namespace Sink {
