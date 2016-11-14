@@ -50,8 +50,8 @@ static qint64 getIdentifier(const QModelIndex &idx)
 template <class T, class Ptr>
 qint64 ModelResult<T, Ptr>::parentId(const Ptr &value)
 {
-    if (!mQuery.parentProperty.isEmpty()) {
-        const auto identifier = value->getProperty(mQuery.parentProperty).toByteArray();
+    if (!mQuery.parentProperty().isEmpty()) {
+        const auto identifier = value->getProperty(mQuery.parentProperty()).toByteArray();
         if (!identifier.isEmpty()) {
             return qHash(T(value->resourceInstanceIdentifier(), identifier, 0, QSharedPointer<Sink::ApplicationDomain::BufferAdaptor>()));
         }
@@ -149,7 +149,7 @@ QModelIndex ModelResult<T, Ptr>::parent(const QModelIndex &index) const
 template <class T, class Ptr>
 bool ModelResult<T, Ptr>::hasChildren(const QModelIndex &parent) const
 {
-    if (mQuery.parentProperty.isEmpty() && parent.isValid()) {
+    if (mQuery.parentProperty().isEmpty() && parent.isValid()) {
         return false;
     }
     //Figure out whether we have children

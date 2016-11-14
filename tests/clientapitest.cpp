@@ -65,7 +65,7 @@ public:
             for (const auto &res : results) {
                 qDebug() << "Parent filter " << query.getFilter("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
                 auto parentProperty = res->getProperty("parent").toByteArray();
-                if ((!parent && parentProperty.isEmpty()) || (parent && parentProperty == parent->identifier()) || query.parentProperty.isEmpty()) {
+                if ((!parent && parentProperty.isEmpty()) || (parent && parentProperty == parent->identifier()) || query.parentProperty().isEmpty()) {
                     qDebug() << "Found a hit" << res->identifier();
                     resultProvider->add(res);
                 }
@@ -147,7 +147,7 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
-        query.parentProperty = "parent";
+        query.requestTree("parent");
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -169,7 +169,7 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
-        query.parentProperty = "parent";
+        query.requestTree("parent");
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         QSignalSpy spy(model.data(), SIGNAL(rowsInserted(const QModelIndex &, int, int)));
@@ -192,7 +192,7 @@ private slots:
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
         query.setFlags(Sink::Query::LiveQuery);
-        query.parentProperty = "parent";
+        query.requestTree("parent");
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
         QTRY_COMPARE(model->rowCount(), 1);

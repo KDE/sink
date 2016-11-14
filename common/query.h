@@ -296,8 +296,19 @@ public:
     template <typename T>
     Query &requestTree()
     {
-        parentProperty = T::name;
+        mParentProperty = T::name;
         return *this;
+    }
+
+    Query &requestTree(const QByteArray &parentProperty)
+    {
+        mParentProperty = parentProperty;
+        return *this;
+    }
+
+    QByteArray parentProperty() const
+    {
+        return mParentProperty;
     }
 
     template <typename T>
@@ -374,7 +385,6 @@ public:
     }
 
     QByteArrayList requestedProperties;
-    QByteArray parentProperty;
 
     void setFlags(Flags flags)
     {
@@ -442,6 +452,7 @@ private:
     int mLimit;
     Flags mFlags;
     Filter mResourceFilter;
+    QByteArray mParentProperty;
 };
 
 class SyncScope : public QueryBase {

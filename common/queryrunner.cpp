@@ -221,13 +221,13 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeInitialQuery(
     time.start();
 
     auto modifiedQuery = query;
-    if (!query.parentProperty.isEmpty()) {
+    if (!query.parentProperty().isEmpty()) {
         if (parent) {
             SinkTrace() << "Running initial query for parent:" << parent->identifier();
-            modifiedQuery.filter(query.parentProperty, Query::Comparator(parent->identifier()));
+            modifiedQuery.filter(query.parentProperty(), Query::Comparator(parent->identifier()));
         } else {
             SinkTrace() << "Running initial query for toplevel";
-            modifiedQuery.filter(query.parentProperty, Query::Comparator(QVariant()));
+            modifiedQuery.filter(query.parentProperty(), Query::Comparator(QVariant()));
         }
     }
 

@@ -252,7 +252,7 @@ private slots:
         // Test
         Sink::Query query;
         query.resourceFilter("sink.dummy.instance1");
-        query.parentProperty = "parent";
+        query.requestTree<Folder::Parent>();
 
         // Ensure all local data is processed
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));

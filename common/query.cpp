@@ -52,7 +52,7 @@ QDebug operator<<(QDebug dbg, const Sink::Query &query)
 {
     dbg << static_cast<Sink::QueryBase>(query);
     dbg.nospace() << "  Requested: " << query.requestedProperties << "\n";
-    dbg.nospace() << "  Parent: " << query.parentProperty << "\n";
+    dbg.nospace() << "  Parent: " << query.parentProperty() << "\n";
     dbg.nospace() << "  IsLive: " << query.liveQuery() << "\n";
     return dbg.maybeSpace();
 }
