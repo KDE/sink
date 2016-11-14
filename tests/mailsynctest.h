@@ -69,6 +69,8 @@ private slots:
     void testFetchNewRemovedMessages();
     void testFlagChange();
 
+    void testSyncSingleFolder();
+
     void testFailingSync();
 };
 

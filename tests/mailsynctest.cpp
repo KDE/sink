@@ -377,6 +377,31 @@ void MailSyncTest::testFlagChange()
 
 }
 
+void MailSyncTest::testSyncSingleFolder()
+{
+    VERIFYEXEC(Store::synchronize(Sink::SyncScope{ApplicationDomain::getTypeName<Folder>()}.resourceFilter(mResourceInstanceIdentifier)));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+    Folder::Ptr folder;
+    {
+        auto job = Store::fetchAll<Folder>(Sink::Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>("test")).template syncThen<void, QList<Folder::Ptr>>([&](const QList<Folder::Ptr> &folders) {
+            QCOMPARE(folders.size(), 1);
+            folder = folders.first();
+        });
+        VERIFYEXEC(job);
+    }
+
+    auto syncScope = Sink::SyncScope{ApplicationDomain::getTypeName<Mail>()};
+    syncScope.resourceFilter(mResourceInstanceIdentifier);
+    syncScope.filter<Mail::Folder>(QVariant::fromValue(folder->identifier()));
+
+    // Ensure all local data is processed
+    VERIFYEXEC(Store::synchronize(syncScope));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+
+}
+
 void MailSyncTest::testFailingSync()
 {
     auto resource = createFaultyResource();
