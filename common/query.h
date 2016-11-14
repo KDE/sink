@@ -127,6 +127,12 @@ public:
         mType = type;
     }
 
+    template<typename T>
+    void setType()
+    {
+        setType(ApplicationDomain::getTypeName<T>());
+    }
+
     QByteArray type() const
     {
         return mType;
