@@ -363,28 +363,22 @@ public:
     }
 
 
-    Query(const ApplicationDomain::Entity &value) : limit(0)
+    Query(const ApplicationDomain::Entity &value) : mLimit(0)
     {
         filter(value.identifier());
         resourceFilter(value.resourceInstanceIdentifier());
     }
 
-    Query(Flags flags = Flags()) : limit(0), mFlags(flags)
+    Query(Flags flags = Flags()) : mLimit(0), mFlags(flags)
     {
     }
 
     QByteArrayList requestedProperties;
     QByteArray parentProperty;
-    int limit;
 
     void setFlags(Flags flags)
     {
         mFlags = flags;
-    }
-
-    void setLimit(int l)
-    {
-        limit = l;
     }
 
     bool liveQuery() const
@@ -395,6 +389,17 @@ public:
     bool synchronousQuery() const
     {
         return mFlags.testFlag(SynchronousQuery);
+    }
+
+    Query &limit(int l)
+    {
+        mLimit = l;
+        return *this;
+    }
+
+    int limit() const
+    {
+        return mLimit;
     }
 
     Filter getResourceFilter() const
@@ -434,6 +439,7 @@ public:
     }
 
 private:
+    int mLimit;
     Flags mFlags;
     Filter mResourceFilter;
 };

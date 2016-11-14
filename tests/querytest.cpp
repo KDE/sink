@@ -443,7 +443,7 @@ private slots:
         query.resourceFilter("sink.dummy.instance1");
         query.filter<Mail::Folder>(*folderEntity);
         query.sort<Mail::Date>();
-        query.limit = 1;
+        query.limit(1);
 
         // Ensure all local data is processed
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));

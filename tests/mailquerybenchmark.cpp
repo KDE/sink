@@ -102,7 +102,7 @@ class MailQueryBenchmark : public QObject
         emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail) { done = true; });
         emitter->fetch(Mail::Ptr());
         QTRY_VERIFY(done);
-        QCOMPARE(list.size(), query.limit);
+        QCOMPARE(list.size(), query.limit());
 
         const auto elapsed = time.elapsed();
 
@@ -157,7 +157,7 @@ private slots:
              .request<Mail::Date>();
         query.sort<Mail::Date>();
         query.filter<Mail::Folder>("folder1");
-        query.limit = 1000;
+        query.limit(1000);
 
         populateDatabase(50000);
         testLoad(query, 50000);
