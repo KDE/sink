@@ -51,10 +51,12 @@ KAsync::Job<void> SINK_EXPORT start(const QByteArray &resourceIdentifier);
  * Flushes any pending messages to disk
  */
 KAsync::Job<void> SINK_EXPORT flushMessageQueue(const QByteArrayList &resourceIdentifier);
+KAsync::Job<void> SINK_EXPORT flushMessageQueue(const QByteArray &resourceIdentifier);
 
 /**
  * Flushes any pending messages that haven't been replayed to the source.
  */
 KAsync::Job<void> SINK_EXPORT flushReplayQueue(const QByteArrayList &resourceIdentifier);
+KAsync::Job<void> SINK_EXPORT flushReplayQueue(const QByteArray &resourceIdentifier);
 }
 }

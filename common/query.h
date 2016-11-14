@@ -435,11 +435,7 @@ private:
 
 class SyncScope : public QueryBase {
 public:
-    template<typename T>
-    SyncScope()
-    {
-        setType(ApplicationDomain::getTypeName<T>());
-    }
+    using QueryBase::QueryBase;
 
     Query::Filter getResourceFilter() const
     {

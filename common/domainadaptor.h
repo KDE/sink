@@ -146,7 +146,6 @@ public:
         } else if (mIndex && mIndexMapper->hasMapping(key)) {
             return mIndexMapper->getProperty(key, *mIndex, *this);
         }
-        SinkWarning() << "No mapping available for key " << key << mLocalBuffer << mResourceBuffer;
         return QVariant();
     }
 

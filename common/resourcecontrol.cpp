@@ -93,9 +93,19 @@ KAsync::Job<void> ResourceControl::flushMessageQueue(const QByteArrayList &resou
         });
 }
 
+KAsync::Job<void> ResourceControl::flushMessageQueue(const QByteArray &resourceIdentifier)
+{
+    return flushMessageQueue(QByteArrayList() << resourceIdentifier);
+}
+
 KAsync::Job<void> ResourceControl::flushReplayQueue(const QByteArrayList &resourceIdentifier)
 {
     return flushMessageQueue(resourceIdentifier);
+}
+
+KAsync::Job<void> ResourceControl::flushReplayQueue(const QByteArray &resourceIdentifier)
+{
+    return flushReplayQueue(QByteArrayList() << resourceIdentifier);
 }
 
 template <class DomainType>

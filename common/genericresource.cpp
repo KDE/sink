@@ -266,7 +266,7 @@ GenericResource::GenericResource(const ResourceContext &resourceContext, const Q
         return KAsync::error<void>(-1, "Invalid inspection command.");
     });
     {
-        auto ret =QObject::connect(mProcessor.get(), &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
+        auto ret = QObject::connect(mProcessor.get(), &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
         Q_ASSERT(ret);
     }
     {
