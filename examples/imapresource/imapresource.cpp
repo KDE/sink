@@ -187,7 +187,7 @@ public:
         SinkLog() << "Removed " << count << " mails in " << path << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
 
-    KAsync::Job<void> synchronizeFolder(QSharedPointer<ImapServerProxy> imap, const Imap::Folder &folder)
+    KAsync::Job<void> synchronizeFolder(QSharedPointer<ImapServerProxy> imap, const Imap::Folder &folder, const QDate &dateFilter)
     {
         QSet<qint64> uids;
         SinkLog() << "Synchronizing mails" << folder.path();
@@ -215,9 +215,14 @@ public:
             });
         })
         .then<void>([=]() {
-            //Get the range we're interested in. This is what we're going to download.
-            return imap->fetchUidsSince(imap->mailboxFromFolder(folder), QDate::currentDate().addDays(-14))
-            .then<void, QVector<qint64>>([this, folder, imap](const QVector<qint64> &uidsToFetch) {
+            auto job = [&] {
+                if (dateFilter.isValid()) {
+                    return imap->fetchUidsSince(imap->mailboxFromFolder(folder), dateFilter);
+                } else {
+                    return imap->fetchUids(imap->mailboxFromFolder(folder));
+                }
+            }();
+            return job.then<void, QVector<qint64>>([this, folder, imap](const QVector<qint64> &uidsToFetch) {
                 SinkTrace() << "Received result set " << uidsToFetch;
                 SinkTrace() << "About to fetch mail" << folder.normalizedPath();
                 const auto uidNext = syncStore().readValue(folder.normalizedPath().toUtf8() + "uidnext").toLongLong();
@@ -272,16 +277,26 @@ public:
 
     }
 
+    Sink::QueryBase applyMailDefaults(const Sink::QueryBase &query)
+    {
+        auto defaultDateFilter = QDate::currentDate().addDays(-14);
+        auto queryWithDefaults = query;
+        if (!queryWithDefaults.hasFilter<ApplicationDomain::Mail::Date>()) {
+            queryWithDefaults.filter(ApplicationDomain::Mail::Date::name, QVariant::fromValue(defaultDateFilter));
+        }
+        return queryWithDefaults;
+    }
+
     QList<Synchronizer::SyncRequest> getSyncRequests(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
         QList<Synchronizer::SyncRequest> list;
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
-            list << Synchronizer::SyncRequest{query};
+            list << Synchronizer::SyncRequest{applyMailDefaults(query)};
         } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
             list << Synchronizer::SyncRequest{query};
         } else {
             list << Synchronizer::SyncRequest{Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Folder>())};
-            list << Synchronizer::SyncRequest{Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Mail>())};
+            list << Synchronizer::SyncRequest{applyMailDefaults(Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Mail>()))};
         }
         return list;
     }
@@ -357,11 +372,16 @@ public:
                         });
                     }
                 })
-                .serialEach<void>([this, imap](const Folder &folder) {
+                .serialEach<void>([this, imap, query](const Folder &folder) {
                     if (folder.noselect) {
                         return KAsync::null<void>();
                     }
-                    return synchronizeFolder(imap, folder)
+                    QDate dateFilter;
+                    auto filter = query.getFilter<ApplicationDomain::Mail::Date>();
+                    if (filter.value.canConvert<QDate>()) {
+                        dateFilter = filter.value.value<QDate>();
+                    }
+                    return synchronizeFolder(imap, folder, dateFilter)
                         .onError([folder](const KAsync::Error &error) {
                             SinkWarning() << "Failed to sync folder: ." << folder.normalizedPath();
                         });
