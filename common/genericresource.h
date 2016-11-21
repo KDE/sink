@@ -24,7 +24,7 @@
 #include <messagequeue.h>
 #include <flatbuffers/flatbuffers.h>
 #include <domainadaptor.h>
-#include "changereplay.h"
+#include <resourcecontext.h>
 
 #include <QTimer>
 
@@ -66,7 +66,6 @@ protected:
 
     void setupPreprocessors(const QByteArray &type, const QVector<Sink::Preprocessor *> &preprocessors);
     void setupSynchronizer(const QSharedPointer<Synchronizer> &synchronizer);
-    void setupChangereplay(const QSharedPointer<ChangeReplay> &changeReplay);
 
     void onProcessorError(int errorCode, const QString &errorMessage);
     void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);
@@ -78,7 +77,6 @@ protected:
 
 private:
     std::unique_ptr<CommandProcessor> mProcessor;
-    QSharedPointer<ChangeReplay> mChangeReplay;
     QSharedPointer<Synchronizer> mSynchronizer;
     int mError;
     QTimer mCommitQueueTimer;

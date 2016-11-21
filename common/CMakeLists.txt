@@ -70,7 +70,6 @@ set(command_SRCS
     adaptorfactoryregistry.cpp
     synchronizer.cpp
     remoteidmap.cpp
-    sourcewriteback.cpp
     mailpreprocessor.cpp
     specialpurposepreprocessor.cpp
     datastorequery.cpp

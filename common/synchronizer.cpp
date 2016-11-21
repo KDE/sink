@@ -33,7 +33,8 @@ SINK_DEBUG_AREA("synchronizer")
 using namespace Sink;
 
 Synchronizer::Synchronizer(const Sink::ResourceContext &context)
-    : mResourceContext(context),
+    : ChangeReplay(context),
+    mResourceContext(context),
     mEntityStore(Storage::EntityStore::Ptr::create(mResourceContext)),
     mSyncStorage(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::DataStore::ReadWrite)
 {
@@ -308,6 +309,97 @@ Sink::Storage::DataStore::DataStore::Transaction &Synchronizer::syncTransaction(
         mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::DataStore::DataStore::ReadWrite);
     }
     return mSyncTransaction;
+}
+
+bool Synchronizer::canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
+{
+    Sink::EntityBuffer buffer(value);
+    const Sink::Entity &entity = buffer.entity();
+    const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
+    Q_ASSERT(metadataBuffer);
+    if (!metadataBuffer->replayToSource()) {
+        SinkTrace() << "Change is coming from the source";
+    }
+    return metadataBuffer->replayToSource();
+}
+
+KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
+{
+    SinkTrace() << "Replaying" << type << key;
+
+    Sink::EntityBuffer buffer(value);
+    const Sink::Entity &entity = buffer.entity();
+    const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
+    Q_ASSERT(metadataBuffer);
+    Q_ASSERT(!mSyncStore);
+    Q_ASSERT(!mSyncTransaction);
+    mEntityStore->startTransaction(Storage::DataStore::ReadOnly);
+    mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::DataStore::ReadWrite);
+
+    const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
+    const auto uid = Sink::Storage::DataStore::uidFromKey(key);
+    const auto modifiedProperties = metadataBuffer->modifiedProperties() ? BufferUtils::fromVector(*metadataBuffer->modifiedProperties()) : QByteArrayList();
+    QByteArray oldRemoteId;
+
+    if (operation != Sink::Operation_Creation) {
+        oldRemoteId = syncStore().resolveLocalId(type, uid);
+        if (oldRemoteId.isEmpty()) {
+            SinkWarning() << "Couldn't find the remote id for: " << type << uid;
+            return KAsync::error<void>(1, "Couldn't find the remote id.");
+        }
+    }
+    SinkTrace() << "Replaying " << key << type << uid << oldRemoteId;
+
+    KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
+    //TODO This requires supporting every domain type here as well. Can we solve this better so we can do the dispatch somewhere centrally?
+    if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
+        auto folder = store().readEntity<ApplicationDomain::Folder>(key);
+        job = replay(folder, operation, oldRemoteId, modifiedProperties);
+    } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
+        auto mail = store().readEntity<ApplicationDomain::Mail>(key);
+        job = replay(mail, operation, oldRemoteId, modifiedProperties);
+    }
+
+    return job.syncThen<void, QByteArray>([this, operation, type, uid, oldRemoteId](const QByteArray &remoteId) {
+        if (operation == Sink::Operation_Creation) {
+            SinkTrace() << "Replayed creation with remote id: " << remoteId;
+            if (remoteId.isEmpty()) {
+                SinkWarning() << "Returned an empty remoteId from the creation";
+            } else {
+                syncStore().recordRemoteId(type, uid, remoteId);
+            }
+        } else if (operation == Sink::Operation_Modification) {
+            SinkTrace() << "Replayed modification with remote id: " << remoteId;
+            if (remoteId.isEmpty()) {
+                SinkWarning() << "Returned an empty remoteId from the creation";
+            } else {
+               syncStore().updateRemoteId(type, uid, remoteId);
+            }
+        } else if (operation == Sink::Operation_Removal) {
+            SinkTrace() << "Replayed removal with remote id: " << oldRemoteId;
+            syncStore().removeRemoteId(type, uid, oldRemoteId);
+        } else {
+            SinkError() << "Unkown operation" << operation;
+        }
+    })
+    .syncThen<void>([this](const KAsync::Error &error) {
+        if (error) {
+            SinkWarning() << "Failed to replay change: " << error.errorMessage;
+        }
+        mSyncStore.clear();
+        mSyncTransaction.commit();
+        mEntityStore->abortTransaction();
+    });
+}
+
+KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Mail &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)
+{
+    return KAsync::null<QByteArray>();
+}
+
+KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Folder &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)
+{
+    return KAsync::null<QByteArray>();
 }
 
 #define REGISTER_TYPE(T)                                                          \

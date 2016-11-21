@@ -292,14 +292,14 @@ KAsync::Job<void> GenericResource::inspect(
 
 void GenericResource::enableChangeReplay(bool enable)
 {
-    Q_ASSERT(mChangeReplay);
+    Q_ASSERT(mSynchronizer);
     if (enable) {
-        QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mChangeReplay.data(), &ChangeReplay::revisionChanged, Qt::QueuedConnection);
-        QObject::connect(mChangeReplay.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
-        QMetaObject::invokeMethod(mChangeReplay.data(), "revisionChanged", Qt::QueuedConnection);
+        QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mSynchronizer.data(), &ChangeReplay::revisionChanged, Qt::QueuedConnection);
+        QObject::connect(mSynchronizer.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
+        QMetaObject::invokeMethod(mSynchronizer.data(), "revisionChanged", Qt::QueuedConnection);
     } else {
-        QObject::disconnect(mPipeline.data(), &Pipeline::revisionUpdated, mChangeReplay.data(), &ChangeReplay::revisionChanged);
-        QObject::disconnect(mChangeReplay.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
+        QObject::disconnect(mPipeline.data(), &Pipeline::revisionUpdated, mSynchronizer.data(), &ChangeReplay::revisionChanged);
+        QObject::disconnect(mSynchronizer.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
     }
 }
 
@@ -314,13 +314,8 @@ void GenericResource::setupSynchronizer(const QSharedPointer<Synchronizer> &sync
     mSynchronizer->setup([this](int commandId, const QByteArray &data) {
         enqueueCommand(mSynchronizerQueue, commandId, data);
     }, mSynchronizerQueue);
-}
-
-void GenericResource::setupChangereplay(const QSharedPointer<ChangeReplay> &changeReplay)
-{
-    mChangeReplay = changeReplay;
     {
-        auto ret = QObject::connect(mChangeReplay.data(), &ChangeReplay::replayingChanges, [this]() {
+        auto ret = QObject::connect(mSynchronizer.data(), &Synchronizer::replayingChanges, [this]() {
             Sink::Notification n;
             n.id = "changereplay";
             n.type = Sink::Notification::Status;
@@ -331,7 +326,7 @@ void GenericResource::setupChangereplay(const QSharedPointer<ChangeReplay> &chan
         Q_ASSERT(ret);
     }
     {
-        auto ret = QObject::connect(mChangeReplay.data(), &ChangeReplay::changesReplayed, [this]() {
+        auto ret = QObject::connect(mSynchronizer.data(), &Synchronizer::changesReplayed, [this]() {
             Sink::Notification n;
             n.id = "changereplay";
             n.type = Sink::Notification::Status;
@@ -342,7 +337,7 @@ void GenericResource::setupChangereplay(const QSharedPointer<ChangeReplay> &chan
         Q_ASSERT(ret);
     }
 
-    mProcessor->setOldestUsedRevision(mChangeReplay->getLastReplayedRevision());
+    mProcessor->setOldestUsedRevision(mSynchronizer->getLastReplayedRevision());
     enableChangeReplay(true);
 }
 
@@ -459,11 +454,11 @@ KAsync::Job<void> GenericResource::processAllMessages()
         .then<void>([this](KAsync::Future<void> &f) { waitForDrained(f, mSynchronizerQueue); })
         .then<void>([this](KAsync::Future<void> &f) { waitForDrained(f, mUserQueue); })
         .then<void>([this](KAsync::Future<void> &f) {
-            if (mChangeReplay->allChangesReplayed()) {
+            if (mSynchronizer->allChangesReplayed()) {
                 f.setFinished();
             } else {
                 auto context = new QObject;
-                QObject::connect(mChangeReplay.data(), &ChangeReplay::changesReplayed, context, [&f, context]() {
+                QObject::connect(mSynchronizer.data(), &ChangeReplay::changesReplayed, context, [&f, context]() {
                     delete context;
                     f.setFinished();
                 });
@@ -473,7 +468,7 @@ KAsync::Job<void> GenericResource::processAllMessages()
 
 void GenericResource::updateLowerBoundRevision()
 {
-    mProcessor->setOldestUsedRevision(qMin(mClientLowerBoundRevision, mChangeReplay->getLastReplayedRevision()));
+    mProcessor->setOldestUsedRevision(qMin(mClientLowerBoundRevision, mSynchronizer->getLastReplayedRevision()));
 }
 
 void GenericResource::setLowerBoundRevision(qint64 revision)

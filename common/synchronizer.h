@@ -27,6 +27,8 @@
 #include <messagequeue.h>
 #include <storage.h>
 #include <storage/entitystore.h>
+#include "changereplay.h"
+#include "remoteidmap.h"
 
 namespace Sink {
 class RemoteIdMap;
@@ -34,8 +36,9 @@ class RemoteIdMap;
 /**
  * Synchronize and add what we don't already have to local queue
  */
-class SINK_EXPORT Synchronizer
+class SINK_EXPORT Synchronizer : public ChangeReplay
 {
+    Q_OBJECT
 public:
     Synchronizer(const Sink::ResourceContext &resourceContext);
     virtual ~Synchronizer();
@@ -51,6 +54,16 @@ public:
 
     void commit();
     Sink::Storage::DataStore::Transaction &syncTransaction();
+
+protected:
+    ///Base implementation calls the replay$Type calls
+    virtual KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
+    virtual bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
+
+protected:
+    ///Implement to write back changes to the server
+    virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Mail &, Sink::Operation, const QByteArray &oldRemoteId, const QList<QByteArray> &);
+    virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Folder &, Sink::Operation, const QByteArray &oldRemoteId, const QList<QByteArray> &);
 
 protected:
     ///Calls the callback to enqueue the command

@@ -28,7 +28,6 @@
 #include "libmaildir/maildir.h"
 #include "inspection.h"
 #include "synchronizer.h"
-#include "sourcewriteback.h"
 
 #include "facadefactory.h"
 #include "adaptorfactoryregistry.h"
@@ -383,18 +382,6 @@ public:
         return job;
     }
 
-public:
-    QString mMaildirPath;
-};
-
-class MaildirWriteback : public Sink::SourceWriteBack
-{
-public:
-    MaildirWriteback(const Sink::ResourceContext &resourceContext) : Sink::SourceWriteBack(resourceContext)
-    {
-
-    }
-
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
         if (operation == Sink::Operation_Creation) {
@@ -453,9 +440,6 @@ MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext, c
     auto synchronizer = QSharedPointer<MaildirSynchronizer>::create(resourceContext);
     synchronizer->mMaildirPath = mMaildirPath;
     setupSynchronizer(synchronizer);
-    auto changereplay = QSharedPointer<MaildirWriteback>::create(resourceContext);
-    changereplay->mMaildirPath = mMaildirPath;
-    setupChangereplay(changereplay);
 
     setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MaildirMimeMessageMover(resourceContext.instanceId(), mMaildirPath) << new MaildirMailPropertyExtractor);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new FolderPreprocessor(mMaildirPath));

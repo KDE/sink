@@ -126,13 +126,14 @@ class DummySynchronizer : public Sink::Synchronizer {
         });
     }
 
+    bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE { return false; }
+
 };
 
 DummyResource::DummyResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline)
     : Sink::GenericResource(resourceContext, pipeline)
 {
     setupSynchronizer(QSharedPointer<DummySynchronizer>::create(resourceContext));
-    setupChangereplay(QSharedPointer<Sink::NullChangeReplay>::create(resourceContext));
     setupPreprocessors(ENTITY_TYPE_MAIL,
             QVector<Sink::Preprocessor*>() << new MailPropertyExtractor);
     setupPreprocessors(ENTITY_TYPE_FOLDER,

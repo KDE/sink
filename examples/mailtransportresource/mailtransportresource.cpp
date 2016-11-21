@@ -23,7 +23,6 @@
 #include "resourceconfig.h"
 #include "definitions.h"
 #include "domainadaptor.h"
-#include "sourcewriteback.h"
 #include <QDir>
 #include <QFileInfo>
 #include <QSettings>
@@ -44,30 +43,6 @@
 SINK_DEBUG_AREA("mailtransportresource")
 
 using namespace Sink;
-
-//TODO fold into synchronizer
-class MailtransportWriteback : public Sink::SourceWriteBack
-{
-public:
-    MailtransportWriteback(const Sink::ResourceContext &resourceContext) : Sink::SourceWriteBack(resourceContext)
-    {
-
-    }
-
-    KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
-    {
-        if (operation == Sink::Operation_Creation) {
-            SinkTrace() << "Dispatching message.";
-            // return send(mail, mSettings);
-        } else if (operation == Sink::Operation_Removal) {
-        } else if (operation == Sink::Operation_Modification) {
-        }
-        return KAsync::null<QByteArray>();
-    }
-
-public:
-    MailtransportResource::Settings mSettings;
-};
 
 class MailtransportSynchronizer : public Sink::Synchronizer {
 public:
@@ -134,6 +109,17 @@ public:
         });
     }
 
+    KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
+    {
+        if (operation == Sink::Operation_Creation) {
+            SinkTrace() << "Dispatching message.";
+            // return send(mail, mSettings);
+        } else if (operation == Sink::Operation_Removal) {
+        } else if (operation == Sink::Operation_Modification) {
+        }
+        return KAsync::null<QByteArray>();
+    }
+
 public:
     QByteArray mResourceInstanceIdentifier;
     MailtransportResource::Settings mSettings;
@@ -153,10 +139,6 @@ MailtransportResource::MailtransportResource(const Sink::ResourceContext &resour
     auto synchronizer = QSharedPointer<MailtransportSynchronizer>::create(resourceContext);
     synchronizer->mSettings = mSettings;
     setupSynchronizer(synchronizer);
-
-    auto changereplay = QSharedPointer<MailtransportWriteback>::create(resourceContext);
-    changereplay->mSettings = mSettings;
-    setupChangereplay(changereplay);
 
     setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MimeMessageMover << new MailPropertyExtractor);
 }

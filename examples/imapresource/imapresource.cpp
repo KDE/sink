@@ -28,7 +28,6 @@
 #include "definitions.h"
 #include "inspection.h"
 #include "synchronizer.h"
-#include "sourcewriteback.h"
 #include "remoteidmap.h"
 #include "query.h"
 
@@ -393,22 +392,6 @@ public:
         return KAsync::error<void>("Nothing to do");
     }
 
-public:
-    QString mServer;
-    int mPort;
-    QString mUser;
-    QString mPassword;
-    QByteArray mResourceInstanceIdentifier;
-};
-
-class ImapWriteback : public Sink::SourceWriteBack
-{
-public:
-    ImapWriteback(const ResourceContext &resourceContext) : Sink::SourceWriteBack(resourceContext)
-    {
-
-    }
-
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
@@ -595,12 +578,6 @@ ImapResource::ImapResource(const ResourceContext &resourceContext, const QShared
     synchronizer->mUser = mUser;
     synchronizer->mPassword = mPassword;
     setupSynchronizer(synchronizer);
-    auto changereplay = QSharedPointer<ImapWriteback>::create(resourceContext);
-    changereplay->mServer = mServer;
-    changereplay->mPort = mPort;
-    changereplay->mUser = mUser;
-    changereplay->mPassword = mPassword;
-    setupChangereplay(changereplay);
 
     setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MimeMessageMover << new MailPropertyExtractor);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>());
