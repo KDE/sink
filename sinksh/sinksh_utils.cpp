@@ -51,6 +51,9 @@ StoreBase &getStore(const QString &type)
     } else if (type == getTypeName<SinkAccount>()) {
         static Store<SinkAccount> store;
         return store;
+    } else if (type == getTypeName<Identity>()) {
+        static Store<Identity> store;
+        return store;
     }
 
     qWarning() << "Trying to get a store that doesn't exist, falling back to event";
@@ -75,6 +78,8 @@ QList<QByteArray> requestedProperties(const QString &type)
         return QList<QByteArray>() << SinkResource::ResourceType::name << SinkResource::Account::name;
     } else if (type == getTypeName<SinkAccount>()) {
         return QList<QByteArray>() << SinkAccount::AccountType::name << SinkAccount::Name::name;
+    } else if (type == getTypeName<Identity>()) {
+        return QList<QByteArray>() << Identity::Name::name << Identity::Address::name;
     }
     return QList<QByteArray>();
 }

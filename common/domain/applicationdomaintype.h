@@ -319,6 +319,8 @@ struct SINK_EXPORT Identity : public ApplicationDomainType {
     Identity();
     virtual ~Identity();
     SINK_REFERENCE_PROPERTY(SinkAccount, Account, account);
+    SINK_PROPERTY(QString, Name, name);
+    SINK_PROPERTY(QString, Address, address);
 };
 
 struct SINK_EXPORT DummyResource {

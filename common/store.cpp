@@ -200,6 +200,7 @@ static std::shared_ptr<StoreFacade<DomainType>> getFacade(const QByteArray &reso
 template <class DomainType>
 KAsync::Job<void> Store::create(const DomainType &domainObject)
 {
+    SinkTrace() << "Create: " << domainObject;
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
     return facade->create(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to create"; });
@@ -208,6 +209,7 @@ KAsync::Job<void> Store::create(const DomainType &domainObject)
 template <class DomainType>
 KAsync::Job<void> Store::modify(const DomainType &domainObject)
 {
+    SinkTrace() << "Modify: " << domainObject;
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
     return facade->modify(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to modify"; });
@@ -216,6 +218,7 @@ KAsync::Job<void> Store::modify(const DomainType &domainObject)
 template <class DomainType>
 KAsync::Job<void> Store::remove(const DomainType &domainObject)
 {
+    SinkTrace() << "Remove: " << domainObject;
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
     return facade->remove(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to remove"; });
