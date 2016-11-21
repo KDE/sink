@@ -27,11 +27,8 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QSettings>
-#include <QStandardPaths>
-#include <QUuid>
 #include <KMime/Message>
 
-#include "resultprovider.h"
 #include "mailtransport.h"
 #include "mail_generated.h"
 #include "inspection.h"
