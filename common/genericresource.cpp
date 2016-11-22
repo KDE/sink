@@ -290,19 +290,6 @@ KAsync::Job<void> GenericResource::inspect(
     return KAsync::null<void>();
 }
 
-void GenericResource::enableChangeReplay(bool enable)
-{
-    Q_ASSERT(mSynchronizer);
-    if (enable) {
-        QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mSynchronizer.data(), &ChangeReplay::revisionChanged, Qt::QueuedConnection);
-        QObject::connect(mSynchronizer.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
-        QMetaObject::invokeMethod(mSynchronizer.data(), "revisionChanged", Qt::QueuedConnection);
-    } else {
-        QObject::disconnect(mPipeline.data(), &Pipeline::revisionUpdated, mSynchronizer.data(), &ChangeReplay::revisionChanged);
-        QObject::disconnect(mSynchronizer.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
-    }
-}
-
 void GenericResource::setupPreprocessors(const QByteArray &type, const QVector<Sink::Preprocessor *> &preprocessors)
 {
     mPipeline->setPreprocessors(type, preprocessors);
@@ -338,7 +325,9 @@ void GenericResource::setupSynchronizer(const QSharedPointer<Synchronizer> &sync
     }
 
     mProcessor->setOldestUsedRevision(mSynchronizer->getLastReplayedRevision());
-    enableChangeReplay(true);
+    QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mSynchronizer.data(), &ChangeReplay::revisionChanged, Qt::QueuedConnection);
+    QObject::connect(mSynchronizer.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
+    QMetaObject::invokeMethod(mSynchronizer.data(), "revisionChanged", Qt::QueuedConnection);
 }
 
 void GenericResource::removeFromDisk(const QByteArray &instanceIdentifier)
@@ -406,11 +395,8 @@ KAsync::Job<void> GenericResource::synchronizeWithSource(const Sink::QueryBase &
         emit notify(n);
 
         SinkLog() << " Synchronizing";
-        // Changereplay would deadlock otherwise when trying to open the synchronization store
-        enableChangeReplay(false);
         return mSynchronizer->synchronize(query)
             .then<void>([this](const KAsync::Error &error) {
-                enableChangeReplay(true);
                 if (!error) {
                     SinkLog() << "Done Synchronizing";
                     Sink::Notification n;

@@ -62,8 +62,6 @@ private slots:
     void updateLowerBoundRevision();
 
 protected:
-    void enableChangeReplay(bool);
-
     void setupPreprocessors(const QByteArray &type, const QVector<Sink::Preprocessor *> &preprocessors);
     void setupSynchronizer(const QSharedPointer<Synchronizer> &synchronizer);
 

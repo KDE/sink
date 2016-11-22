@@ -274,10 +274,14 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
     auto job = KAsync::null<void>();
     while (!mSyncRequestQueue.isEmpty()) {
         auto request = mSyncRequestQueue.takeFirst();
-        job = job.then(synchronizeWithSource(request.query)).syncThen<void>([this] {
-            //Commit after every request, so implementations only have to commit more if they add a lot of data.
-            commit();
-        });
+        if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
+            job = job.then(synchronizeWithSource(request.query)).syncThen<void>([this] {
+                //Commit after every request, so implementations only have to commit more if they add a lot of data.
+                commit();
+            });
+        } else {
+            job = replayNextRevision();
+        }
     }
     return job.then<void>([this](const KAsync::Error &error) {
         mSyncStore.clear();
@@ -311,6 +315,12 @@ Sink::Storage::DataStore::DataStore::Transaction &Synchronizer::syncTransaction(
     return mSyncTransaction;
 }
 
+void Synchronizer::revisionChanged()
+{
+    mSyncRequestQueue << Synchronizer::SyncRequest{Synchronizer::SyncRequest::ChangeReplay};
+    processSyncQueue().exec();
+}
+
 bool Synchronizer::canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value)
 {
     Sink::EntityBuffer buffer(value);
@@ -334,7 +344,6 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     Q_ASSERT(!mSyncStore);
     Q_ASSERT(!mSyncTransaction);
     mEntityStore->startTransaction(Storage::DataStore::ReadOnly);
-    mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::DataStore::ReadWrite);
 
     const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
     const auto uid = Sink::Storage::DataStore::uidFromKey(key);
@@ -345,6 +354,9 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         oldRemoteId = syncStore().resolveLocalId(type, uid);
         if (oldRemoteId.isEmpty()) {
             SinkWarning() << "Couldn't find the remote id for: " << type << uid;
+            mSyncStore.clear();
+            mSyncTransaction.abort();
+            mEntityStore->abortTransaction();
             return KAsync::error<void>(1, "Couldn't find the remote id.");
         }
     }

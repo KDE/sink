@@ -71,8 +71,10 @@ void ChangeReplay::recordReplayedRevision(qint64 revision)
 
 KAsync::Job<void> ChangeReplay::replayNextRevision()
 {
+    Q_ASSERT(!mReplayInProgress);
     auto lastReplayedRevision = QSharedPointer<qint64>::create(0);
     auto topRevision = QSharedPointer<qint64>::create(0);
+    emit replayingChanges();
     return KAsync::syncStart<void>([this, lastReplayedRevision, topRevision]() {
             mReplayInProgress = true;
             mMainStoreTransaction = mStorage.createTransaction(DataStore::ReadOnly, [](const Sink::Storage::DataStore::Error &error) {
@@ -157,6 +159,7 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                 emit changesReplayed();
             } else {
                 QTimer::singleShot(0, [this]() {
+                    mReplayInProgress = false;
                     replayNextRevision().exec();
                 });
             }
@@ -166,7 +169,6 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
 void ChangeReplay::revisionChanged()
 {
     if (!mReplayInProgress) {
-        emit replayingChanges();
         replayNextRevision().exec();
     }
 }

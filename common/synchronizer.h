@@ -55,6 +55,9 @@ public:
     void commit();
     Sink::Storage::DataStore::Transaction &syncTransaction();
 
+public slots:
+    virtual void revisionChanged() Q_DECL_OVERRIDE;
+
 protected:
     ///Base implementation calls the replay$Type calls
     virtual KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
@@ -108,13 +111,26 @@ protected:
     virtual KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) = 0;
 
     struct SyncRequest {
+        enum RequestType {
+            Synchronization,
+            ChangeReplay
+        };
+
         SyncRequest(const Sink::QueryBase &q)
             : flushQueue(false),
+            requestType(Synchronization),
             query(q)
         {
         }
 
+        SyncRequest(RequestType type)
+            : flushQueue(false),
+            requestType(type)
+        {
+        }
+
         bool flushQueue;
+        RequestType requestType;
         Sink::QueryBase query;
     };
 

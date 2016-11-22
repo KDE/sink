@@ -49,16 +49,16 @@ signals:
     void replayingChanges();
 
 public slots:
-    void revisionChanged();
+    virtual void revisionChanged();
 
 protected:
     virtual KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) = 0;
     virtual bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) = 0;
     Sink::Storage::DataStore mStorage;
+    KAsync::Job<void> replayNextRevision();
 
 private:
     void recordReplayedRevision(qint64 revision);
-    KAsync::Job<void> replayNextRevision();
     Sink::Storage::DataStore mChangeReplayStore;
     bool mReplayInProgress;
     Sink::Storage::DataStore::Transaction mMainStoreTransaction;
