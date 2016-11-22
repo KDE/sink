@@ -92,6 +92,12 @@ public:
         return std::static_pointer_cast<StoreFacade<DomainType>>(ptr);
     }
 
+    template <class DomainType>
+    std::shared_ptr<StoreFacade<DomainType>> getFacade()
+    {
+        return getFacade<DomainType>(QByteArray(), QByteArray());
+    }
+
 private:
     FacadeFactory();
     std::shared_ptr<void> getFacade(const QByteArray &resource, const QByteArray &instanceIdentifier, const QByteArray &typeName);

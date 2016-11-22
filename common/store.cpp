@@ -146,7 +146,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 
     if (query.liveQuery() && query.getResourceFilter().ids.isEmpty() && !ApplicationDomain::isGlobalType(ApplicationDomain::getTypeName<DomainType>())) {
         SinkTrace() << "Listening for new resources";
-        auto facade = FacadeFactory::instance().getFacade<ApplicationDomain::SinkResource>("", "");
+        auto facade = FacadeFactory::instance().getFacade<ApplicationDomain::SinkResource>();
         Q_ASSERT(facade);
         Sink::Query resourceQuery;
         query.setFlags(Query::LiveQuery);
@@ -187,7 +187,7 @@ template <class DomainType>
 static std::shared_ptr<StoreFacade<DomainType>> getFacade(const QByteArray &resourceInstanceIdentifier)
 {
     if (ApplicationDomain::isGlobalType(ApplicationDomain::getTypeName<DomainType>())) {
-        if (auto facade = FacadeFactory::instance().getFacade<DomainType>("", "")) {
+        if (auto facade = FacadeFactory::instance().getFacade<DomainType>()) {
             return facade;
         }
     }

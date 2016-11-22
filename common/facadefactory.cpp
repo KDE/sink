@@ -51,6 +51,7 @@ void FacadeFactory::resetFactory()
 {
     QMutexLocker locker(&sMutex);
     mFacadeRegistry.clear();
+    registerStaticFacades();
 }
 
 void FacadeFactory::registerStaticFacades()
