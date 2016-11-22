@@ -309,10 +309,18 @@ void EntityStore::cleanupRevision(qint64 revision)
 
 void EntityStore::cleanupRevisions(qint64 revision)
 {
+    bool implicitTransaction = false;
+    if (!d->transaction) {
+        startTransaction(Sink::Storage::DataStore::ReadWrite);
+        implicitTransaction = true;
+    }
     const auto lastCleanRevision = DataStore::cleanedUpRevision(d->transaction);
     SinkTrace() << "Cleaning up from " << lastCleanRevision + 1 << " to " << revision;
     for (qint64 rev = lastCleanRevision + 1; rev <= revision; rev++) {
         cleanupRevision(revision);
+    }
+    if (implicitTransaction) {
+        commitTransaction();
     }
 }
 

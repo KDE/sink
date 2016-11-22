@@ -288,7 +288,6 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 void Pipeline::cleanupRevisions(qint64 revision)
 {
     d->entityStore.cleanupRevisions(revision);
-    d->revisionChanged = true;
 }
 
 

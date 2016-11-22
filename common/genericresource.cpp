@@ -186,12 +186,13 @@ private slots:
     {
         auto time = QSharedPointer<QTime>::create();
         time->start();
-        mPipeline->startTransaction();
         mPipeline->cleanupRevisions(mLowerBoundRevision);
-        mPipeline->commit();
         SinkTrace() << "Cleanup done." << Log::TraceTime(time->elapsed());
 
         // Go through all message queues
+        if (mCommandQueues.isEmpty()) {
+            return KAsync::null<void>();
+        }
         auto it = QSharedPointer<QListIterator<MessageQueue *>>::create(mCommandQueues);
         return KAsync::dowhile(
             [it, this]() {
