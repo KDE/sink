@@ -42,7 +42,7 @@ public:
     ChangeReplay(const ResourceContext &resourceContext);
 
     qint64 getLastReplayedRevision();
-    bool allChangesReplayed();
+    virtual bool allChangesReplayed();
 
 signals:
     void changesReplayed();

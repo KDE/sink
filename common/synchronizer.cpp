@@ -287,11 +287,15 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         mSyncStore.clear();
         mMessageQueue->commit();
         mSyncInProgress = false;
+        if (allChangesReplayed()) {
+            emit changesReplayed();
+        }
         if (error) {
             SinkWarning() << "Error during sync: " << error.errorMessage;
             return KAsync::error(error);
         }
-        return KAsync::null<void>();
+        //In case we got more requests meanwhile.
+        return processSyncQueue();
     });
 }
 
@@ -412,6 +416,15 @@ KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Mail &, Si
 KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Folder &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)
 {
     return KAsync::null<QByteArray>();
+}
+
+bool Synchronizer::allChangesReplayed()
+{
+    if (!mSyncRequestQueue.isEmpty()) {
+        SinkTrace() << "Queue is not empty";
+        return false;
+    }
+    return ChangeReplay::allChangesReplayed();
 }
 
 #define REGISTER_TYPE(T)                                                          \

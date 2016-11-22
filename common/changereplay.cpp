@@ -154,9 +154,12 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
         .syncThen<void>([this, lastReplayedRevision]() {
             recordReplayedRevision(*lastReplayedRevision);
             mMainStoreTransaction.abort();
-            if (allChangesReplayed()) {
+            if (ChangeReplay::allChangesReplayed()) {
                 mReplayInProgress = false;
-                emit changesReplayed();
+                //In case we have a derived implementation
+                if (allChangesReplayed()) {
+                    emit changesReplayed();
+                }
             } else {
                 QTimer::singleShot(0, [this]() {
                     mReplayInProgress = false;

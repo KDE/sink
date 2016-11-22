@@ -55,6 +55,8 @@ public:
     void commit();
     Sink::Storage::DataStore::Transaction &syncTransaction();
 
+    bool allChangesReplayed() Q_DECL_OVERRIDE;
+
 public slots:
     virtual void revisionChanged() Q_DECL_OVERRIDE;
 

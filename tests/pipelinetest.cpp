@@ -271,9 +271,7 @@ private slots:
         QCOMPARE(getKeys(instanceIdentifier(), "event.main").size(), 2);
 
         // Cleanup old revisions
-        pipeline.startTransaction();
         pipeline.cleanupRevisions(2);
-        pipeline.commit();
 
         // And now only the latest revision is left
         QCOMPARE(getKeys(instanceIdentifier(), "event.main").size(), 1);
@@ -349,9 +347,7 @@ private slots:
         QCOMPARE(getKeys(instanceIdentifier(), "event.main").size(), 2);
 
         // Cleanup old revisions
-        pipeline.startTransaction();
         pipeline.cleanupRevisions(2);
-        pipeline.commit();
 
         // And all revisions are gone
         QCOMPARE(getKeys(instanceIdentifier(), "event.main").size(), 0);
