@@ -408,6 +408,7 @@ void ResourceAccess::open()
                 d->openingSocket = false;
                 if (error) {
                     SinkWarning() << "Failed to initialize socket " << error.errorMessage;
+                    d->abortPendingOperations();
                 } else {
                     SinkTrace() << "Socket is initialized." << Log::TraceTime(time->elapsed());
                     QObject::connect(d->socket.data(), &QLocalSocket::disconnected, this, &ResourceAccess::disconnected);
