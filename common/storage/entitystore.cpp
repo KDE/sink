@@ -307,7 +307,7 @@ void EntityStore::cleanupRevision(qint64 revision)
     DataStore::setCleanedUpRevision(d->transaction, revision);
 }
 
-void EntityStore::cleanupRevisions(qint64 revision)
+bool EntityStore::cleanupRevisions(qint64 revision)
 {
     bool implicitTransaction = false;
     if (!d->transaction) {
@@ -315,13 +315,18 @@ void EntityStore::cleanupRevisions(qint64 revision)
         implicitTransaction = true;
     }
     const auto lastCleanRevision = DataStore::cleanedUpRevision(d->transaction);
-    SinkTrace() << "Cleaning up from " << lastCleanRevision + 1 << " to " << revision;
-    for (qint64 rev = lastCleanRevision + 1; rev <= revision; rev++) {
-        cleanupRevision(revision);
+    const auto firstRevisionToCleanup = lastCleanRevision + 1;
+    bool cleanupIsNecessary = firstRevisionToCleanup <= revision;
+    if (cleanupIsNecessary) {
+        SinkTrace() << "Cleaning up from " << firstRevisionToCleanup << " to " << revision;
+        for (qint64 rev = firstRevisionToCleanup; rev <= revision; rev++) {
+            cleanupRevision(revision);
+        }
     }
     if (implicitTransaction) {
         commitTransaction();
     }
+    return cleanupIsNecessary;
 }
 
 QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)

@@ -287,7 +287,9 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 
 void Pipeline::cleanupRevisions(qint64 revision)
 {
-    d->entityStore.cleanupRevisions(revision);
+    //We have to set revisionChanged, otherwise a call to commit might abort
+    //the transaction when not using the implicit internal transaction
+    d->revisionChanged = d->entityStore.cleanupRevisions(revision);
 }
 
 
