@@ -39,8 +39,6 @@ QByteArray name(int commandId)
             return "RevisionUpdate";
         case SynchronizeCommand:
             return "Synchronize";
-        case FetchEntityCommand:
-            return "FetchEntity";
         case DeleteEntityCommand:
             return "DeleteEntity";
         case ModifyEntityCommand:

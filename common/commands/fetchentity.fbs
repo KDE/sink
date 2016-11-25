@@ -1,9 +1,0 @@
-namespace Sink.Commands;
-
-table FetchEntity {
-    revision: ulong;
-    entityId: string;
-    properties: [string];
-}
-
-root_type FetchEntity;

@@ -269,7 +269,6 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             break;
         }
         case Sink::Commands::InspectionCommand:
-        case Sink::Commands::FetchEntityCommand:
         case Sink::Commands::DeleteEntityCommand:
         case Sink::Commands::ModifyEntityCommand:
         case Sink::Commands::CreateEntityCommand:

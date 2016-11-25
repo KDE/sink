@@ -37,7 +37,6 @@ enum CommandIds
     HandshakeCommand,
     RevisionUpdateCommand,
     SynchronizeCommand,
-    FetchEntityCommand,
     DeleteEntityCommand,
     ModifyEntityCommand,
     CreateEntityCommand,
