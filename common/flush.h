@@ -20,37 +20,26 @@
 #pragma once
 
 #include "sink_export.h"
-#include <QString>
-#include <QDebug>
 
 namespace Sink {
+namespace Flush {
 
-/**
- * A notification
- */
-class SINK_EXPORT Notification
-{
-public:
-    enum NoticationType {
-        Shutdown,
-        Status,
-        Warning,
-        Progress,
-        Inspection,
-        RevisionUpdate,
-        FlushCompletion
-    };
-    enum InspectionCode {
-        Success = 0,
-        Failure
-    };
-
-    QByteArray id;
-    int type = 0;
-    QString message;
-    //A return code. Zero typically indicates success.
-    int code = 0;
+enum FlushType {
+    /**
+     * Guarantees that any commands issued before this flush are written back to the server once this flush completes.
+     * Note that this does not guarantee the success of writeback, only that an attempt has been made.
+     */
+    FlushReplayQueue,
+    /**
+     * Guarantees that any synchronization request issued before  this flush has been executed and that all entities created by it have been processed once this flush completes.
+     */
+    FlushSynchronization,
+    /**
+     * Guarantees that any modification issued before this flush has been processed once this flush completes.
+     */
+    FlushUserQueue
 };
+
+}
 }
 
-QDebug SINK_EXPORT operator<<(QDebug dbg, const Sink::Notification &n);

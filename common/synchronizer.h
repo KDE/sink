@@ -45,6 +45,7 @@ public:
 
     void setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback, MessageQueue &messageQueue);
     KAsync::Job<void> synchronize(const Sink::QueryBase &query);
+    void flush(int commandId, const QByteArray &flushId);
 
     //Read only access to main storage
     Storage::EntityStore &store();
@@ -56,6 +57,9 @@ public:
     Sink::Storage::DataStore::Transaction &syncTransaction();
 
     bool allChangesReplayed() Q_DECL_OVERRIDE;
+
+signals:
+    void notify(Notification);
 
 public slots:
     virtual void revisionChanged() Q_DECL_OVERRIDE;
@@ -115,23 +119,30 @@ protected:
     struct SyncRequest {
         enum RequestType {
             Synchronization,
-            ChangeReplay
+            ChangeReplay,
+            Flush
         };
 
         SyncRequest(const Sink::QueryBase &q)
-            : flushQueue(false),
-            requestType(Synchronization),
+            : requestType(Synchronization),
             query(q)
         {
         }
 
         SyncRequest(RequestType type)
-            : flushQueue(false),
+            : requestType(type)
+        {
+        }
+
+        SyncRequest(RequestType type, int flushType_, const QByteArray &flushId_)
+            : flushType(flushType_),
+            flushId(flushId_),
             requestType(type)
         {
         }
 
-        bool flushQueue;
+        int flushType = 0;
+        QByteArray flushId;
         RequestType requestType;
         Sink::QueryBase query;
     };

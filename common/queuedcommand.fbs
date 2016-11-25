@@ -3,9 +3,6 @@ namespace Sink;
 table QueuedCommand {
     commandId: int;
     command: [ubyte];
-    // entityId: string;
-    // sourceRevision: ulong;
-    // targetRevision: [ubyte];
 }
 
 root_type QueuedCommand;

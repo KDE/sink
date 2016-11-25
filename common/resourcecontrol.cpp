@@ -85,17 +85,39 @@ KAsync::Job<void> ResourceControl::flushMessageQueue(const QByteArrayList &resou
     SinkTrace() << "flushMessageQueue" << resourceIdentifier;
     return KAsync::value(resourceIdentifier)
         .template each([](const QByteArray &resource) {
-            SinkTrace() << "Flushing message queue " << resource;
-            auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
-            resourceAccess->open();
-            return resourceAccess->synchronizeResource(false, true)
-                .addToContext(resourceAccess);
+            return flushMessageQueue(resource);
         });
 }
 
 KAsync::Job<void> ResourceControl::flushMessageQueue(const QByteArray &resourceIdentifier)
 {
-    return flushMessageQueue(QByteArrayList() << resourceIdentifier);
+    return flush(Flush::FlushUserQueue, resourceIdentifier).then(flush(Flush::FlushSynchronization, resourceIdentifier));
+}
+
+KAsync::Job<void> ResourceControl::flush(Flush::FlushType type, const QByteArray &resourceIdentifier)
+{
+    auto resourceAccess = ResourceAccessFactory::instance().getAccess(resourceIdentifier, ResourceConfig::getResourceType(resourceIdentifier));
+    auto notifier = QSharedPointer<Sink::Notifier>::create(resourceAccess);
+    auto id = QUuid::createUuid().toByteArray();
+    return KAsync::start<void>([=](KAsync::Future<void> &future) {
+            SinkTrace() << "Waiting for notification notification " << id;
+            notifier->registerHandler([&future, id](const Notification &notification) {
+                SinkTrace() << "Received notification " << notification.type << notification.id;
+                if (notification.id == id) {
+                    SinkTrace() << "FlushComplete";
+                    if (notification.code) {
+                        SinkWarning() << "Flush return an error";
+                        future.setError(-1, "Flush returned an error: " + notification.message);
+                    } else {
+                        future.setFinished();
+                    }
+                }
+            });
+            resourceAccess->sendFlushCommand(type, id).onError([&future] (const KAsync::Error &error) {
+                SinkWarning() << "Failed to send command";
+                future.setError(1, "Failed to send command: " + error.errorMessage);
+            }).exec();
+        });
 }
 
 KAsync::Job<void> ResourceControl::flushReplayQueue(const QByteArrayList &resourceIdentifier)

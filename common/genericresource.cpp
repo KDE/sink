@@ -27,6 +27,7 @@
 #include "deleteentity_generated.h"
 #include "inspection_generated.h"
 #include "notification_generated.h"
+#include "flush_generated.h"
 #include "domainadaptor.h"
 #include "commands.h"
 #include "index.h"
@@ -54,6 +55,7 @@ class CommandProcessor : public QObject
 {
     Q_OBJECT
     typedef std::function<KAsync::Job<void>(void const *, size_t)> InspectionFunction;
+    typedef std::function<KAsync::Job<void>(void const *, size_t)> FlushFunction;
     SINK_DEBUG_AREA("commandprocessor")
 
 public:
@@ -73,6 +75,11 @@ public:
     void setInspectionCommand(const InspectionFunction &f)
     {
         mInspect = f;
+    }
+
+    void setFlushCommand(const FlushFunction &f)
+    {
+        mFlush = f;
     }
 
 signals:
@@ -120,6 +127,13 @@ private slots:
             case Sink::Commands::InspectionCommand:
                 if (mInspect) {
                     return mInspect(queuedCommand->command()->Data(), queuedCommand->command()->size())
+                        .syncThen<qint64>([]() { return -1; });
+                } else {
+                    return KAsync::error<qint64>(-1, "Missing inspection command.");
+                }
+            case Sink::Commands::FlushCommand:
+                if (mFlush) {
+                    return mFlush(queuedCommand->command()->Data(), queuedCommand->command()->size())
                         .syncThen<qint64>([]() { return -1; });
                 } else {
                     return KAsync::error<qint64>(-1, "Missing inspection command.");
@@ -219,6 +233,7 @@ private:
     // The lowest revision we no longer need
     qint64 mLowerBoundRevision;
     InspectionFunction mInspect;
+    FlushFunction mFlush;
 };
 
 GenericResource::GenericResource(const ResourceContext &resourceContext, const QSharedPointer<Pipeline> &pipeline )
@@ -265,6 +280,26 @@ GenericResource::GenericResource(const ResourceContext &resourceContext, const Q
             return KAsync::null<void>();
         }
         return KAsync::error<void>(-1, "Invalid inspection command.");
+    });
+    mProcessor->setFlushCommand([this](void const *command, size_t size) {
+        flatbuffers::Verifier verifier((const uint8_t *)command, size);
+        if (Sink::Commands::VerifyFlushBuffer(verifier)) {
+            auto buffer = Sink::Commands::GetFlush(command);
+            const auto flushType = buffer->type();
+            const auto flushId = BufferUtils::extractBuffer(buffer->id());
+            if (flushType == Sink::Flush::FlushReplayQueue) {
+                SinkTrace() << "Flushing synchronizer ";
+                mSynchronizer->flush(flushType, flushId);
+            } else {
+                SinkTrace() << "Emitting flush completion" << flushId;
+                Sink::Notification n;
+                n.type = Sink::Notification::FlushCompletion;
+                n.id = flushId;
+                emit notify(n);
+            }
+            return KAsync::null<void>();
+        }
+        return KAsync::error<void>(-1, "Invalid flush command.");
     });
     {
         auto ret = QObject::connect(mProcessor.get(), &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
@@ -371,6 +406,10 @@ void GenericResource::enqueueCommand(MessageQueue &mq, int commandId, const QByt
 
 void GenericResource::processCommand(int commandId, const QByteArray &data)
 {
+    if (commandId == Commands::FlushCommand) {
+        processFlushCommand(data);
+        return;
+    }
     static int modifications = 0;
     mUserQueue.startTransaction();
     enqueueCommand(mUserQueue, commandId, data);
@@ -382,6 +421,24 @@ void GenericResource::processCommand(int commandId, const QByteArray &data)
     } else {
         mCommitQueueTimer.start();
     }
+}
+
+void GenericResource::processFlushCommand(const QByteArray &data)
+{
+    flatbuffers::Verifier verifier((const uint8_t *)data.constData(), data.size());
+    if (Sink::Commands::VerifyFlushBuffer(verifier)) {
+        auto buffer = Sink::Commands::GetFlush(data.constData());
+        const auto flushType = buffer->type();
+        const auto flushId = BufferUtils::extractBuffer(buffer->id());
+        if (flushType == Sink::Flush::FlushSynchronization) {
+            mSynchronizer->flush(flushType, flushId);
+        } else {
+            mUserQueue.startTransaction();
+            enqueueCommand(mUserQueue, Commands::FlushCommand, data);
+            mUserQueue.commit();
+        }
+    }
+
 }
 
 KAsync::Job<void> GenericResource::synchronizeWithSource(const Sink::QueryBase &query)

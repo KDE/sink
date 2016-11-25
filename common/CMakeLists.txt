@@ -95,6 +95,7 @@ generate_flatbuffers(
     commands/notification
     commands/revisionreplayed
     commands/inspection
+    commands/flush
     domain/event
     domain/mail
     domain/folder
@@ -130,6 +131,7 @@ install(FILES
     bufferadaptor.h
     test.h
     log.h
+    flush.h
     ${CMAKE_CURRENT_BINARY_DIR}/sink_export.h
     DESTINATION ${INCLUDE_INSTALL_DIR}/${PROJECT_NAME} COMPONENT Devel
 )

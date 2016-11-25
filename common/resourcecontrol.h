@@ -26,6 +26,7 @@
 #include <Async/Async>
 
 #include "inspection.h"
+#include "flush.h"
 
 namespace Sink {
 namespace ResourceControl {
@@ -58,5 +59,8 @@ KAsync::Job<void> SINK_EXPORT flushMessageQueue(const QByteArray &resourceIdenti
  */
 KAsync::Job<void> SINK_EXPORT flushReplayQueue(const QByteArrayList &resourceIdentifier);
 KAsync::Job<void> SINK_EXPORT flushReplayQueue(const QByteArray &resourceIdentifier);
+
+KAsync::Job<void> SINK_EXPORT flush(Flush::FlushType, const QByteArray &resourceIdentifier);
+
 }
 }

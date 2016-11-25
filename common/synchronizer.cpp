@@ -27,6 +27,8 @@
 #include "createentity_generated.h"
 #include "modifyentity_generated.h"
 #include "deleteentity_generated.h"
+#include "flush_generated.h"
+#include "notification_generated.h"
 
 SINK_DEBUG_AREA("synchronizer")
 
@@ -263,6 +265,13 @@ KAsync::Job<void> Synchronizer::synchronize(const Sink::QueryBase &query)
     return processSyncQueue();
 }
 
+void Synchronizer::flush(int commandId, const QByteArray &flushId)
+{
+    SinkTrace() << "Flushing the synchronization queue";
+    mSyncRequestQueue << Synchronizer::SyncRequest{Synchronizer::SyncRequest::Flush, commandId, flushId};
+    processSyncQueue().exec();
+}
+
 KAsync::Job<void> Synchronizer::processSyncQueue()
 {
     if (mSyncRequestQueue.isEmpty() || mSyncInProgress) {
@@ -279,6 +288,20 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
                 //Commit after every request, so implementations only have to commit more if they add a lot of data.
                 commit();
             });
+        } else if (request.requestType == Synchronizer::SyncRequest::Flush) {
+            if (request.flushType == Flush::FlushReplayQueue) {
+                SinkTrace() << "Emitting flush completion.";
+                Sink::Notification n;
+                n.type = Sink::Notification::FlushCompletion;
+                n.id = request.flushId;
+                emit notify(n);
+            } else {
+                flatbuffers::FlatBufferBuilder fbb;
+                auto flushId = fbb.CreateString(request.flushId);
+                auto location = Sink::Commands::CreateFlush(fbb, flushId, static_cast<int>(Sink::Flush::FlushSynchronization));
+                Sink::Commands::FinishFlushBuffer(fbb, location);
+                enqueueCommand(Sink::Commands::FlushCommand, BufferUtils::extractBuffer(fbb));
+            }
         } else {
             job = replayNextRevision();
         }

@@ -66,10 +66,6 @@ public:
     {
         return KAsync::null<void>();
     }
-    KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) Q_DECL_OVERRIDE
-    {
-        return KAsync::null<void>();
-    }
     KAsync::Job<void> synchronizeResource(const Sink::QueryBase &) Q_DECL_OVERRIDE
     {
         return KAsync::null<void>();

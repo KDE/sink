@@ -29,6 +29,7 @@
 
 #include <flatbuffers/flatbuffers.h>
 #include "notification.h"
+#include "flush.h"
 #include "query.h"
 #include "log.h"
 
@@ -50,7 +51,6 @@ public:
     }
     virtual KAsync::Job<void> sendCommand(int commandId) = 0;
     virtual KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) = 0;
-    virtual KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) = 0;
     virtual KAsync::Job<void> synchronizeResource(const Sink::QueryBase &filter) = 0;
 
     virtual KAsync::Job<void> sendCreateCommand(const QByteArray &uid, const QByteArray &resourceBufferType, const QByteArray &buffer)
@@ -74,6 +74,11 @@ public:
     {
         return KAsync::null<void>();
     };
+
+    virtual KAsync::Job<void> sendFlushCommand(int flushType, const QByteArray &flushId)
+    {
+        return KAsync::null<void>();
+    }
 
     int getResourceStatus() const
     {
@@ -108,7 +113,6 @@ public:
 
     KAsync::Job<void> sendCommand(int commandId) Q_DECL_OVERRIDE;
     KAsync::Job<void> sendCommand(int commandId, flatbuffers::FlatBufferBuilder &fbb) Q_DECL_OVERRIDE;
-    KAsync::Job<void> synchronizeResource(bool remoteSync, bool localSync) Q_DECL_OVERRIDE;
     KAsync::Job<void> synchronizeResource(const Sink::QueryBase &filter) Q_DECL_OVERRIDE;
     KAsync::Job<void> sendCreateCommand(const QByteArray &uid, const QByteArray &resourceBufferType, const QByteArray &buffer) Q_DECL_OVERRIDE;
     KAsync::Job<void>
@@ -117,6 +121,7 @@ public:
     KAsync::Job<void> sendRevisionReplayedCommand(qint64 revision) Q_DECL_OVERRIDE;
     KAsync::Job<void>
     sendInspectionCommand(int inspectionType,const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expecedValue) Q_DECL_OVERRIDE;
+    KAsync::Job<void> sendFlushCommand(int flushType, const QByteArray &flushId) Q_DECL_OVERRIDE;
     /**
      * Tries to connect to server, and returns a connected socket on success.
      */

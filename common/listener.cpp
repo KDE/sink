@@ -33,7 +33,6 @@
 #include "common/synchronize_generated.h"
 #include "common/notification_generated.h"
 #include "common/revisionreplayed_generated.h"
-#include "common/inspection_generated.h"
 
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -244,18 +243,13 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 auto timer = QSharedPointer<QTime>::create();
                 timer->start();
                 auto job = KAsync::null<void>();
-                if (buffer->sourceSync()) {
-                    Sink::QueryBase query;
-                    if (buffer->query()) {
-                        auto data = QByteArray::fromStdString(buffer->query()->str());
-                        QDataStream stream(&data, QIODevice::ReadOnly);
-                        stream >> query;
-                    }
-                    job = loadResource().synchronizeWithSource(query);
+                Sink::QueryBase query;
+                if (buffer->query()) {
+                    auto data = QByteArray::fromStdString(buffer->query()->str());
+                    QDataStream stream(&data, QIODevice::ReadOnly);
+                    stream >> query;
                 }
-                if (buffer->localSync()) {
-                    job = job.then<void>(loadResource().processAllMessages());
-                }
+                job = loadResource().synchronizeWithSource(query);
                 job.then<void>([callback, timer](const KAsync::Error &error) {
                         if (error) {
                             SinkWarning() << "Sync failed: " << error.errorMessage;
@@ -279,6 +273,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         case Sink::Commands::DeleteEntityCommand:
         case Sink::Commands::ModifyEntityCommand:
         case Sink::Commands::CreateEntityCommand:
+        case Sink::Commands::FlushCommand:
             SinkTrace() << "Command id  " << messageId << " of type \"" << Sink::Commands::name(commandId) << "\" from " << client.name;
             loadResource().processCommand(commandId, commandBuffer);
             break;

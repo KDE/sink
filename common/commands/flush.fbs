@@ -1,0 +1,8 @@
+namespace Sink.Commands;
+
+table Flush {
+    id: string;
+    type: int; //See flush.h
+}
+
+root_type Flush;

@@ -31,6 +31,7 @@
 #include "common/deleteentity_generated.h"
 #include "common/revisionreplayed_generated.h"
 #include "common/inspection_generated.h"
+#include "common/flush_generated.h"
 #include "common/entitybuffer.h"
 #include "common/bufferutils.h"
 #include "common/test.h"
@@ -291,16 +292,6 @@ KAsync::Job<void> ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBu
     });
 }
 
-KAsync::Job<void> ResourceAccess::synchronizeResource(bool sourceSync, bool localSync)
-{
-    SinkTrace() << "Sending synchronize command: " << sourceSync << localSync;
-    flatbuffers::FlatBufferBuilder fbb;
-    auto command = Sink::Commands::CreateSynchronize(fbb, sourceSync, localSync);
-    Sink::Commands::FinishSynchronizeBuffer(fbb, command);
-    open();
-    return sendCommand(Commands::SynchronizeCommand, fbb);
-}
-
 KAsync::Job<void> ResourceAccess::synchronizeResource(const Sink::QueryBase &query)
 {
     flatbuffers::FlatBufferBuilder fbb;
@@ -311,8 +302,6 @@ KAsync::Job<void> ResourceAccess::synchronizeResource(const Sink::QueryBase &que
     }
     auto q = fbb.CreateString(queryString.toStdString());
     auto builder = Sink::Commands::SynchronizeBuilder(fbb);
-    builder.add_sourceSync(true);
-    builder.add_localSync(false);
     builder.add_query(q);
     Sink::Commands::FinishSynchronizeBuffer(fbb, builder.Finish());
 
@@ -388,6 +377,16 @@ ResourceAccess::sendInspectionCommand(int inspectionType, const QByteArray &insp
     Sink::Commands::FinishInspectionBuffer(fbb, location);
     open();
     return sendCommand(Sink::Commands::InspectionCommand, fbb);
+}
+
+KAsync::Job<void> ResourceAccess::sendFlushCommand(int flushType, const QByteArray &flushId)
+{
+    flatbuffers::FlatBufferBuilder fbb;
+    auto id = fbb.CreateString(flushId.toStdString());
+    auto location = Sink::Commands::CreateFlush(fbb, id, flushType);
+    Sink::Commands::FinishFlushBuffer(fbb, location);
+    open();
+    return sendCommand(Sink::Commands::FlushCommand, fbb);
 }
 
 void ResourceAccess::open()
@@ -612,6 +611,8 @@ bool ResourceAccess::processMessageBuffer()
                     SinkTrace() << "Updated status: " << mResourceStatus;
                     [[clang::fallthrough]];
                 case Sink::Notification::Warning:
+                    [[clang::fallthrough]];
+                case Sink::Notification::FlushCompletion:
                     [[clang::fallthrough]];
                 case Sink::Notification::Progress: {
                     auto n = getNotification(buffer);

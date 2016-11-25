@@ -255,23 +255,7 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
-    auto resources = getResources(query.getResourceFilter()).keys();
-    SinkTrace() << "synchronize" << resources;
-    return KAsync::value(resources)
-        .template each([query](const QByteArray &resource) {
-            SinkTrace() << "Synchronizing " << resource;
-            auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
-            return resourceAccess->synchronizeResource(true, false)
-                .addToContext(resourceAccess)
-                .then<void>([](const KAsync::Error &error) {
-                        if (error) {
-                            SinkWarning() << "Error during sync.";
-                            return KAsync::error<void>(error);
-                        }
-                        SinkTrace() << "synced.";
-                        return KAsync::null<void>();
-                    });
-        });
+    return synchronize(Sink::SyncScope{static_cast<Sink::QueryBase>(query)});
 }
 
 KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)

@@ -465,6 +465,12 @@ class SyncScope : public QueryBase {
 public:
     using QueryBase::QueryBase;
 
+    SyncScope(const QueryBase &other)
+        : QueryBase(other)
+    {
+
+    }
+
     Query::Filter getResourceFilter() const
     {
         return mResourceFilter;
