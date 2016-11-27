@@ -20,7 +20,6 @@
 #include "maildirresource.h"
 
 #include "facade.h"
-#include "pipeline.h"
 #include "resourceconfig.h"
 #include "index.h"
 #include "log.h"
@@ -427,8 +426,8 @@ public:
 };
 
 
-MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline)
-    : Sink::GenericResource(resourceContext, pipeline)
+MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext)
+    : Sink::GenericResource(resourceContext)
 {
     auto config = ResourceConfig::getConfiguration(resourceContext.instanceId());
     mMaildirPath = QDir::cleanPath(QDir::fromNativeSeparators(config.value("path").toString()));
@@ -457,12 +456,6 @@ MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext, c
         auto trashFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
     }
     synchronizer->commit();
-}
-
-void MaildirResource::removeFromDisk(const QByteArray &instanceIdentifier)
-{
-    GenericResource::removeFromDisk(instanceIdentifier);
-    Sink::Storage::DataStore(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
 }
 
 KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)

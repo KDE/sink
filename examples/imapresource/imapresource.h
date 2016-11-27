@@ -39,9 +39,8 @@ struct Folder;
 class ImapResource : public Sink::GenericResource
 {
 public:
-    ImapResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
+    ImapResource(const Sink::ResourceContext &resourceContext);
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
-    static void removeFromDisk(const QByteArray &instanceIdentifier);
 
 private:
     QString mServer;

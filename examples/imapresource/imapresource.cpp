@@ -20,7 +20,6 @@
 #include "imapresource.h"
 
 #include "facade.h"
-#include "pipeline.h"
 #include "resourceconfig.h"
 #include "commands.h"
 #include "index.h"
@@ -554,8 +553,8 @@ public:
     QByteArray mResourceInstanceIdentifier;
 };
 
-ImapResource::ImapResource(const ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline)
-    : Sink::GenericResource(resourceContext, pipeline)
+ImapResource::ImapResource(const ResourceContext &resourceContext)
+    : Sink::GenericResource(resourceContext)
 {
     auto config = ResourceConfig::getConfiguration(resourceContext.instanceId());
     mServer = config.value("server").toString();
@@ -581,12 +580,6 @@ ImapResource::ImapResource(const ResourceContext &resourceContext, const QShared
 
     setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MimeMessageMover << new MailPropertyExtractor);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>());
-}
-
-void ImapResource::removeFromDisk(const QByteArray &instanceIdentifier)
-{
-    GenericResource::removeFromDisk(instanceIdentifier);
-    Sink::Storage::DataStore(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
 }
 
 KAsync::Job<void> ImapResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)

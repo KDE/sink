@@ -43,7 +43,7 @@ class SINK_EXPORT GenericResource : public Resource
 protected:
     SINK_DEBUG_AREA("resource")
 public:
-    GenericResource(const Sink::ResourceContext &context, const QSharedPointer<Pipeline> &pipeline);
+    GenericResource(const Sink::ResourceContext &context, const QSharedPointer<Pipeline> &pipeline = QSharedPointer<Pipeline>());
     virtual ~GenericResource();
 
     virtual void processCommand(int commandId, const QByteArray &data) Q_DECL_OVERRIDE;

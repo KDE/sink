@@ -34,7 +34,6 @@
 #include <synchronizer.h>
 #include <log.h>
 #include <resourceconfig.h>
-#include <pipeline.h>
 #include <mailpreprocessor.h>
 #include <adaptorfactoryregistry.h>
 
@@ -125,8 +124,8 @@ public:
     MailtransportResource::Settings mSettings;
 };
 
-MailtransportResource::MailtransportResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline)
-    : Sink::GenericResource(resourceContext, pipeline)
+MailtransportResource::MailtransportResource(const Sink::ResourceContext &resourceContext)
+    : Sink::GenericResource(resourceContext)
 {
     auto config = ResourceConfig::getConfiguration(resourceContext.instanceId());
     mSettings = {config.value("server").toString(),

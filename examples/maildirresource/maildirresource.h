@@ -42,9 +42,8 @@ class MaildirFolderAdaptorFactory;
 class MaildirResource : public Sink::GenericResource
 {
 public:
-    MaildirResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
+    MaildirResource(const Sink::ResourceContext &resourceContext);
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
-    static void removeFromDisk(const QByteArray &instanceIdentifier);
 private:
 
     QStringList listAvailableFolders();
