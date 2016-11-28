@@ -85,7 +85,6 @@ KAsync::Job<void> SINK_EXPORT remove(const DomainType &domainObject);
  * Synchronize data to local cache.
  */
 KAsync::Job<void> SINK_EXPORT synchronize(const Sink::Query &query);
-
 KAsync::Job<void> SINK_EXPORT synchronize(const Sink::SyncScope &query);
 
 /**

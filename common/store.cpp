@@ -253,6 +253,22 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
         });
 }
 
+static KAsync::Job<void> synchronize(const QByteArray &resource, const Sink::SyncScope &scope)
+{
+    SinkTrace() << "Synchronizing " << resource;
+    auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
+    return resourceAccess->synchronizeResource(scope)
+        .addToContext(resourceAccess)
+        .then<void>([](const KAsync::Error &error) {
+                if (error) {
+                    SinkWarning() << "Error during sync.";
+                    return KAsync::error<void>(error);
+                }
+                SinkTrace() << "synced.";
+                return KAsync::null<void>();
+            });
+}
+
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
     return synchronize(Sink::SyncScope{static_cast<Sink::QueryBase>(query)});
@@ -261,21 +277,10 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
 {
     auto resources = getResources(scope.getResourceFilter()).keys();
-    SinkTrace() << "synchronize" << resources;
+    SinkTrace() << "Synchronize" << resources;
     return KAsync::value(resources)
         .template each([scope](const QByteArray &resource) {
-            SinkTrace() << "Synchronizing " << resource;
-            auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
-            return resourceAccess->synchronizeResource(scope)
-                .addToContext(resourceAccess)
-                .then<void>([](const KAsync::Error &error) {
-                        if (error) {
-                            SinkWarning() << "Error during sync.";
-                            return KAsync::error<void>(error);
-                        }
-                        SinkTrace() << "synced.";
-                        return KAsync::null<void>();
-                    });
+            return synchronize(resource, scope);
         });
 }
 

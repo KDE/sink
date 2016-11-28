@@ -122,15 +122,14 @@ void CommandProcessor::processSynchronizeCommand(const QByteArray &data)
         auto buffer = Sink::Commands::GetSynchronize(data.constData());
         auto timer = QSharedPointer<QTime>::create();
         timer->start();
-        auto job = KAsync::null<void>();
         Sink::QueryBase query;
         if (buffer->query()) {
             auto data = QByteArray::fromStdString(buffer->query()->str());
             QDataStream stream(&data, QIODevice::ReadOnly);
             stream >> query;
         }
-        job = synchronizeWithSource(query);
-        job.then<void>([timer](const KAsync::Error &error) {
+        synchronizeWithSource(query)
+            .then<void>([timer](const KAsync::Error &error) {
                 if (error) {
                     SinkWarning() << "Sync failed: " << error.errorMessage;
                     return KAsync::error(error);
@@ -140,7 +139,6 @@ void CommandProcessor::processSynchronizeCommand(const QByteArray &data)
                 }
             })
             .exec();
-        return;
     } else {
         SinkWarning() << "received invalid command";
     }
