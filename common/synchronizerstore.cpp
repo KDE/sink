@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "remoteidmap.h"
+#include "synchronizerstore.h"
 
 #include <QUuid>
 #include "index.h"
@@ -25,34 +25,34 @@
 
 using namespace Sink;
 
-SINK_DEBUG_AREA("remoteidmap")
+SINK_DEBUG_AREA("synchronizerstore")
 
-RemoteIdMap::RemoteIdMap(Sink::Storage::DataStore::Transaction &transaction)
+SynchronizerStore::SynchronizerStore(Sink::Storage::DataStore::Transaction &transaction)
     : mTransaction(transaction)
 {
 
 }
 
-void RemoteIdMap::recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId)
+void SynchronizerStore::recordRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId)
 {
     Index("rid.mapping." + bufferType, mTransaction).add(remoteId, localId);
     Index("localid.mapping." + bufferType, mTransaction).add(localId, remoteId);
 }
 
-void RemoteIdMap::removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId)
+void SynchronizerStore::removeRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId)
 {
     Index("rid.mapping." + bufferType, mTransaction).remove(remoteId, localId);
     Index("localid.mapping." + bufferType, mTransaction).remove(localId, remoteId);
 }
 
-void RemoteIdMap::updateRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId)
+void SynchronizerStore::updateRemoteId(const QByteArray &bufferType, const QByteArray &localId, const QByteArray &remoteId)
 {
     const auto oldRemoteId = Index("localid.mapping." + bufferType, mTransaction).lookup(localId);
     removeRemoteId(bufferType, localId, oldRemoteId);
     recordRemoteId(bufferType, localId, remoteId);
 }
 
-QByteArray RemoteIdMap::resolveRemoteId(const QByteArray &bufferType, const QByteArray &remoteId)
+QByteArray SynchronizerStore::resolveRemoteId(const QByteArray &bufferType, const QByteArray &remoteId)
 {
     // Lookup local id for remote id, or insert a new pair otherwise
     Index index("rid.mapping." + bufferType, mTransaction);
@@ -65,7 +65,7 @@ QByteArray RemoteIdMap::resolveRemoteId(const QByteArray &bufferType, const QByt
     return sinkId;
 }
 
-QByteArray RemoteIdMap::resolveLocalId(const QByteArray &bufferType, const QByteArray &localId)
+QByteArray SynchronizerStore::resolveLocalId(const QByteArray &bufferType, const QByteArray &localId)
 {
     QByteArray remoteId = Index("localid.mapping." + bufferType, mTransaction).lookup(localId);
     if (remoteId.isEmpty()) {
@@ -75,7 +75,7 @@ QByteArray RemoteIdMap::resolveLocalId(const QByteArray &bufferType, const QByte
     return remoteId;
 }
 
-QByteArrayList RemoteIdMap::resolveLocalIds(const QByteArray &bufferType, const QByteArrayList &localIds)
+QByteArrayList SynchronizerStore::resolveLocalIds(const QByteArray &bufferType, const QByteArrayList &localIds)
 {
     QByteArrayList result;
     for (const auto &l : localIds) {
@@ -84,7 +84,7 @@ QByteArrayList RemoteIdMap::resolveLocalIds(const QByteArray &bufferType, const 
     return result;
 }
 
-QByteArray RemoteIdMap::readValue(const QByteArray &key)
+QByteArray SynchronizerStore::readValue(const QByteArray &key)
 {
     QByteArray value;
     mTransaction.openDatabase("values").scan(key, [&value](const QByteArray &, const QByteArray &v) {
@@ -96,7 +96,7 @@ QByteArray RemoteIdMap::readValue(const QByteArray &key)
     return value;
 }
 
-void RemoteIdMap::writeValue(const QByteArray &key, const QByteArray &value)
+void SynchronizerStore::writeValue(const QByteArray &key, const QByteArray &value)
 {
     mTransaction.openDatabase("values").write(key, value);
 }

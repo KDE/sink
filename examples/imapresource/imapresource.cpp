@@ -28,7 +28,6 @@
 #include "inspection.h"
 #include "synchronizer.h"
 #include "inspector.h"
-#include "remoteidmap.h"
 #include "query.h"
 
 #include <QtGlobal>
@@ -571,7 +570,7 @@ protected:
         auto transaction = mainStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
 
         Sink::Storage::EntityStore entityStore(mResourceContext);
-        auto syncStore = QSharedPointer<Sink::RemoteIdMap>::create(synchronizationTransaction);
+        auto syncStore = QSharedPointer<Sink::SynchronizerStore>::create(synchronizationTransaction);
 
         SinkTrace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
 

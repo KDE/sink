@@ -23,12 +23,8 @@
 #include "entitybuffer.h"
 #include "pipeline.h"
 #include "dummycalendar_generated.h"
-#include "notification_generated.h"
 #include "mail_generated.h"
-#include "createentity_generated.h"
 #include "domainadaptor.h"
-#include "commands.h"
-#include "index.h"
 #include "log.h"
 #include "domain/event.h"
 #include "domain/mail.h"
@@ -39,7 +35,6 @@
 #include "synchronizer.h"
 #include "inspector.h"
 #include "mailpreprocessor.h"
-#include "remoteidmap.h"
 #include <QDate>
 #include <QUuid>
 

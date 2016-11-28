@@ -28,10 +28,10 @@
 #include <storage.h>
 #include <storage/entitystore.h>
 #include "changereplay.h"
-#include "remoteidmap.h"
+#include "synchronizerstore.h"
 
 namespace Sink {
-class RemoteIdMap;
+class SynchronizerStore;
 
 /**
  * Synchronize and add what we don't already have to local queue
@@ -51,7 +51,7 @@ public:
     Storage::EntityStore &store();
 
     //Read/Write access to sync storage
-    RemoteIdMap &syncStore();
+    SynchronizerStore &syncStore();
 
     void commit();
     Sink::Storage::DataStore::Transaction &syncTransaction();
@@ -171,7 +171,7 @@ private:
 
     Sink::ResourceContext mResourceContext;
     Sink::Storage::EntityStore::Ptr mEntityStore;
-    QSharedPointer<RemoteIdMap> mSyncStore;
+    QSharedPointer<SynchronizerStore> mSyncStore;
     Sink::Storage::DataStore mSyncStorage;
     Sink::Storage::DataStore::Transaction mSyncTransaction;
     std::function<void(int commandId, const QByteArray &data)> mEnqueue;

@@ -25,6 +25,7 @@
 
 #include "notification.h"
 #include "resourcecontext.h"
+#include "synchronizerstore.h"
 
 namespace Sink {
 

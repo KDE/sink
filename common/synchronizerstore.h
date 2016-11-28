@@ -29,10 +29,10 @@ namespace Sink {
 /**
  * A remoteId mapping
  */
-class SINK_EXPORT RemoteIdMap
+class SINK_EXPORT SynchronizerStore
 {
 public:
-    RemoteIdMap(Sink::Storage::DataStore::Transaction &);
+    SynchronizerStore(Sink::Storage::DataStore::Transaction &);
 
     /**
      * Records a localId to remoteId mapping

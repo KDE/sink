@@ -443,7 +443,7 @@ protected:
         auto transaction = mainStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
 
         Sink::Storage::EntityStore entityStore(mResourceContext);
-        auto syncStore = QSharedPointer<RemoteIdMap>::create(synchronizationTransaction);
+        auto syncStore = QSharedPointer<SynchronizerStore>::create(synchronizationTransaction);
 
         SinkTrace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
 

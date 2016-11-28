@@ -69,7 +69,7 @@ set(command_SRCS
     changereplay.cpp
     adaptorfactoryregistry.cpp
     synchronizer.cpp
-    remoteidmap.cpp
+    synchronizerstore.cpp
     mailpreprocessor.cpp
     specialpurposepreprocessor.cpp
     datastorequery.cpp

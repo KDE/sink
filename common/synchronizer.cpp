@@ -22,7 +22,7 @@
 #include "definitions.h"
 #include "commands.h"
 #include "bufferutils.h"
-#include "remoteidmap.h"
+#include "synchronizerstore.h"
 #include "datastorequery.h"
 #include "createentity_generated.h"
 #include "modifyentity_generated.h"
@@ -66,10 +66,10 @@ Storage::EntityStore &Synchronizer::store()
     return *mEntityStore;
 }
 
-RemoteIdMap &Synchronizer::syncStore()
+SynchronizerStore &Synchronizer::syncStore()
 {
     if (!mSyncStore) {
-        mSyncStore = QSharedPointer<RemoteIdMap>::create(syncTransaction());
+        mSyncStore = QSharedPointer<SynchronizerStore>::create(syncTransaction());
     }
     return *mSyncStore;
 }
