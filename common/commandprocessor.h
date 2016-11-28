@@ -42,15 +42,12 @@ namespace Sink {
 class CommandProcessor : public QObject
 {
     Q_OBJECT
-    typedef std::function<KAsync::Job<void>(void const *, size_t)> FlushFunction;
     SINK_DEBUG_AREA("commandprocessor")
 
 public:
     CommandProcessor(Sink::Pipeline *pipeline, QList<MessageQueue *> commandQueues);
 
     void setOldestUsedRevision(qint64 revision);
-
-    void setFlushCommand(const FlushFunction &f);
 
     void setInspector(const QSharedPointer<Inspector> &inspector);
     void setSynchronizer(const QSharedPointer<Synchronizer> &synchronizer);
@@ -71,13 +68,14 @@ private slots:
     KAsync::Job<void> processPipeline();
 
 private:
+    KAsync::Job<void> flush(void const *command, size_t size);
+
     Sink::Pipeline *mPipeline;
     // Ordered by priority
     QList<MessageQueue *> mCommandQueues;
     bool mProcessingLock;
     // The lowest revision we no longer need
     qint64 mLowerBoundRevision;
-    FlushFunction mFlush;
     QSharedPointer<Synchronizer> mSynchronizer;
     QSharedPointer<Inspector> mInspector;
 };

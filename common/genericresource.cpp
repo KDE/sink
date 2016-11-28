@@ -59,26 +59,6 @@ GenericResource::GenericResource(const ResourceContext &resourceContext, const Q
       mClientLowerBoundRevision(std::numeric_limits<qint64>::max())
 {
     mProcessor = std::unique_ptr<CommandProcessor>(new CommandProcessor(mPipeline.data(), QList<MessageQueue *>() << &mUserQueue << &mSynchronizerQueue));
-    mProcessor->setFlushCommand([this](void const *command, size_t size) {
-        flatbuffers::Verifier verifier((const uint8_t *)command, size);
-        if (Sink::Commands::VerifyFlushBuffer(verifier)) {
-            auto buffer = Sink::Commands::GetFlush(command);
-            const auto flushType = buffer->type();
-            const auto flushId = BufferUtils::extractBuffer(buffer->id());
-            if (flushType == Sink::Flush::FlushReplayQueue) {
-                SinkTrace() << "Flushing synchronizer ";
-                mSynchronizer->flush(flushType, flushId);
-            } else {
-                SinkTrace() << "Emitting flush completion" << flushId;
-                Sink::Notification n;
-                n.type = Sink::Notification::FlushCompletion;
-                n.id = flushId;
-                emit notify(n);
-            }
-            return KAsync::null<void>();
-        }
-        return KAsync::error<void>(-1, "Invalid flush command.");
-    });
     QObject::connect(mProcessor.get(), &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
     QObject::connect(mProcessor.get(), &CommandProcessor::notify, this, &GenericResource::notify);
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
@@ -126,7 +106,7 @@ void GenericResource::setupSynchronizer(const QSharedPointer<Synchronizer> &sync
         Q_ASSERT(ret);
     }
 
-    mProcessor->setOldestUsedRevision(mSynchronizer->getLastReplayedRevision());
+    mProcessor->setSynchronizer(synchronizer);
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mSynchronizer.data(), &ChangeReplay::revisionChanged, Qt::QueuedConnection);
     QObject::connect(mSynchronizer.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
     QMetaObject::invokeMethod(mSynchronizer.data(), "revisionChanged", Qt::QueuedConnection);

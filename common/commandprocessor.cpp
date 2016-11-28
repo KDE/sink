@@ -22,9 +22,11 @@
 #include "commands.h"
 #include "messagequeue.h"
 #include "queuedcommand_generated.h"
+#include "flush_generated.h"
 #include "inspector.h"
 #include "synchronizer.h"
 #include "pipeline.h"
+#include "bufferutils.h"
 
 static int sBatchSize = 100;
 
@@ -41,11 +43,6 @@ CommandProcessor::CommandProcessor(Sink::Pipeline *pipeline, QList<MessageQueue 
 void CommandProcessor::setOldestUsedRevision(qint64 revision)
 {
     mLowerBoundRevision = revision;
-}
-
-void CommandProcessor::setFlushCommand(const FlushFunction &f)
-{
-    mFlush = f;
 }
 
 bool CommandProcessor::messagesToProcessAvailable()
@@ -91,12 +88,8 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const Sink::QueuedCom
             return mInspector->processCommand(data, size)
                     .syncThen<qint64>([]() { return -1; });
         case Sink::Commands::FlushCommand:
-            if (mFlush) {
-                return mFlush(data, size)
-                    .syncThen<qint64>([]() { return -1; });
-            } else {
-                return KAsync::error<qint64>(-1, "Missing inspection command.");
-            }
+            return flush(data, size)
+                .syncThen<qint64>([]() { return -1; });
         default:
             return KAsync::error<qint64>(-1, "Unhandled command");
     }
@@ -194,5 +187,29 @@ void CommandProcessor::setSynchronizer(const QSharedPointer<Synchronizer> &synch
 {
     mSynchronizer = synchronizer;
     QObject::connect(mSynchronizer.data(), &Synchronizer::notify, this, &CommandProcessor::notify);
+    setOldestUsedRevision(mSynchronizer->getLastReplayedRevision());
+}
+
+KAsync::Job<void> CommandProcessor::flush(void const *command, size_t size)
+{
+    flatbuffers::Verifier verifier((const uint8_t *)command, size);
+    if (Sink::Commands::VerifyFlushBuffer(verifier)) {
+        auto buffer = Sink::Commands::GetFlush(command);
+        const auto flushType = buffer->type();
+        const auto flushId = BufferUtils::extractBuffer(buffer->id());
+        if (flushType == Sink::Flush::FlushReplayQueue) {
+            SinkTrace() << "Flushing synchronizer ";
+            Q_ASSERT(mSynchronizer);
+            mSynchronizer->flush(flushType, flushId);
+        } else {
+            SinkTrace() << "Emitting flush completion" << flushId;
+            Sink::Notification n;
+            n.type = Sink::Notification::FlushCompletion;
+            n.id = flushId;
+            emit notify(n);
+        }
+        return KAsync::null<void>();
+    }
+    return KAsync::error<void>(-1, "Invalid flush command.");
 }
 
