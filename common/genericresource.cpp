@@ -20,8 +20,6 @@
 #include "genericresource.h"
 
 #include "pipeline.h"
-#include "domainadaptor.h"
-#include "log.h"
 #include "synchronizer.h"
 #include "commandprocessor.h"
 #include "definitions.h"

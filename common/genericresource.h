@@ -21,12 +21,7 @@
 
 #include "sink_export.h"
 #include <resource.h>
-#include <messagequeue.h>
-#include <flatbuffers/flatbuffers.h>
-#include <domainadaptor.h>
 #include <resourcecontext.h>
-
-#include <QTimer>
 
 namespace Sink {
 class Pipeline;
@@ -54,7 +49,9 @@ public:
     static void removeFromDisk(const QByteArray &instanceIdentifier);
     static qint64 diskUsage(const QByteArray &instanceIdentifier);
 
+    //TODO Remove this API, it's only used in tests
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query);
+    //TODO Remove this API, it's only used in tests
     KAsync::Job<void> processAllMessages();
 
 private slots:
@@ -65,12 +62,11 @@ protected:
     void setupSynchronizer(const QSharedPointer<Synchronizer> &synchronizer);
     void setupInspector(const QSharedPointer<Inspector> &inspector);
 
-    void onProcessorError(int errorCode, const QString &errorMessage);
-    void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);
-
     ResourceContext mResourceContext;
 
 private:
+    void onProcessorError(int errorCode, const QString &errorMessage);
+
     QSharedPointer<Pipeline> mPipeline;
     QSharedPointer<CommandProcessor> mProcessor;
     QSharedPointer<Synchronizer> mSynchronizer;
