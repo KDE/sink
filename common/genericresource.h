@@ -47,15 +47,15 @@ public:
     virtual ~GenericResource();
 
     virtual void processCommand(int commandId, const QByteArray &data) Q_DECL_OVERRIDE;
-    virtual void processFlushCommand(const QByteArray &data);
-    virtual KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE;
-    virtual KAsync::Job<void> processAllMessages() Q_DECL_OVERRIDE;
     virtual void setLowerBoundRevision(qint64 revision) Q_DECL_OVERRIDE;
 
     int error() const;
 
     static void removeFromDisk(const QByteArray &instanceIdentifier);
     static qint64 diskUsage(const QByteArray &instanceIdentifier);
+
+    KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query);
+    KAsync::Job<void> processAllMessages();
 
 private slots:
     void updateLowerBoundRevision();
@@ -69,15 +69,12 @@ protected:
     void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);
 
     ResourceContext mResourceContext;
-    MessageQueue mUserQueue;
-    MessageQueue mSynchronizerQueue;
-    QSharedPointer<Pipeline> mPipeline;
 
 private:
-    std::unique_ptr<CommandProcessor> mProcessor;
+    QSharedPointer<Pipeline> mPipeline;
+    QSharedPointer<CommandProcessor> mProcessor;
     QSharedPointer<Synchronizer> mSynchronizer;
     int mError;
-    QTimer mCommitQueueTimer;
     qint64 mClientLowerBoundRevision;
 };
 

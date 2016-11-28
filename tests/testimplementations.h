@@ -110,11 +110,6 @@ public:
     TestResource(const Sink::ResourceContext &resourceContext, QSharedPointer<Sink::Pipeline> pipeline) : Sink::GenericResource(resourceContext, pipeline)
     {
     }
-
-    KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
-    {
-        return KAsync::null<void>();
-    }
 };
 
 template <typename DomainType>

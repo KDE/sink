@@ -43,16 +43,6 @@ public:
     virtual void processCommand(int commandId, const QByteArray &data);
 
     /**
-     * Execute synchronization with the source.
-     */
-    virtual KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &);
-
-    /**
-     * Process all internal messages, thus ensuring the store is up to date and no pending modifications are left.
-     */
-    virtual KAsync::Job<void> processAllMessages();
-
-    /**
      * Set the lowest revision that is still referenced by external clients.
      */
     virtual void setLowerBoundRevision(qint64 revision);

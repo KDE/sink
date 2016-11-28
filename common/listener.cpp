@@ -30,15 +30,12 @@
 #include "common/commandcompletion_generated.h"
 #include "common/handshake_generated.h"
 #include "common/revisionupdate_generated.h"
-#include "common/synchronize_generated.h"
 #include "common/notification_generated.h"
 #include "common/revisionreplayed_generated.h"
 
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QTimer>
-#include <QTime>
-#include <QDataStream>
 
 Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType, QObject *parent)
     : QObject(parent),
@@ -235,39 +232,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             }
             break;
         }
-        case Sink::Commands::SynchronizeCommand: {
-            flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
-            if (Sink::Commands::VerifySynchronizeBuffer(verifier)) {
-                auto buffer = Sink::Commands::GetSynchronize(commandBuffer.constData());
-                SinkTrace() << QString("Synchronize request (id %1) from %2").arg(messageId).arg(client.name);
-                auto timer = QSharedPointer<QTime>::create();
-                timer->start();
-                auto job = KAsync::null<void>();
-                Sink::QueryBase query;
-                if (buffer->query()) {
-                    auto data = QByteArray::fromStdString(buffer->query()->str());
-                    QDataStream stream(&data, QIODevice::ReadOnly);
-                    stream >> query;
-                }
-                job = loadResource().synchronizeWithSource(query);
-                job.then<void>([callback, timer](const KAsync::Error &error) {
-                        if (error) {
-                            SinkWarning() << "Sync failed: " << error.errorMessage;
-                            callback(false);
-                            return KAsync::error(error);
-                        } else {
-                            SinkTrace() << "Sync took " << Sink::Log::TraceTime(timer->elapsed());
-                            callback(true);
-                            return KAsync::null();
-                        }
-                    })
-                    .exec();
-                return;
-            } else {
-                SinkWarning() << "received invalid command";
-            }
-            break;
-        }
+        case Sink::Commands::SynchronizeCommand:
         case Sink::Commands::InspectionCommand:
         case Sink::Commands::DeleteEntityCommand:
         case Sink::Commands::ModifyEntityCommand:
@@ -293,7 +258,8 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
                 SinkWarning() << "received invalid command";
             }
             loadResource().setLowerBoundRevision(lowerBoundRevision());
-        } break;
+        }
+        break;
         case Sink::Commands::RemoveFromDiskCommand: {
             SinkLog() << QString("Received a remove from disk command from %1").arg(client.name);
             //Close the resource to ensure no transactions are open

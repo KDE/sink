@@ -113,6 +113,13 @@ class DummySynchronizer : public Sink::Synchronizer {
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &) Q_DECL_OVERRIDE
     {
         SinkLog() << " Synchronizing with the source";
+        SinkTrace() << "Synchronize with source and sending a notification about it";
+        Sink::Notification n;
+        n.id = "connected";
+        n.type = Sink::Notification::Status;
+        n.message = "We're connected";
+        n.code = Sink::ApplicationDomain::ConnectedStatus;
+        emit notify(n);
         return KAsync::syncStart<void>([this]() {
             synchronize(ENTITY_TYPE_EVENT, DummyStore::instance().events(), [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data) {
                 return createEvent(ridBuffer, data);
@@ -172,18 +179,6 @@ DummyResource::DummyResource(const Sink::ResourceContext &resourceContext, const
 DummyResource::~DummyResource()
 {
 
-}
-
-KAsync::Job<void> DummyResource::synchronizeWithSource(const Sink::QueryBase &query)
-{
-    SinkTrace() << "Synchronize with source and sending a notification about it";
-    Sink::Notification n;
-    n.id = "connected";
-    n.type = Sink::Notification::Status;
-    n.message = "We're connected";
-    n.code = Sink::ApplicationDomain::ConnectedStatus;
-    emit notify(n);
-    return GenericResource::synchronizeWithSource(query);
 }
 
 DummyResourceFactory::DummyResourceFactory(QObject *parent)

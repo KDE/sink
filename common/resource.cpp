@@ -46,16 +46,6 @@ void Resource::processCommand(int commandId, const QByteArray &data)
     Q_UNUSED(data)
 }
 
-KAsync::Job<void> Resource::synchronizeWithSource(const Sink::QueryBase &query)
-{
-    return KAsync::null<void>();
-}
-
-KAsync::Job<void> Resource::processAllMessages()
-{
-    return KAsync::null<void>();
-}
-
 void Resource::setLowerBoundRevision(qint64 revision)
 {
     Q_UNUSED(revision)

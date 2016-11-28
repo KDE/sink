@@ -22,19 +22,20 @@
 #include "sink_export.h"
 
 #include <QObject>
+#include <QTimer>
 #include <Async/Async>
 #include <functional>
 
 #include "log.h"
 #include "notification.h"
-
-class MessageQueue;
+#include "messagequeue.h"
 
 namespace Sink {
     class Pipeline;
     class Inspector;
     class Synchronizer;
     class QueuedCommand;
+    class QueryBase;
 
 /**
  * Drives the pipeline using the output from all command queues
@@ -45,12 +46,16 @@ class CommandProcessor : public QObject
     SINK_DEBUG_AREA("commandprocessor")
 
 public:
-    CommandProcessor(Sink::Pipeline *pipeline, QList<MessageQueue *> commandQueues);
+    CommandProcessor(Sink::Pipeline *pipeline, const QByteArray &instanceId);
 
     void setOldestUsedRevision(qint64 revision);
 
     void setInspector(const QSharedPointer<Inspector> &inspector);
     void setSynchronizer(const QSharedPointer<Synchronizer> &synchronizer);
+
+    void processCommand(int commandId, const QByteArray &data);
+
+    KAsync::Job<void> processAllMessages();
 
 signals:
     void notify(Notification);
@@ -68,9 +73,16 @@ private slots:
     KAsync::Job<void> processPipeline();
 
 private:
+    void processFlushCommand(const QByteArray &data);
+    void processSynchronizeCommand(const QByteArray &data);
+    // void processRevisionReplayedCommand(const QByteArray &data);
+
     KAsync::Job<void> flush(void const *command, size_t size);
+    KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query);
 
     Sink::Pipeline *mPipeline;
+    MessageQueue mUserQueue;
+    MessageQueue mSynchronizerQueue;
     // Ordered by priority
     QList<MessageQueue *> mCommandQueues;
     bool mProcessingLock;
@@ -78,6 +90,7 @@ private:
     qint64 mLowerBoundRevision;
     QSharedPointer<Synchronizer> mSynchronizer;
     QSharedPointer<Inspector> mInspector;
+    QTimer mCommitQueueTimer;
 };
 
 };

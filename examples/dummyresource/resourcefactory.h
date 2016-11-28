@@ -31,8 +31,6 @@ class DummyResource : public Sink::GenericResource
 public:
     DummyResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline = QSharedPointer<Sink::Pipeline>());
     virtual ~DummyResource();
-
-    KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &) Q_DECL_OVERRIDE;
 };
 
 class DummyResourceFactory : public Sink::ResourceFactory
