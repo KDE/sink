@@ -28,12 +28,11 @@
 
 #include <QTimer>
 
-class CommandProcessor;
-
 namespace Sink {
 class Pipeline;
 class Preprocessor;
 class Synchronizer;
+class CommandProcessor;
 
 /**
  * Generic Resource implementation.
