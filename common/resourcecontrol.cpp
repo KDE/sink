@@ -133,27 +133,26 @@ KAsync::Job<void> ResourceControl::flushReplayQueue(const QByteArray &resourceId
 template <class DomainType>
 KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
 {
-    auto resource = inspectionCommand.resourceIdentifier;
-
-    auto time = QSharedPointer<QTime>::create();
-    time->start();
-    SinkTrace() << "Sending inspection " << resource;
-    auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
-    resourceAccess->open();
+    auto resourceIdentifier = inspectionCommand.resourceIdentifier;
+    auto resourceAccess = ResourceAccessFactory::instance().getAccess(resourceIdentifier, ResourceConfig::getResourceType(resourceIdentifier));
     auto notifier = QSharedPointer<Sink::Notifier>::create(resourceAccess);
     auto id = QUuid::createUuid().toByteArray();
-    return resourceAccess->sendInspectionCommand(inspectionCommand.type, id, ApplicationDomain::getTypeName<DomainType>(), inspectionCommand.entityIdentifier, inspectionCommand.property, inspectionCommand.expectedValue)
-        .template then<void>([resourceAccess, notifier, id, time](KAsync::Future<void> &future) {
-            notifier->registerHandler([&future, id, time](const Notification &notification) {
+    return KAsync::start<void>([=](KAsync::Future<void> &future) {
+            notifier->registerHandler([&future, id](const Notification &notification) {
                 if (notification.id == id) {
-                    SinkTrace() << "Inspection complete." << Log::TraceTime(time->elapsed());
+                    SinkTrace() << "Inspection complete";
                     if (notification.code) {
+                        SinkWarning() << "Inspection returned an error";
                         future.setError(-1, "Inspection returned an error: " + notification.message);
                     } else {
                         future.setFinished();
                     }
                 }
             });
+            resourceAccess->sendInspectionCommand(inspectionCommand.type, id, ApplicationDomain::getTypeName<DomainType>(), inspectionCommand.entityIdentifier, inspectionCommand.property, inspectionCommand.expectedValue).onError([&future] (const KAsync::Error &error) {
+                SinkWarning() << "Failed to send command";
+                future.setError(1, "Failed to send command: " + error.errorMessage);
+            }).exec();
         });
 }
 
