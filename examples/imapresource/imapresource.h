@@ -40,13 +40,6 @@ class ImapResource : public Sink::GenericResource
 {
 public:
     ImapResource(const Sink::ResourceContext &resourceContext);
-    KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
-
-private:
-    QString mServer;
-    int mPort;
-    QString mUser;
-    QString mPassword;
 };
 
 class ImapResourceFactory : public Sink::ResourceFactory

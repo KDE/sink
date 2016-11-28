@@ -32,6 +32,7 @@ namespace Sink {
 class Pipeline;
 class Preprocessor;
 class Synchronizer;
+class Inspector;
 class CommandProcessor;
 
 /**
@@ -50,8 +51,6 @@ public:
     virtual KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> processAllMessages() Q_DECL_OVERRIDE;
     virtual void setLowerBoundRevision(qint64 revision) Q_DECL_OVERRIDE;
-    virtual KAsync::Job<void>
-    inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue);
 
     int error() const;
 
@@ -64,6 +63,7 @@ private slots:
 protected:
     void setupPreprocessors(const QByteArray &type, const QVector<Sink::Preprocessor *> &preprocessors);
     void setupSynchronizer(const QSharedPointer<Synchronizer> &synchronizer);
+    void setupInspector(const QSharedPointer<Inspector> &inspector);
 
     void onProcessorError(int errorCode, const QString &errorMessage);
     void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data);

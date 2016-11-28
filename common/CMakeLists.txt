@@ -78,6 +78,7 @@ set(command_SRCS
     mail/threadindexer.cpp
     notification.cpp
     commandprocessor.cpp
+    inspector.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

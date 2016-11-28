@@ -33,7 +33,6 @@ public:
     virtual ~DummyResource();
 
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &) Q_DECL_OVERRIDE;
-    KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
 };
 
 class DummyResourceFactory : public Sink::ResourceFactory

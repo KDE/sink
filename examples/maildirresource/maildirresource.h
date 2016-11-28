@@ -43,9 +43,8 @@ class MaildirResource : public Sink::GenericResource
 {
 public:
     MaildirResource(const Sink::ResourceContext &resourceContext);
-    KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE;
-private:
 
+private:
     QStringList listAvailableFolders();
     QString mMaildirPath;
     QString mDraftsFolder;

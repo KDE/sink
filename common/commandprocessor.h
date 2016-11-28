@@ -24,12 +24,16 @@
 #include <QObject>
 #include <Async/Async>
 #include <functional>
+
 #include "log.h"
+#include "notification.h"
 
 class MessageQueue;
 
 namespace Sink {
     class Pipeline;
+    class Inspector;
+    class Synchronizer;
     class QueuedCommand;
 
 /**
@@ -38,7 +42,6 @@ namespace Sink {
 class CommandProcessor : public QObject
 {
     Q_OBJECT
-    typedef std::function<KAsync::Job<void>(void const *, size_t)> InspectionFunction;
     typedef std::function<KAsync::Job<void>(void const *, size_t)> FlushFunction;
     SINK_DEBUG_AREA("commandprocessor")
 
@@ -47,11 +50,13 @@ public:
 
     void setOldestUsedRevision(qint64 revision);
 
-    void setInspectionCommand(const InspectionFunction &f);
-
     void setFlushCommand(const FlushFunction &f);
 
+    void setInspector(const QSharedPointer<Inspector> &inspector);
+    void setSynchronizer(const QSharedPointer<Synchronizer> &synchronizer);
+
 signals:
+    void notify(Notification);
     void error(int errorCode, const QString &errorMessage);
 
 private:
@@ -72,8 +77,9 @@ private:
     bool mProcessingLock;
     // The lowest revision we no longer need
     qint64 mLowerBoundRevision;
-    InspectionFunction mInspect;
     FlushFunction mFlush;
+    QSharedPointer<Synchronizer> mSynchronizer;
+    QSharedPointer<Inspector> mInspector;
 };
 
 };

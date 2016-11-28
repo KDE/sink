@@ -27,6 +27,7 @@
 #include "libmaildir/maildir.h"
 #include "inspection.h"
 #include "synchronizer.h"
+#include "inspector.h"
 
 #include "facadefactory.h"
 #include "adaptorfactoryregistry.h"
@@ -425,6 +426,102 @@ public:
     QString mMaildirPath;
 };
 
+class MaildirInspector : public Sink::Inspector {
+public:
+    MaildirInspector(const Sink::ResourceContext &resourceContext)
+        : Sink::Inspector(resourceContext)
+    {
+
+    }
+protected:
+
+    KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE {
+        auto synchronizationStore = QSharedPointer<Sink::Storage::DataStore>::create(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::ReadOnly);
+        auto synchronizationTransaction = synchronizationStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
+
+        auto mainStore = QSharedPointer<Sink::Storage::DataStore>::create(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadOnly);
+        auto transaction = mainStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
+
+        Sink::Storage::EntityStore entityStore(mResourceContext);
+        auto syncStore = QSharedPointer<RemoteIdMap>::create(synchronizationTransaction);
+
+        SinkTrace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
+
+        if (domainType == ENTITY_TYPE_MAIL) {
+            auto mail = entityStore.readLatest<Sink::ApplicationDomain::Mail>(entityId);
+            const auto filePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
+
+            if (inspectionType == Sink::ResourceControl::Inspection::PropertyInspectionType) {
+                if (property == "unread") {
+                    const auto flags = KPIM::Maildir::readEntryFlags(filePath.split('/').last());
+                    if (expectedValue.toBool() && (flags & KPIM::Maildir::Seen)) {
+                        return KAsync::error<void>(1, "Expected unread but couldn't find it.");
+                    }
+                    if (!expectedValue.toBool() && !(flags & KPIM::Maildir::Seen)) {
+                        return KAsync::error<void>(1, "Expected read but couldn't find it.");
+                    }
+                    return KAsync::null<void>();
+                }
+                if (property == "subject") {
+                    KMime::Message *msg = new KMime::Message;
+                    msg->setHead(KMime::CRLFtoLF(KPIM::Maildir::readEntryHeadersFromFile(filePath)));
+                    msg->parse();
+
+                    if (msg->subject(true)->asUnicodeString() != expectedValue.toString()) {
+                        return KAsync::error<void>(1, "Subject not as expected: " + msg->subject(true)->asUnicodeString());
+                    }
+                    return KAsync::null<void>();
+                }
+            }
+            if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
+                if (QFileInfo(filePath).exists() != expectedValue.toBool()) {
+                    return KAsync::error<void>(1, "Wrong file existence: " + filePath);
+                }
+            }
+        }
+        if (domainType == ENTITY_TYPE_FOLDER) {
+            const auto remoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, entityId);
+            auto folder = entityStore.readLatest<Sink::ApplicationDomain::Folder>(entityId);
+
+            if (inspectionType == Sink::ResourceControl::Inspection::CacheIntegrityInspectionType) {
+                SinkTrace() << "Inspecting cache integrity" << remoteId;
+                if (!QDir(remoteId).exists()) {
+                    return KAsync::error<void>(1, "The directory is not existing: " + remoteId);
+                }
+
+                int expectedCount = 0;
+                Index index("mail.index.folder", transaction);
+                index.lookup(entityId, [&](const QByteArray &sinkId) {
+                        expectedCount++;
+                },
+                [&](const Index::Error &error) {
+                    SinkWarning() << "Error in index: " <<  error.message << property;
+                });
+
+                QDir dir(remoteId + "/cur");
+                const QFileInfoList list = dir.entryInfoList(QDir::Files);
+                if (list.size() != expectedCount) {
+                    for (const auto &fileInfo : list) {
+                        SinkWarning() << "Found in cache: " << fileInfo.fileName();
+                    }
+                    return KAsync::error<void>(1, QString("Wrong number of files; found %1 instead of %2.").arg(list.size()).arg(expectedCount));
+                }
+            }
+            if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
+                if (!remoteId.endsWith(folder.getName().toUtf8())) {
+                    return KAsync::error<void>(1, "Wrong folder name: " + remoteId);
+                }
+                //TODO we shouldn't use the remoteId here to figure out the path, it could be gone/changed already
+                if (QDir(remoteId).exists() != expectedValue.toBool()) {
+                    return KAsync::error<void>(1, "Wrong folder existence: " + remoteId);
+                }
+            }
+
+        }
+        return KAsync::null<void>();
+    }
+};
+
 
 MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext)
     : Sink::GenericResource(resourceContext)
@@ -439,6 +536,7 @@ MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext)
     auto synchronizer = QSharedPointer<MaildirSynchronizer>::create(resourceContext);
     synchronizer->mMaildirPath = mMaildirPath;
     setupSynchronizer(synchronizer);
+    setupInspector(QSharedPointer<MaildirInspector>::create(resourceContext));
 
     setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MaildirMimeMessageMover(resourceContext.instanceId(), mMaildirPath) << new MaildirMailPropertyExtractor);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new FolderPreprocessor(mMaildirPath));
@@ -456,93 +554,6 @@ MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext)
         auto trashFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
     }
     synchronizer->commit();
-}
-
-KAsync::Job<void> MaildirResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
-{
-    auto synchronizationStore = QSharedPointer<Sink::Storage::DataStore>::create(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::ReadOnly);
-    auto synchronizationTransaction = synchronizationStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
-
-    auto mainStore = QSharedPointer<Sink::Storage::DataStore>::create(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadOnly);
-    auto transaction = mainStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
-
-    Sink::Storage::EntityStore entityStore(mResourceContext);
-    auto syncStore = QSharedPointer<RemoteIdMap>::create(synchronizationTransaction);
-
-    SinkTrace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
-
-    if (domainType == ENTITY_TYPE_MAIL) {
-        auto mail = entityStore.readLatest<Sink::ApplicationDomain::Mail>(entityId);
-        const auto filePath = getFilePathFromMimeMessagePath(mail.getMimeMessagePath());
-
-        if (inspectionType == Sink::ResourceControl::Inspection::PropertyInspectionType) {
-            if (property == "unread") {
-                const auto flags = KPIM::Maildir::readEntryFlags(filePath.split('/').last());
-                if (expectedValue.toBool() && (flags & KPIM::Maildir::Seen)) {
-                    return KAsync::error<void>(1, "Expected unread but couldn't find it.");
-                }
-                if (!expectedValue.toBool() && !(flags & KPIM::Maildir::Seen)) {
-                    return KAsync::error<void>(1, "Expected read but couldn't find it.");
-                }
-                return KAsync::null<void>();
-            }
-            if (property == "subject") {
-                KMime::Message *msg = new KMime::Message;
-                msg->setHead(KMime::CRLFtoLF(KPIM::Maildir::readEntryHeadersFromFile(filePath)));
-                msg->parse();
-
-                if (msg->subject(true)->asUnicodeString() != expectedValue.toString()) {
-                    return KAsync::error<void>(1, "Subject not as expected: " + msg->subject(true)->asUnicodeString());
-                }
-                return KAsync::null<void>();
-            }
-        }
-        if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
-            if (QFileInfo(filePath).exists() != expectedValue.toBool()) {
-                return KAsync::error<void>(1, "Wrong file existence: " + filePath);
-            }
-        }
-    }
-    if (domainType == ENTITY_TYPE_FOLDER) {
-        const auto remoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, entityId);
-        auto folder = entityStore.readLatest<Sink::ApplicationDomain::Folder>(entityId);
-
-        if (inspectionType == Sink::ResourceControl::Inspection::CacheIntegrityInspectionType) {
-            SinkTrace() << "Inspecting cache integrity" << remoteId;
-            if (!QDir(remoteId).exists()) {
-                return KAsync::error<void>(1, "The directory is not existing: " + remoteId);
-            }
-
-            int expectedCount = 0;
-            Index index("mail.index.folder", transaction);
-            index.lookup(entityId, [&](const QByteArray &sinkId) {
-                    expectedCount++;
-            },
-            [&](const Index::Error &error) {
-                SinkWarning() << "Error in index: " <<  error.message << property;
-            });
-
-            QDir dir(remoteId + "/cur");
-            const QFileInfoList list = dir.entryInfoList(QDir::Files);
-            if (list.size() != expectedCount) {
-                for (const auto &fileInfo : list) {
-                    SinkWarning() << "Found in cache: " << fileInfo.fileName();
-                }
-                return KAsync::error<void>(1, QString("Wrong number of files; found %1 instead of %2.").arg(list.size()).arg(expectedCount));
-            }
-        }
-        if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
-            if (!remoteId.endsWith(folder.getName().toUtf8())) {
-                return KAsync::error<void>(1, "Wrong folder name: " + remoteId);
-            }
-            //TODO we shouldn't use the remoteId here to figure out the path, it could be gone/changed already
-            if (QDir(remoteId).exists() != expectedValue.toBool()) {
-                return KAsync::error<void>(1, "Wrong folder existence: " + remoteId);
-            }
-        }
-
-    }
-    return KAsync::null<void>();
 }
 
 

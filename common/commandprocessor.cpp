@@ -22,7 +22,8 @@
 #include "commands.h"
 #include "messagequeue.h"
 #include "queuedcommand_generated.h"
-
+#include "inspector.h"
+#include "synchronizer.h"
 #include "pipeline.h"
 
 static int sBatchSize = 100;
@@ -40,11 +41,6 @@ CommandProcessor::CommandProcessor(Sink::Pipeline *pipeline, QList<MessageQueue 
 void CommandProcessor::setOldestUsedRevision(qint64 revision)
 {
     mLowerBoundRevision = revision;
-}
-
-void CommandProcessor::setInspectionCommand(const InspectionFunction &f)
-{
-    mInspect = f;
 }
 
 void CommandProcessor::setFlushCommand(const FlushFunction &f)
@@ -91,12 +87,9 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const Sink::QueuedCom
         case Sink::Commands::CreateEntityCommand:
             return mPipeline->newEntity(data, size);
         case Sink::Commands::InspectionCommand:
-            if (mInspect) {
-                return mInspect(data, size)
+            Q_ASSERT(mInspector);
+            return mInspector->processCommand(data, size)
                     .syncThen<qint64>([]() { return -1; });
-            } else {
-                return KAsync::error<qint64>(-1, "Missing inspection command.");
-            }
         case Sink::Commands::FlushCommand:
             if (mFlush) {
                 return mFlush(data, size)
@@ -189,5 +182,17 @@ KAsync::Job<void> CommandProcessor::processPipeline()
                     return KAsync::Break;
                 });
         });
+}
+
+void CommandProcessor::setInspector(const QSharedPointer<Inspector> &inspector)
+{
+    mInspector = inspector;
+    QObject::connect(mInspector.data(), &Inspector::notify, this, &CommandProcessor::notify);
+}
+
+void CommandProcessor::setSynchronizer(const QSharedPointer<Synchronizer> &synchronizer)
+{
+    mSynchronizer = synchronizer;
+    QObject::connect(mSynchronizer.data(), &Synchronizer::notify, this, &CommandProcessor::notify);
 }
 

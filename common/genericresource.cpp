@@ -59,41 +59,6 @@ GenericResource::GenericResource(const ResourceContext &resourceContext, const Q
       mClientLowerBoundRevision(std::numeric_limits<qint64>::max())
 {
     mProcessor = std::unique_ptr<CommandProcessor>(new CommandProcessor(mPipeline.data(), QList<MessageQueue *>() << &mUserQueue << &mSynchronizerQueue));
-    mProcessor->setInspectionCommand([this](void const *command, size_t size) {
-        flatbuffers::Verifier verifier((const uint8_t *)command, size);
-        if (Sink::Commands::VerifyInspectionBuffer(verifier)) {
-            auto buffer = Sink::Commands::GetInspection(command);
-            int inspectionType = buffer->type();
-
-            QByteArray inspectionId = BufferUtils::extractBuffer(buffer->id());
-            QByteArray entityId = BufferUtils::extractBuffer(buffer->entityId());
-            QByteArray domainType = BufferUtils::extractBuffer(buffer->domainType());
-            QByteArray property = BufferUtils::extractBuffer(buffer->property());
-            QByteArray expectedValueString = BufferUtils::extractBuffer(buffer->expectedValue());
-            QDataStream s(expectedValueString);
-            QVariant expectedValue;
-            s >> expectedValue;
-            inspect(inspectionType, inspectionId, domainType, entityId, property, expectedValue)
-                .then<void>(
-                    [=](const KAsync::Error &error) {
-                        Sink::Notification n;
-                        n.type = Sink::Notification::Inspection;
-                        n.id = inspectionId;
-                        if (error) {
-                            Warning_area("resource.inspection") << "Inspection failed: " << inspectionType << inspectionId << entityId << error.errorMessage;
-                            n.code = Sink::Notification::Failure;
-                        } else {
-                            Log_area("resource.inspection") << "Inspection was successful: " << inspectionType << inspectionId << entityId;
-                            n.code = Sink::Notification::Success;
-                        }
-                        emit notify(n);
-                        return KAsync::null();
-                    })
-                .exec();
-            return KAsync::null<void>();
-        }
-        return KAsync::error<void>(-1, "Invalid inspection command.");
-    });
     mProcessor->setFlushCommand([this](void const *command, size_t size) {
         flatbuffers::Verifier verifier((const uint8_t *)command, size);
         if (Sink::Commands::VerifyFlushBuffer(verifier)) {
@@ -114,14 +79,9 @@ GenericResource::GenericResource(const ResourceContext &resourceContext, const Q
         }
         return KAsync::error<void>(-1, "Invalid flush command.");
     });
-    {
-        auto ret = QObject::connect(mProcessor.get(), &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
-        Q_ASSERT(ret);
-    }
-    {
-        auto ret = QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
-        Q_ASSERT(ret);
-    }
+    QObject::connect(mProcessor.get(), &CommandProcessor::error, [this](int errorCode, const QString &msg) { onProcessorError(errorCode, msg); });
+    QObject::connect(mProcessor.get(), &CommandProcessor::notify, this, &GenericResource::notify);
+    QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, this, &Resource::revisionUpdated);
 
     mCommitQueueTimer.setInterval(sCommitInterval);
     mCommitQueueTimer.setSingleShot(true);
@@ -130,13 +90,6 @@ GenericResource::GenericResource(const ResourceContext &resourceContext, const Q
 
 GenericResource::~GenericResource()
 {
-}
-
-KAsync::Job<void> GenericResource::inspect(
-    int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
-{
-    SinkWarning() << "Inspection not implemented";
-    return KAsync::null<void>();
 }
 
 void GenericResource::setupPreprocessors(const QByteArray &type, const QVector<Sink::Preprocessor *> &preprocessors)
@@ -177,6 +130,11 @@ void GenericResource::setupSynchronizer(const QSharedPointer<Synchronizer> &sync
     QObject::connect(mPipeline.data(), &Pipeline::revisionUpdated, mSynchronizer.data(), &ChangeReplay::revisionChanged, Qt::QueuedConnection);
     QObject::connect(mSynchronizer.data(), &ChangeReplay::changesReplayed, this, &GenericResource::updateLowerBoundRevision);
     QMetaObject::invokeMethod(mSynchronizer.data(), "revisionChanged", Qt::QueuedConnection);
+}
+
+void GenericResource::setupInspector(const QSharedPointer<Inspector> &inspector)
+{
+    mProcessor->setInspector(inspector);
 }
 
 void GenericResource::removeFromDisk(const QByteArray &instanceIdentifier)

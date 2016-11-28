@@ -37,6 +37,7 @@
 #include "facadefactory.h"
 #include "adaptorfactoryregistry.h"
 #include "synchronizer.h"
+#include "inspector.h"
 #include "mailpreprocessor.h"
 #include "remoteidmap.h"
 #include <QDate>
@@ -130,10 +131,36 @@ class DummySynchronizer : public Sink::Synchronizer {
 
 };
 
+class DummyInspector : public Sink::Inspector {
+public:
+    DummyInspector(const Sink::ResourceContext &resourceContext)
+        : Sink::Inspector(resourceContext)
+    {
+
+    }
+
+protected:
+    KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE
+    {
+        SinkTrace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
+        if (property == "testInspection") {
+            if (expectedValue.toBool()) {
+                //Success
+                return KAsync::null<void>();
+            } else {
+                //Failure
+                return KAsync::error<void>(1, "Failed.");
+            }
+        }
+        return KAsync::null<void>();
+    }
+};
+
 DummyResource::DummyResource(const Sink::ResourceContext &resourceContext, const QSharedPointer<Sink::Pipeline> &pipeline)
     : Sink::GenericResource(resourceContext, pipeline)
 {
     setupSynchronizer(QSharedPointer<DummySynchronizer>::create(resourceContext));
+    setupInspector(QSharedPointer<DummyInspector>::create(resourceContext));
     setupPreprocessors(ENTITY_TYPE_MAIL,
             QVector<Sink::Preprocessor*>() << new MailPropertyExtractor);
     setupPreprocessors(ENTITY_TYPE_FOLDER,
@@ -158,23 +185,6 @@ KAsync::Job<void> DummyResource::synchronizeWithSource(const Sink::QueryBase &qu
     emit notify(n);
     return GenericResource::synchronizeWithSource(query);
 }
-
-KAsync::Job<void> DummyResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
-{
-
-    SinkTrace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;
-    if (property == "testInspection") {
-        if (expectedValue.toBool()) {
-            //Success
-            return KAsync::null<void>();
-        } else {
-            //Failure
-            return KAsync::error<void>(1, "Failed.");
-        }
-    }
-    return KAsync::null<void>();
-}
-
 
 DummyResourceFactory::DummyResourceFactory(QObject *parent)
     : Sink::ResourceFactory(parent)

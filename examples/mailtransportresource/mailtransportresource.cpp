@@ -22,7 +22,7 @@
 #include "facadefactory.h"
 #include "resourceconfig.h"
 #include "definitions.h"
-#include "domainadaptor.h"
+#include "inspector.h"
 #include <QDir>
 #include <QFileInfo>
 #include <QSettings>
@@ -124,6 +124,31 @@ public:
     MailtransportResource::Settings mSettings;
 };
 
+class MailtransportInspector : public Sink::Inspector {
+public:
+    MailtransportInspector(const Sink::ResourceContext &resourceContext)
+        : Sink::Inspector(resourceContext)
+    {
+
+    }
+
+protected:
+    KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE
+    {
+        if (domainType == ENTITY_TYPE_MAIL) {
+            if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
+                auto path = resourceStorageLocation(mResourceContext.instanceId()) + "/test/" + entityId;
+                if (QFileInfo::exists(path)) {
+                    return KAsync::null<void>();
+                }
+                return KAsync::error<void>(1, "Couldn't find message: " + path);
+            }
+        }
+        return KAsync::null<void>();
+    }
+};
+
+
 MailtransportResource::MailtransportResource(const Sink::ResourceContext &resourceContext)
     : Sink::GenericResource(resourceContext)
 {
@@ -138,28 +163,9 @@ MailtransportResource::MailtransportResource(const Sink::ResourceContext &resour
     auto synchronizer = QSharedPointer<MailtransportSynchronizer>::create(resourceContext);
     synchronizer->mSettings = mSettings;
     setupSynchronizer(synchronizer);
+    setupInspector(QSharedPointer<MailtransportInspector>::create(resourceContext));
 
     setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MimeMessageMover << new MailPropertyExtractor);
-}
-
-void MailtransportResource::removeFromDisk(const QByteArray &instanceIdentifier)
-{
-    GenericResource::removeFromDisk(instanceIdentifier);
-    Sink::Storage::DataStore(Sink::storageLocation(), instanceIdentifier + ".synchronization", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
-}
-
-KAsync::Job<void> MailtransportResource::inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue)
-{
-    if (domainType == ENTITY_TYPE_MAIL) {
-        if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
-            auto path = resourceStorageLocation(mResourceContext.instanceId()) + "/test/" + entityId;
-            if (QFileInfo::exists(path)) {
-                return KAsync::null<void>();
-            }
-            return KAsync::error<void>(1, "Couldn't find message: " + path);
-        }
-    }
-    return KAsync::null<void>();
 }
 
 MailtransportResourceFactory::MailtransportResourceFactory(QObject *parent)
