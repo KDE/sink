@@ -103,7 +103,7 @@ void CommandProcessor::processFlushCommand(const QByteArray &data)
     if (Sink::Commands::VerifyFlushBuffer(verifier)) {
         auto buffer = Sink::Commands::GetFlush(data.constData());
         const auto flushType = buffer->type();
-        const auto flushId = BufferUtils::extractBuffer(buffer->id());
+        const auto flushId = BufferUtils::extractBufferCopy(buffer->id());
         if (flushType == Sink::Flush::FlushSynchronization) {
             mSynchronizer->flush(flushType, flushId);
         } else {
@@ -323,7 +323,8 @@ KAsync::Job<void> CommandProcessor::flush(void const *command, size_t size)
     if (Sink::Commands::VerifyFlushBuffer(verifier)) {
         auto buffer = Sink::Commands::GetFlush(command);
         const auto flushType = buffer->type();
-        const auto flushId = BufferUtils::extractBuffer(buffer->id());
+        const QByteArray flushId = BufferUtils::extractBufferCopy(buffer->id());
+        Q_ASSERT(!flushId.isEmpty());
         if (flushType == Sink::Flush::FlushReplayQueue) {
             SinkTrace() << "Flushing synchronizer ";
             Q_ASSERT(mSynchronizer);

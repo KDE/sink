@@ -268,7 +268,8 @@ void Synchronizer::synchronize(const Sink::QueryBase &query)
 
 void Synchronizer::flush(int commandId, const QByteArray &flushId)
 {
-    SinkTrace() << "Flushing the synchronization queue";
+    Q_ASSERT(!flushId.isEmpty());
+    SinkTrace() << "Flushing the synchronization queue " << flushId;
     mSyncRequestQueue << Synchronizer::SyncRequest{Synchronizer::SyncRequest::Flush, commandId, flushId};
     processSyncQueue().exec();
 }
@@ -318,6 +319,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
                 }
             });
         } else if (request.requestType == Synchronizer::SyncRequest::Flush) {
+            Q_ASSERT(!request.requestId.isEmpty());
             if (request.flushType == Flush::FlushReplayQueue) {
                 SinkTrace() << "Emitting flush completion.";
                 Sink::Notification n;
@@ -326,7 +328,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
                 emit notify(n);
             } else {
                 flatbuffers::FlatBufferBuilder fbb;
-                auto flushId = fbb.CreateString(request.requestId);
+                auto flushId = fbb.CreateString(request.requestId.toStdString());
                 auto location = Sink::Commands::CreateFlush(fbb, flushId, static_cast<int>(Sink::Flush::FlushSynchronization));
                 Sink::Commands::FinishFlushBuffer(fbb, location);
                 enqueueCommand(Sink::Commands::FlushCommand, BufferUtils::extractBuffer(fbb));
