@@ -89,7 +89,6 @@ generate_flatbuffers(
     commands/commandcompletion
     commands/createentity
     commands/deleteentity
-    commands/fetchentity
     commands/handshake
     commands/modifyentity
     commands/revisionupdate
