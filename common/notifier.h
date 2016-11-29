@@ -36,6 +36,7 @@ class SINK_EXPORT Notifier
 {
 public:
     Notifier(const QSharedPointer<ResourceAccess> &resourceAccess);
+    Notifier(const QByteArray &resourceInstanceIdentifier);
     Notifier(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType);
     void registerHandler(std::function<void(const Notification &)>);
 

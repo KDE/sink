@@ -25,6 +25,8 @@
 
 #include "store.h"
 #include "resourcecontrol.h"
+#include "notifier.h"
+#include "notification.h"
 #include "log.h"
 #include "test.h"
 
@@ -411,10 +413,21 @@ void MailSyncTest::testFailingSync()
     Sink::Query query;
     query.resourceFilter(resource.identifier());
 
+    bool errorReceived = false;
+
+    //We currently don't get a proper error notification except for the status change
+    auto notifier = QSharedPointer<Sink::Notifier>::create(resource.identifier());
+    notifier->registerHandler([&](const Notification &notification) {
+        SinkTrace() << "Received notification " << notification.type << notification.id;
+        if (notification.code == ApplicationDomain::ErrorStatus) {
+            errorReceived = true;
+            SinkWarning() << "Sync return an error";
+        } 
+    });
+
+    VERIFYEXEC(Store::synchronize(query));
     // Ensure sync fails if resource is misconfigured
-    auto future = Store::synchronize(query).exec();
-    future.waitForFinished();
-    QVERIFY(future.errorCode());
+    QTRY_VERIFY(errorReceived);
 }
 
 #include "mailsynctest.moc"

@@ -100,7 +100,8 @@ void GenericResource::processCommand(int commandId, const QByteArray &data)
 
 KAsync::Job<void> GenericResource::synchronizeWithSource(const Sink::QueryBase &query)
 {
-    return mSynchronizer->synchronize(query);
+    mSynchronizer->synchronize(query);
+    return KAsync::null<void>();
 }
 
 KAsync::Job<void> GenericResource::processAllMessages()

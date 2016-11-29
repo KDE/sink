@@ -38,7 +38,8 @@ Synchronizer::Synchronizer(const Sink::ResourceContext &context)
     : ChangeReplay(context),
     mResourceContext(context),
     mEntityStore(Storage::EntityStore::Ptr::create(mResourceContext)),
-    mSyncStorage(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::DataStore::ReadWrite)
+    mSyncStorage(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::DataStore::ReadWrite),
+    mSyncInProgress(false)
 {
     SinkTrace() << "Starting synchronizer: " << mResourceContext.resourceType << mResourceContext.instanceId();
 }
@@ -254,15 +255,15 @@ void Synchronizer::modify(const DomainType &entity)
 QList<Synchronizer::SyncRequest> Synchronizer::getSyncRequests(const Sink::QueryBase &query)
 {
     QList<Synchronizer::SyncRequest> list;
-    list << Synchronizer::SyncRequest{query};
+    list << Synchronizer::SyncRequest{query, "sync"};
     return list;
 }
 
-KAsync::Job<void> Synchronizer::synchronize(const Sink::QueryBase &query)
+void Synchronizer::synchronize(const Sink::QueryBase &query)
 {
     SinkTrace() << "Synchronizing";
     mSyncRequestQueue << getSyncRequests(query);
-    return processSyncQueue();
+    processSyncQueue().exec();
 }
 
 void Synchronizer::flush(int commandId, const QByteArray &flushId)
@@ -284,20 +285,48 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
     while (!mSyncRequestQueue.isEmpty()) {
         auto request = mSyncRequestQueue.takeFirst();
         if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
-            job = job.then(synchronizeWithSource(request.query)).syncThen<void>([this] {
+            job = job.syncThen<void>([this, request] {
+                Sink::Notification n;
+                n.id = request.requestId;
+                n.type = Notification::Status;
+                n.message = "Synchronization has started.";
+                n.code = ApplicationDomain::BusyStatus;
+                emit notify(n);
+            }).then(synchronizeWithSource(request.query)).syncThen<void>([this] {
                 //Commit after every request, so implementations only have to commit more if they add a lot of data.
                 commit();
+            }).then<void>([this, request](const KAsync::Error &error) {
+                if (error) {
+                    //Emit notification with error
+                    SinkWarning() << "Synchronization failed: " << error.errorMessage;
+                    Sink::Notification n;
+                    n.id = request.requestId;
+                    n.type = Notification::Status;
+                    n.message = "Synchronization has ended.";
+                    n.code = ApplicationDomain::ErrorStatus;
+                    emit notify(n);
+                    return KAsync::error(error);
+                } else {
+                    SinkLog() << "Done Synchronizing";
+                    Sink::Notification n;
+                    n.id = request.requestId;
+                    n.type = Notification::Status;
+                    n.message = "Synchronization has ended.";
+                    n.code = ApplicationDomain::ConnectedStatus;
+                    emit notify(n);
+                    return KAsync::null();
+                }
             });
         } else if (request.requestType == Synchronizer::SyncRequest::Flush) {
             if (request.flushType == Flush::FlushReplayQueue) {
                 SinkTrace() << "Emitting flush completion.";
                 Sink::Notification n;
                 n.type = Sink::Notification::FlushCompletion;
-                n.id = request.flushId;
+                n.id = request.requestId;
                 emit notify(n);
             } else {
                 flatbuffers::FlatBufferBuilder fbb;
-                auto flushId = fbb.CreateString(request.flushId);
+                auto flushId = fbb.CreateString(request.requestId);
                 auto location = Sink::Commands::CreateFlush(fbb, flushId, static_cast<int>(Sink::Flush::FlushSynchronization));
                 Sink::Commands::FinishFlushBuffer(fbb, location);
                 enqueueCommand(Sink::Commands::FlushCommand, BufferUtils::extractBuffer(fbb));

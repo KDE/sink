@@ -23,6 +23,7 @@
 #include <functional>
 
 #include "resourceaccess.h"
+#include "resourceconfig.h"
 #include "log.h"
 
 using namespace Sink;
@@ -58,6 +59,10 @@ Notifier::Notifier(const QByteArray &instanceIdentifier, const QByteArray &resou
         }
     });
     d->resourceAccess << resourceAccess;
+}
+
+Notifier::Notifier(const QByteArray &instanceIdentifier) : Notifier(instanceIdentifier, ResourceConfig::getResourceType(instanceIdentifier))
+{
 }
 
 void Notifier::registerHandler(std::function<void(const Notification &)> handler)

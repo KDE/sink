@@ -78,7 +78,6 @@ private:
     // void processRevisionReplayedCommand(const QByteArray &data);
 
     KAsync::Job<void> flush(void const *command, size_t size);
-    KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query);
 
     Sink::Pipeline *mPipeline;
     MessageQueue mUserQueue;

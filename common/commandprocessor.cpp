@@ -128,17 +128,7 @@ void CommandProcessor::processSynchronizeCommand(const QByteArray &data)
             QDataStream stream(&data, QIODevice::ReadOnly);
             stream >> query;
         }
-        synchronizeWithSource(query)
-            .then<void>([timer](const KAsync::Error &error) {
-                if (error) {
-                    SinkWarning() << "Sync failed: " << error.errorMessage;
-                    return KAsync::error(error);
-                } else {
-                    SinkTrace() << "Sync took " << Sink::Log::TraceTime(timer->elapsed());
-                    return KAsync::null();
-                }
-            })
-            .exec();
+        mSynchronizer->synchronize(query);
     } else {
         SinkWarning() << "received invalid command";
     }
@@ -155,34 +145,6 @@ void CommandProcessor::processSynchronizeCommand(const QByteArray &data)
 //     }
 //     loadResource().setLowerBoundRevision(lowerBoundRevision());
 // }
-
-KAsync::Job<void> CommandProcessor::synchronizeWithSource(const Sink::QueryBase &query)
-{
-    return KAsync::start<void>([this, query] {
-        Sink::Notification n;
-        n.id = "sync";
-        n.type = Sink::Notification::Status;
-        n.message = "Synchronization has started.";
-        n.code = Sink::ApplicationDomain::BusyStatus;
-        emit notify(n);
-
-        SinkLog() << " Synchronizing";
-        return mSynchronizer->synchronize(query)
-            .then<void>([this](const KAsync::Error &error) {
-                if (!error) {
-                    SinkLog() << "Done Synchronizing";
-                    Sink::Notification n;
-                    n.id = "sync";
-                    n.type = Sink::Notification::Status;
-                    n.message = "Synchronization has ended.";
-                    n.code = Sink::ApplicationDomain::ConnectedStatus;
-                    emit notify(n);
-                    return KAsync::null();
-                }
-                return KAsync::error(error);
-            });
-    });
-}
 
 void CommandProcessor::setOldestUsedRevision(qint64 revision)
 {
@@ -337,17 +299,17 @@ void CommandProcessor::setSynchronizer(const QSharedPointer<Synchronizer> &synch
     QObject::connect(mSynchronizer.data(), &Synchronizer::replayingChanges, [this]() {
         Sink::Notification n;
         n.id = "changereplay";
-        n.type = Sink::Notification::Status;
+        n.type = Notification::Status;
         n.message = "Replaying changes.";
-        n.code = Sink::ApplicationDomain::BusyStatus;
+        n.code = ApplicationDomain::BusyStatus;
         emit notify(n);
     });
     QObject::connect(mSynchronizer.data(), &Synchronizer::changesReplayed, [this]() {
         Sink::Notification n;
         n.id = "changereplay";
-        n.type = Sink::Notification::Status;
+        n.type = Notification::Status;
         n.message = "All changes have been replayed.";
-        n.code = Sink::ApplicationDomain::ConnectedStatus;
+        n.code = ApplicationDomain::ConnectedStatus;
         emit notify(n);
     });
 

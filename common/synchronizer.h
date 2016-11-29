@@ -44,7 +44,7 @@ public:
     virtual ~Synchronizer();
 
     void setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback, MessageQueue &messageQueue);
-    KAsync::Job<void> synchronize(const Sink::QueryBase &query);
+    void synchronize(const Sink::QueryBase &query);
     void flush(int commandId, const QByteArray &flushId);
 
     //Read only access to main storage
@@ -123,8 +123,9 @@ protected:
             Flush
         };
 
-        SyncRequest(const Sink::QueryBase &q)
-            : requestType(Synchronization),
+        SyncRequest(const Sink::QueryBase &q, const QByteArray &requestId_ = QByteArray())
+            : requestId(requestId_),
+            requestType(Synchronization),
             query(q)
         {
         }
@@ -134,15 +135,15 @@ protected:
         {
         }
 
-        SyncRequest(RequestType type, int flushType_, const QByteArray &flushId_)
+        SyncRequest(RequestType type, int flushType_, const QByteArray &requestId_)
             : flushType(flushType_),
-            flushId(flushId_),
+            requestId(requestId_),
             requestType(type)
         {
         }
 
         int flushType = 0;
-        QByteArray flushId;
+        QByteArray requestId;
         RequestType requestType;
         Sink::QueryBase query;
     };
