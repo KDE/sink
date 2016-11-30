@@ -27,6 +27,7 @@
 #include "index.h"
 #include "bufferutils.h"
 #include "entity_generated.h"
+#include "applicationdomaintype_p.h"
 
 #include "mail.h"
 #include "folder.h"
@@ -57,20 +58,12 @@ public:
         return transaction;
     }
 
-    template<typename ...Args>
-    void configure(const QByteArray &type, Args && ... args)
-    {
-        if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
-            ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::configure(std::forward<Args...>(args...));
-        } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
-            ApplicationDomain::TypeImplementation<ApplicationDomain::Mail>::configure(std::forward<Args...>(args...));
-        } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Event>()) {
-            ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::configure(std::forward<Args...>(args...));
-        } else {
-            Q_ASSERT(false);
-            SinkError() << "Unkonwn type " << type;
+    template <class T>
+    struct ConfigureHelper {
+        void operator()(TypeIndex &arg) const {
+            ApplicationDomain::TypeImplementation<T>::configure(arg);
         }
-    }
+    };
 
     TypeIndex &cachedIndex(const QByteArray &type)
     {
@@ -78,7 +71,7 @@ public:
             return *indexByType.value(type);
         }
         auto index = QSharedPointer<TypeIndex>::create(type);
-        configure(type, *index);
+        TypeHelper<ConfigureHelper>{type}.template operator()<void>(*index);
         indexByType.insert(type, index);
         return *index;
 
