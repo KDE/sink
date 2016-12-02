@@ -465,6 +465,8 @@ class SyncScope : public QueryBase {
 public:
     using QueryBase::QueryBase;
 
+    SyncScope() = default;
+
     SyncScope(const QueryBase &other)
         : QueryBase(other)
     {
