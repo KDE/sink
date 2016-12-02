@@ -8,6 +8,8 @@ table ModifyEntity {
     delta: [ubyte]; //Contains an entity buffer with all changed properties set
     replayToSource: bool = true;
     modifiedProperties: [string];
+    targetResource: string; //Contains the target resource for a move/copy operation
+    removeEntity: bool = false; //This modification removes the entity
 }
 
 root_type ModifyEntity;

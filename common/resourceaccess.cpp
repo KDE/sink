@@ -323,16 +323,16 @@ KAsync::Job<void> ResourceAccess::sendCreateCommand(const QByteArray &uid, const
 }
 
 KAsync::Job<void>
-ResourceAccess::sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer, const QByteArrayList &changedProperties)
+ResourceAccess::sendModifyCommand(const QByteArray &uid, qint64 revision, const QByteArray &resourceBufferType, const QByteArrayList &deletedProperties, const QByteArray &buffer, const QByteArrayList &changedProperties, const QByteArray &newResource, bool remove)
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto entityId = fbb.CreateString(uid.constData());
-    // This is the resource buffer type and not the domain type
     auto type = fbb.CreateString(resourceBufferType.constData());
     auto modifiedProperties = BufferUtils::toVector(fbb, changedProperties);
     auto deletions = BufferUtils::toVector(fbb, deletedProperties);
     auto delta = Sink::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
-    auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta, true, modifiedProperties);
+    auto resource = newResource.isEmpty() ? 0 : fbb.CreateString(newResource.constData());
+    auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta, true, modifiedProperties, resource, remove);
     Sink::Commands::FinishModifyEntityBuffer(fbb, location);
     open();
     return sendCommand(Sink::Commands::ModifyEntityCommand, fbb);
@@ -342,7 +342,6 @@ KAsync::Job<void> ResourceAccess::sendDeleteCommand(const QByteArray &uid, qint6
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto entityId = fbb.CreateString(uid.constData());
-    // This is the resource buffer type and not the domain type
     auto type = fbb.CreateString(resourceBufferType.constData());
     auto location = Sink::Commands::CreateDeleteEntity(fbb, revision, entityId, type);
     Sink::Commands::FinishDeleteEntityBuffer(fbb, location);

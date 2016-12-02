@@ -168,6 +168,7 @@ public:
     QByteArrayList availableProperties() const;
     qint64 revision() const;
     QByteArray resourceInstanceIdentifier() const;
+    void setResource(const QByteArray &identifier);
     QByteArray identifier() const;
 
 private:

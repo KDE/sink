@@ -34,10 +34,12 @@
 #include "entitybuffer.h"
 #include "log.h"
 #include "domain/applicationdomaintype.h"
+#include "domain/applicationdomaintype_p.h"
 #include "adaptorfactoryregistry.h"
 #include "definitions.h"
 #include "bufferutils.h"
 #include "storage/entitystore.h"
+#include "store.h"
 
 SINK_DEBUG_AREA("pipeline")
 
@@ -186,6 +188,13 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     return KAsync::value(d->entityStore.maxRevision());
 }
 
+template <class T>
+struct CreateHelper {
+    KAsync::Job<void> operator()(const ApplicationDomain::ApplicationDomainType &arg) const {
+        return Sink::Store::create<T>(arg);
+    }
+};
+
 KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 {
     d->transactionItemCount++;
@@ -237,6 +246,45 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     QByteArrayList deletions;
     if (modifyEntity->deletions()) {
         deletions = BufferUtils::fromVector(*modifyEntity->deletions());
+    }
+
+    if (modifyEntity->targetResource()) {
+        auto targetResource = BufferUtils::extractBuffer(modifyEntity->targetResource());
+        auto changeset = diff.changedProperties();
+        const auto current = d->entityStore.readLatest(bufferType, diff.identifier());
+        if (current.identifier().isEmpty()) {
+            SinkWarning() << "Failed to read current version: " << diff.identifier();
+            return KAsync::error<qint64>(0);
+        }
+
+        auto newEntity = *ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(current, current.availableProperties());
+
+        // Apply diff
+        for (const auto &property : changeset) {
+            const auto value = diff.getProperty(property);
+            if (value.isValid()) {
+                newEntity.setProperty(property, value);
+            }
+        }
+
+        // Remove deletions
+        for (const auto property : deletions) {
+            newEntity.setProperty(property, QVariant());
+        }
+        newEntity.setResource(targetResource);
+        newEntity.setChangedProperties(newEntity.availableProperties().toSet());
+
+        SinkTrace() << "Moving entity to new resource " << newEntity.identifier() << newEntity.resourceInstanceIdentifier() << targetResource;
+        auto job = TypeHelper<CreateHelper>{bufferType}.operator()<KAsync::Job<void>, ApplicationDomain::ApplicationDomainType&>(newEntity);
+        job = job.syncThen<void>([=](const KAsync::Error &error) {
+            if (!error) {
+                SinkTrace() << "Move of " << newEntity.identifier() << "was successfull";
+            } else {
+                SinkError() << "Failed to move entity " << targetResource << " to resource " << newEntity.identifier();
+            }
+        });
+        job.exec();
+        return KAsync::value<qint64>(0);
     }
 
     auto preprocess = [&, this](const ApplicationDomain::ApplicationDomainType &oldEntity, ApplicationDomain::ApplicationDomainType &newEntity) {

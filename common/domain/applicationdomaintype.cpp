@@ -98,6 +98,11 @@ void ApplicationDomainType::setProperty(const QByteArray &key, const QVariant &v
     mAdaptor->setProperty(key, value);
 }
 
+void ApplicationDomainType::setResource(const QByteArray &identifier)
+{
+    mResourceInstanceIdentifier = identifier;
+}
+
 void ApplicationDomainType::setProperty(const QByteArray &key, const ApplicationDomainType &value)
 {
     Q_ASSERT(!value.identifier().isEmpty());

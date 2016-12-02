@@ -82,6 +82,12 @@ template <class DomainType>
 KAsync::Job<void> SINK_EXPORT remove(const DomainType &domainObject);
 
 /**
+ * Move an entity to a new resource.
+ */
+template <class DomainType>
+KAsync::Job<void> SINK_EXPORT move(const DomainType &domainObject, const QByteArray &newResource);
+
+/**
  * Synchronize data to local cache.
  */
 KAsync::Job<void> SINK_EXPORT synchronize(const Sink::Query &query);

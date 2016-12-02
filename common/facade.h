@@ -63,6 +63,7 @@ public:
     static QByteArray bufferTypeForDomainType();
     KAsync::Job<void> create(const DomainType &domainObject) Q_DECL_OVERRIDE;
     KAsync::Job<void> modify(const DomainType &domainObject) Q_DECL_OVERRIDE;
+    KAsync::Job<void> move(const DomainType &domainObject, const QByteArray &newResource) Q_DECL_OVERRIDE;
     KAsync::Job<void> remove(const DomainType &domainObject) Q_DECL_OVERRIDE;
     virtual QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 

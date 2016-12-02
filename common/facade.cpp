@@ -68,7 +68,19 @@ KAsync::Job<void> GenericFacade<DomainType>::modify(const DomainType &domainObje
         SinkWarning() << "No domain type adaptor factory available";
         return KAsync::error<void>();
     }
-    return mResourceAccess->sendModifyCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType(), QByteArrayList(), BufferUtils::extractBuffer(entityFbb), domainObject.changedProperties());
+    return mResourceAccess->sendModifyCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType(), QByteArrayList(), BufferUtils::extractBuffer(entityFbb), domainObject.changedProperties(), QByteArray(), false);
+}
+
+template <class DomainType>
+KAsync::Job<void> GenericFacade<DomainType>::move(const DomainType &domainObject, const QByteArray &newResource)
+{
+    SinkTrace() << "Moving entity: " << domainObject.identifier() << domainObject.changedProperties() << newResource;
+    flatbuffers::FlatBufferBuilder entityFbb;
+    if (!mResourceContext.adaptorFactory<DomainType>().createBuffer(domainObject, entityFbb)) {
+        SinkWarning() << "No domain type adaptor factory available";
+        return KAsync::error<void>();
+    }
+    return mResourceAccess->sendModifyCommand(domainObject.identifier(), domainObject.revision(), bufferTypeForDomainType(), QByteArrayList(), BufferUtils::extractBuffer(entityFbb), domainObject.changedProperties(), newResource, false);
 }
 
 template <class DomainType>

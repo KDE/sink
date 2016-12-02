@@ -41,6 +41,10 @@ public:
     {
         return KAsync::null<void>();
     };
+    KAsync::Job<void> move(const T &domainObject, const QByteArray &) Q_DECL_OVERRIDE
+    {
+        return KAsync::null<void>();
+    };
     KAsync::Job<void> remove(const T &domainObject) Q_DECL_OVERRIDE
     {
         return KAsync::null<void>();
