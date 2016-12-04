@@ -520,6 +520,7 @@ bool DataStore::Transaction::validateNamedDatabases()
 DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &db, const std::function<void(const DataStore::Error &error)> &errorHandler, bool allowDuplicates) const
 {
     if (!d) {
+        SinkError() << "Tried to open database on invalid transaction: " << db;
         return DataStore::NamedDatabase();
     }
     Q_ASSERT(d->transaction);

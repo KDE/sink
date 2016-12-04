@@ -225,6 +225,12 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::move(const DomainType &, const
 }
 
 template <typename DomainType>
+KAsync::Job<void> LocalStorageFacade<DomainType>::copy(const DomainType &, const QByteArray &)
+{
+    return KAsync::error<void>(1, "Resources and Accounts cannot be copied.");
+}
+
+template <typename DomainType>
 KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domainObject)
 {
     auto configStoreIdentifier = mIdentifier;

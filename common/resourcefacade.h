@@ -82,6 +82,7 @@ public:
     virtual KAsync::Job<void> create(const DomainType &resource) Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> modify(const DomainType &resource) Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> move(const DomainType &resource, const QByteArray &) Q_DECL_OVERRIDE;
+    virtual KAsync::Job<void> copy(const DomainType &resource, const QByteArray &) Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> remove(const DomainType &resource) Q_DECL_OVERRIDE;
     virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 

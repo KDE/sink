@@ -70,6 +70,13 @@ public:
     virtual KAsync::Job<void> move(const DomainType &domainObject, const QByteArray &newResource) = 0;
 
     /**
+     * Copy an entity to a new resource.
+     *
+     * The job returns succefully once the task has been successfully placed in the queue
+     */
+    virtual KAsync::Job<void> copy(const DomainType &domainObject, const QByteArray &newResource) = 0;
+
+    /**
      * Remove an entity from the store.
      *
      * The job returns succefully once the task has been successfully placed in the queue
@@ -98,6 +105,11 @@ public:
     }
 
     KAsync::Job<void> move(const DomainType &domainObject, const QByteArray &newResource)
+    {
+        return KAsync::error<void>(-1, "Failed to create a facade");
+    }
+
+    KAsync::Job<void> copy(const DomainType &domainObject, const QByteArray &newResource)
     {
         return KAsync::error<void>(-1, "Failed to create a facade");
     }

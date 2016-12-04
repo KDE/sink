@@ -249,6 +249,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     }
 
     if (modifyEntity->targetResource()) {
+        auto isMove = modifyEntity->removeEntity();
         auto targetResource = BufferUtils::extractBuffer(modifyEntity->targetResource());
         auto changeset = diff.changedProperties();
         const auto current = d->entityStore.readLatest(bufferType, diff.identifier());
@@ -276,9 +277,20 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
         SinkTrace() << "Moving entity to new resource " << newEntity.identifier() << newEntity.resourceInstanceIdentifier() << targetResource;
         auto job = TypeHelper<CreateHelper>{bufferType}.operator()<KAsync::Job<void>, ApplicationDomain::ApplicationDomainType&>(newEntity);
-        job = job.syncThen<void>([=](const KAsync::Error &error) {
+        job = job.syncThen<void>([this, newEntity, isMove, targetResource, bufferType](const KAsync::Error &error) {
             if (!error) {
                 SinkTrace() << "Move of " << newEntity.identifier() << "was successfull";
+                if (isMove) {
+                    startTransaction();
+                    flatbuffers::FlatBufferBuilder fbb;
+                    auto entityId = fbb.CreateString(newEntity.identifier());
+                    auto type = fbb.CreateString(bufferType);
+                    auto location = Sink::Commands::CreateDeleteEntity(fbb, newEntity.revision(), entityId, type, true);
+                    Sink::Commands::FinishDeleteEntityBuffer(fbb, location);
+                    const auto data = BufferUtils::extractBuffer(fbb);
+                    deletedEntity(data, data.size()).exec();
+                    commit();
+                }
             } else {
                 SinkError() << "Failed to move entity " << targetResource << " to resource " << newEntity.identifier();
             }

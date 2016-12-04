@@ -225,6 +225,15 @@ KAsync::Job<void> Store::move(const DomainType &domainObject, const QByteArray &
 }
 
 template <class DomainType>
+KAsync::Job<void> Store::copy(const DomainType &domainObject, const QByteArray &newResource)
+{
+    SinkTrace() << "Copy: " << domainObject << newResource;
+    // Potentially copy to separate thread as well
+    auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
+    return facade->copy(domainObject, newResource).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to copy"; });
+}
+
+template <class DomainType>
 KAsync::Job<void> Store::remove(const DomainType &domainObject)
 {
     SinkTrace() << "Remove: " << domainObject;
@@ -396,6 +405,7 @@ QList<DomainType> Store::read(const Sink::Query &q)
     template KAsync::Job<void> Store::create<T>(const T &domainObject);           \
     template KAsync::Job<void> Store::modify<T>(const T &domainObject);           \
     template KAsync::Job<void> Store::move<T>(const T &domainObject, const QByteArray &newResource);           \
+    template KAsync::Job<void> Store::copy<T>(const T &domainObject, const QByteArray &newResource);           \
     template QSharedPointer<QAbstractItemModel> Store::loadModel<T>(Query query); \
     template KAsync::Job<T> Store::fetchOne<T>(const Query &);                    \
     template KAsync::Job<QList<T::Ptr>> Store::fetchAll<T>(const Query &);        \

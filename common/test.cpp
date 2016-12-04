@@ -130,6 +130,11 @@ public:
         // mTestAccount->moveEntity<T>(domainObject, newResource);
         return KAsync::null<void>();
     };
+    KAsync::Job<void> copy(const T &domainObject, const QByteArray &newResource) Q_DECL_OVERRIDE
+    {
+        // mTestAccount->copyEntity<T>(domainObject, newResource);
+        return KAsync::null<void>();
+    };
     KAsync::Job<void> remove(const T &domainObject) Q_DECL_OVERRIDE
     {
         //FIXME

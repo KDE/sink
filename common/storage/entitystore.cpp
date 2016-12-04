@@ -239,11 +239,11 @@ bool EntityStore::remove(const QByteArray &type, const QByteArray &uid, bool rep
             [](const DataStore::Error &error) { SinkWarning() << "Failed to read old revision from storage: " << error.message; });
 
     if (!found) {
-        SinkWarning() << "Failed to find entity " << uid;
+        SinkWarning() << "Remove: Failed to find entity " << uid;
         return false;
     }
     if (alreadyRemoved) {
-        SinkWarning() << "Entity is already removed " << uid;
+        SinkWarning() << "Remove: Entity is already removed " << uid;
         return false;
     }
 
