@@ -273,7 +273,7 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 
 static KAsync::Job<void> synchronize(const QByteArray &resource, const Sink::SyncScope &scope)
 {
-    SinkTrace() << "Synchronizing " << resource;
+    SinkLog() << "Synchronizing " << resource;
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
     return resourceAccess->synchronizeResource(scope)
         .addToContext(resourceAccess)
@@ -295,7 +295,7 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
 {
     auto resources = getResources(scope.getResourceFilter()).keys();
-    SinkTrace() << "Synchronize" << resources;
+    SinkLog() << "Synchronize" << resources;
     return KAsync::value(resources)
         .template each([scope](const QByteArray &resource) {
             return synchronize(resource, scope);
@@ -363,6 +363,7 @@ DomainType Store::readOne(const Sink::Query &query)
     if (!list.isEmpty()) {
         return list.first();
     }
+    SinkWarning() << "Tried to read value but no values are available.";
     return DomainType();
 }
 

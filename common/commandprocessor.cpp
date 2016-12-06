@@ -210,7 +210,6 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
     }
     auto queuedCommand = Sink::GetQueuedCommand(data.constData());
     const auto commandId = queuedCommand->commandId();
-    SinkTrace() << "Dequeued Command: " << Sink::Commands::name(commandId);
     return processQueuedCommand(queuedCommand)
         .then<qint64, qint64>(
             [this, commandId](const KAsync::Error &error, qint64 createdRevision) -> KAsync::Job<qint64> {

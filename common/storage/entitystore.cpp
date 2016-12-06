@@ -130,6 +130,8 @@ bool EntityStore::add(const QByteArray &type, const ApplicationDomain::Applicati
     auto entity = *ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(entity_, entity_.availableProperties());
     entity.setChangedProperties(entity.availableProperties().toSet());
 
+    SinkTrace() << "New entity " << entity;
+
     preprocess(entity);
     d->typeIndex(type).add(entity.identifier(), entity, d->transaction);
 
@@ -205,7 +207,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
     }
 
     newEntity.setChangedProperties(newEntity.availableProperties().toSet());
-    SinkTrace() << "All properties: " << newEntity.availableProperties();
+    SinkTrace() << "Modified entity " << newEntity;
 
     flatbuffers::FlatBufferBuilder fbb;
     d->resourceContext.adaptorFactory(type).createBuffer(newEntity, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
@@ -250,6 +252,8 @@ bool EntityStore::remove(const QByteArray &type, const QByteArray &uid, bool rep
     const auto current = readLatest(type, uid);
     preprocess(current);
     d->typeIndex(type).remove(current.identifier(), current, d->transaction);
+
+    SinkTrace() << "Removed entity " << current;
 
     const qint64 newRevision = DataStore::maxRevision(d->transaction) + 1;
 
