@@ -63,12 +63,12 @@
 #define SINK_BLOB_PROPERTY(NAME, LOWERCASENAME) \
     struct NAME { \
         static constexpr const char *name = #LOWERCASENAME; \
-        typedef QString Type; \
+        typedef BLOB Type; \
     }; \
     void set##NAME(const QByteArray &value) { setBlobProperty(NAME::name, value); } \
-    void set##NAME##Path(const QString &path) { setProperty(NAME::name, QVariant::fromValue(path)); } \
+    void set##NAME##Path(const QString &path) { setProperty(NAME::name, QVariant::fromValue(BLOB{path})); } \
     QByteArray get##NAME() const { return getBlobProperty(NAME::name); } \
-    QString get##NAME##Path() const { return getProperty(NAME::name).value<QString>(); } \
+    QString get##NAME##Path() const { return getProperty(NAME::name).value<BLOB>().value; } \
 
 #define SINK_REFERENCE_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
@@ -98,6 +98,12 @@ struct SINK_EXPORT Progress {
 
 };
 
+struct BLOB {
+    QString value;
+};
+
+void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties, bool copyBlobs);
+
 /**
  * The domain type interface has two purposes:
  * * provide a unified interface to read buffers (for zero-copy reading)
@@ -115,12 +121,27 @@ public:
     ApplicationDomainType(const ApplicationDomainType &other);
     ApplicationDomainType& operator=(const ApplicationDomainType &other);
 
+    /**
+     * Returns an in memory representation of the same entity.
+     */
     template <typename DomainType>
     static typename DomainType::Ptr getInMemoryRepresentation(const ApplicationDomainType &domainType, const QList<QByteArray> properties = QList<QByteArray>())
     {
         auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create(*(domainType.mAdaptor), properties);
-        //The identifier still internal refers to the memory-mapped pointer, we need to copy the memory or it will become invalid
+        //mIdentifier internally still refers to the memory-mapped memory, we need to copy the memory or it will become invalid
         return QSharedPointer<DomainType>::create(domainType.mResourceInstanceIdentifier, QByteArray(domainType.mIdentifier.constData(), domainType.mIdentifier.size()), domainType.mRevision, memoryAdaptor);
+    }
+
+    /**
+     * Returns an in memory copy without id and resource set.
+     */
+    template <typename DomainType>
+    static typename DomainType::Ptr getInMemoryCopy(const ApplicationDomainType &domainType, const QList<QByteArray> properties = QList<QByteArray>())
+    {
+        auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create();
+        Q_ASSERT(domainType.mAdaptor);
+        copyBuffer(*(domainType.mAdaptor), *memoryAdaptor, properties, true);
+        return QSharedPointer<DomainType>::create(QByteArray{}, QByteArray{}, 0, memoryAdaptor);
     }
 
     static QByteArray generateUid();
@@ -430,3 +451,4 @@ Q_DECLARE_METATYPE(Sink::ApplicationDomain::Identity::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Mail::Contact)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Error)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Progress)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::BLOB)

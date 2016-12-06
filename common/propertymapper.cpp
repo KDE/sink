@@ -33,6 +33,15 @@ flatbuffers::uoffset_t variantToProperty<QString>(const QVariant &property, flat
 }
 
 template <>
+flatbuffers::uoffset_t variantToProperty<Sink::ApplicationDomain::BLOB>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
+{
+    if (property.isValid()) {
+        return fbb.CreateString(property.value<Sink::ApplicationDomain::BLOB>().value.toStdString()).o;
+    }
+    return 0;
+}
+
+template <>
 flatbuffers::uoffset_t variantToProperty<QByteArray>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
 {
     if (property.isValid()) {
@@ -106,6 +115,16 @@ QVariant propertyToVariant<QString>(const flatbuffers::String *property)
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
         return QString::fromStdString(property->c_str());
+    }
+    return QVariant();
+}
+
+template <>
+QVariant propertyToVariant<Sink::ApplicationDomain::BLOB>(const flatbuffers::String *property)
+{
+    if (property) {
+        // We have to copy the memory, otherwise it would become eventually invalid
+        return QVariant::fromValue(Sink::ApplicationDomain::BLOB{QString::fromStdString(property->c_str())});
     }
     return QVariant();
 }

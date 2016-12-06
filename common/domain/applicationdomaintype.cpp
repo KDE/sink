@@ -31,6 +31,25 @@ namespace ApplicationDomain {
 
 constexpr const char *Mail::ThreadId::name;
 
+void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties, bool copyBlobs)
+{
+    auto propertiesToCopy = properties;
+    if (properties.isEmpty()) {
+        propertiesToCopy = buffer.availableProperties();
+    }
+    for (const auto &property : propertiesToCopy) {
+        const auto value = buffer.getProperty(property);
+        if (copyBlobs && value.canConvert<BLOB>()) {
+            auto oldPath = value.value<BLOB>().value;
+            auto newPath = oldPath + "copy";
+            QFile::copy(oldPath, newPath);
+            memoryAdaptor.setProperty(property, QVariant::fromValue(BLOB{newPath}));
+        } else {
+            memoryAdaptor.setProperty(property, value);
+        }
+    }
+}
+
 ApplicationDomainType::ApplicationDomainType()
     :mAdaptor(new MemoryBufferAdaptor())
 {
@@ -85,9 +104,6 @@ bool ApplicationDomainType::hasProperty(const QByteArray &key) const
 QVariant ApplicationDomainType::getProperty(const QByteArray &key) const
 {
     Q_ASSERT(mAdaptor);
-    if (!mAdaptor->availableProperties().contains(key)) {
-        return QVariant();
-    }
     return mAdaptor->getProperty(key);
 }
 
@@ -111,7 +127,7 @@ void ApplicationDomainType::setProperty(const QByteArray &key, const Application
 
 QByteArray ApplicationDomainType::getBlobProperty(const QByteArray &key) const
 {
-    const auto path = getProperty(key).toByteArray();
+    const auto path = getProperty(key).value<BLOB>().value;
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
         SinkError() << "Failed to open the file: " << file.errorString() << path;
@@ -131,7 +147,7 @@ void ApplicationDomainType::setBlobProperty(const QByteArray &key, const QByteAr
     file.write(value);
     //Ensure that the file is written to disk immediately
     file.close();
-    setProperty(key, path);
+    setProperty(key, QVariant::fromValue(BLOB{path}));
 }
 
 void ApplicationDomainType::setChangedProperties(const QSet<QByteArray> &changeset)

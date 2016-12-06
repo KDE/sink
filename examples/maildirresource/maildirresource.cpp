@@ -129,41 +129,44 @@ public:
 
     void newEntity(Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE
     {
-        const auto mimeMessage = newEntity.getProperty("mimeMessage");
-        if (mimeMessage.isValid()) {
-            newEntity.setProperty("mimeMessage", moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray()));
+        const ApplicationDomain::Mail mail{newEntity};
+        const auto mimeMessage = mail.getMimeMessagePath();
+        if (!mimeMessage.isNull()) {
+            ApplicationDomain::Mail{newEntity}.setMimeMessagePath(moveMessage(mimeMessage, mail.getFolder()));
         }
     }
 
     void modifiedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE
     {
-        const auto mimeMessage = newEntity.getProperty("mimeMessage");
-        const auto newFolder = newEntity.getProperty("folder");
-        const bool mimeMessageChanged = mimeMessage.isValid() && mimeMessage.toString() != oldEntity.getProperty("mimeMessage").toString();
-        const bool folderChanged = newFolder.isValid() && newFolder.toString() != oldEntity.getProperty("mimeMessage").toString();
+        ApplicationDomain::Mail newMail{newEntity};
+        const ApplicationDomain::Mail oldMail{oldEntity};
+        const auto mimeMessage = newMail.getMimeMessagePath();
+        const auto newFolder = newMail.getFolder();
+        const bool mimeMessageChanged = !mimeMessage.isNull() && mimeMessage != oldMail.getMimeMessagePath();
+        const bool folderChanged = !newFolder.isNull() && newFolder != oldMail.getFolder();
         if (mimeMessageChanged || folderChanged) {
             SinkTrace() << "Moving mime message: " << mimeMessageChanged << folderChanged;
-            auto newPath = moveMessage(mimeMessage.toString(), newEntity.getProperty("folder").toByteArray());
-            if (newPath != oldEntity.getProperty("mimeMessage").toString()) {
-                const auto oldPath = getFilePathFromMimeMessagePath(oldEntity.getProperty("mimeMessage").toString());
-                newEntity.setProperty("mimeMessage", newPath);
+            auto newPath = moveMessage(mimeMessage, newMail.getFolder());
+            if (newPath != oldMail.getMimeMessagePath()) {
+                const auto oldPath = getFilePathFromMimeMessagePath(oldMail.getMimeMessagePath());
+                newMail.setMimeMessagePath(newPath);
                 //Remove the olde mime message if there is a new one
                 QFile::remove(oldPath);
             }
         }
 
-        auto mimeMessagePath = newEntity.getProperty("mimeMessage").toString();
-        const auto maildirPath = getPath(newEntity.getProperty("folder").toByteArray());
+        auto mimeMessagePath = newMail.getMimeMessagePath();
+        const auto maildirPath = getPath(newMail.getFolder());
         KPIM::Maildir maildir(maildirPath, false);
         const auto file = getFilePathFromMimeMessagePath(mimeMessagePath);
         QString identifier = KPIM::Maildir::getKeyFromFile(file);
 
         //get flags from
         KPIM::Maildir::Flags flags;
-        if (!newEntity.getProperty("unread").toBool()) {
+        if (!newMail.getUnread()) {
             flags |= KPIM::Maildir::Seen;
         }
-        if (newEntity.getProperty("important").toBool()) {
+        if (newMail.getImportant()) {
             flags |= KPIM::Maildir::Flagged;
         }
 
@@ -172,7 +175,8 @@ public:
 
     void deletedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
     {
-        const auto filePath = getFilePathFromMimeMessagePath(oldEntity.getProperty("mimeMessage").toString());
+        const ApplicationDomain::Mail oldMail{oldEntity};
+        const auto filePath = getFilePathFromMimeMessagePath(oldMail.getMimeMessagePath());
         QFile::remove(filePath);
     }
     QByteArray mResourceInstanceIdentifier;
@@ -239,7 +243,7 @@ public:
         }
 
         if (!md.isRoot()) {
-            folder.setProperty("parent", syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path().toUtf8()));
+            folder.setParent(syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, md.parent().path().toUtf8()));
         }
         createOrModify(bufferType, remoteId, folder);
         return remoteId;
@@ -317,11 +321,11 @@ public:
             SinkTrace() << "Found a mail " << filePath << " : " << fileName;
 
             Sink::ApplicationDomain::Mail mail;
-            mail.setProperty("folder", folderLocalId);
+            mail.setFolder(folderLocalId);
             //We only store the directory path + key, so we facade can add the changing bits (flags)
-            mail.setProperty("mimeMessage", KPIM::Maildir::getDirectoryFromFile(filePath) + maildirKey);
-            mail.setProperty("unread", !flags.testFlag(KPIM::Maildir::Seen));
-            mail.setProperty("important", flags.testFlag(KPIM::Maildir::Flagged));
+            mail.setMimeMessagePath(KPIM::Maildir::getDirectoryFromFile(filePath) + maildirKey);
+            mail.setUnread(!flags.testFlag(KPIM::Maildir::Seen));
+            mail.setImportant(flags.testFlag(KPIM::Maildir::Flagged));
 
             createOrModify(bufferType, remoteId, mail);
         }
