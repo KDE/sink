@@ -289,7 +289,7 @@ static KAsync::Job<void> synchronize(const QByteArray &resource, const Sink::Syn
 
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 {
-    return synchronize(Sink::SyncScope{static_cast<Sink::QueryBase>(query)});
+    return synchronize(Sink::SyncScope{query});
 }
 
 KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)

@@ -455,6 +455,7 @@ public:
     }
 
 private:
+    friend class SyncScope;
     int mLimit;
     Flags mFlags;
     Filter mResourceFilter;
@@ -467,8 +468,9 @@ public:
 
     SyncScope() = default;
 
-    SyncScope(const QueryBase &other)
-        : QueryBase(other)
+    SyncScope(const Query &other)
+        : QueryBase(other),
+        mResourceFilter(other.mResourceFilter)
     {
 
     }
