@@ -13,9 +13,10 @@ static QHash<QByteArray, QString> specialPurposeFolders()
         //FIXME localize
     //TODO inbox
     //TODO use standardized values
-    hash.insert("drafts", "Drafts");
-    hash.insert("trash", "Trash");
-    hash.insert("inbox", "Inbox");
+    hash.insert(ApplicationDomain::SpecialPurpose::Mail::drafts, "Drafts");
+    hash.insert(ApplicationDomain::SpecialPurpose::Mail::trash, "Trash");
+    hash.insert(ApplicationDomain::SpecialPurpose::Mail::inbox, "Inbox");
+    hash.insert(ApplicationDomain::SpecialPurpose::Mail::sent, "Sent");
     return hash;
 }
 
@@ -73,12 +74,15 @@ QByteArray SpecialPurposeProcessor::ensureFolder(const QByteArray &specialPurpos
 
 void SpecialPurposeProcessor::moveToFolder(Sink::ApplicationDomain::ApplicationDomainType &newEntity)
 {
-    if (newEntity.getProperty("trash").toBool()) {
-        newEntity.setProperty("folder", ensureFolder("trash"));
+    if (newEntity.getProperty(ApplicationDomain::Mail::Trash::name).toBool()) {
+        newEntity.setProperty("folder", ensureFolder(ApplicationDomain::SpecialPurpose::Mail::trash));
         return;
     }
-    if (newEntity.getProperty("draft").toBool()) {
-        newEntity.setProperty("folder", ensureFolder("drafts"));
+    if (newEntity.getProperty(ApplicationDomain::Mail::Draft::name).toBool()) {
+        newEntity.setProperty("folder", ensureFolder(ApplicationDomain::SpecialPurpose::Mail::drafts));
+    }
+    if (newEntity.getProperty(ApplicationDomain::Mail::Sent::name).toBool()) {
+        newEntity.setProperty("folder", ensureFolder(ApplicationDomain::SpecialPurpose::Mail::sent));
     }
 }
 

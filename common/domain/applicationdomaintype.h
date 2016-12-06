@@ -365,6 +365,7 @@ namespace ResourceCapabilities {
 namespace Mail {
     static constexpr const char *storage = "mail.storage";
     static constexpr const char *drafts = "mail.drafts";
+    static constexpr const char *sent = "mail.sent";
     static constexpr const char *trash = "mail.trash";
     static constexpr const char *transport = "mail.transport";
     static constexpr const char *folderhierarchy = "mail.folderhierarchy";
@@ -376,6 +377,7 @@ namespace Mail {
     static constexpr const char *inbox = "inbox";
     static constexpr const char *drafts = "drafts";
     static constexpr const char *trash = "trash";
+    static constexpr const char *sent = "sent";
 };
 };
 
