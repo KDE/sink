@@ -311,7 +311,7 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     collectDebugArea(fullDebugArea);
 
     auto areas = debugOutputFilter(Sink::Log::Area);
-    if (!areas.isEmpty()) {
+    if (debugLevel <= Sink::Log::Trace && !areas.isEmpty()) {
         if (!containsItemStartingWith(fullDebugArea.toUtf8(), areas)) {
             return QDebug(&nullstream);
         }
