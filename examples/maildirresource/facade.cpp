@@ -28,10 +28,10 @@ MaildirResourceMailFacade::MaildirResourceMailFacade(const Sink::ResourceContext
     : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(context)
 {
     mResultTransformation = [](Sink::ApplicationDomain::ApplicationDomainType &value) {
-        if (value.hasProperty("mimeMessage")) {
-            const auto property = value.getProperty("mimeMessage");
+        if (value.hasProperty(Sink::ApplicationDomain::Mail::MimeMessage::name)) {
+            auto mail = Sink::ApplicationDomain::Mail{value};
+            const auto mimeMessage = mail.getMimeMessagePath();
             //Transform the mime message property into the actual path on disk.
-            const auto mimeMessage = property.toString();
             auto parts = mimeMessage.split('/');
             auto key = parts.takeLast();
             const auto folderPath = parts.join('/');
@@ -42,9 +42,9 @@ MaildirResourceMailFacade::MaildirResourceMailFacade(const Sink::ResourceContext
             const QFileInfoList list = dir.entryInfoList(QStringList() << (key+"*"), QDir::Files);
             if (list.size() != 1) {
                 SinkWarning_("", "maildirfacade") << "Failed to find message " << path << key << list.size();
-                value.setProperty("mimeMessage", QVariant());
+                mail.setProperty(Sink::ApplicationDomain::Mail::MimeMessage::name, QVariant());
             } else {
-                value.setProperty("mimeMessage", list.at(0).filePath());
+                mail.setMimeMessagePath(list.at(0).filePath());
             }
         }
         value.setChangedProperties(QSet<QByteArray>());
