@@ -35,6 +35,7 @@
 #include "synchronizer.h"
 #include "inspector.h"
 #include "mailpreprocessor.h"
+#include "specialpurposepreprocessor.h"
 #include <QDate>
 #include <QUuid>
 
@@ -125,7 +126,6 @@ class DummySynchronizer : public Sink::Synchronizer {
             synchronize(ENTITY_TYPE_FOLDER, DummyStore::instance().folders(), [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data) {
                 return createFolder(ridBuffer, data);
             });
-            SinkLog() << "Done Synchronizing";
         });
     }
 
@@ -164,7 +164,7 @@ DummyResource::DummyResource(const Sink::ResourceContext &resourceContext, const
     setupSynchronizer(QSharedPointer<DummySynchronizer>::create(resourceContext));
     setupInspector(QSharedPointer<DummyInspector>::create(resourceContext));
     setupPreprocessors(ENTITY_TYPE_MAIL,
-            QVector<Sink::Preprocessor*>() << new MailPropertyExtractor);
+            QVector<Sink::Preprocessor*>() << new MailPropertyExtractor << new MimeMessageMover << new SpecialPurposeProcessor{resourceContext.resourceType, resourceContext.instanceId()});
     setupPreprocessors(ENTITY_TYPE_FOLDER,
             QVector<Sink::Preprocessor*>());
     setupPreprocessors(ENTITY_TYPE_EVENT,

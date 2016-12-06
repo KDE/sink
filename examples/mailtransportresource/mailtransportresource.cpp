@@ -23,6 +23,7 @@
 #include "resourceconfig.h"
 #include "definitions.h"
 #include "inspector.h"
+#include "store.h"
 #include <QDir>
 #include <QFileInfo>
 #include <QSettings>
@@ -81,10 +82,9 @@ public:
 
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
-        SinkLog() << " Synchronizing";
         return KAsync::start<void>([this](KAsync::Future<void> future) {
             QList<ApplicationDomain::Mail> toSend;
-            SinkLog() << " Looking for mail";
+            SinkLog() << "Looking for mails to send.";
             store().readAll<ApplicationDomain::Mail>([&](const ApplicationDomain::Mail &mail) -> bool {
                 SinkTrace() << "Found mail: " << mail.identifier();
                 if (!mail.getSent()) {
@@ -92,13 +92,25 @@ public:
                 }
                 return true;
             });
+            SinkLog() << "Found " << toSend.size() << " mails to send";
             auto job = KAsync::null<void>();
             for (const auto &m : toSend) {
-                job = job.then(send(m, mSettings)).syncThen<void>([this, m] {
+                job = job.then(send(m, mSettings))
+                         .then<void>([this, m] {
                     auto modifiedMail = ApplicationDomain::Mail(mResourceInstanceIdentifier, m.identifier(), m.revision(), QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
                     modifiedMail.setSent(true);
-                    modify(modifiedMail);
-                    //TODO copy to a sent mail folder as well
+
+                    auto resource = Store::readOne<ApplicationDomain::SinkResource>(Query{}.filter(mResourceInstanceIdentifier).request<ApplicationDomain::SinkResource::Account>());
+                    //Then copy the mail to the target resource
+                    Query query;
+                    query.containsFilter<ApplicationDomain::SinkResource::Capabilities>(ApplicationDomain::ResourceCapabilities::Mail::sent);
+                    query.filter<ApplicationDomain::SinkResource::Account>(resource.getAccount());
+                    return Store::fetchOne<ApplicationDomain::SinkResource>(query)
+                        .then<void, ApplicationDomain::SinkResource>([this, modifiedMail](const ApplicationDomain::SinkResource &resource) -> KAsync::Job<void> {
+                            //First modify the mail to have the sent property set to true
+                            modify(modifiedMail, resource.identifier(), true);
+                            return KAsync::null<void>();
+                        });
                 });
             }
             job = job.syncThen<void>([&future](const KAsync::Error &) {
@@ -106,6 +118,11 @@ public:
             });
             job.exec();
         });
+    }
+
+    bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE
+    {
+        return false;
     }
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE

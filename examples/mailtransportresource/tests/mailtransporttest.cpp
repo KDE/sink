@@ -27,6 +27,7 @@ class MailtransportTest : public QObject
         return resource;
     }
     QByteArray mResourceInstanceIdentifier;
+    QByteArray mStorageResource;
 
 private slots:
 
@@ -37,6 +38,11 @@ private slots:
         QVERIFY(!resource.identifier().isEmpty());
         VERIFYEXEC(Store::create(resource));
         mResourceInstanceIdentifier = resource.identifier();
+
+        auto dummyResource = ApplicationDomain::DummyResource::create("account1");
+        VERIFYEXEC(Store::create(dummyResource));
+        mStorageResource = dummyResource.identifier();
+        QVERIFY(!mStorageResource.isEmpty());
     }
 
     void cleanup()
@@ -61,11 +67,12 @@ private slots:
         VERIFYEXEC(Store::create(mail));
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
         VERIFYEXEC(Store::synchronize(Query().resourceFilter(mResourceInstanceIdentifier)));
-        VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, true)));
-
-        auto sentMail = Store::readOne<ApplicationDomain::Mail>(Query(mail).request<Mail::Sent>().request<Mail::Subject>());
-        QVERIFY(sentMail.getSent());
-        QVERIFY(!sentMail.getSubject().isEmpty());
+        QTest::qWait(100);
+        VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mStorageResource));
+        auto mailInSentMailFolder = Store::readOne<ApplicationDomain::Mail>(Query().resourceFilter(mStorageResource).filter<Mail::Sent>(true).request<Mail::Subject>().request<Mail::Folder>().request<Mail::MimeMessage>().request<Mail::Sent>());
+        //Check that the mail has been moved to the sent mail folder
+        QVERIFY(mailInSentMailFolder.getSent());
+        QVERIFY(!mailInSentMailFolder.getSubject().isEmpty());
     }
 
     //TODO test mail that fails to be sent. add a special header to the mail and have the resource fail sending. Ensure we can modify the mail to fix sending of the message.

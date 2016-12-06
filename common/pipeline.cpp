@@ -258,7 +258,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
             return KAsync::error<qint64>(0);
         }
 
-        auto newEntity = *ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(current, current.availableProperties());
+        auto newEntity = *ApplicationDomain::ApplicationDomainType::getInMemoryCopy<ApplicationDomain::ApplicationDomainType>(current, current.availableProperties());
 
         // Apply diff
         for (const auto &property : changeset) {

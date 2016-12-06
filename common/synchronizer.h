@@ -79,7 +79,7 @@ protected:
     void enqueueCommand(int commandId, const QByteArray &data);
 
     void createEntity(const QByteArray &localId, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject);
-    void modifyEntity(const QByteArray &localId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject);
+    void modifyEntity(const QByteArray &localId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject, const QByteArray &newResource = QByteArray(), bool remove = false);
     void deleteEntity(const QByteArray &localId, qint64 revision, const QByteArray &bufferType);
 
     /**
@@ -109,7 +109,7 @@ protected:
     // template <typename DomainType>
     // void create(const DomainType &entity);
     template <typename DomainType>
-    void modify(const DomainType &entity);
+    void modify(const DomainType &entity, const QByteArray &newResource = QByteArray(), bool remove = false);
     // template <typename DomainType>
     // void remove(const DomainType &entity);
     QByteArrayList resolveFilter(const QueryBase::Comparator &filter);

@@ -82,7 +82,6 @@ void Synchronizer::createEntity(const QByteArray &sinkId, const QByteArray &buff
     flatbuffers::FlatBufferBuilder entityFbb;
     mResourceContext.adaptorFactory(bufferType).createBuffer(domainObject, entityFbb);
     flatbuffers::FlatBufferBuilder fbb;
-    // This is the resource type and not the domain type
     auto entityId = fbb.CreateString(sinkId.toStdString());
     auto type = fbb.CreateString(bufferType.toStdString());
     auto delta = Sink::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
@@ -91,7 +90,7 @@ void Synchronizer::createEntity(const QByteArray &sinkId, const QByteArray &buff
     enqueueCommand(Sink::Commands::CreateEntityCommand, BufferUtils::extractBuffer(fbb));
 }
 
-void Synchronizer::modifyEntity(const QByteArray &sinkId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject)
+void Synchronizer::modifyEntity(const QByteArray &sinkId, qint64 revision, const QByteArray &bufferType, const Sink::ApplicationDomain::ApplicationDomainType &domainObject, const QByteArray &newResource, bool remove)
 {
     // FIXME removals
     QByteArrayList deletedProperties;
@@ -103,10 +102,10 @@ void Synchronizer::modifyEntity(const QByteArray &sinkId, qint64 revision, const
     auto entityId = fbb.CreateString(sinkId.toStdString());
     auto modifiedProperties = BufferUtils::toVector(fbb, domainObject.changedProperties());
     auto deletions = BufferUtils::toVector(fbb, deletedProperties);
-    // This is the resource type and not the domain type
     auto type = fbb.CreateString(bufferType.toStdString());
     auto delta = Sink::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
-    auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta, replayToSource, modifiedProperties);
+    auto resource = newResource.isEmpty() ? 0 : fbb.CreateString(newResource.constData());
+    auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta, replayToSource, modifiedProperties, resource, remove);
     Sink::Commands::FinishModifyEntityBuffer(fbb, location);
     enqueueCommand(Sink::Commands::ModifyEntityCommand, BufferUtils::extractBuffer(fbb));
 }
@@ -247,9 +246,9 @@ QByteArrayList Synchronizer::resolveFilter(const QueryBase::Comparator &filter)
 }
 
 template<typename DomainType>
-void Synchronizer::modify(const DomainType &entity)
+void Synchronizer::modify(const DomainType &entity, const QByteArray &newResource, bool remove)
 {
-    modifyEntity(entity.identifier(), entity.revision(), ApplicationDomain::getTypeName<DomainType>(), entity);
+    modifyEntity(entity.identifier(), entity.revision(), ApplicationDomain::getTypeName<DomainType>(), entity, newResource, remove);
 }
 
 QList<Synchronizer::SyncRequest> Synchronizer::getSyncRequests(const Sink::QueryBase &query)
@@ -483,9 +482,12 @@ bool Synchronizer::allChangesReplayed()
 
 #define REGISTER_TYPE(T)                                                          \
     template void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const T &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria); \
-    template void Synchronizer::modify(const T &entity);
+    template void Synchronizer::modify(const T &entity, const QByteArray &newResource, bool remove);
 
-REGISTER_TYPE(ApplicationDomain::Event);
-REGISTER_TYPE(ApplicationDomain::Mail);
-REGISTER_TYPE(ApplicationDomain::Folder);
+#define SINK_REGISTER_TYPES() \
+    REGISTER_TYPE(ApplicationDomain::Event); \
+    REGISTER_TYPE(ApplicationDomain::Mail); \
+    REGISTER_TYPE(ApplicationDomain::Folder); \
+
+SINK_REGISTER_TYPES()
 
