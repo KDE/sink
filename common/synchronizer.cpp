@@ -484,10 +484,5 @@ bool Synchronizer::allChangesReplayed()
     template void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const T &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria); \
     template void Synchronizer::modify(const T &entity, const QByteArray &newResource, bool remove);
 
-#define SINK_REGISTER_TYPES() \
-    REGISTER_TYPE(ApplicationDomain::Event); \
-    REGISTER_TYPE(ApplicationDomain::Mail); \
-    REGISTER_TYPE(ApplicationDomain::Folder); \
-
 SINK_REGISTER_TYPES()
 

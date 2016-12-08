@@ -414,11 +414,6 @@ QList<DomainType> Store::read(const Sink::Query &q)
     template T Store::readOne<T>(const Query &);                                  \
     template QList<T> Store::read<T>(const Query &);
 
-REGISTER_TYPE(ApplicationDomain::Event);
-REGISTER_TYPE(ApplicationDomain::Mail);
-REGISTER_TYPE(ApplicationDomain::Folder);
-REGISTER_TYPE(ApplicationDomain::SinkResource);
-REGISTER_TYPE(ApplicationDomain::SinkAccount);
-REGISTER_TYPE(ApplicationDomain::Identity);
+SINK_REGISTER_TYPES()
 
 } // namespace Sink

@@ -215,10 +215,4 @@ QList<Sink::ApplicationDomain::ApplicationDomainType::Ptr> Sink::Test::TestAccou
     template void Sink::Test::TestAccount::addEntity<T>(const ApplicationDomain::ApplicationDomainType::Ptr &);           \
     template typename T::Ptr Sink::Test::TestAccount::createEntity<T>();
 
-
-REGISTER_TYPE(ApplicationDomain::Event);
-REGISTER_TYPE(ApplicationDomain::Mail);
-REGISTER_TYPE(ApplicationDomain::Folder);
-REGISTER_TYPE(ApplicationDomain::SinkResource);
-REGISTER_TYPE(ApplicationDomain::SinkAccount);
-REGISTER_TYPE(ApplicationDomain::Identity);
+SINK_REGISTER_TYPES()

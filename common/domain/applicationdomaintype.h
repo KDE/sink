@@ -482,6 +482,18 @@ class SINK_EXPORT TypeImplementation;
 #undef SINK_REFERENCE_PROPERTY
 #undef SINK_INDEX_PROPERTY
 
+/**
+ * This macro can be used to instantiate templates for all domain types.
+ */
+#define SINK_REGISTER_TYPES() \
+    REGISTER_TYPE(Sink::ApplicationDomain::Event); \
+    REGISTER_TYPE(Sink::ApplicationDomain::Mail); \
+    REGISTER_TYPE(Sink::ApplicationDomain::Folder); \
+    REGISTER_TYPE(Sink::ApplicationDomain::SinkResource); \
+    REGISTER_TYPE(Sink::ApplicationDomain::SinkAccount); \
+    REGISTER_TYPE(Sink::ApplicationDomain::Identity); \
+
+
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Entity)

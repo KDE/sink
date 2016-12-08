@@ -158,9 +158,6 @@ KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
 
 #define REGISTER_TYPE(T) template KAsync::Job<void> ResourceControl::inspect<T>(const Inspection &);
 
-REGISTER_TYPE(ApplicationDomain::Event);
-REGISTER_TYPE(ApplicationDomain::Mail);
-REGISTER_TYPE(ApplicationDomain::Folder);
-REGISTER_TYPE(ApplicationDomain::SinkResource);
+SINK_REGISTER_TYPES()
 
 } // namespace Sink
