@@ -122,7 +122,7 @@ struct Reference {
     QByteArray value;
 };
 
-void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties, bool copyBlobs, bool pruneReferences);
+void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties = QList<QByteArray>(), bool copyBlobs = false, bool pruneReferences = false);
 
 /**
  * The domain type interface has two purposes:
@@ -155,7 +155,8 @@ public:
     template <typename DomainType>
     static typename DomainType::Ptr getInMemoryRepresentation(const ApplicationDomainType &domainType, const QList<QByteArray> properties = QList<QByteArray>())
     {
-        auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create(*(domainType.mAdaptor), properties);
+        auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create();
+        copyBuffer(*(domainType.mAdaptor), *memoryAdaptor, properties, false, false);
         //mIdentifier internally still refers to the memory-mapped memory, we need to copy the memory or it will become invalid
         return QSharedPointer<DomainType>::create(domainType.mResourceInstanceIdentifier, QByteArray(domainType.mIdentifier.constData(), domainType.mIdentifier.size()), domainType.mRevision, memoryAdaptor);
     }

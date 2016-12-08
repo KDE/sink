@@ -168,7 +168,8 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     }
 
     auto adaptor = adaptorFactory->createAdaptor(*entity);
-    auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create(*(adaptor), adaptor->availableProperties());
+    auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create();
+    Sink::ApplicationDomain::copyBuffer(*adaptor, *memoryAdaptor);
 
     d->revisionChanged = true;
     auto revision = d->entityStore.maxRevision();

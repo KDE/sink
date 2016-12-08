@@ -59,19 +59,6 @@ public:
     {
     }
 
-    MemoryBufferAdaptor(const BufferAdaptor &buffer, const QList<QByteArray> &properties) : BufferAdaptor()
-    {
-        if (properties.isEmpty()) {
-            for (const auto &property : buffer.availableProperties()) {
-                mValues.insert(property, buffer.getProperty(property));
-            }
-        } else {
-            for (const auto &property : properties) {
-                mValues.insert(property, buffer.getProperty(property));
-            }
-        }
-    }
-
     virtual ~MemoryBufferAdaptor()
     {
     }
