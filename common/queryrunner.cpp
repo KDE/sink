@@ -224,15 +224,15 @@ QPair<qint64, qint64> QueryWorker<DomainType>::executeInitialQuery(
     if (!query.parentProperty().isEmpty()) {
         if (parent) {
             SinkTrace() << "Running initial query for parent:" << parent->identifier();
-            modifiedQuery.filter(query.parentProperty(), Query::Comparator(parent->identifier()));
+            modifiedQuery.filter(query.parentProperty(), Query::Comparator(QVariant::fromValue(Sink::ApplicationDomain::Reference{parent->identifier()})));
         } else {
             SinkTrace() << "Running initial query for toplevel";
-            modifiedQuery.filter(query.parentProperty(), Query::Comparator(QVariant()));
+            modifiedQuery.filter(query.parentProperty(), Query::Comparator(QVariant{}));
         }
     }
 
     auto entityStore = EntityStore{mResourceContext};
-    auto preparedQuery = DataStoreQuery{query, ApplicationDomain::getTypeName<DomainType>(), entityStore};
+    auto preparedQuery = DataStoreQuery{modifiedQuery, ApplicationDomain::getTypeName<DomainType>(), entityStore};
     auto resultSet = preparedQuery.execute();
 
     SinkTrace() << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());

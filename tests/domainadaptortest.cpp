@@ -110,6 +110,7 @@ private slots:
         Sink::ApplicationDomain::Mail mail;
         mail.setExtractedSubject("summary");
         mail.setMimeMessage("foobar");
+        mail.setFolder("folder");
 
         flatbuffers::FlatBufferBuilder metadataFbb;
         auto metadataBuilder = Sink::MetadataBuilder(metadataFbb);
@@ -134,6 +135,7 @@ private slots:
             Sink::ApplicationDomain::Mail readMail{QByteArray{}, QByteArray{}, 0, adaptor};
             QCOMPARE(readMail.getSubject(), mail.getSubject());
             QCOMPARE(readMail.getMimeMessage(), mail.getMimeMessage());
+            QCOMPARE(readMail.getFolder(), mail.getFolder());
         }
 
     }

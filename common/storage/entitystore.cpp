@@ -205,9 +205,10 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
         auto metadataBuffer = metadataBuilder.Finish();
         FinishMetadataBuffer(metadataFbb, metadataBuffer);
     }
+    SinkTrace() << "Modified entity: " << newEntity;
+    SinkTrace() << "Changed properties: " << changeset + newEntity.changedProperties();
 
     newEntity.setChangedProperties(newEntity.availableProperties().toSet());
-    SinkTrace() << "Modified entity " << newEntity;
 
     flatbuffers::FlatBufferBuilder fbb;
     d->resourceContext.adaptorFactory(type).createBuffer(newEntity, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());

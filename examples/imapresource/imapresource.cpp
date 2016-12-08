@@ -92,17 +92,17 @@ public:
         const auto remoteId = folderPath.toUtf8();
         const auto bufferType = ENTITY_TYPE_FOLDER;
         Sink::ApplicationDomain::Folder folder;
-        folder.setProperty(ApplicationDomain::Folder::Name::name, folderName);
-        folder.setProperty(ApplicationDomain::Folder::Icon::name, icon);
+        folder.setName(folderName);
+        folder.setIcon(icon);
         QHash<QByteArray, Query::Comparator> mergeCriteria;
         if (SpecialPurpose::isSpecialPurposeFolderName(folderName)) {
             auto type = SpecialPurpose::getSpecialPurposeType(folderName);
-            folder.setProperty(ApplicationDomain::Folder::SpecialPurpose::name, QVariant::fromValue(QByteArrayList() << type));
+            folder.setSpecialPurpose(QByteArrayList() << type);
             mergeCriteria.insert(ApplicationDomain::Folder::SpecialPurpose::name, Query::Comparator(type, Query::Comparator::Contains));
         }
 
         if (!parentFolderRid.isEmpty()) {
-            folder.setProperty("parent", syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, parentFolderRid.toUtf8()));
+            folder.setParent(syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, parentFolderRid.toUtf8()));
         }
         createOrModify(bufferType, remoteId, folder, mergeCriteria);
         return remoteId;

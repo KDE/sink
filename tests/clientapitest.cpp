@@ -148,7 +148,7 @@ private slots:
         auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
         auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         auto subfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        subfolder->setProperty("parent", "id");
+        subfolder->setParent("id");
         facade->results << folder << subfolder;
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
@@ -170,7 +170,7 @@ private slots:
         auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
         auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         auto subfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        subfolder->setProperty("parent", "id");
+        subfolder->setParent("id");
         facade->results << folder << subfolder;
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
@@ -192,7 +192,7 @@ private slots:
         auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("dummyresource.instance1", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         auto subfolder =
             QSharedPointer<Sink::ApplicationDomain::Folder>::create("dummyresource.instance1", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        subfolder->setProperty("parent", "id");
+        subfolder->setParent("id");
         facade->results << folder << subfolder;
         ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 

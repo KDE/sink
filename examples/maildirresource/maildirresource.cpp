@@ -129,16 +129,16 @@ public:
 
     void newEntity(Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE
     {
-        const ApplicationDomain::Mail mail{newEntity};
+        auto mail = newEntity.cast<ApplicationDomain::Mail>();
         const auto mimeMessage = mail.getMimeMessagePath();
         if (!mimeMessage.isNull()) {
-            ApplicationDomain::Mail{newEntity}.setMimeMessagePath(moveMessage(mimeMessage, mail.getFolder()));
+            mail.setMimeMessagePath(moveMessage(mimeMessage, mail.getFolder()));
         }
     }
 
     void modifiedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE
     {
-        ApplicationDomain::Mail newMail{newEntity};
+        auto newMail = newEntity.cast<ApplicationDomain::Mail>();
         const ApplicationDomain::Mail oldMail{oldEntity};
         const auto mimeMessage = newMail.getMimeMessagePath();
         const auto newFolder = newMail.getFolder();
@@ -190,7 +190,7 @@ public:
 
     void newEntity(Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE
     {
-        auto folderName = newEntity.getProperty("name").toString();
+        auto folderName = Sink::ApplicationDomain::Folder{newEntity}.getName();
         const auto path = mMaildirPath + "/" + folderName;
         KPIM::Maildir maildir(path, false);
         maildir.create();

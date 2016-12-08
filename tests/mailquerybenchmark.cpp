@@ -69,11 +69,11 @@ class MailQueryBenchmark : public QObject
         const auto date = QDateTime::currentDateTimeUtc();
         for (int i = 0; i < count; i++) {
             auto domainObject = Mail::Ptr::create();
-            domainObject->setProperty("uid", "uid");
-            domainObject->setProperty("subject", QString("subject%1").arg(i));
-            domainObject->setProperty("date", date.addSecs(count));
-            domainObject->setProperty("folder", "folder1");
-            // domainObject->setProperty("attachment", attachment);
+            domainObject->setUid("uid");
+            domainObject->setExtractedSubject(QString("subject%1").arg(i));
+            domainObject->setExtractedDate(date.addSecs(count));
+            domainObject->setFolder("folder1");
+            // domainObject->setAttachment(attachment);
             const auto command = createCommand<Mail>(*domainObject, *domainTypeAdaptorFactory);
             pipeline->newEntity(command.data(), command.size());
         }

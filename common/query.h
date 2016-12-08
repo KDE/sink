@@ -325,16 +325,17 @@ public:
     }
 
     template <typename T>
-    Query &filter(const QVariant &value)
+    Query &filter(const typename T::Type &value)
     {
-        filter(T::name, value);
+        filter(T::name, QVariant::fromValue(value));
         return *this;
     }
 
     template <typename T>
-    Query &containsFilter(const QVariant &value)
+    Query &containsFilter(const QByteArray &value)
     {
-        QueryBase::filter(T::name, QueryBase::Comparator(value, QueryBase::Comparator::Contains));
+        static_assert(std::is_same<typename T::Type, QByteArrayList>::value, "The contains filter is only implemented for QByteArray in QByteArrayList");
+        QueryBase::filter(T::name, QueryBase::Comparator(QVariant::fromValue(value), QueryBase::Comparator::Contains));
         return *this;
     }
 
@@ -366,7 +367,7 @@ public:
     template <typename T>
     Query &filter(const ApplicationDomain::Entity &value)
     {
-        filter(T::name, QVariant::fromValue(value.identifier()));
+        filter(T::name, QVariant::fromValue(ApplicationDomain::Reference{value.identifier()}));
         return *this;
     }
 

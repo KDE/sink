@@ -34,6 +34,12 @@ static QByteArray getByteArray(const QVariant &value)
             return "nodate";
         }
     }
+    if (value.canConvert<Sink::ApplicationDomain::Reference>()) {
+        const auto ba = value.value<Sink::ApplicationDomain::Reference>().value;
+        if (!ba.isEmpty()) {
+            return ba;
+        }
+    }
     if (value.isValid() && !value.toByteArray().isEmpty()) {
         return value.toByteArray();
     }

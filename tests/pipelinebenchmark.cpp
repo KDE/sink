@@ -73,10 +73,10 @@ class PipelineBenchmark : public QObject
         const auto date = QDateTime::currentDateTimeUtc();
         for (int i = 0; i < count; i++) {
             auto domainObject = Sink::ApplicationDomain::Mail::Ptr::create();
-            domainObject->setProperty("uid", "uid");
-            domainObject->setProperty("subject", QString("subject%1").arg(i));
-            domainObject->setProperty("date", date.addSecs(count));
-            domainObject->setProperty("folder", "folder1");
+            domainObject->setUid("uid");
+            domainObject->setExtractedSubject(QString("subject%1").arg(i));
+            domainObject->setExtractedDate(date.addSecs(count));
+            domainObject->setFolder("folder1");
             // domainObject->setProperty("attachment", attachment);
             const auto command = createCommand<Sink::ApplicationDomain::Mail>(*domainObject, *domainTypeAdaptorFactory);
             pipeline->newEntity(command.data(), command.size());

@@ -59,7 +59,7 @@ QByteArray SpecialPurposeProcessor::ensureFolder(const QByteArray &specialPurpos
         });
 
         if (!mSpecialPurposeFolders.contains(specialPurpose)) {
-            SinkTrace() << "Failed to find a drafts folder, creating a new one";
+            SinkTrace() << "Failed to find a " << specialPurpose << " folder, creating a new one";
             auto folder = ApplicationDomain::Folder::create(mResourceInstanceIdentifier);
             folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
             folder.setName(sSpecialPurposeFolders.value(specialPurpose));
@@ -74,15 +74,21 @@ QByteArray SpecialPurposeProcessor::ensureFolder(const QByteArray &specialPurpos
 
 void SpecialPurposeProcessor::moveToFolder(Sink::ApplicationDomain::ApplicationDomainType &newEntity)
 {
-    if (newEntity.getProperty(ApplicationDomain::Mail::Trash::name).toBool()) {
-        newEntity.setProperty("folder", ensureFolder(ApplicationDomain::SpecialPurpose::Mail::trash));
+    using namespace Sink::ApplicationDomain;
+    auto mail = newEntity.cast<Mail>();
+    if (mail.getTrash()) {
+        auto f = ensureFolder(ApplicationDomain::SpecialPurpose::Mail::trash);
+        SinkTrace() << "Setting trash folder: " << f;
+        mail.setFolder(f);
         return;
     }
-    if (newEntity.getProperty(ApplicationDomain::Mail::Draft::name).toBool()) {
-        newEntity.setProperty("folder", ensureFolder(ApplicationDomain::SpecialPurpose::Mail::drafts));
+    if (mail.getDraft()) {
+        mail.setFolder(ensureFolder(ApplicationDomain::SpecialPurpose::Mail::drafts));
+        return;
     }
-    if (newEntity.getProperty(ApplicationDomain::Mail::Sent::name).toBool()) {
-        newEntity.setProperty("folder", ensureFolder(ApplicationDomain::SpecialPurpose::Mail::sent));
+    if (mail.getSent()) {
+        mail.setFolder(ensureFolder(ApplicationDomain::SpecialPurpose::Mail::sent));
+        return;
     }
 }
 

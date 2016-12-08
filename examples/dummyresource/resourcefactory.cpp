@@ -59,34 +59,33 @@ class DummySynchronizer : public Sink::Synchronizer {
     {
         static uint8_t rawData[100];
         auto event = Sink::ApplicationDomain::Event::Ptr::create();
-        event->setProperty("summary", data.value("summary").toString());
+        event->setSummary(data.value("summary").toString());
         event->setProperty("remoteId", ridBuffer);
-        event->setProperty("description", data.value("description").toString());
-        event->setProperty("attachment", QByteArray::fromRawData(reinterpret_cast<const char*>(rawData), 100));
+        event->setDescription(data.value("description").toString());
+        event->setAttachment(QByteArray::fromRawData(reinterpret_cast<const char*>(rawData), 100));
         return event;
     }
 
     Sink::ApplicationDomain::Mail::Ptr createMail(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data)
     {
         auto mail = Sink::ApplicationDomain::Mail::Ptr::create();
-        mail->setProperty("subject", data.value("subject").toString());
-        mail->setProperty("senderEmail", data.value("senderEmail").toString());
-        mail->setProperty("senderName", data.value("senderName").toString());
-        mail->setProperty("date", data.value("date").toString());
-        mail->setProperty("folder", syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, data.value("parentFolder").toByteArray()));
-        mail->setProperty("unread", data.value("unread").toBool());
-        mail->setProperty("important", data.value("important").toBool());
+        mail->setExtractedSubject(data.value("subject").toString());
+        mail->setExtractedSender(Sink::ApplicationDomain::Mail::Contact{data.value("senderName").toString(), data.value("senderEmail").toString()});
+        mail->setExtractedDate(data.value("date").toDateTime());
+        mail->setFolder(syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, data.value("parentFolder").toByteArray()));
+        mail->setUnread(data.value("unread").toBool());
+        mail->setImportant(data.value("important").toBool());
         return mail;
     }
 
     Sink::ApplicationDomain::Folder::Ptr createFolder(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data)
     {
         auto folder = Sink::ApplicationDomain::Folder::Ptr::create();
-        folder->setProperty("name", data.value("name").toString());
-        folder->setProperty("icon", data.value("icon").toString());
+        folder->setName(data.value("name").toString());
+        folder->setIcon(data.value("icon").toByteArray());
         if (!data.value("parent").toString().isEmpty()) {
             auto sinkId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, data.value("parent").toByteArray());
-            folder->setProperty("parent", sinkId);
+            folder->setParent(sinkId);
         }
         return folder;
     }

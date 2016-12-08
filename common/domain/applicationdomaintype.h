@@ -73,12 +73,12 @@
 #define SINK_REFERENCE_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
         static constexpr const char *name = #LOWERCASENAME; \
-        typedef QByteArray Type; \
+        typedef Reference Type; \
         typedef ApplicationDomain::TYPE ReferenceType; \
     }; \
     void set##NAME(const ApplicationDomain::TYPE &value) { setProperty(NAME::name, value); } \
-    void set##NAME(const QByteArray &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
-    QByteArray get##NAME() const { return getProperty(NAME::name).value<QByteArray>(); } \
+    void set##NAME(const QByteArray &value) { setProperty(NAME::name, QVariant::fromValue(Reference{value})); } \
+    QByteArray get##NAME() const { return getProperty(NAME::name).value<Reference>().value; } \
 
 #define SINK_INDEX_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
@@ -102,7 +102,27 @@ struct BLOB {
     QString value;
 };
 
-void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties, bool copyBlobs);
+/**
+ * Internal type.
+ *
+ * Represents a reference to another entity in the same resource.
+ */
+struct Reference {
+    Reference() = default;
+    Reference(const Reference &) = default;
+    Reference(const QByteArray &id) : value(id) {};
+    Reference(const char *id) : value(id) {};
+    ~Reference() = default;
+    bool operator==(const Reference &other) const {
+        return value == other.value;
+    }
+    operator QByteArray() const {
+        return value;
+    }
+    QByteArray value;
+};
+
+void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties, bool copyBlobs, bool pruneReferences);
 
 /**
  * The domain type interface has two purposes:
@@ -120,6 +140,14 @@ public:
     explicit ApplicationDomainType(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
     ApplicationDomainType(const ApplicationDomainType &other);
     ApplicationDomainType& operator=(const ApplicationDomainType &other);
+
+    template <typename DomainType>
+    DomainType cast() {
+        static_assert(std::is_base_of<ApplicationDomainType, DomainType>::value, "You can only cast to base classes of ApplicationDomainType.");
+        DomainType t = *this;
+        t.mChangeSet = mChangeSet;
+        return t;
+    }
 
     /**
      * Returns an in memory representation of the same entity.
@@ -140,7 +168,7 @@ public:
     {
         auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create();
         Q_ASSERT(domainType.mAdaptor);
-        copyBuffer(*(domainType.mAdaptor), *memoryAdaptor, properties, true);
+        copyBuffer(*(domainType.mAdaptor), *memoryAdaptor, properties, true, true);
         return QSharedPointer<DomainType>::create(QByteArray{}, QByteArray{}, 0, memoryAdaptor);
     }
 
@@ -195,7 +223,7 @@ public:
 private:
     friend QDebug operator<<(QDebug, const ApplicationDomainType &);
     QSharedPointer<BufferAdaptor> mAdaptor;
-    QSet<QByteArray> mChangeSet;
+    QSharedPointer<QSet<QByteArray>> mChangeSet;
     /*
      * Each domain object needs to store the resource, identifier, revision triple so we can link back to the storage location.
      */
@@ -222,6 +250,19 @@ inline QDebug operator<< (QDebug d, const ApplicationDomainType &type)
     d << ")";
     return d;
 }
+
+inline QDebug operator<< (QDebug d, const Reference &ref)
+{
+    d << ref.value;
+    return d;
+}
+
+inline QDebug operator<< (QDebug d, const BLOB &blob)
+{
+    d << blob.value;
+    return d;
+}
+
 
 struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
     typedef QSharedPointer<SinkAccount> Ptr;
@@ -317,6 +358,13 @@ struct SINK_EXPORT Mail : public Entity {
     SINK_EXTRACTED_PROPERTY(QByteArray, ParentMessageId, parentMessageId);
     SINK_INDEX_PROPERTY(QByteArray, ThreadId, threadId);
 };
+
+inline QDebug operator<< (QDebug d, const Mail::Contact &c)
+{
+    d << "Contact(" << c.name << ", " << c.emailAddress << ")";
+    return d;
+}
+
 
 /**
  * The status of an account or resource.
@@ -454,3 +502,4 @@ Q_DECLARE_METATYPE(Sink::ApplicationDomain::Mail::Contact)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Error)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Progress)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::BLOB)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Reference)

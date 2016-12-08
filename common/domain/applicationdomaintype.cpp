@@ -31,7 +31,16 @@ namespace ApplicationDomain {
 
 constexpr const char *Mail::ThreadId::name;
 
-void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties, bool copyBlobs)
+int foo = [] {
+    QMetaType::registerEqualsComparator<Reference>();
+    QMetaType::registerDebugStreamOperator<Reference>();
+    QMetaType::registerConverter<Reference, QByteArray>();
+    QMetaType::registerDebugStreamOperator<BLOB>();
+    QMetaType::registerDebugStreamOperator<Mail::Contact>();
+    return 0;
+}();
+
+void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties, bool copyBlobs, bool pruneReferences)
 {
     auto propertiesToCopy = properties;
     if (properties.isEmpty()) {
@@ -44,6 +53,8 @@ void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::Applicatio
             auto newPath = oldPath + "copy";
             QFile::copy(oldPath, newPath);
             memoryAdaptor.setProperty(property, QVariant::fromValue(BLOB{newPath}));
+        } else if (pruneReferences && value.canConvert<Reference>()) {
+            continue;
         } else {
             memoryAdaptor.setProperty(property, value);
         }
@@ -51,14 +62,16 @@ void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::Applicatio
 }
 
 ApplicationDomainType::ApplicationDomainType()
-    :mAdaptor(new MemoryBufferAdaptor())
+    :mAdaptor(new MemoryBufferAdaptor()),
+    mChangeSet(new QSet<QByteArray>())
 {
 
 }
 
 ApplicationDomainType::ApplicationDomainType(const QByteArray &resourceInstanceIdentifier)
     :mAdaptor(new MemoryBufferAdaptor()),
-    mResourceInstanceIdentifier(resourceInstanceIdentifier)
+    mResourceInstanceIdentifier(resourceInstanceIdentifier),
+    mChangeSet(new QSet<QByteArray>())
 {
 
 }
@@ -67,11 +80,13 @@ ApplicationDomainType::ApplicationDomainType(const QByteArray &resourceInstanceI
     : mAdaptor(adaptor),
     mResourceInstanceIdentifier(resourceInstanceIdentifier),
     mIdentifier(identifier),
-    mRevision(revision)
+    mRevision(revision),
+    mChangeSet(new QSet<QByteArray>())
 {
 }
 
 ApplicationDomainType::ApplicationDomainType(const ApplicationDomainType &other)
+    : mChangeSet(new QSet<QByteArray>())
 {
     *this = other;
 }
@@ -79,7 +94,9 @@ ApplicationDomainType::ApplicationDomainType(const ApplicationDomainType &other)
 ApplicationDomainType& ApplicationDomainType::operator=(const ApplicationDomainType &other)
 {
     mAdaptor = other.mAdaptor;
-    mChangeSet = other.mChangeSet;
+    if (other.mChangeSet) {
+        *mChangeSet = *other.mChangeSet;
+    }
     mResourceInstanceIdentifier = other.mResourceInstanceIdentifier;
     mIdentifier = other.mIdentifier;
     mRevision = other.mRevision;
@@ -110,7 +127,7 @@ QVariant ApplicationDomainType::getProperty(const QByteArray &key) const
 void ApplicationDomainType::setProperty(const QByteArray &key, const QVariant &value)
 {
     Q_ASSERT(mAdaptor);
-    mChangeSet.insert(key);
+    mChangeSet->insert(key);
     mAdaptor->setProperty(key, value);
 }
 
@@ -122,7 +139,7 @@ void ApplicationDomainType::setResource(const QByteArray &identifier)
 void ApplicationDomainType::setProperty(const QByteArray &key, const ApplicationDomainType &value)
 {
     Q_ASSERT(!value.identifier().isEmpty());
-    setProperty(key, value.identifier());
+    setProperty(key, QVariant::fromValue(Reference{value.identifier()}));
 }
 
 QByteArray ApplicationDomainType::getBlobProperty(const QByteArray &key) const
@@ -152,12 +169,12 @@ void ApplicationDomainType::setBlobProperty(const QByteArray &key, const QByteAr
 
 void ApplicationDomainType::setChangedProperties(const QSet<QByteArray> &changeset)
 {
-    mChangeSet = changeset;
+    *mChangeSet = changeset;
 }
 
 QByteArrayList ApplicationDomainType::changedProperties() const
 {
-    return mChangeSet.toList();
+    return mChangeSet->toList();
 }
 
 QByteArrayList ApplicationDomainType::availableProperties() const

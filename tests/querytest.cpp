@@ -228,25 +228,13 @@ private slots:
     {
         // Setup
         {
-            Folder folder("sink.dummy.instance1");
-            Sink::Store::create<Folder>(folder).exec().waitForFinished();
-
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-
+            auto folder = ApplicationDomainType::createEntity<Folder>("sink.dummy.instance1");
+            VERIFYEXEC(Sink::Store::create<Folder>(folder));
+            auto subfolder = ApplicationDomainType::createEntity<Folder>("sink.dummy.instance1");
+            subfolder.setParent(folder.identifier());
+            VERIFYEXEC(Sink::Store::create<Folder>(subfolder));
             // Ensure all local data is processed
             VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
-
-            auto model = Sink::Store::loadModel<Folder>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 1);
-
-            auto folderEntity = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Folder::Ptr>();
-            QVERIFY(!folderEntity->identifier().isEmpty());
-
-            Folder subfolder("sink.dummy.instance1");
-            subfolder.setProperty("parent", folderEntity->identifier());
-            Sink::Store::create<Folder>(subfolder).exec().waitForFinished();
         }
 
         // Test
@@ -271,14 +259,14 @@ private slots:
         // Setup
         {
             Mail mail("sink.dummy.instance1");
-            mail.setProperty("uid", "test1");
+            mail.setUid("test1");
             mail.setProperty("sender", "doe@example.org");
             Sink::Store::create<Mail>(mail).exec().waitForFinished();
         }
 
         {
             Mail mail("sink.dummy.instance1");
-            mail.setProperty("uid", "test2");
+            mail.setUid("test2");
             mail.setProperty("sender", "doe@example.org");
             Sink::Store::create<Mail>(mail).exec().waitForFinished();
         }
@@ -319,8 +307,8 @@ private slots:
             QVERIFY(!folderEntity->identifier().isEmpty());
 
             Mail mail("sink.dummy.instance1");
-            mail.setProperty("uid", "test1");
-            mail.setProperty("folder", folderEntity->identifier());
+            mail.setUid("test1");
+            mail.setFolder(folderEntity->identifier());
             Sink::Store::create<Mail>(mail).exec().waitForFinished();
         }
 
@@ -363,18 +351,18 @@ private slots:
             QVERIFY(!folderEntity->identifier().isEmpty());
 
             Mail mail("sink.dummy.instance1");
-            mail.setProperty("uid", "test1");
-            mail.setProperty("folder", folderEntity->identifier());
+            mail.setUid("test1");
+            mail.setFolder(folderEntity->identifier());
             Sink::Store::create<Mail>(mail).exec().waitForFinished();
 
             Mail mail1("sink.dummy.instance1");
-            mail1.setProperty("uid", "test1");
-            mail1.setProperty("folder", "foobar");
+            mail1.setUid("test1");
+            mail1.setFolder("foobar");
             Sink::Store::create<Mail>(mail1).exec().waitForFinished();
 
             Mail mail2("sink.dummy.instance1");
-            mail2.setProperty("uid", "test2");
-            mail2.setProperty("folder", folderEntity->identifier());
+            mail2.setUid("test2");
+            mail2.setFolder(folderEntity->identifier());
             Sink::Store::create<Mail>(mail2).exec().waitForFinished();
         }
 
@@ -417,23 +405,23 @@ private slots:
             const auto date = QDateTime(QDate(2015, 7, 7), QTime(12, 0));
             {
                 Mail mail("sink.dummy.instance1");
-                mail.setProperty("uid", "testSecond");
-                mail.setProperty("folder", folderEntity->identifier());
-                mail.setProperty("date", date.addDays(-1));
+                mail.setUid("testSecond");
+                mail.setFolder(folderEntity->identifier());
+                mail.setExtractedDate(date.addDays(-1));
                 Sink::Store::create<Mail>(mail).exec().waitForFinished();
             }
             {
                 Mail mail("sink.dummy.instance1");
-                mail.setProperty("uid", "testLatest");
-                mail.setProperty("folder", folderEntity->identifier());
-                mail.setProperty("date", date);
+                mail.setUid("testLatest");
+                mail.setFolder(folderEntity->identifier());
+                mail.setExtractedDate(date);
                 Sink::Store::create<Mail>(mail).exec().waitForFinished();
             }
             {
                 Mail mail("sink.dummy.instance1");
-                mail.setProperty("uid", "testLast");
-                mail.setProperty("folder", folderEntity->identifier());
-                mail.setProperty("date", date.addDays(-2));
+                mail.setUid("testLast");
+                mail.setFolder(folderEntity->identifier());
+                mail.setExtractedDate(date.addDays(-2));
                 Sink::Store::create<Mail>(mail).exec().waitForFinished();
             }
         }

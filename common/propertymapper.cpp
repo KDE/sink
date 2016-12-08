@@ -42,6 +42,15 @@ flatbuffers::uoffset_t variantToProperty<Sink::ApplicationDomain::BLOB>(const QV
 }
 
 template <>
+flatbuffers::uoffset_t variantToProperty<Sink::ApplicationDomain::Reference>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
+{
+    if (property.isValid()) {
+        return fbb.CreateString(property.value<Sink::ApplicationDomain::Reference>().value.toStdString()).o;
+    }
+    return 0;
+}
+
+template <>
 flatbuffers::uoffset_t variantToProperty<QByteArray>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
 {
     if (property.isValid()) {
@@ -125,6 +134,16 @@ QVariant propertyToVariant<Sink::ApplicationDomain::BLOB>(const flatbuffers::Str
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
         return QVariant::fromValue(Sink::ApplicationDomain::BLOB{QString::fromStdString(property->c_str())});
+    }
+    return QVariant();
+}
+
+template <>
+QVariant propertyToVariant<Sink::ApplicationDomain::Reference>(const flatbuffers::String *property)
+{
+    if (property) {
+        // We have to copy the memory, otherwise it would become eventually invalid
+        return QVariant::fromValue(Sink::ApplicationDomain::Reference{QString::fromStdString(property->c_str()).toUtf8()});
     }
     return QVariant();
 }
