@@ -163,7 +163,7 @@ DummyResource::DummyResource(const Sink::ResourceContext &resourceContext, const
     setupSynchronizer(QSharedPointer<DummySynchronizer>::create(resourceContext));
     setupInspector(QSharedPointer<DummyInspector>::create(resourceContext));
     setupPreprocessors(ENTITY_TYPE_MAIL,
-            QVector<Sink::Preprocessor*>() << new MailPropertyExtractor << new MimeMessageMover << new SpecialPurposeProcessor{resourceContext.resourceType, resourceContext.instanceId()});
+            QVector<Sink::Preprocessor*>() << new MailPropertyExtractor << new SpecialPurposeProcessor{resourceContext.resourceType, resourceContext.instanceId()});
     setupPreprocessors(ENTITY_TYPE_FOLDER,
             QVector<Sink::Preprocessor*>());
     setupPreprocessors(ENTITY_TYPE_EVENT,

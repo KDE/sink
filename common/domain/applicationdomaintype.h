@@ -99,7 +99,15 @@ struct SINK_EXPORT Progress {
 };
 
 struct BLOB {
+    BLOB() = default;
+    BLOB(const BLOB &) = default;
+    BLOB(const QString &id) : value(id) {};
+    ~BLOB() = default;
+    bool operator==(const BLOB &other) const {
+        return value == other.value && isExternal == other.isExternal;
+    }
     QString value;
+    bool isExternal = true;
 };
 
 /**

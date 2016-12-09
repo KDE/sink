@@ -30,16 +30,3 @@ protected:
     virtual QString getFilePathFromMimeMessagePath(const QString &) const;
 };
 
-class SINK_EXPORT MimeMessageMover : public Sink::EntityPreprocessor<Sink::ApplicationDomain::Mail>
-{
-public:
-    MimeMessageMover();
-    virtual ~MimeMessageMover(){}
-
-    void newEntity(Sink::ApplicationDomain::Mail &mail) Q_DECL_OVERRIDE;
-    void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail) Q_DECL_OVERRIDE;
-    void deletedEntity(const Sink::ApplicationDomain::Mail &mail) Q_DECL_OVERRIDE;
-
-private:
-    QString moveMessage(const QString &oldPath, const Sink::ApplicationDomain::Mail &mail);
-};

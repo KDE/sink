@@ -182,7 +182,7 @@ MailtransportResource::MailtransportResource(const Sink::ResourceContext &resour
     setupSynchronizer(synchronizer);
     setupInspector(QSharedPointer<MailtransportInspector>::create(resourceContext));
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MimeMessageMover << new MailPropertyExtractor);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MailPropertyExtractor);
 }
 
 MailtransportResourceFactory::MailtransportResourceFactory(QObject *parent)

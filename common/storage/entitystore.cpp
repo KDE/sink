@@ -19,6 +19,9 @@
  */
 #include "entitystore.h"
 
+#include <QDir>
+#include <QFile>
+
 #include "entitybuffer.h"
 #include "log.h"
 #include "typeindex.h"
@@ -90,6 +93,11 @@ public:
         return ApplicationDomain::ApplicationDomainType{resourceContext.instanceId(), uid, revision, adaptor};
     }
 
+    QString entityBlobStoragePath(const QByteArray &id)
+    {
+        return Sink::resourceStorageLocation(resourceContext.instanceId()) + "/blob/" + id;
+    }
+
 };
 
 EntityStore::EntityStore(const ResourceContext &context)
@@ -120,6 +128,38 @@ void EntityStore::abortTransaction()
     d->transaction = Storage::DataStore::Transaction();
 }
 
+void EntityStore::copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qint64 newRevision)
+{
+    const auto directory = d->entityBlobStoragePath(entity.identifier());
+    if (!QDir().mkpath(directory)) {
+        SinkWarning() << "Failed to create the directory: " << directory;
+    }
+
+    for (const auto &property : entity.changedProperties()) {
+        const auto value = entity.getProperty(property);
+        if (value.canConvert<ApplicationDomain::BLOB>()) {
+            const auto blob = value.value<ApplicationDomain::BLOB>();
+            bool blobIsExternal = blob.isExternal;
+            //Any blob that is not part of the storage yet has to be moved there.
+            if (blob.isExternal) {
+                auto oldPath = blob.value;
+                auto filePath = directory + QString("/%1%2.blob").arg(QString::number(newRevision)).arg(QString::fromLatin1(property));
+                //In case we hit the same revision again due to a rollback.
+                QFile::remove(filePath);
+                QFile origFile(oldPath);
+                if (!origFile.open(QIODevice::ReadWrite)) {
+                    SinkWarning() << "Failed to open the original file with write rights: " << origFile.errorString();
+                }
+                if (!origFile.rename(filePath)) {
+                    SinkWarning() << "Failed to move the file from: " << oldPath << " to " << filePath << ". " << origFile.errorString();
+                }
+                origFile.close();
+                entity.setProperty(property, QVariant::fromValue(ApplicationDomain::BLOB{filePath}));
+            }
+        }
+    }
+}
+
 bool EntityStore::add(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &entity_, bool replayToSource, const PreprocessCreation &preprocess)
 {
     if (entity_.identifier().isEmpty()) {
@@ -137,6 +177,8 @@ bool EntityStore::add(const QByteArray &type, const ApplicationDomain::Applicati
 
     //The maxRevision may have changed meanwhile if the entity created sub-entities
     const qint64 newRevision = maxRevision() + 1;
+
+    copyBlobs(entity, newRevision);
 
     // Add metadata buffer
     flatbuffers::FlatBufferBuilder metadataFbb;
@@ -191,6 +233,8 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
     d->typeIndex(type).add(newEntity.identifier(), newEntity, d->transaction);
 
     const qint64 newRevision = DataStore::maxRevision(d->transaction) + 1;
+
+    copyBlobs(newEntity, newRevision);
 
     // Add metadata buffer
     flatbuffers::FlatBufferBuilder metadataFbb;
@@ -296,6 +340,13 @@ void EntityStore::cleanupRevision(qint64 revision)
                     if (rev < revision || metadata->operation() == Operation_Removal) {
                         DataStore::removeRevision(d->transaction, rev);
                         DataStore::mainDatabase(d->transaction, bufferType).remove(key);
+                    }
+                    if (metadata->operation() == Operation_Removal) {
+                        const auto directory = d->entityBlobStoragePath(uid);
+                        QDir dir(directory);
+                        if (!dir.removeRecursively()) {
+                            SinkError() << "Failed to cleanup: " << directory;
+                        }
                     }
                 }
 

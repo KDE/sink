@@ -132,7 +132,10 @@ public:
         auto mail = newEntity.cast<ApplicationDomain::Mail>();
         const auto mimeMessage = mail.getMimeMessagePath();
         if (!mimeMessage.isNull()) {
-            mail.setMimeMessagePath(moveMessage(mimeMessage, mail.getFolder()));
+            const auto path = moveMessage(mimeMessage, mail.getFolder());
+            auto blob = ApplicationDomain::BLOB{path};
+            blob.isExternal = false;
+            mail.setProperty(ApplicationDomain::Mail::MimeMessage::name, QVariant::fromValue(blob));
         }
     }
 
@@ -149,7 +152,9 @@ public:
             auto newPath = moveMessage(mimeMessage, newMail.getFolder());
             if (newPath != oldMail.getMimeMessagePath()) {
                 const auto oldPath = getFilePathFromMimeMessagePath(oldMail.getMimeMessagePath());
-                newMail.setMimeMessagePath(newPath);
+                auto blob = ApplicationDomain::BLOB{newPath};
+                blob.isExternal = false;
+                newMail.setProperty(ApplicationDomain::Mail::MimeMessage::name, QVariant::fromValue(blob));
                 //Remove the olde mime message if there is a new one
                 QFile::remove(oldPath);
             }
@@ -323,7 +328,10 @@ public:
             Sink::ApplicationDomain::Mail mail;
             mail.setFolder(folderLocalId);
             //We only store the directory path + key, so we facade can add the changing bits (flags)
-            mail.setMimeMessagePath(KPIM::Maildir::getDirectoryFromFile(filePath) + maildirKey);
+            auto path = KPIM::Maildir::getDirectoryFromFile(filePath) + maildirKey;
+            auto blob = ApplicationDomain::BLOB{path};
+            blob.isExternal = false;
+            mail.setProperty(ApplicationDomain::Mail::MimeMessage::name, QVariant::fromValue(blob));
             mail.setUnread(!flags.testFlag(KPIM::Maildir::Seen));
             mail.setImportant(flags.testFlag(KPIM::Maildir::Flagged));
 

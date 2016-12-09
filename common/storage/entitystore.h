@@ -110,6 +110,7 @@ public:
     qint64 maxRevision();
 
 private:
+    void copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qint64 newRevision);
     class Private;
     const QSharedPointer<Private> d;
 };
