@@ -50,6 +50,8 @@ void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::Applicatio
         const auto value = buffer.getProperty(property);
         if (copyBlobs && value.canConvert<BLOB>()) {
             auto oldPath = value.value<BLOB>().value;
+            //FIXME: This is neither pretty nor save if we have multiple modifications of the same property (the first modification will remove the file).
+            //At least if the modification fails the file will be removed once the entity is removed.
             auto newPath = oldPath + "copy";
             QFile::copy(oldPath, newPath);
             memoryAdaptor.setProperty(property, QVariant::fromValue(BLOB{newPath}));
