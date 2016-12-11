@@ -20,7 +20,7 @@ include(ECMPackageConfigHelpers)
 include(ECMSetupVersion)
 include(KDEInstallDirs)
 
-find_package(Qt5 COMPONENTS REQUIRED Core Widgets Network)
+find_package(Qt5 COMPONENTS REQUIRED Core Network)
 find_package(KF5 COMPONENTS REQUIRED Async Mime)
 find_package(FlatBuffers REQUIRED)
 
