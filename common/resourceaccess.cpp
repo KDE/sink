@@ -115,6 +115,10 @@ void ResourceAccess::Private::abortPendingOperations()
     for (auto handler : handlers) {
         handler(1, "The resource closed unexpectedly");
     }
+    for (auto queuedCommand : commandQueue) {
+        queuedCommand->callback(1, "The resource closed unexpectedly");
+    }
+    commandQueue.clear();
 }
 
 void ResourceAccess::Private::callCallbacks()
@@ -214,6 +218,7 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                                 });
                         } else {
                             SinkWarning() << "Failed to start resource";
+                            return KAsync::error(-1, "Failed to start resource");
                         }
                         return KAsync::null();
                     } else {
@@ -256,6 +261,16 @@ void ResourceAccess::registerCallback(uint messageId, const std::function<void(i
     d->resultHandler.insert(messageId, callback);
 }
 
+void ResourceAccess::enqueueCommand(const QSharedPointer<QueuedCommand> &command)
+{
+    d->commandQueue << command;
+    if (isReady()) {
+        processCommandQueue();
+    } else {
+        open();
+    }
+}
+
 KAsync::Job<void> ResourceAccess::sendCommand(int commandId)
 {
     return KAsync::start<void>([this, commandId](KAsync::Future<void> &f) {
@@ -265,10 +280,7 @@ KAsync::Job<void> ResourceAccess::sendCommand(int commandId)
             }
             f.setFinished();
         };
-        d->commandQueue << QSharedPointer<QueuedCommand>::create(commandId, continuation);
-        if (isReady()) {
-            processCommandQueue();
-        }
+        enqueueCommand(QSharedPointer<QueuedCommand>::create(commandId, continuation));
     });
 }
 
@@ -284,11 +296,7 @@ KAsync::Job<void> ResourceAccess::sendCommand(int commandId, flatbuffers::FlatBu
                 f.setFinished();
             }
         };
-
-        d->commandQueue << QSharedPointer<QueuedCommand>::create(commandId, buffer, callback);
-        if (isReady()) {
-            processCommandQueue();
-        }
+        enqueueCommand(QSharedPointer<QueuedCommand>::create(commandId, buffer, callback));
     });
 }
 
@@ -305,7 +313,6 @@ KAsync::Job<void> ResourceAccess::synchronizeResource(const Sink::QueryBase &que
     builder.add_query(q);
     Sink::Commands::FinishSynchronizeBuffer(fbb, builder.Finish());
 
-    open();
     return sendCommand(Commands::SynchronizeCommand, fbb);
 }
 
@@ -318,7 +325,6 @@ KAsync::Job<void> ResourceAccess::sendCreateCommand(const QByteArray &uid, const
     auto delta = Sink::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
     auto location = Sink::Commands::CreateCreateEntity(fbb, entityId, type, delta);
     Sink::Commands::FinishCreateEntityBuffer(fbb, location);
-    open();
     return sendCommand(Sink::Commands::CreateEntityCommand, fbb);
 }
 
@@ -334,7 +340,6 @@ ResourceAccess::sendModifyCommand(const QByteArray &uid, qint64 revision, const 
     auto resource = newResource.isEmpty() ? 0 : fbb.CreateString(newResource.constData());
     auto location = Sink::Commands::CreateModifyEntity(fbb, revision, entityId, deletions, type, delta, true, modifiedProperties, resource, remove);
     Sink::Commands::FinishModifyEntityBuffer(fbb, location);
-    open();
     return sendCommand(Sink::Commands::ModifyEntityCommand, fbb);
 }
 
@@ -345,7 +350,6 @@ KAsync::Job<void> ResourceAccess::sendDeleteCommand(const QByteArray &uid, qint6
     auto type = fbb.CreateString(resourceBufferType.constData());
     auto location = Sink::Commands::CreateDeleteEntity(fbb, revision, entityId, type);
     Sink::Commands::FinishDeleteEntityBuffer(fbb, location);
-    open();
     return sendCommand(Sink::Commands::DeleteEntityCommand, fbb);
 }
 
@@ -354,7 +358,6 @@ KAsync::Job<void> ResourceAccess::sendRevisionReplayedCommand(qint64 revision)
     flatbuffers::FlatBufferBuilder fbb;
     auto location = Sink::Commands::CreateRevisionReplayed(fbb, revision);
     Sink::Commands::FinishRevisionReplayedBuffer(fbb, location);
-    open();
     return sendCommand(Sink::Commands::RevisionReplayedCommand, fbb);
 }
 
@@ -374,7 +377,6 @@ ResourceAccess::sendInspectionCommand(int inspectionType, const QByteArray &insp
     auto expected = fbb.CreateString(array.toStdString());
     auto location = Sink::Commands::CreateInspection(fbb, id, inspectionType, entity, domain, prop, expected);
     Sink::Commands::FinishInspectionBuffer(fbb, location);
-    open();
     return sendCommand(Sink::Commands::InspectionCommand, fbb);
 }
 
@@ -384,7 +386,6 @@ KAsync::Job<void> ResourceAccess::sendFlushCommand(int flushType, const QByteArr
     auto id = fbb.CreateString(flushId.toStdString());
     auto location = Sink::Commands::CreateFlush(fbb, id, flushType);
     Sink::Commands::FinishFlushBuffer(fbb, location);
-    open();
     return sendCommand(Sink::Commands::FlushCommand, fbb);
 }
 

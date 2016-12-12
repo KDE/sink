@@ -145,6 +145,7 @@ private:
     void sendCommand(const QSharedPointer<QueuedCommand> &command);
     void processCommandQueue();
     void processPendingCommandQueue();
+    void enqueueCommand(const QSharedPointer<QueuedCommand> &command);
 
     class Private;
     Private *const d;
