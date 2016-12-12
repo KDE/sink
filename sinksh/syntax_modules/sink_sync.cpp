@@ -23,6 +23,7 @@
 
 #include "common/resource.h"
 #include "common/storage.h"
+#include "common/resourcecontrol.h"
 #include "common/domain/event.h"
 #include "common/domain/folder.h"
 #include "common/resourceconfig.h"
@@ -45,7 +46,9 @@ bool sync(const QStringList &args, State &state)
     }
 
     QTimer::singleShot(0, [query, state]() {
-    Sink::Store::synchronize(query).syncThen<void>([state](const KAsync::Error &error) {
+    Sink::Store::synchronize(query)
+        .then(Sink::ResourceControl::flushReplayQueue(query.getResourceFilter().ids))
+        .syncThen<void>([state](const KAsync::Error &error) {
             if (error) {
                 state.printLine("Synchronization failed!");
             } else {
