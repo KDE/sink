@@ -227,7 +227,7 @@ KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
 {
     auto time = QSharedPointer<QTime>::create();
     return KAsync::syncStart<void>([this]() { mPipeline->startTransaction(); })
-        .then(KAsync::dowhile(
+        .then(KAsync::doWhile(
             [this, queue, time]() -> KAsync::Job<KAsync::ControlFlowFlag> {
                 return queue->dequeueBatch(sBatchSize,
                     [this, time](const QByteArray &data) -> KAsync::Job<void> {
@@ -265,7 +265,7 @@ KAsync::Job<void> CommandProcessor::processPipeline()
         return KAsync::null<void>();
     }
     auto it = QSharedPointer<QListIterator<MessageQueue *>>::create(mCommandQueues);
-    return KAsync::dowhile(
+    return KAsync::doWhile(
         [it, this]() {
             auto time = QSharedPointer<QTime>::create();
             time->start();

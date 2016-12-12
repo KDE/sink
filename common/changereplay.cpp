@@ -92,7 +92,7 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
             *topRevision = DataStore::maxRevision(mMainStoreTransaction);
             SinkTrace() << "Changereplay from " << *lastReplayedRevision << " to " << *topRevision;
         })
-        .then(KAsync::dowhile(
+        .then(KAsync::doWhile(
             [this, lastReplayedRevision, topRevision]() -> KAsync::Job<KAsync::ControlFlowFlag> {
                     if (*lastReplayedRevision >= *topRevision) {
                         return KAsync::value(KAsync::Break);

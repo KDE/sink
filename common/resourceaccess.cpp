@@ -160,7 +160,7 @@ KAsync::Job<void> ResourceAccess::Private::tryToConnect()
     // We may have a socket from the last connection leftover
     socket.reset();
     auto counter = QSharedPointer<int>::create(0);
-    return KAsync::dowhile(
+    return KAsync::doWhile(
         [this, counter]() {
             SinkTrace() << "Loop";
             return connectToServer(resourceInstanceIdentifier)

@@ -173,7 +173,7 @@ KAsync::Job<void> processPipeline()
 
     //Go through all message queues
     auto it = QSharedPointer<QListIterator<MessageQueue*> >::create(mCommandQueues);
-    return KAsync::dowhile(
+    return KAsync::doWhile(
         [it]() { return it->hasNext(); },
         [it, this](KAsync::Future<void> &future) {
             auto queue = it->next();
