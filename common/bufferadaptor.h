@@ -66,7 +66,7 @@ public:
     virtual QVariant getProperty(const QByteArray &key) const
     {
         if (!mValues.contains(key)) {
-            qWarning() << "Tried to read value that is not avialable; Did you forget to call Query::request?"; 
+            qWarning() << "Tried to read value that is not available; Did you forget to call Query::request? Property: " << key;
             return QVariant{};
         }
         return mValues.value(key);
