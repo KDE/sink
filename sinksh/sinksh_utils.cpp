@@ -79,7 +79,7 @@ QList<QByteArray> requestedProperties(const QString &type)
     } else if (type == getTypeName<SinkAccount>()) {
         return QList<QByteArray>() << SinkAccount::AccountType::name << SinkAccount::Name::name;
     } else if (type == getTypeName<Identity>()) {
-        return QList<QByteArray>() << Identity::Name::name << Identity::Address::name;
+        return QList<QByteArray>() << Identity::Name::name << Identity::Address::name << Identity::Account::name;
     }
     return QList<QByteArray>();
 }
