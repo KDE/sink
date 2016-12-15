@@ -186,7 +186,7 @@ MailtransportResource::MailtransportResource(const Sink::ResourceContext &resour
 }
 
 MailtransportResourceFactory::MailtransportResourceFactory(QObject *parent)
-    : Sink::ResourceFactory(parent)
+    : Sink::ResourceFactory(parent, {Sink::ApplicationDomain::ResourceCapabilities::Mail::transport})
 {
 
 }

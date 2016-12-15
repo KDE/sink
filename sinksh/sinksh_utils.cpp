@@ -76,7 +76,7 @@ QList<QByteArray> requestedProperties(const QString &type)
     } else if (type == getTypeName<Event>()) {
         return QList<QByteArray>() << Event::Summary::name;
     } else if (type == getTypeName<SinkResource>()) {
-        return QList<QByteArray>() << SinkResource::ResourceType::name << SinkResource::Account::name;
+        return QList<QByteArray>() << SinkResource::ResourceType::name << SinkResource::Account::name << SinkResource::Capabilities::name;
     } else if (type == getTypeName<SinkAccount>()) {
         return QList<QByteArray>() << SinkAccount::AccountType::name << SinkAccount::Name::name;
     } else if (type == getTypeName<Identity>()) {

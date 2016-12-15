@@ -570,9 +570,14 @@ MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext)
 
 
 MaildirResourceFactory::MaildirResourceFactory(QObject *parent)
-    : Sink::ResourceFactory(parent)
+    : Sink::ResourceFactory(parent,
+            {Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::drafts,
+            "-folder.rename",
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::trash,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::sent}
+            )
 {
-
 }
 
 Sink::Resource *MaildirResourceFactory::createResource(const ResourceContext &context)
@@ -596,4 +601,3 @@ void MaildirResourceFactory::removeDataFromDisk(const QByteArray &instanceIdenti
 {
     MaildirResource::removeFromDisk(instanceIdentifier);
 }
-

@@ -55,19 +55,20 @@ void Resource::setLowerBoundRevision(qint64 revision)
 class ResourceFactory::Private
 {
 public:
+    QByteArrayList capabilities;
     static QHash<QString, QPointer<ResourceFactory>> s_loadedFactories;
 };
 
 QHash<QString, QPointer<ResourceFactory>> ResourceFactory::Private::s_loadedFactories;
 
-ResourceFactory::ResourceFactory(QObject *parent) : QObject(parent), d(0)
+ResourceFactory::ResourceFactory(QObject *parent, const QByteArrayList &capabilities) : QObject(parent), d(new ResourceFactory::Private)
 {
-    Q_UNUSED(d);
+    d->capabilities = capabilities;
 }
 
 ResourceFactory::~ResourceFactory()
 {
-    // delete d;
+    delete d;
 }
 
 ResourceFactory *ResourceFactory::load(const QByteArray &resourceName)
@@ -115,6 +116,11 @@ ResourceFactory *ResourceFactory::load(const QByteArray &resourceName)
 
     qWarning() << "Failed to find factory for resource:" << resourceName;
     return nullptr;
+}
+
+QByteArrayList ResourceFactory::capabilities() const
+{
+    return d->capabilities;
 }
 
 } // namespace Sink

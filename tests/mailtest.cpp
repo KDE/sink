@@ -45,6 +45,9 @@ void MailTest::initTestCase()
     VERIFYEXEC(Store::create(resource));
 
     mResourceInstanceIdentifier = resource.identifier();
+
+    //Load the capabilities
+    resource = Store::readOne<Sink::ApplicationDomain::SinkResource>(Sink::Query{resource});
     mCapabilities = resource.getCapabilities();
 }
 

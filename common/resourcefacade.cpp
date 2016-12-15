@@ -24,6 +24,7 @@
 #include "storage.h"
 #include "store.h"
 #include "resourceaccess.h"
+#include "resource.h"
 #include <QDir>
 
 using namespace Sink;
@@ -33,25 +34,50 @@ SINK_DEBUG_AREA("ResourceFacade")
 template<typename DomainType>
 ConfigNotifier LocalStorageFacade<DomainType>::sConfigNotifier;
 
+static void applyConfig(ConfigStore &configStore, const QByteArray &id, ApplicationDomain::ApplicationDomainType &object)
+{
+    const auto configurationValues = configStore.get(id);
+    for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
+        object.setProperty(it.key(), it.value());
+    }
+}
+
 template <typename DomainType>
 static typename DomainType::Ptr readFromConfig(ConfigStore &configStore, const QByteArray &id, const QByteArray &type)
 {
     auto object = DomainType::Ptr::create(id);
-    object->setProperty(ApplicationDomain::SinkResource::ResourceType::name, type);
-    const auto configurationValues = configStore.get(id);
-    for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
-        object->setProperty(it.key(), it.value());
-    }
+    applyConfig(configStore, id, *object);
     return object;
 }
 
-static bool matchesFilter(const QHash<QByteArray, Query::Comparator> &filter, const QMap<QByteArray, QVariant> &properties)
+template <>
+typename ApplicationDomain::SinkAccount::Ptr readFromConfig<ApplicationDomain::SinkAccount>(ConfigStore &configStore, const QByteArray &id, const QByteArray &type)
+{
+    auto object = ApplicationDomain::SinkAccount::Ptr::create(id);
+    object->setProperty(ApplicationDomain::SinkAccount::AccountType::name, type);
+    applyConfig(configStore, id, *object);
+    return object;
+}
+
+template <>
+typename ApplicationDomain::SinkResource::Ptr readFromConfig<ApplicationDomain::SinkResource>(ConfigStore &configStore, const QByteArray &id, const QByteArray &type)
+{
+    auto object = ApplicationDomain::SinkResource::Ptr::create(id);
+    object->setProperty(ApplicationDomain::SinkResource::ResourceType::name, type);
+    if (auto res = ResourceFactory::load(type)) {
+        object->setCapabilities(res->capabilities());
+    }
+    applyConfig(configStore, id, *object);
+    return object;
+}
+
+static bool matchesFilter(const QHash<QByteArray, Query::Comparator> &filter, const ApplicationDomain::ApplicationDomainType &entity)
 {
     for (const auto &filterProperty : filter.keys()) {
         if (filterProperty == ApplicationDomain::SinkResource::ResourceType::name) {
             continue;
         }
-        if (!filter.value(filterProperty).matches(properties.value(filterProperty))) {
+        if (!filter.value(filterProperty).matches(entity.getProperty(filterProperty))) {
             return false;
         }
     }
@@ -75,13 +101,12 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
             if (!query.ids().isEmpty() && !query.ids().contains(res)) {
                 continue;
             }
-            const auto configurationValues = mConfigStore.get(res);
-            if (!matchesFilter(query.getBaseFilters(), configurationValues)){
-                SinkTrace() << "Skipping due to filter.";
+            auto entity = readFromConfig<DomainType>(mConfigStore, res, type);
+            if (!matchesFilter(query.getBaseFilters(), *entity)){
+                SinkTrace() << "Skipping due to filter." << res;
                 continue;
             }
             SinkTrace() << "Found match " << res;
-            auto entity = readFromConfig<DomainType>(mConfigStore, res, type);
             updateStatus(*entity);
             mResultProvider->add(entity);
         }

@@ -176,7 +176,7 @@ DummyResource::~DummyResource()
 }
 
 DummyResourceFactory::DummyResourceFactory(QObject *parent)
-    : Sink::ResourceFactory(parent)
+    : Sink::ResourceFactory(parent, QByteArrayList() << Sink::ApplicationDomain::ResourceCapabilities::Mail::storage << "-folder.rename" << Sink::ApplicationDomain::ResourceCapabilities::Mail::sent)
 {
 
 }
@@ -204,3 +204,4 @@ void DummyResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifi
 {
     DummyResource::removeFromDisk(instanceIdentifier);
 }
+

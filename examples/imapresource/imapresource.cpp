@@ -742,7 +742,13 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
 }
 
 ImapResourceFactory::ImapResourceFactory(QObject *parent)
-    : Sink::ResourceFactory(parent)
+    : Sink::ResourceFactory(parent,
+            {Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::drafts,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::folderhierarchy,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::trash,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::sent}
+            )
 {
 
 }
@@ -768,3 +774,4 @@ void ImapResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifie
 {
     ImapResource::removeFromDisk(instanceIdentifier);
 }
+

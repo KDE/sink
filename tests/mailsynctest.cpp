@@ -46,7 +46,9 @@ void MailSyncTest::initTestCase()
     VERIFYEXEC(Store::create(resource));
 
     mResourceInstanceIdentifier = resource.identifier();
-    mCapabilities = resource.getProperty("capabilities").value<QByteArrayList>();
+    //Load the capabilities
+    resource = Store::readOne<Sink::ApplicationDomain::SinkResource>(Sink::Query{resource});
+    mCapabilities = resource.getCapabilities();
 }
 
 void MailSyncTest::cleanup()

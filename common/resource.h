@@ -64,13 +64,14 @@ class SINK_EXPORT ResourceFactory : public QObject
 public:
     static ResourceFactory *load(const QByteArray &resourceName);
 
-    ResourceFactory(QObject *parent);
+    ResourceFactory(QObject *parent, const QByteArrayList &capabilities);
     virtual ~ResourceFactory();
 
     virtual Resource *createResource(const ResourceContext &context) = 0;
     virtual void registerFacades(const QByteArray &resourceName, FacadeFactory &factory) = 0;
     virtual void registerAdaptorFactories(const QByteArray &resourceName, AdaptorFactoryRegistry &registry) {};
     virtual void removeDataFromDisk(const QByteArray &instanceIdentifier) = 0;
+    QByteArrayList capabilities() const;
 
 private:
     class Private;
