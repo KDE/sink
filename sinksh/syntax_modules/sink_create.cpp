@@ -94,7 +94,12 @@ bool resource(const QStringList &args, State &state)
     object.setResourceType(resourceType.toLatin1());
 
     for (auto i = map.begin(); i != map.end(); ++i) {
-        object.setProperty(i.key().toLatin1(), i.value());
+        //FIXME we need a generic way to convert the value to the right type
+        if (i.key() == ApplicationDomain::SinkResource::Account::name) {
+            object.setAccount(i.value().toUtf8());
+        } else {
+            object.setProperty(i.key().toLatin1(), i.value());
+        }
     }
 
     auto result = store.create(object).exec();
@@ -150,7 +155,12 @@ bool identity(const QStringList &args, State &state)
     auto object = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::Identity>("", identifier);
 
     for (auto i = map.begin(); i != map.end(); ++i) {
-        object.setProperty(i.key().toLatin1(), i.value());
+        //FIXME we need a generic way to convert the value to the right type
+        if (i.key() == ApplicationDomain::Identity::Account::name) {
+            object.setAccount(i.value().toUtf8());
+        } else {
+            object.setProperty(i.key().toLatin1(), i.value());
+        }
     }
 
     auto result = store.create(object).exec();
