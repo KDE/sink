@@ -110,12 +110,8 @@ void MailSyncTest::testListFolders()
             names.removeAll("Trash");
             QVERIFY(specialPurposeFolders.contains(SpecialPurpose::Mail::trash));
         }
-        //Silently ignore the inbox folder
-        if (specialPurposeFolders.contains(SpecialPurpose::Mail::inbox)) {
-            names.removeAll("INBOX");
-        }
-        QCOMPARE(names.size(), 1);
-        QVERIFY(names.contains("test"));
+        auto set = QSet<QString>{"INBOX", "test"};
+        QCOMPARE(names.toSet(), set);
     });
     VERIFYEXEC(job);
 }
