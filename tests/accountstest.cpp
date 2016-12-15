@@ -69,9 +69,9 @@ private slots:
         .exec().waitForFinished();
 
         auto identity = ApplicationDomainType::createEntity<Identity>();
-        identity.setProperty("name", smtpServer);
-        identity.setProperty("address", smtpUsername);
-        identity.setProperty("account", account.identifier());
+        identity.setName(smtpServer);
+        identity.setAddress(smtpUsername);
+        identity.setAccount(account.identifier());
         Store::create(identity).exec().waitForFinished();
 
         Store::fetchAll<Identity>(Query()).syncThen<void, QList<Identity::Ptr>>([&](const QList<Identity::Ptr> &identities) {
