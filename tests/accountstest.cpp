@@ -76,6 +76,9 @@ private slots:
 
         Store::fetchAll<Identity>(Query()).syncThen<void, QList<Identity::Ptr>>([&](const QList<Identity::Ptr> &identities) {
             QCOMPARE(identities.size(), 1);
+            QCOMPARE(identities.first()->getName(), smtpServer);
+            QCOMPARE(identities.first()->getAddress(), smtpUsername);
+            QCOMPARE(identities.first()->getAccount(), account.identifier());
         })
         .exec().waitForFinished();
 

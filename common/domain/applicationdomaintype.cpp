@@ -31,12 +31,13 @@ namespace ApplicationDomain {
 
 constexpr const char *Mail::ThreadId::name;
 
-int foo = [] {
+static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();
     QMetaType::registerDebugStreamOperator<Reference>();
     QMetaType::registerConverter<Reference, QByteArray>();
     QMetaType::registerDebugStreamOperator<BLOB>();
     QMetaType::registerDebugStreamOperator<Mail::Contact>();
+    qRegisterMetaTypeStreamOperators<Sink::ApplicationDomain::Reference>();
     return 0;
 }();
 
@@ -393,5 +394,17 @@ bool isGlobalType(const QByteArray &type) {
 }
 
 }
+}
+
+QDataStream &operator<<(QDataStream &out, const Sink::ApplicationDomain::Reference &reference)
+{
+    out << reference.value;
+    return out;
+}
+
+QDataStream &operator>>(QDataStream &in, Sink::ApplicationDomain::Reference &reference)
+{
+    in >> reference.value;
+    return in;
 }
 
