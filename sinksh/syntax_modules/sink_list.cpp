@@ -82,7 +82,20 @@ bool list(const QStringList &args, State &state)
         line << o.resourceInstanceIdentifier();
         line << o.identifier();
         for (const auto &prop: query.requestedProperties) {
-            line << o.getProperty(prop).toString();
+            const auto value = o.getProperty(prop);
+            if (value.isValid()) {
+                if (value.canConvert<QString>()) {
+                    line << value.toString();
+                } else if (value.canConvert<QByteArray>()) {
+                    line << value.toByteArray();
+                } else if (value.canConvert<QByteArrayList>()) {
+                    line << value.value<QByteArrayList>().join(", ");
+                } else {
+                    line << QString("Unprintable type: %1").arg(value.typeName());
+                }
+            } else {
+                line << QString{};
+            }
         }
         state.stageTableLine(line);
     }

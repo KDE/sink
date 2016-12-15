@@ -139,6 +139,30 @@ bool account(const QStringList &args, State &state)
     return true;
 }
 
+bool identity(const QStringList &args, State &state)
+{
+    auto &store = SinkshUtils::getStore("identity");
+
+    auto map = SinkshUtils::keyValueMapFromArgs(args);
+
+    auto identifier = map.take("identifier").toLatin1();
+
+    auto object = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::Identity>("", identifier);
+
+    for (auto i = map.begin(); i != map.end(); ++i) {
+        object.setProperty(i.key().toLatin1(), i.value());
+    }
+
+    auto result = store.create(object).exec();
+    result.waitForFinished();
+    if (result.errorCode()) {
+        state.printError(QObject::tr("An error occurred while creating the entity: %1").arg(result.errorMessage()),
+                         "sink_create_e" + QString::number(result.errorCode()));
+    }
+
+    return true;
+}
+
 
 Syntax::List syntax()
 {
@@ -147,6 +171,7 @@ Syntax::List syntax()
     Syntax create("create", QObject::tr("Create items in a resource"), &SinkCreate::create);
     create.children << Syntax("resource", QObject::tr("Creates a new resource"), &SinkCreate::resource);
     create.children << Syntax("account", QObject::tr("Creates a new account"), &SinkCreate::account);
+    create.children << Syntax("identity", QObject::tr("Creates a new identity"), &SinkCreate::identity);
 
     syntax << create;
     return syntax;

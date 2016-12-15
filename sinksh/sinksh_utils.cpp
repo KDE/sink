@@ -56,9 +56,9 @@ StoreBase &getStore(const QString &type)
         return store;
     }
 
-    qWarning() << "Trying to get a store that doesn't exist, falling back to event";
+    SinkWarning_("", "") << "Trying to get a store that doesn't exist: " << type;
     Q_ASSERT(false);
-    static Store<Sink::ApplicationDomain::Event> store;
+    static Store<Sink::ApplicationDomain::ApplicationDomainType> store;
     return store;
 }
 
@@ -67,7 +67,8 @@ QList<QByteArray> requestedProperties(const QString &type)
     using namespace Sink::ApplicationDomain;
     if (type == getTypeName<Folder>()) {
         return QList<QByteArray>() << Folder::Name::name
-                                  << Folder::Parent::name;
+                                  << Folder::Parent::name
+                                  << Folder::SpecialPurpose::name;
     } else if (type == getTypeName<Mail>()) {
         return QList<QByteArray>() << Mail::Subject::name
                                   << Mail::Folder::name

@@ -101,12 +101,20 @@ SyntaxTree::Command SyntaxTree::match(const QStringList &commandLine) const
     QStringList tailCommands;
     while (commandLineIt.hasNext() && syntaxIt.hasNext()) {
         const QString word = commandLineIt.next();
+        bool match = false;
         while (syntaxIt.hasNext()) {
             const Syntax &syntax = syntaxIt.next();
             if (word == syntax.keyword) {
                 lastFullSyntax = &syntax;
                 syntaxIt = syntax.children;
+                match = true;
                 break;
+            }
+        }
+        if (!match) {
+            //Otherwise we would miss the just evaluated command from the tailCommands
+            if (commandLineIt.hasPrevious()) {
+                commandLineIt.previous();
             }
         }
     }
