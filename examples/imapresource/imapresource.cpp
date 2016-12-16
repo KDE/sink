@@ -193,24 +193,34 @@ public:
         bool canDoIncrementalRemovals = false;
         return KAsync::start<void>([=]() {
             //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
-            SinkLog() << "About to update flags" << folder.path();
             auto uidNext = syncStore().readValue(folder.normalizedPath().toUtf8() + "uidnext").toLongLong();
-            const auto changedsince = syncStore().readValue(folder.normalizedPath().toUtf8() + "changedsince").toLongLong();
-            return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(uidNext, qint64(1))), changedsince, [this, folder](const Message &message) {
-                const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folder.normalizedPath().toUtf8());
-                const auto remoteId = assembleMailRid(folderLocalId, message.uid);
+            bool ok = false;
+            const auto changedsince = syncStore().readValue(folder.normalizedPath().toUtf8() + "changedsince").toLongLong(&ok);
+            SinkLog() << "About to update flags" << folder.path() << "changedsince: " << changedsince;
+            if (ok) {
+                return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(uidNext, qint64(1))), changedsince, [this, folder](const Message &message) {
+                    const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folder.normalizedPath().toUtf8());
+                    const auto remoteId = assembleMailRid(folderLocalId, message.uid);
 
-                SinkLog() << "Updating mail flags " << remoteId << message.flags;
+                    SinkLog() << "Updating mail flags " << remoteId << message.flags;
 
-                auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
-                mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
-                mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
+                    auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
+                    mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
+                    mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
 
-                modify(ENTITY_TYPE_MAIL, remoteId, mail);
-            })
-            .syncThen<void, SelectResult>([this, folder](const SelectResult &selectResult) {
-                syncStore().writeValue(folder.normalizedPath().toUtf8() + "changedsince", QByteArray::number(selectResult.highestModSequence));
-            });
+                    modify(ENTITY_TYPE_MAIL, remoteId, mail);
+                })
+                .syncThen<void, SelectResult>([this, folder](const SelectResult &selectResult) {
+                    SinkLog() << "Flags updated. New changedsince value: " << selectResult.highestModSequence;
+                    syncStore().writeValue(folder.normalizedPath().toUtf8() + "changedsince", QByteArray::number(selectResult.highestModSequence));
+                });
+            } else {
+                return imap->select(imap->mailboxFromFolder(folder))
+                .syncThen<void, SelectResult>([this, folder](const SelectResult &selectResult) {
+                    SinkLog() << "No flags to update. New changedsince value: " << selectResult.highestModSequence;
+                    syncStore().writeValue(folder.normalizedPath().toUtf8() + "changedsince", QByteArray::number(selectResult.highestModSequence));
+                });
+            }
         })
         .then<void>([=]() {
             auto job = [&] {
