@@ -49,6 +49,11 @@ public:
     DataStore::Transaction transaction;
     QHash<QByteArray, QSharedPointer<TypeIndex> > indexByType;
 
+    bool exists()
+    {
+        return Sink::Storage::DataStore(Sink::storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly).exists();
+    }
+
     DataStore::Transaction &getTransaction()
     {
         if (transaction) {
@@ -381,6 +386,10 @@ bool EntityStore::cleanupRevisions(qint64 revision)
 QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)
 {
     SinkTrace() << "Looking for : " << type;
+    if (!d->exists()) {
+        SinkTrace() << "Database is not existing: " << type;
+        return QVector<QByteArray>();
+    }
     //The scan can return duplicate results if we have multiple revisions, so we use a set to deduplicate.
     QSet<QByteArray> keys;
     DataStore::mainDatabase(d->getTransaction(), type)
@@ -402,16 +411,28 @@ QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)
 
 QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting)
 {
+    if (!d->exists()) {
+        SinkTrace() << "Database is not existing: " << type;
+        return QVector<QByteArray>();
+    }
     return d->typeIndex(type).query(query, appliedFilters, appliedSorting, d->getTransaction());
 }
 
 QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value)
 {
+    if (!d->exists()) {
+        SinkTrace() << "Database is not existing: " << type;
+        return QVector<QByteArray>();
+    }
     return d->typeIndex(type).lookup(property, value, d->getTransaction());
 }
 
 void EntityStore::indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value, const std::function<void(const QByteArray &uid)> &callback)
 {
+    if (!d->exists()) {
+        SinkTrace() << "Database is not existing: " << type;
+        return;
+    }
     auto list =  d->typeIndex(type).lookup(property, value, d->getTransaction());
     for (const auto &uid : list) {
         callback(uid);
@@ -576,6 +597,10 @@ bool EntityStore::contains(const QByteArray &type, const QByteArray &uid)
 
 qint64 EntityStore::maxRevision()
 {
+    if (!d->exists()) {
+        SinkTrace() << "Database is not existing.";
+        return 0;
+    }
     return DataStore::maxRevision(d->getTransaction());
 }
 
