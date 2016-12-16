@@ -40,14 +40,16 @@
 namespace SinkList
 {
 
-bool list(const QStringList &args, State &state)
+bool list(const QStringList &args_, State &state)
 {
-    if (args.isEmpty()) {
+    if (args_.isEmpty()) {
         state.printError(QObject::tr("Please provide at least one type to list (e.g. resource, .."));
         return false;
     }
 
-    auto type = !args.isEmpty() ? args.at(0) : QString();
+    auto args = args_;
+
+    auto type = args.takeFirst();
 
     if (!type.isEmpty() && !SinkshUtils::isValidStoreType(type)) {
         state.printError(QObject::tr("Unknown type: %1").arg(type));
@@ -58,6 +60,7 @@ bool list(const QStringList &args, State &state)
 
     auto filterIndex = args.indexOf("--filter");
     if (filterIndex >= 0) {
+        args.removeAt(filterIndex);
         for (int i = 1; i < filterIndex; i++) {
             query.resourceFilter(args.at(i).toLatin1());
         }
@@ -68,20 +71,39 @@ bool list(const QStringList &args, State &state)
 
     }
 
-    query.requestedProperties = SinkshUtils::requestedProperties(type);
-
-    QStringList line;
-    line << QObject::tr("Resource") << QObject::tr("Identifier");
-    for (const auto &prop: query.requestedProperties) {
-        line << prop;
+    auto allIndex = args.indexOf("--all");
+    if (allIndex >= 0) {
+        args.removeAt(allIndex);
+    } else {
+        if (!args.isEmpty()) {
+            std::transform(args.constBegin(), args.constEnd(), std::back_inserter(query.requestedProperties), [] (const QString &s) { return s.toLatin1(); });
+        } else {
+            query.requestedProperties = SinkshUtils::requestedProperties(type);
+        }
     }
-    state.stageTableLine(line);
+
+    QStringList tableLine;
+    QByteArrayList toPrint;
 
     for (const auto &o : SinkshUtils::getStore(type).read(query)) {
+        if (tableLine.isEmpty()) {
+            tableLine << QObject::tr("Resource") << QObject::tr("Identifier");
+            if (query.requestedProperties.isEmpty()) {
+                auto in = o.availableProperties();
+                toPrint = o.availableProperties();
+                std::transform(in.constBegin(), in.constEnd(), std::back_inserter(tableLine), [] (const QByteArray &s) -> QString { return s; });
+            } else {
+                auto in = query.requestedProperties;
+                toPrint = query.requestedProperties;
+                std::transform(in.constBegin(), in.constEnd(), std::back_inserter(tableLine), [] (const QByteArray &s) -> QString { return s; });
+            }
+            state.stageTableLine(tableLine);
+        }
+
         QStringList line;
         line << o.resourceInstanceIdentifier();
         line << o.identifier();
-        for (const auto &prop: query.requestedProperties) {
+        for (const auto &prop: toPrint) {
             const auto value = o.getProperty(prop);
             if (value.isValid()) {
                 if (value.canConvert<QString>()) {
