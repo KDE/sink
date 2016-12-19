@@ -127,6 +127,13 @@ static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, KMime:
             parentMessageId = inReplyTo.first();
         }
     }
+    if (messageId.isEmpty()) {
+        auto tmp = KMime::Message::Ptr::create();
+        auto header = tmp->messageID(true);
+        header->generate("kube.kde.org");
+        messageId = header->as7BitString();
+        SinkWarning() << "Message id is empty, generating one: " << messageId;
+    }
 
     mail.setExtractedMessageId(messageId);
     if (!parentMessageId.isEmpty()) {

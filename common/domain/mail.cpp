@@ -59,8 +59,10 @@ void TypeImplementation<Mail>::configure(IndexPropertyMapper &indexPropertyMappe
     indexPropertyMapper.addIndexLookupProperty<Mail::ThreadId>([](TypeIndex &index, const ApplicationDomain::BufferAdaptor &entity) {
             auto messageId = entity.getProperty(Mail::MessageId::name);
             auto thread = index.secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
-            Q_ASSERT(!thread.isEmpty());
-            return thread.first();
+            if (!thread.isEmpty()) {
+                return thread.first();
+            }
+            return QByteArray{};  
         });
 }
 

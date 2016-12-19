@@ -84,9 +84,12 @@ void ThreadIndexer::updateThreadingIndex(const QByteArray &identifier, const App
 {
     auto messageId = entity.getProperty(Mail::MessageId::name);
     auto parentMessageId = entity.getProperty(Mail::ParentMessageId::name);
-    auto subject = entity.getProperty(Mail::Subject::name);
-
-    auto normalizedSubject = stripOffPrefixes(subject.toString()).toUtf8();
+    const auto subject = entity.getProperty(Mail::Subject::name);
+    const auto normalizedSubject = stripOffPrefixes(subject.toString()).toUtf8();
+    if (messageId.toByteArray().isEmpty()) {
+        SinkError() << "Found an email without messageId. This is illegal and threading will break. Entity id: " << identifier;
+        SinkError() << "Subject: " << subject;
+    }
 
     QVector<QByteArray> thread;
 
@@ -96,30 +99,29 @@ void ThreadIndexer::updateThreadingIndex(const QByteArray &identifier, const App
     //If parent is already available, add to thread of parent
     if (thread.isEmpty() && parentMessageId.isValid()) {
         thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId);
-        SinkTrace() << "Found parent";
+        SinkTrace() << "Found parent: " << thread;
     }
     if (thread.isEmpty()) {
         //Try to lookup the thread by subject:
         thread = index().secondaryLookup<Mail::Subject, Mail::ThreadId>(normalizedSubject);
         if (thread.isEmpty()) {
-            SinkTrace() << "Created a new thread ";
             thread << QUuid::createUuid().toByteArray();
+            SinkTrace() << "Created a new thread: " << thread;
         } else {
+            SinkTrace() << "Found thread by subject: " << thread;
         }
     }
 
-    //We should have found the thread by now
-    if (!thread.isEmpty()) {
-        if (parentMessageId.isValid()) {
-            //Register parent with thread for when it becomes available
-            index().index<Mail::MessageId, Mail::ThreadId>(parentMessageId, thread.first(), transaction);
-        }
-        index().index<Mail::MessageId, Mail::ThreadId>(messageId, thread.first(), transaction);
-        index().index<Mail::ThreadId, Mail::MessageId>(thread.first(), messageId, transaction);
-        index().index<Mail::Subject, Mail::ThreadId>(normalizedSubject, thread.first(), transaction);
-    } else {
-        SinkWarning() << "Couldn't find a thread for: " << messageId;
+    Q_ASSERT(!thread.isEmpty());
+
+    if (parentMessageId.isValid()) {
+        Q_ASSERT(!parentMessageId.toByteArray().isEmpty());
+        //Register parent with thread for when it becomes available
+        index().index<Mail::MessageId, Mail::ThreadId>(parentMessageId, thread.first(), transaction);
     }
+    index().index<Mail::MessageId, Mail::ThreadId>(messageId, thread.first(), transaction);
+    index().index<Mail::ThreadId, Mail::MessageId>(thread.first(), messageId, transaction);
+    index().index<Mail::Subject, Mail::ThreadId>(normalizedSubject, thread.first(), transaction);
 }
 
 
