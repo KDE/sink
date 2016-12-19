@@ -70,7 +70,11 @@ public:
             f.write("foo");
             f.close();
         } else {
-            if (MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), settings.password.toUtf8(), settings.cacert.toUtf8())) {
+            MailTransport::Options options;
+            if (settings.server.contains("smtps")) {
+                options &= MailTransport::UseTls;
+            }
+            if (MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), settings.password.toUtf8(), settings.cacert.toUtf8(), options)) {
                 SinkLog() << "Sent message successfully";
             } else {
                 SinkLog() << "Failed to send message";
@@ -97,6 +101,7 @@ public:
             for (const auto &m : toSend) {
                 job = job.then(send(m, mSettings))
                          .then<void>([this, m] {
+                    SinkLog() << "Sent mail, and triggering move to sent mail folder: " << m.identifier();
                     auto modifiedMail = ApplicationDomain::Mail(mResourceInstanceIdentifier, m.identifier(), m.revision(), QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
                     modifiedMail.setSent(true);
 

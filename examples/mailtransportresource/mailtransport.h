@@ -20,9 +20,21 @@
 #pragma once
 
 #include <QByteArray>
+#include <QFlag>
 #include <KMime/Message>
 
 namespace MailTransport
 {
-    bool sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert);
+    enum Option {
+        UseTls,
+        VerifyPeers
+    };
+    Q_DECLARE_FLAGS(Options, Option);
+
+    /*
+     * For ssl use "smtps://mainserver.example.net
+     * @param cacert: "/path/to/certificate.pem";
+     */
+    bool sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert, Options flags);
 };
+Q_DECLARE_OPERATORS_FOR_FLAGS(MailTransport::Options)

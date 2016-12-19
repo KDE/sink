@@ -21,6 +21,9 @@
 #include <QByteArray>
 #include <QList>
 #include <QDebug>
+#include <common/log.h>
+
+SINK_DEBUG_AREA("mailtransport")
 
 extern "C" {
 
@@ -57,12 +60,18 @@ static size_t payload_source(void *ptr, size_t size, size_t nmemb, void *userp)
     return 0;
 }
 
-
-bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs, const char *msg, bool useTls, const char* from, const char *username, const char *password, const char *server, bool verifyPeer)
+static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
 {
-    //For ssl use "smtps://mainserver.example.net
-    const char* cacert = 0; // = "/path/to/certificate.pem";
+    if (ultotal > 0) {
+        auto progress =  ulnow * 100.0/ ultotal;
+        fprintf(stdout, "Upload progress: %d \n", int(progress));
+    }
+    return 0;
+}
 
+
+bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs, const char *msg, bool useTls, const char* from, const char *username, const char *password, const char *server, bool verifyPeer, const QByteArray &cacert)
+{
     CURL *curl;
     CURLcode res = CURLE_OK;
     struct curl_slist *recipients = NULL;
@@ -86,8 +95,8 @@ bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs,
             curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
             curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
         }
-        if (cacert) {
-            curl_easy_setopt(curl, CURLOPT_CAINFO, cacert);
+        if (!cacert.isEmpty()) {
+            curl_easy_setopt(curl, CURLOPT_CAINFO, cacert.constData());
         }
 
         if (from) {
@@ -114,6 +123,13 @@ bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs,
         */
         curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
+        // curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
+        //Connection timeout of 10s
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
+
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
+        curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+
         res = curl_easy_perform(curl);
         if(res != CURLE_OK) {
             fprintf(stderr, "curl_easy_perform() failed: %s\n",
@@ -128,10 +144,11 @@ bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs,
 
 };
 
-bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert)
+bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert, MailTransport::Options options)
 {
     QByteArray msg = message->encodedContent();
-    qDebug() << "Sending message " << msg;
+    SinkLog() << "Sending message " << server << username << password << cacert;
+    SinkTrace() << "Sending message " << msg;
 
     QByteArray from(message->from(true)->mailboxes().isEmpty() ? QByteArray() : message->from(true)->mailboxes().first().address());
     QList<QByteArray> toList;
@@ -142,8 +159,8 @@ bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteA
     for (const auto &mb : message->cc(true)->mailboxes()) {
         ccList << mb.address();
     }
-    bool useTls = true;
-    bool verifyPeer = false;
+    bool verifyPeer = options & VerifyPeers;
+    bool useTls = options & UseTls;
 
     const int numTos = toList.size();
     const char* to[numTos];
@@ -157,5 +174,5 @@ bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteA
         cc[i] = ccList.at(i);
     }
 
-    return sendMessageCurl(to, numTos, cc, numCcs, msg, useTls, from.isEmpty() ? nullptr : from, username, password, server, verifyPeer);
+    return sendMessageCurl(to, numTos, cc, numCcs, msg, useTls, from.isEmpty() ? nullptr : from, username, password, server, verifyPeer, cacert);
 }
