@@ -40,6 +40,19 @@
 namespace SinkList
 {
 
+static QByteArray compressId(bool compress, const QByteArray &id)
+{
+    if (!compress) {
+        return id;
+    }
+    auto compactId = id.mid(1, id.length() - 2).split('-');
+    if (compactId.isEmpty()) {
+        //Failed to compress id
+        return id;
+    }
+    return compactId.first();
+}
+
 bool list(const QStringList &args_, State &state)
 {
     if (args_.isEmpty()) {
@@ -69,6 +82,13 @@ bool list(const QStringList &args_, State &state)
             query.filter(filter.at(0).toLatin1(), QVariant::fromValue(filter.at(1)));
         }
 
+    }
+
+    bool compact = false;
+    auto compactIndex = args.indexOf("--compact");
+    if (compactIndex >= 0) {
+        args.removeAt(compactIndex);
+        compact = true;
     }
 
     auto allIndex = args.indexOf("--all");
@@ -102,11 +122,13 @@ bool list(const QStringList &args_, State &state)
 
         QStringList line;
         line << o.resourceInstanceIdentifier();
-        line << o.identifier();
+        line << compressId(compact, o.identifier());
         for (const auto &prop: toPrint) {
             const auto value = o.getProperty(prop);
             if (value.isValid()) {
-                if (value.canConvert<QString>()) {
+                if (value.canConvert<Sink::ApplicationDomain::Reference>()) {
+                    line << compressId(compact, value.toByteArray());
+                } else if (value.canConvert<QString>()) {
                     line << value.toString();
                 } else if (value.canConvert<QByteArray>()) {
                     line << value.toByteArray();
