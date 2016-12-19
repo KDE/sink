@@ -32,9 +32,7 @@
 #include "entity_generated.h"
 #include "applicationdomaintype_p.h"
 
-#include "mail.h"
-#include "folder.h"
-#include "event.h"
+#include "domaintypes.h"
 
 using namespace Sink;
 using namespace Sink::Storage;
@@ -144,7 +142,6 @@ void EntityStore::copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qi
         const auto value = entity.getProperty(property);
         if (value.canConvert<ApplicationDomain::BLOB>()) {
             const auto blob = value.value<ApplicationDomain::BLOB>();
-            bool blobIsExternal = blob.isExternal;
             //Any blob that is not part of the storage yet has to be moved there.
             if (blob.isExternal) {
                 auto oldPath = blob.value;
