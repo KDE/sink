@@ -59,6 +59,45 @@ public:
     virtual QList<Sink::ApplicationDomain::ApplicationDomainType> read(const Sink::Query &query) = 0;
 };
 
+class DummyStore : public StoreBase
+{
+public:
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject() Q_DECL_OVERRIDE
+    {
+        return {};
+    }
+
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr getObject(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier = QByteArray()) Q_DECL_OVERRIDE
+    {
+        return {};
+    }
+
+    KAsync::Job<void> create(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE
+    {
+        return KAsync::null();
+    }
+
+    KAsync::Job<void> modify(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE
+    {
+        return KAsync::null();
+    }
+
+    KAsync::Job<void> remove(const Sink::ApplicationDomain::ApplicationDomainType &type) Q_DECL_OVERRIDE
+    {
+        return KAsync::null();
+    }
+
+    QSharedPointer<QAbstractItemModel> loadModel(const Sink::Query &query) Q_DECL_OVERRIDE
+    {
+        return {};
+    }
+
+    QList<Sink::ApplicationDomain::ApplicationDomainType> read(const Sink::Query &query) Q_DECL_OVERRIDE
+    {
+        return {};
+    }
+};
+
 template <typename T>
 class Store : public StoreBase
 {

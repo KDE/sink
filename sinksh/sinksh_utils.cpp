@@ -58,7 +58,7 @@ StoreBase &getStore(const QString &type)
 
     SinkWarning_("", "") << "Trying to get a store that doesn't exist: " << type;
     Q_ASSERT(false);
-    static Store<Sink::ApplicationDomain::ApplicationDomainType> store;
+    static DummyStore store;
     return store;
 }
 
