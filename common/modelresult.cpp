@@ -167,7 +167,7 @@ template <class T, class Ptr>
 bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 {
     const auto id = parent.internalId();
-    return !mEntityChildrenFetched.contains(id) || mEntityChildrenFetchComplete.contains(id);
+    return !mEntityChildrenFetched.contains(id) || !mEntityChildrenFetchComplete.contains(id);
 }
 
 template <class T, class Ptr>
@@ -187,18 +187,18 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
         SinkTrace() << "Too early" << id;
         return;
     }
+    if (mEntities.contains(childId)) {
+        SinkWarning() << "Entity already in model: " << value->identifier();
+        return;
+    }
     auto parent = createIndexFromId(id);
-    SinkTrace() << "Added entity " << childId << value->identifier() << id;
+    SinkTrace() << "Added entity " << childId <<  "id: " << value->identifier() << "parent: " << id;
     const auto keys = mTree[id];
     int index = 0;
     for (; index < keys.size(); index++) {
         if (childId < keys.at(index)) {
             break;
         }
-    }
-    if (mEntities.contains(childId)) {
-        SinkWarning() << "Entity already in model " << value->identifier();
-        return;
     }
     // SinkTrace() << "Inserting rows " << index << parent;
     beginInsertRows(parent, index, index);
