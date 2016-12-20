@@ -73,6 +73,7 @@ private:
     QMap<qint64 /* child entity id */, qint64 /* parent entity id*/> mParents;
     QSet<qint64 /* entity id */> mEntityChildrenFetched;
     QSet<qint64 /* entity id */> mEntityChildrenFetchComplete;
+    QSet<qint64 /* entity id */> mEntityAllChildrenFetched;
     QList<QByteArray> mPropertyColumns;
     Sink::Query mQuery;
     std::function<void(const Ptr &)> loadEntities;

@@ -78,7 +78,7 @@ public:
                     resultProvider->add(res);
                 }
             }
-            resultProvider->initialResultSetComplete(parent);
+            resultProvider->initialResultSetComplete(parent, true);
         });
         auto job = KAsync::syncStart<void>([query, resultProvider]() {});
         mResultProvider = resultProvider;

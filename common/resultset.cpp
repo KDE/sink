@@ -98,7 +98,7 @@ void ResultSet::skip(int number)
     }
 }
 
-qint64 ResultSet::replaySet(int offset, int batchSize, const Callback &callback)
+ResultSet::ReplayResult ResultSet::replaySet(int offset, int batchSize, const Callback &callback)
 {
     skip(offset);
     int counter = 0;
@@ -108,10 +108,10 @@ qint64 ResultSet::replaySet(int offset, int batchSize, const Callback &callback)
                 callback(result);
             });
         if (!ret) {
-            break;
+            return {counter, true};
         }
     };
-    return counter;
+    return {counter, false};
 }
 
 QByteArray ResultSet::id()

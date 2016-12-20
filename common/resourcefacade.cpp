@@ -111,7 +111,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
             mResultProvider->add(entity);
         }
         // TODO initialResultSetComplete should be implicit
-        mResultProvider->initialResultSetComplete(typename DomainType::Ptr());
+        mResultProvider->initialResultSetComplete(typename DomainType::Ptr(), true);
         mResultProvider->complete();
     });
     if (query.liveQuery()) {

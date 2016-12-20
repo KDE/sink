@@ -112,7 +112,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         QList<Sink::ApplicationDomain::Event::Ptr> list;
         emitter->onAdded([&list](const Sink::ApplicationDomain::Event::Ptr &event) { list << event; });
         bool done = false;
-        emitter->onInitialResultSetComplete([&done](const Sink::ApplicationDomain::Event::Ptr &event) { done = true; });
+        emitter->onInitialResultSetComplete([&done](const Sink::ApplicationDomain::Event::Ptr &event, bool) { done = true; });
         emitter->fetch(Sink::ApplicationDomain::Event::Ptr());
         QTRY_VERIFY(done);
         QCOMPARE(list.size(), count);

@@ -99,7 +99,7 @@ class MailQueryBenchmark : public QObject
         QList<Mail::Ptr> list;
         emitter->onAdded([&list](const Mail::Ptr &mail) { list << mail; });
         bool done = false;
-        emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail) { done = true; });
+        emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail, bool) { done = true; });
         emitter->fetch(Mail::Ptr());
         QTRY_VERIFY(done);
         QCOMPARE(list.size(), query.limit());

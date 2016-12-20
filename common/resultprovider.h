@@ -46,7 +46,7 @@ public:
     virtual void add(const T &value) = 0;
     virtual void modify(const T &value) = 0;
     virtual void remove(const T &value) = 0;
-    virtual void initialResultSetComplete(const T &parent) = 0;
+    virtual void initialResultSetComplete(const T &parent, bool) = 0;
     virtual void complete() = 0;
     virtual void clear() = 0;
     virtual void setFetcher(const std::function<void(const T &parent)> &fetcher) = 0;
@@ -100,10 +100,10 @@ public:
         }
     }
 
-    void initialResultSetComplete(const T &parent)
+    void initialResultSetComplete(const T &parent, bool replayedAll)
     {
         if (auto strongRef = mResultEmitter.toStrongRef()) {
-            strongRef->initialResultSetComplete(parent);
+            strongRef->initialResultSetComplete(parent, replayedAll);
         }
     }
 
@@ -211,7 +211,7 @@ public:
         removeHandler = handler;
     }
 
-    void onInitialResultSetComplete(const std::function<void(const DomainType &)> &handler)
+    void onInitialResultSetComplete(const std::function<void(const DomainType &, bool)> &handler)
     {
         initialResultSetCompleteHandler = handler;
     }
@@ -241,10 +241,10 @@ public:
         removeHandler(value);
     }
 
-    void initialResultSetComplete(const DomainType &parent)
+    void initialResultSetComplete(const DomainType &parent, bool replayedAll)
     {
         if (initialResultSetCompleteHandler) {
-            initialResultSetCompleteHandler(parent);
+            initialResultSetCompleteHandler(parent, replayedAll);
         }
     }
 
@@ -280,7 +280,7 @@ private:
     std::function<void(const DomainType &)> addHandler;
     std::function<void(const DomainType &)> modifyHandler;
     std::function<void(const DomainType &)> removeHandler;
-    std::function<void(const DomainType &)> initialResultSetCompleteHandler;
+    std::function<void(const DomainType &, bool)> initialResultSetCompleteHandler;
     std::function<void(void)> completeHandler;
     std::function<void(void)> clearHandler;
 
@@ -300,30 +300,31 @@ public:
         emitter->onModified([this](const DomainType &value) { this->modify(value); });
         emitter->onRemoved([this](const DomainType &value) { this->remove(value); });
         auto ptr = emitter.data();
-        emitter->onInitialResultSetComplete([this, ptr](const DomainType &parent) {
+        emitter->onInitialResultSetComplete([this, ptr](const DomainType &parent, bool replayedAll) {
             auto hashValue = qHash(parent);
             mInitialResultSetInProgress.remove(hashValue, ptr);
-            callInitialResultCompleteIfDone(parent);
+            callInitialResultCompleteIfDone(parent, replayedAll);
         });
         emitter->onComplete([this]() { this->complete(); });
         emitter->onClear([this]() { this->clear(); });
         mEmitter << emitter;
     }
 
-    void callInitialResultCompleteIfDone(const DomainType &parent)
+    void callInitialResultCompleteIfDone(const DomainType &parent, bool replayedAll)
     {
         auto hashValue = qHash(parent);
         // Normally a parent is only in a single resource, except the toplevel (invalid) parent
         if (!mInitialResultSetInProgress.contains(hashValue) && mAllResultsFetched && !mResultEmitted) {
             mResultEmitted = true;
-            this->initialResultSetComplete(parent);
+            //FIXME set replayed all only to true if all had set it to true
+            this->initialResultSetComplete(parent, true);
         }
     }
 
     void fetch(const DomainType &parent) Q_DECL_OVERRIDE
     {
         if (mEmitter.isEmpty()) {
-            this->initialResultSetComplete(parent);
+            this->initialResultSetComplete(parent, true);
         } else {
             mResultEmitted = false;
             mAllResultsFetched = false;
@@ -332,7 +333,7 @@ public:
                 emitter->fetch(parent);
             }
             mAllResultsFetched = true;
-            callInitialResultCompleteIfDone(parent);
+            callInitialResultCompleteIfDone(parent, true);
         }
     }
 

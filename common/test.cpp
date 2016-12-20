@@ -166,7 +166,7 @@ public:
                     resultProvider->add(res.template staticCast<T>());
                 }
             }
-            resultProvider->initialResultSetComplete(parent);
+            resultProvider->initialResultSetComplete(parent, true);
         });
         auto job = KAsync::syncStart<void>([query, resultProvider]() {});
         return qMakePair(job, emitter);

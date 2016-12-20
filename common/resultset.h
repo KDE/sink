@@ -55,7 +55,11 @@ public:
 
     void skip(int number);
 
-    qint64 replaySet(int offset, int batchSize, const Callback &callback);
+    struct ReplayResult {
+        qint64 replayedEntities;
+        bool replayedAll;
+    };
+    ReplayResult replaySet(int offset, int batchSize, const Callback &callback);
 
     QByteArray id();
 

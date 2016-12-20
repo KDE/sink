@@ -162,7 +162,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
         });
         emitter->onRemoved([](const ApplicationDomain::SinkResource::Ptr &) {
         });
-        emitter->onInitialResultSetComplete([](const ApplicationDomain::SinkResource::Ptr &) {
+        emitter->onInitialResultSetComplete([](const ApplicationDomain::SinkResource::Ptr &, bool) {
         });
         emitter->onComplete([query, aggregatingEmitter]() {
             SinkTrace() << "Resource query complete";

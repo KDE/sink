@@ -167,7 +167,10 @@ template <class T, class Ptr>
 bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 {
     const auto id = parent.internalId();
-    return !mEntityChildrenFetched.contains(id) || !mEntityChildrenFetchComplete.contains(id);
+    if (mEntityAllChildrenFetched.contains(id)) {
+        return false;
+    }
+    return true;
 }
 
 template <class T, class Ptr>
@@ -269,11 +272,14 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
             remove(value);
         });
     });
-    emitter->onInitialResultSetComplete([this](const Ptr &parent) {
+    emitter->onInitialResultSetComplete([this](const Ptr &parent, bool fetchedAll) {
         SinkTrace() << "Initial result set complete";
         const qint64 parentId = parent ? qHash(*parent) : 0;
         const auto parentIndex = createIndexFromId(parentId);
         mEntityChildrenFetchComplete.insert(parentId);
+        if (fetchedAll) {
+            mEntityAllChildrenFetched.insert(parentId);
+        }
         emit dataChanged(parentIndex, parentIndex, QVector<int>() << ChildrenFetchedRole);
     });
     mEmitter = emitter;
