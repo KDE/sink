@@ -67,6 +67,12 @@ public:
 
     static QStringList tokenize(const QString &text);
 
+    struct Options {
+        QStringList positionalArguments;
+        QMap<QString, QStringList> options;
+    };
+    static Options parseOptions(const QStringList &text);
+
 private:
     SyntaxTree();
 

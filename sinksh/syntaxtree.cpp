@@ -223,3 +223,30 @@ QStringList SyntaxTree::tokenize(const QString &text)
 
     return tokens;
 }
+
+SyntaxTree::Options SyntaxTree::parseOptions(const QStringList &args)
+{
+    Options result;
+    auto it = args.constBegin();
+    for (;it != args.constEnd(); it++) {
+        if (it->startsWith("--")) {
+            QString option = it->mid(2);
+            QStringList list;
+            it++;
+            for (;it != args.constEnd(); it++) {
+                if (it->startsWith("--")) {
+                    it--;
+                    break;
+                }
+                list << *it;
+            }
+            result.options.insert(option, list);
+            if (it == args.constEnd()) {
+                break;
+            }
+        } else {
+            result.positionalArguments << *it;
+        }
+    }
+    return result;
+}

@@ -37,6 +37,8 @@
 #include "state.h"
 #include "syntaxtree.h"
 
+SINK_DEBUG_AREA("sinksh_list")
+
 namespace SinkList
 {
 
@@ -53,50 +55,46 @@ static QByteArray compressId(bool compress, const QByteArray &id)
     return compactId.first();
 }
 
+QByteArray baIfAvailable(const QStringList &list)
+{
+    if (list.isEmpty()) {
+        return QByteArray{};
+    }
+    return list.first().toUtf8();
+}
+
 bool list(const QStringList &args_, State &state)
 {
     if (args_.isEmpty()) {
-        state.printError(QObject::tr("Please provide at least one type to list (e.g. resource, .."));
+        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--showall|--show $property]"));
         return false;
     }
 
-    auto args = args_;
+    auto options = SyntaxTree::parseOptions(args_);
 
-    auto type = args.takeFirst();
+    auto type = options.positionalArguments.isEmpty() ? QString{} : options.positionalArguments.first();
 
-    if (!type.isEmpty() && !SinkshUtils::isValidStoreType(type)) {
+    if (type.isEmpty() || !SinkshUtils::isValidStoreType(type)) {
         state.printError(QObject::tr("Unknown type: %1").arg(type));
         return false;
     }
 
     Sink::Query query;
 
-    auto filterIndex = args.indexOf("--filter");
-    if (filterIndex >= 0) {
-        args.removeAt(filterIndex);
-        for (int i = 1; i < filterIndex; i++) {
-            query.resourceFilter(args.at(i).toLatin1());
-        }
-        for (int i = filterIndex + 1; i < args.size(); i++) {
-            auto filter = args.at(i).split("=");
-            query.filter(filter.at(0).toLatin1(), QVariant::fromValue(filter.at(1)));
-        }
-
+    if (options.options.contains("resource")) {
+        query.resourceFilter(baIfAvailable(options.options.value("resource")));
     }
-
-    bool compact = false;
-    auto compactIndex = args.indexOf("--compact");
-    if (compactIndex >= 0) {
-        args.removeAt(compactIndex);
-        compact = true;
+    if (options.options.contains("filter")) {
+        for (const auto &f : options.options.value("filter")) {
+            auto filter = f.split("=");
+            query.filter(filter.at(0).toLatin1(), QVariant::fromValue(Sink::ApplicationDomain::Reference{filter.at(1).toLatin1()}));
+        }
     }
-
-    auto allIndex = args.indexOf("--all");
-    if (allIndex >= 0) {
-        args.removeAt(allIndex);
-    } else {
-        if (!args.isEmpty()) {
-            std::transform(args.constBegin(), args.constEnd(), std::back_inserter(query.requestedProperties), [] (const QString &s) { return s.toLatin1(); });
+    auto compact = options.options.contains("compact");
+    if (!options.options.contains("showall")) {
+        if (options.options.contains("show")) {
+            auto list = options.options.value("show");
+            std::transform(list.constBegin(), list.constEnd(), std::back_inserter(query.requestedProperties), [] (const QString &s) { return s.toLatin1(); });
         } else {
             query.requestedProperties = SinkshUtils::requestedProperties(type);
         }
@@ -151,7 +149,7 @@ bool list(const QStringList &args_, State &state)
 
 Syntax::List syntax()
 {
-    Syntax list("list", QObject::tr("List all resources, or the contents of one or more resources"), &SinkList::list, Syntax::EventDriven);
+    Syntax list("list", QObject::tr("List all resources, or the contents of one or more resources."), &SinkList::list, Syntax::EventDriven);
     list.completer = &SinkshUtils::resourceOrTypeCompleter;
     return Syntax::List() << list;
 }
