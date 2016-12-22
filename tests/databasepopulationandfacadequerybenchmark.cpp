@@ -106,7 +106,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         context.mResourceAccess = resourceAccess;
         TestResourceFacade facade(context);
 
-        auto ret = facade.load(query);
+        auto ret = facade.load(query, Sink::Log::Context{"benchmark"});
         ret.first.exec().waitForFinished();
         auto emitter = ret.second;
         QList<Sink::ApplicationDomain::Event::Ptr> list;

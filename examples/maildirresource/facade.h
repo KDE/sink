@@ -26,7 +26,6 @@ class MaildirResourceMailFacade : public Sink::GenericFacade<Sink::ApplicationDo
 public:
     MaildirResourceMailFacade(const Sink::ResourceContext &context);
     virtual ~MaildirResourceMailFacade();
-    QPair<KAsync::Job<void>, Sink::ResultEmitter<Sink::ApplicationDomain::Mail::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE;
 };
 
 class MaildirResourceFolderFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Folder>

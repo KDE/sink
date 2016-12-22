@@ -29,6 +29,9 @@
 
 namespace Sink {
 class Query;
+namespace Log {
+    struct Context;
+}
 
 /**
  * Interface for the store facade.
@@ -86,7 +89,7 @@ public:
     /**
      * Load entities from the store.
      */
-    virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Query &query) = 0;
+    virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Query &query, const Log::Context &) = 0;
 };
 
 template <class DomainType>
@@ -119,7 +122,7 @@ public:
         return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
-    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Query &query)
+    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Query &query, const Log::Context &)
     {
         return qMakePair(KAsync::null<void>(), typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr());
     }

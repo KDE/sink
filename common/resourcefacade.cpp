@@ -85,8 +85,8 @@ static bool matchesFilter(const QHash<QByteArray, Query::Comparator> &filter, co
 }
 
 template<typename DomainType>
-LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query, const QByteArray &identifier, const QByteArray &typeName, ConfigNotifier &configNotifier)
-    : mResultProvider(new ResultProvider<typename DomainType::Ptr>), mConfigStore(identifier, typeName), mGuard(new QObject)
+LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query, const QByteArray &identifier, const QByteArray &typeName, ConfigNotifier &configNotifier, const Sink::Log::Context &ctx)
+    : mResultProvider(new ResultProvider<typename DomainType::Ptr>), mConfigStore(identifier, typeName), mGuard(new QObject), mLogCtx(ctx.subContext("config"))
 {
     QObject *guard = new QObject;
     mResultProvider->setFetcher([this, query, guard, &configNotifier](const QSharedPointer<DomainType> &) {
@@ -95,7 +95,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
             const auto type = entries.value(res);
 
             if (query.hasFilter(ApplicationDomain::SinkResource::ResourceType::name) && query.getFilter(ApplicationDomain::SinkResource::ResourceType::name).value.toByteArray() != type) {
-                SinkTrace() << "Skipping due to type.";
+                SinkTraceCtx(mLogCtx) << "Skipping due to type.";
                 continue;
             }
             if (!query.ids().isEmpty() && !query.ids().contains(res)) {
@@ -103,10 +103,10 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
             }
             auto entity = readFromConfig<DomainType>(mConfigStore, res, type);
             if (!matchesFilter(query.getBaseFilters(), *entity)){
-                SinkTrace() << "Skipping due to filter." << res;
+                SinkTraceCtx(mLogCtx) << "Skipping due to filter." << res;
                 continue;
             }
-            SinkTrace() << "Found match " << res;
+            SinkTraceCtx(mLogCtx) << "Found match " << res;
             updateStatus(*entity);
             mResultProvider->add(entity);
         }
@@ -118,7 +118,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
         {
             auto ret = QObject::connect(&configNotifier, &ConfigNotifier::added, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
                 auto entity = entry.staticCast<DomainType>();
-                SinkTrace() << "A new resource has been added: " << entity->identifier();
+                SinkTraceCtx(mLogCtx) << "A new resource has been added: " << entity->identifier();
                 updateStatus(*entity);
                 mResultProvider->add(entity);
             });
@@ -165,7 +165,7 @@ void LocalStorageQueryRunner<DomainType>::setStatusUpdater(const std::function<v
 template<typename DomainType>
 void LocalStorageQueryRunner<DomainType>::statusChanged(const QByteArray &identifier)
 {
-    SinkTrace() << "Status changed " << identifier;
+    SinkTraceCtx(mLogCtx) << "Status changed " << identifier;
     auto entity = readFromConfig<DomainType>(mConfigStore, identifier, ApplicationDomain::getTypeName<DomainType>());
     updateStatus(*entity);
     mResultProvider->modify(entity);
@@ -274,9 +274,10 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domai
 }
 
 template <typename DomainType>
-QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> LocalStorageFacade<DomainType>::load(const Query &query)
+QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> LocalStorageFacade<DomainType>::load(const Query &query, const Sink::Log::Context &parentCtx)
 {
-    auto runner = new LocalStorageQueryRunner<DomainType>(query, mIdentifier, mTypeName, sConfigNotifier);
+    auto ctx = parentCtx.subContext(ApplicationDomain::getTypeName<DomainType>());
+    auto runner = new LocalStorageQueryRunner<DomainType>(query, mIdentifier, mTypeName, sConfigNotifier, ctx);
     return qMakePair(KAsync::null<void>(), runner->emitter());
 }
 
@@ -294,15 +295,16 @@ KAsync::Job<void> ResourceFacade::remove(const Sink::ApplicationDomain::SinkReso
     return Sink::Store::removeDataFromDisk(identifier).then(LocalStorageFacade<Sink::ApplicationDomain::SinkResource>::remove(resource));
 }
 
-QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain::SinkResource::Ptr>::Ptr> ResourceFacade::load(const Sink::Query &query)
+QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain::SinkResource::Ptr>::Ptr> ResourceFacade::load(const Sink::Query &query, const Sink::Log::Context &parentCtx)
 {
-    auto runner = new LocalStorageQueryRunner<ApplicationDomain::SinkResource>(query, mIdentifier, mTypeName, sConfigNotifier);
+    auto ctx = parentCtx.subContext("resource");
+    auto runner = new LocalStorageQueryRunner<ApplicationDomain::SinkResource>(query, mIdentifier, mTypeName, sConfigNotifier, ctx);
     auto monitoredResources = QSharedPointer<QSet<QByteArray>>::create();
-    runner->setStatusUpdater([runner, monitoredResources](ApplicationDomain::SinkResource &resource) {
+    runner->setStatusUpdater([runner, monitoredResources, ctx](ApplicationDomain::SinkResource &resource) {
         auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource.identifier(), ResourceConfig::getResourceType(resource.identifier()));
         if (!monitoredResources->contains(resource.identifier())) {
-            auto ret = QObject::connect(resourceAccess.data(), &ResourceAccess::notification, runner->guard(), [resource, runner, resourceAccess](const Notification &notification) {
-                SinkTrace() << "Received notification in facade: " << notification.type;
+            auto ret = QObject::connect(resourceAccess.data(), &ResourceAccess::notification, runner->guard(), [resource, runner, resourceAccess, ctx](const Notification &notification) {
+                SinkTraceCtx(ctx) << "Received notification in facade: " << notification.type;
                 if (notification.type == Notification::Status) {
                     runner->statusChanged(resource.identifier());
                 }
@@ -324,22 +326,23 @@ AccountFacade::~AccountFacade()
 {
 }
 
-QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain::SinkAccount::Ptr>::Ptr> AccountFacade::load(const Sink::Query &query)
+QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain::SinkAccount::Ptr>::Ptr> AccountFacade::load(const Sink::Query &query, const Sink::Log::Context &parentCtx)
 {
-    auto runner = new LocalStorageQueryRunner<ApplicationDomain::SinkAccount>(query, mIdentifier, mTypeName, sConfigNotifier);
+    auto ctx = parentCtx.subContext("accounts");
+    auto runner = new LocalStorageQueryRunner<ApplicationDomain::SinkAccount>(query, mIdentifier, mTypeName, sConfigNotifier, ctx);
     auto monitoredResources = QSharedPointer<QSet<QByteArray>>::create();
-    runner->setStatusUpdater([runner, monitoredResources](ApplicationDomain::SinkAccount &account) {
+    runner->setStatusUpdater([runner, monitoredResources, ctx](ApplicationDomain::SinkAccount &account) {
         Query query;
         query.filter<ApplicationDomain::SinkResource::Account>(account.identifier());
         const auto resources = Store::read<ApplicationDomain::SinkResource>(query);
-        SinkTrace() << "Found resource belonging to the account " << account.identifier() << " : " << resources;
+        SinkTraceCtx(ctx) << "Found resource belonging to the account " << account.identifier() << " : " << resources;
         auto accountIdentifier = account.identifier();
         ApplicationDomain::Status status = ApplicationDomain::ConnectedStatus;
         for (const auto &resource : resources) {
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource.identifier(), ResourceConfig::getResourceType(resource.identifier()));
             if (!monitoredResources->contains(resource.identifier())) {
-                auto ret = QObject::connect(resourceAccess.data(), &ResourceAccess::notification, runner->guard(), [resource, runner, resourceAccess, accountIdentifier](const Notification &notification) {
-                    SinkTrace() << "Received notification in facade: " << notification.type;
+                auto ret = QObject::connect(resourceAccess.data(), &ResourceAccess::notification, runner->guard(), [resource, runner, resourceAccess, accountIdentifier, ctx](const Notification &notification) {
+                    SinkTraceCtx(ctx) << "Received notification in facade: " << notification.type;
                     if (notification.type == Notification::Status) {
                         runner->statusChanged(accountIdentifier);
                     }

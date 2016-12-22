@@ -55,11 +55,6 @@ MaildirResourceMailFacade::~MaildirResourceMailFacade()
 {
 }
 
-QPair<KAsync::Job<void>, Sink::ResultEmitter<Sink::ApplicationDomain::Mail::Ptr>::Ptr> MaildirResourceMailFacade::load(const Sink::Query &query)
-{
-    return Sink::GenericFacade<Sink::ApplicationDomain::Mail>::load(query);
-}
-
 
 MaildirResourceFolderFacade::MaildirResourceFolderFacade(const Sink::ResourceContext &context)
     : Sink::GenericFacade<Sink::ApplicationDomain::Folder>(context)

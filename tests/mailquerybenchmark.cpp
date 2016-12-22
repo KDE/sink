@@ -84,7 +84,6 @@ class MailQueryBenchmark : public QObject
     {
         const auto startingRss = getCurrentRSS();
 
-
         // Benchmark
         QTime time;
         time.start();
@@ -93,7 +92,7 @@ class MailQueryBenchmark : public QObject
         context.mResourceAccess = QSharedPointer<TestResourceAccess>::create();
         TestMailResourceFacade facade(context);
 
-        auto ret = facade.load(query);
+        auto ret = facade.load(query, Sink::Log::Context{"benchmark"});
         ret.first.exec().waitForFinished();
         auto emitter = ret.second;
         QList<Mail::Ptr> list;

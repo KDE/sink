@@ -102,10 +102,10 @@ KAsync::Job<void> GenericFacade<DomainType>::remove(const DomainType &domainObje
 }
 
 template <class DomainType>
-QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> GenericFacade<DomainType>::load(const Sink::Query &query)
+QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> GenericFacade<DomainType>::load(const Sink::Query &query, const Log::Context &ctx)
 {
     // The runner lives for the lifetime of the query
-    auto runner = new QueryRunner<DomainType>(query, mResourceContext, bufferTypeForDomainType());
+    auto runner = new QueryRunner<DomainType>(query, mResourceContext, bufferTypeForDomainType(), ctx);
     runner->setResultTransformation(mResultTransformation);
     return qMakePair(KAsync::null<void>(), runner->emitter());
 }

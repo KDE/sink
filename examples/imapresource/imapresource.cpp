@@ -579,7 +579,7 @@ protected:
         auto mainStore = QSharedPointer<Sink::Storage::DataStore>::create(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadOnly);
         auto transaction = mainStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
 
-        Sink::Storage::EntityStore entityStore(mResourceContext);
+        Sink::Storage::EntityStore entityStore(mResourceContext, {"imapresource"});
         auto syncStore = QSharedPointer<Sink::SynchronizerStore>::create(synchronizationTransaction);
 
         SinkTrace() << "Inspecting " << inspectionType << domainType << entityId << property << expectedValue;

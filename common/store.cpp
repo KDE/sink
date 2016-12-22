@@ -107,20 +107,21 @@ static QMap<QByteArray, QByteArray> getResources(const Sink::Query::Filter &quer
 
 
 template <class DomainType>
-KAsync::Job<void> queryResource(const QByteArray resourceType, const QByteArray &resourceInstanceIdentifier, const Query &query, typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr aggregatingEmitter)
+KAsync::Job<void> queryResource(const QByteArray resourceType, const QByteArray &resourceInstanceIdentifier, const Query &query, typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr aggregatingEmitter, const Sink::Log::Context &ctx_)
 {
+    auto ctx = ctx_.subContext(resourceInstanceIdentifier);
     auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceType, resourceInstanceIdentifier);
     if (facade) {
-        SinkTrace() << "Trying to fetch from resource " << resourceInstanceIdentifier;
-        auto result = facade->load(query);
+        SinkTraceCtx(ctx) << "Trying to fetch from resource " << resourceInstanceIdentifier;
+        auto result = facade->load(query, ctx);
         if (result.second) {
             aggregatingEmitter->addEmitter(result.second);
         } else {
-            SinkWarning() << "Null emitter for resource " << resourceInstanceIdentifier;
+            SinkWarningCtx(ctx) << "Null emitter for resource " << resourceInstanceIdentifier;
         }
         return result.first;
     } else {
-        SinkTrace() << "Couldn' find a facade for " << resourceInstanceIdentifier;
+        SinkTraceCtx(ctx) << "Couldn' find a facade for " << resourceInstanceIdentifier;
         // Ignore the error and carry on
         return KAsync::null<void>();
     }
@@ -129,8 +130,9 @@ KAsync::Job<void> queryResource(const QByteArray resourceType, const QByteArray 
 template <class DomainType>
 QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
 {
+    Log::Context ctx{query.id()};
     query.setType(ApplicationDomain::getTypeName<DomainType>());
-    SinkTrace() << "Loading model: " << query;
+    SinkTraceCtx(ctx) << "Loading model: " << query;
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties);
 
     //* Client defines lifetime of model
@@ -145,18 +147,19 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     model->setEmitter(aggregatingEmitter);
 
     if (query.liveQuery() && query.getResourceFilter().ids.isEmpty() && !ApplicationDomain::isGlobalType(ApplicationDomain::getTypeName<DomainType>())) {
-        SinkTrace() << "Listening for new resources";
+        SinkTraceCtx(ctx) << "Listening for new resources";
+        auto resourceCtx = ctx.subContext("resourceQuery");
         auto facade = FacadeFactory::instance().getFacade<ApplicationDomain::SinkResource>();
         Q_ASSERT(facade);
         Sink::Query resourceQuery;
         query.setFlags(Query::LiveQuery);
-        auto result = facade->load(resourceQuery);
+        auto result = facade->load(resourceQuery, resourceCtx);
         auto emitter = result.second;
-        emitter->onAdded([query, aggregatingEmitter](const ApplicationDomain::SinkResource::Ptr &resource) {
-            SinkTrace() << "Found new resources: " << resource->identifier();
+        emitter->onAdded([query, aggregatingEmitter, resourceCtx](const ApplicationDomain::SinkResource::Ptr &resource) {
+            SinkTraceCtx(resourceCtx) << "Found new resources: " << resource->identifier();
             const auto resourceType = ResourceConfig::getResourceType(resource->identifier());
             Q_ASSERT(!resourceType.isEmpty());
-            queryResource<DomainType>(resourceType, resource->identifier(), query, aggregatingEmitter).exec();
+            queryResource<DomainType>(resourceType, resource->identifier(), query, aggregatingEmitter, resourceCtx).exec();
         });
         emitter->onModified([](const ApplicationDomain::SinkResource::Ptr &) {
         });
@@ -164,8 +167,8 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
         });
         emitter->onInitialResultSetComplete([](const ApplicationDomain::SinkResource::Ptr &, bool) {
         });
-        emitter->onComplete([query, aggregatingEmitter]() {
-            SinkTrace() << "Resource query complete";
+        emitter->onComplete([query, aggregatingEmitter, resourceCtx]() {
+            SinkTraceCtx(resourceCtx) << "Resource query complete";
 
         });
         model->setProperty("resourceEmitter", QVariant::fromValue(emitter));
@@ -173,9 +176,9 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     }
 
     KAsync::value(resources.keys())
-        .template each([query, aggregatingEmitter, resources](const QByteArray &resourceInstanceIdentifier) {
+        .template each([query, aggregatingEmitter, resources, ctx](const QByteArray &resourceInstanceIdentifier) {
             const auto resourceType = resources.value(resourceInstanceIdentifier);
-            return queryResource<DomainType>(resourceType, resourceInstanceIdentifier, query, aggregatingEmitter);
+            return queryResource<DomainType>(resourceType, resourceInstanceIdentifier, query, aggregatingEmitter, ctx);
         })
         .exec();
     model->fetchMore(QModelIndex());
@@ -370,30 +373,31 @@ DomainType Store::readOne(const Sink::Query &query)
 template <class DomainType>
 QList<DomainType> Store::read(const Sink::Query &q)
 {
+    Log::Context ctx{q.id()};
     auto query = q;
     query.setFlags(Query::SynchronousQuery);
     QList<DomainType> list;
     auto resources = getResources(query.getResourceFilter(), ApplicationDomain::getTypeName<DomainType>());
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
-    aggregatingEmitter->onAdded([&list](const typename DomainType::Ptr &value){
-        SinkTrace() << "Found value: " << value->identifier();
+    aggregatingEmitter->onAdded([&list, ctx](const typename DomainType::Ptr &value){
+        SinkTraceCtx(ctx) << "Found value: " << value->identifier();
         list << *value;
     });
     for (const auto &resourceInstanceIdentifier : resources.keys()) {
         const auto resourceType = resources.value(resourceInstanceIdentifier);
-        SinkTrace() << "Querying resource:  " << resourceType << resourceInstanceIdentifier;
+        SinkTraceCtx(ctx) << "Querying resource:  " << resourceType << resourceInstanceIdentifier;
         auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceType, resourceInstanceIdentifier);
         if (facade) {
-            SinkTrace() << "Trying to fetch from resource " << resourceInstanceIdentifier;
-            auto result = facade->load(query);
+            SinkTraceCtx(ctx) << "Trying to fetch from resource " << resourceInstanceIdentifier;
+            auto result = facade->load(query, ctx);
             if (result.second) {
                 aggregatingEmitter->addEmitter(result.second);
             } else {
-                SinkWarning() << "Null emitter for resource " << resourceInstanceIdentifier;
+                SinkWarningCtx(ctx) << "Null emitter for resource " << resourceInstanceIdentifier;
             }
             result.first.exec();
         } else {
-            SinkTrace() << "Couldn't find a facade for " << resourceInstanceIdentifier;
+            SinkTraceCtx(ctx) << "Couldn't find a facade for " << resourceInstanceIdentifier;
             // Ignore the error and carry on
         }
     }

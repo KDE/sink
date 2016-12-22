@@ -53,7 +53,6 @@ protected slots:
      */
     void revisionChanged(qint64 newRevision)
     {
-        SinkTrace() << "New revision: " << newRevision;
         run().exec();
     }
 
@@ -82,7 +81,7 @@ template <typename DomainType>
 class QueryRunner : public QueryRunnerBase
 {
 public:
-    QueryRunner(const Sink::Query &query, const Sink::ResourceContext &context, const QByteArray &bufferType);
+    QueryRunner(const Sink::Query &query, const Sink::ResourceContext &context, const QByteArray &bufferType, const Sink::Log::Context &logCtx);
     virtual ~QueryRunner();
 
     /**
@@ -95,11 +94,11 @@ public:
 
 private:
     Sink::ResourceContext mResourceContext;
-    SINK_DEBUG_COMPONENT(mResourceContext.resourceInstanceIdentifier)
     QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
     QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr>> mResultProvider;
     ResultTransformation mResultTransformation;
     QHash<QByteArray, qint64> mOffset;
     int mBatchSize;
     QObject guard;
+    Sink::Log::Context mLogCtx;
 };

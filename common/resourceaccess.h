@@ -149,7 +149,6 @@ private:
 
     class Private;
     Private *const d;
-    // SINK_DEBUG_COMPONENT(d->resourceInstanceIdentifier)
 };
 
 /**

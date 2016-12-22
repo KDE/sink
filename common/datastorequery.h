@@ -58,8 +58,7 @@ private:
     QSharedPointer<Source> mSource;
 
     Sink::Storage::EntityStore &mStore;
-
-    SINK_DEBUG_COMPONENT(mType)
+    Sink::Log::Context mLogCtx;
 };
 
 

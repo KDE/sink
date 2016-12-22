@@ -53,28 +53,28 @@ public:
     {
         return KAsync::null<void>();
     };
-    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename T::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE
+    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename T::Ptr>::Ptr> load(const Sink::Query &query, const Sink::Log::Context &ctx) Q_DECL_OVERRIDE
     {
         auto resultProvider = new Sink::ResultProvider<typename T::Ptr>();
-        resultProvider->onDone([resultProvider]() {
-            SinkTrace() << "Result provider is done";
+        resultProvider->onDone([resultProvider,ctx]() {
+            SinkTraceCtx(ctx) << "Result provider is done";
             delete resultProvider;
         });
         // We have to do it this way, otherwise we're not setting the fetcher right
         auto emitter = resultProvider->emitter();
 
-        resultProvider->setFetcher([query, resultProvider, this](const typename T::Ptr &parent) {
+        resultProvider->setFetcher([query, resultProvider, this, ctx](const typename T::Ptr &parent) {
             if (parent) {
-                SinkTrace() << "Running the fetcher " << parent->identifier();
+                SinkTraceCtx(ctx) << "Running the fetcher " << parent->identifier();
             } else {
-                SinkTrace() << "Running the fetcher.";
+                SinkTraceCtx(ctx) << "Running the fetcher.";
             }
-            SinkTrace() << "-------------------------.";
+            SinkTraceCtx(ctx) << "-------------------------.";
             for (const auto &res : results) {
-                qDebug() << "Parent filter " << query.getFilter("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
+                SinkTraceCtx(ctx) << "Parent filter " << query.getFilter("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
                 auto parentProperty = res->getProperty("parent").toByteArray();
                 if ((!parent && parentProperty.isEmpty()) || (parent && parentProperty == parent->identifier()) || query.parentProperty().isEmpty()) {
-                    qDebug() << "Found a hit" << res->identifier();
+                    SinkTraceCtx(ctx) << "Found a hit" << res->identifier();
                     resultProvider->add(res);
                 }
             }

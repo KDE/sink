@@ -141,7 +141,7 @@ public:
         // mTestAccount->removeEntity<T>(domainObject);
         return KAsync::null<void>();
     };
-    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename T::Ptr>::Ptr> load(const Sink::Query &query) Q_DECL_OVERRIDE
+    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename T::Ptr>::Ptr> load(const Sink::Query &query, const Sink::Log::Context &) Q_DECL_OVERRIDE
     {
         auto resultProvider = new Sink::ResultProvider<typename T::Ptr>();
         resultProvider->onDone([resultProvider]() {

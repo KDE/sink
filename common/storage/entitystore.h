@@ -36,7 +36,7 @@ class SINK_EXPORT EntityStore
 {
 public:
     typedef QSharedPointer<EntityStore> Ptr;
-    EntityStore(const ResourceContext &resourceContext);
+    EntityStore(const ResourceContext &resourceContext, const Sink::Log::Context &);
 
     typedef std::function<void(const ApplicationDomain::ApplicationDomainType &, ApplicationDomain::ApplicationDomainType &)> PreprocessModification;
     typedef std::function<void(ApplicationDomain::ApplicationDomainType &)> PreprocessCreation;
@@ -108,6 +108,8 @@ public:
     bool contains(const QByteArray &type, const QByteArray &uid);
 
     qint64 maxRevision();
+
+    Sink::Log::Context logContext() const;
 
 private:
     void copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qint64 newRevision);

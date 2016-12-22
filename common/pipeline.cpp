@@ -49,7 +49,7 @@ using namespace Sink::Storage;
 class Pipeline::Private
 {
 public:
-    Private(const ResourceContext &context) : resourceContext(context), entityStore(context), revisionChanged(false)
+    Private(const ResourceContext &context) : resourceContext(context), entityStore(context, {"pipeline"}), revisionChanged(false)
     {
     }
 

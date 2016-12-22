@@ -80,6 +80,7 @@ bool list(const QStringList &args_, State &state)
     }
 
     Sink::Query query;
+    query.setId("list");
 
     if (options.options.contains("resource")) {
         query.resourceFilter(baIfAvailable(options.options.value("resource")));

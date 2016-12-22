@@ -41,11 +41,12 @@ SINK_DEBUG_AREA("entitystore");
 
 class EntityStore::Private {
 public:
-    Private(const ResourceContext &context) : resourceContext(context) {}
+    Private(const ResourceContext &context, const Sink::Log::Context &ctx) : resourceContext(context), logCtx(ctx.subContext("entitystore")) {}
 
     ResourceContext resourceContext;
     DataStore::Transaction transaction;
     QHash<QByteArray, QSharedPointer<TypeIndex> > indexByType;
+    Sink::Log::Context logCtx;
 
     bool exists()
     {
@@ -76,7 +77,7 @@ public:
         if (indexByType.contains(type)) {
             return *indexByType.value(type);
         }
-        auto index = QSharedPointer<TypeIndex>::create(type);
+        auto index = QSharedPointer<TypeIndex>::create(type, logCtx);
         TypeHelper<ConfigureHelper>{type}.template operator()<void>(*index);
         indexByType.insert(type, index);
         return *index;
@@ -103,15 +104,15 @@ public:
 
 };
 
-EntityStore::EntityStore(const ResourceContext &context)
-    : d(new EntityStore::Private{context})
+EntityStore::EntityStore(const ResourceContext &context, const Log::Context &ctx)
+    : d(new EntityStore::Private{context, ctx})
 {
 
 }
 
 void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMode)
 {
-    SinkTrace() << "Starting transaction";
+    SinkTraceCtx(d->logCtx) << "Starting transaction";
     Sink::Storage::DataStore store(Sink::storageLocation(), d->resourceContext.instanceId(), accessMode);
     d->transaction = store.createTransaction(accessMode);
     Q_ASSERT(d->transaction.validateNamedDatabases());
@@ -119,14 +120,14 @@ void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMo
 
 void EntityStore::commitTransaction()
 {
-    SinkTrace() << "Committing transaction";
+    SinkTraceCtx(d->logCtx) << "Committing transaction";
     d->transaction.commit();
     d->transaction = Storage::DataStore::Transaction();
 }
 
 void EntityStore::abortTransaction()
 {
-    SinkTrace() << "Aborting transaction";
+    SinkTraceCtx(d->logCtx) << "Aborting transaction";
     d->transaction.abort();
     d->transaction = Storage::DataStore::Transaction();
 }
@@ -172,7 +173,7 @@ bool EntityStore::add(const QByteArray &type, const ApplicationDomain::Applicati
     auto entity = *ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(entity_, entity_.availableProperties());
     entity.setChangedProperties(entity.availableProperties().toSet());
 
-    SinkTrace() << "New entity " << entity;
+    SinkTraceCtx(d->logCtx) << "New entity " << entity;
 
     preprocess(entity);
     d->typeIndex(type).add(entity.identifier(), entity, d->transaction);
@@ -199,7 +200,7 @@ bool EntityStore::add(const QByteArray &type, const ApplicationDomain::Applicati
             [&](const DataStore::Error &error) { SinkWarning() << "Failed to write entity" << entity.identifier() << newRevision; });
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, entity.identifier(), type);
-    SinkTrace() << "Wrote entity: " << entity.identifier() << type << newRevision;
+    SinkTraceCtx(d->logCtx) << "Wrote entity: " << entity.identifier() << type << newRevision;
     return true;
 }
 
@@ -213,6 +214,8 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
     }
 
     auto newEntity = *ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(current, current.availableProperties());
+
+    SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
 
     // Apply diff
     //SinkTrace() << "Applying changed properties: " << changeset;
@@ -251,8 +254,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
         auto metadataBuffer = metadataBuilder.Finish();
         FinishMetadataBuffer(metadataFbb, metadataBuffer);
     }
-    SinkTrace() << "Modified entity: " << newEntity;
-    SinkTrace() << "Changed properties: " << changeset + newEntity.changedProperties();
+    SinkTraceCtx(d->logCtx) << "Changed properties: " << changeset + newEntity.changedProperties();
 
     newEntity.setChangedProperties(newEntity.availableProperties().toSet());
 
@@ -264,7 +266,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
             [&](const DataStore::Error &error) { SinkWarning() << "Failed to write entity" << newEntity.identifier() << newRevision; });
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, newEntity.identifier(), type);
-    SinkTrace() << "Wrote modified entity: " << newEntity.identifier() << type << newRevision;
+    SinkTraceCtx(d->logCtx) << "Wrote modified entity: " << newEntity.identifier() << type << newRevision;
     return true;
 }
 
@@ -300,7 +302,7 @@ bool EntityStore::remove(const QByteArray &type, const QByteArray &uid, bool rep
     preprocess(current);
     d->typeIndex(type).remove(current.identifier(), current, d->transaction);
 
-    SinkTrace() << "Removed entity " << current;
+    SinkTraceCtx(d->logCtx) << "Removed entity " << current;
 
     const qint64 newRevision = DataStore::maxRevision(d->transaction) + 1;
 
@@ -328,7 +330,7 @@ void EntityStore::cleanupRevision(qint64 revision)
 {
     const auto uid = DataStore::getUidFromRevision(d->transaction, revision);
     const auto bufferType = DataStore::getTypeFromRevision(d->transaction, revision);
-    SinkTrace() << "Cleaning up revision " << revision << uid << bufferType;
+    SinkTraceCtx(d->logCtx) << "Cleaning up revision " << revision << uid << bufferType;
     DataStore::mainDatabase(d->transaction, bufferType)
         .scan(uid,
             [&](const QByteArray &key, const QByteArray &data) -> bool {
@@ -369,7 +371,7 @@ bool EntityStore::cleanupRevisions(qint64 revision)
     const auto firstRevisionToCleanup = lastCleanRevision + 1;
     bool cleanupIsNecessary = firstRevisionToCleanup <= revision;
     if (cleanupIsNecessary) {
-        SinkTrace() << "Cleaning up from " << firstRevisionToCleanup << " to " << revision;
+        SinkTraceCtx(d->logCtx) << "Cleaning up from " << firstRevisionToCleanup << " to " << revision;
         for (qint64 rev = firstRevisionToCleanup; rev <= revision; rev++) {
             cleanupRevision(revision);
         }
@@ -382,9 +384,9 @@ bool EntityStore::cleanupRevisions(qint64 revision)
 
 QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)
 {
-    SinkTrace() << "Looking for : " << type;
+    SinkTraceCtx(d->logCtx) << "Looking for : " << type;
     if (!d->exists()) {
-        SinkTrace() << "Database is not existing: " << type;
+        SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
         return QVector<QByteArray>();
     }
     //The scan can return duplicate results if we have multiple revisions, so we use a set to deduplicate.
@@ -395,21 +397,21 @@ QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)
                 const auto uid = DataStore::uidFromKey(key);
                 if (keys.contains(uid)) {
                     //Not something that should persist if the replay works, so we keep a message for now.
-                    SinkTrace() << "Multiple revisions for key: " << key;
+                    SinkTraceCtx(d->logCtx) << "Multiple revisions for key: " << key;
                 }
                 keys << uid;
                 return true;
             },
             [](const DataStore::Error &error) { SinkWarning() << "Error during query: " << error.message; });
 
-    SinkTrace() << "Full scan retrieved " << keys.size() << " results.";
+    SinkTraceCtx(d->logCtx) << "Full scan retrieved " << keys.size() << " results.";
     return keys.toList().toVector();
 }
 
 QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting)
 {
     if (!d->exists()) {
-        SinkTrace() << "Database is not existing: " << type;
+        SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
         return QVector<QByteArray>();
     }
     return d->typeIndex(type).query(query, appliedFilters, appliedSorting, d->getTransaction());
@@ -418,7 +420,7 @@ QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const Query
 QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value)
 {
     if (!d->exists()) {
-        SinkTrace() << "Database is not existing: " << type;
+        SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
         return QVector<QByteArray>();
     }
     return d->typeIndex(type).lookup(property, value, d->getTransaction());
@@ -427,7 +429,7 @@ QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const QByte
 void EntityStore::indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value, const std::function<void(const QByteArray &uid)> &callback)
 {
     if (!d->exists()) {
-        SinkTrace() << "Database is not existing: " << type;
+        SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
         return;
     }
     auto list =  d->typeIndex(type).lookup(property, value, d->getTransaction());
@@ -595,7 +597,7 @@ bool EntityStore::contains(const QByteArray &type, const QByteArray &uid)
 qint64 EntityStore::maxRevision()
 {
     if (!d->exists()) {
-        SinkTrace() << "Database is not existing.";
+        SinkTraceCtx(d->logCtx) << "Database is not existing.";
         return 0;
     }
     return DataStore::maxRevision(d->getTransaction());
@@ -623,3 +625,8 @@ qint64 EntityStore::maxRevision()
 /*     } */
 /*     return transaction; */
 /* } */
+
+Sink::Log::Context EntityStore::logContext() const
+{
+    return d->logCtx;
+}

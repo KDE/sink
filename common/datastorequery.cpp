@@ -303,7 +303,7 @@ public:
 };
 
 DataStoreQuery::DataStoreQuery(const Sink::QueryBase &query, const QByteArray &type, EntityStore &store)
-    : mQuery(query), mType(type), mStore(store)
+    : mQuery(query), mType(type), mStore(store), mLogCtx(store.logContext().subContext("datastorequery"))
 {
     setupQuery();
 }
@@ -417,7 +417,7 @@ void DataStoreQuery::setupQuery()
     for (const auto &k : baseFilters.keys()) {
         const auto comparator = baseFilters.value(k);
         if (comparator.value.canConvert<Query>()) {
-            SinkTrace() << "Executing subquery for property: " << k;
+            SinkTraceCtx(mLogCtx) << "Executing subquery for property: " << k;
             const auto result = executeSubquery(comparator.value.value<Query>());
             baseFilters.insert(k, Query::Comparator(QVariant::fromValue(result), Query::Comparator::In));
         }
@@ -485,20 +485,20 @@ QVector<QByteArray> DataStoreQuery::loadIncrementalResultSet(qint64 baseRevision
     mStore.readRevisions(baseRevision, mType, [&](const QByteArray &key) {
         changedKeys << key;
     });
-    SinkTrace() << "Finished reading incremental result set:" << *revisionCounter;
+    SinkTraceCtx(mLogCtx) << "Finished reading incremental result set:" << *revisionCounter;
     return changedKeys;
 }
 
 
 ResultSet DataStoreQuery::update(qint64 baseRevision)
 {
-    SinkTrace() << "Executing query update";
+    SinkTraceCtx(mLogCtx) << "Executing query update";
     auto incrementalResultSet = loadIncrementalResultSet(baseRevision);
-    SinkTrace() << "Changed: " << incrementalResultSet;
+    SinkTraceCtx(mLogCtx) << "Changed: " << incrementalResultSet;
     mSource->add(incrementalResultSet);
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
         if (mCollector->next([this, callback](const ResultSet::Result &result) {
-                SinkTrace() << "Got incremental result: " << result.entity.identifier() << result.operation;
+                SinkTraceCtx(mLogCtx) << "Got incremental result: " << result.entity.identifier() << result.operation;
                 callback(result);
             }))
         {
@@ -512,12 +512,12 @@ ResultSet DataStoreQuery::update(qint64 baseRevision)
 
 ResultSet DataStoreQuery::execute()
 {
-    SinkTrace() << "Executing query";
+    SinkTraceCtx(mLogCtx) << "Executing query";
 
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
         if (mCollector->next([this, callback](const ResultSet::Result &result) {
                 if (result.operation != Sink::Operation_Removal) {
-                    SinkTrace() << "Got initial result: " << result.entity.identifier() << result.operation;
+                    SinkTraceCtx(mLogCtx) << "Got initial result: " << result.entity.identifier() << result.operation;
                     callback(ResultSet::Result{result.entity, Sink::Operation_Creation, result.aggregateValues});
                 }
             }))

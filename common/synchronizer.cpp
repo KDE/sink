@@ -36,8 +36,9 @@ using namespace Sink;
 
 Synchronizer::Synchronizer(const Sink::ResourceContext &context)
     : ChangeReplay(context),
+    mLogCtx{"synchronizer"},
     mResourceContext(context),
-    mEntityStore(Storage::EntityStore::Ptr::create(mResourceContext)),
+    mEntityStore(Storage::EntityStore::Ptr::create(mResourceContext, mLogCtx)),
     mSyncStorage(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::DataStore::ReadWrite),
     mSyncInProgress(false)
 {
@@ -170,14 +171,14 @@ void Synchronizer::modifyIfChanged(Storage::EntityStore &store, const QByteArray
 void Synchronizer::modify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
-    Storage::EntityStore store(mResourceContext);
+    Storage::EntityStore store(mResourceContext, mLogCtx);
     modifyIfChanged(store, bufferType, sinkId, entity);
 }
 
 void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
     SinkTrace() << "Create or modify" << bufferType << remoteId;
-    Storage::EntityStore store(mResourceContext);
+    Storage::EntityStore store(mResourceContext, mLogCtx);
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
     const auto found = store.contains(bufferType, sinkId);
     if (!found) {
@@ -194,7 +195,7 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
 
     SinkTrace() << "Create or modify" << bufferType << remoteId;
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
-    Storage::EntityStore store(mResourceContext);
+    Storage::EntityStore store(mResourceContext, mLogCtx);
     const auto found = store.contains(bufferType, sinkId);
     if (!found) {
         if (!mergeCriteria.isEmpty()) {
@@ -203,7 +204,7 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
                 query.filter(it.key(), it.value());
             }
             bool merge = false;
-            Storage::EntityStore store{mResourceContext};
+            Storage::EntityStore store{mResourceContext, mLogCtx};
             DataStoreQuery dataStoreQuery{query, ApplicationDomain::getTypeName<DomainType>(), store};
             auto resultSet = dataStoreQuery.execute();
             resultSet.replaySet(0, 1, [this, &merge, bufferType, remoteId](const ResultSet::Result &r) {
@@ -232,7 +233,7 @@ QByteArrayList Synchronizer::resolveFilter(const QueryBase::Comparator &filter)
         result << filter.value.value<QByteArray>();
     } else if (filter.value.canConvert<QueryBase>()) {
         auto query = filter.value.value<QueryBase>();
-        Storage::EntityStore store{mResourceContext};
+        Storage::EntityStore store{mResourceContext, mLogCtx};
         DataStoreQuery dataStoreQuery{query, query.type(), store};
         auto resultSet = dataStoreQuery.execute();
         resultSet.replaySet(0, 0, [this, &result](const ResultSet::Result &r) {

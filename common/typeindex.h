@@ -34,7 +34,7 @@ namespace Storage {
 class TypeIndex
 {
 public:
-    TypeIndex(const QByteArray &type);
+    TypeIndex(const QByteArray &type, const Sink::Log::Context &);
 
     template <typename T>
     void addProperty(const QByteArray &property);
@@ -93,8 +93,8 @@ public:
 private:
     friend class Sink::Storage::EntityStore;
     QByteArray indexName(const QByteArray &property, const QByteArray &sortProperty = QByteArray()) const;
+    Sink::Log::Context mLogCtx;
     QByteArray mType;
-    SINK_DEBUG_COMPONENT(mType)
     QByteArrayList mProperties;
     QMap<QByteArray, QByteArray> mSortedProperties;
     //<Property, ResultProperty>
