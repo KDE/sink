@@ -66,6 +66,12 @@ private slots:
 
         VERIFYEXEC(Store::create(mail));
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
+
+        //Ensure the mail is queryable in the outbox
+        auto mailInOutbox = Store::readOne<ApplicationDomain::Mail>(Query().resourceFilter(mResourceInstanceIdentifier).filter<Mail::Sent>(false).request<Mail::Subject>().request<Mail::Folder>().request<Mail::MimeMessage>().request<Mail::Sent>());
+        QVERIFY(!mailInOutbox.identifier().isEmpty());
+
+        //Ensure the mail is sent and moved to the sent mail folder on sync
         VERIFYEXEC(Store::synchronize(Query().resourceFilter(mResourceInstanceIdentifier)));
         QTest::qWait(100);
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mStorageResource));
