@@ -30,6 +30,7 @@ namespace StandardQueries {
     static Query completeThread(const ApplicationDomain::Mail &mail)
     {
         Sink::Query query;
+        query.setId("completethread");
         if (!mail.resourceInstanceIdentifier().isEmpty()) {
             query.resourceFilter(mail.resourceInstanceIdentifier());
         }
@@ -45,6 +46,7 @@ namespace StandardQueries {
     static Query threadLeaders(const ApplicationDomain::Folder &folder)
     {
         Sink::Query query;
+        query.setId("threadleaders");
         if (!folder.resourceInstanceIdentifier().isEmpty()) {
             query.resourceFilter(folder.resourceInstanceIdentifier());
         }
@@ -63,6 +65,7 @@ namespace StandardQueries {
     static Query outboxMails()
     {
         Sink::Query query;
+        query.setId("outbox");
         query.resourceContainsFilter<ApplicationDomain::SinkResource::Capabilities>(ApplicationDomain::ResourceCapabilities::Mail::transport);
         query.sort<ApplicationDomain::Mail::Date>();
         return query;

@@ -82,6 +82,16 @@ public:
         return hasFilter(T::name);
     }
 
+    void setId(const QByteArray &id)
+    {
+        mId = id;
+    }
+
+    QByteArray id() const
+    {
+        return mId;
+    }
+
     void setBaseFilters(const QHash<QByteArray, Comparator> &filter)
     {
         mBaseFilterStage.propertyFilter = filter;
@@ -275,6 +285,7 @@ private:
     QList<QSharedPointer<FilterStage>> mFilterStages;
     QByteArray mType;
     QByteArray mSortProperty;
+    QByteArray mId;
 };
 
 /**

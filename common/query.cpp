@@ -39,9 +39,19 @@ QDebug operator<<(QDebug dbg, const Sink::QueryBase::Comparator &c)
     return dbg.space();
 }
 
+QDebug operator<<(QDebug dbg, const Sink::QueryBase::Filter &filter)
+{
+    if (filter.ids.isEmpty()) {
+        dbg.nospace() << "Filter(" << filter.propertyFilter << ")";
+    } else {
+        dbg.nospace() << "Filter(" << filter.ids << ")";
+    }
+    return dbg.maybeSpace();
+}
+
 QDebug operator<<(QDebug dbg, const Sink::QueryBase &query)
 {
-    dbg.nospace() << "Query [" << query.type() << "]\n";
+    dbg.nospace() << "Query [" << query.type() << "] << Id: " << query.id() << "\n";
     dbg.nospace() << "  Filter: " << query.getBaseFilters() << "\n";
     dbg.nospace() << "  Ids: " << query.ids() << "\n";
     dbg.nospace() << "  Sorting: " << query.sortProperty() << "\n";
@@ -54,6 +64,7 @@ QDebug operator<<(QDebug dbg, const Sink::Query &query)
     dbg.nospace() << "  Requested: " << query.requestedProperties << "\n";
     dbg.nospace() << "  Parent: " << query.parentProperty() << "\n";
     dbg.nospace() << "  IsLive: " << query.liveQuery() << "\n";
+    dbg.nospace() << "  ResourceFilter: " << query.getResourceFilter() << "\n";
     return dbg.maybeSpace();
 }
 
