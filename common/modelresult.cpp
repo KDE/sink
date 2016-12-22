@@ -34,8 +34,8 @@ static uint qHash(const Sink::ApplicationDomain::ApplicationDomainType &type)
 }
 
 template <class T, class Ptr>
-ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns)
-    : QAbstractItemModel(), mPropertyColumns(propertyColumns), mQuery(query)
+ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns, const Sink::Log::Context &ctx)
+    : QAbstractItemModel(), mLogCtx(ctx.subContext("modelresult")), mPropertyColumns(propertyColumns), mQuery(query)
 {
 }
 
@@ -176,7 +176,7 @@ bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 template <class T, class Ptr>
 void ModelResult<T, Ptr>::fetchMore(const QModelIndex &parent)
 {
-    SinkTrace() << "Fetching more: " << parent;
+    SinkTraceCtx(mLogCtx) << "Fetching more: " << parent;
     fetchEntities(parent);
 }
 
@@ -187,7 +187,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
     const auto id = parentId(value);
     // Ignore updates we get before the initial fetch is done
     if (!mEntityChildrenFetched.contains(id)) {
-        SinkTrace() << "Too early" << id;
+        SinkTraceCtx(mLogCtx) << "Too early" << id;
         return;
     }
     if (mEntities.contains(childId)) {
@@ -195,7 +195,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
         return;
     }
     auto parent = createIndexFromId(id);
-    SinkTrace() << "Added entity " << childId <<  "id: " << value->identifier() << "parent: " << id;
+    SinkTraceCtx(mLogCtx) << "Added entity " << childId <<  "id: " << value->identifier() << "parent: " << id;
     const auto keys = mTree[id];
     int index = 0;
     for (; index < keys.size(); index++) {
@@ -203,13 +203,13 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
             break;
         }
     }
-    // SinkTrace() << "Inserting rows " << index << parent;
+    // SinkTraceCtx(mLogCtx) << "Inserting rows " << index << parent;
     beginInsertRows(parent, index, index);
     mEntities.insert(childId, value);
     mTree[id].insert(index, childId);
     mParents.insert(childId, id);
     endInsertRows();
-    // SinkTrace() << "Inserted rows " << mTree[id].size();
+    // SinkTraceCtx(mLogCtx) << "Inserted rows " << mTree[id].size();
 }
 
 
@@ -219,7 +219,7 @@ void ModelResult<T, Ptr>::remove(const Ptr &value)
     auto childId = qHash(*value);
     auto id = parentId(value);
     auto parent = createIndexFromId(id);
-    SinkTrace() << "Removed entity" << childId;
+    SinkTraceCtx(mLogCtx) << "Removed entity" << childId;
     auto index = mTree[id].indexOf(childId);
     beginRemoveRows(parent, index, index);
     mEntities.remove(childId);
@@ -236,18 +236,18 @@ void ModelResult<T, Ptr>::fetchEntities(const QModelIndex &parent)
     const auto id = getIdentifier(parent);
     mEntityChildrenFetchComplete.remove(id);
     mEntityChildrenFetched.insert(id);
-    SinkTrace() << "Loading child entities of parent " << id;
+    SinkTraceCtx(mLogCtx) << "Loading child entities of parent " << id;
     if (loadEntities) {
         loadEntities(parent.data(DomainObjectRole).template value<Ptr>());
     } else {
-        SinkWarning() << "No way to fetch entities";
+        SinkWarningCtx(mLogCtx) << "No way to fetch entities";
     }
 }
 
 template <class T, class Ptr>
 void ModelResult<T, Ptr>::setFetcher(const std::function<void(const Ptr &parent)> &fetcher)
 {
-    SinkTrace() << "Setting fetcher";
+    SinkTraceCtx(mLogCtx) << "Setting fetcher";
     loadEntities = fetcher;
 }
 
@@ -262,7 +262,7 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
         });
     });
     emitter->onModified([this](const Ptr &value) {
-        SinkTrace() << "Received modification: " << value->identifier();
+        SinkTraceCtx(mLogCtx) << "Received modification: " << value->identifier();
         threadBoundary.callInMainThread([this, value]() {
             modify(value);
         });
@@ -273,7 +273,7 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
         });
     });
     emitter->onInitialResultSetComplete([this](const Ptr &parent, bool fetchedAll) {
-        SinkTrace() << "Initial result set complete";
+        SinkTraceCtx(mLogCtx) << "Initial result set complete";
         const qint64 parentId = parent ? qHash(*parent) : 0;
         const auto parentIndex = createIndexFromId(parentId);
         mEntityChildrenFetchComplete.insert(parentId);
@@ -297,7 +297,7 @@ void ModelResult<T, Ptr>::modify(const Ptr &value)
     auto childId = qHash(*value);
     if (!mEntities.contains(childId)) {
         //Happens because the DatabaseQuery emits modifiations also if the item used to be filtered.
-        SinkTrace() << "Tried to modify a value that is not yet part of the model";
+        SinkTraceCtx(mLogCtx) << "Tried to modify a value that is not yet part of the model";
         add(value);
         return;
     }
@@ -307,7 +307,7 @@ void ModelResult<T, Ptr>::modify(const Ptr &value)
         return;
     }
     auto parent = createIndexFromId(id);
-    SinkTrace() << "Modified entity" << childId;
+    SinkTraceCtx(mLogCtx) << "Modified entity" << childId;
     auto i = mTree[id].indexOf(childId);
     Q_ASSERT(i >= 0);
     mEntities.remove(childId);

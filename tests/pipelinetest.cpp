@@ -213,7 +213,7 @@ private slots:
         flatbuffers::FlatBufferBuilder entityFbb;
         auto command = createEntityCommand(createEvent(entityFbb));
 
-        Sink::Pipeline pipeline(getContext());
+        Sink::Pipeline pipeline(getContext(), {"test"});
 
         pipeline.startTransaction();
         pipeline.newEntity(command.constData(), command.size());
@@ -236,7 +236,7 @@ private slots:
         flatbuffers::FlatBufferBuilder entityFbb;
         auto command = createEntityCommand(createEvent(entityFbb, "summary", "description"));
 
-        Sink::Pipeline pipeline(getContext());
+        Sink::Pipeline pipeline(getContext(), {"test"});
 
         auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
 
@@ -282,7 +282,7 @@ private slots:
         flatbuffers::FlatBufferBuilder entityFbb;
         auto command = createEntityCommand(createEvent(entityFbb));
 
-        Sink::Pipeline pipeline(getContext());
+        Sink::Pipeline pipeline(getContext(), {"test"});
 
         auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
 
@@ -325,7 +325,7 @@ private slots:
     {
         flatbuffers::FlatBufferBuilder entityFbb;
         auto command = createEntityCommand(createEvent(entityFbb));
-        Sink::Pipeline pipeline(getContext());
+        Sink::Pipeline pipeline(getContext(), {"test"});
 
         // Create the initial revision
         pipeline.startTransaction();
@@ -359,7 +359,7 @@ private slots:
 
         auto testProcessor = new TestProcessor;
 
-        Sink::Pipeline pipeline(getContext());
+        Sink::Pipeline pipeline(getContext(), {"test"});
         pipeline.setPreprocessors("event", QVector<Sink::Preprocessor *>() << testProcessor);
         pipeline.startTransaction();
         // pipeline.setAdaptorFactory("event", QSharedPointer<TestEventAdaptorFactory>::create());

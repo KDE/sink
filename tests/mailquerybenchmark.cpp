@@ -61,7 +61,7 @@ class MailQueryBenchmark : public QObject
     {
         TestResource::removeFromDisk(resourceIdentifier);
 
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create(Sink::ResourceContext{resourceIdentifier, "test"});
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create(Sink::ResourceContext{resourceIdentifier, "test"}, "test");
 
         auto domainTypeAdaptorFactory = QSharedPointer<TestMailAdaptorFactory>::create();
 

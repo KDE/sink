@@ -49,10 +49,11 @@ using namespace Sink::Storage;
 class Pipeline::Private
 {
 public:
-    Private(const ResourceContext &context) : resourceContext(context), entityStore(context, {"pipeline"}), revisionChanged(false)
+    Private(const ResourceContext &context, const Sink::Log::Context &ctx) : logCtx{ctx.subContext("pipeline")}, resourceContext(context), entityStore(context, ctx), revisionChanged(false)
     {
     }
 
+    Sink::Log::Context logCtx;
     ResourceContext resourceContext;
     Storage::EntityStore entityStore;
     QHash<QString, QVector<QSharedPointer<Preprocessor>>> processors;
@@ -62,7 +63,7 @@ public:
 };
 
 
-Pipeline::Pipeline(const ResourceContext &context) : QObject(nullptr), d(new Private(context))
+Pipeline::Pipeline(const ResourceContext &context, const Sink::Log::Context &ctx) : QObject(nullptr), d(new Private(context, ctx))
 {
     //Create main store immediately on first start
     d->entityStore.startTransaction(DataStore::ReadWrite);
@@ -90,7 +91,7 @@ void Pipeline::startTransaction()
     // for (auto processor : d->processors[bufferType]) {
     //     processor->startBatch();
     // }
-    SinkTrace() << "Starting transaction.";
+    SinkTraceCtx(d->logCtx) << "Starting transaction.";
     d->transactionTime.start();
     d->transactionItemCount = 0;
     d->entityStore.startTransaction(DataStore::ReadWrite);
@@ -109,7 +110,7 @@ void Pipeline::commit()
     }
     const auto revision = d->entityStore.maxRevision();
     const auto elapsed = d->transactionTime.elapsed();
-    SinkTrace() << "Committing revision: " << revision << ":" << d->transactionItemCount << " items in: " << Log::TraceTime(elapsed) << " "
+    SinkTraceCtx(d->logCtx) << "Committing revision: " << revision << ":" << d->transactionItemCount << " items in: " << Log::TraceTime(elapsed) << " "
             << (double)elapsed / (double)qMax(d->transactionItemCount, 1) << "[ms/item]";
     d->entityStore.commitTransaction();
     if (d->revisionChanged) {
@@ -125,7 +126,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
         if (!Commands::VerifyCreateEntityBuffer(verifyer)) {
-            SinkWarning() << "invalid buffer, not a create entity buffer";
+            SinkWarningCtx(d->logCtx) << "invalid buffer, not a create entity buffer";
             return KAsync::error<qint64>(0);
         }
     }
@@ -137,7 +138,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     if (createEntity->entityId()) {
         key = QByteArray(reinterpret_cast<char const *>(createEntity->entityId()->Data()), createEntity->entityId()->size());
         if (d->entityStore.contains(bufferType, key)) {
-            SinkError() << "An entity with this id already exists: " << key;
+            SinkErrorCtx(d->logCtx) << "An entity with this id already exists: " << key;
             return KAsync::error<qint64>(0);
         }
     }
@@ -145,25 +146,25 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     if (key.isEmpty()) {
         key = DataStore::generateUid();
     }
-    SinkTrace() << "New Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
+    SinkTraceCtx(d->logCtx) << "New Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
     Q_ASSERT(!key.isEmpty());
 
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(createEntity->delta()->Data()), createEntity->delta()->size());
         if (!VerifyEntityBuffer(verifyer)) {
-            SinkWarning() << "invalid buffer, not an entity buffer";
+            SinkWarningCtx(d->logCtx) << "invalid buffer, not an entity buffer";
             return KAsync::error<qint64>(0);
         }
     }
     auto entity = GetEntity(createEntity->delta()->Data());
     if (!entity->resource()->size() && !entity->local()->size()) {
-        SinkWarning() << "No local and no resource buffer while trying to create entity.";
+        SinkWarningCtx(d->logCtx) << "No local and no resource buffer while trying to create entity.";
         return KAsync::error<qint64>(0);
     }
 
     auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceContext.resourceType, bufferType);
     if (!adaptorFactory) {
-        SinkWarning() << "no adaptor factory for type " << bufferType;
+        SinkWarningCtx(d->logCtx) << "no adaptor factory for type " << bufferType;
         return KAsync::error<qint64>(0);
     }
 
@@ -203,7 +204,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
         if (!Commands::VerifyModifyEntityBuffer(verifyer)) {
-            SinkWarning() << "invalid buffer, not a modify entity buffer";
+            SinkWarningCtx(d->logCtx) << "invalid buffer, not a modify entity buffer";
             return KAsync::error<qint64>(0);
         }
     }
@@ -213,29 +214,29 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     if (modifyEntity->modifiedProperties()) {
         changeset = BufferUtils::fromVector(*modifyEntity->modifiedProperties());
     } else {
-        SinkWarning() << "No changeset available";
+        SinkWarningCtx(d->logCtx) << "No changeset available";
     }
     const qint64 baseRevision = modifyEntity->revision();
     const bool replayToSource = modifyEntity->replayToSource();
 
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const *>(modifyEntity->domainType()->Data()), modifyEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const *>(modifyEntity->entityId()->Data()), modifyEntity->entityId()->size());
-    SinkTrace() << "Modified Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
+    SinkTraceCtx(d->logCtx) << "Modified Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
     if (bufferType.isEmpty() || key.isEmpty()) {
-        SinkWarning() << "entity type or key " << bufferType << key;
+        SinkWarningCtx(d->logCtx) << "entity type or key " << bufferType << key;
         return KAsync::error<qint64>(0);
     }
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(modifyEntity->delta()->Data()), modifyEntity->delta()->size());
         if (!VerifyEntityBuffer(verifyer)) {
-            SinkWarning() << "invalid buffer, not an entity buffer";
+            SinkWarningCtx(d->logCtx) << "invalid buffer, not an entity buffer";
             return KAsync::error<qint64>(0);
         }
     }
 
     auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceContext.resourceType, bufferType);
     if (!adaptorFactory) {
-        SinkWarning() << "no adaptor factory for type " << bufferType;
+        SinkWarningCtx(d->logCtx) << "no adaptor factory for type " << bufferType;
         return KAsync::error<qint64>(0);
     }
 
@@ -255,7 +256,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         auto changeset = diff.changedProperties();
         const auto current = d->entityStore.readLatest(bufferType, diff.identifier());
         if (current.identifier().isEmpty()) {
-            SinkWarning() << "Failed to read current version: " << diff.identifier();
+            SinkWarningCtx(d->logCtx) << "Failed to read current version: " << diff.identifier();
             return KAsync::error<qint64>(0);
         }
 
@@ -276,11 +277,11 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         newEntity.setResource(targetResource);
         newEntity.setChangedProperties(newEntity.availableProperties().toSet());
 
-        SinkTrace() << "Moving entity to new resource " << newEntity.identifier() << newEntity.resourceInstanceIdentifier() << targetResource;
+        SinkTraceCtx(d->logCtx) << "Moving entity to new resource " << newEntity.identifier() << newEntity.resourceInstanceIdentifier() << targetResource;
         auto job = TypeHelper<CreateHelper>{bufferType}.operator()<KAsync::Job<void>, ApplicationDomain::ApplicationDomainType&>(newEntity);
         job = job.syncThen<void>([this, current, isMove, targetResource, bufferType](const KAsync::Error &error) {
             if (!error) {
-                SinkTrace() << "Move of " << current.identifier() << "was successfull";
+                SinkTraceCtx(d->logCtx) << "Move of " << current.identifier() << "was successfull";
                 if (isMove) {
                     startTransaction();
                     flatbuffers::FlatBufferBuilder fbb;
@@ -293,7 +294,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
                     commit();
                 }
             } else {
-                SinkError() << "Failed to move entity " << targetResource << " to resource " << current.identifier();
+                SinkErrorCtx(d->logCtx) << "Failed to move entity " << targetResource << " to resource " << current.identifier();
             }
         });
         job.exec();
@@ -321,7 +322,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
         if (!Commands::VerifyDeleteEntityBuffer(verifyer)) {
-            SinkWarning() << "invalid buffer, not a delete entity buffer";
+            SinkWarningCtx(d->logCtx) << "invalid buffer, not a delete entity buffer";
             return KAsync::error<qint64>(0);
         }
     }
@@ -330,7 +331,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     const bool replayToSource = deleteEntity->replayToSource();
     const QByteArray bufferType = QByteArray(reinterpret_cast<char const *>(deleteEntity->domainType()->Data()), deleteEntity->domainType()->size());
     const QByteArray key = QByteArray(reinterpret_cast<char const *>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
-    SinkTrace() << "Deleted Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
+    SinkTraceCtx(d->logCtx) << "Deleted Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
 
     auto preprocess = [&, this](const ApplicationDomain::ApplicationDomainType &oldEntity) {
         foreach (const auto &processor, d->processors[bufferType]) {

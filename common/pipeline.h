@@ -46,7 +46,7 @@ class SINK_EXPORT Pipeline : public QObject
     Q_OBJECT
 
 public:
-    Pipeline(const ResourceContext &context);
+    Pipeline(const ResourceContext &context, const Sink::Log::Context &ctx);
     ~Pipeline();
 
     void setPreprocessors(const QString &entityType, const QVector<Preprocessor *> &preprocessors);

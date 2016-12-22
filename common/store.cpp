@@ -57,7 +57,7 @@ QString Store::getTemporaryFilePath()
 /*
  * Returns a map of resource instance identifiers and resource type
  */
-static QMap<QByteArray, QByteArray> getResources(const Sink::Query::Filter &query, const QByteArray &type = QByteArray())
+static QMap<QByteArray, QByteArray> getResources(const Sink::Query::Filter &query, const QByteArray &type, const Sink::Log::Context &ctx)
 {
     const QList<QByteArray> resourceFilter = query.ids;
 
@@ -97,11 +97,11 @@ static QMap<QByteArray, QByteArray> getResources(const Sink::Query::Filter &quer
                 }
                 resources.insert(res, configuredResources.value(res));
             } else {
-                SinkWarning() << "Resource is not existing: " << res;
+                SinkWarningCtx(ctx) << "Resource is not existing: " << res;
             }
         }
     }
-    SinkTrace() << "Found resources: " << resources;
+    SinkTraceCtx(ctx) << "Found resources: " << resources;
     return resources;
 }
 
@@ -133,7 +133,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     Log::Context ctx{query.id()};
     query.setType(ApplicationDomain::getTypeName<DomainType>());
     SinkTraceCtx(ctx) << "Loading model: " << query;
-    auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties);
+    auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties, ctx);
 
     //* Client defines lifetime of model
     //* The model lifetime defines the duration of live-queries
@@ -142,7 +142,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
     //* The result provider needs to live for as long as results are provided (until the last thread exits).
 
     // Query all resources and aggregate results
-    auto resources = getResources(query.getResourceFilter(), ApplicationDomain::getTypeName<DomainType>());
+    auto resources = getResources(query.getResourceFilter(), ApplicationDomain::getTypeName<DomainType>(), ctx);
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     model->setEmitter(aggregatingEmitter);
 
@@ -297,7 +297,7 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 
 KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
 {
-    auto resources = getResources(scope.getResourceFilter()).keys();
+    auto resources = getResources(scope.getResourceFilter(), {}, {}).keys();
     SinkLog() << "Synchronize" << resources;
     return KAsync::value(resources)
         .template each([scope](const QByteArray &resource) {
@@ -377,7 +377,7 @@ QList<DomainType> Store::read(const Sink::Query &q)
     auto query = q;
     query.setFlags(Query::SynchronousQuery);
     QList<DomainType> list;
-    auto resources = getResources(query.getResourceFilter(), ApplicationDomain::getTypeName<DomainType>());
+    auto resources = getResources(query.getResourceFilter(), ApplicationDomain::getTypeName<DomainType>(), ctx);
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
     aggregatingEmitter->onAdded([&list, ctx](const typename DomainType::Ptr &value){
         SinkTraceCtx(ctx) << "Found value: " << value->identifier();

@@ -26,6 +26,7 @@
 #include <QSharedPointer>
 #include <functional>
 #include "query.h"
+#include "log.h"
 #include "resultprovider.h"
 #include "threadboundary.h"
 
@@ -40,7 +41,7 @@ public:
         DomainObjectBaseRole
     };
 
-    ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns);
+    ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns, const Sink::Log::Context &);
 
     void setEmitter(const typename Sink::ResultEmitter<Ptr>::Ptr &);
 
@@ -67,6 +68,7 @@ private:
     QModelIndex createIndexFromId(const qint64 &id) const;
     void fetchEntities(const QModelIndex &parent);
 
+    Sink::Log::Context  mLogCtx;
     // TODO we should be able to directly use T as index, with an appropriate hash function, and thus have a QMap<T, T> and QList<T>
     QMap<qint64 /* entity id */, Ptr> mEntities;
     QMap<qint64 /* parent entity id */, QList<qint64> /* child entity id*/> mTree;

@@ -8,6 +8,9 @@ namespace Log {
 
 struct Context {
     Context() = default;
+    Context(const QByteArray &n) : name(n) {}
+    Context(const char *n) : name(n) {}
+
     QByteArray name;
     Context subContext(const QByteArray &sub) const {
         return Context{name + "." + sub};

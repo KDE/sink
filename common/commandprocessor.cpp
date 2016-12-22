@@ -43,8 +43,9 @@ static int sCommitInterval = 10;
 using namespace Sink;
 using namespace Sink::Storage;
 
-CommandProcessor::CommandProcessor(Sink::Pipeline *pipeline, const QByteArray &instanceId)
+CommandProcessor::CommandProcessor(Sink::Pipeline *pipeline, const QByteArray &instanceId, const Sink::Log::Context &ctx)
     : QObject(),
+    mLogCtx(ctx.subContext("commandprocessor")),
     mPipeline(pipeline), 
     mUserQueue(Sink::storageLocation(), instanceId + ".userqueue"),
     mSynchronizerQueue(Sink::storageLocation(), instanceId + ".synchronizerqueue"),
@@ -130,7 +131,7 @@ void CommandProcessor::processSynchronizeCommand(const QByteArray &data)
         }
         mSynchronizer->synchronize(query);
     } else {
-        SinkWarning() << "received invalid command";
+        SinkWarningCtx(mLogCtx) << "received invalid command";
     }
 }
 
@@ -141,7 +142,7 @@ void CommandProcessor::processSynchronizeCommand(const QByteArray &data)
 //         auto buffer = Sink::Commands::GetRevisionReplayed(commandBuffer.constData());
 //         client.currentRevision = buffer->revision();
 //     } else {
-//         SinkWarning() << "received invalid command";
+//         SinkWarningCtx(mLogCtx) << "received invalid command";
 //     }
 //     loadResource().setLowerBoundRevision(lowerBoundRevision());
 // }
@@ -179,7 +180,7 @@ void CommandProcessor::process()
 
 KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const Sink::QueuedCommand *queuedCommand)
 {
-    SinkTrace() << "Processing command: " << Sink::Commands::name(queuedCommand->commandId());
+    SinkTraceCtx(mLogCtx) << "Processing command: " << Sink::Commands::name(queuedCommand->commandId());
     const auto data = queuedCommand->command()->Data();
     const auto size = queuedCommand->command()->size();
     switch (queuedCommand->commandId()) {
@@ -205,7 +206,7 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
 {
     flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(data.constData()), data.size());
     if (!Sink::VerifyQueuedCommandBuffer(verifyer)) {
-        SinkWarning() << "invalid buffer";
+        SinkWarningCtx(mLogCtx) << "invalid buffer";
         // return KAsync::error<void, qint64>(1, "Invalid Buffer");
     }
     auto queuedCommand = Sink::GetQueuedCommand(data.constData());
@@ -214,10 +215,10 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
         .then<qint64, qint64>(
             [this, commandId](const KAsync::Error &error, qint64 createdRevision) -> KAsync::Job<qint64> {
                 if (error) {
-                    SinkWarning() << "Error while processing queue command: " << error.errorMessage;
+                    SinkWarningCtx(mLogCtx) << "Error while processing queue command: " << error.errorMessage;
                     return KAsync::error<qint64>(error);
                 }
-                SinkTrace() << "Command pipeline processed: " << Sink::Commands::name(commandId);
+                SinkTraceCtx(mLogCtx) << "Command pipeline processed: " << Sink::Commands::name(commandId);
                 return KAsync::value<qint64>(createdRevision);
             });
 }
@@ -234,13 +235,13 @@ KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
                         time->start();
                         return processQueuedCommand(data)
                         .syncThen<void, qint64>([this, time](qint64 createdRevision) {
-                            SinkTrace() << "Created revision " << createdRevision << ". Processing took: " << Log::TraceTime(time->elapsed());
+                            SinkTraceCtx(mLogCtx) << "Created revision " << createdRevision << ". Processing took: " << Log::TraceTime(time->elapsed());
                         });
                     })
-                    .then<KAsync::ControlFlowFlag>([queue](const KAsync::Error &error) {
+                    .then<KAsync::ControlFlowFlag>([queue, this](const KAsync::Error &error) {
                             if (error) {
                                 if (error.errorCode != MessageQueue::ErrorCodes::NoMessageFound) {
-                                    SinkWarning() << "Error while getting message from messagequeue: " << error.errorMessage;
+                                    SinkWarningCtx(mLogCtx) << "Error while getting message from messagequeue: " << error.errorMessage;
                                 }
                             }
                             if (queue->isEmpty()) {
@@ -258,7 +259,7 @@ KAsync::Job<void> CommandProcessor::processPipeline()
     auto time = QSharedPointer<QTime>::create();
     time->start();
     mPipeline->cleanupRevisions(mLowerBoundRevision);
-    SinkTrace() << "Cleanup done." << Log::TraceTime(time->elapsed());
+    SinkTraceCtx(mLogCtx) << "Cleanup done." << Log::TraceTime(time->elapsed());
 
     // Go through all message queues
     if (mCommandQueues.isEmpty()) {
@@ -273,7 +274,7 @@ KAsync::Job<void> CommandProcessor::processPipeline()
             auto queue = it->next();
             return processQueue(queue)
                 .syncThen<KAsync::ControlFlowFlag>([this, time, it]() {
-                    SinkTrace() << "Queue processed." << Log::TraceTime(time->elapsed());
+                    SinkTraceCtx(mLogCtx) << "Queue processed." << Log::TraceTime(time->elapsed());
                     if (it->hasNext()) {
                         return KAsync::Continue;
                     }
@@ -325,11 +326,11 @@ KAsync::Job<void> CommandProcessor::flush(void const *command, size_t size)
         const QByteArray flushId = BufferUtils::extractBufferCopy(buffer->id());
         Q_ASSERT(!flushId.isEmpty());
         if (flushType == Sink::Flush::FlushReplayQueue) {
-            SinkTrace() << "Flushing synchronizer ";
+            SinkTraceCtx(mLogCtx) << "Flushing synchronizer ";
             Q_ASSERT(mSynchronizer);
             mSynchronizer->flush(flushType, flushId);
         } else {
-            SinkTrace() << "Emitting flush completion" << flushId;
+            SinkTraceCtx(mLogCtx) << "Emitting flush completion" << flushId;
             Sink::Notification n;
             n.type = Sink::Notification::FlushCompletion;
             n.id = flushId;

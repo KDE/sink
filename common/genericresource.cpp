@@ -31,8 +31,8 @@ using namespace Sink::Storage;
 GenericResource::GenericResource(const ResourceContext &resourceContext, const QSharedPointer<Pipeline> &pipeline )
     : Sink::Resource(),
       mResourceContext(resourceContext),
-      mPipeline(pipeline ? pipeline : QSharedPointer<Sink::Pipeline>::create(resourceContext)),
-      mProcessor(QSharedPointer<CommandProcessor>::create(mPipeline.data(), resourceContext.instanceId())),
+      mPipeline(pipeline ? pipeline : QSharedPointer<Sink::Pipeline>::create(resourceContext, "resource." + resourceContext.instanceId())),
+      mProcessor(QSharedPointer<CommandProcessor>::create(mPipeline.data(), resourceContext.instanceId(), "resource." + resourceContext.instanceId())),
       mError(0),
       mClientLowerBoundRevision(std::numeric_limits<qint64>::max())
 {

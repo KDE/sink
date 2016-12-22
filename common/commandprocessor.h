@@ -43,10 +43,9 @@ namespace Sink {
 class CommandProcessor : public QObject
 {
     Q_OBJECT
-    SINK_DEBUG_AREA("commandprocessor")
 
 public:
-    CommandProcessor(Sink::Pipeline *pipeline, const QByteArray &instanceId);
+    CommandProcessor(Sink::Pipeline *pipeline, const QByteArray &instanceId, const Sink::Log::Context &ctx);
 
     void setOldestUsedRevision(qint64 revision);
 
@@ -79,6 +78,7 @@ private:
 
     KAsync::Job<void> flush(void const *command, size_t size);
 
+    Sink::Log::Context mLogCtx;
     Sink::Pipeline *mPipeline;
     MessageQueue mUserQueue;
     MessageQueue mSynchronizerQueue;
