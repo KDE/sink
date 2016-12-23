@@ -188,15 +188,15 @@ void QueryWorker<DomainType>::resultProviderCallback(const Sink::Query &query, S
     }
     switch (result.operation) {
         case Sink::Operation_Creation:
-            // SinkTrace() << "Got creation";
+            //SinkTraceCtx(mLogCtx) << "Got creation: " << valueCopy->identifier();
             resultProvider.add(valueCopy);
             break;
         case Sink::Operation_Modification:
-            // SinkTrace() << "Got modification";
+            //SinkTraceCtx(mLogCtx) << "Got modification: " << valueCopy->identifier();
             resultProvider.modify(valueCopy);
             break;
         case Sink::Operation_Removal:
-            // SinkTrace() << "Got removal";
+            //SinkTraceCtx(mLogCtx) << "Got removal: " << valueCopy->identifier();
             resultProvider.remove(valueCopy);
             break;
     }
