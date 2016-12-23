@@ -120,10 +120,18 @@ QPair<typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr,  typenam
     return qMakePair(aggregatingEmitter, ResultEmitter<typename ApplicationDomain::SinkResource::Ptr>::Ptr{});
 }
 
+static Log::Context getQueryContext(const Sink::Query &query, const QByteArray &type)
+{
+    if (!query.id().isEmpty()) {
+        return Log::Context{"query." + type + "." + query.id()};
+    }
+    return Log::Context{"query." + type};
+}
+
 template <class DomainType>
 QSharedPointer<QAbstractItemModel> Store::loadModel(const Query &query)
 {
-    Log::Context ctx{query.id()};
+    auto ctx = getQueryContext(query, ApplicationDomain::getTypeName<DomainType>());
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties, ctx);
 
     //* Client defines lifetime of model
@@ -338,7 +346,7 @@ QList<DomainType> Store::read(const Sink::Query &query_)
     auto query = query_;
     query.setFlags(Query::SynchronousQuery);
 
-    Log::Context ctx{query.id()};
+    auto ctx = getQueryContext(query, ApplicationDomain::getTypeName<DomainType>());
 
     QList<DomainType> list;
 

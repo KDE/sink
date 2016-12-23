@@ -13,6 +13,9 @@ struct Context {
 
     QByteArray name;
     Context subContext(const QByteArray &sub) const {
+        if (name.isEmpty()) {
+            return Context{sub};
+        }
         return Context{name + "." + sub};
     }
 };
