@@ -59,7 +59,7 @@ enum Roles
 * Asynchronusly load a dataset with tree structure information
 */
 template <class DomainType>
-QSharedPointer<QAbstractItemModel> SINK_EXPORT loadModel(Query query);
+QSharedPointer<QAbstractItemModel> SINK_EXPORT loadModel(const Query &query);
 
 /**
  * Create a new entity.

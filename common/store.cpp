@@ -54,57 +54,6 @@ QString Store::getTemporaryFilePath()
     return Sink::temporaryFileLocation() + "/" + QUuid::createUuid().toString();
 }
 
-/*
- * Returns a map of resource instance identifiers and resource type
- */
-static QMap<QByteArray, QByteArray> getResources(const Sink::Query::Filter &query, const QByteArray &type, const Sink::Log::Context &ctx)
-{
-    const QList<QByteArray> resourceFilter = query.ids;
-
-
-    const auto filterResource = [&](const QByteArray &res) {
-        const auto configuration = ResourceConfig::getConfiguration(res);
-        for (const auto &filterProperty : query.propertyFilter.keys()) {
-            const auto filter = query.propertyFilter.value(filterProperty);
-            if (!filter.matches(configuration.value(filterProperty))) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    QMap<QByteArray, QByteArray> resources;
-    // Return the global resource (signified by an empty name) for types that don't belong to a specific resource
-    if (ApplicationDomain::isGlobalType(type)) {
-        resources.insert("", "");
-        return resources;
-    }
-    const auto configuredResources = ResourceConfig::getResources();
-    if (resourceFilter.isEmpty()) {
-        for (const auto &res : configuredResources.keys()) {
-            const auto type = configuredResources.value(res);
-            if (filterResource(res)) {
-                continue;
-            }
-            // TODO filter by entity type
-            resources.insert(res, type);
-        }
-    } else {
-        for (const auto &res : resourceFilter) {
-            if (configuredResources.contains(res)) {
-                if (filterResource(res)) {
-                    continue;
-                }
-                resources.insert(res, configuredResources.value(res));
-            } else {
-                SinkWarningCtx(ctx) << "Resource is not existing: " << res;
-            }
-        }
-    }
-    SinkTraceCtx(ctx) << "Found resources: " << resources;
-    return resources;
-}
-
 
 template <class DomainType>
 KAsync::Job<void> queryResource(const QByteArray resourceType, const QByteArray &resourceInstanceIdentifier, const Query &query, typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr aggregatingEmitter, const Sink::Log::Context &ctx_)
@@ -128,31 +77,26 @@ KAsync::Job<void> queryResource(const QByteArray resourceType, const QByteArray 
 }
 
 template <class DomainType>
-QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
+QPair<typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr,  typename ResultEmitter<typename ApplicationDomain::SinkResource::Ptr>::Ptr> getEmitter(Query query, const Log::Context &ctx)
 {
-    Log::Context ctx{query.id()};
     query.setType(ApplicationDomain::getTypeName<DomainType>());
-    SinkTraceCtx(ctx) << "Loading model: " << query;
-    auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties, ctx);
-
-    //* Client defines lifetime of model
-    //* The model lifetime defines the duration of live-queries
-    //* The facade needs to life for the duration of any calls being made (assuming we get rid of any internal callbacks
-    //* The emitter needs to live or the duration of query (respectively, the model)
-    //* The result provider needs to live for as long as results are provided (until the last thread exits).
+    SinkTraceCtx(ctx) << "Query: " << query;
 
     // Query all resources and aggregate results
-    auto resources = getResources(query.getResourceFilter(), ApplicationDomain::getTypeName<DomainType>(), ctx);
     auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
-    model->setEmitter(aggregatingEmitter);
-
-    if (query.liveQuery() && query.getResourceFilter().ids.isEmpty() && !ApplicationDomain::isGlobalType(ApplicationDomain::getTypeName<DomainType>())) {
-        SinkTraceCtx(ctx) << "Listening for new resources";
+    if (ApplicationDomain::isGlobalType(ApplicationDomain::getTypeName<DomainType>())) {
+        //For global types we don't need to query for the resources first.
+        queryResource<DomainType>("", "", query, aggregatingEmitter, ctx).exec();
+    } else {
         auto resourceCtx = ctx.subContext("resourceQuery");
         auto facade = FacadeFactory::instance().getFacade<ApplicationDomain::SinkResource>();
         Q_ASSERT(facade);
         Sink::Query resourceQuery;
-        query.setFlags(Query::LiveQuery);
+        if (query.liveQuery()) {
+            SinkTraceCtx(ctx) << "Listening for new resources";
+            resourceQuery.setFlags(Query::LiveQuery);
+        }
+        resourceQuery.setFilter(query.getResourceFilter());
         auto result = facade->load(resourceQuery, resourceCtx);
         auto emitter = result.second;
         emitter->onAdded([query, aggregatingEmitter, resourceCtx](const ApplicationDomain::SinkResource::Ptr &resource) {
@@ -169,18 +113,36 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(Query query)
         });
         emitter->onComplete([query, aggregatingEmitter, resourceCtx]() {
             SinkTraceCtx(resourceCtx) << "Resource query complete";
-
         });
-        model->setProperty("resourceEmitter", QVariant::fromValue(emitter));
-        result.first.exec();
+
+        return qMakePair(aggregatingEmitter, emitter);
+    }
+    return qMakePair(aggregatingEmitter, ResultEmitter<typename ApplicationDomain::SinkResource::Ptr>::Ptr{});
+}
+
+template <class DomainType>
+QSharedPointer<QAbstractItemModel> Store::loadModel(const Query &query)
+{
+    Log::Context ctx{query.id()};
+    auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties, ctx);
+
+    //* Client defines lifetime of model
+    //* The model lifetime defines the duration of live-queries
+    //* The facade needs to life for the duration of any calls being made (assuming we get rid of any internal callbacks
+    //* The emitter needs to live or the duration of query (respectively, the model)
+    //* The result provider needs to live for as long as results are provided (until the last thread exits).
+
+    auto result = getEmitter<DomainType>(query, ctx);
+    model->setEmitter(result.first);
+
+    //Keep the emitter alive
+    if (auto resourceEmitter = result.second) {
+        model->setProperty("resourceEmitter", QVariant::fromValue(resourceEmitter)); //TODO only neceesary for live queries
+        resourceEmitter->fetch(ApplicationDomain::SinkResource::Ptr());
     }
 
-    KAsync::value(resources.keys())
-        .template each([query, aggregatingEmitter, resources, ctx](const QByteArray &resourceInstanceIdentifier) {
-            const auto resourceType = resources.value(resourceInstanceIdentifier);
-            return queryResource<DomainType>(resourceType, resourceInstanceIdentifier, query, aggregatingEmitter, ctx);
-        })
-        .exec();
+
+    //Automatically populate the top-level
     model->fetchMore(QModelIndex());
 
     return model;
@@ -297,11 +259,11 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 
 KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
 {
-    auto resources = getResources(scope.getResourceFilter(), {}, {}).keys();
-    SinkLog() << "Synchronize" << resources;
-    return KAsync::value(resources)
-        .template each([scope](const QByteArray &resource) {
-            return synchronize(resource, scope);
+    Sink::Query query;
+    query.setFilter(scope.getResourceFilter());
+    return fetchAll<ApplicationDomain::SinkResource>(query)
+        .template each([scope](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {
+            return synchronize(resource->identifier(), scope);
         });
 }
 
@@ -371,36 +333,26 @@ DomainType Store::readOne(const Sink::Query &query)
 }
 
 template <class DomainType>
-QList<DomainType> Store::read(const Sink::Query &q)
+QList<DomainType> Store::read(const Sink::Query &query_)
 {
-    Log::Context ctx{q.id()};
-    auto query = q;
+    auto query = query_;
     query.setFlags(Query::SynchronousQuery);
+
+    Log::Context ctx{query.id()};
+
     QList<DomainType> list;
-    auto resources = getResources(query.getResourceFilter(), ApplicationDomain::getTypeName<DomainType>(), ctx);
-    auto aggregatingEmitter = AggregatingResultEmitter<typename DomainType::Ptr>::Ptr::create();
+
+    auto result = getEmitter<DomainType>(query, ctx);
+    auto aggregatingEmitter = result.first;
     aggregatingEmitter->onAdded([&list, ctx](const typename DomainType::Ptr &value){
         SinkTraceCtx(ctx) << "Found value: " << value->identifier();
         list << *value;
     });
-    for (const auto &resourceInstanceIdentifier : resources.keys()) {
-        const auto resourceType = resources.value(resourceInstanceIdentifier);
-        SinkTraceCtx(ctx) << "Querying resource:  " << resourceType << resourceInstanceIdentifier;
-        auto facade = FacadeFactory::instance().getFacade<DomainType>(resourceType, resourceInstanceIdentifier);
-        if (facade) {
-            SinkTraceCtx(ctx) << "Trying to fetch from resource " << resourceInstanceIdentifier;
-            auto result = facade->load(query, ctx);
-            if (result.second) {
-                aggregatingEmitter->addEmitter(result.second);
-            } else {
-                SinkWarningCtx(ctx) << "Null emitter for resource " << resourceInstanceIdentifier;
-            }
-            result.first.exec();
-        } else {
-            SinkTraceCtx(ctx) << "Couldn't find a facade for " << resourceInstanceIdentifier;
-            // Ignore the error and carry on
-        }
+
+    if (auto resourceEmitter = result.second) {
+        resourceEmitter->fetch(ApplicationDomain::SinkResource::Ptr());
     }
+
     aggregatingEmitter->fetch(typename DomainType::Ptr());
     return list;
 }
@@ -411,7 +363,7 @@ QList<DomainType> Store::read(const Sink::Query &q)
     template KAsync::Job<void> Store::modify<T>(const T &domainObject);           \
     template KAsync::Job<void> Store::move<T>(const T &domainObject, const QByteArray &newResource);           \
     template KAsync::Job<void> Store::copy<T>(const T &domainObject, const QByteArray &newResource);           \
-    template QSharedPointer<QAbstractItemModel> Store::loadModel<T>(Query query); \
+    template QSharedPointer<QAbstractItemModel> Store::loadModel<T>(const Query &query); \
     template KAsync::Job<T> Store::fetchOne<T>(const Query &);                    \
     template KAsync::Job<QList<T::Ptr>> Store::fetchAll<T>(const Query &);        \
     template KAsync::Job<QList<T::Ptr>> Store::fetch<T>(const Query &, int);      \
