@@ -24,8 +24,6 @@
 
 #include "log.h"
 
-SINK_DEBUG_AREA("modelresult")
-
 static uint qHash(const Sink::ApplicationDomain::ApplicationDomainType &type)
 {
     // Q_ASSERT(!type.resourceInstanceIdentifier().isEmpty());
@@ -121,7 +119,7 @@ QModelIndex ModelResult<T, Ptr>::index(int row, int column, const QModelIndex &p
         const auto childId = list.at(row);
         return createIndex(row, column, childId);
     }
-    SinkWarning() << "Index not available " << row << column << parent;
+    SinkWarningCtx(mLogCtx) << "Index not available " << row << column << parent;
     Q_ASSERT(false);
     return QModelIndex();
 }
@@ -191,7 +189,7 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
         return;
     }
     if (mEntities.contains(childId)) {
-        SinkWarning() << "Entity already in model: " << value->identifier();
+        SinkWarningCtx(mLogCtx) << "Entity already in model: " << value->identifier();
         return;
     }
     auto parent = createIndexFromId(id);
@@ -234,6 +232,11 @@ void ModelResult<T, Ptr>::fetchEntities(const QModelIndex &parent)
 {
     Q_ASSERT(QThread::currentThread() == this->thread());
     const auto id = getIdentifier(parent);
+    //There is already a fetch in progress, don't fetch again.
+    if (mEntityChildrenFetched.contains(id) && !mEntityChildrenFetchComplete.contains(id)) {
+        SinkTraceCtx(mLogCtx) << "A fetch is already in progress: " << parent;
+        return;
+    }
     mEntityChildrenFetchComplete.remove(id);
     mEntityChildrenFetched.insert(id);
     SinkTraceCtx(mLogCtx) << "Loading child entities of parent " << id;
@@ -273,7 +276,7 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
         });
     });
     emitter->onInitialResultSetComplete([this](const Ptr &parent, bool fetchedAll) {
-        SinkTraceCtx(mLogCtx) << "Initial result set complete";
+        SinkTraceCtx(mLogCtx) << "Initial result set complete. Fetched all: " << fetchedAll;
         const qint64 parentId = parent ? qHash(*parent) : 0;
         const auto parentIndex = createIndexFromId(parentId);
         mEntityChildrenFetchComplete.insert(parentId);
