@@ -632,6 +632,41 @@ private slots:
         auto folders = Sink::Store::read<Folder>(query);
         QCOMPARE(folders.size(), 1);
     }
+    void testLivequeryUnmatchInThread()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto folder2 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail1.setUid("mail1");
+        mail1.setFolder(folder1);
+        VERIFYEXEC(Sink::Store::create(mail1));
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        //Setup two folders with a mail each, ensure we only get the mail from the folder that matches the folder filter.
+        Query query;
+        query.setId("testLivequeryUnmatch");
+        query.filter<Mail::Folder>(folder1);
+        query.reduce<Mail::ThreadId>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Sender>("senders");
+        query.sort<Mail::Date>();
+        query.setFlags(Query::LiveQuery);
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+
+        //After the modifcation the mail should have vanished.
+        {
+
+            mail1.setFolder(folder2);
+            VERIFYEXEC(Sink::Store::modify(mail1));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 0);
+    }
 };
 
 QTEST_MAIN(QueryTest)

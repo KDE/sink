@@ -224,6 +224,10 @@ public:
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                 auto reductionValue = result.entity.getProperty(mReductionProperty);
+                if (result.operation == Sink::Operation_Removal) {
+                    callback(result);
+                    return false;
+                }
                 if (!mReducedValues.contains(getByteArray(reductionValue))) {
                     //Only reduce every value once.
                     mReducedValues.insert(getByteArray(reductionValue));
