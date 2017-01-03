@@ -48,7 +48,7 @@ QByteArray getSpecialPurposeType(const QString &name)
 
 SpecialPurposeProcessor::SpecialPurposeProcessor(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : mResourceType(resourceType), mResourceInstanceIdentifier(resourceInstanceIdentifier) {}
 
-QByteArray SpecialPurposeProcessor::ensureFolder(const QByteArray &specialPurpose)
+QByteArray SpecialPurposeProcessor::findFolder(const QByteArray &specialPurpose, bool createIfMissing)
 {
     if (!mSpecialPurposeFolders.contains(specialPurpose)) {
         //Try to find an existing drafts folder
@@ -58,7 +58,7 @@ QByteArray SpecialPurposeProcessor::ensureFolder(const QByteArray &specialPurpos
             mSpecialPurposeFolders.insert(specialPurpose, r.entity.identifier());
         });
 
-        if (!mSpecialPurposeFolders.contains(specialPurpose)) {
+        if (!mSpecialPurposeFolders.contains(specialPurpose) && createIfMissing) {
             SinkTrace() << "Failed to find a " << specialPurpose << " folder, creating a new one";
             auto folder = ApplicationDomain::Folder::create(mResourceInstanceIdentifier);
             folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
@@ -72,23 +72,33 @@ QByteArray SpecialPurposeProcessor::ensureFolder(const QByteArray &specialPurpos
     return mSpecialPurposeFolders.value(specialPurpose);
 }
 
+bool SpecialPurposeProcessor::isSpecialPurposeFolder(const QByteArray &folder) const
+{
+    return mSpecialPurposeFolders.values().contains(folder);
+}
+
 void SpecialPurposeProcessor::moveToFolder(Sink::ApplicationDomain::ApplicationDomainType &newEntity)
 {
+    //If we remove the draft folder move back to inbox
+    //If we remove the trash property, move back to other specialpurpose folder or inbox
+    //If a folder is set explicitly, clear specialpurpose flags.
     using namespace Sink::ApplicationDomain;
     auto mail = newEntity.cast<Mail>();
     if (mail.getTrash()) {
-        auto f = ensureFolder(ApplicationDomain::SpecialPurpose::Mail::trash);
+        auto f = findFolder(ApplicationDomain::SpecialPurpose::Mail::trash, true);
         SinkTrace() << "Setting trash folder: " << f;
         mail.setFolder(f);
-        return;
-    }
-    if (mail.getDraft()) {
-        mail.setFolder(ensureFolder(ApplicationDomain::SpecialPurpose::Mail::drafts));
-        return;
-    }
-    if (mail.getSent()) {
-        mail.setFolder(ensureFolder(ApplicationDomain::SpecialPurpose::Mail::sent));
-        return;
+    } else if (mail.getDraft()) {
+        SinkTrace() << "Setting drafts folder: ";
+        mail.setFolder(findFolder(ApplicationDomain::SpecialPurpose::Mail::drafts, true));
+    } else if (mail.getSent()) {
+        SinkTrace() << "Setting sent folder: ";
+        mail.setFolder(findFolder(ApplicationDomain::SpecialPurpose::Mail::sent, true));
+    } else {
+        //No longer a specialpurpose mail, so move to inbox
+        if (isSpecialPurposeFolder(mail.getFolder()) || mail.getFolder().isEmpty()) {
+            mail.setFolder(findFolder(ApplicationDomain::SpecialPurpose::Mail::inbox, true));
+        }
     }
 }
 
@@ -99,5 +109,18 @@ void SpecialPurposeProcessor::newEntity(Sink::ApplicationDomain::ApplicationDoma
 
 void SpecialPurposeProcessor::modifiedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, Sink::ApplicationDomain::ApplicationDomainType &newEntity)
 {
-    moveToFolder(newEntity);
+    using namespace Sink::ApplicationDomain;
+    auto mail = newEntity.cast<Mail>();
+    //If we moved the mail to a non-specialpurpose folder explicitly, also clear the flags.
+    if (mail.changedProperties().contains(Mail::Folder::name)) {
+        auto folder = mail.getFolder();
+        bool isDraft = findFolder(ApplicationDomain::SpecialPurpose::Mail::drafts) == folder;
+        bool isSent = findFolder(ApplicationDomain::SpecialPurpose::Mail::sent) == folder;
+        bool isTrash = findFolder(ApplicationDomain::SpecialPurpose::Mail::trash) == folder;
+        mail.setDraft(isDraft);
+        mail.setTrash(isSent);
+        mail.setSent(isTrash);
+    } else {
+        moveToFolder(newEntity);
+    }
 }
