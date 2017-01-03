@@ -149,6 +149,16 @@ public:
     ApplicationDomainType(const ApplicationDomainType &other);
     ApplicationDomainType& operator=(const ApplicationDomainType &other);
 
+    inline bool operator==(const ApplicationDomainType &other)
+    {
+        return other.identifier() == identifier();
+    }
+
+    inline bool operator!=(const ApplicationDomainType &other)
+    {
+        return !(*this == other);
+    }
+
     template <typename DomainType>
     DomainType cast() {
         static_assert(std::is_base_of<ApplicationDomainType, DomainType>::value, "You can only cast to base classes of ApplicationDomainType.");
