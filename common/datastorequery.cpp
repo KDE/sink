@@ -262,7 +262,7 @@ public:
                     }
 
                     readEntity(selectionResult, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
-                        callback({entity, Sink::Operation_Creation, aggregateValues});
+                        callback({entity, operation, aggregateValues});
                         foundValue = true;
                     });
                 }
