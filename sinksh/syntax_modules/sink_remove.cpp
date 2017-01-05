@@ -94,13 +94,57 @@ bool resource(const QStringList &args, State &state)
     return true;
 }
 
+bool account(const QStringList &args, State &state)
+{
+    if (args.isEmpty()) {
+        state.printError(QObject::tr("An account can not be removed without an id"), "sink_remove/01");
+    }
+
+    auto &store = SinkshUtils::getStore("account");
+
+    auto id = args.at(0);
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", id.toLatin1());
+
+    auto result = store.remove(*object).exec();
+    result.waitForFinished();
+    if (result.errorCode()) {
+        state.printError(QObject::tr("An error occurred while removing the account %1: %2").arg(id).arg(result.errorMessage()),
+                         "akonaid_remove_e" + QString::number(result.errorCode()));
+    }
+
+    return true;
+}
+
+bool identity(const QStringList &args, State &state)
+{
+    if (args.isEmpty()) {
+        state.printError(QObject::tr("An identity can not be removed without an id"), "sink_remove/01");
+    }
+
+    auto &store = SinkshUtils::getStore("identity");
+
+    auto id = args.at(0);
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", id.toLatin1());
+
+    auto result = store.remove(*object).exec();
+    result.waitForFinished();
+    if (result.errorCode()) {
+        state.printError(QObject::tr("An error occurred while removing the identity %1: %2").arg(id).arg(result.errorMessage()),
+                         "akonaid_remove_e" + QString::number(result.errorCode()));
+    }
+
+    return true;
+}
+
 
 Syntax::List syntax()
 {
     Syntax remove("remove", QObject::tr("Remove items in a resource"), &SinkRemove::remove);
     Syntax resource("resource", QObject::tr("Removes a resource"), &SinkRemove::resource, Syntax::NotInteractive);
+    Syntax account("account", QObject::tr("Removes a account"), &SinkRemove::account, Syntax::NotInteractive);
+    Syntax identity("identity", QObject::tr("Removes an identity"), &SinkRemove::identity, Syntax::NotInteractive);
     resource.completer = &SinkshUtils::resourceCompleter;
-    remove.children << resource;
+    remove.children << resource << account << identity;
 
     return Syntax::List() << remove;
 }
