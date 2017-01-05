@@ -64,8 +64,11 @@ typename ApplicationDomain::SinkResource::Ptr readFromConfig<ApplicationDomain::
 {
     auto object = ApplicationDomain::SinkResource::Ptr::create(id);
     object->setProperty(ApplicationDomain::SinkResource::ResourceType::name, type);
-    if (auto res = ResourceFactory::load(type)) {
-        object->setCapabilities(res->capabilities());
+    //Apply the capabilities where we have capabilities
+    if (!ApplicationDomain::isGlobalType(type)) {
+        if (auto res = ResourceFactory::load(type)) {
+            object->setCapabilities(res->capabilities());
+        }
     }
     applyConfig(configStore, id, *object);
     return object;
