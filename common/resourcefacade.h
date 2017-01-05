@@ -108,6 +108,7 @@ class AccountFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkAcc
 public:
     AccountFacade();
     virtual ~AccountFacade();
+    virtual KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkAccount &resource) Q_DECL_OVERRIDE;
     virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename Sink::ApplicationDomain::SinkAccount::Ptr>::Ptr> load(const Sink::Query &query, const Sink::Log::Context &) Q_DECL_OVERRIDE;
 };
 

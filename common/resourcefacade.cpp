@@ -376,6 +376,21 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
     return qMakePair(KAsync::null<void>(), runner->emitter());
 }
 
+KAsync::Job<void> AccountFacade::remove(const Sink::ApplicationDomain::SinkAccount &account)
+{
+    using namespace Sink::ApplicationDomain;
+    auto job = KAsync::null();
+
+    //Remove all resources
+    job = job.then(Store::fetch<SinkResource>(Sink::Query{}.filter<SinkResource::Account>(account)))
+        .each([] (const SinkResource::Ptr &resource) { return Store::remove(*resource); });
+    //Remove all identities
+    job = job.then(Store::fetch<Identity>(Sink::Query{}.filter<Identity::Account>(account)))
+        .each([] (const Identity::Ptr &identity) { return Store::remove(*identity); });
+ 
+    return job.then(LocalStorageFacade<Sink::ApplicationDomain::SinkAccount>::remove(account));
+}
+
 IdentityFacade::IdentityFacade() : LocalStorageFacade<Sink::ApplicationDomain::Identity>("identities", "type")
 {
 }
