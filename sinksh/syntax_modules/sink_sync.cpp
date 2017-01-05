@@ -38,16 +38,62 @@
 namespace SinkSync
 {
 
-bool sync(const QStringList &args, State &state)
+bool isId(const QByteArray &value)
 {
+    return value.startsWith("{");
+}
+
+bool sync(const QStringList &args_, State &state)
+{
+    auto args = args_;
     Sink::Query query;
-    for (const auto &res : args) {
-        query.resourceFilter(res.toLatin1());
+    if (args.isEmpty()) {
+        state.printError(QObject::tr("Options: $type $resource/$folder/$subfolder"));
+        return false;
+    }
+    auto type = args.takeFirst().toLatin1();
+    if (type != "*") {
+        query.setType(type);
+    }
+    if (!args.isEmpty()) {
+        auto resource = args.takeFirst().toLatin1();
+
+        if (resource.contains('/')) {
+            //The resource isn't an id but a path
+            auto list = resource.split('/');
+            const auto resourceId = list.takeFirst();
+            query.resourceFilter(resourceId);
+            if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Mail>() && !list.isEmpty()) {
+                auto value = list.takeFirst();
+                if (isId(value)) {
+                    query.filter<Sink::ApplicationDomain::Mail::Folder>(value);
+                } else {
+                    Sink::Query folderQuery;
+                    folderQuery.resourceFilter(resourceId);
+                    folderQuery.filter<Sink::ApplicationDomain::Folder::Name>(value);
+                    folderQuery.filter<Sink::ApplicationDomain::Folder::Parent>(QVariant());
+                    qWarning() << "Looking for folder: " << value << " in " << resourceId;
+                    auto folders = Sink::Store::read<Sink::ApplicationDomain::Folder>(folderQuery);
+                    if (folders.size() == 1) {
+                        query.filter<Sink::ApplicationDomain::Mail::Folder>(folders.first());
+                        qWarning() << "Synchronizing folder: " << folders.first().identifier();
+                    } else {
+                        qWarning() << "Folder name did not match uniquely: " << folders.size();
+                        for (const auto &f : folders) {
+                            qWarning() << f.getName();
+                        }
+                        state.printError(QObject::tr("Folder name did not match uniquely."));
+                    }
+                }
+            }
+        } else {
+            query.resourceFilter(resource);
+        }
     }
 
     QTimer::singleShot(0, [query, state]() {
     Sink::Store::synchronize(query)
-        .then(Sink::ResourceControl::flushReplayQueue(query.getResourceFilter().ids))
+        .then(Sink::ResourceControl::flushMessageQueue(query.getResourceFilter().ids))
         .syncThen<void>([state](const KAsync::Error &error) {
             if (error) {
                 state.printLine("Synchronization failed!");

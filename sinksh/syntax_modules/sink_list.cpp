@@ -120,7 +120,7 @@ bool list(const QStringList &args_, State &state)
         }
 
         QStringList line;
-        line << o.resourceInstanceIdentifier();
+        line << compressId(compact, o.resourceInstanceIdentifier());
         line << compressId(compact, o.identifier());
         for (const auto &prop: toPrint) {
             const auto value = o.getProperty(prop);
