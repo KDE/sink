@@ -166,11 +166,12 @@ protected:
      */
     virtual QList<Synchronizer::SyncRequest> getSyncRequests(const Sink::QueryBase &query);
 
+protected:
+    Sink::Log::Context mLogCtx;
 private:
     void modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
     KAsync::Job<void> processSyncQueue();
 
-    Sink::Log::Context mLogCtx;
     Sink::ResourceContext mResourceContext;
     Sink::Storage::EntityStore::Ptr mEntityStore;
     QSharedPointer<SynchronizerStore> mSyncStore;

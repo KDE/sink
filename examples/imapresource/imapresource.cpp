@@ -391,7 +391,7 @@ public:
                     }
                     return synchronizeFolder(imap, folder, dateFilter)
                         .onError([folder](const KAsync::Error &error) {
-                            SinkWarning() << "Failed to sync folder: ." << folder.normalizedPath();
+                            SinkWarning() << "Failed to sync folder: " << folder.path() << "Error: " << error.errorMessage;
                         });
                 });
 

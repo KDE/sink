@@ -293,6 +293,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
                 n.message = "Synchronization has started.";
                 n.code = ApplicationDomain::BusyStatus;
                 emit notify(n);
+                SinkLogCtx(mLogCtx) << "Synchronizing " << request.query.type();
             }).then(synchronizeWithSource(request.query)).syncThen<void>([this] {
                 //Commit after every request, so implementations only have to commit more if they add a lot of data.
                 commit();
@@ -367,7 +368,7 @@ void Synchronizer::commit()
 Sink::Storage::DataStore::DataStore::Transaction &Synchronizer::syncTransaction()
 {
     if (!mSyncTransaction) {
-        SinkTrace() << "Starting transaction";
+        SinkTrace() << "Starting transaction on sync store.";
         mSyncTransaction = mSyncStorage.createTransaction(Sink::Storage::DataStore::DataStore::ReadWrite);
     }
     return mSyncTransaction;
