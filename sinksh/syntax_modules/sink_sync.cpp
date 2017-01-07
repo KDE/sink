@@ -38,56 +38,16 @@
 namespace SinkSync
 {
 
-bool isId(const QByteArray &value)
+bool sync(const QStringList &args, State &state)
 {
-    return value.startsWith("{");
-}
-
-bool sync(const QStringList &args_, State &state)
-{
-    auto args = args_;
     Sink::Query query;
-    if (args.isEmpty()) {
-        state.printError(QObject::tr("Options: $type $resource/$folder/$subfolder"));
-        return false;
-    }
-    auto type = args.takeFirst().toLatin1();
-    if (type != "*") {
-        query.setType(type);
-    }
-    if (!args.isEmpty()) {
-        auto resource = args.takeFirst().toLatin1();
-
-        if (resource.contains('/')) {
-            //The resource isn't an id but a path
-            auto list = resource.split('/');
-            const auto resourceId = list.takeFirst();
-            query.resourceFilter(resourceId);
-            if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Mail>() && !list.isEmpty()) {
-                auto value = list.takeFirst();
-                if (isId(value)) {
-                    query.filter<Sink::ApplicationDomain::Mail::Folder>(value);
-                } else {
-                    Sink::Query folderQuery;
-                    folderQuery.resourceFilter(resourceId);
-                    folderQuery.filter<Sink::ApplicationDomain::Folder::Name>(value);
-                    folderQuery.filter<Sink::ApplicationDomain::Folder::Parent>(QVariant());
-                    qWarning() << "Looking for folder: " << value << " in " << resourceId;
-                    auto folders = Sink::Store::read<Sink::ApplicationDomain::Folder>(folderQuery);
-                    if (folders.size() == 1) {
-                        query.filter<Sink::ApplicationDomain::Mail::Folder>(folders.first());
-                        qWarning() << "Synchronizing folder: " << folders.first().identifier();
-                    } else {
-                        qWarning() << "Folder name did not match uniquely: " << folders.size();
-                        for (const auto &f : folders) {
-                            qWarning() << f.getName();
-                        }
-                        state.printError(QObject::tr("Folder name did not match uniquely."));
-                    }
-                }
-            }
-        } else {
-            query.resourceFilter(resource);
+    
+    if (!args.isEmpty() && !SinkshUtils::isValidStoreType(args.first())) {
+        query.resourceFilter(args.first().toLatin1());
+    } else {
+        if (!SinkshUtils::applyFilter(query, args)) {
+            state.printError(QObject::tr("Options: $type $resource/$folder/$subfolder"));
+            return false;
         }
     }
 

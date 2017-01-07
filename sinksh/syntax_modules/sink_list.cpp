@@ -74,16 +74,11 @@ bool list(const QStringList &args_, State &state)
 
     auto type = options.positionalArguments.isEmpty() ? QString{} : options.positionalArguments.first();
 
-    if (type.isEmpty() || !SinkshUtils::isValidStoreType(type)) {
-        state.printError(QObject::tr("Unknown type: %1").arg(type));
-        return false;
-    }
-
     Sink::Query query;
     query.setId("list");
-
-    if (options.options.contains("resource")) {
-        query.resourceFilter(baIfAvailable(options.options.value("resource")));
+    if (!SinkshUtils::applyFilter(query, options)) {
+        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--showall|--show $property]"));
+        return false;
     }
     if (options.options.contains("filter")) {
         for (const auto &f : options.options.value("filter")) {

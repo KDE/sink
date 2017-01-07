@@ -144,4 +144,67 @@ QMap<QString, QString> keyValueMapFromArgs(const QStringList &args)
     }
     return map;
 }
+
+bool isId(const QByteArray &value)
+{
+    return value.startsWith("{");
+}
+
+bool applyFilter(Sink::Query &query, const QStringList &args_)
+{
+    if (args_.isEmpty()) {
+        return false;
+    }
+    auto args = args_;
+
+    auto type = args.takeFirst();
+
+    if ((type.isEmpty() || !SinkshUtils::isValidStoreType(type)) && type != "*") {
+        qWarning() << "Unknown type: " << type;
+        return false;
+    }
+    if (type != "*") {
+        query.setType(type.toUtf8());
+    }
+    if (!args.isEmpty()) {
+        auto resource = args.takeFirst().toLatin1();
+
+        if (resource.contains('/')) {
+            //The resource isn't an id but a path
+            auto list = resource.split('/');
+            const auto resourceId = list.takeFirst();
+            query.resourceFilter(resourceId);
+            if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Mail>() && !list.isEmpty()) {
+                auto value = list.takeFirst();
+                if (isId(value)) {
+                    query.filter<Sink::ApplicationDomain::Mail::Folder>(value);
+                } else {
+                    Sink::Query folderQuery;
+                    folderQuery.resourceFilter(resourceId);
+                    folderQuery.filter<Sink::ApplicationDomain::Folder::Name>(value);
+                    folderQuery.filter<Sink::ApplicationDomain::Folder::Parent>(QVariant());
+                    auto folders = Sink::Store::read<Sink::ApplicationDomain::Folder>(folderQuery);
+                    if (folders.size() == 1) {
+                        query.filter<Sink::ApplicationDomain::Mail::Folder>(folders.first());
+                    } else {
+                        qWarning() << "Folder name did not match uniquely: " << folders.size();
+                        for (const auto &f : folders) {
+                            qWarning() << f.getName();
+                        }
+                        return false;
+                    }
+                }
+            }
+        } else {
+            query.resourceFilter(resource);
+        }
+    }
+    return true;
+}
+
+bool applyFilter(Sink::Query &query, const SyntaxTree::Options &options)
+{
+    return applyFilter(query, options.positionalArguments);
+}
+
 }

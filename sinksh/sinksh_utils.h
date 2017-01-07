@@ -27,6 +27,7 @@
 #include "common/store.h"
 
 #include "state.h"
+#include "syntaxtree.h"
 
 namespace SinkshUtils {
 
@@ -42,6 +43,8 @@ QStringList resourceOrTypeCompleter(const QStringList &commands, const QString &
 QStringList typeCompleter(const QStringList &commands, const QString &fragment, State &state);
 QStringList debugareaCompleter(const QStringList &, const QString &fragment, State &state);
 QMap<QString, QString> keyValueMapFromArgs(const QStringList &args);
+bool applyFilter(Sink::Query &query, const QStringList &args);
+bool applyFilter(Sink::Query &query, const SyntaxTree::Options &args);
 
 /**
  * A small abstraction layer to use the sink store with the type available as string.

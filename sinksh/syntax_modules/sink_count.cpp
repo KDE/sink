@@ -41,20 +41,14 @@ namespace SinkCount
 
 bool count(const QStringList &args, State &state)
 {
-    auto resources = args;
-    auto type = !resources.isEmpty() ? resources.takeFirst() : QString();
-
-    if (!type.isEmpty() && !SinkshUtils::isValidStoreType(type)) {
-        state.printError(QObject::tr("Unknown type: %1").arg(type));
+    Sink::Query query;
+    query.setId("count");
+    if (!SinkshUtils::applyFilter(query, args)) {
+        state.printError(QObject::tr("Options: $type $filter"));
         return false;
     }
 
-    Sink::Query query;
-    for (const auto &res : resources) {
-        query.resourceFilter(res.toLatin1());
-    }
-
-    auto model = SinkshUtils::loadModel(type, query);
+    auto model = SinkshUtils::loadModel(query.type(), query);
     QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [model, state](const QModelIndex &, const QModelIndex &, const QVector<int> &roles) {
         if (roles.contains(Sink::Store::ChildrenFetchedRole)) {
             state.printLine(QObject::tr("Counted results %1").arg(model->rowCount(QModelIndex())));
