@@ -72,16 +72,7 @@ struct Folder {
     {
     }
 
-    QString normalizedPath() const
-    {
-        return path('/');
-    }
 
-    QString path(const QChar &s) const
-    {
-        Q_ASSERT(!s.isNull());
-        return pathParts.join(s);
-    }
 
     QString path() const
     {
@@ -97,13 +88,6 @@ struct Folder {
         return parts.join(mSeparator);
     }
 
-    QString normalizedParentPath() const
-    {
-        Q_ASSERT(!pathParts.isEmpty());
-        auto parts = pathParts;
-        parts.removeLast();
-        return parts.join('/');
-    }
 
     QString name() const
     {

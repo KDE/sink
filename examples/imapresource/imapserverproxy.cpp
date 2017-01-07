@@ -396,25 +396,22 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
 
 QString ImapServerProxy::mailboxFromFolder(const Folder &folder) const
 {
-    if (folder.path().isEmpty()) {
-        return folder.path(mPersonalNamespaceSeparator);
-    } else {
-        return folder.path();
-    }
+    Q_ASSERT(!folder.path().isEmpty());
+    return folder.path();
 }
 
 KAsync::Job<SelectResult> ImapServerProxy::fetchFlags(const Folder &folder, const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback)
 {
-    SinkTrace() << "Fetching flags " << folder.normalizedPath();
+    SinkTrace() << "Fetching flags " << folder.path();
     return select(mailboxFromFolder(folder)).then<SelectResult, SelectResult>([=](const SelectResult &selectResult) -> KAsync::Job<SelectResult> {
-        SinkTrace() << "Modeseq " << folder.normalizedPath() << selectResult.highestModSequence << changedsince;
+        SinkTrace() << "Modeseq " << folder.path() << selectResult.highestModSequence << changedsince;
 
         if (selectResult.highestModSequence == static_cast<quint64>(changedsince)) {
-            SinkTrace()<< folder.normalizedPath() << "Changedsince didn't change, nothing to do.";
+            SinkTrace()<< folder.path() << "Changedsince didn't change, nothing to do.";
             return KAsync::value<SelectResult>(selectResult);
         }
 
-        SinkTrace() << "Fetching flags  " << folder.normalizedPath() << set << selectResult.highestModSequence << changedsince;
+        SinkTrace() << "Fetching flags  " << folder.path() << set << selectResult.highestModSequence << changedsince;
 
         KIMAP2::FetchJob::FetchScope scope;
         scope.mode = KIMAP2::FetchJob::FetchScope::Flags;
@@ -432,15 +429,15 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 ui
     time->start();
     Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
     return select(mailboxFromFolder(folder)).then<void, SelectResult>([this, callback, folder, time, progress, uidNext](const SelectResult &selectResult) -> KAsync::Job<void> {
-        SinkTrace() << "UIDNEXT " << folder.normalizedPath() << selectResult.uidNext << uidNext;
+        SinkTrace() << "UIDNEXT " << folder.path() << selectResult.uidNext << uidNext;
         if (selectResult.uidNext == (uidNext + 1)) {
-            SinkTrace()<< folder.normalizedPath() << "Uidnext didn't change, nothing to do.";
+            SinkTrace()<< folder.path() << "Uidnext didn't change, nothing to do.";
             return KAsync::null<void>();
         }
 
-        SinkTrace() << "Fetching messages from  " << folder.normalizedPath() << selectResult.uidNext << uidNext;
+        SinkTrace() << "Fetching messages from  " << folder.path() << selectResult.uidNext << uidNext;
         return fetchHeaders(mailboxFromFolder(folder), (uidNext + 1)).then<void, QVector<qint64>>([this, callback, time, progress, folder](const QVector<qint64> &uidsToFetch){
-            SinkTrace() << "Fetched headers" << folder.normalizedPath();
+            SinkTrace() << "Fetched headers" << folder.path();
             SinkTrace() << "  Total: " << uidsToFetch.size();
             SinkTrace() << "  Uids to fetch: " << uidsToFetch;
             SinkTrace() << "  Took: " << Sink::Log::TraceTime(time->elapsed());
@@ -457,7 +454,7 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, const QVe
     Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
     return select(mailboxFromFolder(folder)).then<void, SelectResult>([this, callback, folder, time, progress, uidsToFetch](const SelectResult &selectResult) -> KAsync::Job<void> {
 
-        SinkTrace() << "Fetching messages" << folder.normalizedPath();
+        SinkTrace() << "Fetching messages" << folder.path();
         SinkTrace() << "  Total: " << uidsToFetch.size();
         SinkTrace() << "  Uids to fetch: " << uidsToFetch;
         auto totalCount = uidsToFetch.size();

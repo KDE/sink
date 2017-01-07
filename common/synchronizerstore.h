@@ -56,8 +56,12 @@ public:
     QByteArray resolveLocalId(const QByteArray &bufferType, const QByteArray &localId);
     QByteArrayList resolveLocalIds(const QByteArray &bufferType, const QByteArrayList &localId);
 
+    void removePrefix(const QByteArray &prefix);
+    void removeValue(const QByteArray &prefix, const QByteArray &key);
     QByteArray readValue(const QByteArray &key);
+    QByteArray readValue(const QByteArray &prefix, const QByteArray &key);
     void writeValue(const QByteArray &key, const QByteArray &value);
+    void writeValue(const QByteArray &prefix, const QByteArray &key, const QByteArray &value);
 
 private:
     Sink::Storage::DataStore::Transaction &mTransaction;

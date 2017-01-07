@@ -54,6 +54,10 @@ void SynchronizerStore::updateRemoteId(const QByteArray &bufferType, const QByte
 
 QByteArray SynchronizerStore::resolveRemoteId(const QByteArray &bufferType, const QByteArray &remoteId)
 {
+    if (remoteId.isEmpty()) {
+        SinkWarning() << "Cannot resolve empty remote id for type: " << bufferType;
+        return QByteArray();
+    }
     // Lookup local id for remote id, or insert a new pair otherwise
     Index index("rid.mapping." + bufferType, mTransaction);
     QByteArray sinkId = index.lookup(remoteId);
@@ -96,8 +100,33 @@ QByteArray SynchronizerStore::readValue(const QByteArray &key)
     return value;
 }
 
+QByteArray SynchronizerStore::readValue(const QByteArray &prefix, const QByteArray &key)
+{
+    return readValue(prefix + key);
+}
+
 void SynchronizerStore::writeValue(const QByteArray &key, const QByteArray &value)
 {
     mTransaction.openDatabase("values").write(key, value);
+}
+
+void SynchronizerStore::writeValue(const QByteArray &prefix, const QByteArray &key, const QByteArray &value)
+{
+    writeValue(prefix + key, value);
+}
+
+void SynchronizerStore::removeValue(const QByteArray &prefix, const QByteArray &key)
+{
+    mTransaction.openDatabase("values").remove(prefix + key, [&](const Sink::Storage::DataStore::Error &error) {
+        SinkWarning() << "Failed to remove the value: " << prefix + key << error;
+    });
+}
+
+void SynchronizerStore::removePrefix(const QByteArray &prefix)
+{
+    //FIXME remove all values matching prefix
+    // mTransaction.openDatabase("values").remove(prefix, [](const Sink::Storage::DataStore::Error &) {
+    //     //Ignore errors because we may not find the value
+    // });
 }
 
