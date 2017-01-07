@@ -275,6 +275,8 @@ static bool containsItemStartingWith(const QByteArray &pattern, const QByteArray
     for (const auto &item : list) {
         if (item.startsWith('*')) {
             auto stripped = item.mid(1);
+            stripped.endsWith('*');
+            stripped.chop(1);
             if (pattern.contains(stripped)) {
                 return true;
             }

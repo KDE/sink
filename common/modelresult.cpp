@@ -260,6 +260,7 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
     setFetcher([this](const Ptr &parent) { mEmitter->fetch(parent); });
 
     emitter->onAdded([this](const Ptr &value) {
+        SinkTraceCtx(mLogCtx) << "Received addition: " << value->identifier();
         threadBoundary.callInMainThread([this, value]() {
             add(value);
         });
@@ -271,6 +272,7 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
         });
     });
     emitter->onRemoved([this](const Ptr &value) {
+        SinkTraceCtx(mLogCtx) << "Received removal: " << value->identifier();
         threadBoundary.callInMainThread([this, value]() {
             remove(value);
         });
@@ -310,7 +312,7 @@ void ModelResult<T, Ptr>::modify(const Ptr &value)
         return;
     }
     auto parent = createIndexFromId(id);
-    SinkTraceCtx(mLogCtx) << "Modified entity" << childId;
+    SinkTraceCtx(mLogCtx) << "Modified entity:" << value->identifier() << ", id: " << childId;
     auto i = mTree[id].indexOf(childId);
     Q_ASSERT(i >= 0);
     mEntities.remove(childId);

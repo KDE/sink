@@ -214,3 +214,6 @@ private:
 
 }
 } // namespace Sink
+
+QDebug& SINK_EXPORT operator<<(QDebug &dbg, const Sink::Storage::DataStore::Error &error);
+

@@ -32,6 +32,8 @@ QDebug operator<<(QDebug dbg, const Sink::QueryBase::Comparator &c)
         dbg.nospace() << "== " << c.value;
     } else if (c.comparator == Sink::Query::Comparator::Contains) {
         dbg.nospace() << "contains " << c.value;
+    } else if (c.comparator == Sink::Query::Comparator::In) {
+        dbg.nospace() << "in " << c.value;
     } else {
         dbg.nospace() << "unknown comparator: " << c.value;
     }
