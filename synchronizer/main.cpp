@@ -36,6 +36,7 @@
 #include "listener.h"
 #include "log.h"
 #include "test.h"
+#include "definitions.h"
 
 SINK_DEBUG_AREA("main")
 
@@ -163,7 +164,7 @@ int main(int argc, char *argv[])
     Sink::Log::setPrimaryComponent(instanceIdentifier);
     SinkLog() << "Starting: " << instanceIdentifier << resourceType;
 
-    QLockFile lockfile(instanceIdentifier + ".lock");
+    QLockFile lockfile(Sink::resourceStorageLocation(instanceIdentifier) + "/resource.lock");
     lockfile.setStaleLockTime(500);
     if (!lockfile.tryLock(0)) {
         SinkWarning() << "Failed to acquire exclusive lock on socket.";
