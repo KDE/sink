@@ -373,7 +373,7 @@ bool EntityStore::cleanupRevisions(qint64 revision)
     if (cleanupIsNecessary) {
         SinkTraceCtx(d->logCtx) << "Cleaning up from " << firstRevisionToCleanup << " to " << revision;
         for (qint64 rev = firstRevisionToCleanup; rev <= revision; rev++) {
-            cleanupRevision(revision);
+            cleanupRevision(rev);
         }
     }
     if (implicitTransaction) {
