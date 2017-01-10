@@ -173,7 +173,7 @@ static std::shared_ptr<StoreFacade<DomainType>> getFacade(const QByteArray &reso
 template <class DomainType>
 KAsync::Job<void> Store::create(const DomainType &domainObject)
 {
-    SinkTrace() << "Create: " << domainObject;
+    SinkLog() << "Create: " << domainObject;
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
     return facade->create(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to create"; });
@@ -182,7 +182,7 @@ KAsync::Job<void> Store::create(const DomainType &domainObject)
 template <class DomainType>
 KAsync::Job<void> Store::modify(const DomainType &domainObject)
 {
-    SinkTrace() << "Modify: " << domainObject;
+    SinkLog() << "Modify: " << domainObject;
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
     return facade->modify(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to modify"; });
@@ -191,7 +191,7 @@ KAsync::Job<void> Store::modify(const DomainType &domainObject)
 template <class DomainType>
 KAsync::Job<void> Store::move(const DomainType &domainObject, const QByteArray &newResource)
 {
-    SinkTrace() << "Move: " << domainObject << newResource;
+    SinkLog() << "Move: " << domainObject << newResource;
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
     return facade->move(domainObject, newResource).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to move"; });
@@ -269,6 +269,7 @@ KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
 {
     Sink::Query query;
     query.setFilter(scope.getResourceFilter());
+    SinkLog() << "Synchronizing: " << query;
     return fetchAll<ApplicationDomain::SinkResource>(query)
         .template each([scope](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {
             return synchronize(resource->identifier(), scope);
