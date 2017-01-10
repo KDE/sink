@@ -487,6 +487,15 @@ public:
 
     }
 
+    template <typename T>
+    SyncScope(const T &o)
+        : QueryBase()
+    {
+        resourceFilter(o.resourceInstanceIdentifier());
+        filter(o.identifier());
+        setType(ApplicationDomain::getTypeName<T>());
+    }
+
     Query::Filter getResourceFilter() const
     {
         return mResourceFilter;
