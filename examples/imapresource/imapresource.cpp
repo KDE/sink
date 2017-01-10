@@ -449,6 +449,13 @@ public:
                     commit();
                     return *folderList;
                 });
+            })
+            .then<void>([=] (const KAsync::Error &error) {
+                if (error) {
+                    SinkWarning() << "Error during sync: " << error.errorMessage;
+                }
+                return imap->logout()
+                    .then(KAsync::error(error));
             });
         } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
             //TODO
@@ -513,6 +520,13 @@ public:
                         });
                     });
                 }
+            })
+            .then<void>([=] (const KAsync::Error &error) {
+                if (error) {
+                    SinkWarning() << "Error during sync: " << error.errorMessage;
+                }
+                return imap->logout()
+                    .then(KAsync::error(error));
             });
         }
         return KAsync::error<void>("Nothing to do");

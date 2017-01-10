@@ -23,6 +23,7 @@
 #include <QTcpSocket>
 #include <QTimer>
 #include <KIMAP2/LoginJob>
+#include <KIMAP2/LogoutJob>
 #include <KIMAP2/NamespaceJob>
 #include <KIMAP2/SelectJob>
 #include <KIMAP2/AppendJob>
@@ -148,6 +149,12 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
         SinkTrace() << "Found shared namespaces: " << mSharedNamespaces << mSharedNamespaceSeparator;
         SinkTrace() << "Found user namespaces: " << mUserNamespaces << mUserNamespaceSeparator;
     });
+}
+
+KAsync::Job<void> ImapServerProxy::logout()
+{
+    auto logoutJob = new KIMAP2::LogoutJob(mSession);
+    return runJob(logoutJob);
 }
 
 KAsync::Job<SelectResult> ImapServerProxy::select(const QString &mailbox)
