@@ -334,6 +334,7 @@ public:
             mail.setProperty(ApplicationDomain::Mail::MimeMessage::name, QVariant::fromValue(blob));
             mail.setUnread(!flags.testFlag(KPIM::Maildir::Seen));
             mail.setImportant(flags.testFlag(KPIM::Maildir::Flagged));
+            mail.setExtractedFullPayloadAvailable(true);
 
             createOrModify(bufferType, remoteId, mail);
         }
