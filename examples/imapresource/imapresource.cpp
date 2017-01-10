@@ -471,7 +471,8 @@ public:
                     auto mailRemoteIds = syncStore().resolveLocalIds(ApplicationDomain::getTypeName<ApplicationDomain::Mail>(), query.ids());
                     QByteArray folderRemoteId;
                     for (const auto &r : mailRemoteIds) {
-                        const auto f = folderIdFromMailRid(r);
+                        const auto folderLocalId = folderIdFromMailRid(r);
+                        auto f = syncStore().resolveLocalId(ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), folderLocalId);
                         if (folderRemoteId.isEmpty()) {
                             folderRemoteId = f;
                         } else {
@@ -481,7 +482,7 @@ public:
                         }
                         toFetch << uidFromMailRid(r);
                     }
-                    SinkLog() << "Fetching messages: " << toFetch;
+                    SinkLog() << "Fetching messages: " << toFetch << folderRemoteId;
                     bool headersOnly = false;
                     return imap->fetchMessages(Folder{folderRemoteId}, toFetch, headersOnly, [=](const Message &m) {
                         synchronizeMails(folderRemoteId, m);
