@@ -19,6 +19,7 @@
 
 #include <QCoreApplication>
 #include <QLockFile>
+#include <QDir>
 
 #include <signal.h>
 #include <execinfo.h>
@@ -164,6 +165,7 @@ int main(int argc, char *argv[])
     Sink::Log::setPrimaryComponent(instanceIdentifier);
     SinkLog() << "Starting: " << instanceIdentifier << resourceType;
 
+    QDir{}.mkpath(Sink::resourceStorageLocation(instanceIdentifier));
     QLockFile lockfile(Sink::resourceStorageLocation(instanceIdentifier) + "/resource.lock");
     lockfile.setStaleLockTime(500);
     if (!lockfile.tryLock(0)) {
