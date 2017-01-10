@@ -140,6 +140,24 @@ public:
         }
     }
 
+    static void setFlags(Sink::ApplicationDomain::Mail &mail, const KIMAP2::MessageFlags &flags)
+    {
+        mail.setUnread(!flags.contains(Imap::Flags::Seen));
+        mail.setImportant(flags.contains(Imap::Flags::Flagged));
+    }
+
+    KIMAP2::MessageFlags getFlags(const Sink::ApplicationDomain::Mail &mail)
+    {
+        KIMAP2::MessageFlags flags;
+        if (!mail.getUnread()) {
+            flags << Imap::Flags::Seen;
+        }
+        if (mail.getImportant()) {
+            flags << Imap::Flags::Flagged;
+        }
+        return flags;
+    }
+
     void synchronizeMails(const QByteArray &folderRid, const Message &message)
     {
         auto time = QSharedPointer<QTime>::create();
@@ -158,8 +176,7 @@ public:
         auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
         mail.setFolder(folderLocalId);
         mail.setMimeMessage(message.msg->encodedContent());
-        mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
-        mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
+        setFlags(mail, message.flags);
 
         createOrModify(bufferType, remoteId, mail);
         // const auto elapsed = time->elapsed();
@@ -198,76 +215,87 @@ public:
         SinkLog() << "Removed " << count << " mails in " << folderRid << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
 
-    KAsync::Job<void> synchronizeFolder(QSharedPointer<ImapServerProxy> imap, const Imap::Folder &folder, const QDate &dateFilter)
+    KAsync::Job<void> synchronizeFolder(QSharedPointer<ImapServerProxy> imap, const Imap::Folder &folder, const QDate &dateFilter, bool fetchHeaderAlso = false)
     {
-        QSet<qint64> uids;
         SinkLogCtx(mLogCtx) << "Synchronizing mails: " << folderRid(folder);
-        if (folder.path().isEmpty()) {
+        SinkLogCtx(mLogCtx) << " fetching headers also: " << fetchHeaderAlso;
+        const auto folderRemoteId = folderRid(folder);
+        if (folder.path().isEmpty() || folderRemoteId.isEmpty()) {
+            SinkWarningCtx(mLogCtx) << "Invalid folder " << folderRemoteId << folder.path();
             return KAsync::error<void>("Invalid folder");
         }
-        auto capabilities = imap->getCapabilities();
-        bool canDoIncrementalRemovals = false;
+        // auto capabilities = imap->getCapabilities();
+
+        //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
         return KAsync::start<void>([=]() {
-            //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
-            auto uidNext = syncStore().readValue(folderRid(folder), "uidnext").toLongLong();
+            auto uidNext = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
             bool ok = false;
-            const auto changedsince = syncStore().readValue(folderRid(folder), "changedsince").toLongLong(&ok);
-            SinkLog() << "About to update flags" << folder.path() << "changedsince: " << changedsince;
+            const auto changedsince = syncStore().readValue(folderRemoteId, "changedsince").toLongLong(&ok);
+            SinkLogCtx(mLogCtx) << "About to update flags" << folder.path() << "changedsince: " << changedsince;
+            //If we have any mails so far we start off by updating any changed flags using changedsince
             if (ok) {
-                return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(uidNext, qint64(1))), changedsince, [this, folder](const Message &message) {
-                    const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRid(folder));
+                return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(uidNext, qint64(1))), changedsince, [=](const Message &message) {
+                    const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                     const auto remoteId = assembleMailRid(folderLocalId, message.uid);
 
-                    SinkLog() << "Updating mail flags " << remoteId << message.flags;
+                    SinkLogCtx(mLogCtx) << "Updating mail flags " << remoteId << message.flags;
 
                     auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
-                    mail.setUnread(!message.flags.contains(Imap::Flags::Seen));
-                    mail.setImportant(message.flags.contains(Imap::Flags::Flagged));
+                    setFlags(mail, message.flags);
 
                     modify(ENTITY_TYPE_MAIL, remoteId, mail);
                 })
-                .syncThen<void, SelectResult>([this, folder](const SelectResult &selectResult) {
-                    SinkLog() << "Flags updated. New changedsince value: " << selectResult.highestModSequence;
-                    syncStore().writeValue(folderRid(folder), "changedsince", QByteArray::number(selectResult.highestModSequence));
+                .syncThen<void, SelectResult>([=](const SelectResult &selectResult) {
+                    SinkLogCtx(mLogCtx) << "Flags updated. New changedsince value: " << selectResult.highestModSequence;
+                    syncStore().writeValue(folderRemoteId, "changedsince", QByteArray::number(selectResult.highestModSequence));
                 });
             } else {
-                //We hit this path on initial sync
+                //We hit this path on initial sync and simply record the current changedsince value
                 return imap->select(imap->mailboxFromFolder(folder))
-                .syncThen<void, SelectResult>([this, folder](const SelectResult &selectResult) {
-                    SinkLog() << "No flags to update. New changedsince value: " << selectResult.highestModSequence;
-                    syncStore().writeValue(folderRid(folder), "changedsince", QByteArray::number(selectResult.highestModSequence));
+                .syncThen<void, SelectResult>([=](const SelectResult &selectResult) {
+                    SinkLogCtx(mLogCtx) << "No flags to update. New changedsince value: " << selectResult.highestModSequence;
+                    syncStore().writeValue(folderRemoteId, "changedsince", QByteArray::number(selectResult.highestModSequence));
                 });
             }
         })
+        //Next we synchronize the full set that is given by the date limit.
+        //We fetch all data for this set.
+        //This will also pull in any new messages in subsequent runs.
         .then<void>([=]() {
             auto job = [&] {
+                SinkLogCtx(mLogCtx) << "Fetching messages since: " << dateFilter;
                 if (dateFilter.isValid()) {
                     return imap->fetchUidsSince(imap->mailboxFromFolder(folder), dateFilter);
                 } else {
                     return imap->fetchUids(imap->mailboxFromFolder(folder));
                 }
             }();
-            return job.then<void, QVector<qint64>>([this, folder, imap](const QVector<qint64> &uidsToFetch) {
-                SinkTrace() << "Received result set " << uidsToFetch;
-                SinkTrace() << "About to fetch mail" << folder.path();
-                const auto uidNext = syncStore().readValue(folderRid(folder), "uidnext").toLongLong();
+            return job.then<void, QVector<qint64>>([=](const QVector<qint64> &uidsToFetch) {
+                SinkTraceCtx(mLogCtx) << "Received result set " << uidsToFetch;
+                SinkTraceCtx(mLogCtx) << "About to fetch mail" << folder.path();
+                const auto uidNext = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
+
+                //Make sure the uids are sorted in reverse order and drop everything below uidNext (so we don't refetch what we already have
                 QVector<qint64> filteredAndSorted = uidsToFetch;
                 qSort(filteredAndSorted.begin(), filteredAndSorted.end(), qGreater<qint64>());
                 auto lowerBound = qLowerBound(filteredAndSorted.begin(), filteredAndSorted.end(), uidNext, qGreater<qint64>());
                 if (lowerBound != filteredAndSorted.end()) {
                     filteredAndSorted.erase(lowerBound, filteredAndSorted.end());
                 }
+                const qint64 lowerBoundUid = filteredAndSorted.isEmpty() ? 0 : filteredAndSorted.last();
 
                 auto maxUid = QSharedPointer<qint64>::create(0);
                 if (!filteredAndSorted.isEmpty()) {
                     *maxUid = filteredAndSorted.first();
                 }
-                SinkTrace() << "Uids to fetch: " << filteredAndSorted;
-                return imap->fetchMessages(folder, filteredAndSorted, [this, folder, maxUid](const Message &m) {
+                SinkTraceCtx(mLogCtx) << "Uids to fetch: " << filteredAndSorted;
+
+                bool headersOnly = false;
+                return imap->fetchMessages(folder, filteredAndSorted, headersOnly, [=](const Message &m) {
                     if (*maxUid < m.uid) {
                         *maxUid = m.uid;
                     }
-                    synchronizeMails(folderRid(folder), m);
+                    synchronizeMails(folderRemoteId, m);
                 },
                 [this, maxUid, folder](int progress, int total) {
                     SinkLog() << "Progress: " << progress << " out of " << total;
@@ -276,30 +304,68 @@ public:
                         commit();
                     }
                 })
-                .syncThen<void>([this, maxUid, folder]() {
-                    SinkLog() << "UIDMAX: " << *maxUid << folder.path();
+                .syncThen<void>([=]() {
+                    SinkLogCtx(mLogCtx) << "UIDMAX: " << *maxUid << folder.path();
                     if (*maxUid > 0) {
-                        syncStore().writeValue(folderRid(folder) + "uidnext", QByteArray::number(*maxUid));
+                        syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(*maxUid));
                     }
+                    syncStore().writeValue(folderRemoteId, "fullsetLowerbound", QByteArray::number(lowerBoundUid));
                     commit();
                 });
             });
         })
-        .then<void>([=]() {
-            //TODO Remove what's no longer existing
-            if (canDoIncrementalRemovals) {
-                //TODO do an examine with QRESYNC and remove VANISHED messages
-            } else {
-                return imap->fetchUids(folder).syncThen<void, QVector<qint64>>([this, folder](const QVector<qint64> &uids) {
-                    SinkTrace() << "Syncing removals: " << folder.path();
-                    synchronizeRemovals(folderRid(folder), uids.toList().toSet());
+        .then<void>([=] {
+            bool ok = false;
+            const auto headersFetched = !syncStore().readValue(folderRemoteId, "headersFetched").isEmpty();
+            const auto fullsetLowerbound = syncStore().readValue(folderRemoteId, "fullsetLowerbound").toLongLong(&ok);
+            if (ok && !headersFetched) {
+                SinkLogCtx(mLogCtx) << "Fetching headers until: " << fullsetLowerbound;
+
+                return imap->fetchUids(imap->mailboxFromFolder(folder))
+                .then<void, QVector<qint64>>([=] (const QVector<qint64> &uids) {
+                    //sort in reverse order and remove everything greater than fullsetLowerbound
+                    QVector<qint64> toFetch = uids;
+                    qSort(toFetch.begin(), toFetch.end(), qGreater<qint64>());
+                    if (fullsetLowerbound) {
+                        auto upperBound = qUpperBound(toFetch.begin(), toFetch.end(), fullsetLowerbound, qGreater<qint64>());
+                        if (upperBound != toFetch.begin()) {
+                            toFetch.erase(toFetch.begin(), upperBound);
+                        }
+                    }
+                    SinkLogCtx(mLogCtx) << "Fetching headers for: " << toFetch;
+
+                    bool headersOnly = true;
+                    return imap->fetchMessages(folder, toFetch, headersOnly, [=](const Message &m) {
+                        synchronizeMails(folderRemoteId, m);
+                    },
+                    [=](int progress, int total) {
+                        SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total;
+                        //commit every 100 messages
+                        if ((progress % 100) == 0) {
+                            commit();
+                        }
+                    });
+                })
+                .syncThen<void>([=]() {
+                    SinkLogCtx(mLogCtx) << "Headers fetched: " << folder.path();
+                    syncStore().writeValue(folderRemoteId, "headersFetched", "true");
                     commit();
                 });
+
+            } else {
+                SinkLogCtx(mLogCtx) << "No additional headers to fetch.";
             }
-            return KAsync::null<void>();
+            return KAsync::null();
+        })
+        //Finally remove messages that are no longer existing on the server.
+        .then<void>([=]() {
+            //TODO do an examine with QRESYNC and remove VANISHED messages if supported instead
+            return imap->fetchUids(folder).syncThen<void, QVector<qint64>>([=](const QVector<qint64> &uids) {
+                SinkTraceCtx(mLogCtx) << "Syncing removals: " << folder.path();
+                synchronizeRemovals(folderRemoteId, uids.toList().toSet());
+                commit();
+            });
         });
-
-
     }
 
     Sink::QueryBase applyMailDefaults(const Sink::QueryBase &query)
@@ -337,6 +403,33 @@ public:
         });
     }
 
+    KAsync::Job<QVector<Folder>> getFolderList(QSharedPointer<ImapServerProxy> imap, const Sink::QueryBase &query)
+    {
+        if (query.hasFilter<ApplicationDomain::Mail::Folder>()) {
+            //If we have a folder filter fetch full payload of date-range & all headers
+            QVector<Folder> folders;
+            auto folderFilter = query.getFilter<ApplicationDomain::Mail::Folder>();
+            auto localIds = resolveFilter(folderFilter);
+            auto folderRemoteIds = syncStore().resolveLocalIds(ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), localIds);
+            for (const auto &r : folderRemoteIds) {
+                folders << Folder{r};
+            }
+            return KAsync::value(folders);
+        } else {
+            //Otherwise fetch full payload for daterange
+            auto folderList = QSharedPointer<QVector<Folder>>::create();
+            return  imap->fetchFolders([folderList](const Folder &folder) {
+                if (!folder.noselect) {
+                    *folderList << folder;
+                }
+            })
+            .onError([](const KAsync::Error &error) {
+                SinkWarning() << "Folder list sync failed.";
+            })
+            .syncThen<QVector<Folder>>([folderList]() { return *folderList; } );
+        }
+    }
+
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
@@ -368,51 +461,63 @@ public:
             //* apply the date filter to the fetch
             //if we have no folder filter:
             //* fetch list of folders from server directly and sync (because we have no guarantee that the folder sync was already processed by the pipeline).
-            return KAsync::start<void>([this, query]() {
-                auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
-                auto job = login(imap);
-                job = job.then<QVector<Folder>>([this, imap, query]() {
-                    SinkLog() << "Login was successful";
-                    //FIXME If we were able to to flush in between we could just query the local store for the folder list.
-                    //
-                    if (query.hasFilter<ApplicationDomain::Mail::Folder>()) {
-                        QVector<Folder> folders;
-                        auto folderFilter = query.getFilter<ApplicationDomain::Mail::Folder>();
-                        auto localIds = resolveFilter(folderFilter);
-                        auto folderRemoteIds = syncStore().resolveLocalIds(ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), localIds);
-                        for (const auto &r : folderRemoteIds) {
-                            folders << Folder{r};
+            auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+            return login(imap)
+            .then<void>([=] () -> KAsync::Job<void> {
+                if (!query.ids().isEmpty()) {
+                    //If we have mail id's simply fetch the full payload of those mails
+                    QVector<qint64> toFetch;
+                    auto mailRemoteIds = syncStore().resolveLocalIds(ApplicationDomain::getTypeName<ApplicationDomain::Mail>(), query.ids());
+                    QByteArray folderRemoteId;
+                    for (const auto &r : mailRemoteIds) {
+                        const auto f = folderIdFromMailRid(r);
+                        if (folderRemoteId.isEmpty()) {
+                            folderRemoteId = f;
+                        } else {
+                            if (folderRemoteId != f) {
+                                SinkWarningCtx(mLogCtx) << "Not all messages come from the same folder " << r << folderRemoteId;
+                            }
                         }
-                        return KAsync::value(folders);
-                    } else {
-                        auto folderList = QSharedPointer<QVector<Folder>>::create();
-                        return  imap->fetchFolders([folderList](const Folder &folder) {
-                            *folderList << folder;
-                        })
-                        .onError([](const KAsync::Error &error) {
-                            SinkWarning() << "Folder list sync failed.";
-                        })
-                        .syncThen<QVector<Folder>>([this, folderList]() {
-                            return *folderList;
+                        toFetch << uidFromMailRid(r);
+                    }
+                    SinkLog() << "Fetching messages: " << toFetch;
+                    bool headersOnly = false;
+                    return imap->fetchMessages(Folder{folderRemoteId}, toFetch, headersOnly, [=](const Message &m) {
+                        synchronizeMails(folderRemoteId, m);
+                    },
+                    [=](int progress, int total) {
+                        SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total;
+                        //commit every 100 messages
+                        if ((progress % 100) == 0) {
+                            commit();
+                        }
+                    })
+                    .syncThen<void>([=]() {
+                        commit();
+                    });
+                } else {
+                    //Otherwise we sync the folder(s)
+                    bool syncHeaders = query.hasFilter<ApplicationDomain::Mail::Folder>();
+                    //FIXME If we were able to to flush in between we could just query the local store for the folder list.
+                    return getFolderList(imap, query)
+                    .then<void, QVector<Folder>>([=] (const QVector<Folder> &folders) {
+                        //Synchronize folders
+                        return KAsync::value(folders)
+                        .serialEach<void>([=](const Folder &folder) {
+                            SinkLog() << "Syncing folder " << folder.path();
+                            QDate dateFilter;
+                            auto filter = query.getFilter<ApplicationDomain::Mail::Date>();
+                            if (filter.value.canConvert<QDate>()) {
+                                dateFilter = filter.value.value<QDate>();
+                                SinkLog() << " with date-range " << dateFilter;
+                            }
+                            return synchronizeFolder(imap, folder, dateFilter, syncHeaders)
+                                .onError([folder](const KAsync::Error &error) {
+                                    SinkWarning() << "Failed to sync folder: " << folder.path() << "Error: " << error.errorMessage;
+                                });
                         });
-                    }
-                })
-                .serialEach<void>([this, imap, query](const Folder &folder) {
-                    if (folder.noselect) {
-                        return KAsync::null<void>();
-                    }
-                    QDate dateFilter;
-                    auto filter = query.getFilter<ApplicationDomain::Mail::Date>();
-                    if (filter.value.canConvert<QDate>()) {
-                        dateFilter = filter.value.value<QDate>();
-                    }
-                    return synchronizeFolder(imap, folder, dateFilter)
-                        .onError([folder](const KAsync::Error &error) {
-                            SinkWarning() << "Failed to sync folder: " << folder.path() << "Error: " << error.errorMessage;
-                        });
-                });
-
-                return job;
+                    });
+                }
             });
         }
         return KAsync::error<void>("Nothing to do");
@@ -425,13 +530,7 @@ public:
         if (operation == Sink::Operation_Creation) {
             QString mailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
             QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
-            QByteArrayList flags;
-            if (!mail.getUnread()) {
-                flags << Imap::Flags::Seen;
-            }
-            if (mail.getImportant()) {
-                flags << Imap::Flags::Flagged;
-            }
+            auto flags = getFlags(mail);
             QDateTime internalDate = mail.getDate();
             return login.then(imap->append(mailbox, content, flags, internalDate))
                 .addToContext(imap)
@@ -458,13 +557,7 @@ public:
 
             SinkTrace() << "Modifying a mail: " << oldRemoteId << " in the mailbox: " << mailbox << changedProperties;
 
-            QByteArrayList flags;
-            if (!mail.getUnread()) {
-                flags << Imap::Flags::Seen;
-            }
-            if (mail.getImportant()) {
-                flags << Imap::Flags::Flagged;
-            }
+            auto flags = getFlags(mail);
 
             const bool messageMoved = changedProperties.contains(ApplicationDomain::Mail::Folder::name);
             const bool messageChanged = changedProperties.contains(ApplicationDomain::Mail::MimeMessage::name);
