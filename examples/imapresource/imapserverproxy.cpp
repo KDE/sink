@@ -280,9 +280,10 @@ KAsync::Job<QVector<qint64>> ImapServerProxy::search(const KIMAP2::Term &term)
 
 KAsync::Job<void> ImapServerProxy::fetch(const KIMAP2::ImapSet &set, KIMAP2::FetchJob::FetchScope scope, const std::function<void(const Message &)> &callback)
 {
+    const bool fullPayload = (scope.mode == KIMAP2::FetchJob::FetchScope::Full);
     return fetch(set, scope,
-                    [callback](const KIMAP2::FetchJob::Result &result) {
-                        callback(Message{result.uid, result.size, result.attributes, result.flags, result.message});
+                    [callback, fullPayload](const KIMAP2::FetchJob::Result &result) {
+                        callback(Message{result.uid, result.size, result.attributes, result.flags, result.message, fullPayload});
                     });
 }
 

@@ -176,6 +176,7 @@ public:
         auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
         mail.setFolder(folderLocalId);
         mail.setMimeMessage(message.msg->encodedContent());
+        mail.setExtractedFullPayloadAvailable(message.fullPayload);
         setFlags(mail, message.flags);
 
         createOrModify(bufferType, remoteId, mail);

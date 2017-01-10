@@ -55,6 +55,7 @@ struct Message {
     KIMAP2::MessageAttributes attributes;
     KIMAP2::MessageFlags flags;
     KMime::Message::Ptr msg;
+    bool fullPayload;
 };
 
 struct Folder {
@@ -72,8 +73,6 @@ struct Folder {
     {
     }
 
-
-
     QString path() const
     {
         Q_ASSERT(!mPath.isEmpty());
@@ -87,7 +86,6 @@ struct Folder {
         parts.removeLast();
         return parts.join(mSeparator);
     }
-
 
     QString name() const
     {

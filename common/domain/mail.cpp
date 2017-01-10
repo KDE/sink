@@ -62,7 +62,7 @@ void TypeImplementation<Mail>::configure(IndexPropertyMapper &indexPropertyMappe
             if (!thread.isEmpty()) {
                 return thread.first();
             }
-            return QByteArray{};  
+            return QByteArray{};
         });
 }
 
@@ -79,6 +79,7 @@ void TypeImplementation<Mail>::configure(ReadPropertyMapper<Buffer> &propertyMap
     propertyMapper.addMapping<Mail::Important, Buffer>(&Buffer::important);
     propertyMapper.addMapping<Mail::Folder, Buffer>(&Buffer::folder);
     propertyMapper.addMapping<Mail::MimeMessage, Buffer>(&Buffer::mimeMessage);
+    propertyMapper.addMapping<Mail::FullPayloadAvailable, Buffer>(&Buffer::fullPayloadAvailable);
     propertyMapper.addMapping<Mail::Draft, Buffer>(&Buffer::draft);
     propertyMapper.addMapping<Mail::Trash, Buffer>(&Buffer::trash);
     propertyMapper.addMapping<Mail::Sent, Buffer>(&Buffer::sent);
@@ -99,6 +100,7 @@ void TypeImplementation<Mail>::configure(WritePropertyMapper<BufferBuilder> &pro
     propertyMapper.addMapping<Mail::Important>(&BufferBuilder::add_important);
     propertyMapper.addMapping<Mail::Folder>(&BufferBuilder::add_folder);
     propertyMapper.addMapping<Mail::MimeMessage>(&BufferBuilder::add_mimeMessage);
+    propertyMapper.addMapping<Mail::FullPayloadAvailable>(&BufferBuilder::add_fullPayloadAvailable);
     propertyMapper.addMapping<Mail::Draft>(&BufferBuilder::add_draft);
     propertyMapper.addMapping<Mail::Trash>(&BufferBuilder::add_trash);
     propertyMapper.addMapping<Mail::Sent>(&BufferBuilder::add_sent);
