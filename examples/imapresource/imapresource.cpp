@@ -96,17 +96,19 @@ public:
 
     }
 
-    QByteArray createFolder(const QString &folderName, const QByteArray &folderRemoteId, const QByteArray &parentFolderRid, const QByteArray &icon)
+    QByteArray createFolder(const Imap::Folder &f)
     {
-        SinkTrace() << "Creating folder: " << folderName << parentFolderRid;
-        const auto remoteId = folderRemoteId;
-        const auto bufferType = ENTITY_TYPE_FOLDER;
+        const auto parentFolderRid = parentRid(f);
+        SinkTrace() << "Creating folder: " << f.name() << parentFolderRid;
+
+        const auto remoteId = folderRid(f);
         Sink::ApplicationDomain::Folder folder;
-        folder.setName(folderName);
-        folder.setIcon(icon);
+        folder.setName(f.name());
+        folder.setIcon("folder");
+        folder.setEnabled(f.subscribed);
         QHash<QByteArray, Query::Comparator> mergeCriteria;
-        if (SpecialPurpose::isSpecialPurposeFolderName(folderName)) {
-            auto type = SpecialPurpose::getSpecialPurposeType(folderName);
+        if (SpecialPurpose::isSpecialPurposeFolderName(f.name())) {
+            auto type = SpecialPurpose::getSpecialPurposeType(f.name());
             folder.setSpecialPurpose(QByteArrayList() << type);
             mergeCriteria.insert(ApplicationDomain::Folder::SpecialPurpose::name, Query::Comparator(type, Query::Comparator::Contains));
         }
@@ -114,16 +116,15 @@ public:
         if (!parentFolderRid.isEmpty()) {
             folder.setParent(syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, parentFolderRid));
         }
-        createOrModify(bufferType, remoteId, folder, mergeCriteria);
+        createOrModify(ENTITY_TYPE_FOLDER, remoteId, folder, mergeCriteria);
         return remoteId;
     }
 
     void synchronizeFolders(const QVector<Folder> &folderList)
     {
-        const QByteArray bufferType = ENTITY_TYPE_FOLDER;
         SinkTrace() << "Found folders " << folderList.size();
 
-        scanForRemovals(bufferType,
+        scanForRemovals(ENTITY_TYPE_FOLDER,
             [&folderList](const QByteArray &remoteId) -> bool {
                 // folderList.contains(remoteId)
                 for (const auto &folder : folderList) {
@@ -136,7 +137,7 @@ public:
         );
 
         for (const auto &f : folderList) {
-            createFolder(f.name(), folderRid(f), parentRid(f), "folder");
+            createFolder(f);
         }
     }
 
@@ -162,8 +163,6 @@ public:
     {
         auto time = QSharedPointer<QTime>::create();
         time->start();
-        const QByteArray bufferType = ENTITY_TYPE_MAIL;
-
         SinkTrace() << "Importing new mail." << folderRid;
 
         const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRid);
@@ -179,7 +178,7 @@ public:
         mail.setExtractedFullPayloadAvailable(message.fullPayload);
         setFlags(mail, message.flags);
 
-        createOrModify(bufferType, remoteId, mail);
+        createOrModify(ENTITY_TYPE_MAIL, remoteId, mail);
         // const auto elapsed = time->elapsed();
         // SinkTrace() << "Synchronized " << count << " mails in " << folderRid << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
@@ -188,7 +187,6 @@ public:
     {
         auto time = QSharedPointer<QTime>::create();
         time->start();
-        const QByteArray bufferType = ENTITY_TYPE_MAIL;
         const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRid);
         if (folderLocalId.isEmpty()) {
             SinkWarning() << "Failed to lookup local id of: " << folderRid;
@@ -199,7 +197,7 @@ public:
 
         int count = 0;
 
-        scanForRemovals(bufferType,
+        scanForRemovals(ENTITY_TYPE_MAIL,
             [&](const std::function<void(const QByteArray &)> &callback) {
                 store().indexLookup<ApplicationDomain::Mail, ApplicationDomain::Mail::Folder>(folderLocalId, callback);
             },
@@ -436,23 +434,18 @@ public:
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
             return login(imap)
-            .then<QVector<Folder>>([=]() {
+            .then<void>([=]() {
                 auto folderList = QSharedPointer<QVector<Folder>>::create();
                 return  imap->fetchFolders([folderList](const Folder &folder) {
                     *folderList << folder;
                 })
-                .onError([](const KAsync::Error &error) {
-                    SinkWarning() << "Folder list sync failed.";
-                })
-                .syncThen<QVector<Folder>>([this, folderList]() {
+                .syncThen<void>([this, folderList]() {
                     synchronizeFolders(*folderList);
-                    commit();
-                    return *folderList;
                 });
             })
             .then<void>([=] (const KAsync::Error &error) {
                 if (error) {
-                    SinkWarning() << "Error during sync: " << error.errorMessage;
+                    SinkWarning() << "Error during folder sync: " << error.errorMessage;
                 }
                 return imap->logout()
                     .then(KAsync::error(error));

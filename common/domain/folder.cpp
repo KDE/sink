@@ -42,6 +42,7 @@ void TypeImplementation<Folder>::configure(ReadPropertyMapper<Buffer> &propertyM
     propertyMapper.addMapping<Folder::Name, Buffer>(&Buffer::name);
     propertyMapper.addMapping<Folder::Icon, Buffer>(&Buffer::icon);
     propertyMapper.addMapping<Folder::SpecialPurpose, Buffer>(&Buffer::specialpurpose);
+    propertyMapper.addMapping<Folder::Enabled, Buffer>(&Buffer::enabled);
 }
 
 void TypeImplementation<Folder>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
@@ -50,6 +51,7 @@ void TypeImplementation<Folder>::configure(WritePropertyMapper<BufferBuilder> &p
     propertyMapper.addMapping<Folder::Name>(&BufferBuilder::add_name);
     propertyMapper.addMapping<Folder::Icon>(&BufferBuilder::add_icon);
     propertyMapper.addMapping<Folder::SpecialPurpose>(&BufferBuilder::add_specialpurpose);
+    propertyMapper.addMapping<Folder::Enabled>(&BufferBuilder::add_enabled);
 }
 
 void TypeImplementation<Folder>::configure(IndexPropertyMapper &)

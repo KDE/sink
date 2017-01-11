@@ -60,8 +60,10 @@ struct Message {
 
 struct Folder {
     Folder() = default;
-    Folder(const QString &path, const QChar &separator, bool noselect_)
+    Folder(const QString &path, const QChar &separator, bool noselect_, bool subscribed_, const QByteArrayList &flags_)
         : noselect(noselect_),
+        subscribed(subscribed_),
+        flags(flags_),
         mPath(path),
         pathParts(path.split(separator)),
         mSeparator(separator)
@@ -94,6 +96,8 @@ struct Folder {
     }
 
     bool noselect = false;
+    bool subscribed = false;
+    QByteArrayList flags;
 
 private:
     QString mPath;

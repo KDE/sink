@@ -350,6 +350,7 @@ struct SINK_EXPORT Folder : public Entity {
     SINK_PROPERTY(QString, Name, name);
     SINK_PROPERTY(QByteArray, Icon, icon);
     SINK_PROPERTY(QByteArrayList, SpecialPurpose, specialpurpose);
+    SINK_PROPERTY(bool, Enabled, enabled);
 };
 
 struct SINK_EXPORT Mail : public Entity {

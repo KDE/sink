@@ -395,11 +395,15 @@ KAsync::Job<QString> ImapServerProxy::renameSubfolder(const QString &oldMailbox,
 KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder &)> callback)
 {
     SinkTrace() << "Fetching folders";
-    return list(KIMAP2::ListJob::IncludeUnsubscribed, [callback](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &flags){
-            bool noselect = flags.contains(QByteArray(FolderFlags::Noselect).toLower()) || flags.contains(QByteArray(FolderFlags::Noselect));
-            SinkLog() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect;
-            callback(Folder{mailbox.name, mailbox.separator, noselect});
-    });
+    auto subscribedList = QSharedPointer<QSet<QString>>::create() ;
+    return list(KIMAP2::ListJob::NoOption, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &){
+        *subscribedList << mailbox.name;
+    }).then(list(KIMAP2::ListJob::IncludeUnsubscribed, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &flags) {
+        bool noselect = flags.contains(QByteArray(FolderFlags::Noselect).toLower()) || flags.contains(QByteArray(FolderFlags::Noselect));
+        bool subscribed = subscribedList->contains(mailbox.name);
+        SinkLog() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect  << " sub: " << subscribed;
+        callback(Folder{mailbox.name, mailbox.separator, noselect, subscribed, flags});
+    }));
 }
 
 QString ImapServerProxy::mailboxFromFolder(const Folder &folder) const

@@ -5,6 +5,7 @@ table Folder {
   parent:string;
   icon:string;
   specialpurpose:[string];
+  enabled:bool = true;
 }
 
 root_type Folder;
