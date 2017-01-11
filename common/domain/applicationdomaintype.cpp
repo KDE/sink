@@ -206,6 +206,11 @@ Entity::~Entity()
 
 }
 
+Contact::~Contact()
+{
+
+}
+
 Event::~Event()
 {
 
@@ -325,6 +330,12 @@ SinkResource ImapResource::create(const QByteArray &account)
 }
 
 template<>
+QByteArray getTypeName<Contact>()
+{
+    return "contact";
+}
+
+template<>
 QByteArray getTypeName<Event>()
 {
     return "event";
@@ -377,6 +388,7 @@ QByteArrayList getTypeNames()
         types << ApplicationDomain::getTypeName<Folder>();
         types << ApplicationDomain::getTypeName<Event>();
         types << ApplicationDomain::getTypeName<Todo>();
+        types << ApplicationDomain::getTypeName<Contact>();
     }
     return types;
 }

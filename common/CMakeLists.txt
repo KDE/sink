@@ -61,6 +61,7 @@ set(command_SRCS
     configstore.cpp
     resultset.cpp
     domain/applicationdomaintype.cpp
+    domain/contact.cpp
     domain/event.cpp
     domain/mail.cpp
     domain/folder.cpp
@@ -97,6 +98,7 @@ generate_flatbuffers(
     commands/revisionreplayed
     commands/inspection
     commands/flush
+    domain/contact
     domain/event
     domain/mail
     domain/folder

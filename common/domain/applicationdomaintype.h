@@ -328,6 +328,14 @@ struct SINK_EXPORT Entity : public ApplicationDomainType {
     virtual ~Entity();
 };
 
+struct SINK_EXPORT Contact : public Entity {
+    SINK_ENTITY(Contact);
+    SINK_EXTRACTED_PROPERTY(QString, Uid, uid);
+    SINK_PROPERTY(QString, Fn, fn);
+    SINK_PROPERTY(QByteArrayList, Emails, emails);
+    SINK_BLOB_PROPERTY(Vcard, vcard);
+};
+
 struct SINK_EXPORT Event : public Entity {
     SINK_ENTITY(Event);
     SINK_PROPERTY(QString, Uid, uid);
@@ -459,6 +467,9 @@ template<class DomainType>
 QByteArray SINK_EXPORT getTypeName();
 
 template<>
+QByteArray SINK_EXPORT getTypeName<Contact>();
+
+template<>
 QByteArray SINK_EXPORT getTypeName<Event>();
 
 template<>
@@ -507,6 +518,7 @@ class SINK_EXPORT TypeImplementation;
  * This macro can be used to instantiate templates for all domain types.
  */
 #define SINK_REGISTER_TYPES() \
+    REGISTER_TYPE(Sink::ApplicationDomain::Contact); \
     REGISTER_TYPE(Sink::ApplicationDomain::Event); \
     REGISTER_TYPE(Sink::ApplicationDomain::Mail); \
     REGISTER_TYPE(Sink::ApplicationDomain::Folder); \
@@ -521,6 +533,8 @@ Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Entity)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Entity::Ptr)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Contact)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Contact::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Event)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Event::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Mail)

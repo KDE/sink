@@ -1,0 +1,11 @@
+namespace Sink.ApplicationDomain.Buffer;
+
+table Contact {
+  uid:string;
+  fn:string;
+  emails: [string];
+  vcard: string;
+}
+
+root_type Contact;
+file_identifier "AKFB";
