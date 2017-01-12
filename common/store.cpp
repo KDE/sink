@@ -200,7 +200,7 @@ KAsync::Job<void> Store::move(const DomainType &domainObject, const QByteArray &
 template <class DomainType>
 KAsync::Job<void> Store::copy(const DomainType &domainObject, const QByteArray &newResource)
 {
-    SinkTrace() << "Copy: " << domainObject << newResource;
+    SinkLog() << "Copy: " << domainObject << newResource;
     // Potentially copy to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
     return facade->copy(domainObject, newResource).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to copy"; });
@@ -209,7 +209,7 @@ KAsync::Job<void> Store::copy(const DomainType &domainObject, const QByteArray &
 template <class DomainType>
 KAsync::Job<void> Store::remove(const DomainType &domainObject)
 {
-    SinkTrace() << "Remove: " << domainObject;
+    SinkLog() << "Remove: " << domainObject;
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
     return facade->remove(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to remove"; });
