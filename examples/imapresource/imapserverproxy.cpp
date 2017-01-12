@@ -54,6 +54,13 @@ const char* Imap::FolderFlags::Noselect = "\\Noselect";
 const char* Imap::FolderFlags::Noinferiors = "\\Noinferiors";
 const char* Imap::FolderFlags::Marked = "\\Marked";
 const char* Imap::FolderFlags::Unmarked = "\\Unmarked";
+const char* Imap::FolderFlags::Subscribed = "\\Subscribed";
+//Special use
+const char* Imap::FolderFlags::Sent = "\\Sent";
+const char* Imap::FolderFlags::Trash = "\\Trash";
+const char* Imap::FolderFlags::Archive = "\\Archive";
+const char* Imap::FolderFlags::Junk = "\\Junk";
+const char* Imap::FolderFlags::Flagged = "\\Flagged";
 
 template <typename T>
 static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)

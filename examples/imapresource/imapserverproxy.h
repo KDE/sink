@@ -47,6 +47,13 @@ namespace FolderFlags
     extern const char* Noselect;
     extern const char* Marked;
     extern const char* Unmarked;
+    extern const char* Subscribed;
+    extern const char* Sent;
+    extern const char* Trash;
+    extern const char* Archive;
+    extern const char* Junk;
+    extern const char* Flagged;
+    extern const char* All;
 }
 
 struct Message {
