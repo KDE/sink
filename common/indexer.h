@@ -30,6 +30,7 @@ namespace ApplicationDomain {
 class Indexer
 {
 public:
+    virtual ~Indexer() = default;
     typedef QSharedPointer<Indexer> Ptr;
     virtual void add(const ApplicationDomain::ApplicationDomainType &entity) = 0;
     virtual void modify(const ApplicationDomain::ApplicationDomainType &old, const ApplicationDomain::ApplicationDomainType &entity) = 0;

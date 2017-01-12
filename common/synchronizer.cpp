@@ -488,3 +488,8 @@ bool Synchronizer::allChangesReplayed()
 
 SINK_REGISTER_TYPES()
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#include "synchronizer.moc"
+#include "moc_synchronizer.cpp"
+#pragma clang diagnostic pop

@@ -41,8 +41,6 @@
 #include "storage/entitystore.h"
 #include "store.h"
 
-SINK_DEBUG_AREA("pipeline")
-
 using namespace Sink;
 using namespace Sink::Storage;
 
@@ -271,7 +269,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         }
 
         // Remove deletions
-        for (const auto property : deletions) {
+        for (const auto &property : deletions) {
             newEntity.setProperty(property, QVariant());
         }
         newEntity.setResource(targetResource);

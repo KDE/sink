@@ -91,7 +91,7 @@ static Sink::ApplicationDomain::Mail::Contact getContact(const KMime::Headers::G
 static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime::Headers::Generics::AddressList *header)
 {
     QList<Sink::ApplicationDomain::Mail::Contact> list;
-    for (const auto mb : header->mailboxes()) {
+    for (const auto &mb : header->mailboxes()) {
         list << Sink::ApplicationDomain::Mail::Contact{mb.name(), mb.address()};
     }
     return list;

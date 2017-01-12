@@ -33,6 +33,7 @@ public:
     typedef QSharedPointer<DataStoreQuery> Ptr;
 
     DataStoreQuery(const Sink::QueryBase &query, const QByteArray &type, Sink::Storage::EntityStore &store);
+    ~DataStoreQuery();
     ResultSet execute();
     ResultSet update(qint64 baseRevision);
 
@@ -43,7 +44,7 @@ private:
 
     QVector<QByteArray> indexLookup(const QByteArray &property, const QVariant &value);
 
-    virtual void readEntity(const QByteArray &key, const BufferCallback &resultCallback);
+    void readEntity(const QByteArray &key, const BufferCallback &resultCallback);
 
     ResultSet createFilteredSet(ResultSet &resultSet, const FilterFunction &);
     QVector<QByteArray> loadIncrementalResultSet(qint64 baseRevision);

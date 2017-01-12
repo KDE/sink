@@ -380,3 +380,9 @@ KAsync::Job<void> CommandProcessor::processAllMessages()
             }
         });
 }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#include "commandprocessor.moc"
+#include "moc_commandprocessor.cpp"
+#pragma clang diagnostic pop

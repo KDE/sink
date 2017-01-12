@@ -26,8 +26,6 @@
 #include "asyncutils.h"
 #include "datastorequery.h"
 
-SINK_DEBUG_AREA("queryrunner")
-
 using namespace Sink;
 using namespace Sink::Storage;
 

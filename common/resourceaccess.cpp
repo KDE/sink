@@ -220,7 +220,6 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                             SinkWarning() << "Failed to start resource";
                             return KAsync::error(-1, "Failed to start resource");
                         }
-                        return KAsync::null();
                     } else {
                         SinkTrace() << "Connected to resource, without having to start it.";
                         Q_ASSERT(s);

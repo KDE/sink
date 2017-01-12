@@ -34,7 +34,7 @@ namespace Sink {
     class Pipeline;
     class Inspector;
     class Synchronizer;
-    class QueuedCommand;
+    struct QueuedCommand;
     class QueryBase;
 
 /**

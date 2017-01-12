@@ -228,7 +228,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
     }
 
     // Remove deletions
-    for (const auto property : deletions) {
+    for (const auto &property : deletions) {
         //SinkTrace() << "Removing property: " << property;
         newEntity.setProperty(property, QVariant());
     }

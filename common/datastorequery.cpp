@@ -239,7 +239,7 @@ public:
                     }
 
                     QVariantList list;
-                    for (const auto r : results) {
+                    for (const auto &r : results) {
                         readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                             for (auto &aggregator : mAggregators) {
                                 if (!aggregator.property.isEmpty()) {
@@ -293,7 +293,7 @@ public:
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                 auto bloomValue = result.entity.getProperty(mBloomProperty);
                 auto results = indexLookup(mBloomProperty, bloomValue);
-                for (const auto r : results) {
+                for (const auto &r : results) {
                     readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                         callback({entity, Sink::Operation_Creation});
                         foundValue = true;
@@ -310,6 +310,11 @@ DataStoreQuery::DataStoreQuery(const Sink::QueryBase &query, const QByteArray &t
     : mQuery(query), mType(type), mStore(store), mLogCtx(store.logContext().subContext("datastorequery"))
 {
     setupQuery();
+}
+
+DataStoreQuery::~DataStoreQuery()
+{
+
 }
 
 void DataStoreQuery::readEntity(const QByteArray &key, const BufferCallback &resultCallback)

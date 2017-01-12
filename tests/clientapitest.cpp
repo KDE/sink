@@ -10,8 +10,6 @@
 #include "facadefactory.h"
 #include "test.h"
 
-SINK_DEBUG_AREA("clientapitest")
-
 template <typename T>
 class TestDummyResourceFacade : public Sink::StoreFacade<T>
 {

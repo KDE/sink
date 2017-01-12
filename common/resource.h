@@ -27,7 +27,7 @@
 namespace Sink {
 class FacadeFactory;
 class AdaptorFactoryRegistry;
-class ResourceContext;
+struct ResourceContext;
 class QueryBase;
 
 /**

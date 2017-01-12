@@ -35,6 +35,7 @@ class ResultSet
 {
 public:
     struct Result {
+        Result(const Sink::ApplicationDomain::ApplicationDomainType &e, Sink::Operation op, const QMap<QByteArray, QVariant> &v = QMap<QByteArray, QVariant>{}) : entity(e), operation(op), aggregateValues(v) {}
         Sink::ApplicationDomain::ApplicationDomainType entity;
         Sink::Operation operation;
         QMap<QByteArray, QVariant> aggregateValues;

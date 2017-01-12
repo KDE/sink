@@ -73,18 +73,18 @@ ApplicationDomainType::ApplicationDomainType()
 
 ApplicationDomainType::ApplicationDomainType(const QByteArray &resourceInstanceIdentifier)
     :mAdaptor(new MemoryBufferAdaptor()),
-    mResourceInstanceIdentifier(resourceInstanceIdentifier),
-    mChangeSet(new QSet<QByteArray>())
+    mChangeSet(new QSet<QByteArray>()),
+    mResourceInstanceIdentifier(resourceInstanceIdentifier)
 {
 
 }
 
 ApplicationDomainType::ApplicationDomainType(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor)
     : mAdaptor(adaptor),
+    mChangeSet(new QSet<QByteArray>()),
     mResourceInstanceIdentifier(resourceInstanceIdentifier),
     mIdentifier(identifier),
-    mRevision(revision),
-    mChangeSet(new QSet<QByteArray>())
+    mRevision(revision)
 {
 }
 

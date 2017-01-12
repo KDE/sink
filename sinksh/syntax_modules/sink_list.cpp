@@ -37,8 +37,6 @@
 #include "state.h"
 #include "syntaxtree.h"
 
-SINK_DEBUG_AREA("sinksh_list")
-
 namespace SinkList
 {
 

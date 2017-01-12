@@ -41,6 +41,10 @@ SINK_DEBUG_AREA("storage")
 namespace Sink {
 namespace Storage {
 
+extern QMutex sMutex;
+extern QHash<QString, MDB_env *> sEnvironments;
+
+
 QMutex sMutex;
 QHash<QString, MDB_env *> sEnvironments;
 

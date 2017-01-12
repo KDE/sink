@@ -32,8 +32,6 @@
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
-SINK_DEBUG_AREA("mailthreadtest")
-
 //TODO extract resource test
 //
 void MailThreadTest::initTestCase()
