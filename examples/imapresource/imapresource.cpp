@@ -529,12 +529,13 @@ public:
     {
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
         auto login = imap->login(mUser, mPassword);
+        KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
         if (operation == Sink::Operation_Creation) {
             QString mailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
             QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
             auto flags = getFlags(mail);
             QDateTime internalDate = mail.getDate();
-            return login.then(imap->append(mailbox, content, flags, internalDate))
+            job = login.then(imap->append(mailbox, content, flags, internalDate))
                 .addToContext(imap)
                 .syncThen<QByteArray, qint64>([mail](qint64 uid) {
                     const auto remoteId = assembleMailRid(mail, uid);
@@ -548,7 +549,7 @@ public:
             SinkTrace() << "Removing a mail: " << oldRemoteId << "in the mailbox: " << mailbox;
             KIMAP2::ImapSet set;
             set.add(uid);
-            return login.then(imap->remove(mailbox, set))
+            job = login.then(imap->remove(mailbox, set))
                 .syncThen<QByteArray>([imap, oldRemoteId] {
                     SinkTrace() << "Finished removing a mail: " << oldRemoteId;
                     return QByteArray();
@@ -571,7 +572,7 @@ public:
                 QDateTime internalDate = mail.getDate();
                 KIMAP2::ImapSet set;
                 set.add(uid);
-                return login.then(imap->append(mailbox, content, flags, internalDate))
+                job = login.then(imap->append(mailbox, content, flags, internalDate))
                     .addToContext(imap)
                     .then<QByteArray, qint64>([=](qint64 uid) {
                         const auto remoteId = assembleMailRid(mail, uid);
@@ -582,7 +583,7 @@ public:
                 SinkTrace() << "Updating flags only.";
                 KIMAP2::ImapSet set;
                 set.add(uid);
-                return login.then(imap->select(mailbox))
+                job = login.then(imap->select(mailbox))
                     .addToContext(imap)
                     .then(imap->storeFlags(set, flags))
                     .syncThen<QByteArray>([=] {
@@ -591,7 +592,16 @@ public:
                     });
             }
         }
-        return KAsync::null<QByteArray>();
+        return job
+            .then<QByteArray, QByteArray>([=] (const KAsync::Error &error, const QByteArray &remoteId) {
+                if (error) {
+                    SinkWarning() << "Error during changereplay: " << error.errorMessage;
+                    return imap->logout()
+                        .then<QByteArray>(KAsync::error<QByteArray>(error));
+                }
+                return imap->logout()
+                    .then<QByteArray>(KAsync::value(remoteId));
+            });
     }
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
