@@ -76,10 +76,22 @@ template <class DomainType>
 KAsync::Job<void> SINK_EXPORT modify(const DomainType &domainObject);
 
 /**
+ * Modify a set of entities identified by @param query.
+ */
+template <class DomainType>
+KAsync::Job<void> SINK_EXPORT modify(const Query &query, const DomainType &domainObject);
+
+/**
  * Remove an entity.
  */
 template <class DomainType>
 KAsync::Job<void> SINK_EXPORT remove(const DomainType &domainObject);
+
+/**
+ * Remove a set of entities identified by @param query.
+ */
+template <class DomainType>
+KAsync::Job<void> SINK_EXPORT remove(const Query &query);
 
 /**
  * Move an entity to a new resource.

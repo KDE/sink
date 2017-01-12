@@ -189,6 +189,20 @@ KAsync::Job<void> Store::modify(const DomainType &domainObject)
 }
 
 template <class DomainType>
+KAsync::Job<void> Store::modify(const Query &query, const DomainType &domainObject)
+{
+    SinkLog() << "Modify: " << query << domainObject;
+    return fetchAll<DomainType>(query)
+        .each([=] (const typename DomainType::Ptr &entity) {
+            auto copy = *entity;
+            for (const auto &p : domainObject.changedProperties()) {
+                copy.setProperty(p, domainObject.getProperty(p));
+            }
+            return modify(*entity);
+        });
+}
+
+template <class DomainType>
 KAsync::Job<void> Store::move(const DomainType &domainObject, const QByteArray &newResource)
 {
     SinkLog() << "Move: " << domainObject << newResource;
@@ -213,6 +227,16 @@ KAsync::Job<void> Store::remove(const DomainType &domainObject)
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
     return facade->remove(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to remove"; });
+}
+
+template <class DomainType>
+KAsync::Job<void> Store::remove(const Sink::Query &query)
+{
+    SinkLog() << "Remove: " << query;
+    return fetchAll<DomainType>(query)
+        .each([] (const typename DomainType::Ptr &entity) {
+            return remove(*entity);
+        });
 }
 
 KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
@@ -368,8 +392,10 @@ QList<DomainType> Store::read(const Sink::Query &query_)
 
 #define REGISTER_TYPE(T)                                                          \
     template KAsync::Job<void> Store::remove<T>(const T &domainObject);           \
+    template KAsync::Job<void> Store::remove<T>(const Query &);           \
     template KAsync::Job<void> Store::create<T>(const T &domainObject);           \
     template KAsync::Job<void> Store::modify<T>(const T &domainObject);           \
+    template KAsync::Job<void> Store::modify<T>(const Query &, const T &);           \
     template KAsync::Job<void> Store::move<T>(const T &domainObject, const QByteArray &newResource);           \
     template KAsync::Job<void> Store::copy<T>(const T &domainObject, const QByteArray &newResource);           \
     template QSharedPointer<QAbstractItemModel> Store::loadModel<T>(const Query &query); \
