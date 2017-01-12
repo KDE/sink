@@ -107,7 +107,7 @@ public:
         folder.setIcon("folder");
         folder.setEnabled(f.subscribed);
         QHash<QByteArray, Query::Comparator> mergeCriteria;
-        if (SpecialPurpose::isSpecialPurposeFolderName(f.name())) {
+        if (SpecialPurpose::isSpecialPurposeFolderName(f.name()) && parentFolderRid.isEmpty()) {
             auto type = SpecialPurpose::getSpecialPurposeType(f.name());
             folder.setSpecialPurpose(QByteArrayList() << type);
             mergeCriteria.insert(ApplicationDomain::Folder::SpecialPurpose::name, Query::Comparator(type, Query::Comparator::Contains));
@@ -116,7 +116,7 @@ public:
         if (!parentFolderRid.isEmpty()) {
             folder.setParent(syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, parentFolderRid));
         }
-        createOrModify(ENTITY_TYPE_FOLDER, remoteId, folder, mergeCriteria);
+        createOrModify(ApplicationDomain::getTypeName<ApplicationDomain::Folder>, remoteId, folder);
         return remoteId;
     }
 
