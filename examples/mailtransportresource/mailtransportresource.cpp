@@ -118,7 +118,7 @@ public:
                         });
                 });
             }
-            job = job.syncThen<void>([&future](const KAsync::Error &) {
+            job = job.then([&future](const KAsync::Error &) {
                 future.setFinished();
             });
             job.exec();

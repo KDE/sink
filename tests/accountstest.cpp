@@ -39,7 +39,7 @@ private slots:
         account.setIcon(accountIcon);
         Store::create(account).exec().waitForFinished();
 
-        Store::fetchAll<SinkAccount>(Query()).syncThen<void, QList<SinkAccount::Ptr>>([&](const QList<SinkAccount::Ptr> &accounts) {
+        Store::fetchAll<SinkAccount>(Query()).then([&](const QList<SinkAccount::Ptr> &accounts) {
             QCOMPARE(accounts.size(), 1);
             auto account = accounts.first();
             QCOMPARE(account->getAccountType(), QString("maildir"));
@@ -60,7 +60,7 @@ private slots:
         Store::create(resource).exec().waitForFinished();
 
 
-        Store::fetchAll<SinkResource>(Query()).syncThen<void, QList<SinkResource::Ptr>>([&](const QList<SinkResource::Ptr> &resources) {
+        Store::fetchAll<SinkResource>(Query()).then([&](const QList<SinkResource::Ptr> &resources) {
             QCOMPARE(resources.size(), 1);
             auto resource = resources.first();
             QCOMPARE(resource->getResourceType(), QByteArray("sink.mailtransport"));
@@ -74,7 +74,7 @@ private slots:
         identity.setAccount(account.identifier());
         Store::create(identity).exec().waitForFinished();
 
-        Store::fetchAll<Identity>(Query()).syncThen<void, QList<Identity::Ptr>>([&](const QList<Identity::Ptr> &identities) {
+        Store::fetchAll<Identity>(Query()).then([&](const QList<Identity::Ptr> &identities) {
             QCOMPARE(identities.size(), 1);
             QCOMPARE(identities.first()->getName(), smtpServer);
             QCOMPARE(identities.first()->getAddress(), smtpUsername);
@@ -85,7 +85,7 @@ private slots:
 
         Store::remove(resource).exec().waitForFinished();
 
-        Store::fetchAll<SinkResource>(Query()).syncThen<void, QList<SinkResource::Ptr>>([](const QList<SinkResource::Ptr> &resources) {
+        Store::fetchAll<SinkResource>(Query()).then([](const QList<SinkResource::Ptr> &resources) {
             QCOMPARE(resources.size(), 0);
         })
         .exec().waitForFinished();

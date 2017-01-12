@@ -108,7 +108,7 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
 
         // Trace() << "Waiting on " << waitCondition.size() << " results";
         KAsync::waitForCompletion(waitCondition)
-            .syncThen<void>([this, resultCount, &future]() {
+            .then([this, resultCount, &future]() {
                 processRemovals();
                 if (*resultCount == 0) {
                     future.setFinished();

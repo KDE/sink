@@ -54,7 +54,7 @@ bool sync(const QStringList &args, State &state)
     QTimer::singleShot(0, [query, state]() {
     Sink::Store::synchronize(query)
         .then(Sink::ResourceControl::flushMessageQueue(query.getResourceFilter().ids))
-        .syncThen<void>([state](const KAsync::Error &error) {
+        .then([state](const KAsync::Error &error) {
             if (error) {
                 state.printLine("Synchronization failed!");
             } else {

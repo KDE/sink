@@ -64,7 +64,7 @@ KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
                                     future.setFinished();
                                 }
                             });
-                    }).syncThen<void>([time] {
+                    }).then([time] {
                         SinkTrace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
                     });
             });
@@ -77,7 +77,7 @@ KAsync::Job<void> ResourceControl::start(const QByteArray &identifier)
     time->start();
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
     resourceAccess->open();
-    return resourceAccess->sendCommand(Sink::Commands::PingCommand).addToContext(resourceAccess).syncThen<void>([time]() { SinkTrace() << "Start complete." << Log::TraceTime(time->elapsed()); });
+    return resourceAccess->sendCommand(Sink::Commands::PingCommand).addToContext(resourceAccess).then([time]() { SinkTrace() << "Start complete." << Log::TraceTime(time->elapsed()); });
 }
 
 KAsync::Job<void> ResourceControl::flushMessageQueue(const QByteArrayList &resourceIdentifier)

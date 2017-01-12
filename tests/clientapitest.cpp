@@ -276,7 +276,7 @@ private slots:
 
         bool gotValue = false;
         auto result = Sink::Store::fetchOne<Sink::ApplicationDomain::Event>(query)
-                          .syncThen<void, Sink::ApplicationDomain::Event>([&gotValue](const Sink::ApplicationDomain::Event &event) { gotValue = true; })
+                          .then([&gotValue](const Sink::ApplicationDomain::Event &event) { gotValue = true; })
                           .exec();
         result.waitForFinished();
         QVERIFY(!result.errorCode());

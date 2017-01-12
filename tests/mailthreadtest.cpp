@@ -179,7 +179,7 @@ void MailThreadTest::testIndexInMixedOrder()
     /* VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier)); */
     /* { */
     /*     auto job = Store::fetchAll<Mail>(Query::RequestedProperties(QByteArrayList() << Mail::Folder::name << Mail::Subject::name)) */
-    /*         .syncThen<void, QList<Mail::Ptr>>([=](const QList<Mail::Ptr> &mails) { */
+    /*         .then([=](const QList<Mail::Ptr> &mails) { */
     /*             QCOMPARE(mails.size(), 0); */
     /*         }); */
     /*     VERIFYEXEC(job); */

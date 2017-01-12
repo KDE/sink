@@ -169,7 +169,7 @@ void CommandProcessor::process()
     }
     mProcessingLock = true;
     auto job = processPipeline()
-                    .syncThen<void>([this]() {
+                    .then([this]() {
                         mProcessingLock = false;
                         if (messagesToProcessAvailable()) {
                             process();
@@ -193,10 +193,10 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const Sink::QueuedCom
         case Sink::Commands::InspectionCommand:
             Q_ASSERT(mInspector);
             return mInspector->processCommand(data, size)
-                    .syncThen<qint64>([]() { return -1; });
+                    .then(KAsync::value<qint64>(-1));
         case Sink::Commands::FlushCommand:
             return flush(data, size)
-                .syncThen<qint64>([]() { return -1; });
+                .then(KAsync::value<qint64>(-1));
         default:
             return KAsync::error<qint64>(-1, "Unhandled command");
     }
@@ -234,7 +234,7 @@ KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
                     [this, time](const QByteArray &data) -> KAsync::Job<void> {
                         time->start();
                         return processQueuedCommand(data)
-                        .syncThen<void, qint64>([this, time](qint64 createdRevision) {
+                        .then([this, time](qint64 createdRevision) {
                             SinkTraceCtx(mLogCtx) << "Created revision " << createdRevision << ". Processing took: " << Log::TraceTime(time->elapsed());
                         });
                     })
@@ -251,7 +251,7 @@ KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
                             }
                         });
             }))
-        .syncThen<void>([this](const KAsync::Error &) { mPipeline->commit(); });
+        .then([this](const KAsync::Error &) { mPipeline->commit(); });
 }
 
 KAsync::Job<void> CommandProcessor::processPipeline()
@@ -273,7 +273,7 @@ KAsync::Job<void> CommandProcessor::processPipeline()
 
             auto queue = it->next();
             return processQueue(queue)
-                .syncThen<KAsync::ControlFlowFlag>([this, time, it]() {
+                .then([this, time, it]() {
                     SinkTraceCtx(mLogCtx) << "Queue processed." << Log::TraceTime(time->elapsed());
                     if (it->hasNext()) {
                         return KAsync::Continue;

@@ -94,7 +94,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                 const auto  newRevisionAndReplayedEntities = worker.executeInitialQuery(query, parent, *resultProvider, offset, batchSize);
                 return newRevisionAndReplayedEntities;
             })
-                .template syncThen<void, ReplayResult>([this, parentId, query, parent, resultProvider, guardPtr](const ReplayResult &newRevisionAndReplayedEntities) {
+                .template then([this, parentId, query, parent, resultProvider, guardPtr](const ReplayResult &newRevisionAndReplayedEntities) {
                     if (!guardPtr) {
                         qWarning() << "The parent object is already gone";
                         return;
@@ -124,7 +124,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                        const auto newRevisionAndReplayedEntities = worker.executeIncrementalQuery(query, *resultProvider);
                        return newRevisionAndReplayedEntities;
                    })
-                .template syncThen<void, ReplayResult>([query, this, resultProvider, guardPtr](const ReplayResult &newRevisionAndReplayedEntities) {
+                .template then([query, this, resultProvider, guardPtr](const ReplayResult &newRevisionAndReplayedEntities) {
                     if (!guardPtr) {
                         qWarning() << "The parent object is already gone";
                         return;

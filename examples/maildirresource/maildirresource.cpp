@@ -369,11 +369,11 @@ public:
         });
 
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
-            job = job.syncThen<void>([this] {
+            job = job.then([this] {
                 synchronizeFolders();
             });
         } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
-            job = job.syncThen<void>([this, query] {
+            job = job.then([this, query] {
                 QStringList folders;
                 if (query.hasFilter<ApplicationDomain::Mail::Folder>()) {
                     auto folderFilter = query.getFilter<ApplicationDomain::Mail::Folder>();

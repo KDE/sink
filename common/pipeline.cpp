@@ -279,7 +279,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
         SinkTraceCtx(d->logCtx) << "Moving entity to new resource " << newEntity.identifier() << newEntity.resourceInstanceIdentifier() << targetResource;
         auto job = TypeHelper<CreateHelper>{bufferType}.operator()<KAsync::Job<void>, ApplicationDomain::ApplicationDomainType&>(newEntity);
-        job = job.syncThen<void>([this, current, isMove, targetResource, bufferType](const KAsync::Error &error) {
+        job = job.then([this, current, isMove, targetResource, bufferType](const KAsync::Error &error) {
             if (!error) {
                 SinkTraceCtx(d->logCtx) << "Move of " << current.identifier() << "was successfull";
                 if (isMove) {

@@ -151,7 +151,7 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                         return KAsync::value(KAsync::Break);
                     });
             }))
-        .syncThen<void>([this, lastReplayedRevision]() {
+        .then([this, lastReplayedRevision]() {
             recordReplayedRevision(*lastReplayedRevision);
             mMainStoreTransaction.abort();
             if (ChangeReplay::allChangesReplayed()) {

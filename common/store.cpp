@@ -263,7 +263,7 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
                 future.setFinished();
             }
         })
-        .syncThen<void>([time]() {
+        .then([time]() {
             SinkTrace() << "Remove from disk complete." << Log::TraceTime(time->elapsed());
         });
 }

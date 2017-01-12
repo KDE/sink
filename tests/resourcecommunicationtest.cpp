@@ -51,7 +51,7 @@ private slots:
         int errors = 0;
         for (int i = 0; i < count; i++) {
             auto result = resourceAccess.sendCommand(Sink::Commands::PingCommand)
-                                .syncThen<void>([&resourceAccess, &errors, &complete](const KAsync::Error &error) {
+                                .then([&resourceAccess, &errors, &complete](const KAsync::Error &error) {
                                     complete++;
                                     if (error) {
                                         qWarning() << error.errorMessage;
@@ -77,7 +77,7 @@ private slots:
         int errors = 0;
         for (int i = 0; i < count; i++) {
             resourceAccess.sendCommand(Sink::Commands::PingCommand)
-                .syncThen<void>([&resourceAccess, &errors, &complete](const KAsync::Error &error) {
+                .then([&resourceAccess, &errors, &complete](const KAsync::Error &error) {
                     complete++;
                     if (error) {
                         qWarning() << error.errorMessage;
@@ -104,7 +104,7 @@ private slots:
             auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(resourceIdentifier, "");
             weakRef = resourceAccess.toWeakRef();
             resourceAccess->open();
-            resourceAccess->sendCommand(Sink::Commands::PingCommand).syncThen<void>([resourceAccess]() { qDebug() << "Ping complete";  }).exec();
+            resourceAccess->sendCommand(Sink::Commands::PingCommand).then([resourceAccess]() { qDebug() << "Ping complete";  }).exec();
         }
         QVERIFY(weakRef.toStrongRef());
         QTRY_VERIFY(!weakRef.toStrongRef());

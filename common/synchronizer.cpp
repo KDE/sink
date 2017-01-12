@@ -286,7 +286,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
     while (!mSyncRequestQueue.isEmpty()) {
         auto request = mSyncRequestQueue.takeFirst();
         if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
-            job = job.syncThen<void>([this, request] {
+            job = job.then([this, request] {
                 Sink::Notification n;
                 n.id = request.requestId;
                 n.type = Notification::Status;
@@ -294,7 +294,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
                 n.code = ApplicationDomain::BusyStatus;
                 emit notify(n);
                 SinkLogCtx(mLogCtx) << "Synchronizing " << request.query;
-            }).then(synchronizeWithSource(request.query)).syncThen<void>([this] {
+            }).then(synchronizeWithSource(request.query)).then([this] {
                 //Commit after every request, so implementations only have to commit more if they add a lot of data.
                 commit();
             }).then<void>([this, request](const KAsync::Error &error) {
@@ -431,7 +431,7 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         job = replay(mail, operation, oldRemoteId, modifiedProperties);
     }
 
-    return job.syncThen<void, QByteArray>([this, operation, type, uid, oldRemoteId](const QByteArray &remoteId) {
+    return job.then([this, operation, type, uid, oldRemoteId](const QByteArray &remoteId) {
         if (operation == Sink::Operation_Creation) {
             SinkTrace() << "Replayed creation with remote id: " << remoteId;
             if (remoteId.isEmpty()) {
@@ -453,7 +453,7 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
             SinkError() << "Unkown operation" << operation;
         }
     })
-    .syncThen<void>([this](const KAsync::Error &error) {
+    .then([this](const KAsync::Error &error) {
         if (error) {
             SinkWarning() << "Failed to replay change: " << error.errorMessage;
         }

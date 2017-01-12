@@ -130,7 +130,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     });
     auto namespaceJob = new KIMAP2::NamespaceJob(mSession);
 
-    return runJob(loginJob).then(runJob(capabilitiesJob)).syncThen<void>([this](){
+    return runJob(loginJob).then(runJob(capabilitiesJob)).then([this](){
         SinkTrace() << "Supported capabilities: " << mCapabilities;
         QStringList requiredExtensions = QStringList() << "UIDPLUS" << "NAMESPACE";
         for (const auto &requiredExtension : requiredExtensions) {
@@ -139,7 +139,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
                 //TODO fail the job
             }
         }
-    }).then(runJob(namespaceJob)).syncThen<void>([this, namespaceJob] {
+    }).then(runJob(namespaceJob)).then([this, namespaceJob] {
         for (const auto &ns :namespaceJob->personalNamespaces()) {
             mPersonalNamespaces << ns.name;
             mPersonalNamespaceSeparator = ns.separator;
@@ -324,7 +324,7 @@ KAsync::Job<QVector<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbo
 
                 list->append(result.uid);
             })
-    .syncThen<QVector<qint64>>([list](){
+    .then([list](){
         return *list;
     });
 }
@@ -378,7 +378,7 @@ KAsync::Job<QString> ImapServerProxy::createSubfolder(const QString &parentMailb
         }
         SinkTrace() << "Creating subfolder: " << *folder;
         return create(*folder)
-            .syncThen<QString>([=]() {
+            .then([=]() {
                 return *folder;
             });
     });
@@ -393,7 +393,7 @@ KAsync::Job<QString> ImapServerProxy::renameSubfolder(const QString &oldMailbox,
         auto folder = QSharedPointer<QString>::create(parts.join(mPersonalNamespaceSeparator) + mPersonalNamespaceSeparator + newName);
         SinkTrace() << "Renaming subfolder: " << oldMailbox << *folder;
         return rename(oldMailbox, *folder)
-            .syncThen<QString>([=]() {
+            .then([=]() {
                 return *folder;
             });
     });
@@ -436,7 +436,7 @@ KAsync::Job<SelectResult> ImapServerProxy::fetchFlags(const Folder &folder, cons
         scope.mode = KIMAP2::FetchJob::FetchScope::Flags;
         scope.changedSince = changedsince;
 
-        return fetch(set, scope, callback).syncThen<SelectResult>([selectResult] {
+        return fetch(set, scope, callback).then([selectResult] {
             return selectResult;
         });
     });
@@ -503,7 +503,7 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, const QVe
             callback(message);
         });
     })
-    .syncThen<void>([time]() {
+    .then([time]() {
         SinkTrace() << "The fetch took: " << Sink::Log::TraceTime(time->elapsed());
     });
 }

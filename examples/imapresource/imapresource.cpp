@@ -116,7 +116,7 @@ public:
         if (!parentFolderRid.isEmpty()) {
             folder.setParent(syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, parentFolderRid));
         }
-        createOrModify(ApplicationDomain::getTypeName<ApplicationDomain::Folder>, remoteId, folder);
+        createOrModify(ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), remoteId, folder);
         return remoteId;
     }
 
@@ -244,14 +244,14 @@ public:
 
                     modify(ENTITY_TYPE_MAIL, remoteId, mail);
                 })
-                .syncThen<void, SelectResult>([=](const SelectResult &selectResult) {
+                .then([=](const SelectResult &selectResult) {
                     SinkLogCtx(mLogCtx) << "Flags updated. New changedsince value: " << selectResult.highestModSequence;
                     syncStore().writeValue(folderRemoteId, "changedsince", QByteArray::number(selectResult.highestModSequence));
                 });
             } else {
                 //We hit this path on initial sync and simply record the current changedsince value
                 return imap->select(imap->mailboxFromFolder(folder))
-                .syncThen<void, SelectResult>([=](const SelectResult &selectResult) {
+                .then([=](const SelectResult &selectResult) {
                     SinkLogCtx(mLogCtx) << "No flags to update. New changedsince value: " << selectResult.highestModSequence;
                     syncStore().writeValue(folderRemoteId, "changedsince", QByteArray::number(selectResult.highestModSequence));
                 });
@@ -303,7 +303,7 @@ public:
                         commit();
                     }
                 })
-                .syncThen<void>([=]() {
+                .then([=]() {
                     SinkLogCtx(mLogCtx) << "UIDMAX: " << *maxUid << folder.path();
                     if (*maxUid > 0) {
                         syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(*maxUid));
@@ -345,7 +345,7 @@ public:
                         }
                     });
                 })
-                .syncThen<void>([=]() {
+                .then([=]() {
                     SinkLogCtx(mLogCtx) << "Headers fetched: " << folder.path();
                     syncStore().writeValue(folderRemoteId, "headersFetched", "true");
                     commit();
@@ -359,7 +359,7 @@ public:
         //Finally remove messages that are no longer existing on the server.
         .then<void>([=]() {
             //TODO do an examine with QRESYNC and remove VANISHED messages if supported instead
-            return imap->fetchUids(folder).syncThen<void, QVector<qint64>>([=](const QVector<qint64> &uids) {
+            return imap->fetchUids(folder).then([=](const QVector<qint64> &uids) {
                 SinkTraceCtx(mLogCtx) << "Syncing removals: " << folder.path();
                 synchronizeRemovals(folderRemoteId, uids.toList().toSet());
                 commit();
@@ -425,7 +425,7 @@ public:
             .onError([](const KAsync::Error &error) {
                 SinkWarning() << "Folder list sync failed.";
             })
-            .syncThen<QVector<Folder>>([folderList]() { return *folderList; } );
+            .then([folderList]() { return *folderList; } );
         }
     }
 
@@ -439,7 +439,7 @@ public:
                 return  imap->fetchFolders([folderList](const Folder &folder) {
                     *folderList << folder;
                 })
-                .syncThen<void>([this, folderList]() {
+                .then([this, folderList]() {
                     synchronizeFolders(*folderList);
                 });
             })
@@ -537,7 +537,7 @@ public:
             QDateTime internalDate = mail.getDate();
             job = login.then(imap->append(mailbox, content, flags, internalDate))
                 .addToContext(imap)
-                .syncThen<QByteArray, qint64>([mail](qint64 uid) {
+                .then([mail](qint64 uid) {
                     const auto remoteId = assembleMailRid(mail, uid);
                     SinkTrace() << "Finished creating a new mail: " << remoteId;
                     return remoteId;
@@ -550,7 +550,7 @@ public:
             KIMAP2::ImapSet set;
             set.add(uid);
             job = login.then(imap->remove(mailbox, set))
-                .syncThen<QByteArray>([imap, oldRemoteId] {
+                .then([imap, oldRemoteId] {
                     SinkTrace() << "Finished removing a mail: " << oldRemoteId;
                     return QByteArray();
                 });
@@ -586,7 +586,7 @@ public:
                 job = login.then(imap->select(mailbox))
                     .addToContext(imap)
                     .then(imap->storeFlags(set, flags))
-                    .syncThen<QByteArray>([=] {
+                    .then([=] {
                         SinkTrace() << "Finished modifying mail";
                         return oldRemoteId;
                     });
@@ -616,13 +616,13 @@ public:
             SinkTrace() << "Creating a new folder: " << parentFolder << folder.getName();
             auto rid = QSharedPointer<QByteArray>::create();
             auto createFolder = login.then<QString>(imap->createSubfolder(parentFolder, folder.getName()))
-                .syncThen<void, QString>([imap, rid](const QString &createdFolder) {
+                .then([imap, rid](const QString &createdFolder) {
                     SinkTrace() << "Finished creating a new folder: " << createdFolder;
                     *rid = createdFolder.toUtf8();
                 });
             if (folder.getSpecialPurpose().isEmpty()) {
                 return createFolder
-                    .syncThen<QByteArray>([rid](){
+                    .then([rid](){
                         return *rid;
                     });
             } else { //We try to merge special purpose folders first
@@ -644,13 +644,13 @@ public:
                         }
                         SinkTrace() << "No match found for merging, creating a new folder";
                         return imap->createSubfolder(parentFolder, folder.getName())
-                            .syncThen<void, QString>([imap, rid](const QString &createdFolder) {
+                            .then([imap, rid](const QString &createdFolder) {
                                 SinkTrace() << "Finished creating a new folder: " << createdFolder;
                                 *rid = createdFolder.toUtf8();
                             });
 
                     })
-                .syncThen<QByteArray>([rid](){
+                .then([rid](){
                     return *rid;
                 });
                 return mergeJob;
@@ -658,7 +658,7 @@ public:
         } else if (operation == Sink::Operation_Removal) {
             SinkTrace() << "Removing a folder: " << oldRemoteId;
             return login.then<void>(imap->remove(oldRemoteId))
-                .syncThen<QByteArray>([oldRemoteId, imap]() {
+                .then([oldRemoteId, imap]() {
                     SinkTrace() << "Finished removing a folder: " << oldRemoteId;
                     return QByteArray();
                 });
@@ -666,11 +666,11 @@ public:
             SinkTrace() << "Renaming a folder: " << oldRemoteId << folder.getName();
             auto rid = QSharedPointer<QByteArray>::create();
             return login.then<QString>(imap->renameSubfolder(oldRemoteId, folder.getName()))
-                .syncThen<void, QString>([imap, rid](const QString &createdFolder) {
+                .then([imap, rid](const QString &createdFolder) {
                     SinkTrace() << "Finished renaming a folder: " << createdFolder;
                     *rid = createdFolder.toUtf8();
                 })
-                .syncThen<QByteArray>([rid](){
+                .then([rid](){
                     return *rid;
                 });
         }
@@ -731,7 +731,7 @@ protected:
             SinkTrace() << "as:" << mUser;
             auto inspectionJob = imap->login(mUser, mPassword)
                 .then<Imap::SelectResult>(imap->select(folderRemoteId))
-                .syncThen<void, Imap::SelectResult>([](Imap::SelectResult){})
+                .then([](Imap::SelectResult){})
                 .then<void>(imap->fetch(set, scope, [imap, messageByUid](const Imap::Message &message) {
                     messageByUid->insert(message.uid, message);
                 }));
@@ -792,7 +792,7 @@ protected:
                 auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
                 auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
                 return imap->login(mUser, mPassword)
-                    .then<void>(imap->select(remoteId).syncThen<void>([](){}))
+                    .then<void>(imap->select(remoteId).then([](){}))
                     .then<void>(imap->fetch(set, scope, [=](const Imap::Message message) {
                         messageByUid->insert(message.uid, message);
                     }))
