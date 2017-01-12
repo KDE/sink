@@ -260,7 +260,7 @@ public:
         //Next we synchronize the full set that is given by the date limit.
         //We fetch all data for this set.
         //This will also pull in any new messages in subsequent runs.
-        .then<void>([=]() {
+        .then([=] {
             auto job = [&] {
                 SinkLogCtx(mLogCtx) << "Fetching messages since: " << dateFilter;
                 if (dateFilter.isValid()) {
@@ -269,7 +269,7 @@ public:
                     return imap->fetchUids(imap->mailboxFromFolder(folder));
                 }
             }();
-            return job.then<void, QVector<qint64>>([=](const QVector<qint64> &uidsToFetch) {
+            return job.then([=](const QVector<qint64> &uidsToFetch) {
                 SinkTraceCtx(mLogCtx) << "Received result set " << uidsToFetch;
                 SinkTraceCtx(mLogCtx) << "About to fetch mail" << folder.path();
                 const auto uidNext = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
@@ -303,7 +303,7 @@ public:
                         commit();
                     }
                 })
-                .then([=]() {
+                .then([=] {
                     SinkLogCtx(mLogCtx) << "UIDMAX: " << *maxUid << folder.path();
                     if (*maxUid > 0) {
                         syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(*maxUid));
@@ -321,7 +321,7 @@ public:
                 SinkLogCtx(mLogCtx) << "Fetching headers until: " << fullsetLowerbound;
 
                 return imap->fetchUids(imap->mailboxFromFolder(folder))
-                .then<void, QVector<qint64>>([=] (const QVector<qint64> &uids) {
+                .then([=] (const QVector<qint64> &uids) {
                     //sort in reverse order and remove everything greater than fullsetLowerbound
                     QVector<qint64> toFetch = uids;
                     qSort(toFetch.begin(), toFetch.end(), qGreater<qint64>());
@@ -345,7 +345,7 @@ public:
                         }
                     });
                 })
-                .then([=]() {
+                .then([=] {
                     SinkLogCtx(mLogCtx) << "Headers fetched: " << folder.path();
                     syncStore().writeValue(folderRemoteId, "headersFetched", "true");
                     commit();
@@ -357,7 +357,7 @@ public:
             return KAsync::null();
         })
         //Finally remove messages that are no longer existing on the server.
-        .then<void>([=]() {
+        .then([=] {
             //TODO do an examine with QRESYNC and remove VANISHED messages if supported instead
             return imap->fetchUids(folder).then([=](const QVector<qint64> &uids) {
                 SinkTraceCtx(mLogCtx) << "Syncing removals: " << folder.path();
@@ -425,7 +425,7 @@ public:
             .onError([](const KAsync::Error &error) {
                 SinkWarning() << "Folder list sync failed.";
             })
-            .then([folderList]() { return *folderList; } );
+            .then([folderList] { return *folderList; } );
         }
     }
 
@@ -434,7 +434,7 @@ public:
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
             return login(imap)
-            .then<void>([=]() {
+            .then([=] {
                 auto folderList = QSharedPointer<QVector<Folder>>::create();
                 return  imap->fetchFolders([folderList](const Folder &folder) {
                     *folderList << folder;
@@ -443,7 +443,7 @@ public:
                     synchronizeFolders(*folderList);
                 });
             })
-            .then<void>([=] (const KAsync::Error &error) {
+            .then([=] (const KAsync::Error &error) {
                 if (error) {
                     SinkWarning() << "Error during folder sync: " << error.errorMessage;
                 }
@@ -460,7 +460,7 @@ public:
             //if we have no folder filter:
             //* fetch list of folders from server directly and sync (because we have no guarantee that the folder sync was already processed by the pipeline).
             return login(imap)
-            .then<void>([=] () -> KAsync::Job<void> {
+            .then([=] {
                 if (!query.ids().isEmpty()) {
                     //If we have mail id's simply fetch the full payload of those mails
                     QVector<qint64> toFetch;
@@ -495,7 +495,7 @@ public:
                     bool syncHeaders = query.hasFilter<ApplicationDomain::Mail::Folder>();
                     //FIXME If we were able to to flush in between we could just query the local store for the folder list.
                     return getFolderList(imap, query)
-                    .then<void, QVector<Folder>>([=] (const QVector<Folder> &folders) {
+                    .then([=] (const QVector<Folder> &folders) {
                         //Synchronize folders
                         return KAsync::value(folders)
                         .serialEach<void>([=](const Folder &folder) {
@@ -514,7 +514,7 @@ public:
                     });
                 }
             })
-            .then<void>([=] (const KAsync::Error &error) {
+            .then([=] (const KAsync::Error &error) {
                 if (error) {
                     SinkWarning() << "Error during sync: " << error.errorMessage;
                 }
@@ -574,7 +574,7 @@ public:
                 set.add(uid);
                 job = login.then(imap->append(mailbox, content, flags, internalDate))
                     .addToContext(imap)
-                    .then<QByteArray, qint64>([=](qint64 uid) {
+                    .then([=](qint64 uid) {
                         const auto remoteId = assembleMailRid(mail, uid);
                         SinkTrace() << "Finished creating a modified mail: " << remoteId;
                         return imap->remove(oldMailbox, set).then(KAsync::value(remoteId));
@@ -593,14 +593,14 @@ public:
             }
         }
         return job
-            .then<QByteArray, QByteArray>([=] (const KAsync::Error &error, const QByteArray &remoteId) {
+            .then([=] (const KAsync::Error &error, const QByteArray &remoteId) {
                 if (error) {
                     SinkWarning() << "Error during changereplay: " << error.errorMessage;
                     return imap->logout()
-                        .then<QByteArray>(KAsync::error<QByteArray>(error));
+                        .then(KAsync::error<QByteArray>(error));
                 }
                 return imap->logout()
-                    .then<QByteArray>(KAsync::value(remoteId));
+                    .then(KAsync::value(remoteId));
             });
     }
 
@@ -615,7 +615,7 @@ public:
             }
             SinkTrace() << "Creating a new folder: " << parentFolder << folder.getName();
             auto rid = QSharedPointer<QByteArray>::create();
-            auto createFolder = login.then<QString>(imap->createSubfolder(parentFolder, folder.getName()))
+            auto createFolder = login.then(imap->createSubfolder(parentFolder, folder.getName()))
                 .then([imap, rid](const QString &createdFolder) {
                     SinkTrace() << "Finished creating a new folder: " << createdFolder;
                     *rid = createdFolder.toUtf8();
@@ -628,12 +628,12 @@ public:
             } else { //We try to merge special purpose folders first
                 auto  specialPurposeFolders = QSharedPointer<QHash<QByteArray, QString>>::create();
                 auto mergeJob = imap->login(mUser, mPassword)
-                    .then<void>(imap->fetchFolders([=](const Imap::Folder &folder) {
+                    .then(imap->fetchFolders([=](const Imap::Folder &folder) {
                         if (SpecialPurpose::isSpecialPurposeFolderName(folder.name())) {
                             specialPurposeFolders->insert(SpecialPurpose::getSpecialPurposeType(folder.name()), folder.path());
                         };
                     }))
-                    .then<void>([specialPurposeFolders, folder, imap, parentFolder, rid]() -> KAsync::Job<void> {
+                    .then([specialPurposeFolders, folder, imap, parentFolder, rid]() -> KAsync::Job<void> {
                         for (const auto &purpose : folder.getSpecialPurpose()) {
                             if (specialPurposeFolders->contains(purpose)) {
                                 auto f = specialPurposeFolders->value(purpose);
@@ -657,20 +657,20 @@ public:
             }
         } else if (operation == Sink::Operation_Removal) {
             SinkTrace() << "Removing a folder: " << oldRemoteId;
-            return login.then<void>(imap->remove(oldRemoteId))
-                .then([oldRemoteId, imap]() {
+            return login.then(imap->remove(oldRemoteId))
+                .then([oldRemoteId, imap] {
                     SinkTrace() << "Finished removing a folder: " << oldRemoteId;
                     return QByteArray();
                 });
         } else if (operation == Sink::Operation_Modification) {
             SinkTrace() << "Renaming a folder: " << oldRemoteId << folder.getName();
             auto rid = QSharedPointer<QByteArray>::create();
-            return login.then<QString>(imap->renameSubfolder(oldRemoteId, folder.getName()))
+            return login.then(imap->renameSubfolder(oldRemoteId, folder.getName()))
                 .then([imap, rid](const QString &createdFolder) {
                     SinkTrace() << "Finished renaming a folder: " << createdFolder;
                     *rid = createdFolder.toUtf8();
                 })
-                .then([rid](){
+                .then([rid] {
                     return *rid;
                 });
         }
@@ -730,15 +730,15 @@ protected:
             SinkTrace() << "Connecting to:" << mServer << mPort;
             SinkTrace() << "as:" << mUser;
             auto inspectionJob = imap->login(mUser, mPassword)
-                .then<Imap::SelectResult>(imap->select(folderRemoteId))
+                .then(imap->select(folderRemoteId))
                 .then([](Imap::SelectResult){})
-                .then<void>(imap->fetch(set, scope, [imap, messageByUid](const Imap::Message &message) {
+                .then(imap->fetch(set, scope, [imap, messageByUid](const Imap::Message &message) {
                     messageByUid->insert(message.uid, message);
                 }));
 
             if (inspectionType == Sink::ResourceControl::Inspection::PropertyInspectionType) {
                 if (property == "unread") {
-                    return inspectionJob.then<void>([=]() {
+                    return inspectionJob.then([=] {
                         auto msg = messageByUid->value(uid);
                         if (expectedValue.toBool() && msg.flags.contains(Imap::Flags::Seen)) {
                             return KAsync::error<void>(1, "Expected unread but couldn't find it.");
@@ -750,7 +750,7 @@ protected:
                     });
                 }
                 if (property == "subject") {
-                    return inspectionJob.then<void>([=]() {
+                    return inspectionJob.then([=] {
                         auto msg = messageByUid->value(uid);
                         if (msg.msg->subject(true)->asUnicodeString() != expectedValue.toString()) {
                             return KAsync::error<void>(1, "Subject not as expected: " + msg.msg->subject(true)->asUnicodeString());
@@ -760,7 +760,7 @@ protected:
                 }
             }
             if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType) {
-                return inspectionJob.then<void>([=]() {
+                return inspectionJob.then([=] {
                     if (!messageByUid->contains(uid)) {
                         SinkWarning() << "Existing messages are: " << messageByUid->keys();
                         SinkWarning() << "We're looking for: " << uid;
@@ -792,11 +792,11 @@ protected:
                 auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
                 auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
                 return imap->login(mUser, mPassword)
-                    .then<void>(imap->select(remoteId).then([](){}))
-                    .then<void>(imap->fetch(set, scope, [=](const Imap::Message message) {
+                    .then(imap->select(remoteId))
+                    .then(imap->fetch(set, scope, [=](const Imap::Message message) {
                         messageByUid->insert(message.uid, message);
                     }))
-                    .then<void>([imap, messageByUid, expectedCount]() {
+                    .then([imap, messageByUid, expectedCount] {
                         if (messageByUid->size() != expectedCount) {
                             return KAsync::error<void>(1, QString("Wrong number of messages on the server; found %1 instead of %2.").arg(messageByUid->size()).arg(expectedCount));
                         }
@@ -809,11 +809,11 @@ protected:
 
                 auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
                 auto inspectionJob = imap->login(mUser, mPassword)
-                    .then<void>(imap->fetchFolders([=](const Imap::Folder &f) {
+                    .then(imap->fetchFolders([=](const Imap::Folder &f) {
                         *folderByPath << f.path();
                         *folderByName << f.name();
                     }))
-                    .then<void>([this, folderByName, folderByPath, folder, remoteId, imap]() {
+                    .then([this, folderByName, folderByPath, folder, remoteId, imap] {
                         if (!folderByName->contains(folder.getName())) {
                             SinkWarning() << "Existing folders are: " << *folderByPath;
                             SinkWarning() << "We're looking for: " << folder.getName();
