@@ -53,8 +53,12 @@ public:
 
     }
 
-    KAsync::Job<void>send(const ApplicationDomain::Mail &mail, const MailtransportResource::Settings &settings)
+    KAsync::Job<void> send(const ApplicationDomain::Mail &mail, const MailtransportResource::Settings &settings)
     {
+        if (!syncStore().readValue(mail.identifier()).isEmpty()) {
+            SinkLog() << "Mail is already sent: " << mail.identifier();
+            return KAsync::null();
+        }
         const auto data = mail.getMimeMessage();
         auto msg = KMime::Message::Ptr::create();
         msg->setHead(KMime::CRLFtoLF(data));
@@ -81,6 +85,7 @@ public:
                 return KAsync::error<void>(1, "Failed to send the message.");
             }
         }
+        syncStore().writeValue(mail.identifier(), "sent");
         return KAsync::start<void>([=] {
             SinkLog() << "Sent mail, and triggering move to sent mail folder: " << mail.identifier();
             auto modifiedMail = ApplicationDomain::Mail(mResourceInstanceIdentifier, mail.identifier(), mail.revision(), QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
@@ -132,6 +137,7 @@ public:
             SinkTrace() << "Dispatching message.";
             // return send(mail, mSettings);
         } else if (operation == Sink::Operation_Removal) {
+            syncStore().removeValue(mail.identifier(), "");
         } else if (operation == Sink::Operation_Modification) {
         }
         return KAsync::null<QByteArray>();
