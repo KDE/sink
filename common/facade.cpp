@@ -111,6 +111,7 @@ QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> 
 }
 
 
+template class Sink::GenericFacade<Sink::ApplicationDomain::Contact>;
 template class Sink::GenericFacade<Sink::ApplicationDomain::Folder>;
 template class Sink::GenericFacade<Sink::ApplicationDomain::Mail>;
 template class Sink::GenericFacade<Sink::ApplicationDomain::Event>;

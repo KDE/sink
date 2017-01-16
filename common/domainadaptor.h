@@ -26,6 +26,7 @@
 
 #include "domaintypeadaptorfactoryinterface.h"
 #include "domain/applicationdomaintype.h"
+#include "domain/contact.h"
 #include "domain/event.h"
 #include "domain/mail.h"
 #include "domain/folder.h"
