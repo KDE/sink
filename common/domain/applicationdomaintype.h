@@ -330,10 +330,10 @@ struct SINK_EXPORT Entity : public ApplicationDomainType {
 
 struct SINK_EXPORT Contact : public Entity {
     SINK_ENTITY(Contact);
-    SINK_EXTRACTED_PROPERTY(QString, Uid, uid);
+    SINK_PROPERTY(QString, Uid, uid);
     SINK_PROPERTY(QString, Fn, fn);
     SINK_PROPERTY(QByteArrayList, Emails, emails);
-    SINK_BLOB_PROPERTY(Vcard, vcard);
+    SINK_PROPERTY(QByteArray, Vcard, vcard);
 };
 
 struct SINK_EXPORT Event : public Entity {

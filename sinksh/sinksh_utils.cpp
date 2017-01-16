@@ -54,6 +54,9 @@ StoreBase &getStore(const QString &type)
     } else if (type == getTypeName<Identity>()) {
         static Store<Identity> store;
         return store;
+    } else if (type == getTypeName<Contact>()) {
+        static Store<Contact> store;
+        return store;
     }
 
     SinkWarning_("", "") << "Trying to get a store that doesn't exist: " << type;

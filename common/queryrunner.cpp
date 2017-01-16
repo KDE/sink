@@ -252,9 +252,11 @@ ReplayResult QueryWorker<DomainType>::executeInitialQuery(
     return {entityStore.maxRevision(), replayResult.replayedEntities, replayResult.replayedAll};
 }
 
+template class QueryRunner<Sink::ApplicationDomain::Contact>;
 template class QueryRunner<Sink::ApplicationDomain::Folder>;
 template class QueryRunner<Sink::ApplicationDomain::Mail>;
 template class QueryRunner<Sink::ApplicationDomain::Event>;
+template class QueryWorker<Sink::ApplicationDomain::Contact>;
 template class QueryWorker<Sink::ApplicationDomain::Folder>;
 template class QueryWorker<Sink::ApplicationDomain::Mail>;
 template class QueryWorker<Sink::ApplicationDomain::Event>;

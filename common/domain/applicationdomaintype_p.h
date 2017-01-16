@@ -38,6 +38,8 @@ struct TypeHelper {
             return Func<Sink::ApplicationDomain::Mail>{}(std::forward<Args...>(args...)); 
         } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>()) {
             return Func<Sink::ApplicationDomain::Event>{}(std::forward<Args...>(args...)); 
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Contact>()) {
+            return Func<Sink::ApplicationDomain::Contact>{}(std::forward<Args...>(args...));
         } else {
             Q_ASSERT(false);
         }

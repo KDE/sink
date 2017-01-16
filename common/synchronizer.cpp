@@ -462,6 +462,11 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     });
 }
 
+KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Contact &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)
+{
+    return KAsync::null<QByteArray>();
+}
+
 KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Mail &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)
 {
     return KAsync::null<QByteArray>();
