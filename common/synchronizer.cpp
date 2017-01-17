@@ -381,6 +381,12 @@ Sink::Storage::DataStore::DataStore::Transaction &Synchronizer::syncTransaction(
 
 void Synchronizer::revisionChanged()
 {
+    //One replay request is enough
+    for (const auto &r : mSyncRequestQueue) {
+        if (r.requestType == Synchronizer::SyncRequest::ChangeReplay) {
+            return;
+        }
+    }
     mSyncRequestQueue << Synchronizer::SyncRequest{Synchronizer::SyncRequest::ChangeReplay};
     processSyncQueue().exec();
 }
