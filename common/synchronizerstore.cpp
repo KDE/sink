@@ -117,13 +117,20 @@ void SynchronizerStore::writeValue(const QByteArray &prefix, const QByteArray &k
 
 void SynchronizerStore::removeValue(const QByteArray &prefix, const QByteArray &key)
 {
-    mTransaction.openDatabase("values").remove(prefix + key, [&](const Sink::Storage::DataStore::Error &error) {
+    auto assembled = prefix + key;
+    if (assembled.isEmpty()) {
+        return;
+    }
+    mTransaction.openDatabase("values").remove(assembled, [&](const Sink::Storage::DataStore::Error &error) {
         SinkWarning() << "Failed to remove the value: " << prefix + key << error;
     });
 }
 
 void SynchronizerStore::removePrefix(const QByteArray &prefix)
 {
+    if (prefix.isEmpty()) {
+        return;
+    }
     //FIXME remove all values matching prefix
     // mTransaction.openDatabase("values").remove(prefix, [](const Sink::Storage::DataStore::Error &) {
     //     //Ignore errors because we may not find the value

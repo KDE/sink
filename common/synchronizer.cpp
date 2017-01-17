@@ -279,10 +279,11 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
     if (mSyncRequestQueue.isEmpty() || mSyncInProgress) {
         return KAsync::null<void>();
     }
-    mSyncInProgress = true;
-    mMessageQueue->startTransaction();
 
-    auto job = KAsync::null<void>();
+    auto job = KAsync::syncStart<void>([this] {
+        mMessageQueue->startTransaction();
+        mSyncInProgress = true;
+    });
     while (!mSyncRequestQueue.isEmpty()) {
         auto request = mSyncRequestQueue.takeFirst();
         if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
@@ -334,13 +335,17 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
                 Sink::Commands::FinishFlushBuffer(fbb, location);
                 enqueueCommand(Sink::Commands::FlushCommand, BufferUtils::extractBuffer(fbb));
             }
-        } else {
+        } else if (request.requestType == Synchronizer::SyncRequest::ChangeReplay) {
             job = replayNextRevision();
+        } else {
+            SinkWarning() << "Unknown request type: " << request.requestType;
+            return KAsync::error(KAsync::Error{"Unknown request type."});
         }
     }
     return job.then<void>([this](const KAsync::Error &error) {
-        mSyncStore.clear();
+        mSyncTransaction.abort();
         mMessageQueue->commit();
+        mSyncStore.clear();
         mSyncInProgress = false;
         if (allChangesReplayed()) {
             emit changesReplayed();
@@ -399,6 +404,18 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     Sink::EntityBuffer buffer(value);
     const Sink::Entity &entity = buffer.entity();
     const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
+    if (!metadataBuffer) {
+        SinkError() << "No metadata buffer available.";
+        return KAsync::error("No metadata buffer");
+    }
+    if (mSyncTransaction) {
+        SinkError() << "Leftover sync transaction.";
+        mSyncTransaction.abort();
+    }
+    if (mSyncStore) {
+        SinkError() << "Leftover sync store.";
+        mSyncStore.clear();
+    }
     Q_ASSERT(metadataBuffer);
     Q_ASSERT(!mSyncStore);
     Q_ASSERT(!mSyncTransaction);
@@ -411,13 +428,7 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
 
     if (operation != Sink::Operation_Creation) {
         oldRemoteId = syncStore().resolveLocalId(type, uid);
-        if (oldRemoteId.isEmpty()) {
-            SinkWarning() << "Couldn't find the remote id for: " << type << uid;
-            mSyncStore.clear();
-            mSyncTransaction.abort();
-            mEntityStore->abortTransaction();
-            return KAsync::error<void>(1, "Couldn't find the remote id.");
-        }
+        //oldRemoteId can be empty if the resource implementation didn't return a remoteid
     }
     SinkTrace() << "Replaying " << key << type << uid << oldRemoteId;
 
