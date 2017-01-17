@@ -70,6 +70,7 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
             quit();
         }
     });
+    m_checkConnectionsTimer->start();
 
     // TODO: experiment with different timeouts
     //      or even just drop down to invoking the method queued? => invoke queued unless we need throttling
