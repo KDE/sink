@@ -55,38 +55,37 @@ public:
 
     KAsync::Job<void> send(const ApplicationDomain::Mail &mail, const MailtransportResource::Settings &settings)
     {
-        if (!syncStore().readValue(mail.identifier()).isEmpty()) {
-            SinkLog() << "Mail is already sent: " << mail.identifier();
-            return KAsync::null();
-        }
-        const auto data = mail.getMimeMessage();
-        auto msg = KMime::Message::Ptr::create();
-        msg->setHead(KMime::CRLFtoLF(data));
-        msg->parse();
-        if (settings.testMode) {
-            SinkLog() << "I would totally send that mail, but I'm in test mode." << mail.identifier();
-            auto path = resourceStorageLocation(mResourceInstanceIdentifier) + "/test/";
-            SinkTrace() << path;
-            QDir dir;
-            dir.mkpath(path);
-            QFile f(path+ mail.identifier());
-            f.open(QIODevice::ReadWrite);
-            f.write("foo");
-            f.close();
-        } else {
-            MailTransport::Options options;
-            if (settings.server.contains("smtps")) {
-                options &= MailTransport::UseTls;
-            }
-            if (MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), settings.password.toUtf8(), settings.cacert.toUtf8(), options)) {
-                SinkLog() << "Sent message successfully";
-            } else {
-                SinkLog() << "Failed to send message";
-                return KAsync::error<void>(1, "Failed to send the message.");
-            }
-        }
-        syncStore().writeValue(mail.identifier(), "sent");
         return KAsync::start<void>([=] {
+            if (!syncStore().readValue(mail.identifier()).isEmpty()) {
+                SinkLog() << "Mail is already sent: " << mail.identifier();
+                return KAsync::null();
+            }
+            const auto data = mail.getMimeMessage();
+            auto msg = KMime::Message::Ptr::create();
+            msg->setHead(KMime::CRLFtoLF(data));
+            msg->parse();
+            if (settings.testMode) {
+                SinkLog() << "I would totally send that mail, but I'm in test mode." << mail.identifier();
+                auto path = resourceStorageLocation(mResourceInstanceIdentifier) + "/test/";
+                SinkTrace() << path;
+                QDir dir;
+                dir.mkpath(path);
+                QFile f(path+ mail.identifier());
+                f.open(QIODevice::ReadWrite);
+                f.write("foo");
+                f.close();
+            } else {
+                MailTransport::Options options;
+                if (settings.server.contains("smtps")) {
+                    options &= MailTransport::UseTls;
+                }
+                if (!MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), settings.password.toUtf8(), settings.cacert.toUtf8(), options)) {
+                    SinkWarning() << "Failed to send message: " << mail;
+                    return KAsync::error("Failed to send the message.");
+                }
+            }
+            syncStore().writeValue(mail.identifier(), "sent");
+
             SinkLog() << "Sent mail, and triggering move to sent mail folder: " << mail.identifier();
             auto modifiedMail = ApplicationDomain::Mail(mResourceInstanceIdentifier, mail.identifier(), mail.revision(), QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
             modifiedMail.setSent(true);
@@ -128,14 +127,15 @@ public:
 
     bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE
     {
-        return false;
+        return true;
     }
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
         if (operation == Sink::Operation_Creation) {
             SinkTrace() << "Dispatching message.";
-            // return send(mail, mSettings);
+            return send(mail, mSettings)
+                .then(KAsync::value(QByteArray{}));
         } else if (operation == Sink::Operation_Removal) {
             syncStore().removeValue(mail.identifier(), "");
         } else if (operation == Sink::Operation_Modification) {
