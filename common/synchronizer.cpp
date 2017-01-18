@@ -336,7 +336,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
                 enqueueCommand(Sink::Commands::FlushCommand, BufferUtils::extractBuffer(fbb));
             }
         } else if (request.requestType == Synchronizer::SyncRequest::ChangeReplay) {
-            job = replayNextRevision();
+            job = job.then(replayNextRevision());
         } else {
             SinkWarning() << "Unknown request type: " << request.requestType;
             return KAsync::error(KAsync::Error{"Unknown request type."});
