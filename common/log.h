@@ -105,10 +105,10 @@ static const char *getComponentName() { return nullptr; }
 #define SinkWarning() Sink::Log::debugStream(Sink::Log::DebugLevel::Warning, __LINE__, __FILE__, Q_FUNC_INFO, s_sinkDebugArea, getComponentName())
 #define SinkError() Sink::Log::debugStream(Sink::Log::DebugLevel::Error, __LINE__, __FILE__, Q_FUNC_INFO, s_sinkDebugArea, getComponentName())
 
-#define SinkTraceCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name, getComponentName())
-#define SinkLogCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name, getComponentName())
-#define SinkWarningCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Warning, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name, getComponentName())
-#define SinkErrorCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Error, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name, getComponentName())
+#define SinkTraceCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name)
+#define SinkLogCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name)
+#define SinkWarningCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Warning, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name)
+#define SinkErrorCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Error, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name)
 
 #define SINK_DEBUG_AREA(AREA) static constexpr const char* s_sinkDebugArea{AREA};
 #define SINK_DEBUG_COMPONENT(COMPONENT) const char* getComponentName() const { return COMPONENT; };
