@@ -166,13 +166,12 @@ KAsync::Job<void> ResourceAccess::Private::tryToConnect()
     auto counter = QSharedPointer<int>::create(0);
     return KAsync::doWhile(
         [this, counter]() {
-            SinkTrace() << "Loop";
             return connectToServer(resourceInstanceIdentifier)
                 .then<KAsync::ControlFlowFlag, QSharedPointer<QLocalSocket>>(
                     [this, counter](const KAsync::Error &error, const QSharedPointer<QLocalSocket> &s) {
                         if (error) {
                             static int waitTime = 10;
-                            static int timeout = 500;
+                            static int timeout = 20000;
                             static int maxRetries = timeout / waitTime;
                             if (*counter > maxRetries) {
                                 SinkTrace() << "Giving up";
@@ -213,8 +212,8 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                         if (QProcess::startDetached("sink_synchronizer", args, QDir::homePath(), &pid)) {
                             SinkTrace() << "Started resource " << pid;
                             return tryToConnect()
-                                .onError([this](const KAsync::Error &error) {
-                                        SinkWarning() << "Failed to connect to started resource";
+                                .onError([this, args](const KAsync::Error &error) {
+                                    SinkWarning() << "Failed to connect to started resource: sink_synchronizer " << args;
                                 });
                         } else {
                             SinkWarning() << "Failed to start resource";
