@@ -62,6 +62,7 @@ private:
     Sink::Storage::DataStore mChangeReplayStore;
     bool mReplayInProgress;
     Sink::Storage::DataStore::Transaction mMainStoreTransaction;
+    Sink::Log::Context mLogCtx;
 };
 
 class NullChangeReplay : public ChangeReplay
