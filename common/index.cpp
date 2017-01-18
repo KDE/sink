@@ -44,6 +44,6 @@ QByteArray Index::lookup(const QByteArray &key)
 {
     QByteArray result;
     //We have to create a deep copy, otherwise the returned data may become invalid when the transaction ends.
-    lookup(key, [&result](const QByteArray &value) { result = QByteArray(value.constData(), value.size()); }, [this](const Index::Error &error) { SinkTrace() << "Error while retrieving value" << error.message; });
+    lookup(key, [&result](const QByteArray &value) { result = QByteArray(value.constData(), value.size()); }, [this](const Index::Error &error) { SinkWarning() << "Error while retrieving value" << error.message; });
     return result;
 }

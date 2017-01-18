@@ -277,6 +277,7 @@ void Synchronizer::flush(int commandId, const QByteArray &flushId)
 KAsync::Job<void> Synchronizer::processSyncQueue()
 {
     if (mSyncRequestQueue.isEmpty() || mSyncInProgress) {
+        SinkTrace() << "Sync still in progress or nothing to do.";
         return KAsync::null<void>();
     }
 
@@ -285,7 +286,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         mSyncInProgress = true;
     });
     while (!mSyncRequestQueue.isEmpty()) {
-        auto request = mSyncRequestQueue.takeFirst();
+        const auto request = mSyncRequestQueue.takeFirst();
         if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
             job = job.then([this, request] {
                 Sink::Notification n;
@@ -343,6 +344,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         }
     }
     return job.then<void>([this](const KAsync::Error &error) {
+        SinkTrace() << "Sync request processed";
         mSyncTransaction.abort();
         mMessageQueue->commit();
         mSyncStore.clear();
@@ -446,6 +448,8 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
         auto mail = store().readEntity<ApplicationDomain::Mail>(key);
         job = replay(mail, operation, oldRemoteId, modifiedProperties);
+    } else {
+        SinkError() << "Replayed unknown type: " << type;
     }
 
     return job.then([this, operation, type, uid, oldRemoteId](const QByteArray &remoteId) {

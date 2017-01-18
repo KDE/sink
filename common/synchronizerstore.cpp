@@ -73,7 +73,7 @@ QByteArray SynchronizerStore::resolveLocalId(const QByteArray &bufferType, const
 {
     QByteArray remoteId = Index("localid.mapping." + bufferType, mTransaction).lookup(localId);
     if (remoteId.isEmpty()) {
-        SinkWarning() << "Couldn't find the remote id for " << localId;
+        SinkWarning() << "Couldn't find the remote id for " << bufferType << localId;
         return QByteArray();
     }
     return remoteId;
