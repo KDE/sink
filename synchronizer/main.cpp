@@ -136,10 +136,16 @@ void terminateHandler()
 
 int main(int argc, char *argv[])
 {
-    // For crashes
-    std::signal(SIGSEGV, crashHandler);
-    std::signal(SIGABRT, crashHandler);
-    std::set_terminate(terminateHandler);
+    const bool gdbDebugMode = qEnvironmentVariableIsSet("SINK_GDB_DEBUG");
+    if (gdbDebugMode) {
+        SinkWarning() << "Running resource in debug mode and waiting for gdb to attach: gdb attach " << getpid();
+        raise(SIGSTOP);
+    } else {
+        // For crashes
+        std::signal(SIGSEGV, crashHandler);
+        std::signal(SIGABRT, crashHandler);
+        std::set_terminate(terminateHandler);
+    }
 
     QCoreApplication app(argc, argv);
     app.setQuitLockEnabled(false);
