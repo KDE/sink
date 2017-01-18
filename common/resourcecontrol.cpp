@@ -122,12 +122,15 @@ KAsync::Job<void> ResourceControl::flush(Flush::FlushType type, const QByteArray
 
 KAsync::Job<void> ResourceControl::flushReplayQueue(const QByteArrayList &resourceIdentifier)
 {
-    return flushMessageQueue(resourceIdentifier);
+    return KAsync::value(resourceIdentifier)
+        .template each([](const QByteArray &resource) {
+            return flushReplayQueue(resource);
+        });
 }
 
 KAsync::Job<void> ResourceControl::flushReplayQueue(const QByteArray &resourceIdentifier)
 {
-    return flushReplayQueue(QByteArrayList() << resourceIdentifier);
+    return flush(Flush::FlushReplayQueue, resourceIdentifier);
 }
 
 template <class DomainType>
