@@ -57,9 +57,21 @@ private slots:
 
     void testFetchFolders()
     {
+        QMap<QString, QString> expectedFolderAndParent;
+        expectedFolderAndParent.insert("INBOX", "");
+        expectedFolderAndParent.insert("Drafts", "");
+        expectedFolderAndParent.insert("Trash", "");
+        expectedFolderAndParent.insert("test", "");
         ImapServerProxy imap("localhost", 993);
         VERIFYEXEC(imap.login("doe", "doe"));
-        VERIFYEXEC(imap.fetchFolders([](const Folder &){}));
+        QVector<Folder> list;
+        VERIFYEXEC(imap.fetchFolders([&](const Folder &f){ list << f;}));
+        for (const auto &f : list) {
+            QVERIFY(expectedFolderAndParent.contains(f.name()));
+            QCOMPARE(expectedFolderAndParent.value(f.name()), f.parentPath());
+            expectedFolderAndParent.remove(f.name());
+        }
+        QVERIFY(expectedFolderAndParent.isEmpty());
     }
 
     void testFetchFoldersFailure()

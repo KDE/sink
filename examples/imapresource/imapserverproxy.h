@@ -67,12 +67,12 @@ struct Message {
 
 struct Folder {
     Folder() = default;
-    Folder(const QString &path, const QChar &separator, bool noselect_, bool subscribed_, const QByteArrayList &flags_)
+    Folder(const QString &path, const QString &ns, const QChar &separator, bool noselect_, bool subscribed_, const QByteArrayList &flags_)
         : noselect(noselect_),
         subscribed(subscribed_),
         flags(flags_),
         mPath(path),
-        pathParts(path.split(separator)),
+        mNamespace(ns),
         mSeparator(separator)
     {
     }
@@ -91,13 +91,19 @@ struct Folder {
     QString parentPath() const
     {
         Q_ASSERT(!mSeparator.isNull());
-        auto parts = pathParts;
+        auto parts = mPath.split(mSeparator);
         parts.removeLast();
-        return parts.join(mSeparator);
+        auto parentPath = parts.join(mSeparator);
+        //Don't return the namespace for root folders as parent folder
+        if (mNamespace.startsWith(parentPath)) {
+            return QString{};
+        }
+        return parentPath;
     }
 
     QString name() const
     {
+        auto pathParts = mPath.split(mSeparator);
         Q_ASSERT(!pathParts.isEmpty());
         return pathParts.last();
     }
@@ -108,7 +114,7 @@ struct Folder {
 
 private:
     QString mPath;
-    QList<QString> pathParts;
+    QString mNamespace;
     QChar mSeparator;
 };
 
@@ -178,6 +184,7 @@ public:
     KAsync::Job<QVector<qint64>> fetchUids(const Folder &folder);
 
 private:
+    QString getNamespace(const QString &name);
     QObject mGuard;
 };
 

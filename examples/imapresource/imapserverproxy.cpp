@@ -370,16 +370,16 @@ KAsync::Job<QString> ImapServerProxy::createSubfolder(const QString &parentMailb
 {
     return KAsync::start<QString>([this, parentMailbox, folderName]() {
         Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
-        auto folder = QSharedPointer<QString>::create();
+        QString folder;
         if (parentMailbox.isEmpty()) {
-            *folder = mPersonalNamespaces.toList().first() + folderName;
+            folder = mPersonalNamespaces.isEmpty() ? "" : mPersonalNamespaces.toList().first() + folderName;
         } else {
-            *folder = parentMailbox + mPersonalNamespaceSeparator + folderName;
+            folder = parentMailbox + mPersonalNamespaceSeparator + folderName;
         }
-        SinkTrace() << "Creating subfolder: " << *folder;
-        return create(*folder)
+        SinkTrace() << "Creating subfolder: " << folder;
+        return create(folder)
             .then([=]() {
-                return *folder;
+                return folder;
             });
     });
 }
@@ -390,13 +390,33 @@ KAsync::Job<QString> ImapServerProxy::renameSubfolder(const QString &oldMailbox,
         Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
         auto parts = oldMailbox.split(mPersonalNamespaceSeparator);
         parts.removeLast();
-        auto folder = QSharedPointer<QString>::create(parts.join(mPersonalNamespaceSeparator) + mPersonalNamespaceSeparator + newName);
-        SinkTrace() << "Renaming subfolder: " << oldMailbox << *folder;
-        return rename(oldMailbox, *folder)
+        QString folder = parts.join(mPersonalNamespaceSeparator) + mPersonalNamespaceSeparator + newName;
+        SinkTrace() << "Renaming subfolder: " << oldMailbox << folder;
+        return rename(oldMailbox, folder)
             .then([=]() {
-                return *folder;
+                return folder;
             });
     });
+}
+
+QString ImapServerProxy::getNamespace(const QString &name)
+{
+    for (const auto &ns : mPersonalNamespaces) {
+        if (name.startsWith(ns)) {
+            return ns;
+        }
+    }
+    for (const auto &ns : mSharedNamespaces) {
+        if (name.startsWith(ns)) {
+            return ns;
+        }
+    }
+    for (const auto &ns : mUserNamespaces) {
+        if (name.startsWith(ns)) {
+            return ns;
+        }
+    }
+    return QString{};
 }
 
 KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder &)> callback)
@@ -409,7 +429,8 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
         bool noselect = flags.contains(QByteArray(FolderFlags::Noselect).toLower()) || flags.contains(QByteArray(FolderFlags::Noselect));
         bool subscribed = subscribedList->contains(mailbox.name);
         SinkLog() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect  << " sub: " << subscribed;
-        callback(Folder{mailbox.name, mailbox.separator, noselect, subscribed, flags});
+        auto ns = getNamespace(mailbox.name);
+        callback(Folder{mailbox.name, ns, mailbox.separator, noselect, subscribed, flags});
     }));
 }
 
