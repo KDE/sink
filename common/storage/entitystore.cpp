@@ -326,7 +326,7 @@ bool EntityStore::remove(const QByteArray &type, const QByteArray &uid, bool rep
     return true;
 }
 
-void EntityStore::cleanupRevision(qint64 revision)
+void EntityStore::cleanupEntityRevisionsUntil(qint64 revision)
 {
     const auto uid = DataStore::getUidFromRevision(d->transaction, revision);
     const auto bufferType = DataStore::getTypeFromRevision(d->transaction, revision);
@@ -340,17 +340,22 @@ void EntityStore::cleanupRevision(qint64 revision)
                 } else {
                     const auto metadata = flatbuffers::GetRoot<Metadata>(buffer.metadataBuffer());
                     const qint64 rev = metadata->revision();
+                    const auto isRemoval = metadata->operation() == Operation_Removal;
                     // Remove old revisions, and the current if the entity has already been removed
-                    if (rev < revision || metadata->operation() == Operation_Removal) {
+                    if (rev < revision || isRemoval) {
                         DataStore::removeRevision(d->transaction, rev);
                         DataStore::mainDatabase(d->transaction, bufferType).remove(key);
                     }
-                    if (metadata->operation() == Operation_Removal) {
+                    if (isRemoval) {
                         const auto directory = d->entityBlobStoragePath(uid);
                         QDir dir(directory);
                         if (!dir.removeRecursively()) {
                             SinkError() << "Failed to cleanup: " << directory;
                         }
+                    }
+                    //Don't cleanup more than specified
+                    if (rev >= revision) {
+                        return false;
                     }
                 }
 
@@ -373,7 +378,7 @@ bool EntityStore::cleanupRevisions(qint64 revision)
     if (cleanupIsNecessary) {
         SinkTraceCtx(d->logCtx) << "Cleaning up from " << firstRevisionToCleanup << " to " << revision;
         for (qint64 rev = firstRevisionToCleanup; rev <= revision; rev++) {
-            cleanupRevision(rev);
+            cleanupEntityRevisionsUntil(rev);
         }
     }
     if (implicitTransaction) {

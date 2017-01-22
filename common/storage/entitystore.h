@@ -46,7 +46,6 @@ public:
     bool add(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &, bool replayToSource, const PreprocessCreation &);
     bool modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &, const QByteArrayList &deletions, bool replayToSource, const PreprocessModification &);
     bool remove(const QByteArray &type, const QByteArray &uid, bool replayToSource, const PreprocessRemoval &);
-    void cleanupRevision(qint64 revision);
     bool cleanupRevisions(qint64 revision);
 
     void startTransaction(Sink::Storage::DataStore::AccessMode);
@@ -112,6 +111,10 @@ public:
     Sink::Log::Context logContext() const;
 
 private:
+    /*
+     * Remove any old revisions of the same entity up until @param revision
+     */
+    void cleanupEntityRevisionsUntil(qint64 revision);
     void copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qint64 newRevision);
     class Private;
     const QSharedPointer<Private> d;
