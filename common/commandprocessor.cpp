@@ -331,6 +331,7 @@ KAsync::Job<void> CommandProcessor::flush(void const *command, size_t size)
             mSynchronizer->flush(flushType, flushId);
         } else {
             SinkTraceCtx(mLogCtx) << "Emitting flush completion" << flushId;
+            mSynchronizer->flushComplete(flushId);
             Sink::Notification n;
             n.type = Sink::Notification::FlushCompletion;
             n.id = flushId;

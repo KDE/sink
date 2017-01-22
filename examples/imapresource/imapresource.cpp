@@ -386,7 +386,8 @@ public:
             list << Synchronizer::SyncRequest{query};
         } else {
             list << Synchronizer::SyncRequest{Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Folder>())};
-            list << Synchronizer::SyncRequest{applyMailDefaults(Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Mail>()))};
+            //This request depends on the previous one so we flush first.
+            list << Synchronizer::SyncRequest{applyMailDefaults(Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Mail>())), QByteArray{}, Synchronizer::SyncRequest::RequestFlush};
         }
         return list;
     }

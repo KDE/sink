@@ -57,6 +57,7 @@ public:
     Sink::Storage::DataStore::Transaction &syncTransaction();
 
     bool allChangesReplayed() Q_DECL_OVERRIDE;
+    void flushComplete(const QByteArray &flushId);
 
 signals:
     void notify(Notification);
@@ -123,9 +124,15 @@ protected:
             Flush
         };
 
-        SyncRequest(const Sink::QueryBase &q, const QByteArray &requestId_ = QByteArray())
+        enum RequestOptions {
+            NoOptions,
+            RequestFlush
+        };
+
+        SyncRequest(const Sink::QueryBase &q, const QByteArray &requestId_ = QByteArray(), RequestOptions o = NoOptions)
             : requestId(requestId_),
             requestType(Synchronization),
+            options(o),
             query(q)
         {
         }
@@ -145,6 +152,7 @@ protected:
         int flushType = 0;
         QByteArray requestId;
         RequestType requestType;
+        RequestOptions options = NoOptions;
         Sink::QueryBase query;
     };
 
@@ -181,6 +189,7 @@ private:
     QList<SyncRequest> mSyncRequestQueue;
     MessageQueue *mMessageQueue;
     bool mSyncInProgress;
+    QMultiHash<QByteArray, SyncRequest> mPendingSyncRequests;
 };
 
 }
