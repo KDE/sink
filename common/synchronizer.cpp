@@ -62,7 +62,7 @@ void Synchronizer::enqueueCommand(int commandId, const QByteArray &data)
 
 Storage::EntityStore &Synchronizer::store()
 {
-    mEntityStore->startTransaction(Sink::Storage::DataStore::ReadOnly);
+    Q_ASSERT(mEntityStore->hasTransaction());
     return *mEntityStore;
 }
 
@@ -385,11 +385,13 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
     const auto request = mSyncRequestQueue.takeFirst();
     return KAsync::syncStart<void>([this] {
         mMessageQueue->startTransaction();
+        mEntityStore->startTransaction(Sink::Storage::DataStore::ReadOnly);
         mSyncInProgress = true;
     })
     .then(processRequest(request))
     .then<void>([this](const KAsync::Error &error) {
         SinkTraceCtx(mLogCtx) << "Sync request processed";
+        mEntityStore->abortTransaction();
         mSyncTransaction.abort();
         mMessageQueue->commit();
         mSyncStore.clear();
@@ -409,7 +411,6 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
 void Synchronizer::commit()
 {
     mMessageQueue->commit();
-    mEntityStore->abortTransaction();
     mSyncTransaction.commit();
     mSyncStore.clear();
     if (mSyncInProgress) {
@@ -472,7 +473,8 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     Q_ASSERT(metadataBuffer);
     Q_ASSERT(!mSyncStore);
     Q_ASSERT(!mSyncTransaction);
-    mEntityStore->startTransaction(Storage::DataStore::ReadOnly);
+    //The entitystore transaction is handled by processSyncQueue
+    Q_ASSERT(mEntityStore->hasTransaction());
 
     const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
     const auto uid = Sink::Storage::DataStore::uidFromKey(key);
@@ -525,7 +527,6 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         }
         mSyncStore.clear();
         mSyncTransaction.commit();
-        mEntityStore->abortTransaction();
     });
 }
 

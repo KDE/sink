@@ -51,6 +51,7 @@ public:
     void startTransaction(Sink::Storage::DataStore::AccessMode);
     void commitTransaction();
     void abortTransaction();
+    bool hasTransaction() const;
 
     QVector<QByteArray> fullScan(const QByteArray &type);
     QVector<QByteArray> indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting);

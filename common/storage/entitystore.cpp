@@ -111,6 +111,7 @@ EntityStore::EntityStore(const ResourceContext &context, const Log::Context &ctx
 void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMode)
 {
     SinkTraceCtx(d->logCtx) << "Starting transaction: " << accessMode;
+    Q_ASSERT(!d->transaction);
     Sink::Storage::DataStore store(Sink::storageLocation(), d->resourceContext.instanceId(), accessMode);
     d->transaction = store.createTransaction(accessMode);
     Q_ASSERT(d->transaction.validateNamedDatabases());
@@ -119,6 +120,7 @@ void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMo
 void EntityStore::commitTransaction()
 {
     SinkTraceCtx(d->logCtx) << "Committing transaction";
+    Q_ASSERT(d->transaction);
     d->transaction.commit();
     d->transaction = Storage::DataStore::Transaction();
 }
@@ -128,6 +130,11 @@ void EntityStore::abortTransaction()
     SinkTraceCtx(d->logCtx) << "Aborting transaction";
     d->transaction.abort();
     d->transaction = Storage::DataStore::Transaction();
+}
+
+bool EntityStore::hasTransaction() const
+{
+    return d->transaction;
 }
 
 void EntityStore::copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qint64 newRevision)
