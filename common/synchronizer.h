@@ -178,6 +178,7 @@ protected:
     Sink::Log::Context mLogCtx;
 private:
     void modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
+    KAsync::Job<void> processRequest(const SyncRequest &request);
     KAsync::Job<void> processSyncQueue();
 
     Sink::ResourceContext mResourceContext;
