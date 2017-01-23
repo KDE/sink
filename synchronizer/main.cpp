@@ -134,6 +134,33 @@ void terminateHandler()
     std::abort();
 }
 
+/*
+ * We capture all qt debug messages in the same process and feed it into the sink debug system.
+ * This way we get e.g. kimap debug messages as well together with the rest.
+ */
+void qtMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    QByteArray localMsg = msg.toLocal8Bit();
+    switch (type) {
+    case QtDebugMsg:
+        Sink::Log::debugStream(Sink::Log::DebugLevel::Trace, context.line, context.file, context.function, context.category) << msg;
+        break;
+    case QtInfoMsg:
+        Sink::Log::debugStream(Sink::Log::DebugLevel::Log, context.line, context.file, context.function, context.category) << msg;
+        break;
+    case QtWarningMsg:
+        Sink::Log::debugStream(Sink::Log::DebugLevel::Warning, context.line, context.file, context.function, context.category) << msg;
+        break;
+    case QtCriticalMsg:
+        Sink::Log::debugStream(Sink::Log::DebugLevel::Error, context.line, context.file, context.function, context.category) << msg;
+        break;
+    case QtFatalMsg:
+        Sink::Log::debugStream(Sink::Log::DebugLevel::Error, context.line, context.file, context.function, context.category) << msg;
+        abort();
+    }
+}
+
+
 int main(int argc, char *argv[])
 {
     const bool gdbDebugMode = qEnvironmentVariableIsSet("SINK_GDB_DEBUG");
@@ -146,6 +173,8 @@ int main(int argc, char *argv[])
         std::signal(SIGABRT, crashHandler);
         std::set_terminate(terminateHandler);
     }
+
+    qInstallMessageHandler(qtMessageHandler);
 
     QCoreApplication app(argc, argv);
     app.setQuitLockEnabled(false);
