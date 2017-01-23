@@ -295,9 +295,9 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             modifiedRequest.options = SyncRequest::NoOptions;
             //Normally we won't have a requestId here
             if (modifiedRequest.requestId.isEmpty()) {
-                modifiedRequest.requestId = QUuid::createUuid().toRfc4122();
+                modifiedRequest.requestId = QUuid::createUuid().toByteArray();
             }
-            SinkWarningCtx(mLogCtx) << "Enquing flush request " << modifiedRequest.requestId;
+            SinkTraceCtx(mLogCtx) << "Enqueuing flush request " << modifiedRequest.requestId;
 
             //The sync request will be executed once the flush has completed
             mPendingSyncRequests.insert(modifiedRequest.requestId, modifiedRequest);
