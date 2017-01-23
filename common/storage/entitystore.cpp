@@ -37,8 +37,6 @@
 using namespace Sink;
 using namespace Sink::Storage;
 
-SINK_DEBUG_AREA("entitystore");
-
 class EntityStore::Private {
 public:
     Private(const ResourceContext &context, const Sink::Log::Context &ctx) : resourceContext(context), logCtx(ctx.subContext("entitystore")) {}
@@ -112,7 +110,7 @@ EntityStore::EntityStore(const ResourceContext &context, const Log::Context &ctx
 
 void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMode)
 {
-    SinkTraceCtx(d->logCtx) << "Starting transaction";
+    SinkTraceCtx(d->logCtx) << "Starting transaction: " << accessMode;
     Sink::Storage::DataStore store(Sink::storageLocation(), d->resourceContext.instanceId(), accessMode);
     d->transaction = store.createTransaction(accessMode);
     Q_ASSERT(d->transaction.validateNamedDatabases());
@@ -136,7 +134,7 @@ void EntityStore::copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qi
 {
     const auto directory = d->entityBlobStoragePath(entity.identifier());
     if (!QDir().mkpath(directory)) {
-        SinkWarning() << "Failed to create the directory: " << directory;
+        SinkWarningCtx(d->logCtx) << "Failed to create the directory: " << directory;
     }
 
     for (const auto &property : entity.changedProperties()) {
@@ -151,10 +149,10 @@ void EntityStore::copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qi
                 QFile::remove(filePath);
                 QFile origFile(oldPath);
                 if (!origFile.open(QIODevice::ReadWrite)) {
-                    SinkWarning() << "Failed to open the original file with write rights: " << origFile.errorString();
+                    SinkWarningCtx(d->logCtx) << "Failed to open the original file with write rights: " << origFile.errorString();
                 }
                 if (!origFile.rename(filePath)) {
-                    SinkWarning() << "Failed to move the file from: " << oldPath << " to " << filePath << ". " << origFile.errorString();
+                    SinkWarningCtx(d->logCtx) << "Failed to move the file from: " << oldPath << " to " << filePath << ". " << origFile.errorString();
                 }
                 origFile.close();
                 entity.setProperty(property, QVariant::fromValue(ApplicationDomain::BLOB{filePath}));
@@ -166,7 +164,7 @@ void EntityStore::copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qi
 bool EntityStore::add(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &entity_, bool replayToSource, const PreprocessCreation &preprocess)
 {
     if (entity_.identifier().isEmpty()) {
-        SinkWarning() << "Can't write entity with an empty identifier";
+        SinkWarningCtx(d->logCtx) << "Can't write entity with an empty identifier";
         return false;
     }
 
@@ -197,7 +195,7 @@ bool EntityStore::add(const QByteArray &type, const ApplicationDomain::Applicati
 
     DataStore::mainDatabase(d->transaction, type)
         .write(DataStore::assembleKey(entity.identifier(), newRevision), BufferUtils::extractBuffer(fbb),
-            [&](const DataStore::Error &error) { SinkWarning() << "Failed to write entity" << entity.identifier() << newRevision; });
+            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to write entity" << entity.identifier() << newRevision; });
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, entity.identifier(), type);
     SinkTraceCtx(d->logCtx) << "Wrote entity: " << entity.identifier() << type << newRevision;
@@ -209,7 +207,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
     auto changeset = diff.changedProperties();
     const auto current = readLatest(type, diff.identifier());
     if (current.identifier().isEmpty()) {
-        SinkWarning() << "Failed to read current version: " << diff.identifier();
+        SinkWarningCtx(d->logCtx) << "Failed to read current version: " << diff.identifier();
         return false;
     }
 
@@ -263,7 +261,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
 
     DataStore::mainDatabase(d->transaction, type)
         .write(DataStore::assembleKey(newEntity.identifier(), newRevision), BufferUtils::extractBuffer(fbb),
-            [&](const DataStore::Error &error) { SinkWarning() << "Failed to write entity" << newEntity.identifier() << newRevision; });
+            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to write entity" << newEntity.identifier() << newRevision; });
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, newEntity.identifier(), type);
     SinkTraceCtx(d->logCtx) << "Wrote modified entity: " << newEntity.identifier() << type << newRevision;
@@ -287,14 +285,14 @@ bool EntityStore::remove(const QByteArray &type, const QByteArray &uid, bool rep
                 }
                 return false;
             },
-            [](const DataStore::Error &error) { SinkWarning() << "Failed to read old revision from storage: " << error.message; });
+            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read old revision from storage: " << error.message; });
 
     if (!found) {
-        SinkWarning() << "Remove: Failed to find entity " << uid;
+        SinkWarningCtx(d->logCtx) << "Remove: Failed to find entity " << uid;
         return false;
     }
     if (alreadyRemoved) {
-        SinkWarning() << "Remove: Entity is already removed " << uid;
+        SinkWarningCtx(d->logCtx) << "Remove: Entity is already removed " << uid;
         return false;
     }
 
@@ -320,7 +318,7 @@ bool EntityStore::remove(const QByteArray &type, const QByteArray &uid, bool rep
 
     DataStore::mainDatabase(d->transaction, type)
         .write(DataStore::assembleKey(uid, newRevision), BufferUtils::extractBuffer(fbb),
-            [&](const DataStore::Error &error) { SinkWarning() << "Failed to write entity" << uid << newRevision; });
+            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to write entity" << uid << newRevision; });
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, uid, type);
     return true;
@@ -336,7 +334,7 @@ void EntityStore::cleanupEntityRevisionsUntil(qint64 revision)
             [&](const QByteArray &key, const QByteArray &data) -> bool {
                 EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
                 if (!buffer.isValid()) {
-                    SinkWarning() << "Read invalid buffer from disk";
+                    SinkWarningCtx(d->logCtx) << "Read invalid buffer from disk";
                 } else {
                     const auto metadata = flatbuffers::GetRoot<Metadata>(buffer.metadataBuffer());
                     const qint64 rev = metadata->revision();
@@ -350,7 +348,7 @@ void EntityStore::cleanupEntityRevisionsUntil(qint64 revision)
                         const auto directory = d->entityBlobStoragePath(uid);
                         QDir dir(directory);
                         if (!dir.removeRecursively()) {
-                            SinkError() << "Failed to cleanup: " << directory;
+                            SinkErrorCtx(d->logCtx) << "Failed to cleanup: " << directory;
                         }
                     }
                     //Don't cleanup more than specified
@@ -361,7 +359,7 @@ void EntityStore::cleanupEntityRevisionsUntil(qint64 revision)
 
                 return true;
             },
-            [](const DataStore::Error &error) { SinkWarning() << "Error while reading: " << error.message; }, true);
+            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error while reading: " << error.message; }, true);
     DataStore::setCleanedUpRevision(d->transaction, revision);
 }
 
@@ -407,7 +405,7 @@ QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)
                 keys << uid;
                 return true;
             },
-            [](const DataStore::Error &error) { SinkWarning() << "Error during query: " << error.message; });
+            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.message; });
 
     SinkTraceCtx(d->logCtx) << "Full scan retrieved " << keys.size() << " results.";
     return keys.toList().toVector();
@@ -446,7 +444,7 @@ void EntityStore::indexLookup(const QByteArray &type, const QByteArray &property
     /*     callback(sinkId); */
     /* }, */
     /* [&](const Index::Error &error) { */
-    /*     SinkWarning() << "Error in index: " <<  error.message << property; */
+    /*     SinkWarningCtx(d->logCtx) << "Error in index: " <<  error.message << property; */
     /* }); */
 }
 
@@ -458,7 +456,7 @@ void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, cons
             callback(DataStore::uidFromKey(key), Sink::EntityBuffer(value.data(), value.size()));
             return false;
         },
-        [&](const DataStore::Error &error) { SinkWarning() << "Error during query: " << error.message << uid; });
+        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.message << uid; });
 }
 
 void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &)> callback)
@@ -494,7 +492,7 @@ void EntityStore::readEntity(const QByteArray &type, const QByteArray &key, cons
             callback(DataStore::uidFromKey(key), Sink::EntityBuffer(value.data(), value.size()));
             return false;
         },
-        [&](const DataStore::Error &error) { SinkWarning() << "Error during query: " << error.message << key; });
+        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.message << key; });
 }
 
 void EntityStore::readEntity(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &)> callback)
@@ -524,7 +522,7 @@ void EntityStore::readAll(const QByteArray &type, const std::function<void(const
             callback(d->createApplicationDomainType(type, uid, DataStore::maxRevision(d->getTransaction()), buffer));
             return true;
         },
-        [&](const DataStore::Error &error) { SinkWarning() << "Error during query: " << error.message; });
+        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.message; });
 }
 
 void EntityStore::readRevisions(qint64 baseRevision, const QByteArray &expectedType, const std::function<void(const QByteArray &key)> &callback)
@@ -561,7 +559,7 @@ void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qi
             }
             return true;
         },
-        [](const Sink::Storage::DataStore::Error &error) { SinkWarning() << "Failed to read current value from storage: " << error.message; }, true);
+        [&](const Sink::Storage::DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read current value from storage: " << error.message; }, true);
     return readEntity(type, Sink::Storage::DataStore::assembleKey(uid, latestRevision), callback);
 }
 
@@ -591,7 +589,7 @@ void EntityStore::readAllUids(const QByteArray &type, const std::function<void(c
             callback(Sink::Storage::DataStore::uidFromKey(key));
             return true;
         },
-        [](const Sink::Storage::DataStore::Error &error) { SinkWarning() << "Failed to read current value from storage: " << error.message; });
+        [&](const Sink::Storage::DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read current value from storage: " << error.message; });
 }
 
 bool EntityStore::contains(const QByteArray &type, const QByteArray &uid)
@@ -615,10 +613,10 @@ qint64 EntityStore::maxRevision()
 /*         Sink::Storage::DataStore storage(Sink::storageLocation(), mResourceInstanceIdentifier); */
 /*         if (!storage.exists()) { */
 /*             //This is not an error if the resource wasn't started before */
-/*             SinkLog() << "Store doesn't exist: " << mResourceInstanceIdentifier; */
+/*             SinkLogCtx(d->logCtx) << "Store doesn't exist: " << mResourceInstanceIdentifier; */
 /*             return Sink::Storage::DataStore::Transaction(); */
 /*         } */
-/*         storage.setDefaultErrorHandler([this](const Sink::Storage::DataStore::Error &error) { SinkWarning() << "Error during query: " << error.store << error.message; }); */
+/*         storage.setDefaultErrorHandler([this](const Sink::Storage::DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.store << error.message; }); */
 /*         transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly); */
 /*     } */
 

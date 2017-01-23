@@ -30,7 +30,7 @@ using namespace Sink;
 using namespace Sink::Storage;
 
 ChangeReplay::ChangeReplay(const ResourceContext &resourceContext)
-    : mStorage(storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly), mChangeReplayStore(storageLocation(), resourceContext.instanceId() + ".changereplay", DataStore::ReadWrite), mReplayInProgress(false), mLogCtx{resourceContext.instanceId() + ".changereplay"}
+    : mStorage(storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly), mChangeReplayStore(storageLocation(), resourceContext.instanceId() + ".changereplay", DataStore::ReadWrite), mReplayInProgress(false), mLogCtx{"changereplay"}
 {
     SinkTraceCtx(mLogCtx) << "Created change replay: " << resourceContext.instanceId();
 }
