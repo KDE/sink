@@ -71,6 +71,7 @@ set(command_SRCS
     adaptorfactoryregistry.cpp
     synchronizer.cpp
     synchronizerstore.cpp
+    contactpreprocessor.cpp
     mailpreprocessor.cpp
     specialpurposepreprocessor.cpp
     datastorequery.cpp
@@ -115,8 +116,8 @@ SET_TARGET_PROPERTIES(${PROJECT_NAME}
     SOVERSION 0
     EXPORT_NAME ${PROJECT_NAME}
 )
-qt5_use_modules(${PROJECT_NAME} Network)
-target_link_libraries(${PROJECT_NAME} ${storage_LIBS} KF5::Async KF5::Mime)
+qt5_use_modules(${PROJECT_NAME} Network Gui)
+target_link_libraries(${PROJECT_NAME} ${storage_LIBS} KF5::Async KF5::Mime KF5::Contacts)
 install(TARGETS ${PROJECT_NAME}
     EXPORT SinkTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )
 
