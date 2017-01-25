@@ -31,6 +31,8 @@
 #include "facadefactory.h"
 #include "adaptorfactoryregistry.h"
 
+#include "contactpreprocessor.h"
+
 #include <KDAV/DavCollection>
 #include <KDAV/DavCollectionsFetchJob>
 #include <KDAV/DavItemsListJob>
@@ -523,23 +525,7 @@ DavResource::DavResource(const Sink::ResourceContext &resourceContext)
     setupSynchronizer(synchronizer);
     //setupInspector(QSharedPointer<MaildirInspector>::create(resourceContext));
 
-    /*
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MaildirMimeMessageMover(resourceContext.instanceId(), mMaildirPath) << new MaildirMailPropertyExtractor);
-    setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new FolderPreprocessor(mMaildirPath));
-
-    KPIM::Contactdir dir(mMaildirPath, true);
-    SinkTrace() << "Started maildir resource for maildir: " << mMaildirPath;
-    {
-        auto draftsFolder = dir.addSubFolder("Drafts");
-        auto remoteId = synchronizer->createFolder(draftsFolder, "folder", QByteArrayList() << "drafts");
-        auto draftsFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
-    }
-    {
-        auto trashFolder = dir.addSubFolder("Trash");
-        auto remoteId = synchronizer->createFolder(trashFolder, "folder", QByteArrayList() << "trash");
-        auto trashFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
-    }
-    synchronizer->commit();*/
+    setupPreprocessors(ENTITY_TYPE_CONTACT, QVector<Sink::Preprocessor*>() << new ContactPropertyExtractor);
 }
 
 
