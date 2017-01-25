@@ -80,9 +80,13 @@ void ConfigStore::modify(const QByteArray &identifier, const QMap<QByteArray, QV
 {
     SinkTrace() << "Modifying " << identifier;
     auto config = getConfig(identifier);
-    config->clear();
     for (const auto &key : configuration.keys()) {
-        config->setValue(key, configuration.value(key));
+        auto value = configuration.value(key);
+        if (value.isValid()) {
+            config->setValue(key, configuration.value(key));
+        } else {
+            config->remove(key);
+        }
     }
     config->sync();
 }
