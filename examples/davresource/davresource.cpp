@@ -340,18 +340,19 @@ public:
                 QHash<QByteArray, Query::Comparator> mergeCriteria;
                 QStringList ridList;
                 for(const auto &item : davItemsListJob->items()) {
-                    auto davItemFetchJob = new KDAV::DavItemFetchJob(item);
-                    auto job = runJob(davItemFetchJob).syncThen<void>([this, davItemFetchJob,bufferType, mergeCriteria] {
+                    QByteArray rid = item.url().toDisplayString().toUtf8();
+                    if (item.etag().toLatin1() != syncStore().readValue(rid + "_etag")) {
+                        SinkTrace() << "Updating " << rid;
+                        auto davItemFetchJob = new KDAV::DavItemFetchJob(item);
+                        davItemFetchJob->exec();
                         const auto item = davItemFetchJob->item();
-                        const QByteArray rid = item.url().toDisplayString().toUtf8();
+                        rid = item.url().toDisplayString().toUtf8();
                         Sink::ApplicationDomain::Contact contact;
-                        /*contact.setUid("");
-                        contact.setFn("fn");
-                        contact.setEmails(QByteArrayList());*/
                         contact.setVcard(item.data());
                         createOrModify(bufferType, rid, contact, mergeCriteria);
-                    });
-                    ridList << item.url().toDisplayString();
+                        syncStore().writeValue(rid + "_etag", item.etag().toLatin1());
+                    }
+                    ridList << rid;
                 }
 
                 scanForRemovals(bufferType,
