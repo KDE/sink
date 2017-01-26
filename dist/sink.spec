@@ -62,7 +62,6 @@ rm %{buildroot}%{_prefix}/bin/resetmailbox.sh
 %files
 %doc
 %{_bindir}/hawd
-%{_bindir}/sink_client
 %{_bindir}/sink_synchronizer
 %{_bindir}/sinksh
 %{_libdir}/liblibhawd.so
