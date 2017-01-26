@@ -537,11 +537,11 @@ private:
 
 }
 
-QDebug SINK_EXPORT operator<<(QDebug dbg, const Sink::QueryBase::Comparator &);
-QDebug SINK_EXPORT operator<<(QDebug dbg, const Sink::QueryBase &);
-QDebug SINK_EXPORT operator<<(QDebug dbg, const Sink::Query &);
-QDataStream & SINK_EXPORT operator<< (QDataStream &stream, const Sink::QueryBase &query);
-QDataStream & SINK_EXPORT operator>> (QDataStream &stream, Sink::QueryBase &query);
+SINK_EXPORT QDebug operator<<(QDebug dbg, const Sink::QueryBase::Comparator &);
+SINK_EXPORT QDebug operator<<(QDebug dbg, const Sink::QueryBase &);
+SINK_EXPORT QDebug operator<<(QDebug dbg, const Sink::Query &);
+SINK_EXPORT QDataStream &operator<< (QDataStream &stream, const Sink::QueryBase &query);
+SINK_EXPORT QDataStream &operator>> (QDataStream &stream, Sink::QueryBase &query);
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(Sink::Query::Flags)
 Q_DECLARE_METATYPE(Sink::QueryBase);

@@ -53,4 +53,4 @@ public:
 };
 }
 
-QDebug SINK_EXPORT operator<<(QDebug dbg, const Sink::Notification &n);
+SINK_EXPORT QDebug operator<<(QDebug dbg, const Sink::Notification &n);

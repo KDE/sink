@@ -80,7 +80,7 @@ struct SINK_EXPORT TraceTime
     const int time;
 };
 
-inline QDebug SINK_EXPORT operator<<(QDebug d, const TraceTime &time)
+SINK_EXPORT inline QDebug operator<<(QDebug d, const TraceTime &time)
 {
     d << time.time << "[ms]";
     return d;
