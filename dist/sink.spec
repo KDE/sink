@@ -58,6 +58,8 @@ popd
 
 #rm -rf %{buildroot}%{_prefix}/mkspecs/modules/qt_KMime.pri
 rm %{buildroot}%{_prefix}/bin/resetmailbox.sh
+rm %{buildroot}%{_prefix}/bin/populatemailbox.sh
+rm %{buildroot}%{_prefix}/bin/sink_smtp_test
 
 %files
 %doc
