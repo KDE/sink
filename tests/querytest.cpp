@@ -11,6 +11,7 @@
 #include "modelresult.h"
 #include "test.h"
 #include "testutils.h"
+#include "applicationdomaintype.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -632,6 +633,7 @@ private slots:
         auto folders = Sink::Store::read<Folder>(query);
         QCOMPARE(folders.size(), 1);
     }
+
     void testLivequeryUnmatchInThread()
     {
         // Setup
@@ -706,6 +708,96 @@ private slots:
         QTRY_COMPARE(model->rowCount(), 1);
         auto mail = model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>();
         QCOMPARE(mail->getUnread(), true);
+    }
+
+    void testBloom()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto folder2 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail1.setUid("mail1");
+        mail1.setFolder(folder1);
+        VERIFYEXEC(Sink::Store::create(mail1));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setUid("mail2");
+            mail.setFolder(folder1);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setUid("mail3");
+            mail.setFolder(folder2);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        query.setId("testFilterCreationInThread");
+        query.filter(mail1.identifier());
+        query.bloom<Mail::Folder>();
+        query.request<Mail::Folder>();
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 2);
+    }
+
+    void testLivequeryFilterCreationInThread()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto folder2 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail1.setUid("mail1");
+        mail1.setFolder(folder1);
+        VERIFYEXEC(Sink::Store::create(mail1));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        query.setId("testFilterCreationInThread");
+        query.filter(mail1.identifier());
+        query.bloom<Mail::Folder>();
+        query.sort<Mail::Date>();
+        query.setFlags(Query::LiveQuery);
+        query.request<Mail::Unread>();
+        query.request<Mail::Folder>();
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setUid("mail2");
+            mail.setFolder(folder1);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setUid("mail3");
+            mail.setFolder(folder2);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        QTRY_COMPARE(model->rowCount(), 2);
+        QTest::qWait(100);
+        QCOMPARE(model->rowCount(), 2);
     }
 };
 

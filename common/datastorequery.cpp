@@ -101,7 +101,7 @@ public:
 
     virtual ~Filter(){}
 
-    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
+    virtual bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                 SinkTrace() << "Filter: " << result.entity.identifier() << result.operation;
@@ -273,14 +273,14 @@ public:
     }
 };
 
-class Bloom : public FilterBase {
+class Bloom : public Filter {
 public:
     typedef QSharedPointer<Bloom> Ptr;
 
     QByteArray mBloomProperty;
 
     Bloom(const QByteArray &bloomProperty, FilterBase::Ptr source, DataStoreQuery *store)
-        : FilterBase(source, store),
+        : Filter(source, store),
         mBloomProperty(bloomProperty)
     {
 
@@ -289,21 +289,33 @@ public:
     virtual ~Bloom(){}
 
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
-        bool foundValue = false;
-        while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
-                auto bloomValue = result.entity.getProperty(mBloomProperty);
-                auto results = indexLookup(mBloomProperty, bloomValue);
-                for (const auto &r : results) {
-                    readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
-                        callback({entity, Sink::Operation_Creation});
-                        foundValue = true;
-                    });
-                }
-                return false;
-            }))
-        {}
-        return foundValue;
+        if (!mBloomed) {
+            //Initially we bloom on the first value that matches.
+            //From there on we just filter.
+            bool foundValue = false;
+            while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
+                    mBloomValue = result.entity.getProperty(mBloomProperty);
+                    auto results = indexLookup(mBloomProperty, mBloomValue);
+                    SinkWarning() << "Bloomed on value " << mBloomValue << " and found " << results.size();
+                    for (const auto &r : results) {
+                        readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+                            callback({entity, Sink::Operation_Creation});
+                            foundValue = true;
+                        });
+                    }
+                    return false;
+                }))
+            {}
+            mBloomed = true;
+            propertyFilter.insert(mBloomProperty, mBloomValue);
+            return foundValue;
+        } else {
+            //Filter on bloom value
+            return Filter::next(callback);
+        }
     }
+    QVariant mBloomValue;
+    bool mBloomed = false;
 };
 
 DataStoreQuery::DataStoreQuery(const Sink::QueryBase &query, const QByteArray &type, EntityStore &store)

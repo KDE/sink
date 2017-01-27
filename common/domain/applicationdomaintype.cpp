@@ -30,6 +30,7 @@ namespace Sink {
 namespace ApplicationDomain {
 
 constexpr const char *Mail::ThreadId::name;
+constexpr const char *Mail::Folder::name;
 
 static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();
