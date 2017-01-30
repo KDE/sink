@@ -298,12 +298,13 @@ public:
             });
             return job;
         } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Contact>()) {
+            auto ridList = QSharedPointer<QByteArrayList>::create();
             auto collectionsFetchJob = new KDAV::DavCollectionsFetchJob(mResourceUrl);
             auto job = runJob(collectionsFetchJob).then<KDAV::DavCollection::List>([this, collectionsFetchJob] {
                 synchronizeAddressbooks(collectionsFetchJob ->collections());
                 return collectionsFetchJob->collections();
             })
-            .serialEach<void>([this](const KDAV::DavCollection &collection) {
+            .serialEach<void>([this, ridList](const KDAV::DavCollection &collection) {
                 auto collId = collection.url().toDisplayString().toLatin1();
                 auto ctag = collection.CTag().toLatin1();
                 if (ctag != syncStore().readValue(collId + "_ctag")) {
@@ -312,11 +313,10 @@ public:
                     auto davItemsListJob = new KDAV::DavItemsListJob(collection.url(), cache);
                     const QByteArray bufferType = ENTITY_TYPE_CONTACT;
                     QHash<QByteArray, Query::Comparator> mergeCriteria;
-                    QByteArrayList ridList;
                     auto colljob = runJob(davItemsListJob).then<KDAV::DavItem::List>([davItemsListJob] {
                         return KAsync::value(davItemsListJob->items());
                     })
-                    .serialEach<QByteArray>([this, &ridList, bufferType, mergeCriteria] (const KDAV::DavItem &item) {
+                    .serialEach<QByteArray>([this, ridList, bufferType, mergeCriteria] (const KDAV::DavItem &item) {
                         QByteArray rid = item.url().toDisplayString().toUtf8();
                         if (item.etag().toLatin1() != syncStore().readValue(rid + "_etag")){
                             SinkTrace() << "Updating " << rid;
@@ -330,37 +330,34 @@ public:
                                 createOrModify(bufferType, rid, contact, mergeCriteria);
                                 return item;
                             })
-                            .then<QByteArray>([this, &ridList] (const KDAV::DavItem &item) {
+                            .then<QByteArray>([this, ridList] (const KDAV::DavItem &item) {
                                 const auto rid = item.url().toDisplayString().toUtf8();
                                 syncStore().writeValue(rid + "_etag", item.etag().toLatin1());
-                                //ridList << rid;
+                                ridList->append(rid);
                                 return rid;
                             });
                             return itemjob;
                         } else {
-                            //ridList << rid;
+                            ridList->append(rid);
                             return KAsync::value(rid);
                         }
                     })
-                    /*.then<void>([this, ridList, bufferType] () {
-                        scanForRemovals(bufferType,
-                            [&ridList](const QByteArray &remoteId) -> bool {
-                                return ridList.contains(remoteId);
-                        });
-                    })*/
-                    /*.then<void>([this, bufferType] (const QByteArrayList &ridList) {
-                        scanForRemovals(bufferType,
-                            [&ridList](const QByteArray &remoteId) -> bool {
-                                return ridList.contains(remoteId);
-                        });
-                    })*/
                     .then<void>([this, collId, ctag] () {
                         syncStore().writeValue(collId + "_ctag", ctag);
                     });
                     return colljob;
                 } else {
+                    // for(const auto &item : addressbook) {
+                    //      ridList->append(rid);
+                    // }
                     return KAsync::null<void>();
                 }
+            })
+            .then<void>([this, ridList] () {
+                scanForRemovals(ENTITY_TYPE_CONTACT,
+                    [&ridList](const QByteArray &remoteId) -> bool {
+                        return ridList->contains(remoteId);
+                });
             });
             return job;
         } else {
