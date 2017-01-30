@@ -307,7 +307,7 @@ public:
             .serialEach<void>([this, ridList](const KDAV::DavCollection &collection) {
                 auto collId = collection.url().toDisplayString().toLatin1();
                 auto ctag = collection.CTag().toLatin1();
-                if (ctag != syncStore().readValue(collId + "_ctag")) {
+                if (ctag != syncStore().readValue(collId + "_ctagXX")) {
                     SinkTrace() << "Syncing " << collId;
                     auto cache = std::shared_ptr<KDAV::EtagCache>(new KDAV::EtagCache());
                     auto davItemsListJob = new KDAV::DavItemsListJob(collection.url(), cache);
