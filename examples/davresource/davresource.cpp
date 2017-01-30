@@ -35,6 +35,7 @@
 
 #include <KDAV/DavCollection>
 #include <KDAV/DavCollectionsFetchJob>
+#include <KDAV/DavItem>
 #include <KDAV/DavItemsListJob>
 #include <KDAV/DavItemFetchJob>
 #include <KDAV/EtagCache>
@@ -283,7 +284,6 @@ public:
             list << Synchronizer::SyncRequest{query};
         } else {
             //We want to synchronize everything
-            list << Synchronizer::SyncRequest{Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Folder>())};
             list << Synchronizer::SyncRequest{Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Contact>())};
         }
         return list;
@@ -291,80 +291,82 @@ public:
 
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
-        auto job =  KAsync::null<void>();
-
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
             auto collectionsFetchJob = new KDAV::DavCollectionsFetchJob(mResourceUrl);
-            job = runJob(collectionsFetchJob).syncThen<void>([this, collectionsFetchJob] {
+            auto job = runJob(collectionsFetchJob).then<void>([this, collectionsFetchJob] {
                 synchronizeAddressbooks(collectionsFetchJob ->collections());
             });
+            return job;
         } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Contact>()) {
-            // for one Collection/Addressbook
-            /*
-             auto cache = std::shared:ptr<KDAV::EtagCache>(new KDAV::EtagCache());
-             foreach(const auto &item, collection) {  // item is a Sink item
-                 cache->setEtag(item.remoteID(), item.etag());
-             }
-             auto job = KDAV::DavItemsListJob(davCollection.url(), cache);
-             job->exec();
-             changedItems = job->changedItems();
-             foreach(const auto &item, changedItems) {  // item is a DavItem
-                 addOrModifyItem(item);
-             }
-             removedItems = job->deletedItems();
-             foreach(const auto &item, removedItems) { // item is a DavItem
-                 deleteSinkItem(item);
-             }
-             */
-
-             auto cache = std::shared_ptr<KDAV::EtagCache>(new KDAV::EtagCache());
-             QVector<KDAV::DavUrl> folders;
-             if (query.hasFilter<ApplicationDomain::Mail::Folder>()) {
-                 auto folderFilter = query.getFilter<ApplicationDomain::Mail::Folder>();
-                 auto localIds = resolveFilter(folderFilter);
-                 auto folderRemoteIds = syncStore().resolveLocalIds(ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), localIds);
-                 for (const auto &r : folderRemoteIds) {
-                     auto url =  QUrl::fromUserInput(r);
-                     url.setUserInfo(mResourceUrl.url().userInfo());
-                     folders << KDAV::DavUrl(url, mResourceUrl.protocol());
-                 }
-             } else {
-                //return KAsync::null<void>();
-                auto url =  QUrl::fromUserInput("https://apps.kolabnow.com/addressbooks/test1%40kolab.org/9290e784-c876-412f-8385-be292d64b2c6/");
-                url.setUserInfo(mResourceUrl.url().userInfo());
-                folders << KDAV::DavUrl(url, mResourceUrl.protocol());
-             }
-             const auto folder = folders.first();
-             SinkTrace() << "Syncing " << folder.toDisplayString();
-             auto davItemsListJob = new KDAV::DavItemsListJob(folder, cache);
-             job = runJob(davItemsListJob).syncThen<void>([this, davItemsListJob, folder] {
-                const QByteArray bufferType = ENTITY_TYPE_CONTACT;
-                QHash<QByteArray, Query::Comparator> mergeCriteria;
-                QStringList ridList;
-                for(const auto &item : davItemsListJob->items()) {
-                    QByteArray rid = item.url().toDisplayString().toUtf8();
-                    if (item.etag().toLatin1() != syncStore().readValue(rid + "_etag")) {
-                        SinkTrace() << "Updating " << rid;
-                        auto davItemFetchJob = new KDAV::DavItemFetchJob(item);
-                        davItemFetchJob->exec();
-                        const auto item = davItemFetchJob->item();
-                        rid = item.url().toDisplayString().toUtf8();
-                        Sink::ApplicationDomain::Contact contact;
-                        contact.setVcard(item.data());
-                        createOrModify(bufferType, rid, contact, mergeCriteria);
-                        syncStore().writeValue(rid + "_etag", item.etag().toLatin1());
-                    }
-                    ridList << rid;
+            auto collectionsFetchJob = new KDAV::DavCollectionsFetchJob(mResourceUrl);
+            auto job = runJob(collectionsFetchJob).then<KDAV::DavCollection::List>([this, collectionsFetchJob] {
+                synchronizeAddressbooks(collectionsFetchJob ->collections());
+                return collectionsFetchJob->collections();
+            })
+            .serialEach<void>([this](const KDAV::DavCollection &collection) {
+                auto collId = collection.url().toDisplayString().toLatin1();
+                auto ctag = collection.CTag().toLatin1();
+                if (ctag != syncStore().readValue(collId + "_ctag")) {
+                    SinkTrace() << "Syncing " << collId;
+                    auto cache = std::shared_ptr<KDAV::EtagCache>(new KDAV::EtagCache());
+                    auto davItemsListJob = new KDAV::DavItemsListJob(collection.url(), cache);
+                    const QByteArray bufferType = ENTITY_TYPE_CONTACT;
+                    QHash<QByteArray, Query::Comparator> mergeCriteria;
+                    QByteArrayList ridList;
+                    auto colljob = runJob(davItemsListJob).then<KDAV::DavItem::List>([davItemsListJob] {
+                        return KAsync::value(davItemsListJob->items());
+                    })
+                    .serialEach<QByteArray>([this, &ridList, bufferType, mergeCriteria] (const KDAV::DavItem &item) {
+                        QByteArray rid = item.url().toDisplayString().toUtf8();
+                        if (item.etag().toLatin1() != syncStore().readValue(rid + "_etag")){
+                            SinkTrace() << "Updating " << rid;
+                            auto davItemFetchJob = new KDAV::DavItemFetchJob(item);
+                            auto itemjob = runJob(davItemFetchJob)
+                            .then<KDAV::DavItem>([this, davItemFetchJob, bufferType, mergeCriteria] {
+                                const auto item = davItemFetchJob->item();
+                                const auto rid = item.url().toDisplayString().toUtf8();
+                                Sink::ApplicationDomain::Contact contact;
+                                contact.setVcard(item.data());
+                                createOrModify(bufferType, rid, contact, mergeCriteria);
+                                return item;
+                            })
+                            .then<QByteArray>([this, &ridList] (const KDAV::DavItem &item) {
+                                const auto rid = item.url().toDisplayString().toUtf8();
+                                syncStore().writeValue(rid + "_etag", item.etag().toLatin1());
+                                //ridList << rid;
+                                return rid;
+                            });
+                            return itemjob;
+                        } else {
+                            //ridList << rid;
+                            return KAsync::value(rid);
+                        }
+                    })
+                    /*.then<void>([this, ridList, bufferType] () {
+                        scanForRemovals(bufferType,
+                            [&ridList](const QByteArray &remoteId) -> bool {
+                                return ridList.contains(remoteId);
+                        });
+                    })*/
+                    /*.then<void>([this, bufferType] (const QByteArrayList &ridList) {
+                        scanForRemovals(bufferType,
+                            [&ridList](const QByteArray &remoteId) -> bool {
+                                return ridList.contains(remoteId);
+                        });
+                    })*/
+                    .then<void>([this, collId, ctag] () {
+                        syncStore().writeValue(collId + "_ctag", ctag);
+                    });
+                    return colljob;
+                } else {
+                    return KAsync::null<void>();
                 }
-
-                scanForRemovals(bufferType,
-                    [&ridList](const QByteArray &remoteId) -> bool {
-                        return ridList.contains(remoteId);
-                });
             });
+            return job;
+        } else {
+            return KAsync::null<void>();
+        }
     }
-    return job;
-}
 
 KAsync::Job<QByteArray> replay(const ApplicationDomain::Contact &contact, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
