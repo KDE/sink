@@ -21,6 +21,7 @@
 
 #include <QDebug>
 #include <QThread>
+#include <QPointer>
 
 #include "log.h"
 
@@ -31,18 +32,26 @@ static uint qHash(const Sink::ApplicationDomain::ApplicationDomainType &type)
     return qHash(type.resourceInstanceIdentifier() + type.identifier());
 }
 
-template <class T, class Ptr>
-ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns, const Sink::Log::Context &ctx)
-    : QAbstractItemModel(), mLogCtx(ctx.subContext("modelresult")), mPropertyColumns(propertyColumns), mQuery(query)
-{
-}
-
 static qint64 getIdentifier(const QModelIndex &idx)
 {
     if (!idx.isValid()) {
         return 0;
     }
     return idx.internalId();
+}
+
+template <class T, class Ptr>
+ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns, const Sink::Log::Context &ctx)
+    : QAbstractItemModel(), mLogCtx(ctx.subContext("modelresult")), mPropertyColumns(propertyColumns), mQuery(query)
+{
+}
+
+template <class T, class Ptr>
+ModelResult<T, Ptr>::~ModelResult()
+{
+    if (mEmitter) {
+        mEmitter->waitForMethodExecutionEnd();
+    }
 }
 
 template <class T, class Ptr>
@@ -259,33 +268,41 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
 {
     setFetcher([this](const Ptr &parent) { mEmitter->fetch(parent); });
 
-    emitter->onAdded([this](const Ptr &value) {
+    QPointer<QObject> guard(this);
+    emitter->onAdded([this, guard](const Ptr &value) {
         SinkTraceCtx(mLogCtx) << "Received addition: " << value->identifier();
-        threadBoundary.callInMainThread([this, value]() {
+        Q_ASSERT(guard);
+        threadBoundary.callInMainThread([this, value, guard]() {
+            Q_ASSERT(guard);
             add(value);
         });
     });
-    emitter->onModified([this](const Ptr &value) {
+    emitter->onModified([this, guard](const Ptr &value) {
         SinkTraceCtx(mLogCtx) << "Received modification: " << value->identifier();
+        Q_ASSERT(guard);
         threadBoundary.callInMainThread([this, value]() {
             modify(value);
         });
     });
-    emitter->onRemoved([this](const Ptr &value) {
+    emitter->onRemoved([this, guard](const Ptr &value) {
         SinkTraceCtx(mLogCtx) << "Received removal: " << value->identifier();
+        Q_ASSERT(guard);
         threadBoundary.callInMainThread([this, value]() {
             remove(value);
         });
     });
-    emitter->onInitialResultSetComplete([this](const Ptr &parent, bool fetchedAll) {
+    emitter->onInitialResultSetComplete([this, guard](const Ptr &parent, bool fetchedAll) {
         SinkTraceCtx(mLogCtx) << "Initial result set complete. Fetched all: " << fetchedAll;
-        const qint64 parentId = parent ? qHash(*parent) : 0;
-        const auto parentIndex = createIndexFromId(parentId);
-        mEntityChildrenFetchComplete.insert(parentId);
-        if (fetchedAll) {
-            mEntityAllChildrenFetched.insert(parentId);
-        }
-        emit dataChanged(parentIndex, parentIndex, QVector<int>() << ChildrenFetchedRole);
+        Q_ASSERT(guard);
+        threadBoundary.callInMainThread([=]() {
+            const qint64 parentId = parent ? qHash(*parent) : 0;
+            const auto parentIndex = createIndexFromId(parentId);
+            mEntityChildrenFetchComplete.insert(parentId);
+            if (fetchedAll) {
+                mEntityAllChildrenFetched.insert(parentId);
+            }
+            emit dataChanged(parentIndex, parentIndex, QVector<int>() << ChildrenFetchedRole);
+        });
     });
     mEmitter = emitter;
 }

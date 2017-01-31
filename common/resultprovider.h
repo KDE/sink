@@ -22,6 +22,8 @@
 
 #include <functional>
 #include <memory>
+#include <QMutexLocker>
+#include <QPointer>
 
 namespace Sink {
 
@@ -82,21 +84,21 @@ public:
     void add(const T &value)
     {
         if (auto strongRef = mResultEmitter.toStrongRef()) {
-            strongRef->addHandler(value);
+            strongRef->add(value);
         }
     }
 
     void modify(const T &value)
     {
         if (auto strongRef = mResultEmitter.toStrongRef()) {
-            strongRef->modifyHandler(value);
+            strongRef->modify(value);
         }
     }
 
     void remove(const T &value)
     {
         if (auto strongRef = mResultEmitter.toStrongRef()) {
-            strongRef->removeHandler(value);
+            strongRef->remove(value);
         }
     }
 
@@ -194,6 +196,15 @@ public:
 
     virtual ~ResultEmitter()
     {
+        //Try locking in case we're in the middle of an execution in another thread
+        QMutexLocker locker{&mMutex};
+    }
+
+    virtual void waitForMethodExecutionEnd()
+    {
+        //If we're in the middle of a method execution, this will block until the method is done.
+        QMutexLocker locker{&mMutex};
+        mDone = true;
     }
 
     void onAdded(const std::function<void(const DomainType &)> &handler)
@@ -226,38 +237,55 @@ public:
         clearHandler = handler;
     }
 
+    bool guardOk()
+    {
+        return !mDone;
+    }
+
     void add(const DomainType &value)
     {
-        addHandler(value);
+        QMutexLocker locker{&mMutex};
+        if (guardOk()) {
+            addHandler(value);
+        }
     }
 
     void modify(const DomainType &value)
     {
-        modifyHandler(value);
+        QMutexLocker locker{&mMutex};
+        if (guardOk()) {
+            modifyHandler(value);
+        }
     }
 
     void remove(const DomainType &value)
     {
-        removeHandler(value);
+        QMutexLocker locker{&mMutex};
+        if (guardOk()) {
+            removeHandler(value);
+        }
     }
 
     void initialResultSetComplete(const DomainType &parent, bool replayedAll)
     {
-        if (initialResultSetCompleteHandler) {
+        QMutexLocker locker{&mMutex};
+        if (initialResultSetCompleteHandler && guardOk()) {
             initialResultSetCompleteHandler(parent, replayedAll);
         }
     }
 
     void complete()
     {
-        if (completeHandler) {
+        QMutexLocker locker{&mMutex};
+        if (completeHandler && guardOk()) {
             completeHandler();
         }
     }
 
     void clear()
     {
-        if (clearHandler) {
+        QMutexLocker locker{&mMutex};
+        if (clearHandler && guardOk()) {
             clearHandler();
         }
     }
@@ -285,6 +313,8 @@ private:
     std::function<void(void)> clearHandler;
 
     std::function<void(const DomainType &parent)> mFetcher;
+    QMutex mMutex;
+    bool mDone = false;
 };
 
 template <class DomainType>
@@ -292,6 +322,18 @@ class AggregatingResultEmitter : public ResultEmitter<DomainType>
 {
 public:
     typedef QSharedPointer<AggregatingResultEmitter<DomainType>> Ptr;
+
+    ~AggregatingResultEmitter()
+    {
+    }
+
+    virtual void waitForMethodExecutionEnd() Q_DECL_OVERRIDE
+    {
+        for (const auto &emitter : mEmitter) {
+            emitter->waitForMethodExecutionEnd();
+        }
+        ResultEmitter<DomainType>::waitForMethodExecutionEnd();
+    }
 
     void addEmitter(const typename ResultEmitter<DomainType>::Ptr &emitter)
     {

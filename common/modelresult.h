@@ -42,6 +42,7 @@ public:
     };
 
     ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns, const Sink::Log::Context &);
+    ~ModelResult();
 
     void setEmitter(const typename Sink::ResultEmitter<Ptr>::Ptr &);
 
