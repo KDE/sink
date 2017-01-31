@@ -9,6 +9,7 @@
 #include "resultprovider.h"
 #include "facadefactory.h"
 #include "test.h"
+#include "asyncutils.h"
 
 template <typename T>
 class TestDummyResourceFacade : public Sink::StoreFacade<T>
@@ -53,38 +54,41 @@ public:
     };
     QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename T::Ptr>::Ptr> load(const Sink::Query &query, const Sink::Log::Context &ctx) Q_DECL_OVERRIDE
     {
-        auto resultProvider = new Sink::ResultProvider<typename T::Ptr>();
+        auto resultProvider = QSharedPointer<Sink::ResultProvider<typename T::Ptr>>::create();
         resultProvider->onDone([resultProvider,ctx]() {
             SinkTraceCtx(ctx) << "Result provider is done";
-            delete resultProvider;
         });
         // We have to do it this way, otherwise we're not setting the fetcher right
         auto emitter = resultProvider->emitter();
 
         resultProvider->setFetcher([query, resultProvider, this, ctx](const typename T::Ptr &parent) {
-            if (parent) {
-                SinkTraceCtx(ctx) << "Running the fetcher " << parent->identifier();
-            } else {
-                SinkTraceCtx(ctx) << "Running the fetcher.";
-            }
-            SinkTraceCtx(ctx) << "-------------------------.";
-            for (const auto &res : results) {
-                SinkTraceCtx(ctx) << "Parent filter " << query.getFilter("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
-                auto parentProperty = res->getProperty("parent").toByteArray();
-                if ((!parent && parentProperty.isEmpty()) || (parent && parentProperty == parent->identifier()) || query.parentProperty().isEmpty()) {
-                    SinkTraceCtx(ctx) << "Found a hit" << res->identifier();
-                    resultProvider->add(res);
+            async::run<int>([=] {
+                if (parent) {
+                    SinkTraceCtx(ctx) << "Running the fetcher " << parent->identifier();
+                } else {
+                    SinkTraceCtx(ctx) << "Running the fetcher.";
                 }
-            }
-            resultProvider->initialResultSetComplete(parent, true);
+                SinkTraceCtx(ctx) << "-------------------------.";
+                for (const auto &res : results) {
+                    // SinkTraceCtx(ctx) << "Parent filter " << query.getFilter("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
+                    auto parentProperty = res->getProperty("parent").toByteArray();
+                    if ((!parent && parentProperty.isEmpty()) || (parent && parentProperty == parent->identifier()) || query.parentProperty().isEmpty()) {
+                        // SinkTraceCtx(ctx) << "Found a hit" << res->identifier();
+                        resultProvider->add(res);
+                    }
+                }
+                resultProvider->initialResultSetComplete(parent, true);
+                return 0;
+            }, runAsync).exec();
         });
         auto job = KAsync::syncStart<void>([query, resultProvider]() {});
-        mResultProvider = resultProvider;
+        mResultProvider = resultProvider.data();
         return qMakePair(job, emitter);
     }
 
     QList<typename T::Ptr> results;
     Sink::ResultProviderInterface<typename T::Ptr> *mResultProvider;
+    bool runAsync = false;
 };
 
 
@@ -280,6 +284,27 @@ private slots:
         QVERIFY(!result.errorCode());
         QVERIFY(gotValue);
     }
+
+    void testModelStress()
+    {
+        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
+        facade->runAsync = true;
+        for (int i = 0; i < 100; i++) {
+            facade->results << QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id" + QByteArray::number(i), 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        }
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+
+        Sink::Query query;
+        query.resourceFilter("dummyresource.instance1");
+
+        for (int i = 0; i < 100; i++) {
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
+            model->fetchMore(QModelIndex());
+            QTest::qWait(1);
+        }
+        QTest::qWait(100);
+    }
+
 };
 
 QTEST_MAIN(ClientAPITest)
