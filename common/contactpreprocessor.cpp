@@ -24,14 +24,12 @@
 
 using namespace Sink;
 
-SINK_DEBUG_AREA("contactpreprocessor")
-
 void updatedProperties(Sink::ApplicationDomain::Contact &contact, const KContacts::Addressee &addressee)
 {
     contact.setUid(addressee.uid());
     contact.setFn(addressee.formattedName());
     QByteArrayList emails;
-    for (const auto email : addressee.emails()) {
+    for (const auto &email : addressee.emails()) {
         emails << email.toUtf8();
     }
     contact.setEmails(emails);
