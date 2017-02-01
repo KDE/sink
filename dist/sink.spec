@@ -23,6 +23,7 @@ BuildRequires:  libgit2-devel
 BuildRequires:  lmdb-devel
 BuildRequires:  qt5-qtbase-devel
 BuildRequires:  readline-devel
+BuildRequires:  kdav-devel
 
 %description
 sink
