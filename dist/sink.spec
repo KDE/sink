@@ -15,6 +15,7 @@ BuildRequires:  flatbuffers-devel >= 1.4
 BuildRequires:  gcc-c++
 BuildRequires:  kasync-devel
 BuildRequires:  kf5-kcoreaddons-devel
+BuildRequires:  kf5-kcontacts-devel
 BuildRequires:  kmime-devel
 BuildRequires:  kimap2-devel
 BuildRequires:  libcurl-devel
