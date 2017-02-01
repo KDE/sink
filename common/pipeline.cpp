@@ -191,7 +191,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 template <class T>
 struct CreateHelper {
     KAsync::Job<void> operator()(const ApplicationDomain::ApplicationDomainType &arg) const {
-        return Sink::Store::create<T>(arg);
+        return Sink::Store::create<T>(T{arg});
     }
 };
 
