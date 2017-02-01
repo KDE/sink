@@ -296,7 +296,6 @@ public:
             while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                     mBloomValue = result.entity.getProperty(mBloomProperty);
                     auto results = indexLookup(mBloomProperty, mBloomValue);
-                    SinkWarning() << "Bloomed on value " << mBloomValue << " and found " << results.size();
                     for (const auto &r : results) {
                         readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                             callback({entity, Sink::Operation_Creation});
