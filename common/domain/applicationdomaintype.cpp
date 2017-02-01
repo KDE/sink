@@ -202,36 +202,6 @@ QByteArray ApplicationDomainType::identifier() const
     return mIdentifier;
 }
 
-Entity::~Entity()
-{
-
-}
-
-Contact::~Contact()
-{
-
-}
-
-Event::~Event()
-{
-
-}
-
-Todo::~Todo()
-{
-
-}
-
-Mail::~Mail()
-{
-
-}
-
-Folder::~Folder()
-{
-
-}
-
 SinkResource::SinkResource(const QByteArray &identifier)
     : ApplicationDomainType("", identifier, 0, QSharedPointer<BufferAdaptor>(new MemoryBufferAdaptor()))
 {

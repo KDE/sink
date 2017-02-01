@@ -31,7 +31,9 @@
 #define SINK_ENTITY(TYPE) \
     typedef QSharedPointer<TYPE> Ptr; \
     using Entity::Entity; \
-    virtual ~TYPE(); \
+    TYPE() = default; \
+    TYPE(const ApplicationDomainType &o) : Entity(o) {} \
+    virtual ~TYPE() = default; \
     static TYPE create(const QByteArray &resource) { return createEntity<TYPE>(resource); }; \
 
 
@@ -325,7 +327,7 @@ struct SINK_EXPORT Entity : public ApplicationDomainType {
     using ApplicationDomainType::ApplicationDomainType;
     Entity() = default;
     Entity(const ApplicationDomainType &other) : ApplicationDomainType(other) {}
-    virtual ~Entity();
+    virtual ~Entity() = default;
 };
 
 struct SINK_EXPORT Contact : public Entity {
