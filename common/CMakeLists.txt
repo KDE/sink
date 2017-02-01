@@ -116,8 +116,17 @@ SET_TARGET_PROPERTIES(${PROJECT_NAME}
     SOVERSION 0
     EXPORT_NAME ${PROJECT_NAME}
 )
-qt5_use_modules(${PROJECT_NAME} Network Gui)
-target_link_libraries(${PROJECT_NAME} ${storage_LIBS} KF5::Async KF5::Mime KF5::Contacts)
+
+qt5_use_modules(${PROJECT_NAME} LINK_PUBLIC Network)
+qt5_use_modules(${PROJECT_NAME} LINK_PRIVATE Gui)
+target_link_libraries(${PROJECT_NAME}
+PUBLIC
+    KF5::Async
+PRIVATE
+    ${storage_LIBS}
+    KF5::Mime
+    KF5::Contacts
+)
 install(TARGETS ${PROJECT_NAME}
     EXPORT SinkTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )
 
