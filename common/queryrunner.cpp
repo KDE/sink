@@ -215,7 +215,9 @@ ReplayResult QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query 
         resultProviderCallback(query, resultProvider, result);
     });
 
-    SinkTraceCtx(mLogCtx) << "Incremental query took: " << Log::TraceTime(time.elapsed());
+    SinkTraceCtx(mLogCtx) << "Replayed " << replayResult.replayedEntities << " results.\n"
+        << (replayResult.replayedAll ? "Replayed all available results.\n" : "")
+        << "Incremental query took: " << Log::TraceTime(time.elapsed());
     return {entityStore.maxRevision(), replayResult.replayedEntities, replayResult.replayedAll};
 }
 
@@ -246,7 +248,9 @@ ReplayResult QueryWorker<DomainType>::executeInitialQuery(
         resultProviderCallback(query, resultProvider, result);
     });
 
-    SinkTraceCtx(mLogCtx) << "Initial query took: " << Log::TraceTime(time.elapsed());
+    SinkTraceCtx(mLogCtx) << "Replayed " << replayResult.replayedEntities << " results.\n"
+        << (replayResult.replayedAll ? "Replayed all available results.\n" : "")
+        << "Initial query took: " << Log::TraceTime(time.elapsed());
     return {entityStore.maxRevision(), replayResult.replayedEntities, replayResult.replayedAll};
 }
 
