@@ -344,22 +344,25 @@ public:
         auto ptr = emitter.data();
         emitter->onInitialResultSetComplete([this, ptr](const DomainType &parent, bool replayedAll) {
             auto hashValue = qHash(parent);
+            if (replayedAll) {
+                mAllResultsReplayed.remove(hashValue, ptr);
+            }
             mInitialResultSetInProgress.remove(hashValue, ptr);
-            callInitialResultCompleteIfDone(parent, replayedAll);
+            callInitialResultCompleteIfDone(parent);
         });
         emitter->onComplete([this]() { this->complete(); });
         emitter->onClear([this]() { this->clear(); });
         mEmitter << emitter;
     }
 
-    void callInitialResultCompleteIfDone(const DomainType &parent, bool replayedAll)
+    void callInitialResultCompleteIfDone(const DomainType &parent)
     {
         auto hashValue = qHash(parent);
         // Normally a parent is only in a single resource, except the toplevel (invalid) parent
         if (!mInitialResultSetInProgress.contains(hashValue) && mAllResultsFetched && !mResultEmitted) {
+            bool allResourcesReplayedAll = mAllResultsReplayed.isEmpty();
             mResultEmitted = true;
-            //FIXME set replayed all only to true if all had set it to true
-            this->initialResultSetComplete(parent, true);
+            this->initialResultSetComplete(parent, allResourcesReplayedAll);
         }
     }
 
@@ -370,18 +373,22 @@ public:
         } else {
             mResultEmitted = false;
             mAllResultsFetched = false;
+            mAllResultsReplayed.clear();
+            const auto hashValue = qHash(parent);
             for (const auto &emitter : mEmitter) {
-                mInitialResultSetInProgress.insert(qHash(parent), emitter.data());
+                mInitialResultSetInProgress.insert(hashValue, emitter.data());
+                mAllResultsReplayed.insert(hashValue, emitter.data());
                 emitter->fetch(parent);
             }
             mAllResultsFetched = true;
-            callInitialResultCompleteIfDone(parent, true);
+            callInitialResultCompleteIfDone(parent);
         }
     }
 
 private:
     QList<typename ResultEmitter<DomainType>::Ptr> mEmitter;
     QMultiMap<qint64, ResultEmitter<DomainType> *> mInitialResultSetInProgress;
+    QMultiMap<qint64, ResultEmitter<DomainType> *> mAllResultsReplayed;
     bool mAllResultsFetched;
     bool mResultEmitted;
 };

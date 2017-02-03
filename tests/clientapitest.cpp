@@ -69,12 +69,24 @@ public:
                     SinkTraceCtx(ctx) << "Running the fetcher.";
                 }
                 SinkTraceCtx(ctx) << "-------------------------.";
-                for (const auto &res : results) {
+                int count = 0;
+                for (int i = offset; i < results.size(); i++) {
+                    const auto res = results.at(i);
+                    count++;
                     // SinkTraceCtx(ctx) << "Parent filter " << query.getFilter("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
                     auto parentProperty = res->getProperty("parent").toByteArray();
                     if ((!parent && parentProperty.isEmpty()) || (parent && parentProperty == parent->identifier()) || query.parentProperty().isEmpty()) {
                         // SinkTraceCtx(ctx) << "Found a hit" << res->identifier();
                         resultProvider->add(res);
+                    }
+                    if (query.limit()) {
+                        if (count >= query.limit()) {
+                            SinkTraceCtx(ctx) << "Aborting early after " << count << "results.";
+                            offset = i + 1;
+                            bool fetchedAll = (i + 1 >= results.size());
+                            resultProvider->initialResultSetComplete(parent, fetchedAll);
+                            return 0;
+                        }
                     }
                 }
                 resultProvider->initialResultSetComplete(parent, true);
@@ -89,6 +101,7 @@ public:
     QList<typename T::Ptr> results;
     Sink::ResultProviderInterface<typename T::Ptr> *mResultProvider;
     bool runAsync = false;
+    int offset = 0;
 };
 
 
@@ -283,6 +296,41 @@ private slots:
         result.waitForFinished();
         QVERIFY(!result.errorCode());
         QVERIFY(gotValue);
+    }
+
+    void testMultiresourceIncrementalLoad()
+    {
+        auto facade1 = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade("dummyresource.instance1");
+        for (int i = 0; i < 4; i++) {
+            facade1->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource1", "id" + QByteArray::number(i), 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        }
+        auto facade2 = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade("dummyresource.instance2");
+        for (int i = 0; i < 6; i++) {
+            facade2->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource2", "id" + QByteArray::number(i), 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        }
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+        ResourceConfig::addResource("dummyresource.instance2", "dummyresource");
+
+        Sink::Query query;
+        query.limit(2);
+
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(QModelIndex()), 4);
+
+        //Try to fetch another round
+        QVERIFY(model->canFetchMore(QModelIndex()));
+        model->fetchMore(QModelIndex());
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(QModelIndex()), 8);
+
+        //Try to fetch the last round
+        QVERIFY(model->canFetchMore(QModelIndex()));
+        model->fetchMore(QModelIndex());
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(QModelIndex()), 10);
+
+        QVERIFY(!model->canFetchMore(QModelIndex()));
     }
 
     void testModelStress()
