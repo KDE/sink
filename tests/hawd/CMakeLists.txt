@@ -3,10 +3,11 @@ project(hawd)
 find_package(Libgit2)
 
 if (LIBGIT2_FOUND)
-   add_definitions(-DHAVE_LIBGIT2)
+    add_definitions(-DHAVE_LIBGIT2)
+    include_directories(${LIBGIT2_INCLUDE_DIR})
 endif (LIBGIT2_FOUND)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${LIBGIT2_INCLUDE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 set(lib_SRCS
     dataset.cpp
@@ -35,7 +36,7 @@ install(TARGETS lib${PROJECT_NAME} ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 add_executable(${PROJECT_NAME} ${SRCS})
 qt5_use_modules(${PROJECT_NAME} Core)
-target_link_libraries(${PROJECT_NAME} lib${PROJECT_NAME} ${LIBGIT2_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} lib${PROJECT_NAME})
 if (LIBGIT2_FOUND)
    target_link_libraries(${PROJECT_NAME} ${LIBGIT2_LIBRARIES})
 endif(LIBGIT2_FOUND)
