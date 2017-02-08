@@ -171,7 +171,11 @@ KAsync::Job<void> ImapServerProxy::logout()
             return KAsync::null();
         }
     }
-    return runJob(new KIMAP2::LogoutJob(mSession));
+    if (mSession->state() == KIMAP2::Session::State::Authenticated || mSession->state() == KIMAP2::Session::State::Selected) {
+        return runJob(new KIMAP2::LogoutJob(mSession));
+    } else {
+        return KAsync::null();
+    }
 }
 
 KAsync::Job<SelectResult> ImapServerProxy::select(const QString &mailbox)
