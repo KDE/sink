@@ -89,6 +89,7 @@ static QByteArray parentRid(const Imap::Folder &folder)
 
 
 class ImapSynchronizer : public Sink::Synchronizer {
+    Q_OBJECT
 public:
     ImapSynchronizer(const ResourceContext &resourceContext)
         : Sink::Synchronizer(resourceContext)
@@ -432,7 +433,7 @@ public:
 
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
-        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, &mSessionCache);
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
             return login(imap)
             .then([=] {
@@ -528,7 +529,7 @@ public:
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
-        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, &mSessionCache);
         auto login = imap->login(mUser, mPassword);
         KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
         if (operation == Sink::Operation_Creation) {
@@ -607,7 +608,7 @@ public:
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
-        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, &mSessionCache);
         auto login = imap->login(mUser, mPassword);
         if (operation == Sink::Operation_Creation) {
             QString parentFolder;
@@ -684,6 +685,7 @@ public:
     QString mUser;
     QString mPassword;
     QByteArray mResourceInstanceIdentifier;
+    Imap::SessionCache mSessionCache;
 };
 
 class ImapInspector : public Sink::Inspector {
@@ -908,3 +910,4 @@ void ImapResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifie
     ImapResource::removeFromDisk(instanceIdentifier);
 }
 
+#include "imapresource.moc"

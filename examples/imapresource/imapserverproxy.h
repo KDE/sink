@@ -124,19 +124,91 @@ struct SelectResult {
     quint64 highestModSequence;
 };
 
+class Namespaces {
+public:
+    QList<KIMAP2::MailBoxDescriptor> personal;
+    QList<KIMAP2::MailBoxDescriptor> shared;
+    QList<KIMAP2::MailBoxDescriptor> user;
+
+    KIMAP2::MailBoxDescriptor getDefaultNamespace()
+    {
+        return personal.isEmpty() ? KIMAP2::MailBoxDescriptor{} : personal.first();
+    }
+
+    KIMAP2::MailBoxDescriptor getNamespace(const QString &mailbox)
+    {
+        for (const auto &ns : personal) {
+            if (mailbox.startsWith(ns.name)) {
+                return ns;
+            }
+        }
+        for (const auto &ns : shared) {
+            if (mailbox.startsWith(ns.name)) {
+                return ns;
+            }
+        }
+        for (const auto &ns : user) {
+            if (mailbox.startsWith(ns.name)) {
+                return ns;
+            }
+        }
+        return KIMAP2::MailBoxDescriptor{};
+    }
+};
+
+class CachedSession {
+public:
+
+    CachedSession() = default;
+    CachedSession(KIMAP2::Session *session, const QStringList &cap, const Namespaces &ns) : mSession(session), mCapabilities(cap), mNamespaces(ns)
+    {
+    }
+
+    bool isConnected()
+    {
+        return (mSession->state() == KIMAP2::Session::State::Authenticated || mSession->state() == KIMAP2::Session::State::Selected) ;
+    }
+
+    bool isValid()
+    {
+        return mSession;
+    }
+
+    KIMAP2::Session *mSession = nullptr;
+    QStringList mCapabilities;
+    Namespaces mNamespaces;
+};
+
+class SessionCache : public QObject {
+    Q_OBJECT
+public:
+    void recycleSession(const CachedSession &session)
+    {
+        mSessions << session;
+    }
+
+    CachedSession getSession()
+    {
+        while (!mSessions.isEmpty()) {
+            auto session = mSessions.takeLast();
+            if (session.isConnected()) {
+                return session;
+            }
+        }
+        return CachedSession{};
+    }
+private:
+    QList<CachedSession> mSessions;
+};
+
 class ImapServerProxy {
     KIMAP2::Session *mSession;
     QStringList mCapabilities;
+    Namespaces mNamespaces;
 
-    QSet<QString> mPersonalNamespaces;
-    QChar mPersonalNamespaceSeparator;
-    QSet<QString> mSharedNamespaces;
-    QChar mSharedNamespaceSeparator;
-    QSet<QString> mUserNamespaces;
-    QChar mUserNamespaceSeparator;
 
 public:
-    ImapServerProxy(const QString &serverUrl, int port);
+    ImapServerProxy(const QString &serverUrl, int port, SessionCache *sessionCache = nullptr);
 
     //Standard IMAP calls
     KAsync::Job<void> login(const QString &username, const QString &password);
@@ -186,6 +258,7 @@ public:
 private:
     QString getNamespace(const QString &name);
     QObject mGuard;
+    SessionCache *mSessionCache;
 };
 
 }

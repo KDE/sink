@@ -98,22 +98,35 @@ static KAsync::Job<void> runJob(KJob *job)
     });
 }
 
-ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port) : mSession(new KIMAP2::Session(serverUrl, qint16(port)))
+ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, SessionCache *sessionCache) : mSession(new KIMAP2::Session(serverUrl, qint16(port))), mSessionCache(sessionCache)
 {
     QObject::connect(mSession, &KIMAP2::Session::sslErrors, [this](const QList<QSslError> &errors) {
-        SinkLog() << "Got ssl error: " << errors;
+        SinkLog() << "Received ssl error: " << errors;
         mSession->ignoreErrors(errors);
     });
 
     if (Sink::Test::testModeEnabled()) {
         mSession->setTimeout(1);
     } else {
-        mSession->setTimeout(20);
+        mSession->setTimeout(40);
     }
 }
 
 KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString &password)
 {
+    if (mSessionCache) {
+        auto session = mSessionCache->getSession();
+        if (session.isValid()) {
+            mSession = session.mSession;
+            mCapabilities = session.mCapabilities;
+            mNamespaces = session.mNamespaces;
+        }
+    }
+    Q_ASSERT(mSession);
+    if (mSession->state() == KIMAP2::Session::Authenticated || mSession->state() == KIMAP2::Session::Selected) {
+        SinkLog() << "Reusing existing session.";
+        return KAsync::null();
+    }
     auto loginJob = new KIMAP2::LoginJob(mSession);
     loginJob->setUserName(username);
     loginJob->setPassword(password);
@@ -140,28 +153,25 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
             }
         }
     }).then(runJob(namespaceJob)).then([this, namespaceJob] {
-        for (const auto &ns :namespaceJob->personalNamespaces()) {
-            mPersonalNamespaces << ns.name;
-            mPersonalNamespaceSeparator = ns.separator;
-        }
-        for (const auto &ns :namespaceJob->sharedNamespaces()) {
-            mSharedNamespaces << ns.name;
-            mSharedNamespaceSeparator = ns.separator;
-        }
-        for (const auto &ns :namespaceJob->userNamespaces()) {
-            mUserNamespaces << ns.name;
-            mUserNamespaceSeparator = ns.separator;
-        }
-        SinkTrace() << "Found personal namespaces: " << mPersonalNamespaces << mPersonalNamespaceSeparator;
-        SinkTrace() << "Found shared namespaces: " << mSharedNamespaces << mSharedNamespaceSeparator;
-        SinkTrace() << "Found user namespaces: " << mUserNamespaces << mUserNamespaceSeparator;
+        mNamespaces.personal = namespaceJob->personalNamespaces();
+        mNamespaces.shared = namespaceJob->sharedNamespaces();
+        mNamespaces.user = namespaceJob->userNamespaces();
+        // SinkTrace() << "Found personal namespaces: " << mNamespaces.personal;
+        // SinkTrace() << "Found shared namespaces: " << mNamespaces.shared;
+        // SinkTrace() << "Found user namespaces: " << mNamespaces.user;
     });
 }
 
 KAsync::Job<void> ImapServerProxy::logout()
 {
-    auto logoutJob = new KIMAP2::LogoutJob(mSession);
-    return runJob(logoutJob);
+    if (mSessionCache) {
+        auto session = CachedSession{mSession, mCapabilities, mNamespaces};
+        if (session.isConnected()) {
+            mSessionCache->recycleSession(session);
+            return KAsync::null();
+        }
+    }
+    return runJob(new KIMAP2::LogoutJob(mSession));
 }
 
 KAsync::Job<SelectResult> ImapServerProxy::select(const QString &mailbox)
@@ -376,12 +386,13 @@ KAsync::Job<void> ImapServerProxy::move(const QString &mailbox, const KIMAP2::Im
 KAsync::Job<QString> ImapServerProxy::createSubfolder(const QString &parentMailbox, const QString &folderName)
 {
     return KAsync::start<QString>([this, parentMailbox, folderName]() {
-        Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
         QString folder;
         if (parentMailbox.isEmpty()) {
-            folder = mPersonalNamespaces.isEmpty() ? "" : mPersonalNamespaces.toList().first() + folderName;
+            auto ns = mNamespaces.getDefaultNamespace();
+            folder = ns.name + folderName;
         } else {
-            folder = parentMailbox + mPersonalNamespaceSeparator + folderName;
+            auto ns = mNamespaces.getNamespace(parentMailbox);
+            folder = parentMailbox + ns.separator + folderName;
         }
         SinkTrace() << "Creating subfolder: " << folder;
         return create(folder)
@@ -394,10 +405,10 @@ KAsync::Job<QString> ImapServerProxy::createSubfolder(const QString &parentMailb
 KAsync::Job<QString> ImapServerProxy::renameSubfolder(const QString &oldMailbox, const QString &newName)
 {
     return KAsync::start<QString>([this, oldMailbox, newName] {
-        Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
-        auto parts = oldMailbox.split(mPersonalNamespaceSeparator);
+        auto ns = mNamespaces.getNamespace(oldMailbox);
+        auto parts = oldMailbox.split(ns.separator);
         parts.removeLast();
-        QString folder = parts.join(mPersonalNamespaceSeparator) + mPersonalNamespaceSeparator + newName;
+        QString folder = parts.join(ns.separator) + ns.separator + newName;
         SinkTrace() << "Renaming subfolder: " << oldMailbox << folder;
         return rename(oldMailbox, folder)
             .then([=]() {
@@ -408,22 +419,8 @@ KAsync::Job<QString> ImapServerProxy::renameSubfolder(const QString &oldMailbox,
 
 QString ImapServerProxy::getNamespace(const QString &name)
 {
-    for (const auto &ns : mPersonalNamespaces) {
-        if (name.startsWith(ns)) {
-            return ns;
-        }
-    }
-    for (const auto &ns : mSharedNamespaces) {
-        if (name.startsWith(ns)) {
-            return ns;
-        }
-    }
-    for (const auto &ns : mUserNamespaces) {
-        if (name.startsWith(ns)) {
-            return ns;
-        }
-    }
-    return QString{};
+    auto ns = mNamespaces.getNamespace(name);
+    return ns.name;
 }
 
 KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder &)> callback)
@@ -474,7 +471,6 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 ui
 {
     auto time = QSharedPointer<QTime>::create();
     time->start();
-    Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
     return select(mailboxFromFolder(folder)).then<void, SelectResult>([this, callback, folder, time, progress, uidNext](const SelectResult &selectResult) -> KAsync::Job<void> {
         SinkTrace() << "UIDNEXT " << folder.path() << selectResult.uidNext << uidNext;
         if (selectResult.uidNext == (uidNext + 1)) {
@@ -498,7 +494,6 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, const QVe
 {
     auto time = QSharedPointer<QTime>::create();
     time->start();
-    Q_ASSERT(!mPersonalNamespaceSeparator.isNull());
     return select(mailboxFromFolder(folder)).then<void, SelectResult>([this, callback, folder, time, progress, uidsToFetch, headersOnly](const SelectResult &selectResult) -> KAsync::Job<void> {
 
         SinkTrace() << "Fetching messages" << folder.path();
