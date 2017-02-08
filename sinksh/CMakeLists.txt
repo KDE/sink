@@ -16,6 +16,7 @@ set(sink_cli_SRCS
     syntax_modules/sink_sync.cpp
     syntax_modules/sink_show.cpp
     syntax_modules/sink_trace.cpp
+    syntax_modules/sink_inspect.cpp
     sinksh_utils.cpp
     repl/repl.cpp
     repl/replStates.cpp

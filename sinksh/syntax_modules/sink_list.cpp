@@ -64,7 +64,7 @@ QByteArray baIfAvailable(const QStringList &list)
 bool list(const QStringList &args_, State &state)
 {
     if (args_.isEmpty()) {
-        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--showall|--show $property]"));
+        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--id $id] [--showall|--show $property]"));
         return false;
     }
 
@@ -82,6 +82,11 @@ bool list(const QStringList &args_, State &state)
         for (const auto &f : options.options.value("filter")) {
             auto filter = f.split("=");
             query.filter(filter.at(0).toLatin1(), QVariant::fromValue(Sink::ApplicationDomain::Reference{filter.at(1).toLatin1()}));
+        }
+    }
+    if (options.options.contains("id")) {
+        for (const auto &f : options.options.value("id")) {
+            query.filter(f.toUtf8());
         }
     }
     auto compact = options.options.contains("compact");
