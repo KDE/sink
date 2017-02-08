@@ -56,6 +56,13 @@ namespace FolderFlags
     extern const char* All;
 }
 
+namespace Capabilities
+{
+    extern const char* Condstore;
+    extern const char* Uidplus;
+    extern const char* Namespace;
+}
+
 struct Message {
     qint64 uid;
     qint64 size;

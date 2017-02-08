@@ -62,6 +62,10 @@ const char* Imap::FolderFlags::Archive = "\\Archive";
 const char* Imap::FolderFlags::Junk = "\\Junk";
 const char* Imap::FolderFlags::Flagged = "\\Flagged";
 
+const char* Imap::Capabilities::Namespace = "NAMESPACE";
+const char* Imap::Capabilities::Uidplus = "UIDPLUS";
+const char* Imap::Capabilities::Condstore = "CONDSTORE";
+
 template <typename T>
 static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
 {
@@ -145,7 +149,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
 
     return runJob(loginJob).then(runJob(capabilitiesJob)).then([this](){
         SinkTrace() << "Supported capabilities: " << mCapabilities;
-        QStringList requiredExtensions = QStringList() << "UIDPLUS" << "NAMESPACE";
+        QStringList requiredExtensions = QStringList() << Capabilities::Uidplus << Capabilities::Namespace;
         for (const auto &requiredExtension : requiredExtensions) {
             if (!mCapabilities.contains(requiredExtension)) {
                 SinkWarning() << "Server doesn't support required capability: " << requiredExtension;
@@ -182,7 +186,7 @@ KAsync::Job<SelectResult> ImapServerProxy::select(const QString &mailbox)
 {
     auto select = new KIMAP2::SelectJob(mSession);
     select->setMailBox(mailbox);
-    select->setCondstoreEnabled(mCapabilities.contains("CONDSTORE"));
+    select->setCondstoreEnabled(mCapabilities.contains(Capabilities::Condstore));
     return runJob<SelectResult>(select, [select](KJob* job) -> SelectResult {
         return {select->uidValidity(), select->nextUid(), select->highestModSequence()};
     }).onError([=] (const KAsync::Error &error) {
