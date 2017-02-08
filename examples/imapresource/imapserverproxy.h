@@ -171,6 +171,11 @@ public:
     {
     }
 
+    bool operator==(const CachedSession &other) const
+    {
+        return mSession && (mSession == other.mSession);
+    }
+
     bool isConnected()
     {
         return (mSession->state() == KIMAP2::Session::State::Authenticated || mSession->state() == KIMAP2::Session::State::Selected) ;
@@ -191,6 +196,11 @@ class SessionCache : public QObject {
 public:
     void recycleSession(const CachedSession &session)
     {
+        QObject::connect(session.mSession, &KIMAP2::Session::stateChanged, this, [this, session](KIMAP2::Session::State newState, KIMAP2::Session::State oldState) {
+            if (newState == KIMAP2::Session::Disconnected) {
+                mSessions.removeOne(session);
+            }
+        });
         mSessions << session;
     }
 
