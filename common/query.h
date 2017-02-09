@@ -296,10 +296,11 @@ class SINK_EXPORT Query : public QueryBase
 public:
     enum Flag
     {
+        NoFlags = 0,
         /** Leave the query running and continuously update the result set. */
-        LiveQuery,
+        LiveQuery = 1,
         /** Run the query synchronously. */
-        SynchronousQuery
+        SynchronousQuery = 2
     };
     Q_DECLARE_FLAGS(Flags, Flag)
 

@@ -670,6 +670,46 @@ private slots:
         QTRY_COMPARE(model->rowCount(), 0);
     }
 
+    void testDontUpdateNonLiveQuery()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail1.setExtractedMessageId("mail1");
+        mail1.setFolder(folder1);
+        mail1.setUnread(false);
+        VERIFYEXEC(Sink::Store::create(mail1));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        //Not a live query
+        query.setFlags(Query::Flags{});
+        query.setId("testNoLiveQuery");
+        query.filter<Mail::Folder>(folder1);
+        query.reduce<Mail::ThreadId>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Sender>("senders");
+        query.sort<Mail::Date>();
+        query.request<Mail::Unread>();
+        QVERIFY(!query.liveQuery());
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+
+        //After the modifcation the mail should have vanished.
+        {
+            mail1.setUnread(true);
+            VERIFYEXEC(Sink::Store::modify(mail1));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 1);
+        auto mail = model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>();
+        QTest::qWait(100);
+        QCOMPARE(mail->getUnread(), false);
+    }
+
     void testLivequeryModifcationUpdateInThread()
     {
         // Setup
