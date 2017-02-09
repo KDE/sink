@@ -87,8 +87,8 @@ void ThreadIndexer::updateThreadingIndex(const QByteArray &identifier, const App
     const auto subject = entity.getProperty(Mail::Subject::name);
     const auto normalizedSubject = stripOffPrefixes(subject.toString()).toUtf8();
     if (messageId.toByteArray().isEmpty()) {
-        SinkError() << "Found an email without messageId. This is illegal and threading will break. Entity id: " << identifier;
-        SinkError() << "Subject: " << subject;
+        SinkWarning() << "Found an email without messageId. This is illegal and threading will break. Entity id: " << identifier;
+        SinkWarning() << "Subject: " << subject;
     }
 
     QVector<QByteArray> thread;

@@ -66,7 +66,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
 {
     SinkTraceCtx(mLogCtx) << "Starting query. Is live:" << query.liveQuery() << " Limit: " << query.limit();
     if (query.limit() && query.sortProperty().isEmpty()) {
-        SinkWarning() << "A limited query without sorting is typically a bad idea, because there is no telling what you're going to get.";
+        SinkWarningCtx(mLogCtx) << "A limited query without sorting is typically a bad idea, because there is no telling what you're going to get.";
     }
     auto guardPtr = QPointer<QObject>(&guard);
     // We delegate loading of initial data to the result provider, so it can decide for itself what it needs to load.

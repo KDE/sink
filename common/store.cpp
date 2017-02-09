@@ -93,7 +93,7 @@ QPair<typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr,  typenam
         Q_ASSERT(facade);
         Sink::Query resourceQuery;
         if (query.liveQuery()) {
-            SinkTraceCtx(ctx) << "Listening for new resources";
+            SinkTraceCtx(ctx) << "Listening for new resources.";
             resourceQuery.setFlags(Query::LiveQuery);
         }
         resourceQuery.setFilter(query.getResourceFilter());
