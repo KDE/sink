@@ -41,6 +41,12 @@ public:
     template <typename T, typename S>
     void addPropertyWithSorting(const QByteArray &property, const QByteArray &sortProperty);
 
+    template <typename T, typename S>
+    void addPropertyWithSorting()
+    {
+        addPropertyWithSorting<typename T::Type, typename S::Type>(T::name, S::name);
+    }
+
     template <typename T>
     void addProperty()
     {

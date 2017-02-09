@@ -103,6 +103,12 @@ void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
 }
 
 template <>
+void TypeIndex::addProperty<ApplicationDomain::Reference>(const QByteArray &property)
+{
+    addProperty<QByteArray>(property);
+}
+
+template <>
 void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &property, const QByteArray &sortProperty)
 {
     auto indexer = [=](const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction) {
@@ -114,8 +120,15 @@ void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &
     mSortedProperties.insert(property, sortProperty);
 }
 
+template <>
+void TypeIndex::addPropertyWithSorting<ApplicationDomain::Reference, QDateTime>(const QByteArray &property, const QByteArray &sortProperty)
+{
+    addPropertyWithSorting<QByteArray, QDateTime>(property, sortProperty);
+}
+
 void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
 {
+    SinkTrace() << "add " << identifier;
     for (const auto &property : mProperties) {
         const auto value = entity.getProperty(property);
         auto indexer = mIndexer.value(property);

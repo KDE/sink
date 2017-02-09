@@ -36,17 +36,15 @@ using namespace Sink::ApplicationDomain;
 
 void TypeImplementation<Mail>::configure(TypeIndex &index)
 {
-    index.addProperty<QByteArray>(Mail::Uid::name);
-    index.addProperty<QByteArray>(Mail::Sender::name);
+    index.addProperty<Mail::Uid>();
+    // index.addProperty<Mail::Sender>();
     /* index.addProperty<QByteArray>(Mail::SenderName::name); */
     /* index->addProperty<QString>(Mail::Subject::name); */
     /* index->addFulltextProperty<QString>(Mail::Subject::name); */
-    index.addProperty<QDateTime>(Mail::Date::name);
-    index.addProperty<QByteArray>(Mail::Folder::name);
-    index.addPropertyWithSorting<QByteArray, QDateTime>(Mail::Folder::name, Mail::Date::name);
-    index.addProperty<QByteArray>(Mail::MessageId::name);
-    index.addProperty<QByteArray>(Mail::ParentMessageId::name);
-
+    index.addProperty<Mail::Date>();
+    index.addProperty<Mail::Folder>();
+    index.addPropertyWithSorting<Mail::Folder, Mail::Date>();
+    index.addProperty<Mail::ParentMessageId>();
     index.addProperty<Mail::MessageId>();
 
     index.addSecondaryPropertyIndexer<Mail::MessageId, Mail::ThreadId, ThreadIndexer>();
