@@ -24,8 +24,18 @@
 using namespace Sink;
 using namespace Sink::Storage;
 
-
-SINK_DEBUG_AREA("datastorequery")
+static QByteArray operationName(const Sink::Operation op)
+{
+    switch(op) {
+        case Sink::Operation_Creation:
+            return "Creation";
+        case Sink::Operation_Modification:
+            return "Modification";
+        case Sink::Operation_Removal:
+            return "Removal";
+    }
+    return "";
+}
 
 class Source : public FilterBase {
     public:
@@ -63,6 +73,7 @@ class Source : public FilterBase {
             return false;
         }
         readEntity(*mIt, [callback](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+            SinkTraceCtx(mDatastore->mLogCtx) << "Source: Read entity: " << entity.identifier() << operationName(operation);
             callback({entity, operation});
         });
         mIt++;
@@ -104,20 +115,20 @@ public:
     virtual bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
-                SinkTrace() << "Filter: " << result.entity.identifier() << result.operation;
+                SinkTraceCtx(mDatastore->mLogCtx) << "Filter: " << result.entity.identifier() << result.operation;
 
                 //Always accept removals. They can't match the filter since the data is gone.
                 if (result.operation == Sink::Operation_Removal) {
-                    SinkTrace() << "Removal: " << result.entity.identifier() << result.operation;
+                    SinkTraceCtx(mDatastore->mLogCtx) << "Removal: " << result.entity.identifier() << operationName(result.operation);
                     callback(result);
                     foundValue = true;
                 } else if (matchesFilter(result.entity)) {
-                    SinkTrace() << "Accepted: " << result.entity.identifier() << result.operation;
+                    SinkTraceCtx(mDatastore->mLogCtx) << "Accepted: " << result.entity.identifier() << operationName(result.operation);
                     callback(result);
                     foundValue = true;
                     //TODO if something did not match the filter so far but does now, turn into an add operation.
                 } else {
-                    SinkTrace() << "Rejected: " << result.entity.identifier() << result.operation;
+                    SinkTraceCtx(mDatastore->mLogCtx) << "Rejected: " << result.entity.identifier() << operationName(result.operation);
                     //TODO emit a removal if we had the uid in the result set and this is a modification.
                     //We don't know if this results in a removal from the dataset, so we emit a removal notification anyways
                     callback({result.entity, Sink::Operation_Removal, result.aggregateValues});
@@ -133,7 +144,7 @@ public:
             const auto property = entity.getProperty(filterProperty);
             const auto comparator = propertyFilter.value(filterProperty);
             if (!comparator.matches(property)) {
-                SinkTrace() << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << comparator.value;
+                SinkTraceCtx(mDatastore->mLogCtx) << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << comparator.value;
                 return false;
             }
         }
@@ -299,6 +310,7 @@ public:
                     for (const auto &r : results) {
                         readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                             callback({entity, Sink::Operation_Creation});
+                            SinkTraceCtx(mDatastore->mLogCtx) << "Bloom result: " << entity.identifier() << operationName(operation);
                             foundValue = true;
                         });
                     }
@@ -500,25 +512,22 @@ void DataStoreQuery::setupQuery()
 
 QVector<QByteArray> DataStoreQuery::loadIncrementalResultSet(qint64 baseRevision)
 {
-    auto revisionCounter = QSharedPointer<qint64>::create(baseRevision);
     QVector<QByteArray> changedKeys;
     mStore.readRevisions(baseRevision, mType, [&](const QByteArray &key) {
         changedKeys << key;
     });
-    SinkTraceCtx(mLogCtx) << "Finished reading incremental result set:" << *revisionCounter;
     return changedKeys;
 }
 
-
 ResultSet DataStoreQuery::update(qint64 baseRevision)
 {
-    SinkTraceCtx(mLogCtx) << "Executing query update";
+    SinkTraceCtx(mLogCtx) << "Executing query update to revision " << baseRevision;
     auto incrementalResultSet = loadIncrementalResultSet(baseRevision);
-    SinkTraceCtx(mLogCtx) << "Changed: " << incrementalResultSet;
+    SinkTraceCtx(mLogCtx) << "Incremental changes: " << incrementalResultSet;
     mSource->add(incrementalResultSet);
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
         if (mCollector->next([this, callback](const ResultSet::Result &result) {
-                SinkTraceCtx(mLogCtx) << "Got incremental result: " << result.entity.identifier() << result.operation;
+                SinkTraceCtx(mLogCtx) << "Got incremental result: " << result.entity.identifier() << operationName(result.operation);
                 callback(result);
             }))
         {

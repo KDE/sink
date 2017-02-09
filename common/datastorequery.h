@@ -25,10 +25,15 @@
 
 
 class Source;
+class Bloom;
+class Filter;
 class FilterBase;
 
 class DataStoreQuery {
     friend class FilterBase;
+    friend class Source;
+    friend class Bloom;
+    friend class Filter;
 public:
     typedef QSharedPointer<DataStoreQuery> Ptr;
 
