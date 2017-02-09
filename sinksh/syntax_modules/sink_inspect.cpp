@@ -86,7 +86,7 @@ bool inspect(const QStringList &args, State &state)
                         state.printLine("Key: " + key + " Operation: " + QString::number(metadata->operation()));
                     }
                 } else {
-                    state.printLine("Key: " + key);
+                    state.printLine("Key: " + key + " Value: " + QString::fromUtf8(data));
                 }
                 return true;
             },
