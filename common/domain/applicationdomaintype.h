@@ -528,8 +528,8 @@ class SINK_EXPORT TypeImplementation;
     REGISTER_TYPE(Sink::ApplicationDomain::SinkAccount); \
     REGISTER_TYPE(Sink::ApplicationDomain::Identity); \
 
-QDataStream & SINK_EXPORT operator<<(QDataStream &out, const Sink::ApplicationDomain::Reference &reference);
-QDataStream & SINK_EXPORT operator>>(QDataStream &in, Sink::ApplicationDomain::Reference &reference);
+SINK_EXPORT QDataStream &operator<<(QDataStream &out, const Sink::ApplicationDomain::Reference &reference);
+SINK_EXPORT QDataStream &operator>>(QDataStream &in, Sink::ApplicationDomain::Reference &reference);
 
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType::Ptr)
