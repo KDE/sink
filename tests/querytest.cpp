@@ -1,6 +1,7 @@
 #include <QtTest>
 
 #include <QString>
+#include <QSignalSpy>
 
 #include "resource.h"
 #include "store.h"
@@ -786,6 +787,12 @@ private slots:
         auto model = Sink::Store::loadModel<Mail>(query);
         QTRY_COMPARE(model->rowCount(), 1);
 
+        QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
+        QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
+        QSignalSpy changedSpy(model.data(), &QAbstractItemModel::dataChanged);
+        QSignalSpy layoutChangedSpy(model.data(), &QAbstractItemModel::layoutChanged);
+        QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
+
         //The leader should change to mail2 after the modification
         {
             auto mail2 = Mail::createEntity<Mail>("sink.dummy.instance1");
@@ -802,6 +809,13 @@ private slots:
         QTRY_COMPARE(mail->getMessageId(), QByteArray{"mail2"});
         QCOMPARE(mail->getProperty("count").toInt(), 2);
         QCOMPARE(mail->getProperty("folders").toList().size(), 2);
+
+        //This should eventually be just one modification instead of remove + add (See datastorequery reduce component)
+        QCOMPARE(insertedSpy.size(), 1);
+        QCOMPARE(removedSpy.size(), 1);
+        QCOMPARE(changedSpy.size(), 0);
+        QCOMPARE(layoutChangedSpy.size(), 0);
+        QCOMPARE(resetSpy.size(), 0);
     }
 
     void testBloom()
@@ -875,12 +889,28 @@ private slots:
         auto model = Sink::Store::loadModel<Mail>(query);
         QTRY_COMPARE(model->rowCount(), 1);
 
+        QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
+        QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
+        QSignalSpy changedSpy(model.data(), &QAbstractItemModel::dataChanged);
+        QSignalSpy layoutChangedSpy(model.data(), &QAbstractItemModel::layoutChanged);
+        QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
+
+        //This modification should make it through
+        {
+            //This should not trigger an entity already in model warning
+            mail1.setUnread(false);
+            VERIFYEXEC(Sink::Store::modify(mail1));
+        }
+
+        //This mail should make it through
         {
             auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
             mail.setExtractedMessageId("mail2");
             mail.setFolder(folder1);
             VERIFYEXEC(Sink::Store::create(mail));
         }
+
+        //This mail shouldn't make it through
         {
             auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
             mail.setExtractedMessageId("mail3");
@@ -892,6 +922,14 @@ private slots:
         QTRY_COMPARE(model->rowCount(), 2);
         QTest::qWait(100);
         QCOMPARE(model->rowCount(), 2);
+
+        //From mail2
+        QCOMPARE(insertedSpy.size(), 1);
+        QCOMPARE(removedSpy.size(), 0);
+        //From the modification
+        QCOMPARE(changedSpy.size(), 1);
+        QCOMPARE(layoutChangedSpy.size(), 0);
+        QCOMPARE(resetSpy.size(), 0);
     }
 };
 

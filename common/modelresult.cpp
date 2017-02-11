@@ -228,12 +228,14 @@ void ModelResult<T, Ptr>::remove(const Ptr &value)
     auto parent = createIndexFromId(id);
     SinkTraceCtx(mLogCtx) << "Removed entity" << childId;
     auto index = mTree[id].indexOf(childId);
-    beginRemoveRows(parent, index, index);
-    mEntities.remove(childId);
-    mTree[id].removeAll(childId);
-    mParents.remove(childId);
-    // TODO remove children
-    endRemoveRows();
+    if (index >= 0) {
+        beginRemoveRows(parent, index, index);
+        mEntities.remove(childId);
+        mTree[id].removeAll(childId);
+        mParents.remove(childId);
+        // TODO remove children
+        endRemoveRows();
+    }
 }
 
 template <class T, class Ptr>
