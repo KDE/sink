@@ -785,7 +785,8 @@ private slots:
         query.request<Mail::MessageId>();
 
         auto model = Sink::Store::loadModel<Mail>(query);
-        QTRY_COMPARE(model->rowCount(), 1);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
 
         QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
         QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
@@ -887,7 +888,8 @@ private slots:
         query.request<Mail::Folder>();
 
         auto model = Sink::Store::loadModel<Mail>(query);
-        QTRY_COMPARE(model->rowCount(), 1);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
 
         QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
         QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
