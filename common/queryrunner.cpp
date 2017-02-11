@@ -33,6 +33,7 @@ struct ReplayResult {
     qint64 newRevision;
     qint64 replayedEntities;
     bool replayedAll;
+    DataStoreQuery::State::Ptr queryState;
 };
 
 /*
@@ -49,7 +50,7 @@ public:
     QueryWorker(const Sink::Query &query, const ResourceContext &context, const QByteArray &bufferType, const QueryRunnerBase::ResultTransformation &transformation, const Sink::Log::Context &logCtx);
     virtual ~QueryWorker();
 
-    ReplayResult executeIncrementalQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider);
+    ReplayResult executeIncrementalQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, DataStoreQuery::State::Ptr state);
     ReplayResult executeInitialQuery(const Sink::Query &query, const typename DomainType::Ptr &parent, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, int offset, int batchsize);
 
 private:
@@ -69,45 +70,41 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
         SinkWarningCtx(mLogCtx) << "A limited query without sorting is typically a bad idea, because there is no telling what you're going to get.";
     }
     auto guardPtr = QPointer<QObject>(&guard);
-    // We delegate loading of initial data to the result provider, so it can decide for itself what it needs to load.
-    mResultProvider->setFetcher([=](const typename DomainType::Ptr &parent) {
+    auto fetcher = [=](const typename DomainType::Ptr &parent) {
         const QByteArray parentId = parent ? parent->identifier() : QByteArray();
         SinkTraceCtx(mLogCtx) << "Running fetcher. Offset: " << mOffset[parentId] << " Batchsize: " << mBatchSize;
         auto resultProvider = mResultProvider;
-        if (query.synchronousQuery()) {
-            QueryWorker<DomainType> worker(query, mResourceContext, bufferType, mResultTransformation, mLogCtx);
-            const auto newRevisionAndReplayedEntities = worker.executeInitialQuery(query, parent, *resultProvider, mOffset[parentId], mBatchSize);
-            mOffset[parentId] += newRevisionAndReplayedEntities.replayedEntities;
-            resultProvider->setRevision(newRevisionAndReplayedEntities.newRevision);
-            resultProvider->initialResultSetComplete(parent, newRevisionAndReplayedEntities.replayedAll);
-        } else {
-            auto resultTransformation = mResultTransformation;
-            auto offset = mOffset[parentId];
-            auto batchSize = mBatchSize;
-            auto resourceContext = mResourceContext;
-            auto logCtx = mLogCtx;
-            //The lambda will be executed in a separate thread, so copy all arguments
-            async::run<ReplayResult>([resultTransformation, offset, batchSize, query, bufferType, resourceContext, resultProvider, parent, logCtx]() {
-                QueryWorker<DomainType> worker(query, resourceContext, bufferType, resultTransformation, logCtx);
-                const auto  newRevisionAndReplayedEntities = worker.executeInitialQuery(query, parent, *resultProvider, offset, batchSize);
-                return newRevisionAndReplayedEntities;
+        auto resultTransformation = mResultTransformation;
+        auto offset = mOffset[parentId];
+        auto batchSize = mBatchSize;
+        auto resourceContext = mResourceContext;
+        auto logCtx = mLogCtx;
+        const bool runAsync = !query.synchronousQuery();
+        //The lambda will be executed in a separate thread, so copy all arguments
+        async::run<ReplayResult>([resultTransformation, offset, batchSize, query, bufferType, resourceContext, resultProvider, parent, logCtx]() {
+            QueryWorker<DomainType> worker(query, resourceContext, bufferType, resultTransformation, logCtx);
+            return worker.executeInitialQuery(query, parent, *resultProvider, offset, batchSize);
+        }, runAsync)
+            .then([this, parentId, query, parent, resultProvider, guardPtr](const ReplayResult &result) {
+                if (!guardPtr) {
+                    qWarning() << "The parent object is already gone";
+                    return;
+                }
+                mInitialQueryComplete = true;
+                mQueryState = result.queryState;
+                mOffset[parentId] += result.replayedEntities;
+                // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
+                if (query.liveQuery()) {
+                    mResourceAccess->sendRevisionReplayedCommand(result.newRevision);
+                }
+                resultProvider->setRevision(result.newRevision);
+                resultProvider->initialResultSetComplete(parent, result.replayedAll);
             })
-                .template then([this, parentId, query, parent, resultProvider, guardPtr](const ReplayResult &newRevisionAndReplayedEntities) {
-                    if (!guardPtr) {
-                        qWarning() << "The parent object is already gone";
-                        return;
-                    }
-                    mOffset[parentId] += newRevisionAndReplayedEntities.replayedEntities;
-                    // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
-                    if (query.liveQuery()) {
-                        mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.newRevision);
-                    }
-                    resultProvider->setRevision(newRevisionAndReplayedEntities.newRevision);
-                    resultProvider->initialResultSetComplete(parent, newRevisionAndReplayedEntities.replayedAll);
-                })
-                .exec();
-        }
-    });
+            .exec();
+    };
+
+    // We delegate loading of initial data to the result provider, so it can decide for itself what it needs to load.
+    mResultProvider->setFetcher(fetcher);
 
     // In case of a live query we keep the runner for as long alive as the result provider exists
     if (query.liveQuery()) {
@@ -117,16 +114,26 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
             auto resultProvider = mResultProvider;
             auto resourceContext = mResourceContext;
             auto logCtx = mLogCtx;
-            return async::run<ReplayResult>([=]() {
+            auto state = mQueryState;
+            if (!mInitialQueryComplete) {
+                SinkWarningCtx(mLogCtx) << "Can't start the incremental query before the initial query is complete";
+                fetcher({});
+                return KAsync::null();
+            }
+            Q_ASSERT(!mQueryInProgress);
+            return KAsync::syncStart<void>([&] {
+                    mQueryInProgress = true;
+                })
+                .then(async::run<ReplayResult>([=]() {
                        QueryWorker<DomainType> worker(query, resourceContext, bufferType, mResultTransformation, logCtx);
-                       const auto newRevisionAndReplayedEntities = worker.executeIncrementalQuery(query, *resultProvider);
-                       return newRevisionAndReplayedEntities;
-                   })
-                .template then([query, this, resultProvider, guardPtr](const ReplayResult &newRevisionAndReplayedEntities) {
+                       return worker.executeIncrementalQuery(query, *resultProvider, state);
+                   }))
+                .then([query, this, resultProvider, guardPtr](const ReplayResult &newRevisionAndReplayedEntities) {
                     if (!guardPtr) {
                         qWarning() << "The parent object is already gone";
                         return;
                     }
+                    mQueryInProgress = false;
                     // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
                     mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.newRevision);
                     resultProvider->setRevision(newRevisionAndReplayedEntities.newRevision);
@@ -201,14 +208,20 @@ void QueryWorker<DomainType>::resultProviderCallback(const Sink::Query &query, S
 }
 
 template <class DomainType>
-ReplayResult QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider)
+ReplayResult QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, DataStoreQuery::State::Ptr state)
 {
     QTime time;
     time.start();
 
     const qint64 baseRevision = resultProvider.revision() + 1;
+    SinkTraceCtx(mLogCtx) << "Running query update from revision: " << baseRevision;
+
     auto entityStore = EntityStore{mResourceContext, mLogCtx};
-    auto preparedQuery = DataStoreQuery{query, ApplicationDomain::getTypeName<DomainType>(), entityStore};
+    if (!state) {
+        SinkWarningCtx(mLogCtx) << "No previous query state.";
+        return {0, 0, false, DataStoreQuery::State::Ptr{}};
+    }
+    auto preparedQuery = DataStoreQuery{*state, ApplicationDomain::getTypeName<DomainType>(), entityStore};
     auto resultSet = preparedQuery.update(baseRevision);
     SinkTraceCtx(mLogCtx) << "Filtered set retrieved. " << Log::TraceTime(time.elapsed());
     auto replayResult = resultSet.replaySet(0, 0, [this, query, &resultProvider](const ResultSet::Result &result) {
@@ -218,7 +231,7 @@ ReplayResult QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query 
     SinkTraceCtx(mLogCtx) << "Replayed " << replayResult.replayedEntities << " results.\n"
         << (replayResult.replayedAll ? "Replayed all available results.\n" : "")
         << "Incremental query took: " << Log::TraceTime(time.elapsed());
-    return {entityStore.maxRevision(), replayResult.replayedEntities, replayResult.replayedAll};
+    return {entityStore.maxRevision(), replayResult.replayedEntities, replayResult.replayedAll, preparedQuery.getState()};
 }
 
 template <class DomainType>
@@ -251,14 +264,14 @@ ReplayResult QueryWorker<DomainType>::executeInitialQuery(
     SinkTraceCtx(mLogCtx) << "Replayed " << replayResult.replayedEntities << " results.\n"
         << (replayResult.replayedAll ? "Replayed all available results.\n" : "")
         << "Initial query took: " << Log::TraceTime(time.elapsed());
-    return {entityStore.maxRevision(), replayResult.replayedEntities, replayResult.replayedAll};
+
+    auto state = preparedQuery.getState();
+
+    return {entityStore.maxRevision(), replayResult.replayedEntities, replayResult.replayedAll, state};
 }
 
-template class QueryRunner<Sink::ApplicationDomain::Contact>;
-template class QueryRunner<Sink::ApplicationDomain::Folder>;
-template class QueryRunner<Sink::ApplicationDomain::Mail>;
-template class QueryRunner<Sink::ApplicationDomain::Event>;
-template class QueryWorker<Sink::ApplicationDomain::Contact>;
-template class QueryWorker<Sink::ApplicationDomain::Folder>;
-template class QueryWorker<Sink::ApplicationDomain::Mail>;
-template class QueryWorker<Sink::ApplicationDomain::Event>;
+#define REGISTER_TYPE(T) \
+    template class QueryRunner<T>; \
+    template class QueryWorker<T>; \
+
+SINK_REGISTER_TYPES()

@@ -26,6 +26,7 @@
 
 class Source;
 class Bloom;
+class Reduce;
 class Filter;
 class FilterBase;
 
@@ -33,14 +34,24 @@ class DataStoreQuery {
     friend class FilterBase;
     friend class Source;
     friend class Bloom;
+    friend class Reduce;
     friend class Filter;
 public:
     typedef QSharedPointer<DataStoreQuery> Ptr;
 
+    struct State {
+        typedef QSharedPointer<State> Ptr;
+        QSharedPointer<FilterBase> mCollector;
+        QSharedPointer<Source> mSource;
+    };
+
     DataStoreQuery(const Sink::QueryBase &query, const QByteArray &type, Sink::Storage::EntityStore &store);
+    DataStoreQuery(const DataStoreQuery::State &state, const QByteArray &type, Sink::Storage::EntityStore &store);
     ~DataStoreQuery();
     ResultSet execute();
     ResultSet update(qint64 baseRevision);
+
+    State::Ptr getState();
 
 private:
 
@@ -54,12 +65,10 @@ private:
     ResultSet createFilteredSet(ResultSet &resultSet, const FilterFunction &);
     QVector<QByteArray> loadIncrementalResultSet(qint64 baseRevision);
 
-    void setupQuery();
+    void setupQuery(const Sink::QueryBase &query_);
     QByteArrayList executeSubquery(const Sink::QueryBase &subquery);
 
-    Sink::QueryBase mQuery;
     const QByteArray mType;
-    bool mInitialQuery;
     QSharedPointer<FilterBase> mCollector;
     QSharedPointer<Source> mSource;
 
@@ -102,7 +111,8 @@ public:
     //Returns true for as long as a result is available
     virtual bool next(const std::function<void(const ResultSet::Result &)> &callback) = 0;
 
-    QSharedPointer<FilterBase> mSource;
+    FilterBase::Ptr mSource;
     DataStoreQuery *mDatastore;
+    bool mIncremental = false;
 };
 

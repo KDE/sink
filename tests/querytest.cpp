@@ -731,7 +731,7 @@ private slots:
         Query query;
         query.setId("testLivequeryUnmatch");
         query.filter<Mail::Folder>(folder1);
-        query.reduce<Mail::ThreadId>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Sender>("senders");
+        query.reduce<Mail::ThreadId>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Folder>("folders");
         query.sort<Mail::Date>();
         query.setFlags(Query::LiveQuery);
         query.request<Mail::Unread>();
@@ -747,7 +747,61 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
         QTRY_COMPARE(model->rowCount(), 1);
         auto mail = model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>();
-        QCOMPARE(mail->getUnread(), true);
+        QTRY_COMPARE(mail->getUnread(), true);
+        QCOMPARE(mail->getProperty("count").toInt(), 1);
+        QCOMPARE(mail->getProperty("folders").toList().size(), 1);
+    }
+
+    void testReductionUpdate()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto folder2 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        QDateTime now{QDate{2017, 2, 3}, QTime{10, 0, 0}};
+        QDateTime later{QDate{2017, 2, 3}, QTime{11, 0, 0}};
+
+        auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail1.setExtractedMessageId("mail1");
+        mail1.setFolder(folder1);
+        mail1.setUnread(false);
+        mail1.setExtractedDate(now);
+        VERIFYEXEC(Sink::Store::create(mail1));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        query.setId("testLivequeryUnmatch");
+        query.setFlags(Query::LiveQuery);
+        query.filter<Mail::Folder>(folder1);
+        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Folder>("folders");
+        query.sort<Mail::Date>();
+        query.request<Mail::Unread>();
+        query.request<Mail::MessageId>();
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+
+        //The leader should change to mail2 after the modification
+        {
+            auto mail2 = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail2.setExtractedMessageId("mail2");
+            mail2.setFolder(folder1);
+            mail2.setUnread(false);
+            mail2.setExtractedDate(later);
+            VERIFYEXEC(Sink::Store::create(mail2));
+        }
+
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 1);
+        auto mail = model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>();
+        QTRY_COMPARE(mail->getMessageId(), QByteArray{"mail2"});
+        QCOMPARE(mail->getProperty("count").toInt(), 2);
+        QCOMPARE(mail->getProperty("folders").toList().size(), 2);
     }
 
     void testBloom()

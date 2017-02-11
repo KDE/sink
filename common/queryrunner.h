@@ -24,6 +24,7 @@
 #include "resultprovider.h"
 #include "query.h"
 #include "log.h"
+#include "datastorequery.h"
 
 /**
  * Base clase because you can't have the Q_OBJECT macro in template classes
@@ -101,4 +102,7 @@ private:
     int mBatchSize;
     QObject guard;
     Sink::Log::Context mLogCtx;
+    DataStoreQuery::State::Ptr mQueryState;
+    bool mInitialQueryComplete = false;
+    bool mQueryInProgress = false;
 };
