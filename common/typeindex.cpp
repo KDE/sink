@@ -72,9 +72,13 @@ QByteArray TypeIndex::indexName(const QByteArray &property, const QByteArray &so
 template <>
 void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 {
-    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
+    auto indexer = [this, property](bool add, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
         // SinkTraceCtx(mLogCtx) << "Indexing " << mType + ".index." + property << value.toByteArray();
-        Index(indexName(property), transaction).add(getByteArray(value), identifier);
+        if (add) {
+            Index(indexName(property), transaction).add(getByteArray(value), identifier);
+        } else {
+            Index(indexName(property), transaction).remove(getByteArray(value), identifier);
+        }
     };
     mIndexer.insert(property, indexer);
     mProperties << property;
@@ -83,9 +87,13 @@ void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 template <>
 void TypeIndex::addProperty<QString>(const QByteArray &property)
 {
-    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
+    auto indexer = [this, property](bool add, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
         // SinkTraceCtx(mLogCtx) << "Indexing " << mType + ".index." + property << value.toByteArray();
-        Index(indexName(property), transaction).add(getByteArray(value), identifier);
+        if (add) {
+            Index(indexName(property), transaction).add(getByteArray(value), identifier);
+        } else {
+            Index(indexName(property), transaction).remove(getByteArray(value), identifier);
+        }
     };
     mIndexer.insert(property, indexer);
     mProperties << property;
@@ -94,9 +102,13 @@ void TypeIndex::addProperty<QString>(const QByteArray &property)
 template <>
 void TypeIndex::addProperty<QDateTime>(const QByteArray &property)
 {
-    auto indexer = [this, property](const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
+    auto indexer = [this, property](bool add, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
         //SinkTraceCtx(mLogCtx) << "Indexing " << mType + ".index." + property << getByteArray(value);
-        Index(indexName(property), transaction).add(getByteArray(value), identifier);
+        if (add) {
+            Index(indexName(property), transaction).add(getByteArray(value), identifier);
+        } else {
+            Index(indexName(property), transaction).remove(getByteArray(value), identifier);
+        }
     };
     mIndexer.insert(property, indexer);
     mProperties << property;
@@ -111,10 +123,15 @@ void TypeIndex::addProperty<ApplicationDomain::Reference>(const QByteArray &prop
 template <>
 void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &property, const QByteArray &sortProperty)
 {
-    auto indexer = [=](const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction) {
+    auto indexer = [=](bool add, const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction) {
         const auto date = sortValue.toDateTime();
         const auto propertyValue = getByteArray(value);
-        Index(indexName(property, sortProperty), transaction).add(propertyValue + toSortableByteArray(date), identifier);
+        SinkWarning() << "Adding sorted value " << indexName(property, sortProperty);
+        if (add) {
+            Index(indexName(property, sortProperty), transaction).add(propertyValue + toSortableByteArray(date), identifier);
+        } else {
+            Index(indexName(property, sortProperty), transaction).remove(propertyValue + toSortableByteArray(date), identifier);
+        }
     };
     mSortIndexer.insert(property + sortProperty, indexer);
     mSortedProperties.insert(property, sortProperty);
@@ -126,45 +143,38 @@ void TypeIndex::addPropertyWithSorting<ApplicationDomain::Reference, QDateTime>(
     addPropertyWithSorting<QByteArray, QDateTime>(property, sortProperty);
 }
 
-void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
+void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
 {
-    SinkTrace() << "add " << identifier;
     for (const auto &property : mProperties) {
         const auto value = entity.getProperty(property);
         auto indexer = mIndexer.value(property);
-        indexer(identifier, value, transaction);
+        indexer(add, identifier, value, transaction);
     }
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
         const auto value = entity.getProperty(it.key());
         const auto sortValue = entity.getProperty(it.value());
         auto indexer = mSortIndexer.value(it.key() + it.value());
-        indexer(identifier, value, sortValue, transaction);
+        indexer(add, identifier, value, sortValue, transaction);
     }
     for (const auto &indexer : mCustomIndexer) {
         indexer->setup(this, &transaction);
-        indexer->add(entity);
+        if (add) {
+            indexer->add(entity);
+        } else {
+            indexer->remove(entity);
+        }
     }
+
+}
+
+void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
+{
+    updateIndex(true, identifier, entity, transaction);
 }
 
 void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
 {
-    for (const auto &property : mProperties) {
-        const auto value = entity.getProperty(property);
-        Index(indexName(property), transaction).remove(getByteArray(value), identifier);
-    }
-    for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
-        const auto propertyValue = entity.getProperty(it.key());
-        const auto sortValue = entity.getProperty(it.value());
-        if (sortValue.type() == QVariant::DateTime) {
-            Index(indexName(it.key(), it.value()), transaction).remove(propertyValue.toByteArray() + toSortableByteArray(sortValue.toDateTime()), identifier);
-        } else {
-            Index(indexName(it.key(), it.value()), transaction).remove(propertyValue.toByteArray() + sortValue.toByteArray(), identifier);
-        }
-    }
-    for (const auto &indexer : mCustomIndexer) {
-        indexer->setup(this, &transaction);
-        indexer->remove(entity);
-    }
+    updateIndex(false, identifier, entity, transaction);
 }
 
 static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filter)

@@ -195,7 +195,11 @@ void DataStore::NamedDatabase::remove(const QByteArray &k, const QByteArray &val
     }
 
     if (rc) {
-        Error error(d->name.toLatin1() + d->db, ErrorCodes::GenericError, QString("Error on mdb_del: %1 %2").arg(rc).arg(mdb_strerror(rc)).toLatin1());
+        auto errorCode = ErrorCodes::GenericError;
+        if (rc == MDB_NOTFOUND) {
+            errorCode = ErrorCodes::NotFound;
+        }
+        Error error(d->name.toLatin1() + d->db, errorCode, QString("Error on mdb_del: %1 %2").arg(rc).arg(mdb_strerror(rc)).toLatin1());
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     }
 }
