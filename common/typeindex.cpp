@@ -126,7 +126,6 @@ void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &
     auto indexer = [=](bool add, const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction) {
         const auto date = sortValue.toDateTime();
         const auto propertyValue = getByteArray(value);
-        SinkWarning() << "Adding sorted value " << indexName(property, sortProperty);
         if (add) {
             Index(indexName(property, sortProperty), transaction).add(propertyValue + toSortableByteArray(date), identifier);
         } else {
