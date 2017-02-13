@@ -61,6 +61,32 @@ QByteArray baIfAvailable(const QStringList &list)
     return list.first().toUtf8();
 }
 
+QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o, bool compact, const QByteArrayList &toPrint)
+{
+    QStringList line;
+    line << compressId(compact, o.resourceInstanceIdentifier());
+    line << compressId(compact, o.identifier());
+    for (const auto &prop: toPrint) {
+        const auto value = o.getProperty(prop);
+        if (value.isValid()) {
+            if (value.canConvert<Sink::ApplicationDomain::Reference>()) {
+                line << compressId(compact, value.toByteArray());
+            } else if (value.canConvert<QString>()) {
+                line << value.toString();
+            } else if (value.canConvert<QByteArray>()) {
+                line << value.toByteArray();
+            } else if (value.canConvert<QByteArrayList>()) {
+                line << value.value<QByteArrayList>().join(", ");
+            } else {
+                line << QString("Unprintable type: %1").arg(value.typeName());
+            }
+        } else {
+            line << QString{};
+        }
+    }
+    return line;
+}
+
 bool list(const QStringList &args_, State &state)
 {
     if (args_.isEmpty()) {
@@ -71,6 +97,8 @@ bool list(const QStringList &args_, State &state)
     auto options = SyntaxTree::parseOptions(args_);
 
     auto type = options.positionalArguments.isEmpty() ? QString{} : options.positionalArguments.first();
+
+    bool asLine = true;
 
     Sink::Query query;
     query.setId("list");
@@ -97,48 +125,39 @@ bool list(const QStringList &args_, State &state)
         } else {
             query.requestedProperties = SinkshUtils::requestedProperties(type);
         }
+    } else {
+        asLine = false;
     }
 
-    QStringList tableLine;
     QByteArrayList toPrint;
+    QStringList tableLine;
 
     for (const auto &o : SinkshUtils::getStore(type).read(query)) {
         if (tableLine.isEmpty()) {
             tableLine << QObject::tr("Resource") << QObject::tr("Identifier");
             if (query.requestedProperties.isEmpty()) {
-                auto in = o.availableProperties();
                 toPrint = o.availableProperties();
-                std::transform(in.constBegin(), in.constEnd(), std::back_inserter(tableLine), [] (const QByteArray &s) -> QString { return s; });
+                std::sort(toPrint.begin(), toPrint.end());
             } else {
-                auto in = query.requestedProperties;
                 toPrint = query.requestedProperties;
+                std::sort(toPrint.begin(), toPrint.end());
+            }
+            if (asLine) {
+                auto in = toPrint;
                 std::transform(in.constBegin(), in.constEnd(), std::back_inserter(tableLine), [] (const QByteArray &s) -> QString { return s; });
-            }
-            state.stageTableLine(tableLine);
-        }
-
-        QStringList line;
-        line << compressId(compact, o.resourceInstanceIdentifier());
-        line << compressId(compact, o.identifier());
-        for (const auto &prop: toPrint) {
-            const auto value = o.getProperty(prop);
-            if (value.isValid()) {
-                if (value.canConvert<Sink::ApplicationDomain::Reference>()) {
-                    line << compressId(compact, value.toByteArray());
-                } else if (value.canConvert<QString>()) {
-                    line << value.toString();
-                } else if (value.canConvert<QByteArray>()) {
-                    line << value.toByteArray();
-                } else if (value.canConvert<QByteArrayList>()) {
-                    line << value.value<QByteArrayList>().join(", ");
-                } else {
-                    line << QString("Unprintable type: %1").arg(value.typeName());
-                }
-            } else {
-                line << QString{};
+                state.stageTableLine(tableLine);
             }
         }
-        state.stageTableLine(line);
+        if (asLine) {
+            state.stageTableLine(printToList(o, compact, toPrint));
+        } else {
+            auto list = printToList(o, compact, toPrint);
+            state.stageTableLine(QStringList() << "Resource: " << list.value(0));
+            state.stageTableLine(QStringList() << "Identifier: " << list.value(1));
+            for (int i = 0; i < (list.size() - 2); i++) {
+                state.stageTableLine(QStringList() << toPrint.value(i) << list.value(i + 2));
+            }
+        }
     }
     state.flushTable();
     state.commandFinished();
