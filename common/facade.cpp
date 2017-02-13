@@ -110,10 +110,9 @@ QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> 
     return qMakePair(KAsync::null<void>(), runner->emitter());
 }
 
+#define REGISTER_TYPE(T) \
+    template class Sink::GenericFacade<T>; \
 
-template class Sink::GenericFacade<Sink::ApplicationDomain::Contact>;
-template class Sink::GenericFacade<Sink::ApplicationDomain::Folder>;
-template class Sink::GenericFacade<Sink::ApplicationDomain::Mail>;
-template class Sink::GenericFacade<Sink::ApplicationDomain::Event>;
+SINK_REGISTER_TYPES()
 
 #include "facade.moc"
