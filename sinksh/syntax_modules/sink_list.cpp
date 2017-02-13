@@ -151,12 +151,14 @@ bool list(const QStringList &args_, State &state)
         if (asLine) {
             state.stageTableLine(printToList(o, compact, toPrint));
         } else {
+            state.stageTableLine(QStringList());
             auto list = printToList(o, compact, toPrint);
             state.stageTableLine(QStringList() << "Resource: " << list.value(0));
             state.stageTableLine(QStringList() << "Identifier: " << list.value(1));
             for (int i = 0; i < (list.size() - 2); i++) {
                 state.stageTableLine(QStringList() << toPrint.value(i) << list.value(i + 2));
             }
+            state.flushTable();
         }
     }
     state.flushTable();
