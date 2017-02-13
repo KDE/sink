@@ -288,16 +288,23 @@ public:
 
                         //TODO if old and new are the same a modification would be enough
                         auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
-                        //remove old result
-                        readEntity(oldSelectionResult, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
-                            callback({entity, Sink::Operation_Removal});
-                        });
+                        if (oldSelectionResult == selectionResult) {
+                            mSelectedValues.insert(reductionValueBa, selectionResult);
+                            readEntity(selectionResult, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
+                                callback({entity, Sink::Operation_Modification, aggregateValues});
+                            });
+                        } else {
+                            //remove old result
+                            readEntity(oldSelectionResult, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
+                                callback({entity, Sink::Operation_Removal});
+                            });
 
-                        //add new result
-                        mSelectedValues.insert(reductionValueBa, selectionResult);
-                        readEntity(selectionResult, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
-                            callback({entity, Sink::Operation_Creation, aggregateValues});
-                        });
+                            //add new result
+                            mSelectedValues.insert(reductionValueBa, selectionResult);
+                            readEntity(selectionResult, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
+                                callback({entity, Sink::Operation_Creation, aggregateValues});
+                            });
+                        }
                     }
                 }
                 return false;

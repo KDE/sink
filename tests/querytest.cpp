@@ -933,6 +933,115 @@ private slots:
         QCOMPARE(layoutChangedSpy.size(), 0);
         QCOMPARE(resetSpy.size(), 0);
     }
+
+    void testLivequeryThreadleaderChange()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto folder2 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        QDateTime earlier{QDate{2017, 2, 3}, QTime{9, 0, 0}};
+        QDateTime now{QDate{2017, 2, 3}, QTime{10, 0, 0}};
+        QDateTime later{QDate{2017, 2, 3}, QTime{11, 0, 0}};
+
+        auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail1.setExtractedMessageId("mail1");
+        mail1.setFolder(folder1);
+        mail1.setExtractedDate(now);
+        VERIFYEXEC(Sink::Store::create(mail1));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        query.setId("testLivequeryThreadleaderChange");
+        query.setFlags(Query::LiveQuery);
+        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Folder>("folders");
+        query.sort<Mail::Date>();
+        query.request<Mail::MessageId>();
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
+
+        QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
+        QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
+        QSignalSpy changedSpy(model.data(), &QAbstractItemModel::dataChanged);
+        QSignalSpy layoutChangedSpy(model.data(), &QAbstractItemModel::layoutChanged);
+        QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
+
+        //The leader shouldn't change to mail2 after the modification
+        {
+            auto mail2 = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail2.setExtractedMessageId("mail2");
+            mail2.setFolder(folder1);
+            mail2.setExtractedDate(earlier);
+            VERIFYEXEC(Sink::Store::create(mail2));
+        }
+
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 1);
+        {
+            auto mail = model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>();
+            QTRY_COMPARE(mail->getMessageId(), QByteArray{"mail1"});
+            QTRY_COMPARE(mail->getProperty("count").toInt(), 2);
+            QCOMPARE(mail->getProperty("folders").toList().size(), 2);
+        }
+
+
+        QCOMPARE(insertedSpy.size(), 0);
+        QCOMPARE(removedSpy.size(), 0);
+        QCOMPARE(changedSpy.size(), 1);
+        QCOMPARE(layoutChangedSpy.size(), 0);
+        QCOMPARE(resetSpy.size(), 0);
+
+        //The leader should change to mail3 after the modification
+        {
+            auto mail3 = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail3.setExtractedMessageId("mail3");
+            mail3.setFolder(folder1);
+            mail3.setExtractedDate(later);
+            VERIFYEXEC(Sink::Store::create(mail3));
+        }
+
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 1);
+        {
+            auto mail = model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>();
+            QTRY_COMPARE(mail->getMessageId(), QByteArray{"mail3"});
+            QCOMPARE(mail->getProperty("count").toInt(), 3);
+            QCOMPARE(mail->getProperty("folders").toList().size(), 3);
+        }
+
+        //This should eventually be just one modification instead of remove + add (See datastorequery reduce component)
+        QCOMPARE(insertedSpy.size(), 1);
+        QCOMPARE(removedSpy.size(), 1);
+        QCOMPARE(changedSpy.size(), 1);
+        QCOMPARE(layoutChangedSpy.size(), 0);
+        QCOMPARE(resetSpy.size(), 0);
+
+        //Nothing should change on third mail in separate folder
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setExtractedMessageId("mail4");
+            mail.setFolder(folder2);
+            mail.setExtractedDate(now);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 2);
+
+        //This should eventually be just one modification instead of remove + add (See datastorequery reduce component)
+        QCOMPARE(insertedSpy.size(), 2);
+        QCOMPARE(removedSpy.size(), 1);
+        QCOMPARE(changedSpy.size(), 1);
+        QCOMPARE(layoutChangedSpy.size(), 0);
+        QCOMPARE(resetSpy.size(), 0);
+    }
 };
 
 QTEST_MAIN(QueryTest)
