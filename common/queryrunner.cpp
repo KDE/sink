@@ -120,6 +120,10 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                 fetcher({});
                 return KAsync::null();
             }
+            if (mQueryInProgress) {
+                //Can happen if the revision come in quicker than we process them.
+                return KAsync::null();
+            }
             Q_ASSERT(!mQueryInProgress);
             return KAsync::syncStart<void>([&] {
                     mQueryInProgress = true;
