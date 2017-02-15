@@ -384,14 +384,10 @@ QByteArrayList getTypeNames()
 {
     static QByteArrayList types;
     if (types.isEmpty()) {
-        types << ApplicationDomain::getTypeName<SinkResource>();
-        types << ApplicationDomain::getTypeName<SinkAccount>();
-        types << ApplicationDomain::getTypeName<Identity>();
-        types << ApplicationDomain::getTypeName<Mail>();
-        types << ApplicationDomain::getTypeName<Folder>();
-        types << ApplicationDomain::getTypeName<Event>();
-        types << ApplicationDomain::getTypeName<Todo>();
-        types << ApplicationDomain::getTypeName<Contact>();
+#define REGISTER_TYPE(TYPE) \
+        types << ApplicationDomain::getTypeName<TYPE>();
+SINK_REGISTER_TYPES()
+#undef REGISTER_TYPE
     }
     return types;
 }

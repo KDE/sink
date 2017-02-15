@@ -36,31 +36,15 @@ StoreBase &getStore(const QString &type)
 {
     using namespace Sink::ApplicationDomain;
 
-    if (type == getTypeName<Folder>()) {
-        static Store<Folder> store;
-        return store;
-    } else if (type == getTypeName<Mail>()) {
-        static Store<Mail> store;
-        return store;
-    } else if (type == getTypeName<Event>()) {
-        static Store<Event> store;
-        return store;
-    } else if (type == getTypeName<SinkResource>()) {
-        static Store<SinkResource> store;
-        return store;
-    } else if (type == getTypeName<SinkAccount>()) {
-        static Store<SinkAccount> store;
-        return store;
-    } else if (type == getTypeName<Identity>()) {
-        static Store<Identity> store;
-        return store;
-    } else if (type == getTypeName<Contact>()) {
-        static Store<Contact> store;
-        return store;
-    }
+#define REGISTER_TYPE(TYPE) \
+        if (type == getTypeName<TYPE>()) { static Store<TYPE> store; return store; } else
+SINK_REGISTER_TYPES()
+#undef REGISTER_TYPE
+        {
+            SinkWarning_("", "") << "Trying to get a store that doesn't exist: " << type;
+            Q_ASSERT(false);
+        }
 
-    SinkWarning_("", "") << "Trying to get a store that doesn't exist: " << type;
-    Q_ASSERT(false);
     static DummyStore store;
     return store;
 }

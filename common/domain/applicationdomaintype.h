@@ -519,35 +519,27 @@ class SINK_EXPORT TypeImplementation;
  * This macro can be used to instantiate templates for all domain types.
  */
 #define SINK_REGISTER_TYPES() \
-    REGISTER_TYPE(Sink::ApplicationDomain::Contact); \
-    REGISTER_TYPE(Sink::ApplicationDomain::Event); \
-    REGISTER_TYPE(Sink::ApplicationDomain::Mail); \
-    REGISTER_TYPE(Sink::ApplicationDomain::Folder); \
-    REGISTER_TYPE(Sink::ApplicationDomain::SinkResource); \
-    REGISTER_TYPE(Sink::ApplicationDomain::SinkAccount); \
-    REGISTER_TYPE(Sink::ApplicationDomain::Identity); \
+    REGISTER_TYPE(Sink::ApplicationDomain::Contact) \
+    REGISTER_TYPE(Sink::ApplicationDomain::Event) \
+    REGISTER_TYPE(Sink::ApplicationDomain::Mail) \
+    REGISTER_TYPE(Sink::ApplicationDomain::Folder) \
+    REGISTER_TYPE(Sink::ApplicationDomain::SinkResource) \
+    REGISTER_TYPE(Sink::ApplicationDomain::SinkAccount) \
+    REGISTER_TYPE(Sink::ApplicationDomain::Identity) \
 
 SINK_EXPORT QDataStream &operator<<(QDataStream &out, const Sink::ApplicationDomain::Reference &reference);
 SINK_EXPORT QDataStream &operator>>(QDataStream &in, Sink::ApplicationDomain::Reference &reference);
+
+#define REGISTER_TYPE(TYPE) \
+    Q_DECLARE_METATYPE(TYPE) \
+    Q_DECLARE_METATYPE(TYPE::Ptr)
+SINK_REGISTER_TYPES()
+#undef REGISTER_TYPE
 
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Entity)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Entity::Ptr)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::Contact)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::Contact::Ptr)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::Event)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::Event::Ptr)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::Mail)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::Mail::Ptr)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::Folder)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::Folder::Ptr)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkResource)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkResource::Ptr)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkAccount)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::SinkAccount::Ptr)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::Identity)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::Identity::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Mail::Contact)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Error)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Progress)
