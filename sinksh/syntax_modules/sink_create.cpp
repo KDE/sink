@@ -25,12 +25,11 @@
 
 #include "common/resource.h"
 #include "common/storage.h"
-#include "common/domain/event.h"
-#include "common/domain/folder.h"
 #include "common/resourceconfig.h"
 #include "common/log.h"
 #include "common/storage.h"
 #include "common/definitions.h"
+#include "common/propertyparser.h"
 
 #include "sinksh_utils.h"
 #include "state.h"
@@ -62,7 +61,8 @@ bool create(const QStringList &allArgs, State &state)
 
     auto map = SinkshUtils::keyValueMapFromArgs(args);
     for (auto i = map.begin(); i != map.end(); ++i) {
-        object->setProperty(i.key().toLatin1(), i.value());
+        const auto property = i.key().toLatin1();
+        object->setProperty(property, Sink::PropertyParser::parse(type.toLatin1(), property, i.value()));
     }
 
     auto result = store.create(*object).exec();

@@ -60,6 +60,7 @@ set(command_SRCS
     resourceconfig.cpp
     configstore.cpp
     resultset.cpp
+    domain/propertyregistry.cpp
     domain/applicationdomaintype.cpp
     domain/contact.cpp
     domain/event.cpp
@@ -81,6 +82,7 @@ set(command_SRCS
     notification.cpp
     commandprocessor.cpp
     inspector.cpp
+    propertyparser.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

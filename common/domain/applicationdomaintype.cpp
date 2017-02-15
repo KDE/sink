@@ -62,6 +62,7 @@ SINK_REGISTER_PROPERTY(Folder, Name);
 SINK_REGISTER_PROPERTY(Folder, Icon);
 SINK_REGISTER_PROPERTY(Folder, SpecialPurpose);
 SINK_REGISTER_PROPERTY(Folder, Enabled);
+SINK_REGISTER_PROPERTY(Folder, Parent);
 
 static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();

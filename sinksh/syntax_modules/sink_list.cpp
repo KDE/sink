@@ -25,13 +25,12 @@
 
 #include "common/resource.h"
 #include "common/storage.h"
-#include "common/domain/event.h"
-#include "common/domain/folder.h"
 #include "common/resourceconfig.h"
 #include "common/log.h"
 #include "common/storage.h"
 #include "common/definitions.h"
 #include "common/store.h"
+#include "common/propertyparser.h"
 
 #include "sinksh_utils.h"
 #include "state.h"
@@ -109,7 +108,8 @@ bool list(const QStringList &args_, State &state)
     if (options.options.contains("filter")) {
         for (const auto &f : options.options.value("filter")) {
             auto filter = f.split("=");
-            query.filter(filter.at(0).toLatin1(), QVariant::fromValue(Sink::ApplicationDomain::Reference{filter.at(1).toLatin1()}));
+            const auto property = filter.value(0).toLatin1();
+            query.filter(property, Sink::PropertyParser::parse(type.toLatin1(), property, filter.value(1)));
         }
     }
     if (options.options.contains("id")) {
