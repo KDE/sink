@@ -69,7 +69,7 @@ class MailQueryBenchmark : public QObject
         const auto date = QDateTime::currentDateTimeUtc();
         for (int i = 0; i < count; i++) {
             auto domainObject = Mail::Ptr::create();
-            domainObject->setUid("uid");
+            domainObject->setExtractedMessageId("uid");
             domainObject->setExtractedSubject(QString("subject%1").arg(i));
             domainObject->setExtractedDate(date.addSecs(count));
             domainObject->setFolder("folder1");
@@ -151,7 +151,7 @@ private slots:
     void test50k()
     {
         Sink::Query query;
-        query.request<Mail::Uid>()
+        query.request<Mail::MessageId>()
              .request<Mail::Subject>()
              .request<Mail::Date>();
         query.sort<Mail::Date>();

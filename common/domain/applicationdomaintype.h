@@ -370,7 +370,6 @@ struct SINK_EXPORT Mail : public Entity {
     };
 
     SINK_ENTITY(Mail);
-    SINK_PROPERTY(QString, Uid, uid);
     SINK_EXTRACTED_PROPERTY(Contact, Sender, sender);
     SINK_EXTRACTED_PROPERTY(QList<Contact>, To, to);
     SINK_EXTRACTED_PROPERTY(QList<Contact>, Cc, cc);

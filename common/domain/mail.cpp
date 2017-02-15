@@ -36,7 +36,6 @@ using namespace Sink::ApplicationDomain;
 
 void TypeImplementation<Mail>::configure(TypeIndex &index)
 {
-    index.addProperty<Mail::Uid>();
     // index.addProperty<Mail::Sender>();
     /* index.addProperty<QByteArray>(Mail::SenderName::name); */
     /* index->addProperty<QString>(Mail::Subject::name); */
@@ -66,7 +65,6 @@ void TypeImplementation<Mail>::configure(IndexPropertyMapper &indexPropertyMappe
 
 void TypeImplementation<Mail>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
 {
-    propertyMapper.addMapping<Mail::Uid, Buffer>(&Buffer::uid);
     propertyMapper.addMapping<Mail::Sender, Buffer>(&Buffer::sender);
     propertyMapper.addMapping<Mail::To, Buffer>(&Buffer::to);
     propertyMapper.addMapping<Mail::Cc, Buffer>(&Buffer::cc);
@@ -87,7 +85,6 @@ void TypeImplementation<Mail>::configure(ReadPropertyMapper<Buffer> &propertyMap
 
 void TypeImplementation<Mail>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
 {
-    propertyMapper.addMapping<Mail::Uid>(&BufferBuilder::add_uid);
     propertyMapper.addMapping<Mail::Sender>(&BufferBuilder::add_sender);
     propertyMapper.addMapping<Mail::To>(&BufferBuilder::add_to);
     propertyMapper.addMapping<Mail::Cc>(&BufferBuilder::add_cc);

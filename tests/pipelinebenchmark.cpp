@@ -73,7 +73,7 @@ class PipelineBenchmark : public QObject
         const auto date = QDateTime::currentDateTimeUtc();
         for (int i = 0; i < count; i++) {
             auto domainObject = Sink::ApplicationDomain::Mail::Ptr::create();
-            domainObject->setUid("uid");
+            domainObject->setExtractedMessageId("uid");
             domainObject->setExtractedSubject(QString("subject%1").arg(i));
             domainObject->setExtractedDate(date.addSecs(count));
             domainObject->setFolder("folder1");
