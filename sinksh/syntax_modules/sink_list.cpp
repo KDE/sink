@@ -70,6 +70,8 @@ QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o,
         if (value.isValid()) {
             if (value.canConvert<Sink::ApplicationDomain::Reference>()) {
                 line << compressId(compact, value.toByteArray());
+            } else if (value.canConvert<Sink::ApplicationDomain::BLOB>()) {
+                line << value.value<Sink::ApplicationDomain::BLOB>().value;
             } else if (value.canConvert<QString>()) {
                 line << value.toString();
             } else if (value.canConvert<QByteArray>()) {
@@ -104,6 +106,11 @@ bool list(const QStringList &args_, State &state)
     if (!SinkshUtils::applyFilter(query, options)) {
         state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--showall|--show $property]"));
         return false;
+    }
+    if (options.options.contains("resource")) {
+        for (const auto &f : options.options.value("resource")) {
+            query.resourceFilter(f.toLatin1());
+        }
     }
     if (options.options.contains("filter")) {
         for (const auto &f : options.options.value("filter")) {
