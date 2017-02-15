@@ -21,16 +21,47 @@
 #include "log.h"
 #include "../bufferadaptor.h"
 #include "definitions.h"
+#include "propertyregistry.h"
 #include "storage.h" //for generateUid()
 #include <QFile>
 
 SINK_DEBUG_AREA("applicationdomaintype");
 
+template <typename DomainType, typename Property>
+int registerProperty() {
+    Sink::Private::PropertyRegistry::instance().registerProperty<Property>(Sink::ApplicationDomain::getTypeName<DomainType>());
+    return 0;
+}
+
+#define SINK_REGISTER_PROPERTY(ENTITYTYPE, PROPERTY) \
+    constexpr const char *ENTITYTYPE::PROPERTY::name; \
+    static int foo##ENTITYTYPE##PROPERTY = registerProperty<ENTITYTYPE, ENTITYTYPE::PROPERTY>();
+
 namespace Sink {
 namespace ApplicationDomain {
 
-constexpr const char *Mail::ThreadId::name;
-constexpr const char *Mail::Folder::name;
+SINK_REGISTER_PROPERTY(Mail, Sender);
+SINK_REGISTER_PROPERTY(Mail, To);
+SINK_REGISTER_PROPERTY(Mail, Cc);
+SINK_REGISTER_PROPERTY(Mail, Bcc);
+SINK_REGISTER_PROPERTY(Mail, Subject);
+SINK_REGISTER_PROPERTY(Mail, Date);
+SINK_REGISTER_PROPERTY(Mail, Unread);
+SINK_REGISTER_PROPERTY(Mail, Important);
+SINK_REGISTER_PROPERTY(Mail, Folder);
+SINK_REGISTER_PROPERTY(Mail, MimeMessage);
+SINK_REGISTER_PROPERTY(Mail, FullPayloadAvailable);
+SINK_REGISTER_PROPERTY(Mail, Draft);
+SINK_REGISTER_PROPERTY(Mail, Trash);
+SINK_REGISTER_PROPERTY(Mail, Sent);
+SINK_REGISTER_PROPERTY(Mail, MessageId);
+SINK_REGISTER_PROPERTY(Mail, ParentMessageId);
+SINK_REGISTER_PROPERTY(Mail, ThreadId);
+
+SINK_REGISTER_PROPERTY(Folder, Name);
+SINK_REGISTER_PROPERTY(Folder, Icon);
+SINK_REGISTER_PROPERTY(Folder, SpecialPurpose);
+SINK_REGISTER_PROPERTY(Folder, Enabled);
 
 static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();
