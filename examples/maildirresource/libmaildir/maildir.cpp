@@ -120,6 +120,21 @@ public:
         if (QFile::exists(path + QString::fromLatin1("/new/") + key)) {
           return path + QString::fromLatin1("/new/") + key;
         }
+        {
+            QDir dir(path + QString::fromLatin1("/cur/"));
+            const QFileInfoList list = dir.entryInfoList(QStringList() << (key+"*"), QDir::Files);
+            if (!list.isEmpty()) {
+                return list.first().filePath();
+            }
+        }
+
+        {
+            QDir dir(path + QString::fromLatin1("/new/"));
+            const QFileInfoList list = dir.entryInfoList(QStringList() << (key+"*"), QDir::Files);
+            if (!list.isEmpty()) {
+                return list.first().filePath();
+            }
+        }
 
         return QString();
     }
