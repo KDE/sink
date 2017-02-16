@@ -27,6 +27,38 @@
 
 SINK_DEBUG_AREA("applicationdomaintype");
 
+QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::Mail::Contact &c)
+{
+    d << "Contact(" << c.name << ", " << c.emailAddress << ")";
+    return d;
+}
+
+QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::ApplicationDomainType &type)
+{
+    d << "ApplicationDomainType(\n";
+    auto properties = type.mAdaptor->availableProperties();
+    std::sort(properties.begin(), properties.end());
+    d << " " << "Id: " << "\t" << type.identifier() << "\n";
+    d << " " << "Resource: " << "\t" << type.resourceInstanceIdentifier() << "\n";
+    for (const auto &property : properties) {
+        d << " " << property << "\t" << type.getProperty(property) << "\n";
+    }
+    d << ")";
+    return d;
+}
+
+QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::Reference &ref)
+{
+    d << ref.value;
+    return d;
+}
+
+QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::BLOB &blob)
+{
+    d << blob.value << "external:" << blob.isExternal ;
+    return d;
+}
+
 template <typename DomainType, typename Property>
 int registerProperty() {
     Sink::Private::PropertyRegistry::instance().registerProperty<Property>(Sink::ApplicationDomain::getTypeName<DomainType>());

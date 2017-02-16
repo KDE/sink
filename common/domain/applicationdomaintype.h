@@ -262,27 +262,9 @@ inline bool operator==(const ApplicationDomainType& lhs, const ApplicationDomain
             && lhs.resourceInstanceIdentifier() == rhs.resourceInstanceIdentifier();
 }
 
-inline QDebug operator<< (QDebug d, const ApplicationDomainType &type)
-{
-    d << "ApplicationDomainType(\n";
-    for (const auto &property : type.mAdaptor->availableProperties()) {
-        d << " " << property << "\t" << type.getProperty(property) << "\n";
-    }
-    d << ")";
-    return d;
-}
-
-inline QDebug operator<< (QDebug d, const Reference &ref)
-{
-    d << ref.value;
-    return d;
-}
-
-inline QDebug operator<< (QDebug d, const BLOB &blob)
-{
-    d << blob.value << "external:" << blob.isExternal ;
-    return d;
-}
+SINK_EXPORT QDebug operator<< (QDebug d, const ApplicationDomainType &type);
+SINK_EXPORT QDebug operator<< (QDebug d, const Reference &ref);
+SINK_EXPORT QDebug operator<< (QDebug d, const BLOB &blob);
 
 
 struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
@@ -389,12 +371,7 @@ struct SINK_EXPORT Mail : public Entity {
     SINK_INDEX_PROPERTY(QByteArray, ThreadId, threadId);
 };
 
-inline QDebug operator<< (QDebug d, const Mail::Contact &c)
-{
-    d << "Contact(" << c.name << ", " << c.emailAddress << ")";
-    return d;
-}
-
+SINK_EXPORT QDebug operator<< (QDebug d, const Mail::Contact &c);
 
 /**
  * The status of an account or resource.
