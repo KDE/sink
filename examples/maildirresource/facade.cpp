@@ -28,6 +28,7 @@ MaildirResourceMailFacade::MaildirResourceMailFacade(const Sink::ResourceContext
     : Sink::GenericFacade<Sink::ApplicationDomain::Mail>(context)
 {
     mResultTransformation = [](Sink::ApplicationDomain::ApplicationDomainType &value) {
+        Sink::Log::Context ctx{"maildirfacade"};
         if (value.hasProperty(Sink::ApplicationDomain::Mail::MimeMessage::name)) {
             auto mail = Sink::ApplicationDomain::Mail{value};
             const auto mimeMessage = mail.getMimeMessagePath();
@@ -37,11 +38,11 @@ MaildirResourceMailFacade::MaildirResourceMailFacade(const Sink::ResourceContext
             const auto folderPath = parts.join('/');
             const auto path =  folderPath + "/cur/";
 
-            SinkTrace_("", "maildirfacade") << "Looking for mail in: " << path << key;
+            SinkTraceCtx(ctx) << "Looking for mail in: " << path << key;
             QDir dir(path);
             const QFileInfoList list = dir.entryInfoList(QStringList() << (key+"*"), QDir::Files);
             if (list.size() != 1) {
-                SinkWarning_("", "maildirfacade") << "Failed to find message " << path << key << list.size();
+                SinkErrorCtx(ctx) << "Failed to find message. Directory: " << path << "Key: " << key << "Number of matching files: " << list.size();
                 mail.setProperty(Sink::ApplicationDomain::Mail::MimeMessage::name, QVariant());
             } else {
                 mail.setMimeMessagePath(list.at(0).filePath());

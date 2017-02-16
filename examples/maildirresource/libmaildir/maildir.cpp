@@ -25,6 +25,9 @@
 #include <QFileInfo>
 #include <QHostInfo>
 #include <QUuid>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(log, "maildir");
 
 #include <time.h>
 #include <unistd.h>
@@ -108,7 +111,7 @@ public:
     QString findRealKey(const QString& key) const
     {
         if (key.isEmpty()) {
-            qWarning() << "Empty key: " << key;
+            qCWarning(log) << "Empty key: " << key;
             return key;
         }
         if (QFile::exists(path + QString::fromLatin1("/cur/") + key)) {
@@ -142,21 +145,21 @@ public:
     bool moveAndRename(QDir &dest, const QString &newName)
     {
       if (!dest.exists()) {
-        qDebug() << "Destination does not exist";
+        qCDebug(log) << "Destination does not exist";
         return false;
       }
       if (dest.exists(newName) || dest.exists(subDirNameForFolderName(newName))) {
-        qDebug() << "New name already in use";
+        qCDebug(log) << "New name already in use";
         return false;
       }
 
       if (!dest.rename(path, newName)) {
-        qDebug() << "Failed to rename maildir";
+        qCDebug(log) << "Failed to rename maildir";
         return false;
       }
       const QDir subDirs(Maildir::subDirPathForFolderPath(path));
       if (subDirs.exists() && !dest.rename(subDirs.path(), subDirNameForFolderName(newName))) {
-        qDebug() << "Failed to rename subfolders";
+        qCDebug(log) << "Failed to rename subfolders";
         return false;
       }
 
@@ -223,17 +226,17 @@ bool Maildir::Private::accessIsPossible(bool createMissingFolders)
     Q_FOREACH (const QString &p, paths) {
         if (!QFile::exists(p)) {
             if (!createMissingFolders) {
-              qWarning() << QString("Error opening %1; this folder is missing.").arg(p);
+              qCWarning(log) << QString("Error opening %1; this folder is missing.").arg(p);
               return false;
             }
             QDir().mkpath(p);
             if (!QFile::exists(p)) {
-              qWarning() << QString("Error opening %1; this folder is missing.").arg(p);
+              qCWarning(log) << QString("Error opening %1; this folder is missing.").arg(p);
               return false;
             }
         }
         if (!canAccess(p)) {
-            qWarning() <<  QString("Error opening %1; either this is not a valid maildir folder, or you do not have sufficient access permissions.").arg(p);
+            qCWarning(log) <<  QString("Error opening %1; either this is not a valid maildir folder, or you do not have sufficient access permissions.").arg(p);
             return false;
         }
     }
@@ -375,7 +378,7 @@ QStringList Maildir::entryList() const
         result += d->listNew();
         result += d->listCurrent();
     }
-    //  qDebug() <<"Maildir::entryList()" << result;
+    //  qCDebug(log) <<"Maildir::entryList()" << result;
     return result;
 }
 
@@ -453,13 +456,13 @@ QByteArray Maildir::readEntry(const QString& key) const
 
     QString realKey(d->findRealKey(key));
     if (realKey.isEmpty()) {
-        qWarning() << "Maildir::readEntry unable to find: " << key;
+        qCWarning(log) << "Maildir::readEntry unable to find: " << key;
         return result;
     }
 
     QFile f(realKey);
     if (!f.open(QIODevice::ReadOnly)) {
-      qWarning() << QString("Cannot open mail file %1.").arg(realKey);
+      qCWarning(log) << QString("Cannot open mail file %1.").arg(realKey);
       return result;
     }
 
@@ -471,13 +474,13 @@ qint64 Maildir::size(const QString& key) const
 {
     QString realKey(d->findRealKey(key));
     if (realKey.isEmpty()) {
-        qWarning() << "Maildir::size unable to find: " << key;
+        qCWarning(log) << "Maildir::size unable to find: " << key;
         return -1;
     }
 
     QFileInfo info(realKey);
     if (!info.exists()) {
-        qWarning() << "Cannot open mail file:" << realKey;
+        qCWarning(log) << "Cannot open mail file:" << realKey;
         return -1;
     }
 
@@ -488,7 +491,7 @@ QDateTime Maildir::lastModified(const QString& key) const
 {
     const QString realKey(d->findRealKey(key));
     if (realKey.isEmpty()) {
-        qWarning() << "Maildir::lastModified unable to find: " << key;
+        qCWarning(log) << "Maildir::lastModified unable to find: " << key;
         return QDateTime();
     }
 
@@ -506,7 +509,7 @@ void Maildir::importNewMails()
         const QString filePath = QDir::fromNativeSeparators(entryIterator.next());
         QFile file(filePath);
         if (!file.rename(pathToCurrent() +"/" + entryIterator.fileName())) {
-            qWarning() << "Failed to rename the file: " << file.errorString();
+            qCWarning(log) << "Failed to rename the file: " << file.errorString();
         }
     }
 }
@@ -531,7 +534,7 @@ QByteArray Maildir::readEntryHeadersFromFile(const QString& file)
 
     QFile f(file);
     if (!f.open(QIODevice::ReadOnly)) {
-        qWarning() << "Maildir::readEntryHeaders unable to find: " << file;
+        qCWarning(log) << "Maildir::readEntryHeaders unable to find: " << file;
         return result;
     }
     f.map(0, qMin((qint64)8000, f.size()));
@@ -548,7 +551,7 @@ QByteArray Maildir::readEntryHeaders(const QString& key) const
 {
     const QString realKey(d->findRealKey(key));
     if (realKey.isEmpty()) {
-        qWarning() << "Maildir::readEntryHeaders unable to find: " << key;
+        qCWarning(log) << "Maildir::readEntryHeaders unable to find: " << key;
         return QByteArray();
     }
 
@@ -571,7 +574,7 @@ bool Maildir::writeEntry(const QString& key, const QByteArray& data)
 {
     QString realKey(d->findRealKey(key));
     if (realKey.isEmpty()) {
-        qWarning() << "Maildir::writeEntry unable to find: " << key;
+        qCWarning(log) << "Maildir::writeEntry unable to find: " << key;
         return false;
     }
     QFile f(realKey);
@@ -579,7 +582,7 @@ bool Maildir::writeEntry(const QString& key, const QByteArray& data)
     result = result & (f.write(data) != -1);
     f.close();
     if (!result) {
-       qWarning() << "Cannot write to mail file %1." << realKey;
+       qCWarning(log) << "Cannot write to mail file %1." << realKey;
        return false;
     }
     return true;
@@ -604,13 +607,13 @@ QString Maildir::addEntry(const QByteArray& data)
     QFile f(key);
     bool result = f.open(QIODevice::WriteOnly);
     if (!result) {
-       qWarning() << f.errorString();
-       qWarning() << "Cannot write to mail file: " << key;
+       qCWarning(log) << f.errorString();
+       qCWarning(log) << "Cannot write to mail file: " << key;
     }
     result = result & (f.write(data) != -1);
     f.close();
     if (!result) {
-       qWarning() << "Cannot write to mail file: " << key;
+       qCWarning(log) << "Cannot write to mail file: " << key;
        return QString();
     }
     /*
@@ -622,9 +625,9 @@ QString Maildir::addEntry(const QByteArray& data)
      *
      * For reference: http://trolltech.com/developer/task-tracker/index_html?method=entry&id=211215
      */
-    qDebug() << "New entry: " << finalKey;
+    qCDebug(log) << "New entry: " << finalKey;
     if (!f.rename(finalKey)) {
-        qWarning() << "Maildir: Failed to add entry: " << finalKey  << "! Error: " << f.errorString();
+        qCWarning(log) << "Maildir: Failed to add entry: " << finalKey  << "! Error: " << f.errorString();
         return QString();
     }
     return uniqueKey;
@@ -648,13 +651,13 @@ QString Maildir::addEntryFromPath(const QString& path)
 
     QFile f(path);
     if (!f.open(QIODevice::ReadWrite)) {
-       qWarning() << f.errorString();
-       qWarning() << "Cannot open mail file: " << key;
+       qCWarning(log) << f.errorString();
+       qCWarning(log) << "Cannot open mail file: " << key;
        return QString();
     }
 
     if (!f.rename(curKey)) {
-        qWarning() << "Maildir: Failed to add entry: " << curKey  << "! Error: " << f.errorString();
+        qCWarning(log) << "Maildir: Failed to add entry: " << curKey  << "! Error: " << f.errorString();
         return QString();
     }
     return uniqueKey;
@@ -664,12 +667,12 @@ bool Maildir::removeEntry(const QString& key)
 {
     QString realKey(d->findRealKey(key));
     if (realKey.isEmpty()) {
-        qWarning() << "Maildir::removeEntry unable to find: " << key;
+        qCWarning(log) << "Maildir::removeEntry unable to find: " << key;
         return false;
     }
     QFile file(realKey);
     if (!file.remove()) {
-        qWarning() << file.errorString() << file.error();
+        qCWarning(log) << file.errorString() << file.error();
         return false;
     }
     return true;
@@ -678,9 +681,9 @@ bool Maildir::removeEntry(const QString& key)
 QString Maildir::changeEntryFlags(const QString& key, const Maildir::Flags& flags)
 {
     QString realKey(d->findRealKey(key));
-    qWarning() << "Change entiry flags: " << key << realKey;
+    qCWarning(log) << "Change entry flags: " << key << realKey;
     if (realKey.isEmpty()) {
-        qWarning() << "Maildir::changeEntryFlags unable to find: " << key;
+        qCWarning(log) << "Maildir::changeEntryFlags unable to find: " << key << "in " << d->path;
         return QString();
     }
 
@@ -713,7 +716,7 @@ QString Maildir::changeEntryFlags(const QString& key, const Maildir::Flags& flag
 
     if (realKey == finalKey) {
       // Somehow it already is named this way (e.g. migration bug -> wrong status in sink)
-      qWarning() << "File already named that way: " << newUniqueKey << finalKey;
+      qCWarning(log) << "File already named that way: " << newUniqueKey << finalKey;
       return newUniqueKey;
     }
 
@@ -745,10 +748,10 @@ QString Maildir::changeEntryFlags(const QString& key, const Maildir::Flags& flag
     }
 
     if (!f.rename(finalKey)) {
-        qWarning() << "Maildir: Failed to rename entry: " << f.fileName() << " to "  << finalKey  << "! Error: " << f.errorString();
+        qCWarning(log) << "Maildir: Failed to rename entry from: " << f.fileName() << " to "  << finalKey  << "! Error: " << f.errorString();
         return QString();
     }
-    qWarning() << "Renamed file: " << f.fileName() << finalKey;
+    qCDebug(log) << "Renamed file from: " << f.fileName() << " to " << finalKey;
 
     return newUniqueKey;
 }
@@ -815,14 +818,14 @@ QString Maildir::moveEntryTo(const QString &key, const Maildir &destination)
 {
   const QString realKey(d->findRealKey(key));
   if (realKey.isEmpty()) {
-    qWarning() << "Unable to find: " << key;
+    qCWarning(log) << "Unable to find: " << key;
     return QString();
   }
   QFile f(realKey);
   // ### is this safe regarding the maildir locking scheme?
   const QString targetKey = destination.path() + QDir::separator() + QLatin1String("cur") + QDir::separator() + key;
   if (!f.rename(targetKey)) {
-    qWarning() << "Failed to rename" << realKey << "to" << targetKey << "! Error: " << f.errorString();;
+    qCWarning(log) << "Failed to rename" << realKey << "to" << targetKey << "! Error: " << f.errorString();;
     return QString();
   }
 
