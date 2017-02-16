@@ -696,7 +696,7 @@ bool Maildir::removeEntry(const QString& key)
 QString Maildir::changeEntryFlags(const QString& key, const Maildir::Flags& flags)
 {
     QString realKey(d->findRealKey(key));
-    qCWarning(log) << "Change entry flags: " << key << realKey;
+    qCDebug(log) << "Change entry flags: " << key << realKey;
     if (realKey.isEmpty()) {
         qCWarning(log) << "Maildir::changeEntryFlags unable to find: " << key << "in " << d->path;
         return QString();
@@ -731,7 +731,8 @@ QString Maildir::changeEntryFlags(const QString& key, const Maildir::Flags& flag
 
     if (realKey == finalKey) {
       // Somehow it already is named this way (e.g. migration bug -> wrong status in sink)
-      qCWarning(log) << "File already named that way: " << newUniqueKey << finalKey;
+      // We run into this if we pick up flag changes from the source and call this method with unchanged flags.
+      qCDebug(log) << "File already named that way: " << newUniqueKey << finalKey;
       return newUniqueKey;
     }
 
