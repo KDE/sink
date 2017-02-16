@@ -34,10 +34,14 @@ public:
     ~TestDummyResourceFacade(){};
     KAsync::Job<void> create(const T &domainObject) Q_DECL_OVERRIDE
     {
+        SinkLogCtx(Sink::Log::Context{"test"}) << "Create: " <<  domainObject;
+        creations << domainObject;
         return KAsync::null<void>();
     };
     KAsync::Job<void> modify(const T &domainObject) Q_DECL_OVERRIDE
     {
+        SinkLogCtx(Sink::Log::Context{"test"}) << "Modify: " <<  domainObject;
+        modifications << domainObject;
         return KAsync::null<void>();
     };
     KAsync::Job<void> move(const T &domainObject, const QByteArray &) Q_DECL_OVERRIDE
@@ -50,6 +54,8 @@ public:
     };
     KAsync::Job<void> remove(const T &domainObject) Q_DECL_OVERRIDE
     {
+        SinkLogCtx(Sink::Log::Context{"test"}) << "Remove: " <<  domainObject;
+        removals << domainObject;
         return KAsync::null<void>();
     };
     QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename T::Ptr>::Ptr> load(const Sink::Query &query, const Sink::Log::Context &ctx) Q_DECL_OVERRIDE
@@ -102,6 +108,9 @@ public:
     Sink::ResultProviderInterface<typename T::Ptr> *mResultProvider;
     bool runAsync = false;
     int offset = 0;
+    QList<T> creations;
+    QList<T> modifications;
+    QList<T> removals;
 };
 
 
@@ -331,6 +340,39 @@ private slots:
         QCOMPARE(model->rowCount(QModelIndex()), 10);
 
         QVERIFY(!model->canFetchMore(QModelIndex()));
+    }
+
+    void testCreateModifyDelete()
+    {
+        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade();
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+
+        auto event = Sink::ApplicationDomain::Event::createEntity<Sink::ApplicationDomain::Event>("dummyresource.instance1");
+        Sink::Store::create(event).exec().waitForFinished();
+        QCOMPARE(facade->creations.size(), 1);
+        Sink::Store::modify(event).exec().waitForFinished();
+        QCOMPARE(facade->modifications.size(), 1);
+        Sink::Store::remove(event).exec().waitForFinished();
+        QCOMPARE(facade->removals.size(), 1);
+
+    }
+    void testMultiModify()
+    {
+        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade();
+        facade->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("dummyresource.instance1", "id1", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        facade->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("dummyresource.instance1", "id2", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+
+        Sink::Query query;
+        query.resourceFilter("dummyresource.instance1");
+
+        auto event = Sink::ApplicationDomain::Event::createEntity<Sink::ApplicationDomain::Event>("dummyresource.instance1");
+        event.setUid("modifiedUid");
+        Sink::Store::modify(query, event).exec().waitForFinished();
+        QCOMPARE(facade->modifications.size(), 2);
+        for (const auto &m : facade->modifications) {
+            QCOMPARE(m.getUid(), QString("modifiedUid"));
+        }
     }
 
     void testModelStress()

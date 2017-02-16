@@ -198,7 +198,7 @@ KAsync::Job<void> Store::modify(const Query &query, const DomainType &domainObje
             for (const auto &p : domainObject.changedProperties()) {
                 copy.setProperty(p, domainObject.getProperty(p));
             }
-            return modify(*entity);
+            return modify(copy);
         });
 }
 
