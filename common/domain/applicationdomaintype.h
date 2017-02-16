@@ -280,7 +280,7 @@ inline QDebug operator<< (QDebug d, const Reference &ref)
 
 inline QDebug operator<< (QDebug d, const BLOB &blob)
 {
-    d << blob.value;
+    d << blob.value << "external:" << blob.isExternal ;
     return d;
 }
 

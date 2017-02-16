@@ -271,16 +271,17 @@ void MailSyncTest::testListMails()
 
     auto job = Store::fetchAll<Mail>(query).then([](const QList<Mail::Ptr> &mails) {
         QCOMPARE(mails.size(), 1);
-        QVERIFY(mails.first()->getSubject().startsWith(QString("[Nepomuk] Jenkins build is still unstable")));
-        const auto data = mails.first()->getMimeMessage();
+        auto mail = mails.first();
+        QVERIFY(mail->getSubject().startsWith(QString("[Nepomuk] Jenkins build is still unstable")));
+        const auto data = mail->getMimeMessage();
         QVERIFY(!data.isEmpty());
 
         KMime::Message m;
         m.setContent(data);
         m.parse();
-        QCOMPARE(mails.first()->getSubject(), m.subject(true)->asUnicodeString());
-        QVERIFY(!mails.first()->getFolder().isEmpty());
-        QVERIFY(mails.first()->getDate().isValid());
+        QCOMPARE(mail->getSubject(), m.subject(true)->asUnicodeString());
+        QVERIFY(!mail->getFolder().isEmpty());
+        QVERIFY(mail->getDate().isValid());
     });
     VERIFYEXEC(job);
 }
@@ -289,6 +290,8 @@ void MailSyncTest::testResyncMails()
 {
     Sink::Query query;
     query.resourceFilter(mResourceInstanceIdentifier);
+    query.request<Mail::MimeMessage>();
+    query.request<Mail::Subject>();
 
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(query));
@@ -300,6 +303,9 @@ void MailSyncTest::testResyncMails()
 
     auto job = Store::fetchAll<Mail>(query).then([](const QList<Mail::Ptr> &mails) {
         QCOMPARE(mails.size(), 1);
+        auto mail = mails.first();
+        QVERIFY(!mail->getSubject().isEmpty());
+        QVERIFY(!mail->getMimeMessagePath().isEmpty());
     });
     VERIFYEXEC(job);
 }

@@ -162,6 +162,7 @@ void EntityStore::copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qi
                     SinkWarningCtx(d->logCtx) << "Failed to move the file from: " << oldPath << " to " << filePath << ". " << origFile.errorString();
                 }
                 origFile.close();
+                SinkTraceCtx(d->logCtx) << "Moved blob property: " << property << " from " << oldPath << "to" << filePath;
                 entity.setProperty(property, QVariant::fromValue(ApplicationDomain::BLOB{filePath}));
             }
         }
