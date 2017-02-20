@@ -371,8 +371,12 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
 
 KAsync::Job<void> Synchronizer::processSyncQueue()
 {
-    if (mSyncRequestQueue.isEmpty() || mSyncInProgress) {
-        SinkTraceCtx(mLogCtx) << "Sync still in progress or nothing to do.";
+    if (mSyncRequestQueue.isEmpty()) {
+        SinkLogCtx(mLogCtx) << "All requests processed.";
+        return KAsync::null<void>();
+    }
+    if (mSyncInProgress) {
+        SinkTraceCtx(mLogCtx) << "Sync still in progress.";
         return KAsync::null<void>();
     }
     //Don't process any new requests until we're done with the pending ones.
@@ -485,7 +489,7 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         oldRemoteId = syncStore().resolveLocalId(type, uid);
         //oldRemoteId can be empty if the resource implementation didn't return a remoteid
     }
-    SinkTraceCtx(mLogCtx) << "Replaying " << key << type << uid << oldRemoteId;
+    SinkLogCtx(mLogCtx) << "Replaying: " << key << "Type: " << type << "Uid: " << uid << "Rid: " << oldRemoteId << "Revision: " << metadataBuffer->revision();
 
     KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
     //TODO This requires supporting every domain type here as well. Can we solve this better so we can do the dispatch somewhere centrally?
