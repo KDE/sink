@@ -18,10 +18,6 @@
  */
 #include "imapserverproxy.h"
 
-#include <QDir>
-#include <QFile>
-#include <QTcpSocket>
-#include <QTimer>
 #include <KIMAP2/LoginJob>
 #include <KIMAP2/LogoutJob>
 #include <KIMAP2/NamespaceJob>
