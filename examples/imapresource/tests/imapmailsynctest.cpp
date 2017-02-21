@@ -64,7 +64,8 @@ protected:
     Sink::ApplicationDomain::SinkResource createFaultyResource() Q_DECL_OVERRIDE
     {
         auto resource = ApplicationDomain::ImapResource::create("account1");
-        resource.setProperty("server", "foobar");
+        //Using a bogus ip instead of a bogus hostname avoids getting stuck in the hostname lookup
+        resource.setProperty("server", "111.111.1.1");
         resource.setProperty("port", 993);
         resource.setProperty("username", "doe");
         resource.setProperty("password", "doe");

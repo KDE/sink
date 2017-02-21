@@ -51,7 +51,8 @@ private slots:
 
     void testLoginFailure()
     {
-        ImapServerProxy imap("foobar", 993);
+        //Using a bogus ip instead of a bogus hostname avoids getting stuck in the hostname lookup
+        ImapServerProxy imap("111.111.1.1", 993);
         VERIFYEXEC_FAIL(imap.login("doe", "doe"));
     }
 
