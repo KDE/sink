@@ -22,7 +22,6 @@ include(KDEInstallDirs)
 
 find_package(Qt5 COMPONENTS REQUIRED Core Network)
 find_package(KF5 COMPONENTS REQUIRED Async Mime Contacts)
-find_package(KPimKDAV REQUIRED)
 find_package(FlatBuffers REQUIRED)
 
 find_program(MEMORYCHECK_COMMAND valgrind)
