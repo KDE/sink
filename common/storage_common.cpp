@@ -40,7 +40,11 @@ static const int s_internalPrefixSize = strlen(s_internalPrefix);
 
 void errorHandler(const DataStore::Error &error)
 {
-    SinkWarning() << "Database error in " << error.store << ", code " << error.code << ", message: " << error.message;
+    if (error.code == DataStore::TransactionError) {
+        SinkError() << "Database error in " << error.store << ", code " << error.code << ", message: " << error.message;
+    } else {
+        SinkWarning() << "Database error in " << error.store << ", code " << error.code << ", message: " << error.message;
+    }
 }
 
 std::function<void(const DataStore::Error &error)> DataStore::basicErrorHandler()

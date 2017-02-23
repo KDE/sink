@@ -468,8 +468,10 @@ bool DataStore::Transaction::commit(const std::function<void(const DataStore::Er
     const int rc = mdb_txn_commit(d->transaction);
     if (rc) {
         abort();
-        Error error(d->name.toLatin1(), ErrorCodes::GenericError, "Error during transaction commit: " + QByteArray(mdb_strerror(rc)));
+        Error error(d->name.toLatin1(), ErrorCodes::TransactionError, "Error during transaction commit: " + QByteArray(mdb_strerror(rc)));
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        //If transactions start failing we're in an unrecoverable situation (i.e. out of diskspace). So throw an exception that will terminate the application.
+        throw std::runtime_error("Fatal error while committing transaction.");
     }
     d->transaction = nullptr;
 
