@@ -204,7 +204,16 @@ int main(int argc, char *argv[])
     QLockFile lockfile(Sink::resourceStorageLocation(instanceIdentifier) + "/resource.lock");
     lockfile.setStaleLockTime(500);
     if (!lockfile.tryLock(0)) {
-        SinkWarning() << "Failed to acquire exclusive lock on socket.";
+        const auto error = lockfile.error();
+        if (error == QLockFile::LockFailedError) {
+            qint64 pid;
+            QString hostname, appname;
+            lockfile.getLockInfo(&pid, &hostname, &appname);
+            SinkWarning() << "Failed to acquire exclusive resource lock.";
+            SinkLog() << "Pid:" << pid << "Host:" << hostname << "App:" << appname;
+        } else {
+            SinkError() << "Error while trying to acquire exclusive resource lock: " << error;
+        }
         return -1;
     }
 
