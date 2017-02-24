@@ -43,7 +43,7 @@ namespace SinkInspect
 bool inspect(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("Options: $type [--resource $resource] [--db $db] [--filter $id]"));
+        state.printError(QObject::tr("Options: $type [--resource $resource] [--db $db] [--filter $id] [--showinternal]"));
     }
     auto options = SyntaxTree::parseOptions(args);
     auto resource = options.options.value("resource").value(0);
@@ -53,6 +53,7 @@ bool inspect(const QStringList &args, State &state)
 
     auto dbs = options.options.value("db");
     auto idFilter = options.options.value("filter");
+    bool showInternal = options.options.contains("showinternal");
 
     auto databases = transaction.getDatabaseNames();
     if (dbs.isEmpty()) {
@@ -71,31 +72,46 @@ bool inspect(const QStringList &args, State &state)
                 Q_ASSERT(false);
                 state.printError(e.message);
             }, false);
-    QByteArray filter;
-    if (!idFilter.isEmpty()) {
-        filter = idFilter.first().toUtf8();
-    }
-    bool findSubstringKeys = !filter.isEmpty();
-    auto count = db.scan(filter, [&] (const QByteArray &key, const QByteArray &data) {
-                if (isMainDb) {
-                    Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
-                    if (!buffer.isValid()) {
-                        state.printError("Read invalid buffer from disk: " + key);
-                    } else {
-                        const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
-                        state.printLine("Key: " + key + " Operation: " + QString::number(metadata->operation()));
-                    }
-                } else {
-                    state.printLine("Key: " + key + " Value: " + QString::fromUtf8(data));
-                }
+
+    if (showInternal) {
+        //Print internal keys
+        db.scan("__internal", [&] (const QByteArray &key, const QByteArray &data) {
+                state.printLine("Internal: " + key + " Value: " + QString::fromUtf8(data));
                 return true;
             },
             [&](const Sink::Storage::DataStore::Error &e) {
                 state.printError(e.message);
             },
-            findSubstringKeys);
+            true, false);
+    } else {
+        QByteArray filter;
+        if (!idFilter.isEmpty()) {
+            filter = idFilter.first().toUtf8();
+        }
 
-    state.printLine("Found " + QString::number(count) + " entries");
+        //Print rest of db
+        bool findSubstringKeys = !filter.isEmpty();
+        auto count = db.scan(filter, [&] (const QByteArray &key, const QByteArray &data) {
+                    if (isMainDb) {
+                        Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+                        if (!buffer.isValid()) {
+                            state.printError("Read invalid buffer from disk: " + key);
+                        } else {
+                            const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
+                            state.printLine("Key: " + key + " Operation: " + QString::number(metadata->operation()));
+                        }
+                    } else {
+                        state.printLine("Key: " + key + " Value: " + QString::fromUtf8(data));
+                    }
+                    return true;
+                },
+                [&](const Sink::Storage::DataStore::Error &e) {
+                    state.printError(e.message);
+                },
+                findSubstringKeys);
+
+        state.printLine("Found " + QString::number(count) + " entries");
+    }
     return false;
 }
 
