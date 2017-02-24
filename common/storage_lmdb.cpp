@@ -607,6 +607,7 @@ DataStore::Private::Private(const QString &s, const QString &n, AccessMode m) : 
         QDir().mkpath(fullPath);
         dirInfo.refresh();
     }
+    Sink::Log::Context logCtx{n.toLatin1()};
     if (mode == ReadWrite && !dirInfo.permission(QFile::WriteOwner)) {
         qCritical() << fullPath << "does not have write permissions. Aborting";
     } else if (dirInfo.exists()) {
@@ -622,7 +623,7 @@ DataStore::Private::Private(const QString &s, const QString &n, AccessMode m) : 
             int rc = 0;
             if ((rc = mdb_env_create(&env))) {
                 // TODO: handle error
-                SinkWarning() << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
+                SinkWarningCtx(logCtx) << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
             } else {
                 mdb_env_set_maxdbs(env, 50);
                 unsigned int flags = MDB_NOTLS;
@@ -630,7 +631,7 @@ DataStore::Private::Private(const QString &s, const QString &n, AccessMode m) : 
                     flags |= MDB_RDONLY;
                 }
                 if ((rc = mdb_env_open(env, fullPath.toStdString().data(), flags, 0664))) {
-                    SinkWarning() << "mdb_env_open: " << rc << " " << mdb_strerror(rc);
+                    SinkWarningCtx(logCtx) << "mdb_env_open: " << rc << ":" << mdb_strerror(rc);
                     mdb_env_close(env);
                     env = 0;
                 } else {
