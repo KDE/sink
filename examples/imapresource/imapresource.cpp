@@ -475,7 +475,8 @@ public:
                             folderRemoteId = f;
                         } else {
                             if (folderRemoteId != f) {
-                                SinkWarningCtx(mLogCtx) << "Not all messages come from the same folder " << r << folderRemoteId;
+                                SinkWarningCtx(mLogCtx) << "Not all messages come from the same folder " << r << folderRemoteId << ". Skipping message.";
+                                continue;
                             }
                         }
                         toFetch << uidFromMailRid(r);
