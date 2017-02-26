@@ -43,10 +43,12 @@ namespace Storage {
 
 extern QMutex sMutex;
 extern QHash<QString, MDB_env *> sEnvironments;
+extern QHash<QString, MDB_dbi> sDbis;
 
 
 QMutex sMutex;
 QHash<QString, MDB_env *> sEnvironments;
+QHash<QString, MDB_dbi> sDbis;
 
 int getErrorCode(int e)
 {
@@ -87,16 +89,25 @@ public:
         if (allowDuplicates) {
             flags |= MDB_DUPSORT;
         }
-        Q_ASSERT(transaction);
-        if (const int rc = mdb_dbi_open(transaction, db.constData(), flags, &dbi)) {
-            dbi = 0;
-            transaction = 0;
-            // The database is not existing, ignore in read-only mode
-            if (!(readOnly && rc == MDB_NOTFOUND)) {
-                Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening database: " + QByteArray(mdb_strerror(rc)));
-                errorHandler ? errorHandler(error) : defaultErrorHandler(error);
+
+        QMutexLocker locker(&sMutex);
+        const auto dbiName = name + db;
+        if (sDbis.contains(dbiName)) {
+            dbi = sDbis.value(dbiName);
+        } else {
+            Q_ASSERT(transaction);
+            if (const int rc = mdb_dbi_open(transaction, db.constData(), flags, &dbi)) {
+                dbi = 0;
+                transaction = 0;
+                // The database is not existing, ignore in read-only mode
+                if (!(readOnly && rc == MDB_NOTFOUND)) {
+                    SinkWarning() << "Failed to open db " << QByteArray(mdb_strerror(rc));
+                    Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening database: " + QByteArray(mdb_strerror(rc)));
+                    errorHandler ? errorHandler(error) : defaultErrorHandler(error);
+                }
+                return false;
             }
-            return false;
+            sDbis.insert(dbiName, dbi);
         }
         return true;
     }
@@ -705,6 +716,11 @@ void DataStore::removeFromDisk() const
     QMutexLocker locker(&sMutex);
     SinkTrace() << "Removing database from disk: " << fullPath;
     sEnvironments.take(fullPath);
+    for (const auto &key : sDbis.keys()) {
+        if (key.startsWith(d->name)) {
+            sDbis.remove(key);
+        }
+    }
     auto env = sEnvironments.take(fullPath);
     mdb_env_close(env);
     QDir dir(fullPath);
@@ -716,9 +732,11 @@ void DataStore::removeFromDisk() const
 
 void DataStore::clearEnv()
 {
+    QMutexLocker locker(&sMutex);
     for (auto env : sEnvironments) {
         mdb_env_close(env);
     }
+    sDbis.clear();
     sEnvironments.clear();
 }
 
