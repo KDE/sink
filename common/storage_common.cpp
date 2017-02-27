@@ -80,7 +80,7 @@ qint64 DataStore::maxRevision(const DataStore::Transaction &transaction)
         },
         [](const Error &error) {
             if (error.code != DataStore::NotFound) {
-                SinkWarning() << "Coultn'd find the maximum revision.";
+                SinkWarning() << "Couldn't find the maximum revision: " << error;
             }
         });
     return r;
@@ -101,7 +101,7 @@ qint64 DataStore::cleanedUpRevision(const DataStore::Transaction &transaction)
         },
         [](const Error &error) {
             if (error.code != DataStore::NotFound) {
-                SinkWarning() << "Coultn'd find the maximum revision.";
+                SinkWarning() << "Couldn't find the cleanedUpRevision: " << error;
             }
         });
     return r;
@@ -116,7 +116,7 @@ QByteArray DataStore::getUidFromRevision(const DataStore::Transaction &transacti
                 uid = value;
                 return false;
             },
-            [revision](const Error &error) { SinkWarning() << "Coultn'd find uid for revision: " << revision << error.message; });
+            [revision](const Error &error) { SinkWarning() << "Couldn't find uid for revision: " << revision << error.message; });
     return uid;
 }
 
@@ -129,7 +129,7 @@ QByteArray DataStore::getTypeFromRevision(const DataStore::Transaction &transact
                 type = value;
                 return false;
             },
-            [revision](const Error &error) { SinkWarning() << "Coultn'd find type for revision " << revision; });
+            [revision](const Error &error) { SinkWarning() << "Couldn't find type for revision " << revision; });
     return type;
 }
 
