@@ -41,6 +41,7 @@ SINK_DEBUG_AREA("storage")
 namespace Sink {
 namespace Storage {
 
+    //TODO a QReadWriteLock would be a better choice because we mostly do reads.
 extern QMutex sMutex;
 extern QHash<QString, MDB_env *> sEnvironments;
 extern QHash<QString, MDB_dbi> sDbis;
@@ -79,35 +80,80 @@ public:
     bool allowDuplicates;
     std::function<void(const DataStore::Error &error)> defaultErrorHandler;
     QString name;
+    bool createdNewDbi = false;
+    QString createdDbName;
 
     bool openDatabase(bool readOnly, std::function<void(const DataStore::Error &error)> errorHandler)
     {
         unsigned int flags = 0;
-        if (!readOnly) {
-            flags |= MDB_CREATE;
-        }
         if (allowDuplicates) {
             flags |= MDB_DUPSORT;
         }
 
-        QMutexLocker locker(&sMutex);
         const auto dbiName = name + db;
         if (sDbis.contains(dbiName)) {
             dbi = sDbis.value(dbiName);
         } else {
+            MDB_dbi flagtableDbi;
+            if (const int rc = mdb_dbi_open(transaction, "__flagtable", readOnly ? 0 : MDB_CREATE, &flagtableDbi)) {
+                if (!readOnly) {
+                    SinkWarning() << "Failed to to open flagdb: " << QByteArray(mdb_strerror(rc));
+                }
+            } else {
+                MDB_val key, value;
+                key.mv_data = const_cast<void*>(static_cast<const void*>(db.constData()));
+                key.mv_size = db.size();
+                if (const auto rc = mdb_get(transaction, flagtableDbi, &key, &value)) {
+                    //We expect this to fail for new databases
+                    if (rc != MDB_NOTFOUND) {
+                        SinkWarning() << "Failed to read flags from flag db: " << QByteArray(mdb_strerror(rc));
+                    }
+                } else {
+                    //Found the flags
+                    const auto ba = QByteArray::fromRawData((char *)value.mv_data, value.mv_size);
+                    flags = ba.toInt();
+                }
+            }
+
             Q_ASSERT(transaction);
             if (const int rc = mdb_dbi_open(transaction, db.constData(), flags, &dbi)) {
-                dbi = 0;
-                transaction = 0;
-                // The database is not existing, ignore in read-only mode
-                if (!(readOnly && rc == MDB_NOTFOUND)) {
-                    SinkWarning() << "Failed to open db " << QByteArray(mdb_strerror(rc));
-                    Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening database: " + QByteArray(mdb_strerror(rc)));
-                    errorHandler ? errorHandler(error) : defaultErrorHandler(error);
+                //Create the db if it is not existing already
+                if (rc == MDB_NOTFOUND && !readOnly) {
+                    if (const int rc = mdb_dbi_open(transaction, db.constData(), flags | MDB_CREATE, &dbi)) {
+                        SinkWarning() << "Failed to create db " << QByteArray(mdb_strerror(rc));
+                        Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while creating database: " + QByteArray(mdb_strerror(rc)));
+                        errorHandler ? errorHandler(error) : defaultErrorHandler(error);
+                        return false;
+                    }
+                    //Record the db flags
+                    MDB_val key, value;
+                    key.mv_data = const_cast<void*>(static_cast<const void*>(db.constData()));
+                    key.mv_size = db.size();
+                    //Store the flags without the create option
+                    const auto ba = QByteArray::number(flags);
+                    value.mv_data = const_cast<void*>(static_cast<const void*>(db.constData()));
+                    value.mv_size = db.size();
+                    if (const int rc = mdb_put(transaction, flagtableDbi, &key, &value, MDB_NOOVERWRITE)) {
+                        //We expect this to fail if we're only creating the dbi but not the db
+                        if (rc != MDB_KEYEXIST) {
+                            SinkWarning() << "Failed to write flags to flag db: " << QByteArray(mdb_strerror(rc));
+                        }
+                    }
+                } else {
+                    dbi = 0;
+                    transaction = 0;
+                    //It's not an error if we only want to read
+                    if (!readOnly) {
+                        SinkWarning() << "Failed to open db " << QByteArray(mdb_strerror(rc));
+                        Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening database: " + QByteArray(mdb_strerror(rc)));
+                        errorHandler ? errorHandler(error) : defaultErrorHandler(error);
+                    }
+                    return false;
                 }
-                return false;
             }
-            sDbis.insert(dbiName, dbi);
+
+            createdNewDbi = true;
+            createdDbName = dbiName;
         }
         return true;
     }
@@ -316,7 +362,7 @@ void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::functi
 
     rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
     if (rc) {
-        Error error(d->name.toLatin1() + d->db, getErrorCode(rc), QByteArray("Error during mdb_cursor open: ") + QByteArray(mdb_strerror(rc)));
+        Error error(d->name.toLatin1() + d->db, getErrorCode(rc), QByteArray("Error during mdb_cursor_open: ") + QByteArray(mdb_strerror(rc)));
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
         return;
     }
@@ -391,8 +437,8 @@ qint64 DataStore::NamedDatabase::getSize()
 class DataStore::Transaction::Private
 {
 public:
-    Private(bool _requestRead, const std::function<void(const DataStore::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
-        : env(_env), transaction(nullptr), requestedRead(_requestRead), defaultErrorHandler(_defaultErrorHandler), name(_name), implicitCommit(false), error(false), modificationCounter(0)
+    Private(bool _requestRead, const std::function<void(const DataStore::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env, bool _noLock = false)
+        : env(_env), transaction(nullptr), requestedRead(_requestRead), defaultErrorHandler(_defaultErrorHandler), name(_name), implicitCommit(false), error(false), modificationCounter(0), noLock(_noLock)
     {
     }
     ~Private()
@@ -408,6 +454,9 @@ public:
     bool implicitCommit;
     bool error;
     int modificationCounter;
+    bool noLock;
+
+    QMap<QString, MDB_dbi> createdDbs;
 
     void startTransaction()
     {
@@ -486,6 +535,21 @@ bool DataStore::Transaction::commit(const std::function<void(const DataStore::Er
     }
     d->transaction = nullptr;
 
+    //Add the created dbis to the shared environment
+    if (!d->createdDbs.isEmpty()) {
+        if (!d->noLock) {
+            sMutex.lock();
+        }
+        for (auto it = d->createdDbs.constBegin(); it != d->createdDbs.constEnd(); it++) {
+            Q_ASSERT(!sDbis.contains(it.key()));
+            sDbis.insert(it.key(), it.value());
+        }
+        d->createdDbs.clear();
+        if (!d->noLock) {
+            sMutex.unlock();
+        }
+    }
+
     return !rc;
 }
 
@@ -495,6 +559,7 @@ void DataStore::Transaction::abort()
         return;
     }
 
+    d->createdDbs.clear();
     // Trace_area("storage." + d->name.toLatin1()) << "Aborting transaction" << mdb_txn_id(d->transaction) << d->transaction;
     Q_ASSERT(sEnvironments.values().contains(d->env));
     mdb_txn_abort(d->transaction);
@@ -527,14 +592,6 @@ static bool ensureCorrectDb(DataStore::NamedDatabase &database, const QByteArray
 
 bool DataStore::Transaction::validateNamedDatabases()
 {
-    auto databases = getDatabaseNames();
-    for (const auto &dbName : databases) {
-        auto db = openDatabase(dbName);
-        if (!db) {
-            SinkWarning() << "Failed to open the database: " << dbName;
-            return false;
-        }
-    }
     return true;
 }
 
@@ -548,13 +605,27 @@ DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &
     // We don't now if anything changed
     d->implicitCommit = true;
     auto p = new DataStore::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
+    if (!d->noLock) {
+        //This wouldn't be necessary with a read-write lock, we could read-only lock here
+        sMutex.lock();
+    }
     if (!p->openDatabase(d->requestedRead, errorHandler)) {
+        if (!d->noLock) {
+            sMutex.unlock();
+        }
         delete p;
         return DataStore::NamedDatabase();
     }
+    if (!d->noLock) {
+        sMutex.unlock();
+    }
+    if (p->createdNewDbi) {
+        d->createdDbs.insert(p->createdDbName, p->dbi);
+    }
     auto database = DataStore::NamedDatabase(p);
     if (!ensureCorrectDb(database, db, d->requestedRead)) {
-        SinkWarning() << "Failed to open the database" << db;
+        SinkWarning() << "Failed to open the database correctly" << db;
+        Q_ASSERT(false);
         return DataStore::NamedDatabase();
     }
     return database;
@@ -569,6 +640,7 @@ QList<QByteArray> DataStore::Transaction::getDatabaseNames() const
 
     int rc;
     QList<QByteArray> list;
+    Q_ASSERT(d->transaction);
     if ((rc = mdb_dbi_open(d->transaction, nullptr, 0, &d->dbi) == 0)) {
         MDB_val key;
         MDB_val data;
@@ -657,6 +729,17 @@ DataStore::Private::Private(const QString &s, const QString &n, AccessMode m) : 
                         mdb_env_set_mapsize(env, dbSize);
                     }
                     sEnvironments.insert(fullPath, env);
+                    //Open all available dbi's
+                    bool noLock = true;
+                    bool requestedRead = m == ReadOnly;
+                    auto t = Transaction(new Transaction::Private(requestedRead, nullptr, name, env, noLock));
+                    for (const auto &db : t.getDatabaseNames()) {
+                        SinkLog() << "Opening initial db: " << db;
+                        //Get dbi to store for future use.
+                        t.openDatabase(db);
+                    }
+                    //To persist the dbis
+                    t.commit();
                 }
             }
         }

@@ -451,6 +451,42 @@ private slots:
         db.findLatest(uid, [&](const QByteArray &key, const QByteArray &value) { result = value; });
         QCOMPARE(result, QByteArray("value2"));
     }
+
+    void testTransactionVisibility()
+    {
+        auto readValue = [](const Sink::Storage::DataStore::NamedDatabase &db, const QByteArray) {
+            QByteArray result;
+            db.scan("key1", [&](const QByteArray &, const QByteArray &value) {
+                result = value;
+                return true;
+            });
+            return result;
+        };
+        {
+            Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+
+            auto db = transaction.openDatabase("testTransactionVisibility", nullptr, false);
+            db.write("key1", "foo");
+            QCOMPARE(readValue(db, "key1"), QByteArray("foo"));
+
+            {
+                auto transaction2 = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+                auto db2 = transaction2
+                    .openDatabase("testTransactionVisibility", nullptr, false);
+                QCOMPARE(readValue(db2, "key1"), QByteArray());
+            }
+            transaction.commit();
+            {
+                auto transaction2 = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+                auto db2 = transaction2
+                    .openDatabase("testTransactionVisibility", nullptr, false);
+                QCOMPARE(readValue(db2, "key1"), QByteArray("foo"));
+            }
+
+        }
+    }
+
 };
 
 QTEST_MAIN(StorageTest)

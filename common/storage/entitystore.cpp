@@ -59,7 +59,6 @@ public:
 
         Sink::Storage::DataStore store(Sink::storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly);
         transaction = store.createTransaction(DataStore::ReadOnly);
-        Q_ASSERT(transaction.validateNamedDatabases());
         return transaction;
     }
 
