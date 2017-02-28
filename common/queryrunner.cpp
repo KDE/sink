@@ -87,7 +87,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
         }, runAsync)
             .then([this, parentId, query, parent, resultProvider, guardPtr](const ReplayResult &result) {
                 if (!guardPtr) {
-                    qWarning() << "The parent object is already gone";
+                    //Not an error, the query can vanish at any time.
                     return;
                 }
                 mInitialQueryComplete = true;
@@ -134,7 +134,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                    }))
                 .then([query, this, resultProvider, guardPtr](const ReplayResult &newRevisionAndReplayedEntities) {
                     if (!guardPtr) {
-                        qWarning() << "The parent object is already gone";
+                        //Not an error, the query can vanish at any time.
                         return;
                     }
                     mQueryInProgress = false;
