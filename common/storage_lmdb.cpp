@@ -734,11 +734,10 @@ DataStore::Private::Private(const QString &s, const QString &n, AccessMode m) : 
                     bool requestedRead = m == ReadOnly;
                     auto t = Transaction(new Transaction::Private(requestedRead, nullptr, name, env, noLock));
                     for (const auto &db : t.getDatabaseNames()) {
-                        SinkLog() << "Opening initial db: " << db;
                         //Get dbi to store for future use.
                         t.openDatabase(db);
                     }
-                    //To persist the dbis
+                    //To persist the dbis (this is also necessary for read-only transactions)
                     t.commit();
                 }
             }
