@@ -1,4 +1,9 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.0)
+
+cmake_policy(SET CMP0048 NEW)
+cmake_policy(SET CMP0028 NEW)
+
+project(sink VERSION 0.1.0)
 
 option(BUILD_MAILDIR "BUILD_MAILDIR" ON)
 option(BUILD_DAV "BUILD_DAV" ON)
@@ -6,10 +11,8 @@ option(AVOID_BINDING_REBUILD "AVOID_BINDING_REBUILD" OFF)
 option(CATCH_ERRORS "CATCH_ERRORS" OFF)
 option(ENABLE_MEMCHECK "Build valgrind tests" OFF)
 
-set(SINK_VERSION 0.1.0)
-
 # ECM setup
-find_package(ECM 0.0.10 REQUIRED NO_MODULE)
+find_package(ECM 1.0.0 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH
         ${ECM_MODULE_PATH}
         ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules
@@ -18,12 +21,11 @@ set(CMAKE_MODULE_PATH
 
 include(FeatureSummary)
 include(GenerateExportHeader)
-include(ECMGenerateHeaders)
-include(ECMPackageConfigHelpers)
+include(CMakePackageConfigHelpers)
 include(ECMSetupVersion)
 include(KDEInstallDirs)
 
-find_package(Qt5 COMPONENTS REQUIRED Core Network)
+find_package(Qt5 COMPONENTS REQUIRED Core Network Gui)
 find_package(KF5 COMPONENTS REQUIRED Async Mime Contacts)
 find_package(FlatBuffers REQUIRED)
 

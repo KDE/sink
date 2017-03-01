@@ -1,28 +1,27 @@
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(domain)
 
-project(sink)
-
-ecm_setup_version("${SINK_VERSION}" VARIABLE_PREFIX Sink
-                        VERSION_HEADER "${CMAKE_CURRENT_BINARY_DIR}/sink_version.h"
-                        PACKAGE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/SinkConfigVersion.cmake"
-                        SOVERSION 0
+ecm_setup_version(${sink_VERSION}
+    VARIABLE_PREFIX Sink
+    VERSION_HEADER "${CMAKE_CURRENT_BINARY_DIR}/sink_version.h"
+    PACKAGE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/SinkConfigVersion.cmake"
+    SOVERSION 0
 )
 
 ########### CMake Config Files ###########
 set(CMAKECONFIG_INSTALL_DIR "${KDE_INSTALL_CMAKEPACKAGEDIR}/Sink")
 
-ecm_configure_package_config_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/SinkConfig.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/SinkConfig.cmake"
-  INSTALL_DESTINATION  ${CMAKECONFIG_INSTALL_DIR}
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/SinkConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/SinkConfig.cmake"
+    INSTALL_DESTINATION  ${CMAKECONFIG_INSTALL_DIR}
 )
 
 install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/SinkConfig.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/SinkConfigVersion.cmake"
-  DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
-  COMPONENT Devel
+    "${CMAKE_CURRENT_BINARY_DIR}/SinkConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/SinkConfigVersion.cmake"
+    DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
+    COMPONENT Devel
 )
 
 add_definitions("-fvisibility=hidden")
