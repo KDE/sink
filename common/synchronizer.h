@@ -21,7 +21,7 @@
 
 #include "sink_export.h"
 #include <QObject>
-#include <Async/Async>
+#include <KAsync/Async>
 #include <domainadaptor.h>
 #include <query.h>
 #include <messagequeue.h>
