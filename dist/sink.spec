@@ -1,6 +1,6 @@
 
 Name:           sink
-Version:        0.1
+Version:        0.1.0
 Release:	    6%{?dist}
 Summary:        sink
 

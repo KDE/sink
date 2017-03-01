@@ -3,7 +3,7 @@ include_directories(domain)
 
 project(sink)
 
-ecm_setup_version("0.1" VARIABLE_PREFIX Sink
+ecm_setup_version("0.1.0" VARIABLE_PREFIX Sink
                         VERSION_HEADER "${CMAKE_CURRENT_BINARY_DIR}/sink_version.h"
                         PACKAGE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/SinkConfigVersion.cmake"
                         SOVERSION 0
@@ -114,8 +114,8 @@ generate_flatbuffers(
 generate_export_header(${PROJECT_NAME} BASE_NAME Sink EXPORT_FILE_NAME sink_export.h)
 SET_TARGET_PROPERTIES(${PROJECT_NAME}
     PROPERTIES LINKER_LANGUAGE CXX
-    VERSION "0.1"
-    SOVERSION 0
+    VERSION ${Sink_VERSION}
+    SOVERSION ${Sink_SOVERSION}
     EXPORT_NAME ${PROJECT_NAME}
 )
 
