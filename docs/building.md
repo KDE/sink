@@ -88,12 +88,19 @@ make install
 
 # Dependencies
 
-* ExtraCmakeModules >= 0.0.10
+* ExtraCmakeModules >= 1.0
 * Qt >= 5.2
 * KF5::Async >= 0.1
-* flatbuffers >= 1.0
+* flatbuffers >= 1.4
 * libgit2
 * readline
 
 ## Maildir Resource
 * KF5::Mime
+
+## IMAP Resource
+* KF5::Mime
+* KIMAP2 >= 0.1
+
+## Maildir Resource
+* KDAV
