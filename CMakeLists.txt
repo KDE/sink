@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8.12)
 
 option(BUILD_MAILDIR "BUILD_MAILDIR" ON)
+option(BUILD_DAV "BUILD_DAV" ON)
 option(AVOID_BINDING_REBUILD "AVOID_BINDING_REBUILD" OFF)
 option(CATCH_ERRORS "CATCH_ERRORS" OFF)
 option(ENABLE_MEMCHECK "Build valgrind tests" OFF)
