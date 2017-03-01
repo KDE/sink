@@ -122,6 +122,18 @@ public:
 class ClientAPITest : public QObject
 {
     Q_OBJECT
+
+    template<typename T>
+    std::shared_ptr<TestDummyResourceFacade<T> >  setupFacade(const QByteArray &identifier)
+    {
+        auto facade = TestDummyResourceFacade<T>::registerFacade(identifier);
+        ResourceConfig::addResource(identifier, "dummyresource");
+        QMap<QByteArray, QVariant> config = ResourceConfig::getConfiguration(identifier);
+        config.insert(Sink::ApplicationDomain::SinkResource::Capabilities::name, QVariant::fromValue(QByteArrayList() << Sink::ApplicationDomain::getTypeName<T>()));
+        ResourceConfig::configureResource(identifier, config);
+        return facade;
+    }
+
 private slots:
 
     void initTestCase()
@@ -133,9 +145,8 @@ private slots:
 
     void testLoad()
     {
-        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade();
+        auto facade = setupFacade<Sink::ApplicationDomain::Event>("dummyresource.instance1");
         facade->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
@@ -156,9 +167,8 @@ private slots:
 
     void testModelSingle()
     {
-        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
+        auto facade = setupFacade<Sink::ApplicationDomain::Folder>("dummyresource.instance1");
         facade->results << QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
@@ -169,12 +179,11 @@ private slots:
 
     void testModelNested()
     {
-        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
+        auto facade = setupFacade<Sink::ApplicationDomain::Folder>("dummyresource.instance1");
         auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         auto subfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         subfolder->setParent("id");
         facade->results << folder << subfolder;
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         // Test
         Sink::Query query;
@@ -191,12 +200,11 @@ private slots:
 
     void testModelSignals()
     {
-        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
+        auto facade = setupFacade<Sink::ApplicationDomain::Folder>("dummyresource.instance1");
         auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         auto subfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         subfolder->setParent("id");
         facade->results << folder << subfolder;
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         // Test
         Sink::Query query;
@@ -212,13 +220,12 @@ private slots:
 
     void testModelNestedLive()
     {
-        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
+        auto facade = setupFacade<Sink::ApplicationDomain::Folder>("dummyresource.instance1");
         auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("dummyresource.instance1", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         auto subfolder =
             QSharedPointer<Sink::ApplicationDomain::Folder>::create("dummyresource.instance1", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         subfolder->setParent("id");
         facade->results << folder << subfolder;
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         // Test
         Sink::Query query;
@@ -266,12 +273,10 @@ private slots:
 
     void testLoadMultiResource()
     {
-        auto facade1 = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade("dummyresource.instance1");
+        auto facade1 = setupFacade<Sink::ApplicationDomain::Event>("dummyresource.instance1");
         facade1->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource1", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        auto facade2 = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade("dummyresource.instance2");
+        auto facade2 = setupFacade<Sink::ApplicationDomain::Event>("dummyresource.instance2");
         facade2->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource2", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
-        ResourceConfig::addResource("dummyresource.instance2", "dummyresource");
 
         Sink::Query query;
 
@@ -291,9 +296,8 @@ private slots:
 
     void testImperativeLoad()
     {
-        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade();
+        auto facade = setupFacade<Sink::ApplicationDomain::Event>("dummyresource.instance1");
         facade->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
@@ -309,16 +313,15 @@ private slots:
 
     void testMultiresourceIncrementalLoad()
     {
-        auto facade1 = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade("dummyresource.instance1");
+        auto facade1 = setupFacade<Sink::ApplicationDomain::Event>("dummyresource.instance1");
         for (int i = 0; i < 4; i++) {
             facade1->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource1", "id" + QByteArray::number(i), 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         }
-        auto facade2 = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade("dummyresource.instance2");
+
+        auto facade2 = setupFacade<Sink::ApplicationDomain::Event>("dummyresource.instance2");
         for (int i = 0; i < 6; i++) {
             facade2->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("resource2", "id" + QByteArray::number(i), 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         }
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
-        ResourceConfig::addResource("dummyresource.instance2", "dummyresource");
 
         Sink::Query query;
         query.limit(2);
@@ -344,8 +347,7 @@ private slots:
 
     void testCreateModifyDelete()
     {
-        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade();
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
+        auto facade = setupFacade<Sink::ApplicationDomain::Event>("dummyresource.instance1");
 
         auto event = Sink::ApplicationDomain::Event::createEntity<Sink::ApplicationDomain::Event>("dummyresource.instance1");
         Sink::Store::create(event).exec().waitForFinished();
@@ -358,10 +360,9 @@ private slots:
     }
     void testMultiModify()
     {
-        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Event>::registerFacade();
+        auto facade = setupFacade<Sink::ApplicationDomain::Event>("dummyresource.instance1");
         facade->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("dummyresource.instance1", "id1", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         facade->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("dummyresource.instance1", "id2", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");
@@ -377,12 +378,11 @@ private slots:
 
     void testModelStress()
     {
-        auto facade = TestDummyResourceFacade<Sink::ApplicationDomain::Folder>::registerFacade();
+        auto facade = setupFacade<Sink::ApplicationDomain::Folder>("dummyresource.instance1");
         facade->runAsync = true;
         for (int i = 0; i < 100; i++) {
             facade->results << QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id" + QByteArray::number(i), 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         }
-        ResourceConfig::addResource("dummyresource.instance1", "dummyresource");
 
         Sink::Query query;
         query.resourceFilter("dummyresource.instance1");

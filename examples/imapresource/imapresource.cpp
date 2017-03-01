@@ -879,7 +879,9 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
 
 ImapResourceFactory::ImapResourceFactory(QObject *parent)
     : Sink::ResourceFactory(parent,
-            {Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,
+            {Sink::ApplicationDomain::ResourceCapabilities::Mail::mail,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::folder,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,
             Sink::ApplicationDomain::ResourceCapabilities::Mail::drafts,
             Sink::ApplicationDomain::ResourceCapabilities::Mail::folderhierarchy,
             Sink::ApplicationDomain::ResourceCapabilities::Mail::trash,

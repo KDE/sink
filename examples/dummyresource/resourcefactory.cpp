@@ -176,7 +176,13 @@ DummyResource::~DummyResource()
 }
 
 DummyResourceFactory::DummyResourceFactory(QObject *parent)
-    : Sink::ResourceFactory(parent, QByteArrayList() << Sink::ApplicationDomain::ResourceCapabilities::Mail::storage << "-folder.rename" << Sink::ApplicationDomain::ResourceCapabilities::Mail::sent)
+    : Sink::ResourceFactory(parent, {Sink::ApplicationDomain::ResourceCapabilities::Mail::mail,
+            "event",
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::folder,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,
+            "-folder.rename",
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::sent}
+            )
 {
 
 }

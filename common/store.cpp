@@ -96,14 +96,21 @@ QPair<typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr,  typenam
             SinkTraceCtx(ctx) << "Listening for new resources.";
             resourceQuery.setFlags(Query::LiveQuery);
         }
-        resourceQuery.setFilter(query.getResourceFilter());
+
+        //Filter resources by available content types (unless the query already specifies a capability filter)
+        auto resourceFilter = query.getResourceFilter();
+        if (!resourceFilter.propertyFilter.contains(ApplicationDomain::SinkResource::Capabilities::name)) {
+            resourceFilter.propertyFilter.insert(ApplicationDomain::SinkResource::Capabilities::name, Query::Comparator{ApplicationDomain::getTypeName<DomainType>(), Query::Comparator::Contains});
+        }
+        resourceQuery.setFilter(resourceFilter);
+
         auto result = facade->load(resourceQuery, resourceCtx);
         auto emitter = result.second;
-        emitter->onAdded([query, aggregatingEmitter, resourceCtx](const ApplicationDomain::SinkResource::Ptr &resource) {
+        emitter->onAdded([=](const ApplicationDomain::SinkResource::Ptr &resource) {
             SinkTraceCtx(resourceCtx) << "Found new resources: " << resource->identifier();
             const auto resourceType = ResourceConfig::getResourceType(resource->identifier());
             Q_ASSERT(!resourceType.isEmpty());
-            queryResource<DomainType>(resourceType, resource->identifier(), query, aggregatingEmitter, resourceCtx).exec();
+            queryResource<DomainType>(resourceType, resource->identifier(), query, aggregatingEmitter, ctx).exec();
         });
         emitter->onModified([](const ApplicationDomain::SinkResource::Ptr &) {
         });

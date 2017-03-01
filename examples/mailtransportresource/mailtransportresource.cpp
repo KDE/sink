@@ -91,6 +91,9 @@ public:
             modifiedMail.setSent(true);
 
             auto resource = Store::readOne<ApplicationDomain::SinkResource>(Query{}.filter(mResourceInstanceIdentifier).request<ApplicationDomain::SinkResource::Account>());
+            if (resource.identifier().isEmpty()) {
+                SinkWarning() << "Failed to retrieve target resource: " << mResourceInstanceIdentifier;
+            }
             //Then copy the mail to the target resource
             Query query;
             query.containsFilter<ApplicationDomain::SinkResource::Capabilities>(ApplicationDomain::ResourceCapabilities::Mail::sent);
@@ -193,7 +196,8 @@ MailtransportResource::MailtransportResource(const Sink::ResourceContext &resour
 }
 
 MailtransportResourceFactory::MailtransportResourceFactory(QObject *parent)
-    : Sink::ResourceFactory(parent, {Sink::ApplicationDomain::ResourceCapabilities::Mail::transport})
+    : Sink::ResourceFactory(parent, {Sink::ApplicationDomain::ResourceCapabilities::Mail::mail,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::transport})
 {
 
 }

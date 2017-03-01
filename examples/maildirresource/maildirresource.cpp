@@ -572,7 +572,9 @@ MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext)
 
 MaildirResourceFactory::MaildirResourceFactory(QObject *parent)
     : Sink::ResourceFactory(parent,
-            {Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,
+            {Sink::ApplicationDomain::ResourceCapabilities::Mail::mail,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::folder,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,
             Sink::ApplicationDomain::ResourceCapabilities::Mail::drafts,
             "-folder.rename",
             Sink::ApplicationDomain::ResourceCapabilities::Mail::trash,

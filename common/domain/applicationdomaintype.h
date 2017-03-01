@@ -418,6 +418,8 @@ struct SINK_EXPORT ImapResource {
 
 namespace ResourceCapabilities {
 namespace Mail {
+    static constexpr const char *mail = "mail";
+    static constexpr const char *folder = "folder";
     static constexpr const char *storage = "mail.storage";
     static constexpr const char *drafts = "mail.drafts";
     static constexpr const char *sent = "mail.sent";
