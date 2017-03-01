@@ -21,7 +21,7 @@
 
 #include "common/genericresource.h"
 
-#include <Async/Async>
+#include <KAsync/Async>
 
 #include <flatbuffers/flatbuffers.h>
 

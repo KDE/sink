@@ -24,7 +24,7 @@
 #include <QString>
 #include <QSharedPointer>
 
-#include <Async/Async>
+#include <KAsync/Async>
 
 #include "query.h"
 #include "applicationdomaintype.h"

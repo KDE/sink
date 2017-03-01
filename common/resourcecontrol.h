@@ -23,7 +23,7 @@
 #include "sink_export.h"
 #include <QByteArray>
 
-#include <Async/Async>
+#include <KAsync/Async>
 
 #include "inspection.h"
 #include "flush.h"

@@ -21,7 +21,7 @@
 
 #include "sink_export.h"
 
-#include <Async/Async>
+#include <KAsync/Async>
 #include "notification.h"
 
 namespace Sink {

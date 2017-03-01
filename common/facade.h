@@ -23,7 +23,7 @@
 #include "facadeinterface.h"
 
 #include <QByteArray>
-#include <Async/Async>
+#include <KAsync/Async>
 
 #include "resourceaccess.h"
 #include "domaintypeadaptorfactoryinterface.h"

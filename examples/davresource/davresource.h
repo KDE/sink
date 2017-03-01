@@ -22,7 +22,7 @@
 #include "common/genericresource.h"
 
 #include <KDAV/DavUrl>
-#include <Async/Async>
+#include <KAsync/Async>
 
 #include <flatbuffers/flatbuffers.h>
 

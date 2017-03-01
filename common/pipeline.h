@@ -29,7 +29,7 @@
 #include "sink_export.h"
 #include <storage.h>
 
-#include <Async/Async>
+#include <KAsync/Async>
 
 #include <bufferadaptor.h>
 #include <resourcecontext.h>

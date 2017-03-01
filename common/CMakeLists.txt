@@ -122,7 +122,7 @@ qt5_use_modules(${PROJECT_NAME} LINK_PUBLIC Network)
 qt5_use_modules(${PROJECT_NAME} LINK_PRIVATE Gui)
 target_link_libraries(${PROJECT_NAME}
 PUBLIC
-    KF5::Async
+    KAsync
 PRIVATE
     ${storage_LIBS}
     KF5::Mime

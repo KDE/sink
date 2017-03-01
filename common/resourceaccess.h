@@ -25,7 +25,7 @@
 #include <QObject>
 #include <QTimer>
 
-#include <Async/Async>
+#include <KAsync/Async>
 
 #include <flatbuffers/flatbuffers.h>
 #include "notification.h"

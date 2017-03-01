@@ -24,7 +24,7 @@
 #include <QByteArray>
 #include <QSharedPointer>
 
-#include <Async/Async>
+#include <KAsync/Async>
 
 class QAbstractItemModel;
 

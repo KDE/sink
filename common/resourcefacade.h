@@ -21,7 +21,7 @@
 
 #include "common/facadeinterface.h"
 
-#include <Async/Async>
+#include <KAsync/Async>
 #include "common/resultprovider.h"
 #include "common/domain/applicationdomaintype.h"
 #include "common/configstore.h"

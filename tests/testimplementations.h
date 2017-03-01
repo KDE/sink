@@ -19,7 +19,7 @@
  */
 #pragma once
 
-#include <Async/Async>
+#include <KAsync/Async>
 
 #include <common/domainadaptor.h>
 #include <common/resultprovider.h>

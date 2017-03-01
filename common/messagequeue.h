@@ -6,7 +6,7 @@
 #include <string>
 #include <functional>
 #include <QString>
-#include <Async/Async>
+#include <KAsync/Async>
 #include "storage.h"
 
 /**

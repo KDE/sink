@@ -23,7 +23,7 @@
 
 #include <QObject>
 #include <QTimer>
-#include <Async/Async>
+#include <KAsync/Async>
 #include <functional>
 
 #include "log.h"

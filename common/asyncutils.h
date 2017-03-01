@@ -18,7 +18,7 @@
 */
 #pragma once
 
-#include <Async/Async>
+#include <KAsync/Async>
 #include <QtConcurrent/QtConcurrentRun>
 #include <QFuture>
 #include <QFutureWatcher>

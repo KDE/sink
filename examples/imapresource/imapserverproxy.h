@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <Async/Async>
+#include <KAsync/Async>
 
 #include <KMime/KMime/KMimeMessage>
 #include <KIMAP2/ListJob>

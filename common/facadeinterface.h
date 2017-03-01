@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <Async/Async>
+#include <KAsync/Async>
 #include <QByteArray>
 #include <QSharedPointer>
 #include <QPair>
