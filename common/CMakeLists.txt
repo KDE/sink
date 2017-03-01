@@ -3,7 +3,7 @@ include_directories(domain)
 
 project(sink)
 
-ecm_setup_version("0.1.0" VARIABLE_PREFIX Sink
+ecm_setup_version("${SINK_VERSION}" VARIABLE_PREFIX Sink
                         VERSION_HEADER "${CMAKE_CURRENT_BINARY_DIR}/sink_version.h"
                         PACKAGE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/SinkConfigVersion.cmake"
                         SOVERSION 0
