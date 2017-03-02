@@ -99,7 +99,7 @@ public:
                 return 0;
             }, runAsync).exec();
         });
-        auto job = KAsync::syncStart<void>([query, resultProvider]() {});
+        auto job = KAsync::start([query, resultProvider]() {});
         mResultProvider = resultProvider.data();
         return qMakePair(job, emitter);
     }

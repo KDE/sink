@@ -289,7 +289,7 @@ void Synchronizer::flushComplete(const QByteArray &flushId)
 KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
 {
     if (request.options & SyncRequest::RequestFlush) {
-        return KAsync::syncStart<void>([=] {
+        return KAsync::start([=] {
             //Trigger a flush and record original request without flush option
             auto modifiedRequest = request;
             modifiedRequest.options = SyncRequest::NoOptions;
@@ -309,7 +309,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             enqueueCommand(Sink::Commands::FlushCommand, BufferUtils::extractBuffer(fbb));
         });
     } else if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
-        return KAsync::syncStart<void>([this, request] {
+        return KAsync::start([this, request] {
             Sink::Notification n;
             n.id = request.requestId;
             n.type = Notification::Status;
@@ -343,7 +343,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             }
         });
     } else if (request.requestType == Synchronizer::SyncRequest::Flush) {
-        return KAsync::syncStart<void>([=] {
+        return KAsync::start([=] {
             Q_ASSERT(!request.requestId.isEmpty());
             //FIXME it looks like this is emitted before the replay actually finishes
             if (request.flushType == Flush::FlushReplayQueue) {
@@ -387,7 +387,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
     }
 
     const auto request = mSyncRequestQueue.takeFirst();
-    return KAsync::syncStart<void>([this] {
+    return KAsync::start([this] {
         mMessageQueue->startTransaction();
         mEntityStore->startTransaction(Sink::Storage::DataStore::ReadOnly);
         mSyncInProgress = true;

@@ -227,7 +227,7 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
 KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
 {
     auto time = QSharedPointer<QTime>::create();
-    return KAsync::syncStart<void>([this]() { mPipeline->startTransaction(); })
+    return KAsync::start([this]() { mPipeline->startTransaction(); })
         .then(KAsync::doWhile(
             [this, queue, time]() -> KAsync::Job<KAsync::ControlFlowFlag> {
                 return queue->dequeueBatch(sBatchSize,

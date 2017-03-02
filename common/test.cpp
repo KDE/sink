@@ -168,7 +168,7 @@ public:
             }
             resultProvider->initialResultSetComplete(parent, true);
         });
-        auto job = KAsync::syncStart<void>([query, resultProvider]() {});
+        auto job = KAsync::start([query, resultProvider]() {});
         return qMakePair(job, emitter);
     }
 

@@ -196,7 +196,7 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::create(const DomainType &domai
 {
     auto configStoreIdentifier = mIdentifier;
     auto typeName = mTypeName;
-    return KAsync::syncStart<void>([domainObject, configStoreIdentifier, typeName]() {
+    return KAsync::start([domainObject, configStoreIdentifier, typeName]() {
         const QByteArray type = domainObject.getProperty(typeName).toByteArray();
         const QByteArray providedIdentifier = domainObject.identifier().isEmpty() ? domainObject.getProperty("identifier").toByteArray() : domainObject.identifier();
         const QByteArray identifier = providedIdentifier.isEmpty() ? ResourceConfig::newIdentifier(type) : providedIdentifier;
@@ -222,7 +222,7 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::modify(const DomainType &domai
 {
     auto configStoreIdentifier = mIdentifier;
     auto typeName = mTypeName;
-    return KAsync::syncStart<void>([domainObject, configStoreIdentifier, typeName]() {
+    return KAsync::start([domainObject, configStoreIdentifier, typeName]() {
         const QByteArray identifier = domainObject.identifier();
         if (identifier.isEmpty()) {
             SinkWarning() << "We need an \"identifier\" property to identify the entity to configure.";
@@ -263,7 +263,7 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domai
 {
     auto configStoreIdentifier = mIdentifier;
     auto typeName = mTypeName;
-    return KAsync::syncStart<void>([domainObject, configStoreIdentifier, typeName]() {
+    return KAsync::start([domainObject, configStoreIdentifier, typeName]() {
         const QByteArray identifier = domainObject.identifier();
         if (identifier.isEmpty()) {
             SinkWarning() << "We need an \"identifier\" property to identify the entity to configure";

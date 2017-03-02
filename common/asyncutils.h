@@ -39,7 +39,7 @@ KAsync::Job<T> run(const std::function<T()> &f, bool runAsync = true)
             });
         });
     } else {
-        return KAsync::syncStart<T>([f]() {
+        return KAsync::start<T>([f]() {
             return f();
         });
     }

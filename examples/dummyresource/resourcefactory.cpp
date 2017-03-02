@@ -115,7 +115,7 @@ class DummySynchronizer : public Sink::Synchronizer {
         n.message = "We're connected";
         n.code = Sink::ApplicationDomain::ConnectedStatus;
         emit notify(n);
-        return KAsync::syncStart<void>([this]() {
+        return KAsync::start([this]() {
             synchronize(ENTITY_TYPE_EVENT, DummyStore::instance().events(), [this](const QByteArray &ridBuffer, const QMap<QString, QVariant> &data) {
                 return createEvent(ridBuffer, data);
             });

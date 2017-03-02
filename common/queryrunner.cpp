@@ -125,7 +125,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                 return KAsync::null();
             }
             Q_ASSERT(!mQueryInProgress);
-            return KAsync::syncStart<void>([&] {
+            return KAsync::start([&] {
                     mQueryInProgress = true;
                 })
                 .then(async::run<ReplayResult>([=]() {
