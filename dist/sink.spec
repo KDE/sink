@@ -7,7 +7,7 @@ Summary:        sink
 Group:          Applications/Desktop
 License:        GPL
 URL:            https://docs.kolab.org/about/sink
-Source0:        sink-%{version}.tar.gz
+Source0:        sink-%{version}.tar.xz
 
 BuildRequires:  cmake >= 2.8.12
 BuildRequires:  extra-cmake-modules
@@ -16,7 +16,7 @@ BuildRequires:  gcc-c++
 BuildRequires:  kasync-devel
 BuildRequires:  kf5-kcoreaddons-devel
 BuildRequires:  kf5-kcontacts-devel
-BuildRequires:  kmime-devel
+BuildRequires:  kf5-kmime-devel
 BuildRequires:  kimap2-devel
 BuildRequires:  libcurl-devel
 BuildRequires:  libgit2-devel
