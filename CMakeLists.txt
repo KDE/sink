@@ -29,6 +29,7 @@ find_package(Qt5 COMPONENTS REQUIRED Core Network Gui)
 find_package(KF5 COMPONENTS REQUIRED Mime Contacts)
 find_package(FlatBuffers REQUIRED)
 find_package(KAsync REQUIRED 0.1.0)
+find_package(LMDB REQUIRED)
 
 find_program(MEMORYCHECK_COMMAND valgrind)
 set(MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full")
