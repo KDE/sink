@@ -101,9 +101,12 @@ void ThreadIndexer::updateThreadingIndex(const QByteArray &identifier, const App
         thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId);
         SinkTrace() << "Found parent: " << thread;
     }
+
     if (thread.isEmpty()) {
-        //Try to lookup the thread by subject:
-        thread = index().secondaryLookup<Mail::Subject, Mail::ThreadId>(normalizedSubject);
+        //Try to lookup the thread by subject if not empty
+        if ( !normalizedSubject.isEmpty()) {
+            thread = index().secondaryLookup<Mail::Subject, Mail::ThreadId>(normalizedSubject);
+        }
         if (thread.isEmpty()) {
             thread << QUuid::createUuid().toByteArray();
             SinkTrace() << "Created a new thread: " << thread;
@@ -121,7 +124,9 @@ void ThreadIndexer::updateThreadingIndex(const QByteArray &identifier, const App
     }
     index().index<Mail::MessageId, Mail::ThreadId>(messageId, thread.first(), transaction);
     index().index<Mail::ThreadId, Mail::MessageId>(thread.first(), messageId, transaction);
-    index().index<Mail::Subject, Mail::ThreadId>(normalizedSubject, thread.first(), transaction);
+    if (!normalizedSubject.isEmpty()) {
+        index().index<Mail::Subject, Mail::ThreadId>(normalizedSubject, thread.first(), transaction);
+    }
 }
 
 
