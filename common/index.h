@@ -44,5 +44,5 @@ private:
     Sink::Storage::DataStore::Transaction mTransaction;
     Sink::Storage::DataStore::NamedDatabase mDb;
     QString mName;
-    SINK_DEBUG_COMPONENT(mName.toLatin1())
+    Sink::Log::Context mLogCtx;
 };
