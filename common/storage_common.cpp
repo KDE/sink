@@ -28,7 +28,7 @@ SINK_DEBUG_AREA("storage")
 
 QDebug& operator<<(QDebug &dbg, const Sink::Storage::DataStore::Error &error)
 {
-    dbg << error.message;
+    dbg << error.message << "Code: " << error.code << "Db: " << error.store;
     return dbg;
 }
 

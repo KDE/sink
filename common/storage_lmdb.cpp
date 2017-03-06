@@ -62,6 +62,44 @@ int getErrorCode(int e)
     return -1;
 }
 
+static QList<QByteArray> getDatabaseNames(MDB_txn *transaction)
+{
+    if (!transaction) {
+        SinkWarning() << "Invalid transaction";
+        return QList<QByteArray>();
+    }
+    int rc;
+    QList<QByteArray> list;
+    MDB_dbi dbi;
+    if ((rc = mdb_dbi_open(transaction, nullptr, 0, &dbi) == 0)) {
+        MDB_val key;
+        MDB_val data;
+        MDB_cursor *cursor;
+
+        mdb_cursor_open(transaction, dbi, &cursor);
+        if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST)) == 0) {
+            list << QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
+            while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+                list << QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
+            }
+        } else {
+            //Normal if we don't have any databases yet
+            if (rc == MDB_NOTFOUND) {
+                rc = 0;
+            }
+            if (rc) {
+                SinkWarning() << "Failed to get a value" << rc;
+            }
+        }
+        mdb_cursor_close(cursor);
+    } else {
+        SinkWarning() << "Failed to open db" << rc << QByteArray(mdb_strerror(rc));
+    }
+    return list;
+
+}
+
+
 class DataStore::NamedDatabase::Private
 {
 public:
@@ -291,7 +329,8 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
 
     rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
     if (rc) {
-        Error error(d->name.toLatin1() + d->db, getErrorCode(rc), QByteArray("Error during mdb_cursor open: ") + QByteArray(mdb_strerror(rc)));
+        //Invalid arguments can mean that the transaction doesn't contain the db dbi
+        Error error(d->name.toLatin1() + d->db, getErrorCode(rc), QByteArray("Error during mdb_cursor_open: ") + QByteArray(mdb_strerror(rc)) + ". Key: " + k);
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
         return 0;
     }
@@ -459,7 +498,6 @@ public:
 
     MDB_env *env;
     MDB_txn *transaction;
-    MDB_dbi dbi;
     bool requestedRead;
     std::function<void(const DataStore::Error &error)> defaultErrorHandler;
     QString name;
@@ -590,8 +628,7 @@ static bool ensureCorrectDb(DataStore::NamedDatabase &database, const QByteArray
         }
         return false;
     },
-    [](const DataStore::Error &error) -> bool{
-        return false;
+    [&](const DataStore::Error &) {
     }, false);
     //This is the first time we open this database in a write transaction, write the db name
     if (!count) {
@@ -649,35 +686,8 @@ QList<QByteArray> DataStore::Transaction::getDatabaseNames() const
         SinkWarning() << "Invalid transaction";
         return QList<QByteArray>();
     }
+    return Sink::Storage::getDatabaseNames(d->transaction);
 
-    int rc;
-    QList<QByteArray> list;
-    Q_ASSERT(d->transaction);
-    if ((rc = mdb_dbi_open(d->transaction, nullptr, 0, &d->dbi) == 0)) {
-        MDB_val key;
-        MDB_val data;
-        MDB_cursor *cursor;
-
-        mdb_cursor_open(d->transaction, d->dbi, &cursor);
-        if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_FIRST)) == 0) {
-            list << QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
-            while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-                list << QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
-            }
-        } else {
-            //Normal if we don't have any databases yet
-            if (rc == MDB_NOTFOUND) {
-                rc = 0;
-            }
-            if (rc) {
-                SinkWarning() << "Failed to get a value" << rc;
-            }
-        }
-        mdb_cursor_close(cursor);
-    } else {
-        SinkWarning() << "Failed to open db" << rc << QByteArray(mdb_strerror(rc));
-    }
-    return list;
 }
 
 
