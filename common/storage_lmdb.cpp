@@ -93,6 +93,18 @@ public:
         const auto dbiName = name + db;
         if (sDbis.contains(dbiName)) {
             dbi = sDbis.value(dbiName);
+            //sDbis can contain dbi's that are not available to this transaction.
+            //We use mdb_dbi_flags to check if the dbi is valid for this transaction.
+            uint f;
+            if (mdb_dbi_flags(transaction, dbi, &f) == EINVAL) {
+                //In readonly mode we can just ignore this. In read-write we would have tried to concurrently create a db.
+                if (!readOnly) {
+                    SinkWarning() << "Tried to create database in second transaction: " << dbiName;
+                }
+                dbi = 0;
+                transaction = 0;
+                return false;
+            }
         } else {
             MDB_dbi flagtableDbi;
             if (const int rc = mdb_dbi_open(transaction, "__flagtable", readOnly ? 0 : MDB_CREATE, &flagtableDbi)) {
