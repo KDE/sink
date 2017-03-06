@@ -1,6 +1,7 @@
 project(hawd)
 
-find_package(Libgit2)
+#We require git_buf_free function
+find_package(Libgit2 0.20.0)
 
 if (LIBGIT2_FOUND)
     add_definitions(-DHAVE_LIBGIT2)
