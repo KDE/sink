@@ -88,7 +88,7 @@ bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs,
         curl_easy_setopt(curl, CURLOPT_URL, server);
 
         if (useTls) {
-            curl_easy_setopt(curl, CURLOPT_USE_SSL, (long)CURLUSESSL_TRY);
+            curl_easy_setopt(curl, CURLOPT_USE_SSL, (long)CURLUSESSL_ALL);
         }
 
         if (!verifyPeer) {
@@ -147,8 +147,6 @@ bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs,
 bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert, MailTransport::Options options)
 {
     QByteArray msg = message->encodedContent();
-    SinkLog() << "Sending message " << server << username << password << cacert;
-    SinkTrace() << "Sending message " << msg;
 
     QByteArray from(message->from(true)->mailboxes().isEmpty() ? QByteArray() : message->from(true)->mailboxes().first().address());
     QList<QByteArray> toList;
@@ -159,8 +157,11 @@ bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteA
     for (const auto &mb : message->cc(true)->mailboxes()) {
         ccList << mb.address();
     }
-    bool verifyPeer = options & VerifyPeers;
-    bool useTls = options & UseTls;
+    const bool verifyPeer = options.testFlag(VerifyPeers);
+    const bool useTls = options.testFlag(UseTls);
+
+    SinkLog() << "Sending message " << server << username << password << "CaCert: " << cacert  << "Use tls: " << useTls << " Verify peer: " << verifyPeer;
+    SinkTrace() << "Sending message " << msg;
 
     const int numTos = toList.size();
     const char* to[numTos];
@@ -173,6 +174,9 @@ bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteA
     for (int i = 0; i < numCcs; i++) {
         cc[i] = ccList.at(i);
     }
+    //Because curl will fail with smtps, but it won't tell you why.
+    auto serverAddress = server;
+    serverAddress.replace("smtps://", "smtp://");
 
-    return sendMessageCurl(to, numTos, cc, numCcs, msg, useTls, from.isEmpty() ? nullptr : from, username, password, server, verifyPeer, cacert);
+    return sendMessageCurl(to, numTos, cc, numCcs, msg, useTls, from.isEmpty() ? nullptr : from, username, password, serverAddress, verifyPeer, cacert);
 }

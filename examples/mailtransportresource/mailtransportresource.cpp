@@ -77,7 +77,7 @@ public:
             } else {
                 MailTransport::Options options;
                 if (settings.server.contains("smtps")) {
-                    options &= MailTransport::UseTls;
+                    options |= MailTransport::UseTls;
                 }
                 if (!MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), settings.password.toUtf8(), settings.cacert.toUtf8(), options)) {
                     SinkWarning() << "Failed to send message: " << mail;
