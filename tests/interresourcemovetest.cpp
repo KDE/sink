@@ -28,6 +28,7 @@
 #include "log.h"
 #include "test.h"
 #include "testutils.h"
+#include <KMime/Message>
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -40,6 +41,15 @@ using namespace Sink::ApplicationDomain;
 class InterResourceMoveTest : public QObject
 {
     Q_OBJECT
+
+    QByteArray message(const QByteArray &uid, const QString &subject)
+    {
+        KMime::Message m;
+        m.subject(true)->fromUnicodeString(subject, "utf8");
+        m.messageID(true)->setIdentifier(uid);
+        m.assemble();
+        return m.encodedContent();
+    }
 
 private slots:
     void initTestCase()
@@ -65,24 +75,25 @@ private slots:
 
     void testMove()
     {
-        Event event("instance1");
-        event.setProperty("uid", "testuid");
-        QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
-        event.setProperty("summary", "summaryValue");
-        VERIFYEXEC(Sink::Store::create<Event>(event));
+        QByteArray testuid = "testuid@test.test";
+        QString subject = "summaryValue";
+        auto mimeMessage = message(testuid, subject);
 
+        Mail mail("instance1");
+        mail.setMimeMessage(mimeMessage);
+        VERIFYEXEC(Sink::Store::create<Mail>(mail));
 
-        Event createdEvent;
+        Mail createdmail;
         // Ensure all local data is processed
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "instance1"));
         {
             auto query = Query().resourceFilter("instance1") ;
-            auto list = Sink::Store::read<Event>(query.filter<Event::Uid>("testuid"));
+            auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
             QCOMPARE(list.size(), 1);
-            createdEvent = list.first();
+            createdmail = list.first();
         }
 
-        VERIFYEXEC(Sink::Store::move<Event>(createdEvent, "instance2"));
+        VERIFYEXEC(Sink::Store::move<Mail>(createdmail, "instance2"));
 
         //FIXME we can't guarantee that that the create command arrives at instance2 before the flush command, so we'll just wait for a little bit.
         QTest::qWait(1000);
@@ -92,14 +103,18 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "instance2"));
         {
             auto query = Query().resourceFilter("instance2") ;
-            auto list = Sink::Store::read<Event>(query.filter<Event::Uid>("testuid"));
+            auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
             QCOMPARE(list.size(), 1);
+            const auto mail = list.first();
+            QVERIFY(!mail.getMimeMessagePath().isEmpty());
+            QCOMPARE(mail.getSubject(), subject);
+            QCOMPARE(mail.getMimeMessage(), mimeMessage);
         }
 
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "instance1"));
         {
             auto query = Query().resourceFilter("instance1") ;
-            auto list = Sink::Store::read<Event>(query.filter<Event::Uid>("testuid"));
+            auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
             QCOMPARE(list.size(), 0);
         }
     }
