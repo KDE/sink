@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0048 NEW)
 cmake_policy(SET CMP0028 NEW)
 
-project(sink VERSION 0.1.0)
+project(sink VERSION 0.2)
 
 option(BUILD_MAILDIR "BUILD_MAILDIR" ON)
 option(BUILD_DAV "BUILD_DAV" OFF)
@@ -27,9 +27,9 @@ include(KDEInstallDirs)
 
 find_package(Qt5 COMPONENTS REQUIRED Core Network Gui)
 find_package(KF5 COMPONENTS REQUIRED Mime Contacts)
-find_package(FlatBuffers REQUIRED)
+find_package(FlatBuffers REQUIRED 1.4.0)
 find_package(KAsync REQUIRED 0.1.0)
-find_package(LMDB REQUIRED)
+find_package(LMDB REQUIRED 0.9)
 
 find_program(MEMORYCHECK_COMMAND valgrind)
 set(MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full")
