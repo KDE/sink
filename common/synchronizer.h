@@ -175,6 +175,11 @@ protected:
      */
     virtual QList<Synchronizer::SyncRequest> getSyncRequests(const Sink::QueryBase &query);
 
+    /**
+     * This allows the synchronizer to merge new requests with existing requests in the queue.
+     */
+    virtual void mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue);
+
 protected:
     Sink::Log::Context mLogCtx;
 private:

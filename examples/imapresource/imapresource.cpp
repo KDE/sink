@@ -393,6 +393,44 @@ public:
         return list;
     }
 
+    QByteArray getFolderFromLocalId(const QByteArray &id)
+    {
+        auto mailRemoteId = syncStore().resolveLocalId(ApplicationDomain::getTypeName<ApplicationDomain::Mail>(), id);
+        return folderIdFromMailRid(mailRemoteId);
+    }
+
+    void mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue)  Q_DECL_OVERRIDE
+    {
+        auto isIndividualMailSync = [](const Synchronizer::SyncRequest &request) {
+            if (request.requestType == SyncRequest::Synchronization) {
+                const auto query = request.query;
+                if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
+                    return !query.ids().isEmpty();
+                }
+            }
+            return false;
+
+        };
+
+        if (isIndividualMailSync(request)) {
+            auto newId = request.query.ids().first();
+            auto requestFolder = getFolderFromLocalId(newId);
+            for (auto &r : queue) {
+                if (isIndividualMailSync(r)) {
+                    auto queueFolder = getFolderFromLocalId(r.query.ids().first());
+                    if (requestFolder == queueFolder) {
+                        //Merge
+                        r.query.filter(newId);
+                        SinkTrace() << "Merging request " << request.query;
+                        SinkTrace() << " to " << r.query;
+                        return;
+                    }
+                }
+            }
+        }
+        queue << request;
+    }
+
     KAsync::Job<void> login(QSharedPointer<ImapServerProxy> imap)
     {
         SinkTrace() << "Connecting to:" << mServer << mPort;

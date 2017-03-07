@@ -252,15 +252,21 @@ void Synchronizer::modify(const DomainType &entity, const QByteArray &newResourc
 
 QList<Synchronizer::SyncRequest> Synchronizer::getSyncRequests(const Sink::QueryBase &query)
 {
-    QList<Synchronizer::SyncRequest> list;
-    list << Synchronizer::SyncRequest{query, "sync"};
-    return list;
+    return QList<Synchronizer::SyncRequest>() << Synchronizer::SyncRequest{query, "sync"};
+}
+
+void Synchronizer::mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue)
+{
+    mSyncRequestQueue << request;
 }
 
 void Synchronizer::synchronize(const Sink::QueryBase &query)
 {
     SinkTraceCtx(mLogCtx) << "Synchronizing";
-    mSyncRequestQueue << getSyncRequests(query);
+    auto newRequests = getSyncRequests(query);
+    for (const auto &request: newRequests) {
+        mergeIntoQueue(request, mSyncRequestQueue);
+    }
     processSyncQueue().exec();
 }
 
