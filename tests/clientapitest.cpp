@@ -12,6 +12,12 @@
 #include "asyncutils.h"
 
 template <typename T>
+struct Result {
+    QSharedPointer<T> parent;
+    bool fetchedAll;
+};
+
+template <typename T>
 class TestDummyResourceFacade : public Sink::StoreFacade<T>
 {
 public:
@@ -68,7 +74,7 @@ public:
         auto emitter = resultProvider->emitter();
 
         resultProvider->setFetcher([query, resultProvider, this, ctx](const typename T::Ptr &parent) {
-            async::run<int>([=] {
+            async::run<Result<T>>([=] {
                 if (parent) {
                     SinkTraceCtx(ctx) << "Running the fetcher " << parent->identifier();
                 } else {
@@ -90,14 +96,16 @@ public:
                             SinkTraceCtx(ctx) << "Aborting early after " << count << "results.";
                             offset = i + 1;
                             bool fetchedAll = (i + 1 >= results.size());
-                            resultProvider->initialResultSetComplete(parent, fetchedAll);
-                            return 0;
+                            return Result<T>{parent, fetchedAll};
                         }
                     }
                 }
-                resultProvider->initialResultSetComplete(parent, true);
-                return 0;
-            }, runAsync).exec();
+                return Result<T>{parent, true};
+            }, runAsync)
+            .then([=] (const Result<T> &r) {
+                resultProvider->initialResultSetComplete(r.parent, r.fetchedAll);
+            })
+            .exec();
         });
         auto job = KAsync::start([query, resultProvider]() {});
         mResultProvider = resultProvider.data();

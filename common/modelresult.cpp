@@ -296,15 +296,15 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
     emitter->onInitialResultSetComplete([this, guard](const Ptr &parent, bool fetchedAll) {
         SinkTraceCtx(mLogCtx) << "Initial result set complete. Fetched all: " << fetchedAll;
         Q_ASSERT(guard);
-        threadBoundary.callInMainThread([=]() {
-            const qint64 parentId = parent ? qHash(*parent) : 0;
-            const auto parentIndex = createIndexFromId(parentId);
-            mEntityChildrenFetchComplete.insert(parentId);
-            if (fetchedAll) {
-                mEntityAllChildrenFetched.insert(parentId);
-            }
-            emit dataChanged(parentIndex, parentIndex, QVector<int>() << ChildrenFetchedRole);
-        });
+        Q_ASSERT(QThread::currentThread() == this->thread());
+
+        const qint64 parentId = parent ? qHash(*parent) : 0;
+        const auto parentIndex = createIndexFromId(parentId);
+        mEntityChildrenFetchComplete.insert(parentId);
+        if (fetchedAll) {
+            mEntityAllChildrenFetched.insert(parentId);
+        }
+        emit dataChanged(parentIndex, parentIndex, QVector<int>() << ChildrenFetchedRole);
     });
     mEmitter = emitter;
 }

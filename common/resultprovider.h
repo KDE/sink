@@ -268,8 +268,9 @@ public:
 
     void initialResultSetComplete(const DomainType &parent, bool replayedAll)
     {
-        QMutexLocker locker{&mMutex};
+        //This callback is only ever called from the main thread, so we don't do any locking
         if (initialResultSetCompleteHandler && guardOk()) {
+            //This can directly lead to our destruction and thus waitForMethodExecutionEnd
             initialResultSetCompleteHandler(parent, replayedAll);
         }
     }
@@ -313,6 +314,13 @@ private:
     std::function<void(void)> clearHandler;
 
     std::function<void(const DomainType &parent)> mFetcher;
+    /*
+     * This mutex is here to protect the emitter from getting destroyed while the producer-thread (ResultProvider) is calling into it,
+     * and vice-verca, to protect the producer thread from calling into a destroyed emitter.
+     *
+     * This is necessary because Emitter and ResultProvider have lifetimes managed by two different threads.
+     * The emitter lives in the application thread, and the resultprovider in the query thread.
+     */
     QMutex mMutex;
     bool mDone = false;
 };
