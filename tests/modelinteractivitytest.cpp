@@ -70,9 +70,9 @@ private slots:
     {
         // Setup
         {
-            Sink::ApplicationDomain::Mail mail("sink.dummy.instance1");
+            Sink::ApplicationDomain::Event event("sink.dummy.instance1");
             for (int i = 0; i < 1000; i++) {
-                Sink::Store::create<Sink::ApplicationDomain::Mail>(mail).exec().waitForFinished();
+                Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec().waitForFinished();
             }
         }
 
@@ -85,7 +85,7 @@ private slots:
         // Test
         QTime time;
         time.start();
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
         blockingTime += time.elapsed();
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         // Never block longer than 10 ms
