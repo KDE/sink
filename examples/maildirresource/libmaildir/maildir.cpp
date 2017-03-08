@@ -1,5 +1,6 @@
 /*
     Copyright (c) 2007 Till Adam <adam@kde.org>
+    Copyright (c) 2017 Christian Mollekopf <mollekopf@kolabsys.com>
 
     This library is free software; you can redistribute it and/or modify it
     under the terms of the GNU Library General Public License as published by
@@ -24,7 +25,6 @@
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QHostInfo>
-#include <QUuid>
 #include <QLoggingCategory>
 
 Q_LOGGING_CATEGORY(log, "maildir");

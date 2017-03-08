@@ -37,7 +37,7 @@
 
 #include <QDir>
 #include <QDirIterator>
-#include <KMime/KMime/KMimeMessage>
+#include <KMime/KMimeMessage>
 
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_MAIL "mail"

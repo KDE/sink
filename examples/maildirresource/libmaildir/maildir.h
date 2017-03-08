@@ -1,5 +1,6 @@
 /*
     Copyright (c) 2007 Till Adam <adam@kde.org>
+    Copyright (c) 2017 Christian Mollekopf <mollekopf@kolabsys.com>
 
     This library is free software; you can redistribute it and/or modify it
     under the terms of the GNU Library General Public License as published by
@@ -20,9 +21,6 @@
 #ifndef MAILDIR_H
 #define MAILDIR_H
 
-
-#include "maildir_export.h"
-
 #include <QString>
 #include <QStringList>
 
@@ -30,7 +28,7 @@ class QDateTime;
 
 namespace KPIM {
 
-class MAILDIR_EXPORT Maildir
+class Maildir
 {
 public:
     /**
