@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2017 Sandro Knauß <knauss@kolabsys.com>
+ *   Copyright (C) 2017 Sandro Knauß <knauss@kolabsys.com>
+ *   Copyright (C) 2017 Christian Mollekopf <mollekopf@kolabsys.com>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -41,6 +42,7 @@ void TypeImplementation<Contact>::configure(ReadPropertyMapper<Buffer> &property
     propertyMapper.addMapping<Contact::Fn, Buffer>(&Buffer::fn);
     propertyMapper.addMapping<Contact::Emails, Buffer>(&Buffer::emails);
     propertyMapper.addMapping<Contact::Vcard, Buffer>(&Buffer::vcard);
+    propertyMapper.addMapping<Contact::Addressbook, Buffer>(&Buffer::addressbook);
 }
 
 void TypeImplementation<Contact>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
@@ -49,6 +51,7 @@ void TypeImplementation<Contact>::configure(WritePropertyMapper<BufferBuilder> &
     propertyMapper.addMapping<Contact::Fn>(&BufferBuilder::add_fn);
     propertyMapper.addMapping<Contact::Emails>(&BufferBuilder::add_emails);
     propertyMapper.addMapping<Contact::Vcard>(&BufferBuilder::add_vcard);
+    propertyMapper.addMapping<Contact::Addressbook>(&BufferBuilder::add_addressbook);
 }
 
 void TypeImplementation<Contact>::configure(IndexPropertyMapper &)

@@ -28,9 +28,9 @@ public:
     virtual ~DavResourceContactFacade();
 };
 
-class DavResourceFolderFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Folder>
+class DavResourceAddressbookFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Addressbook>
 {
 public:
-    DavResourceFolderFacade(const Sink::ResourceContext &context);
-    virtual ~DavResourceFolderFacade();
+    DavResourceAddressbookFacade(const Sink::ResourceContext &context);
+    virtual ~DavResourceAddressbookFacade();
 };

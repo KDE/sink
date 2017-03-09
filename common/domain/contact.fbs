@@ -3,6 +3,7 @@ namespace Sink.ApplicationDomain.Buffer;
 table Contact {
   uid:string;
   fn:string;
+  addressbook:string;
   emails: [string];
   vcard: string;
 }

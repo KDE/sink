@@ -96,6 +96,15 @@ SINK_REGISTER_PROPERTY(Folder, SpecialPurpose);
 SINK_REGISTER_PROPERTY(Folder, Enabled);
 SINK_REGISTER_PROPERTY(Folder, Parent);
 
+SINK_REGISTER_PROPERTY(Contact, Uid);
+SINK_REGISTER_PROPERTY(Contact, Fn);
+SINK_REGISTER_PROPERTY(Contact, Emails);
+SINK_REGISTER_PROPERTY(Contact, Vcard);
+SINK_REGISTER_PROPERTY(Contact, Addressbook);
+
+SINK_REGISTER_PROPERTY(Addressbook, Name);
+SINK_REGISTER_PROPERTY(Addressbook, Parent);
+
 static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();
     QMetaType::registerDebugStreamOperator<Reference>();
@@ -366,6 +375,12 @@ template<>
 QByteArray getTypeName<Contact>()
 {
     return "contact";
+}
+
+template<>
+QByteArray getTypeName<Addressbook>()
+{
+    return "addressbook";
 }
 
 template<>

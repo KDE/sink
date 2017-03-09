@@ -34,11 +34,11 @@ DavResourceContactFacade::~DavResourceContactFacade()
 }
 
 
-DavResourceFolderFacade::DavResourceFolderFacade(const Sink::ResourceContext &context)
-    : Sink::GenericFacade<Sink::ApplicationDomain::Folder>(context)
+DavResourceAddressbookFacade::DavResourceAddressbookFacade(const Sink::ResourceContext &context)
+    : Sink::GenericFacade<Sink::ApplicationDomain::Addressbook>(context)
 {
 }
 
-DavResourceFolderFacade::~DavResourceFolderFacade()
+DavResourceAddressbookFacade::~DavResourceAddressbookFacade()
 {
 }

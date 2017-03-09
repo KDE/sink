@@ -505,6 +505,12 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
         auto mail = store().readEntity<ApplicationDomain::Mail>(key);
         job = replay(mail, operation, oldRemoteId, modifiedProperties);
+    } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Contact>()) {
+        auto mail = store().readEntity<ApplicationDomain::Contact>(key);
+        job = replay(mail, operation, oldRemoteId, modifiedProperties);
+    } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Addressbook>()) {
+        auto mail = store().readEntity<ApplicationDomain::Addressbook>(key);
+        job = replay(mail, operation, oldRemoteId, modifiedProperties);
     } else {
         SinkErrorCtx(mLogCtx) << "Replayed unknown type: " << type;
     }
@@ -541,6 +547,11 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
 }
 
 KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Contact &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)
+{
+    return KAsync::null<QByteArray>();
+}
+
+KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Addressbook &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)
 {
     return KAsync::null<QByteArray>();
 }

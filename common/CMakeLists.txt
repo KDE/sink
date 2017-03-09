@@ -62,6 +62,7 @@ set(command_SRCS
     domain/propertyregistry.cpp
     domain/applicationdomaintype.cpp
     domain/contact.cpp
+    domain/addressbook.cpp
     domain/event.cpp
     domain/mail.cpp
     domain/folder.cpp
@@ -101,6 +102,7 @@ generate_flatbuffers(
     commands/inspection
     commands/flush
     domain/contact
+    domain/addressbook
     domain/event
     domain/mail
     domain/folder

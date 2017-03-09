@@ -312,12 +312,19 @@ struct SINK_EXPORT Entity : public ApplicationDomainType {
     virtual ~Entity() = default;
 };
 
+struct SINK_EXPORT Addressbook : public Entity {
+    SINK_ENTITY(Addressbook);
+    SINK_REFERENCE_PROPERTY(Addressbook, Parent, parent);
+    SINK_PROPERTY(QString, Name, name);
+};
+
 struct SINK_EXPORT Contact : public Entity {
     SINK_ENTITY(Contact);
     SINK_PROPERTY(QString, Uid, uid);
     SINK_PROPERTY(QString, Fn, fn);
     SINK_PROPERTY(QByteArrayList, Emails, emails);
     SINK_PROPERTY(QByteArray, Vcard, vcard);
+    SINK_REFERENCE_PROPERTY(Addressbook, Addressbook, addressbook);
 };
 
 struct SINK_EXPORT Event : public Entity {
@@ -429,6 +436,7 @@ namespace Mail {
 };
 namespace Contact {
     static constexpr const char *contact = "contact";
+    static constexpr const char *addressbook = "addressbook";
     static constexpr const char *storage = "contact.storage";
 };
 };
@@ -452,6 +460,9 @@ QByteArray SINK_EXPORT getTypeName();
 
 template<>
 QByteArray SINK_EXPORT getTypeName<Contact>();
+
+template<>
+QByteArray SINK_EXPORT getTypeName<Addressbook>();
 
 template<>
 QByteArray SINK_EXPORT getTypeName<Event>();
@@ -503,6 +514,7 @@ class SINK_EXPORT TypeImplementation;
  */
 #define SINK_REGISTER_TYPES() \
     REGISTER_TYPE(Sink::ApplicationDomain::Contact) \
+    REGISTER_TYPE(Sink::ApplicationDomain::Addressbook) \
     REGISTER_TYPE(Sink::ApplicationDomain::Event) \
     REGISTER_TYPE(Sink::ApplicationDomain::Mail) \
     REGISTER_TYPE(Sink::ApplicationDomain::Folder) \

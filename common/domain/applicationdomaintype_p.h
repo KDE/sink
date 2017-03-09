@@ -33,13 +33,15 @@ struct TypeHelper {
     template <typename R, typename ...Args>
     R operator()(Args && ... args) const {
         if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Folder>()) {
-            return Func<Sink::ApplicationDomain::Folder>{}(std::forward<Args...>(args...)); 
+            return Func<Sink::ApplicationDomain::Folder>{}(std::forward<Args...>(args...));
         } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Mail>()) {
-            return Func<Sink::ApplicationDomain::Mail>{}(std::forward<Args...>(args...)); 
+            return Func<Sink::ApplicationDomain::Mail>{}(std::forward<Args...>(args...));
         } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>()) {
-            return Func<Sink::ApplicationDomain::Event>{}(std::forward<Args...>(args...)); 
+            return Func<Sink::ApplicationDomain::Event>{}(std::forward<Args...>(args...));
         } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Contact>()) {
             return Func<Sink::ApplicationDomain::Contact>{}(std::forward<Args...>(args...));
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Addressbook>()) {
+            return Func<Sink::ApplicationDomain::Addressbook>{}(std::forward<Args...>(args...));
         } else {
             Q_ASSERT(false);
         }

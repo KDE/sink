@@ -63,7 +63,9 @@ QList<QByteArray> requestedProperties(const QString &type)
     } else if (type == getTypeName<Event>()) {
         return QList<QByteArray>() << Event::Summary::name;
     } else if (type == getTypeName<Contact>()) {
-        return QList<QByteArray>() << Contact::Fn::name << Contact::Emails::name;
+        return QList<QByteArray>() << Contact::Fn::name << Contact::Emails::name << Contact::Addressbook::name;
+    } else if (type == getTypeName<Addressbook>()) {
+        return QList<QByteArray>() << Addressbook::Name::name << Addressbook::Parent::name;
     } else if (type == getTypeName<SinkResource>()) {
         return QList<QByteArray>() << SinkResource::ResourceType::name << SinkResource::Account::name << SinkResource::Capabilities::name;
     } else if (type == getTypeName<SinkAccount>()) {

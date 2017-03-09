@@ -1,6 +1,5 @@
 /*
- *   Copyright (C) 2017 Sandro Knauß <knauss@kolabsys.com>
- *   Copyright (C) 2017 Christian Mollekopf <mollekopf@kolabsys.com>
+ *   Copyright (C) 2017 Christian Mollekopf <chrigi_1@fastmail.fm>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,8 +20,6 @@
 
 #include "applicationdomaintype.h"
 
-class QByteArray;
-
 template<typename T>
 class ReadPropertyMapper;
 template<typename T>
@@ -32,22 +29,18 @@ class IndexPropertyMapper;
 class TypeIndex;
 
 namespace Sink {
+
 namespace ApplicationDomain {
     namespace Buffer {
-        struct Contact;
-        struct ContactBuilder;
+        struct Addressbook;
+        struct AddressbookBuilder;
     }
 
-/**
- * Implements all type-specific code such as updating and querying indexes.
- * 
- * These are type specifiy default implementations. Theoretically a resource could implement it's own implementation.
- */
 template<>
-class TypeImplementation<Sink::ApplicationDomain::Contact> {
+class TypeImplementation<Sink::ApplicationDomain::Addressbook> {
 public:
-    typedef Sink::ApplicationDomain::Buffer::Contact Buffer;
-    typedef Sink::ApplicationDomain::Buffer::ContactBuilder BufferBuilder;
+    typedef Sink::ApplicationDomain::Buffer::Addressbook Buffer;
+    typedef Sink::ApplicationDomain::Buffer::AddressbookBuilder BufferBuilder;
     static void configure(TypeIndex &);
     static void configure(ReadPropertyMapper<Buffer> &);
     static void configure(WritePropertyMapper<BufferBuilder> &);
