@@ -69,7 +69,6 @@ rm %{buildroot}%{_prefix}/bin/sink_smtp_test
 %{_bindir}/sink_synchronizer
 %{_bindir}/sinksh
 %{_libdir}/liblibhawd.so
-%{_libdir}/libmaildir.so
 %{_libdir}/libsink.so.*
 %dir %{_libdir}/qt5/plugins/
 %{_libdir}/qt5/plugins/sink/
