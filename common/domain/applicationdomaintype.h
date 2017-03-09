@@ -427,6 +427,10 @@ namespace Mail {
     static constexpr const char *transport = "mail.transport";
     static constexpr const char *folderhierarchy = "mail.folderhierarchy";
 };
+namespace Contact {
+    static constexpr const char *contact = "contact";
+    static constexpr const char *storage = "contact.storage";
+};
 };
 
 namespace SpecialPurpose {

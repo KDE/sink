@@ -62,6 +62,8 @@ QList<QByteArray> requestedProperties(const QString &type)
                                   << Mail::Date::name;
     } else if (type == getTypeName<Event>()) {
         return QList<QByteArray>() << Event::Summary::name;
+    } else if (type == getTypeName<Contact>()) {
+        return QList<QByteArray>() << Contact::Fn::name << Contact::Emails::name;
     } else if (type == getTypeName<SinkResource>()) {
         return QList<QByteArray>() << SinkResource::ResourceType::name << SinkResource::Account::name << SinkResource::Capabilities::name;
     } else if (type == getTypeName<SinkAccount>()) {
