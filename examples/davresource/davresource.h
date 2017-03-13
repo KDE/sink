@@ -54,7 +54,7 @@ private:
 class DavResourceFactory : public Sink::ResourceFactory
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "sink.davresource")
+    Q_PLUGIN_METADATA(IID "sink.dav")
     Q_INTERFACES(Sink::ResourceFactory)
 
 public:

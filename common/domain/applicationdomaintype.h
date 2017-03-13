@@ -423,6 +423,10 @@ struct SINK_EXPORT ImapResource {
     static SinkResource create(const QByteArray &account);
 };
 
+struct SINK_EXPORT CardDavResource {
+    static SinkResource create(const QByteArray &account);
+};
+
 namespace ResourceCapabilities {
 namespace Mail {
     static constexpr const char *mail = "mail";
