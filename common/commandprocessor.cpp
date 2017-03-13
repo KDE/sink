@@ -245,9 +245,9 @@ KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
                                 }
                             }
                             if (queue->isEmpty()) {
-                                return KAsync::value<KAsync::ControlFlowFlag>(KAsync::Break);
+                                return KAsync::Break;
                             } else {
-                                return KAsync::value<KAsync::ControlFlowFlag>(KAsync::Continue);
+                                return KAsync::Continue;
                             }
                         });
             }))
