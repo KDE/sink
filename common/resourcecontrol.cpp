@@ -100,9 +100,9 @@ KAsync::Job<void> ResourceControl::flush(Flush::FlushType type, const QByteArray
     auto notifier = QSharedPointer<Sink::Notifier>::create(resourceAccess);
     auto id = QUuid::createUuid().toByteArray();
     return KAsync::start<void>([=](KAsync::Future<void> &future) {
-            SinkTrace() << "Waiting for notification notification " << id;
+            SinkTrace() << "Waiting for flush completion notification " << id;
             notifier->registerHandler([&future, id](const Notification &notification) {
-                SinkTrace() << "Received notification " << notification.type << notification.id;
+                SinkTrace() << "Received notification: " << notification.type << notification.id;
                 if (notification.id == id) {
                     SinkTrace() << "FlushComplete";
                     if (notification.code) {

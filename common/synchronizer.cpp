@@ -353,7 +353,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             Q_ASSERT(!request.requestId.isEmpty());
             //FIXME it looks like this is emitted before the replay actually finishes
             if (request.flushType == Flush::FlushReplayQueue) {
-                SinkTraceCtx(mLogCtx) << "Emitting flush completion.";
+                SinkTraceCtx(mLogCtx) << "Emitting flush completion: " << request.requestId;
                 Sink::Notification n;
                 n.type = Sink::Notification::FlushCompletion;
                 n.id = request.requestId;
@@ -410,7 +410,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
             emit changesReplayed();
         }
         if (error) {
-            SinkWarningCtx(mLogCtx) << "Error during sync: " << error.errorMessage;
+            SinkWarningCtx(mLogCtx) << "Error during sync: " << error;
         }
         //In case we got more requests meanwhile.
         return processSyncQueue();

@@ -281,14 +281,14 @@ static KAsync::Job<void> synchronize(const QByteArray &resource, const Sink::Syn
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
     return resourceAccess->synchronizeResource(scope)
         .addToContext(resourceAccess)
-        .then<void>([](const KAsync::Error &error) {
-                if (error) {
-                    SinkWarning() << "Error during sync.";
-                    return KAsync::error<void>(error);
-                }
-                SinkTrace() << "synced.";
-                return KAsync::null<void>();
-            });
+        .then([=](const KAsync::Error &error) {
+            if (error) {
+                SinkWarning() << "Error during sync.";
+                return KAsync::error(error);
+            }
+            SinkTrace() << "Synchronization of resource " << resource << " complete.";
+            return KAsync::null();
+        });
 }
 
 KAsync::Job<void> Store::synchronize(const Sink::Query &query)

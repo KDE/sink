@@ -614,7 +614,7 @@ bool ResourceAccess::processMessageBuffer()
                     [[clang::fallthrough]];
                 case Sink::Notification::Progress: {
                     auto n = getNotification(buffer);
-                    SinkTrace() << "Received notification: " << n.type;
+                    SinkTrace() << "Received notification: Type:" << n.type  << "Message: " << n.message << "Code: " << n.code;
                     emit notification(n);
                 } break;
                 case Sink::Notification::RevisionUpdate:
