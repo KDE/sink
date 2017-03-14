@@ -104,7 +104,19 @@ void SpecialPurposeProcessor::moveToFolder(Sink::ApplicationDomain::ApplicationD
 
 void SpecialPurposeProcessor::newEntity(Sink::ApplicationDomain::ApplicationDomainType &newEntity)
 {
-    moveToFolder(newEntity);
+    auto mail = newEntity.cast<ApplicationDomain::Mail>();
+    const auto folder = mail.getFolder();
+    if (folder.isEmpty()) {
+        moveToFolder(newEntity);
+    } else {
+        bool isDraft = findFolder(ApplicationDomain::SpecialPurpose::Mail::drafts) == folder;
+        bool isSent = findFolder(ApplicationDomain::SpecialPurpose::Mail::sent) == folder;
+        bool isTrash = findFolder(ApplicationDomain::SpecialPurpose::Mail::trash) == folder;
+        mail.setDraft(isDraft);
+        mail.setTrash(isTrash);
+        mail.setSent(isSent);
+    }
+
 }
 
 void SpecialPurposeProcessor::modifiedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, Sink::ApplicationDomain::ApplicationDomainType &newEntity)
@@ -118,8 +130,8 @@ void SpecialPurposeProcessor::modifiedEntity(const Sink::ApplicationDomain::Appl
         bool isSent = findFolder(ApplicationDomain::SpecialPurpose::Mail::sent) == folder;
         bool isTrash = findFolder(ApplicationDomain::SpecialPurpose::Mail::trash) == folder;
         mail.setDraft(isDraft);
-        mail.setTrash(isSent);
-        mail.setSent(isTrash);
+        mail.setTrash(isTrash);
+        mail.setSent(isSent);
     } else {
         moveToFolder(newEntity);
     }
