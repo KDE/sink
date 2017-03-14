@@ -241,7 +241,7 @@ DavResource::DavResource(const Sink::ResourceContext &resourceContext)
      */
     qputenv("KDE_FORK_SLAVES", "TRUE");
     auto config = ResourceConfig::getConfiguration(resourceContext.instanceId());
-    auto resourceUrl = QUrl::fromUserInput(config.value("resourceUrl").toString());
+    auto resourceUrl = QUrl::fromUserInput(config.value("server").toString());
     resourceUrl.setUserName(config.value("username").toString());
     resourceUrl.setPassword(config.value("password").toString());
 
