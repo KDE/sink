@@ -411,7 +411,6 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         }
         if (error) {
             SinkWarningCtx(mLogCtx) << "Error during sync: " << error.errorMessage;
-            return KAsync::error(error);
         }
         //In case we got more requests meanwhile.
         return processSyncQueue();
