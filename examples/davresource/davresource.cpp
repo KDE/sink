@@ -235,6 +235,11 @@ public:
 DavResource::DavResource(const Sink::ResourceContext &resourceContext)
     : Sink::GenericResource(resourceContext)
 {
+    /*
+     * Fork KIO slaves (used in kdav), instead of starting them via klauncher.
+     * Otherwise we have yet another runtime dependency that will i.e. not work in the docker container.
+     */
+    qputenv("KDE_FORK_SLAVES", "TRUE");
     auto config = ResourceConfig::getConfiguration(resourceContext.instanceId());
     auto resourceUrl = QUrl::fromUserInput(config.value("resourceUrl").toString());
     resourceUrl.setUserName(config.value("username").toString());
