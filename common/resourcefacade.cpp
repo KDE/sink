@@ -34,33 +34,42 @@ SINK_DEBUG_AREA("ResourceFacade")
 template<typename DomainType>
 ConfigNotifier LocalStorageFacade<DomainType>::sConfigNotifier;
 
-static void applyConfig(ConfigStore &configStore, const QByteArray &id, ApplicationDomain::ApplicationDomainType &object)
+static void applyConfig(ConfigStore &configStore, const QByteArray &id, ApplicationDomain::ApplicationDomainType &object, const QByteArrayList &requestedProperties)
 {
     const auto configurationValues = configStore.get(id);
     for (auto it = configurationValues.constBegin(); it != configurationValues.constEnd(); it++) {
         object.setProperty(it.key(), it.value());
     }
+    //Populate the object with dummy values for non-available but requested properties.
+    //This avoid a warning about non-existing properties in bufferadaptor.h
+    if (!requestedProperties.isEmpty()) {
+        for (const auto &requested: requestedProperties) {
+            if (!object.hasProperty(requested)) {
+                object.setProperty(requested, QVariant{});
+            }
+        }
+    }
 }
 
 template <typename DomainType>
-static typename DomainType::Ptr readFromConfig(ConfigStore &configStore, const QByteArray &id, const QByteArray &type)
+static typename DomainType::Ptr readFromConfig(ConfigStore &configStore, const QByteArray &id, const QByteArray &type, const QByteArrayList &requestedProperties)
 {
     auto object = DomainType::Ptr::create(id);
-    applyConfig(configStore, id, *object);
+    applyConfig(configStore, id, *object, requestedProperties);
     return object;
 }
 
 template <>
-typename ApplicationDomain::SinkAccount::Ptr readFromConfig<ApplicationDomain::SinkAccount>(ConfigStore &configStore, const QByteArray &id, const QByteArray &type)
+typename ApplicationDomain::SinkAccount::Ptr readFromConfig<ApplicationDomain::SinkAccount>(ConfigStore &configStore, const QByteArray &id, const QByteArray &type, const QByteArrayList &requestedProperties)
 {
     auto object = ApplicationDomain::SinkAccount::Ptr::create(id);
     object->setProperty(ApplicationDomain::SinkAccount::AccountType::name, type);
-    applyConfig(configStore, id, *object);
+    applyConfig(configStore, id, *object, requestedProperties);
     return object;
 }
 
 template <>
-typename ApplicationDomain::SinkResource::Ptr readFromConfig<ApplicationDomain::SinkResource>(ConfigStore &configStore, const QByteArray &id, const QByteArray &type)
+typename ApplicationDomain::SinkResource::Ptr readFromConfig<ApplicationDomain::SinkResource>(ConfigStore &configStore, const QByteArray &id, const QByteArray &type, const QByteArrayList &requestedProperties)
 {
     auto object = ApplicationDomain::SinkResource::Ptr::create(id);
     object->setProperty(ApplicationDomain::SinkResource::ResourceType::name, type);
@@ -70,7 +79,7 @@ typename ApplicationDomain::SinkResource::Ptr readFromConfig<ApplicationDomain::
             object->setCapabilities(res->capabilities());
         }
     }
-    applyConfig(configStore, id, *object);
+    applyConfig(configStore, id, *object, requestedProperties);
     return object;
 }
 
@@ -104,7 +113,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
             if (!query.ids().isEmpty() && !query.ids().contains(res)) {
                 continue;
             }
-            auto entity = readFromConfig<DomainType>(mConfigStore, res, type);
+            auto entity = readFromConfig<DomainType>(mConfigStore, res, type, query.requestedProperties);
             if (!matchesFilter(query.getBaseFilters(), *entity)){
                 SinkTraceCtx(mLogCtx) << "Skipping due to filter." << res;
                 continue;
@@ -169,7 +178,7 @@ template<typename DomainType>
 void LocalStorageQueryRunner<DomainType>::statusChanged(const QByteArray &identifier)
 {
     SinkTraceCtx(mLogCtx) << "Status changed " << identifier;
-    auto entity = readFromConfig<DomainType>(mConfigStore, identifier, ApplicationDomain::getTypeName<DomainType>());
+    auto entity = readFromConfig<DomainType>(mConfigStore, identifier, ApplicationDomain::getTypeName<DomainType>(), QByteArrayList{});
     updateStatus(*entity);
     mResultProvider->modify(entity);
 }
@@ -213,7 +222,7 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::create(const DomainType &domai
             }
             configStore.modify(identifier, configurationValues);
         }
-        sConfigNotifier.add(::readFromConfig<DomainType>(configStore, identifier, type));
+        sConfigNotifier.add(::readFromConfig<DomainType>(configStore, identifier, type, QByteArrayList{}));
     });
 }
 
@@ -242,7 +251,7 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::modify(const DomainType &domai
         }
 
         const auto type = configStore.getEntries().value(identifier);
-        sConfigNotifier.modify(::readFromConfig<DomainType>(configStore, identifier, type));
+        sConfigNotifier.modify(::readFromConfig<DomainType>(configStore, identifier, type, QByteArrayList{}));
     });
 }
 
@@ -337,6 +346,8 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
     runner->setStatusUpdater([runner, monitoredResources, ctx](ApplicationDomain::SinkAccount &account) {
         Query query;
         query.filter<ApplicationDomain::SinkResource::Account>(account.identifier());
+        query.request<ApplicationDomain::SinkResource::Account>()
+             .request<ApplicationDomain::SinkResource::Capabilities>();
         const auto resources = Store::read<ApplicationDomain::SinkResource>(query);
         SinkTraceCtx(ctx) << "Found resource belonging to the account " << account.identifier() << " : " << resources;
         auto accountIdentifier = account.identifier();

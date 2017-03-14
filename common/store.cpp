@@ -92,6 +92,7 @@ QPair<typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr,  typenam
         auto facade = FacadeFactory::instance().getFacade<ApplicationDomain::SinkResource>();
         Q_ASSERT(facade);
         Sink::Query resourceQuery;
+        resourceQuery.request<ApplicationDomain::SinkResource::Capabilities>();
         if (query.liveQuery()) {
             SinkTraceCtx(ctx) << "Listening for new resources.";
             resourceQuery.setFlags(Query::LiveQuery);
@@ -103,6 +104,7 @@ QPair<typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr,  typenam
             resourceFilter.propertyFilter.insert(ApplicationDomain::SinkResource::Capabilities::name, Query::Comparator{ApplicationDomain::getTypeName<DomainType>(), Query::Comparator::Contains});
         }
         resourceQuery.setFilter(resourceFilter);
+        resourceQuery.requestedProperties << resourceFilter.propertyFilter.keys();
 
         auto result = facade->load(resourceQuery, resourceCtx);
         auto emitter = result.second;
