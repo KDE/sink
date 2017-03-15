@@ -39,12 +39,12 @@ public:
     }
     virtual QVariant getProperty(const QByteArray &key) const
     {
-        qFatal("Tried to get property: " + key);
+        qFatal("Tried to get property: %s", key.data());
         return QVariant();
     }
     virtual void setProperty(const QByteArray &key, const QVariant &value)
     {
-        qFatal("Tried to get property: " + key);
+        qFatal("Tried to get property: %s", key.data());
     }
     virtual QList<QByteArray> availableProperties() const
     {
