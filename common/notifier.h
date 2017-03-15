@@ -23,14 +23,14 @@
 #include "sink_export.h"
 #include <QByteArray>
 #include <QSharedPointer>
-
-#include <KAsync/Async>
+#include <functional>
 
 class QAbstractItemModel;
 
 namespace Sink {
 class ResourceAccess;
 class Notification;
+class Query;
 
 class SINK_EXPORT Notifier
 {
@@ -38,6 +38,7 @@ public:
     Notifier(const QSharedPointer<ResourceAccess> &resourceAccess);
     Notifier(const QByteArray &resourceInstanceIdentifier);
     Notifier(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType);
+    Notifier(const Sink::Query &resourceQuery);
     void registerHandler(std::function<void(const Notification &)>);
 
 private:

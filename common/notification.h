@@ -34,6 +34,7 @@ public:
     enum NoticationType {
         Shutdown,
         Status,
+        Info,
         Warning,
         Progress,
         Inspection,

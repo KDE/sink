@@ -24,6 +24,8 @@
 
 #include "resourceaccess.h"
 #include "resourceconfig.h"
+#include "query.h"
+#include "facadefactory.h"
 #include "log.h"
 
 using namespace Sink;
@@ -34,6 +36,18 @@ public:
     Private() : context(new QObject)
     {
     }
+
+    void listenForNotifications(const QSharedPointer<ResourceAccess> &access)
+    {
+        SinkWarningCtx(Sink::Log::Context{"foobar"}) << "Listening for notifications";
+        QObject::connect(access.data(), &ResourceAccess::notification, context.data(), [this](const Notification &notification) {
+            for (const auto &handler : handler) {
+                handler(notification);
+            }
+        });
+        resourceAccess << access;
+    }
+
     QList<QSharedPointer<ResourceAccess>> resourceAccess;
     QList<std::function<void(const Notification &)>> handler;
     QSharedPointer<QObject> context;
@@ -41,28 +55,44 @@ public:
 
 Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess) : d(new Sink::Notifier::Private)
 {
-    QObject::connect(resourceAccess.data(), &ResourceAccess::notification, d->context.data(), [this](const Notification &notification) {
-        for (const auto &handler : d->handler) {
-            handler(notification);
-        }
-    });
-    d->resourceAccess << resourceAccess;
+    d->listenForNotifications(resourceAccess);
 }
 
 Notifier::Notifier(const QByteArray &instanceIdentifier, const QByteArray &resourceType) : d(new Sink::Notifier::Private)
 {
     auto resourceAccess = Sink::ResourceAccess::Ptr::create(instanceIdentifier, resourceType);
     resourceAccess->open();
-    QObject::connect(resourceAccess.data(), &ResourceAccess::notification, d->context.data(), [this](const Notification &notification) {
-        for (const auto &handler : d->handler) {
-            handler(notification);
-        }
-    });
-    d->resourceAccess << resourceAccess;
+    d->listenForNotifications(resourceAccess);
 }
 
 Notifier::Notifier(const QByteArray &instanceIdentifier) : Notifier(instanceIdentifier, ResourceConfig::getResourceType(instanceIdentifier))
 {
+}
+
+Notifier::Notifier(const Sink::Query &resourceQuery) : d(new Sink::Notifier::Private)
+{
+    Sink::Log::Context resourceCtx{"notifier"};
+    auto facade = FacadeFactory::instance().getFacade<ApplicationDomain::SinkResource>();
+    Q_ASSERT(facade);
+
+    auto result = facade->load(resourceQuery, resourceCtx);
+    auto emitter = result.second;
+    emitter->onAdded([=](const ApplicationDomain::SinkResource::Ptr &resource) {
+        auto resourceAccess = Sink::ResourceAccess::Ptr::create(resource->identifier(), ResourceConfig::getResourceType(resource->identifier()));
+        resourceAccess->open();
+        d->listenForNotifications(resourceAccess);
+    });
+    emitter->onModified([](const ApplicationDomain::SinkResource::Ptr &) {
+    });
+    emitter->onRemoved([](const ApplicationDomain::SinkResource::Ptr &) {
+    });
+    emitter->onInitialResultSetComplete([](const ApplicationDomain::SinkResource::Ptr &, bool) {
+    });
+    emitter->onComplete([resourceCtx]() {
+        SinkTraceCtx(resourceCtx) << "Resource query complete";
+    });
+    emitter->fetch({});
+    result.first.exec();
 }
 
 void Notifier::registerHandler(std::function<void(const Notification &)> handler)
