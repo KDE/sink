@@ -70,7 +70,7 @@ static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow
 }
 
 
-bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs, const char *msg, bool useTls, const char* from, const char *username, const char *password, const char *server, bool verifyPeer, const QByteArray &cacert)
+bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs, const char *msg, bool useTls, const char* from, const char *username, const char *password, const char *server, bool verifyPeer, const QByteArray &cacert, QByteArray &errorMessage)
 {
     CURL *curl;
     CURLcode res = CURLE_OK;
@@ -129,11 +129,20 @@ bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs,
 
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
         curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+        char errorBuffer[CURL_ERROR_SIZE];
+        curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorBuffer);
 
         res = curl_easy_perform(curl);
         if(res != CURLE_OK) {
-            fprintf(stderr, "curl_easy_perform() failed: %s\n",
-                    curl_easy_strerror(res));
+            errorMessage += curl_easy_strerror(res);
+            errorMessage += "; ";
+        }
+        long http_code = 0;
+        curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
+        if (http_code == 200 && res != CURLE_ABORTED_BY_CALLBACK) {
+                //Succeeded
+        } else {
+            errorMessage += errorBuffer;
         }
         curl_slist_free_all(recipients);
         curl_easy_cleanup(curl);
@@ -178,5 +187,10 @@ bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteA
     auto serverAddress = server;
     serverAddress.replace("smtps://", "smtp://");
 
-    return sendMessageCurl(to, numTos, cc, numCcs, msg, useTls, from.isEmpty() ? nullptr : from, username, password, serverAddress, verifyPeer, cacert);
+    QByteArray errorMessage;
+    auto ret =  sendMessageCurl(to, numTos, cc, numCcs, msg, useTls, from.isEmpty() ? nullptr : from, username, password, serverAddress, verifyPeer, cacert, errorMessage);
+    if (!ret) {
+        SinkWarning() << "Failed to send message: " << errorMessage;
+    }
+    return ret;
 }
