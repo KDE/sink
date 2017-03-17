@@ -81,20 +81,10 @@ public:
                 }
                 if (!MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), settings.password.toUtf8(), settings.cacert.toUtf8(), options)) {
                     SinkWarning() << "Failed to send message: " << mail;
-                    //Emit  failure notification
-                    Sink::Notification n;
-                    n.type = Notification::Warning;
-                    n.message = "Failed to send message.";
-                    n.code = Notification::TransmissionFailed;
-                    emit notify(n);
+                    emitNotification(Notification::Warning, Notification::TransmissionFailed, "Failed to send message.");
                     return KAsync::error("Failed to send the message.");
                 } else {
-                    //Emit success notification
-                    Sink::Notification n;
-                    n.type = Notification::Info;
-                    n.message = "Message successfully sent.";
-                    n.code = Notification::TransmissionSucceeded;
-                    emit notify(n);
+                    emitNotification(Notification::Info, Notification::TransmissionSucceeded, "Message successfully sent.");
                 }
             }
             syncStore().writeValue(mail.identifier(), "sent");

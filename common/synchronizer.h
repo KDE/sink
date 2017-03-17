@@ -180,8 +180,11 @@ protected:
      */
     virtual void mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue);
 
+    void emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id = QByteArray{});
+
 protected:
     Sink::Log::Context mLogCtx;
+
 private:
     void modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
     KAsync::Job<void> processRequest(const SyncRequest &request);

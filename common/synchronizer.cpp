@@ -292,6 +292,16 @@ void Synchronizer::flushComplete(const QByteArray &flushId)
     }
 }
 
+void Synchronizer::emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id)
+{
+    Sink::Notification n;
+    n.id = id;
+    n.type = type;
+    n.message = message;
+    n.code = code;
+    emit notify(n);
+}
+
 KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
 {
     if (request.options & SyncRequest::RequestFlush) {
@@ -316,13 +326,8 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
         });
     } else if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
         return KAsync::start([this, request] {
-            Sink::Notification n;
-            n.id = request.requestId;
-            n.type = Notification::Status;
-            n.message = "Synchronization has started.";
-            n.code = ApplicationDomain::BusyStatus;
-            emit notify(n);
             SinkLogCtx(mLogCtx) << "Synchronizing: " << request.query;
+            emitNotification(Notification::Status, ApplicationDomain::BusyStatus, "Synchronization has started.", request.requestId);
         }).then(synchronizeWithSource(request.query)).then([this] {
             //Commit after every request, so implementations only have to commit more if they add a lot of data.
             commit();
@@ -330,21 +335,11 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             if (error) {
                 //Emit notification with error
                 SinkWarningCtx(mLogCtx) << "Synchronization failed: " << error.errorMessage;
-                Sink::Notification n;
-                n.id = request.requestId;
-                n.type = Notification::Status;
-                n.message = "Synchronization has ended.";
-                n.code = ApplicationDomain::ErrorStatus;
-                emit notify(n);
+                emitNotification(Notification::Status, ApplicationDomain::ErrorStatus, "Synchronization has ended.", request.requestId);
                 return KAsync::error(error);
             } else {
                 SinkLogCtx(mLogCtx) << "Done Synchronizing";
-                Sink::Notification n;
-                n.id = request.requestId;
-                n.type = Notification::Status;
-                n.message = "Synchronization has ended.";
-                n.code = ApplicationDomain::ConnectedStatus;
-                emit notify(n);
+                emitNotification(Notification::Status, ApplicationDomain::ConnectedStatus, "Synchronization has ended.", request.requestId);
                 return KAsync::null();
             }
         });
@@ -354,10 +349,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             //FIXME it looks like this is emitted before the replay actually finishes
             if (request.flushType == Flush::FlushReplayQueue) {
                 SinkTraceCtx(mLogCtx) << "Emitting flush completion: " << request.requestId;
-                Sink::Notification n;
-                n.type = Sink::Notification::FlushCompletion;
-                n.id = request.requestId;
-                emit notify(n);
+                emitNotification(Notification::FlushCompletion, 0, "", request.requestId);
             } else {
                 flatbuffers::FlatBufferBuilder fbb;
                 auto flushId = fbb.CreateString(request.requestId.toStdString());
