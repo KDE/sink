@@ -36,14 +36,34 @@ public:
         Status,
         Info,
         Warning,
+        Error,
         Progress,
         Inspection,
         RevisionUpdate,
         FlushCompletion
     };
+    /**
+     * Used as code for Inspection type notifications
+     */
     enum InspectionCode {
         Success = 0,
         Failure
+    };
+    /**
+     * Used as code for Warning/Error type notifications
+     */
+    enum ErrorCode {
+        NoError = 0,
+        UnknownError,
+        NoServerAvailable,
+        LoginFailed,
+        TransmissionFailed,
+    };
+    /**
+     * Used as code for Info type notifications
+     */
+    enum SuccessCode {
+        TransmissionSucceeded
     };
 
     QByteArray id;
@@ -51,6 +71,7 @@ public:
     QString message;
     //A return code. Zero typically indicates success.
     int code = 0;
+    QByteArray resource;
 };
 }
 

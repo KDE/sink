@@ -85,6 +85,7 @@ public:
                     Sink::Notification n;
                     n.type = Notification::Warning;
                     n.message = "Failed to send message.";
+                    n.code = Notification::TransmissionFailed;
                     emit notify(n);
                     return KAsync::error("Failed to send the message.");
                 } else {
@@ -92,6 +93,7 @@ public:
                     Sink::Notification n;
                     n.type = Notification::Info;
                     n.message = "Message successfully sent.";
+                    n.code = Notification::TransmissionSucceeded;
                     emit notify(n);
                 }
             }
