@@ -23,16 +23,10 @@
 
 #include "testimplementations.h"
 
-#include <common/facade.h>
-#include <common/domainadaptor.h>
 #include <common/resultprovider.h>
-#include <common/synclistresult.h>
 #include <common/definitions.h>
 #include <common/query.h>
-#include <common/store.h>
-#include <common/pipeline.h>
-#include <common/index.h>
-#include <common/adaptorfactoryregistry.h>
+#include <common/storage/entitystore.h>
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
@@ -57,30 +51,34 @@ class MailQueryBenchmark : public QObject
     QByteArray resourceIdentifier;
     HAWD::State mHawdState;
 
-    void populateDatabase(int count)
+    void populateDatabase(int count, int folderSpreadFactor = 0)
     {
         TestResource::removeFromDisk(resourceIdentifier);
 
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create(Sink::ResourceContext{resourceIdentifier, "test"}, "test");
+        Sink::ResourceContext resourceContext{resourceIdentifier, "test", {{"mail", QSharedPointer<TestMailAdaptorFactory>::create()}}};
+        Sink::Storage::EntityStore entityStore{resourceContext, {}};
+        entityStore.startTransaction(Sink::Storage::DataStore::ReadWrite);
 
-        auto domainTypeAdaptorFactory = QSharedPointer<TestMailAdaptorFactory>::create();
-
-        pipeline->startTransaction();
         const auto date = QDateTime::currentDateTimeUtc();
         for (int i = 0; i < count; i++) {
-            auto domainObject = Mail::Ptr::create();
-            domainObject->setExtractedMessageId("uid");
-            domainObject->setExtractedSubject(QString("subject%1").arg(i));
-            domainObject->setExtractedDate(date.addSecs(count));
-            domainObject->setFolder("folder1");
-            // domainObject->setAttachment(attachment);
-            const auto command = createCommand<Mail>(*domainObject, *domainTypeAdaptorFactory);
-            pipeline->newEntity(command.data(), command.size());
+            auto domainObject = Mail::createEntity<Mail>(resourceIdentifier);
+            domainObject.setExtractedMessageId("uid");
+            domainObject.setExtractedParentMessageId("parentuid");
+            domainObject.setExtractedSubject(QString("subject%1").arg(i));
+            domainObject.setExtractedDate(date.addSecs(count));
+            if (folderSpreadFactor == 0) {
+                domainObject.setFolder("folder1");
+            } else {
+                domainObject.setFolder(QByteArray("folder") + QByteArray::number(i % folderSpreadFactor));
+            }
+
+            entityStore.add("mail", domainObject, false, [] (const Mail &) {});
         }
-        pipeline->commit();
+
+        entityStore.commitTransaction();
     }
 
-    void testLoad(const Sink::Query &query, int count)
+    void testLoad(const Sink::Query &query, int count, int expectedSize)
     {
         const auto startingRss = getCurrentRSS();
 
@@ -88,7 +86,10 @@ class MailQueryBenchmark : public QObject
         QTime time;
         time.start();
         auto resultSet = QSharedPointer<Sink::ResultProvider<Mail::Ptr>>::create();
-        Sink::ResourceContext context{resourceIdentifier, "test"};
+
+        //FIXME why do we need this here?
+        auto domainTypeAdaptorFactory = QSharedPointer<TestMailAdaptorFactory>::create();
+        Sink::ResourceContext context{resourceIdentifier, "test", {{"mail", domainTypeAdaptorFactory}}};
         context.mResourceAccess = QSharedPointer<TestResourceAccess>::create();
         TestMailResourceFacade facade(context);
 
@@ -101,7 +102,7 @@ class MailQueryBenchmark : public QObject
         emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail, bool) { done = true; });
         emitter->fetch(Mail::Ptr());
         QTRY_VERIFY(done);
-        QCOMPARE(list.size(), query.limit());
+        QCOMPARE(list.size(), expectedSize);
 
         const auto elapsed = time.elapsed();
 
@@ -145,7 +146,6 @@ private slots:
     void init()
     {
         resourceIdentifier = "sink.test.instance1";
-        Sink::AdaptorFactoryRegistry::instance().registerFactory<Mail, TestMailAdaptorFactory>("test");
     }
 
     void test50k()
@@ -159,7 +159,22 @@ private slots:
         query.limit(1000);
 
         populateDatabase(50000);
-        testLoad(query, 50000);
+        testLoad(query, 50000, query.limit());
+    }
+
+    void test50kThreadleader()
+    {
+        Sink::Query query;
+        query.request<Mail::MessageId>()
+             .request<Mail::Subject>()
+             .request<Mail::Date>();
+        // query.filter<ApplicationDomain::Mail::Trash>(false);
+        query.reduce<ApplicationDomain::Mail::Folder>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>());
+        query.limit(1000);
+
+        int mailsPerFolder = 100;
+        populateDatabase(50000, mailsPerFolder);
+        testLoad(query, 50000, mailsPerFolder);
     }
 };
 
