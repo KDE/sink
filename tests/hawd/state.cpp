@@ -116,6 +116,7 @@ const char *State::commitHash() const
 void State::findGitHash()
 {
 #ifdef HAVE_LIBGIT2
+    git_libgit2_init();
     git_buf root = {0};
     int error = git_repository_discover(&root, projectPath().toStdString().data(), 0, NULL);
     if (!error) {
@@ -133,6 +134,7 @@ void State::findGitHash()
         git_repository_free(repo);
     }
     git_buf_free(&root);
+    git_libgit2_shutdown();
 #endif
 }
 
