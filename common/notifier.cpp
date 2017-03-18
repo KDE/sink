@@ -39,7 +39,6 @@ public:
 
     void listenForNotifications(const QSharedPointer<ResourceAccess> &access)
     {
-        SinkWarningCtx(Sink::Log::Context{"foobar"}) << "Listening for notifications";
         QObject::connect(access.data(), &ResourceAccess::notification, context.data(), [this](const Notification &notification) {
             for (const auto &handler : handler) {
                 handler(notification);
