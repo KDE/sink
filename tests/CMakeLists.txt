@@ -21,10 +21,8 @@ include(SinkTest)
 manual_tests (
     storagebenchmark
     dummyresourcebenchmark
-#     genericresourcebenchmark
     mailquerybenchmark
     pipelinebenchmark
-#     genericfacadebenchmark
 )
 
 auto_tests (
@@ -35,8 +33,6 @@ auto_tests (
     domainadaptortest
     messagequeuetest
     indextest
-    # genericresourcetest
-    # genericfacadetest
     resourcecommunicationtest
     pipelinetest
     querytest
