@@ -41,17 +41,17 @@ static size_t payload_source(void *ptr, size_t size, size_t nmemb, void *userp)
     struct upload_status *upload_ctx = (struct upload_status *)userp;
     const char *data;
 
-    if((size == 0) || (nmemb == 0) || ((size*nmemb) < 1)) {
+    if ((size == 0) || (nmemb == 0) || ((size*nmemb) < 1)) {
         return 0;
     }
 
     data = &upload_ctx->data[upload_ctx->offset];
-    if(data) {
+    if (data) {
         size_t len = strlen(data);
         if (len > size * nmemb) {
             len = size * nmemb;
         }
-        fprintf(stderr, "read n bytes: %d\n", int(len));
+        fprintf(stdout, "read n bytes: %d\n", int(len));
         memcpy(ptr, data, len);
         upload_ctx->offset += len;
         return len;
@@ -69,6 +69,15 @@ static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow
     return 0;
 }
 
+static int debug_callback(CURL *handle,
+                   curl_infotype type,
+                   char *data,
+                   size_t size,
+                   void *userptr)
+{
+    fprintf(stdout, "CURL_DEBUG: %s", data);
+    return 0;
+}
 
 bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs, const char *msg, bool useTls, const char* from, const char *username, const char *password, const char *server, bool verifyPeer, const QByteArray &cacert, QByteArray &errorMessage)
 {
@@ -121,11 +130,12 @@ bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs,
         /* Since the traffic will be encrypted, it is very useful to turn on debug
         * information within libcurl to see what is happening during the transfer.
         */
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+        // curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+        curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, debug_callback);
 
         // curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
-        //Connection timeout of 10s
-        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
+        //Connection timeout of 40s
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 40L);
 
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
         curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
