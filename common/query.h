@@ -509,6 +509,31 @@ public:
     }
 
     template <typename T>
+    SyncScope &resourceFilter(const ApplicationDomain::ApplicationDomainType &entity)
+    {
+        mResourceFilter.propertyFilter.insert(T::name, Comparator(entity.identifier()));
+        return *this;
+    }
+
+    SyncScope &resourceFilter(const QByteArray &name, const Comparator &comparator)
+    {
+        mResourceFilter.propertyFilter.insert(name, comparator);
+        return *this;
+    }
+
+    template <typename T>
+    SyncScope &resourceContainsFilter(const QVariant &value)
+    {
+        return resourceFilter(T::name, Comparator(value, Comparator::Contains));
+    }
+
+    template <typename T>
+    SyncScope &resourceFilter(const QVariant &value)
+    {
+        return resourceFilter(T::name, value);
+    }
+
+    template <typename T>
     SyncScope &filter(const Query::Comparator &comparator)
     {
         return filter(T::name, comparator);
