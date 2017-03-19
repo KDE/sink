@@ -69,7 +69,7 @@ class MailQueryBenchmark : public QObject
             if (folderSpreadFactor == 0) {
                 domainObject.setFolder("folder1");
             } else {
-                domainObject.setFolder(QByteArray("folder") + QByteArray::number(i % folderSpreadFactor));
+                domainObject.setFolder(QByteArray("folder") + QByteArray::number(i - (i % folderSpreadFactor)));
             }
 
             entityStore.add("mail", domainObject, false, [] (const Mail &) {});
@@ -172,9 +172,11 @@ private slots:
         query.reduce<ApplicationDomain::Mail::Folder>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>());
         query.limit(1000);
 
-        int mailsPerFolder = 100;
-        populateDatabase(50000, mailsPerFolder);
-        testLoad(query, 50000, mailsPerFolder);
+        int mailsPerFolder = 10;
+
+        int count = 50000;
+        populateDatabase(count, mailsPerFolder);
+        testLoad(query, count, query.limit());
     }
 };
 
