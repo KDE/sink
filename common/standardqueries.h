@@ -51,6 +51,7 @@ namespace StandardQueries {
             query.resourceFilter(folder.resourceInstanceIdentifier());
         }
         query.filter<ApplicationDomain::Mail::Folder>(folder);
+        query.filter<ApplicationDomain::Mail::Trash>(false);
         query.sort<ApplicationDomain::Mail::Date>();
         query.reduce<ApplicationDomain::Mail::ThreadId>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>())
             .count("count")
