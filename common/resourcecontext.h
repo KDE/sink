@@ -55,7 +55,9 @@ struct ResourceContext {
     DomainTypeAdaptorFactoryInterface &adaptorFactory(const QByteArray &type) const
     {
         auto factory = adaptorFactories.value(type);
-        Q_ASSERT(factory);
+        if (!factory) {
+            qFatal("Failed to find a factory for %s", type.constData());
+        }
         return *factory;
     }
 
