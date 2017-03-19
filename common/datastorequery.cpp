@@ -152,7 +152,7 @@ public:
     }
 };
 
-class Reduce : public FilterBase {
+class Reduce : public Filter {
 public:
     typedef QSharedPointer<Reduce> Ptr;
 
@@ -198,7 +198,7 @@ public:
     QList<Aggregator> mAggregators;
 
     Reduce(const QByteArray &reductionProperty, const QByteArray &selectionProperty, QueryBase::Reduce::Selector::Comparator comparator, FilterBase::Ptr source, DataStoreQuery *store)
-        : FilterBase(source, store),
+        : Filter(source, store),
         mReductionProperty(reductionProperty),
         mSelectionProperty(selectionProperty),
         mSelectionComparator(comparator)
@@ -236,6 +236,11 @@ public:
 
         for (const auto &r : results) {
             readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+                //We need to apply all property filters that we have until the reduction, because the index lookup was unfiltered.
+                if (!matchesFilter(entity)) {
+                    return;
+                }
+
                 Q_ASSERT(operation != Sink::Operation_Removal);
                 for (auto &aggregator : mAggregators) {
                     if (!aggregator.property.isEmpty()) {
@@ -553,6 +558,7 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
             for (const auto &aggregator : filter->aggregators) {
                 reduction->mAggregators << Reduce::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
             }
+            reduction->propertyFilter = query.getBaseFilters();
             baseSet = reduction;
         } else if (auto filter = stage.dynamicCast<Query::Bloom>()) {
             baseSet = Bloom::Ptr::create(filter->property, baseSet, this);

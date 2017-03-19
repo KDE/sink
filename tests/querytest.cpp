@@ -1042,6 +1042,71 @@ private slots:
         QCOMPARE(layoutChangedSpy.size(), 0);
         QCOMPARE(resetSpy.size(), 0);
     }
+
+    /*
+     * Ensure that we handle the situation properly if the thread-leader doesn't match a property filter.
+     */
+    void testFilteredThreadLeader()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto folder2 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        QDateTime earlier{QDate{2017, 2, 3}, QTime{9, 0, 0}};
+        QDateTime now{QDate{2017, 2, 3}, QTime{10, 0, 0}};
+        QDateTime later{QDate{2017, 2, 3}, QTime{11, 0, 0}};
+
+        {
+            auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail1.setExtractedMessageId("mail1");
+            mail1.setFolder(folder1);
+            mail1.setExtractedDate(now);
+            mail1.setImportant(false);
+            VERIFYEXEC(Sink::Store::create(mail1));
+        }
+        {
+            auto mail2 = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail2.setExtractedMessageId("mail2");
+            mail2.setFolder(folder1);
+            mail2.setExtractedDate(earlier);
+            mail2.setImportant(false);
+            VERIFYEXEC(Sink::Store::create(mail2));
+        }
+        {
+            auto mail3 = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail3.setExtractedMessageId("mail3");
+            mail3.setFolder(folder1);
+            mail3.setExtractedDate(later);
+            mail3.setImportant(true);
+            VERIFYEXEC(Sink::Store::create(mail3));
+        }
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        query.setId("testLivequeryThreadleaderChange");
+        query.setFlags(Query::LiveQuery);
+        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Folder>("folders");
+        query.sort<Mail::Date>();
+        query.request<Mail::MessageId>();
+        query.filter<Mail::Important>(false);
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+
+        QCOMPARE(model->rowCount(), 1);
+
+        {
+            auto mail = model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>();
+            QCOMPARE(mail->getMessageId(), QByteArray{"mail1"});
+            QCOMPARE(mail->getProperty("count").toInt(), 2);
+            QCOMPARE(mail->getProperty("folders").toList().size(), 2);
+        }
+    }
 };
 
 QTEST_MAIN(QueryTest)
