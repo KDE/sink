@@ -29,6 +29,11 @@
 
 namespace Imap {
 
+enum ErrorCode {
+    CouldNotConnectError,
+    SslHandshakeError
+};
+
 namespace Flags
 {
     /// The flag for a message being seen (i.e. opened by user).

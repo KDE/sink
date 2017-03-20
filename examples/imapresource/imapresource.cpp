@@ -469,6 +469,19 @@ public:
         }
     }
 
+    KAsync::Error getError(const KAsync::Error &error)
+    {
+        if (error) {
+            if (error.errorCode == Imap::CouldNotConnectError) {
+                return {ApplicationDomain::LoginError, error.errorMessage};
+            } else if (error.errorCode == Imap::SslHandshakeError) {
+                return {ApplicationDomain::LoginError, error.errorMessage};
+            }
+            return {ApplicationDomain::UnknownError, error.errorMessage};
+        }
+        return {};
+    }
+
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, &mSessionCache);
@@ -488,7 +501,7 @@ public:
                     SinkWarning() << "Error during folder sync: " << error.errorMessage;
                 }
                 return imap->logout()
-                    .then(KAsync::error(ApplicationDomain::LoginError, error.errorMessage));
+                    .then(KAsync::error(getError(error)));
             });
         } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
             //TODO
@@ -560,7 +573,7 @@ public:
                     SinkWarning() << "Error during sync: " << error.errorMessage;
                 }
                 return imap->logout()
-                    .then(KAsync::error(ApplicationDomain::LoginError, error.errorMessage));
+                    .then(KAsync::error(getError(error)));
             });
         }
         return KAsync::error<void>("Nothing to do");
