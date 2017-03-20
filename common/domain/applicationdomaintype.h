@@ -92,6 +92,18 @@
 namespace Sink {
 namespace ApplicationDomain {
 
+enum ErrorCode {
+    NoError = 0,
+    UnknownError,
+    NoServerError,
+    LoginError,
+    TransmissionError,
+};
+
+enum SuccessCode {
+    TransmissionSuccess
+};
+
 struct SINK_EXPORT Error {
 
 };

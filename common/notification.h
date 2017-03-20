@@ -49,22 +49,6 @@ public:
         Success = 0,
         Failure
     };
-    /**
-     * Used as code for Warning/Error type notifications
-     */
-    enum ErrorCode {
-        NoError = 0,
-        UnknownError,
-        NoServerAvailable,
-        LoginFailed,
-        TransmissionFailed,
-    };
-    /**
-     * Used as code for Info type notifications
-     */
-    enum SuccessCode {
-        TransmissionSucceeded
-    };
 
     QByteArray id;
     int type = 0;

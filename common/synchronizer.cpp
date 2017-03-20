@@ -391,7 +391,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         mSyncInProgress = true;
     })
     .then(processRequest(request))
-    .then<void>([this](const KAsync::Error &error) {
+    .then<void>([this, request](const KAsync::Error &error) {
         SinkTraceCtx(mLogCtx) << "Sync request processed";
         mEntityStore->abortTransaction();
         mSyncTransaction.abort();
@@ -403,6 +403,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         }
         if (error) {
             SinkWarningCtx(mLogCtx) << "Error during sync: " << error;
+            emitNotification(Notification::Error, error.errorCode, error.errorMessage, request.requestId);
         }
         //In case we got more requests meanwhile.
         return processSyncQueue();

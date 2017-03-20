@@ -488,7 +488,7 @@ public:
                     SinkWarning() << "Error during folder sync: " << error.errorMessage;
                 }
                 return imap->logout()
-                    .then(KAsync::error(error));
+                    .then(KAsync::error(ApplicationDomain::LoginError, error.errorMessage));
             });
         } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
             //TODO
@@ -560,7 +560,7 @@ public:
                     SinkWarning() << "Error during sync: " << error.errorMessage;
                 }
                 return imap->logout()
-                    .then(KAsync::error(error));
+                    .then(KAsync::error(ApplicationDomain::LoginError, error.errorMessage));
             });
         }
         return KAsync::error<void>("Nothing to do");
