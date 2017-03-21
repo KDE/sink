@@ -98,11 +98,10 @@ private:
     QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
     QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr>> mResultProvider;
     ResultTransformation mResultTransformation;
-    QHash<QByteArray, qint64> mOffset;
+    QHash<QByteArray, DataStoreQuery::State::Ptr> mQueryState;
     int mBatchSize;
     QObject guard;
     Sink::Log::Context mLogCtx;
-    DataStoreQuery::State::Ptr mQueryState;
     bool mInitialQueryComplete = false;
     bool mQueryInProgress = false;
 };

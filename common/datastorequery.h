@@ -46,7 +46,7 @@ public:
     };
 
     DataStoreQuery(const Sink::QueryBase &query, const QByteArray &type, Sink::Storage::EntityStore &store);
-    DataStoreQuery(const DataStoreQuery::State &state, const QByteArray &type, Sink::Storage::EntityStore &store);
+    DataStoreQuery(const DataStoreQuery::State &state, const QByteArray &type, Sink::Storage::EntityStore &store, bool incremental);
     ~DataStoreQuery();
     ResultSet execute();
     ResultSet update(qint64 baseRevision);

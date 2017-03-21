@@ -144,7 +144,7 @@ public:
             const auto property = entity.getProperty(filterProperty);
             const auto comparator = propertyFilter.value(filterProperty);
             if (!comparator.matches(property)) {
-                SinkTraceCtx(mDatastore->mLogCtx) << "Filtering entity due to property mismatch on filter: " << filterProperty << property << ":" << comparator.value;
+                SinkTraceCtx(mDatastore->mLogCtx) << "Filtering entity due to property mismatch on filter: " << entity.identifier() << "Property: " << filterProperty << property << " Filter:" << comparator.value;
                 return false;
             }
         }
@@ -367,19 +367,22 @@ public:
 DataStoreQuery::DataStoreQuery(const Sink::QueryBase &query, const QByteArray &type, EntityStore &store)
     : mType(type), mStore(store), mLogCtx(store.logContext().subContext("datastorequery"))
 {
+    //This is what we use during a new query
     setupQuery(query);
 }
 
-DataStoreQuery::DataStoreQuery(const DataStoreQuery::State &state, const QByteArray &type, Sink::Storage::EntityStore &store)
+DataStoreQuery::DataStoreQuery(const DataStoreQuery::State &state, const QByteArray &type, Sink::Storage::EntityStore &store, bool incremental)
     : mType(type), mStore(store), mLogCtx(store.logContext().subContext("datastorequery"))
 {
+    //This is what we use when fetching more data, without having a new revision with incremental=false
+    //And this is what we use when the data changed and we want to update with incremental = true
     mCollector = state.mCollector;
     mSource = state.mSource;
 
     auto source = mCollector;
     while (source) {
         source->mDatastore = this;
-        source->mIncremental = true;
+        source->mIncremental = incremental;
         source = source->mSource;
     }
 }
