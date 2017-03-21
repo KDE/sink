@@ -596,8 +596,8 @@ void MaildirResourceFactory::registerFacades(const QByteArray &name, Sink::Facad
 
 void MaildirResourceFactory::registerAdaptorFactories(const QByteArray &name, Sink::AdaptorFactoryRegistry &registry)
 {
-    registry.registerFactory<Sink::ApplicationDomain::Mail, MaildirMailAdaptorFactory>(name);
-    registry.registerFactory<Sink::ApplicationDomain::Folder, MaildirFolderAdaptorFactory>(name);
+    registry.registerFactory<ApplicationDomain::Mail, DefaultAdaptorFactory<ApplicationDomain::Mail>>(name);
+    registry.registerFactory<ApplicationDomain::Folder, DefaultAdaptorFactory<ApplicationDomain::Folder>>(name);
 }
 
 void MaildirResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)

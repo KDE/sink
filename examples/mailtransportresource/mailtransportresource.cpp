@@ -30,7 +30,6 @@
 #include <KMime/Message>
 
 #include "mailtransport.h"
-#include "mail_generated.h"
 #include "inspection.h"
 #include <synchronizer.h>
 #include <log.h>

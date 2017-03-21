@@ -29,12 +29,6 @@
 #include "mail/threadindexer.h"
 #include "domainadaptor.h"
 
-#include "mail_generated.h"
-#include "folder_generated.h"
-#include "event_generated.h"
-#include "contact_generated.h"
-#include "addressbook_generated.h"
-
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 

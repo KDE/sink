@@ -277,8 +277,8 @@ void DavResourceFactory::registerFacades(const QByteArray &name, Sink::FacadeFac
 
 void DavResourceFactory::registerAdaptorFactories(const QByteArray &name, Sink::AdaptorFactoryRegistry &registry)
 {
-    registry.registerFactory<Sink::ApplicationDomain::Contact, ContactAdaptorFactory>(name);
-    registry.registerFactory<Sink::ApplicationDomain::Addressbook, AddressbookAdaptorFactory>(name);
+    registry.registerFactory<ApplicationDomain::Contact, DefaultAdaptorFactory<ApplicationDomain::Contact>>(name);
+    registry.registerFactory<ApplicationDomain::Addressbook, DefaultAdaptorFactory<ApplicationDomain::Addressbook>>(name);
 }
 
 void DavResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)

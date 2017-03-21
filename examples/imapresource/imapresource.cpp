@@ -955,8 +955,8 @@ void ImapResourceFactory::registerFacades(const QByteArray &name, Sink::FacadeFa
 
 void ImapResourceFactory::registerAdaptorFactories(const QByteArray &name, Sink::AdaptorFactoryRegistry &registry)
 {
-    registry.registerFactory<Sink::ApplicationDomain::Mail, ImapMailAdaptorFactory>(name);
-    registry.registerFactory<Sink::ApplicationDomain::Folder, ImapFolderAdaptorFactory>(name);
+    registry.registerFactory<ApplicationDomain::Mail, DefaultAdaptorFactory<ApplicationDomain::Mail>>(name);
+    registry.registerFactory<ApplicationDomain::Folder, DefaultAdaptorFactory<ApplicationDomain::Folder>>(name);
 }
 
 void ImapResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)

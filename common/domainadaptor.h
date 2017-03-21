@@ -242,3 +242,15 @@ protected:
     QSharedPointer<WritePropertyMapper<ResourceBuilder>> mResourceWriteMapper;
     QSharedPointer<IndexPropertyMapper> mIndexMapper;
 };
+
+/**
+ * A default adaptorfactory implemenation that simply instantiates a generic resource
+ */
+template<typename DomainType>
+class DefaultAdaptorFactory : public DomainTypeAdaptorFactory<DomainType>
+{
+public:
+    DefaultAdaptorFactory() : DomainTypeAdaptorFactory<DomainType>()  {}
+    virtual ~DefaultAdaptorFactory(){}
+};
+

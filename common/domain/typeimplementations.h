@@ -20,7 +20,11 @@
 
 #include "applicationdomaintype.h"
 
-class QByteArray;
+#include "mail_generated.h"
+#include "folder_generated.h"
+#include "event_generated.h"
+#include "contact_generated.h"
+#include "addressbook_generated.h"
 
 template<typename T>
 class ReadPropertyMapper;
@@ -38,11 +42,6 @@ class TypeIndex;
 namespace Sink {
 namespace ApplicationDomain {
 
-namespace Buffer {
-    struct Mail;
-    struct MailBuilder;
-}
-
 template<>
 class TypeImplementation<Sink::ApplicationDomain::Mail> {
 public:
@@ -53,11 +52,6 @@ public:
     static void configure(WritePropertyMapper<BufferBuilder> &propertyMapper);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
-
-namespace Buffer {
-    struct Folder;
-    struct FolderBuilder;
-}
 
 template<>
 class TypeImplementation<Sink::ApplicationDomain::Folder> {
@@ -70,11 +64,6 @@ public:
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
-namespace Buffer {
-    struct Contact;
-    struct ContactBuilder;
-}
-
 template<>
 class TypeImplementation<Sink::ApplicationDomain::Contact> {
 public:
@@ -86,11 +75,6 @@ public:
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
-namespace Buffer {
-    struct Addressbook;
-    struct AddressbookBuilder;
-}
-
 template<>
 class TypeImplementation<Sink::ApplicationDomain::Addressbook> {
 public:
@@ -101,11 +85,6 @@ public:
     static void configure(WritePropertyMapper<BufferBuilder> &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
-
-namespace Buffer {
-    struct Event;
-    struct EventBuilder;
-}
 
 template<>
 class TypeImplementation<Sink::ApplicationDomain::Event> {
