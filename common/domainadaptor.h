@@ -26,7 +26,7 @@
 
 #include "domaintypeadaptorfactoryinterface.h"
 #include "domain/applicationdomaintype.h"
-#include "domain/domaintypes.h"
+#include "domain/typeimplementations.h"
 #include "bufferadaptor.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"

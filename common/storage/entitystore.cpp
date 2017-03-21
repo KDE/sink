@@ -31,8 +31,7 @@
 #include "bufferutils.h"
 #include "entity_generated.h"
 #include "applicationdomaintype_p.h"
-
-#include "domaintypes.h"
+#include "typeimplementations.h"
 
 using namespace Sink;
 using namespace Sink::Storage;

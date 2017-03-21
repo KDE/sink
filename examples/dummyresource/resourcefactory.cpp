@@ -26,8 +26,6 @@
 #include "mail_generated.h"
 #include "domainadaptor.h"
 #include "log.h"
-#include "domain/event.h"
-#include "domain/mail.h"
 #include "dummystore.h"
 #include "definitions.h"
 #include "facadefactory.h"

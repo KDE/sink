@@ -16,7 +16,7 @@
  *   Free Software Foundation, Inc.,
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-#include "mail.h"
+#include "typeimplementations.h"
 
 #include <QVector>
 #include <QByteArray>
@@ -30,6 +30,10 @@
 #include "domainadaptor.h"
 
 #include "mail_generated.h"
+#include "folder_generated.h"
+#include "event_generated.h"
+#include "contact_generated.h"
+#include "addressbook_generated.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -101,4 +105,114 @@ void TypeImplementation<Mail>::configure(WritePropertyMapper<BufferBuilder> &pro
     propertyMapper.addMapping<Mail::Sent>(&BufferBuilder::add_sent);
     propertyMapper.addMapping<Mail::MessageId>(&BufferBuilder::add_messageId);
     propertyMapper.addMapping<Mail::ParentMessageId>(&BufferBuilder::add_parentMessageId);
+}
+
+
+void TypeImplementation<Folder>::configure(TypeIndex &index)
+{
+    index.addProperty<QByteArray>(Folder::Parent::name);
+    index.addProperty<QString>(Folder::Name::name);
+}
+
+void TypeImplementation<Folder>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
+{
+    propertyMapper.addMapping<Folder::Parent, Buffer>(&Buffer::parent);
+    propertyMapper.addMapping<Folder::Name, Buffer>(&Buffer::name);
+    propertyMapper.addMapping<Folder::Icon, Buffer>(&Buffer::icon);
+    propertyMapper.addMapping<Folder::SpecialPurpose, Buffer>(&Buffer::specialpurpose);
+    propertyMapper.addMapping<Folder::Enabled, Buffer>(&Buffer::enabled);
+}
+
+void TypeImplementation<Folder>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
+{
+    propertyMapper.addMapping<Folder::Parent>(&BufferBuilder::add_parent);
+    propertyMapper.addMapping<Folder::Name>(&BufferBuilder::add_name);
+    propertyMapper.addMapping<Folder::Icon>(&BufferBuilder::add_icon);
+    propertyMapper.addMapping<Folder::SpecialPurpose>(&BufferBuilder::add_specialpurpose);
+    propertyMapper.addMapping<Folder::Enabled>(&BufferBuilder::add_enabled);
+}
+
+void TypeImplementation<Folder>::configure(IndexPropertyMapper &)
+{
+
+}
+
+
+void TypeImplementation<Contact>::configure(TypeIndex &index)
+{
+    index.addProperty<QByteArray>(Contact::Uid::name);
+}
+
+void TypeImplementation<Contact>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
+{
+    propertyMapper.addMapping<Contact::Uid, Buffer>(&Buffer::uid);
+    propertyMapper.addMapping<Contact::Fn, Buffer>(&Buffer::fn);
+    propertyMapper.addMapping<Contact::Emails, Buffer>(&Buffer::emails);
+    propertyMapper.addMapping<Contact::Vcard, Buffer>(&Buffer::vcard);
+    propertyMapper.addMapping<Contact::Addressbook, Buffer>(&Buffer::addressbook);
+}
+
+void TypeImplementation<Contact>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
+{
+    propertyMapper.addMapping<Contact::Uid>(&BufferBuilder::add_uid);
+    propertyMapper.addMapping<Contact::Fn>(&BufferBuilder::add_fn);
+    propertyMapper.addMapping<Contact::Emails>(&BufferBuilder::add_emails);
+    propertyMapper.addMapping<Contact::Vcard>(&BufferBuilder::add_vcard);
+    propertyMapper.addMapping<Contact::Addressbook>(&BufferBuilder::add_addressbook);
+}
+
+void TypeImplementation<Contact>::configure(IndexPropertyMapper &)
+{
+
+}
+
+
+void TypeImplementation<Addressbook>::configure(TypeIndex &index)
+{
+    index.addProperty<QByteArray>(Addressbook::Parent::name);
+    index.addProperty<QString>(Addressbook::Name::name);
+}
+
+void TypeImplementation<Addressbook>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
+{
+    propertyMapper.addMapping<Addressbook::Parent, Buffer>(&Buffer::parent);
+    propertyMapper.addMapping<Addressbook::Name, Buffer>(&Buffer::name);
+}
+
+void TypeImplementation<Addressbook>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
+{
+    propertyMapper.addMapping<Addressbook::Parent>(&BufferBuilder::add_parent);
+    propertyMapper.addMapping<Addressbook::Name>(&BufferBuilder::add_name);
+}
+
+void TypeImplementation<Addressbook>::configure(IndexPropertyMapper &)
+{
+
+}
+
+
+void TypeImplementation<Event>::configure(TypeIndex &index)
+{
+    index.addProperty<QByteArray>(Event::Uid::name);
+}
+
+void TypeImplementation<Event>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
+{
+    propertyMapper.addMapping<Event::Summary, Buffer>(&Buffer::summary);
+    propertyMapper.addMapping<Event::Description, Buffer>(&Buffer::description);
+    propertyMapper.addMapping<Event::Uid, Buffer>(&Buffer::uid);
+    propertyMapper.addMapping<Event::Attachment, Buffer>(&Buffer::attachment);
+}
+
+void TypeImplementation<Event>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
+{
+    propertyMapper.addMapping<Event::Summary>(&BufferBuilder::add_summary);
+    propertyMapper.addMapping<Event::Description>(&BufferBuilder::add_description);
+    propertyMapper.addMapping<Event::Uid>(&BufferBuilder::add_uid);
+    propertyMapper.addMapping<Event::Attachment>(&BufferBuilder::add_attachment);
+}
+
+void TypeImplementation<Event>::configure(IndexPropertyMapper &)
+{
+
 }

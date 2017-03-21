@@ -61,11 +61,7 @@ set(command_SRCS
     resultset.cpp
     domain/propertyregistry.cpp
     domain/applicationdomaintype.cpp
-    domain/contact.cpp
-    domain/addressbook.cpp
-    domain/event.cpp
-    domain/mail.cpp
-    domain/folder.cpp
+    domain/typeimplementations.cpp
     test.cpp
     query.cpp
     changereplay.cpp

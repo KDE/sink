@@ -23,8 +23,6 @@
 
 #include "common/resource.h"
 #include "common/storage.h"
-#include "common/domain/event.h"
-#include "common/domain/folder.h"
 #include "common/resourceconfig.h"
 #include "common/log.h"
 #include "common/storage.h"
