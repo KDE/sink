@@ -949,8 +949,8 @@ Sink::Resource *ImapResourceFactory::createResource(const ResourceContext &conte
 
 void ImapResourceFactory::registerFacades(const QByteArray &name, Sink::FacadeFactory &factory)
 {
-    factory.registerFacade<Sink::ApplicationDomain::Mail, ImapResourceMailFacade>(name);
-    factory.registerFacade<Sink::ApplicationDomain::Folder, ImapResourceFolderFacade>(name);
+    factory.registerFacade<ApplicationDomain::Mail, DefaultFacade<ApplicationDomain::Mail>>(name);
+    factory.registerFacade<ApplicationDomain::Folder, DefaultFacade<ApplicationDomain::Folder>>(name);
 }
 
 void ImapResourceFactory::registerAdaptorFactories(const QByteArray &name, Sink::AdaptorFactoryRegistry &registry)

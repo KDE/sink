@@ -271,8 +271,8 @@ Sink::Resource *DavResourceFactory::createResource(const ResourceContext &contex
 
 void DavResourceFactory::registerFacades(const QByteArray &name, Sink::FacadeFactory &factory)
 {
-    factory.registerFacade<Sink::ApplicationDomain::Contact, DavResourceContactFacade>(name);
-    factory.registerFacade<Sink::ApplicationDomain::Addressbook, DavResourceAddressbookFacade>(name);
+    factory.registerFacade<ApplicationDomain::Contact, DefaultFacade<ApplicationDomain::Contact>>(name);
+    factory.registerFacade<ApplicationDomain::Addressbook, DefaultFacade<ApplicationDomain::Contact>>(name);
 }
 
 void DavResourceFactory::registerAdaptorFactories(const QByteArray &name, Sink::AdaptorFactoryRegistry &registry)

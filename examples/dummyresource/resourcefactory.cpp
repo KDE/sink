@@ -46,6 +46,8 @@
 
 SINK_DEBUG_AREA("dummyresource")
 
+using namespace Sink;
+
 class DummySynchronizer : public Sink::Synchronizer {
     public:
 
@@ -194,9 +196,9 @@ Sink::Resource *DummyResourceFactory::createResource(const Sink::ResourceContext
 
 void DummyResourceFactory::registerFacades(const QByteArray &resourceName, Sink::FacadeFactory &factory)
 {
-    factory.registerFacade<Sink::ApplicationDomain::Event, DummyResourceFacade>(resourceName);
-    factory.registerFacade<Sink::ApplicationDomain::Mail, DummyResourceMailFacade>(resourceName);
-    factory.registerFacade<Sink::ApplicationDomain::Folder, DummyResourceFolderFacade>(resourceName);
+    factory.registerFacade<ApplicationDomain::Event, DefaultFacade<ApplicationDomain::Event>>(resourceName);
+    factory.registerFacade<ApplicationDomain::Mail, DefaultFacade<ApplicationDomain::Mail>>(resourceName);
+    factory.registerFacade<ApplicationDomain::Folder, DefaultFacade<ApplicationDomain::Folder>>(resourceName);
 }
 
 void DummyResourceFactory::registerAdaptorFactories(const QByteArray &resourceName, Sink::AdaptorFactoryRegistry &registry)
