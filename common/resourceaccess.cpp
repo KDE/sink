@@ -602,7 +602,7 @@ bool ResourceAccess::processMessageBuffer()
                 } break;
                 case Sink::Notification::Status:
                     if (mResourceStatus == buffer->code()) {
-                        SinkTrace() << "Got an unnecessary status notification";
+                        SinkTrace() << "Got an unnecessary status notification: " << buffer->code();
                         break;
                     }
                     mResourceStatus = buffer->code();
