@@ -28,7 +28,8 @@
 #include <QUuid>
 #include "bufferadaptor.h"
 
-#define SINK_ENTITY(TYPE) \
+#define SINK_ENTITY(TYPE, LOWERCASENAME) \
+    static constexpr const char *name = #LOWERCASENAME; \
     typedef QSharedPointer<TYPE> Ptr; \
     using Entity::Entity; \
     TYPE() = default; \
@@ -280,6 +281,7 @@ SINK_EXPORT QDebug operator<< (QDebug d, const BLOB &blob);
 
 
 struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
+    static constexpr const char *name = "account";
     typedef QSharedPointer<SinkAccount> Ptr;
     explicit SinkAccount(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
     explicit SinkAccount(const QByteArray &identifier);
@@ -302,6 +304,7 @@ struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
  * and for creating and removing resource instances.
  */
 struct SINK_EXPORT SinkResource : public ApplicationDomainType {
+    static constexpr const char *name = "resource";
     typedef QSharedPointer<SinkResource> Ptr;
     explicit SinkResource(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
     explicit SinkResource(const QByteArray &identifier);
@@ -325,7 +328,7 @@ struct SINK_EXPORT Entity : public ApplicationDomainType {
 };
 
 struct SINK_EXPORT Addressbook : public Entity {
-    SINK_ENTITY(Addressbook);
+    SINK_ENTITY(Addressbook, addressbook);
     SINK_REFERENCE_PROPERTY(Addressbook, Parent, parent);
     SINK_PROPERTY(QString, Name, name);
     SINK_EXTRACTED_PROPERTY(QDateTime, LastUpdated, lastUpdated);
@@ -341,7 +344,7 @@ struct SINK_EXPORT Contact : public Entity {
         Type type;
         QString email;
     };
-    SINK_ENTITY(Contact);
+    SINK_ENTITY(Contact, contact);
     SINK_PROPERTY(QString, Uid, uid);
     SINK_PROPERTY(QString, Fn, fn);
     SINK_PROPERTY(QString, Firstname, firstname);
@@ -352,7 +355,7 @@ struct SINK_EXPORT Contact : public Entity {
 };
 
 struct SINK_EXPORT Event : public Entity {
-    SINK_ENTITY(Event);
+    SINK_ENTITY(Event, event);
     SINK_PROPERTY(QString, Uid, uid);
     SINK_PROPERTY(QString, Summary, summary);
     SINK_PROPERTY(QString, Description, description);
@@ -360,15 +363,15 @@ struct SINK_EXPORT Event : public Entity {
 };
 
 struct SINK_EXPORT Todo : public Entity {
-    SINK_ENTITY(Todo);
+    SINK_ENTITY(Todo, todo);
 };
 
 struct SINK_EXPORT Calendar : public Entity {
-    SINK_ENTITY(Calendar);
+    SINK_ENTITY(Calendar, calendar);
 };
 
 struct SINK_EXPORT Folder : public Entity {
-    SINK_ENTITY(Folder);
+    SINK_ENTITY(Folder, folder);
     SINK_REFERENCE_PROPERTY(Folder, Parent, parent);
     SINK_PROPERTY(QString, Name, name);
     SINK_PROPERTY(QByteArray, Icon, icon);
@@ -385,7 +388,7 @@ struct SINK_EXPORT Mail : public Entity {
         QString emailAddress;
     };
 
-    SINK_ENTITY(Mail);
+    SINK_ENTITY(Mail, mail);
     SINK_EXTRACTED_PROPERTY(Contact, Sender, sender);
     SINK_EXTRACTED_PROPERTY(QList<Contact>, To, to);
     SINK_EXTRACTED_PROPERTY(QList<Contact>, Cc, cc);
@@ -424,6 +427,7 @@ enum SINK_EXPORT Status {
 };
 
 struct SINK_EXPORT Identity : public ApplicationDomainType {
+    static constexpr const char *name = "resource";
     typedef QSharedPointer<Identity> Ptr;
     explicit Identity(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
     explicit Identity(const QByteArray &identifier);
@@ -487,34 +491,10 @@ namespace Mail {
  * Do not store these types to disk, they may change over time.
  */
 template<class DomainType>
-QByteArray SINK_EXPORT getTypeName();
-
-template<>
-QByteArray SINK_EXPORT getTypeName<Contact>();
-
-template<>
-QByteArray SINK_EXPORT getTypeName<Addressbook>();
-
-template<>
-QByteArray SINK_EXPORT getTypeName<Event>();
-
-template<>
-QByteArray SINK_EXPORT getTypeName<Todo>();
-
-template<>
-QByteArray SINK_EXPORT getTypeName<SinkResource>();
-
-template<>
-QByteArray SINK_EXPORT getTypeName<SinkAccount>();
-
-template<>
-QByteArray SINK_EXPORT getTypeName<Identity>();
-
-template<>
-QByteArray SINK_EXPORT getTypeName<Mail>();
-
-template<>
-QByteArray SINK_EXPORT getTypeName<Folder>();
+QByteArray SINK_EXPORT getTypeName()
+{
+    return DomainType::name;
+}
 
 QByteArrayList SINK_EXPORT getTypeNames();
 
