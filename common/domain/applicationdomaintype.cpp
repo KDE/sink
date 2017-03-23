@@ -95,15 +95,20 @@ SINK_REGISTER_PROPERTY(Folder, Icon);
 SINK_REGISTER_PROPERTY(Folder, SpecialPurpose);
 SINK_REGISTER_PROPERTY(Folder, Enabled);
 SINK_REGISTER_PROPERTY(Folder, Parent);
+SINK_REGISTER_PROPERTY(Folder, Count);
+SINK_REGISTER_PROPERTY(Folder, FullContentAvailable);
 
 SINK_REGISTER_PROPERTY(Contact, Uid);
 SINK_REGISTER_PROPERTY(Contact, Fn);
+SINK_REGISTER_PROPERTY(Contact, Firstname);
+SINK_REGISTER_PROPERTY(Contact, Lastname);
 SINK_REGISTER_PROPERTY(Contact, Emails);
 SINK_REGISTER_PROPERTY(Contact, Vcard);
 SINK_REGISTER_PROPERTY(Contact, Addressbook);
 
 SINK_REGISTER_PROPERTY(Addressbook, Name);
 SINK_REGISTER_PROPERTY(Addressbook, Parent);
+SINK_REGISTER_PROPERTY(Addressbook, LastUpdated);
 
 static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();

@@ -49,6 +49,9 @@ template <>
 QVariant parseString<bool>(const QString &s);
 
 template <>
+QVariant parseString<int>(const QString &s);
+
+template <>
 QVariant parseString<QList<QByteArray>>(const QString &s);
 
 template <>

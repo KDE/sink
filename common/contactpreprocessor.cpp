@@ -28,9 +28,11 @@ void updatedProperties(Sink::ApplicationDomain::Contact &contact, const KContact
 {
     contact.setUid(addressee.uid());
     contact.setFn(addressee.formattedName());
-    QByteArrayList emails;
+    contact.setFirstname(addressee.givenName());
+    contact.setLastname(addressee.familyName());
+    QList<Sink::ApplicationDomain::Contact::Email> emails;
     for (const auto &email : addressee.emails()) {
-        emails << email.toUtf8();
+        emails << Sink::ApplicationDomain::Contact::Email{Sink::ApplicationDomain::Contact::Email::Undefined, email};
     }
     contact.setEmails(emails);
 }

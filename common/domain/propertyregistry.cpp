@@ -64,6 +64,17 @@ QVariant parseString<bool>(const QString &s)
 }
 
 template <>
+QVariant parseString<int>(const QString &s)
+{
+    bool ok = false;
+    auto n = s.toInt(&ok);
+    if (ok) {
+        return QVariant::fromValue(n);
+    }
+    return {};
+}
+
+template <>
 QVariant parseString<QList<QByteArray>>(const QString &s)
 {
     auto list = s.split(',');
@@ -87,6 +98,13 @@ QVariant parseString<Sink::ApplicationDomain::Mail::Contact>(const QString &s)
 
 template <>
 QVariant parseString<QList<Sink::ApplicationDomain::Mail::Contact>>(const QString &s)
+{
+    Q_ASSERT(false);
+    return QVariant{};
+}
+
+template <>
+QVariant parseString<QList<Sink::ApplicationDomain::Contact::Email>>(const QString &s)
 {
     Q_ASSERT(false);
     return QVariant{};

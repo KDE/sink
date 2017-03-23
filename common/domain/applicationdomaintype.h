@@ -328,13 +328,25 @@ struct SINK_EXPORT Addressbook : public Entity {
     SINK_ENTITY(Addressbook);
     SINK_REFERENCE_PROPERTY(Addressbook, Parent, parent);
     SINK_PROPERTY(QString, Name, name);
+    SINK_EXTRACTED_PROPERTY(QDateTime, LastUpdated, lastUpdated);
 };
 
 struct SINK_EXPORT Contact : public Entity {
+    struct SINK_EXPORT Email {
+        enum Type {
+            Undefined,
+            Work,
+            Home
+        };
+        Type type;
+        QString email;
+    };
     SINK_ENTITY(Contact);
     SINK_PROPERTY(QString, Uid, uid);
     SINK_PROPERTY(QString, Fn, fn);
-    SINK_PROPERTY(QByteArrayList, Emails, emails);
+    SINK_PROPERTY(QString, Firstname, firstname);
+    SINK_PROPERTY(QString, Lastname, lastname);
+    SINK_PROPERTY(QList<Email>, Emails, emails);
     SINK_PROPERTY(QByteArray, Vcard, vcard);
     SINK_REFERENCE_PROPERTY(Addressbook, Addressbook, addressbook);
 };
@@ -362,6 +374,9 @@ struct SINK_EXPORT Folder : public Entity {
     SINK_PROPERTY(QByteArray, Icon, icon);
     SINK_PROPERTY(QByteArrayList, SpecialPurpose, specialpurpose);
     SINK_PROPERTY(bool, Enabled, enabled);
+    SINK_EXTRACTED_PROPERTY(QDateTime, LastUpdated, lastUpdated);
+    SINK_EXTRACTED_PROPERTY(int, Count, count);
+    SINK_EXTRACTED_PROPERTY(bool, FullContentAvailable, fullContentAvailable);
 };
 
 struct SINK_EXPORT Mail : public Entity {
@@ -552,6 +567,7 @@ Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Entity)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Entity::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Mail::Contact)
+Q_DECLARE_METATYPE(Sink::ApplicationDomain::Contact::Email)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Error)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Progress)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::BLOB)

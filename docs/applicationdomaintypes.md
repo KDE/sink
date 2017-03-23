@@ -56,7 +56,7 @@ Event:
 ```
 ```no-highlight
 Mail:
-    uid [QByteArray]: The message id.
+    messageId [QByteArray]: The message id.
     subject [QString]: The subject of the email.
     folder [MailFolder.id]: The parent folder.
     date [QDateTime]: The date of the email.
@@ -67,6 +67,25 @@ Mail Folder:
     parent [MailFolder.id]: The parent folder.
     name [QString]: The user visible name of the folder.
     icon [QString]: The name of the icon of the folder.
+    lastUpdated [QDateTime]: time of last successful update.
+    count [int]: Number of messages available on the server.
+    fullDataAvailable [bool]: Inidicates whether the local dataset is complete.
+```
+```no-highlight
+Contact:
+    uid [QByteArray]: The contact uid.
+    fn [QString]: The full name.
+    firstName [QString]: The first name.
+    lastName [QString]: The last name.
+    addressbook [Addressbook.id]: The parent addressbook.
+    emails [Email]: The availale email addresses.
+```
+```no-highlight
+Addressbook:
+    parent [Addressbook.id]: The parent addressbook.
+    name [QString]: The user visible name of the addressbook.
+    icon [QString]: The name of the icon of the addressbook.
+    lastUpdated [QDateTime]: time of last successful update.
 ```
 ```no-highlight
 Sink Resource:

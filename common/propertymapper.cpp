@@ -22,6 +22,7 @@
 #include "applicationdomaintype.h"
 #include <QDateTime>
 #include "mail_generated.h"
+#include "contact_generated.h"
 
 template <>
 flatbuffers::uoffset_t variantToProperty<QString>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
@@ -103,6 +104,21 @@ flatbuffers::uoffset_t variantToProperty<QList<Sink::ApplicationDomain::Mail::Co
         std::vector<flatbuffers::Offset<Sink::ApplicationDomain::Buffer::MailContact>> vector;
         for (const auto &value : list) {
             auto offset = Sink::ApplicationDomain::Buffer::CreateMailContactDirect(fbb, value.name.toUtf8().constData(), value.emailAddress.toUtf8().constData()).o;
+            vector.push_back(offset);
+        }
+        return fbb.CreateVector(vector).o;
+    }
+    return 0;
+}
+
+template <>
+flatbuffers::uoffset_t variantToProperty<QList<Sink::ApplicationDomain::Contact::Email>>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
+{
+    if (property.isValid()) {
+        const auto list = property.value<QList<Sink::ApplicationDomain::Contact::Email>>();
+        std::vector<flatbuffers::Offset<Sink::ApplicationDomain::Buffer::ContactEmail>> vector;
+        for (const auto &value : list) {
+            auto offset = Sink::ApplicationDomain::Buffer::CreateContactEmailDirect(fbb, value.type, value.email.toUtf8().constData()).o;
             vector.push_back(offset);
         }
         return fbb.CreateVector(vector).o;
@@ -209,6 +225,20 @@ QVariant propertyToVariant<QList<Sink::ApplicationDomain::Mail::Contact>>(const 
         for (auto it = property->begin(); it != property->end();) {
             // We have to copy the memory, otherwise it would become eventually invalid
             list << Sink::ApplicationDomain::Mail::Contact{propertyToString(it->name()), propertyToString(it->email())};
+            it.operator++();
+        }
+        return QVariant::fromValue(list);
+    }
+    return QVariant();
+}
+
+template <>
+QVariant propertyToVariant<QList<Sink::ApplicationDomain::Contact::Email>>(const flatbuffers::Vector<flatbuffers::Offset<Sink::ApplicationDomain::Buffer::ContactEmail>> *property)
+{
+    if (property) {
+        QList<Sink::ApplicationDomain::Contact::Email> list;
+        for (auto it = property->begin(); it != property->end();) {
+            list << Sink::ApplicationDomain::Contact::Email{static_cast<Sink::ApplicationDomain::Contact::Email::Type>(it->type()), propertyToString(it->email())};
             it.operator++();
         }
         return QVariant::fromValue(list);

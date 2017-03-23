@@ -1,10 +1,17 @@
 namespace Sink.ApplicationDomain.Buffer;
 
+table ContactEmail {
+    type: int;
+    email: string;
+}
+
 table Contact {
   uid:string;
   fn:string;
+  firstname:string;
+  lastname:string;
   addressbook:string;
-  emails: [string];
+  emails: [ContactEmail];
   vcard: string;
 }
 
