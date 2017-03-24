@@ -427,7 +427,7 @@ enum SINK_EXPORT Status {
 };
 
 struct SINK_EXPORT Identity : public ApplicationDomainType {
-    static constexpr const char *name = "resource";
+    static constexpr const char *name = "identity";
     typedef QSharedPointer<Identity> Ptr;
     explicit Identity(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
     explicit Identity(const QByteArray &identifier);
