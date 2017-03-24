@@ -69,6 +69,7 @@ class DummySynchronizer : public Sink::Synchronizer {
     Sink::ApplicationDomain::Mail::Ptr createMail(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data)
     {
         auto mail = Sink::ApplicationDomain::Mail::Ptr::create();
+        mail->setExtractedMessageId(ridBuffer);
         mail->setExtractedSubject(data.value("subject").toString());
         mail->setExtractedSender(Sink::ApplicationDomain::Mail::Contact{data.value("senderName").toString(), data.value("senderEmail").toString()});
         mail->setExtractedDate(data.value("date").toDateTime());

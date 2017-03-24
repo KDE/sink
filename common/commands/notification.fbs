@@ -2,9 +2,10 @@ namespace Sink.Commands;
 
 table Notification {
     type: int = 0; //See notification.h
-    identifier: string; //An identifier that links back to the something related to the notification (e.g. an entity id or a command id)
+    identifier: string; //An identifier that links back to the something related to the notification (e.g. a command id)
     message: string;
     code: int = 0; //See notification.h
+    entities: [string]; //A list of entities this applies to
 }
 
 root_type Notification;

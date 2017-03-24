@@ -25,6 +25,7 @@
 #include "common/definitions.h"
 #include "common/resourcecontext.h"
 #include "common/adaptorfactoryregistry.h"
+#include "common/bufferutils.h"
 
 // commands
 #include "common/commandcompletion_generated.h"
@@ -406,11 +407,13 @@ void Listener::notify(const Sink::Notification &notification)
 {
     auto messageString = m_fbb.CreateString(notification.message.toUtf8().constData(), notification.message.toUtf8().size());
     auto idString = m_fbb.CreateString(notification.id.constData(), notification.id.size());
+    auto entities = Sink::BufferUtils::toVector(m_fbb, notification.entities);
     Sink::Commands::NotificationBuilder builder(m_fbb);
     builder.add_type(notification.type);
     builder.add_code(notification.code);
     builder.add_identifier(idString);
     builder.add_message(messageString);
+    builder.add_entities(entities);
     auto command = builder.Finish();
     Sink::Commands::FinishNotificationBuffer(m_fbb, command);
     for (Client &client : m_connections) {

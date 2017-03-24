@@ -547,6 +547,7 @@ static Sink::Notification getNotification(const Sink::Commands::Notification *bu
     }
     n.type = buffer->type();
     n.code = buffer->code();
+    n.entities = BufferUtils::fromVector(*buffer->entities());
     return n;
 }
 
@@ -608,13 +609,17 @@ bool ResourceAccess::processMessageBuffer()
                     mResourceStatus = buffer->code();
                     SinkTrace() << "Updated status: " << mResourceStatus;
                     [[clang::fallthrough]];
+                case Sink::Notification::Info:
+                    [[clang::fallthrough]];
                 case Sink::Notification::Warning:
+                    [[clang::fallthrough]];
+                case Sink::Notification::Error:
                     [[clang::fallthrough]];
                 case Sink::Notification::FlushCompletion:
                     [[clang::fallthrough]];
                 case Sink::Notification::Progress: {
                     auto n = getNotification(buffer);
-                    SinkTrace() << "Received notification: Type:" << n.type  << "Message: " << n.message << "Code: " << n.code;
+                    SinkTrace() << "Received notification: " << n;
                     n.resource = d->resourceInstanceIdentifier;
                     emit notification(n);
                 } break;

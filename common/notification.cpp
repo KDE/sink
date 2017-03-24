@@ -21,6 +21,6 @@
 
 QDebug operator<<(QDebug dbg, const Sink::Notification &n)
 {
-    dbg << "Notification(Id: " << n.id << ", Type: " << n.type  << ", Code: " << n.code << ", Message: " << n.message << ")";
+    dbg << "Notification(Type: " << n.type << "Id, : " << n.id  << ", Code: " << n.code << ", Message: " << n.message << ", Entities: " << n.entities << ")";
     return dbg.space();
 }

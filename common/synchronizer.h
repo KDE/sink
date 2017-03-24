@@ -180,7 +180,7 @@ protected:
      */
     virtual void mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue);
 
-    void emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id = QByteArray{});
+    void emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id = QByteArray{}, const QByteArrayList &entiteis = QByteArrayList{});
 
 protected:
     Sink::Log::Context mLogCtx;

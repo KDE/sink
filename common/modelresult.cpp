@@ -24,12 +24,20 @@
 #include <QPointer>
 
 #include "log.h"
+#include "notifier.h"
+#include "notification.h"
+
+using namespace Sink;
+
+static uint getInternalIdentifer(const QByteArray &resourceId, const QByteArray &entityId)
+{
+    return qHash(resourceId + entityId);
+}
 
 static uint qHash(const Sink::ApplicationDomain::ApplicationDomainType &type)
 {
-    // Q_ASSERT(!type.resourceInstanceIdentifier().isEmpty());
     Q_ASSERT(!type.identifier().isEmpty());
-    return qHash(type.resourceInstanceIdentifier() + type.identifier());
+    return getInternalIdentifer(type.resourceInstanceIdentifier(), type.identifier());
 }
 
 static qint64 getIdentifier(const QModelIndex &idx)
@@ -44,6 +52,79 @@ template <class T, class Ptr>
 ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns, const Sink::Log::Context &ctx)
     : QAbstractItemModel(), mLogCtx(ctx.subContext("modelresult")), mPropertyColumns(propertyColumns), mQuery(query)
 {
+    if (query.flags().testFlag(Sink::Query::UpdateStatus)) {
+        mNotifier.reset(new Sink::Notifier{query});
+        mNotifier->registerHandler([this](const Notification &notification) {
+            switch (notification.type) {
+                case Notification::Status:
+                case Notification::Warning:
+                case Notification::Error:
+                case Notification::Info:
+                case Notification::Progress:
+                    //These are the notifications we care about
+                    break;
+                default:
+                    //We're not interested
+                    return;
+            };
+            if (notification.resource.isEmpty()|| notification.entities.isEmpty()) {
+                return;
+            }
+
+            QVector<qint64> idList;
+            for (const auto &entity : notification.entities) {
+                auto id = getInternalIdentifer(notification.resource, entity);
+                if (mEntities.contains(id)) {
+                    idList << id;
+                }
+            }
+
+            if (idList.isEmpty()) {
+                //We don't have this entity in our model
+                return;
+            }
+            const int newStatus = [&] {
+                if (notification.type == Notification::Warning || notification.type == Notification::Error) {
+                    return ApplicationDomain::SyncStatus::SyncError;
+                }
+                if (notification.type == Notification::Info) {
+                    switch (notification.code) {
+                        case ApplicationDomain::SyncInProgress:
+                            return ApplicationDomain::SyncInProgress;
+                        case ApplicationDomain::SyncSuccess:
+                            return ApplicationDomain::SyncSuccess;
+                        case ApplicationDomain::SyncError:
+                            return ApplicationDomain::SyncError;
+                        case ApplicationDomain::NoSyncStatus:
+                            break;
+                    }
+                    return ApplicationDomain::NoSyncStatus;
+                }
+                if (notification.type == Notification::Progress) {
+                    return ApplicationDomain::SyncStatus::SyncInProgress;
+                }
+                return ApplicationDomain::NoSyncStatus;
+            }();
+
+            for (const auto id : idList) {
+                const auto oldStatus = mEntityStatus.value(id);
+                QVector<int> changedRoles;
+                if (oldStatus != newStatus) {
+                    mEntityStatus.insert(id, newStatus);
+                    changedRoles << StatusRole;
+                }
+
+                if (notification.type == Notification::Progress) {
+                    changedRoles << ProgressRole;
+                } else if (notification.type == Notification::Warning || notification.type == Notification::Error) {
+                    changedRoles << WarningRole;
+                }
+
+                const auto idx = createIndexFromId(id);
+                emit dataChanged(idx, idx, changedRoles);
+            }
+        });
+    }
 }
 
 template <class T, class Ptr>
@@ -60,7 +141,7 @@ qint64 ModelResult<T, Ptr>::parentId(const Ptr &value)
     if (!mQuery.parentProperty().isEmpty()) {
         const auto identifier = value->getProperty(mQuery.parentProperty()).toByteArray();
         if (!identifier.isEmpty()) {
-            return qHash(T(value->resourceInstanceIdentifier(), identifier, 0, QSharedPointer<Sink::ApplicationDomain::BufferAdaptor>()));
+            return getInternalIdentifer(value->resourceInstanceIdentifier(), identifier);
         }
     }
     return 0;
@@ -105,6 +186,9 @@ QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
     }
     if (role == ChildrenFetchedRole) {
         return childrenFetched(index);
+    }
+    if (role == StatusRole) {
+        return mEntityStatus.value(index.internalId());
     }
     if (role == Qt::DisplayRole && index.isValid()) {
         if (index.column() < mPropertyColumns.size()) {

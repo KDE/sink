@@ -93,7 +93,7 @@
 namespace Sink {
 namespace ApplicationDomain {
 
-enum ErrorCode {
+enum SINK_EXPORT ErrorCode {
     NoError = 0,
     UnknownError,
     NoServerError,
@@ -101,8 +101,31 @@ enum ErrorCode {
     TransmissionError,
 };
 
-enum SuccessCode {
+enum SINK_EXPORT SuccessCode {
     TransmissionSuccess
+};
+
+enum SINK_EXPORT SyncStatus {
+    NoSyncStatus,
+    SyncInProgress,
+    SyncError,
+    SyncSuccess
+};
+
+/**
+ * The status of an account or resource.
+ *
+ * It is set as follows:
+ * * By default the status is offline.
+ * * If a connection to the server could be established the status is Connected.
+ * * If an error occurred that keeps the resource from operating (so non transient), the resource enters the error state.
+ * * If a long running operation is started the resource goes to the busy state (and return to the previous state after that).
+ */
+enum SINK_EXPORT Status {
+    OfflineStatus,
+    ConnectedStatus,
+    BusyStatus,
+    ErrorStatus
 };
 
 struct SINK_EXPORT Error {
@@ -113,6 +136,11 @@ struct SINK_EXPORT Progress {
 
 };
 
+/**
+ * Internal type.
+ *
+ * Represents a BLOB property.
+ */
 struct BLOB {
     BLOB() = default;
     BLOB(const BLOB &) = default;
@@ -409,22 +437,6 @@ struct SINK_EXPORT Mail : public Entity {
 };
 
 SINK_EXPORT QDebug operator<< (QDebug d, const Mail::Contact &c);
-
-/**
- * The status of an account or resource.
- *
- * It is set as follows:
- * * By default the status is offline.
- * * If a connection to the server could be established the status is Connected.
- * * If an error occurred that keeps the resource from operating (so non transient), the resource enters the error state.
- * * If a long running operation is started the resource goes to the busy state (and return to the previous state after that).
- */
-enum SINK_EXPORT Status {
-    OfflineStatus,
-    ConnectedStatus,
-    BusyStatus,
-    ErrorStatus
-};
 
 struct SINK_EXPORT Identity : public ApplicationDomainType {
     static constexpr const char *name = "identity";

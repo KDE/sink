@@ -51,6 +51,7 @@ public:
     };
 
     QByteArray id;
+    QByteArrayList entities;
     int type = 0;
     QString message;
     //A return code. Zero typically indicates success.

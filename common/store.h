@@ -48,11 +48,15 @@ QString SINK_EXPORT storageLocation();
  */
 QString SINK_EXPORT getTemporaryFilePath();
 
+// Must be the same as in ModelResult
 enum Roles
 {
-    DomainObjectRole = Qt::UserRole + 1, // Must be the same as in ModelResult
+    DomainObjectRole = Qt::UserRole + 1,
     ChildrenFetchedRole,
-    DomainObjectBaseRole
+    DomainObjectBaseRole,
+    StatusRole, //ApplicationDomain::SyncStatus
+    WarningRole, //ApplicationDomain::Warning, only if status == warning || status == error
+    ProgressRole //ApplicationDomain::Progress
 };
 
 /**

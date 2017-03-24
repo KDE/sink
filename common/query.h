@@ -300,7 +300,9 @@ public:
         /** Leave the query running and continuously update the result set. */
         LiveQuery = 1,
         /** Run the query synchronously. */
-        SynchronousQuery = 2
+        SynchronousQuery = 2,
+        /** Include status updates via notifications */
+        UpdateStatus = 4
     };
     Q_DECLARE_FLAGS(Flags, Flag)
 
@@ -408,6 +410,11 @@ public:
     void setFlags(Flags flags)
     {
         mFlags = flags;
+    }
+
+    Flags flags() const
+    {
+        return mFlags;
     }
 
     bool liveQuery() const

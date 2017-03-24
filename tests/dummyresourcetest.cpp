@@ -136,12 +136,7 @@ private slots:
     void testResourceSync()
     {
         ::DummyResource resource(getContext());
-        auto job = resource.synchronizeWithSource(Sink::QueryBase());
-        // TODO pass in optional timeout?
-        auto future = job.exec();
-        future.waitForFinished();
-        QVERIFY(!future.errorCode());
-        QVERIFY(future.isFinished());
+        VERIFYEXEC(resource.synchronizeWithSource(Sink::QueryBase()));
         QVERIFY(!resource.error());
         auto processAllMessagesFuture = resource.processAllMessages().exec();
         processAllMessagesFuture.waitForFinished();
@@ -152,7 +147,7 @@ private slots:
         const auto query = Query().resourceFilter("sink.dummy.instance1");
 
         // Ensure all local data is processed
-        Sink::Store::synchronize(query).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::synchronize(query));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
         auto model = Sink::Store::loadModel<Event>(query);

@@ -30,15 +30,23 @@
 #include "resultprovider.h"
 #include "threadboundary.h"
 
+namespace Sink {
+class Notifier;
+}
+
 template <class T, class Ptr>
 class ModelResult : public QAbstractItemModel
 {
 public:
+    //Update the copy in store.h as well if you modify this
     enum Roles
     {
         DomainObjectRole = Qt::UserRole + 1,
         ChildrenFetchedRole,
-        DomainObjectBaseRole
+        DomainObjectBaseRole,
+        StatusRole, //ApplicationDomain::SyncStatus
+        WarningRole, //ApplicationDomain::Warning, only if status == warning || status == error
+        ProgressRole //ApplicationDomain::Progress
     };
 
     ModelResult(const Sink::Query &query, const QList<QByteArray> &propertyColumns, const Sink::Log::Context &);
@@ -77,9 +85,11 @@ private:
     QSet<qint64 /* entity id */> mEntityChildrenFetched;
     QSet<qint64 /* entity id */> mEntityChildrenFetchComplete;
     QSet<qint64 /* entity id */> mEntityAllChildrenFetched;
+    QMap<qint64 /* entity id */, int /* Status */> mEntityStatus;
     QList<QByteArray> mPropertyColumns;
     Sink::Query mQuery;
     std::function<void(const Ptr &)> loadEntities;
     typename Sink::ResultEmitter<Ptr>::Ptr mEmitter;
     async::ThreadBoundary threadBoundary;
+    QScopedPointer<Sink::Notifier> mNotifier;
 };
