@@ -53,7 +53,9 @@ ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArra
     : QAbstractItemModel(), mLogCtx(ctx.subContext("modelresult")), mPropertyColumns(propertyColumns), mQuery(query)
 {
     if (query.flags().testFlag(Sink::Query::UpdateStatus)) {
-        mNotifier.reset(new Sink::Notifier{query});
+        Sink::Query resourceQuery;
+        resourceQuery.setFilter(query.getResourceFilter());
+        mNotifier.reset(new Sink::Notifier{resourceQuery});
         mNotifier->registerHandler([this](const Notification &notification) {
             switch (notification.type) {
                 case Notification::Status:
@@ -120,8 +122,10 @@ ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArra
                     changedRoles << WarningRole;
                 }
 
-                const auto idx = createIndexFromId(id);
-                emit dataChanged(idx, idx, changedRoles);
+                if (!changedRoles.isEmpty()) {
+                    const auto idx = createIndexFromId(id);
+                    emit dataChanged(idx, idx, changedRoles);
+                }
             }
         });
     }

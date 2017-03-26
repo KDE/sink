@@ -39,7 +39,7 @@ public:
 
     void listenForNotifications(const QSharedPointer<ResourceAccess> &access)
     {
-        QObject::connect(access.data(), &ResourceAccess::notification, context.data(), [this](const Notification &notification) {
+        QObject::connect(access.data(), &ResourceAccess::notification, &context, [this](const Notification &notification) {
             for (const auto &handler : handler) {
                 handler(notification);
             }
@@ -49,7 +49,7 @@ public:
 
     QList<QSharedPointer<ResourceAccess>> resourceAccess;
     QList<std::function<void(const Notification &)>> handler;
-    QSharedPointer<QObject> context;
+    QObject context;
 };
 
 Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess) : d(new Sink::Notifier::Private)
@@ -77,7 +77,7 @@ Notifier::Notifier(const Sink::Query &resourceQuery) : d(new Sink::Notifier::Pri
     auto result = facade->load(resourceQuery, resourceCtx);
     auto emitter = result.second;
     emitter->onAdded([=](const ApplicationDomain::SinkResource::Ptr &resource) {
-        auto resourceAccess = Sink::ResourceAccess::Ptr::create(resource->identifier(), ResourceConfig::getResourceType(resource->identifier()));
+        auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(resource->identifier(), ResourceConfig::getResourceType(resource->identifier()));
         resourceAccess->open();
         d->listenForNotifications(resourceAccess);
     });

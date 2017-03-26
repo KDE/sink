@@ -279,7 +279,7 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 
 static KAsync::Job<void> synchronize(const QByteArray &resource, const Sink::SyncScope &scope)
 {
-    SinkLog() << "Synchronizing " << resource;
+    SinkLog() << "Synchronizing " << resource << scope;
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
     return resourceAccess->synchronizeResource(scope)
         .addToContext(resourceAccess)
