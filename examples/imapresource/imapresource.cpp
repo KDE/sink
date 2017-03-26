@@ -370,7 +370,7 @@ public:
 
     Sink::QueryBase applyMailDefaults(const Sink::QueryBase &query)
     {
-        auto defaultDateFilter = QDate::currentDate().addDays(-14);
+        auto defaultDateFilter = QDate::currentDate().addDays(0 - mDaysToSync);
         auto queryWithDefaults = query;
         if (!queryWithDefaults.hasFilter<ApplicationDomain::Mail::Date>()) {
             queryWithDefaults.filter(ApplicationDomain::Mail::Date::name, QVariant::fromValue(defaultDateFilter));
@@ -736,6 +736,7 @@ public:
     int mPort;
     QString mUser;
     QString mPassword;
+    int mDaysToSync = 0;
     QByteArray mResourceInstanceIdentifier;
     Imap::SessionCache mSessionCache;
 };
@@ -915,6 +916,7 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     synchronizer->mPort = port;
     synchronizer->mUser = user;
     synchronizer->mPassword = password;
+    synchronizer->mDaysToSync = 14;
     setupSynchronizer(synchronizer);
 
     auto inspector = QSharedPointer<ImapInspector>::create(resourceContext);
