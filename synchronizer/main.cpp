@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
     SinkLog() << "Starting: " << instanceIdentifier << resourceType;
 
     QDir{}.mkpath(Sink::resourceStorageLocation(instanceIdentifier));
-    QLockFile lockfile(Sink::resourceStorageLocation(instanceIdentifier) + "/resource.lock");
+    QLockFile lockfile(Sink::storageLocation() + QString("/%1.lock").arg(QString(instanceIdentifier)));
     lockfile.setStaleLockTime(500);
     if (!lockfile.tryLock(0)) {
         const auto error = lockfile.error();
