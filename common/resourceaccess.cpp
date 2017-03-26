@@ -602,12 +602,10 @@ bool ResourceAccess::processMessageBuffer()
                     queuedInvoke([=]() { emit notification(n); }, this);
                 } break;
                 case Sink::Notification::Status:
-                    if (mResourceStatus == buffer->code()) {
-                        SinkTrace() << "Got an unnecessary status notification: " << buffer->code();
-                        break;
+                    if (mResourceStatus != buffer->code()) {
+                        mResourceStatus = buffer->code();
+                        SinkTrace() << "Updated status: " << mResourceStatus;
                     }
-                    mResourceStatus = buffer->code();
-                    SinkTrace() << "Updated status: " << mResourceStatus;
                     [[clang::fallthrough]];
                 case Sink::Notification::Info:
                     [[clang::fallthrough]];
