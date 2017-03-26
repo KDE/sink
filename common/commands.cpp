@@ -21,6 +21,7 @@
 #include "commands.h"
 
 #include <QIODevice>
+#include <log.h>
 
 namespace Sink {
 
@@ -77,27 +78,34 @@ void write(QIODevice *device, int messageId, int commandId)
     write(device, messageId, commandId, 0, 0);
 }
 
+static void write(QIODevice *device, const char *buffer, uint size)
+{
+    if (device->write(buffer, size) < 0) {
+        SinkWarningCtx(Sink::Log::Context{"commands"}) << "Error while writing " << device->errorString();
+    }
+}
+
 void write(QIODevice *device, int messageId, int commandId, const char *buffer, uint size)
 {
     if (size > 0 && !buffer) {
         size = 0;
     }
 
-    device->write((const char *)&messageId, sizeof(int));
-    device->write((const char *)&commandId, sizeof(int));
-    device->write((const char *)&size, sizeof(uint));
+    write(device, (const char *)&messageId, sizeof(int));
+    write(device, (const char *)&commandId, sizeof(int));
+    write(device, (const char *)&size, sizeof(uint));
     if (buffer) {
-        device->write(buffer, size);
+        write(device, buffer, size);
     }
 }
 
 void write(QIODevice *device, int messageId, int commandId, flatbuffers::FlatBufferBuilder &fbb)
 {
     const int dataSize = fbb.GetSize();
-    device->write((const char *)&messageId, sizeof(int));
-    device->write((const char *)&commandId, sizeof(int));
-    device->write((const char *)&dataSize, sizeof(int));
-    device->write((const char *)fbb.GetBufferPointer(), dataSize);
+    write(device, (const char *)&messageId, sizeof(int));
+    write(device, (const char *)&commandId, sizeof(int));
+    write(device, (const char *)&dataSize, sizeof(int));
+    write(device, (const char *)fbb.GetBufferPointer(), dataSize);
 }
 
 } // namespace Commands
