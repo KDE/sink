@@ -100,7 +100,7 @@ public:
     QByteArray createFolder(const Imap::Folder &f)
     {
         const auto parentFolderRid = parentRid(f);
-        SinkTrace() << "Creating folder: " << f.name() << parentFolderRid;
+        SinkTraceCtx(mLogCtx) << "Creating folder: " << f.name() << parentFolderRid;
 
         const auto remoteId = folderRid(f);
         Sink::ApplicationDomain::Folder folder;
@@ -123,7 +123,7 @@ public:
 
     void synchronizeFolders(const QVector<Folder> &folderList)
     {
-        SinkTrace() << "Found folders " << folderList.size();
+        SinkTraceCtx(mLogCtx) << "Found folders " << folderList.size();
 
         scanForRemovals(ENTITY_TYPE_FOLDER,
             [&folderList](const QByteArray &remoteId) -> bool {
@@ -164,14 +164,14 @@ public:
     {
         auto time = QSharedPointer<QTime>::create();
         time->start();
-        SinkTrace() << "Importing new mail." << folderRid;
+        SinkTraceCtx(mLogCtx) << "Importing new mail." << folderRid;
 
         const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRid);
 
         const auto remoteId = assembleMailRid(folderLocalId, message.uid);
 
         Q_ASSERT(message.msg);
-        SinkTrace() << "Found a mail " << remoteId << message.msg->subject(true)->asUnicodeString() << message.flags;
+        SinkTraceCtx(mLogCtx) << "Found a mail " << remoteId << message.msg->subject(true)->asUnicodeString() << message.flags;
 
         auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
         mail.setFolder(folderLocalId);
@@ -181,7 +181,7 @@ public:
 
         createOrModify(ENTITY_TYPE_MAIL, remoteId, mail);
         // const auto elapsed = time->elapsed();
-        // SinkTrace() << "Synchronized " << count << " mails in " << folderRid << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
+        // SinkTraceCtx(mLogCtx) << "Synchronized " << count << " mails in " << folderRid << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
 
     void synchronizeRemovals(const QByteArray &folderRid, const QSet<qint64> &messages)
@@ -194,7 +194,7 @@ public:
             return;
         }
 
-        SinkTrace() << "Finding removed mail: " << folderLocalId << " remoteId: " << folderRid;
+        SinkTraceCtx(mLogCtx) << "Finding removed mail: " << folderLocalId << " remoteId: " << folderRid;
 
         int count = 0;
 
@@ -667,11 +667,11 @@ public:
             if (!folder.getParent().isEmpty()) {
                 parentFolder = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, folder.getParent());
             }
-            SinkTrace() << "Creating a new folder: " << parentFolder << folder.getName();
+            SinkTraceCtx(mLogCtx) << "Creating a new folder: " << parentFolder << folder.getName();
             auto rid = QSharedPointer<QByteArray>::create();
             auto createFolder = login.then(imap->createSubfolder(parentFolder, folder.getName()))
-                .then([imap, rid](const QString &createdFolder) {
-                    SinkTrace() << "Finished creating a new folder: " << createdFolder;
+                .then([this, imap, rid](const QString &createdFolder) {
+                    SinkTraceCtx(mLogCtx) << "Finished creating a new folder: " << createdFolder;
                     *rid = createdFolder.toUtf8();
                 });
             if (folder.getSpecialPurpose().isEmpty()) {
@@ -687,19 +687,19 @@ public:
                             specialPurposeFolders->insert(SpecialPurpose::getSpecialPurposeType(folder.name()), folder.path());
                         };
                     }))
-                    .then([specialPurposeFolders, folder, imap, parentFolder, rid]() -> KAsync::Job<void> {
+                    .then([this, specialPurposeFolders, folder, imap, parentFolder, rid]() -> KAsync::Job<void> {
                         for (const auto &purpose : folder.getSpecialPurpose()) {
                             if (specialPurposeFolders->contains(purpose)) {
                                 auto f = specialPurposeFolders->value(purpose);
-                                SinkTrace() << "Merging specialpurpose folder with: " << f << " with purpose: " << purpose;
+                                SinkTraceCtx(mLogCtx) << "Merging specialpurpose folder with: " << f << " with purpose: " << purpose;
                                 *rid = f.toUtf8();
                                 return KAsync::null<void>();
                             }
                         }
-                        SinkTrace() << "No match found for merging, creating a new folder";
+                        SinkTraceCtx(mLogCtx) << "No match found for merging, creating a new folder";
                         return imap->createSubfolder(parentFolder, folder.getName())
-                            .then([imap, rid](const QString &createdFolder) {
-                                SinkTrace() << "Finished creating a new folder: " << createdFolder;
+                            .then([this, imap, rid](const QString &createdFolder) {
+                                SinkTraceCtx(mLogCtx) << "Finished creating a new folder: " << createdFolder;
                                 *rid = createdFolder.toUtf8();
                             });
 
@@ -710,18 +710,18 @@ public:
                 return mergeJob;
             }
         } else if (operation == Sink::Operation_Removal) {
-            SinkTrace() << "Removing a folder: " << oldRemoteId;
+            SinkTraceCtx(mLogCtx) << "Removing a folder: " << oldRemoteId;
             return login.then(imap->remove(oldRemoteId))
-                .then([oldRemoteId, imap] {
-                    SinkTrace() << "Finished removing a folder: " << oldRemoteId;
+                .then([this, oldRemoteId, imap] {
+                    SinkTraceCtx(mLogCtx) << "Finished removing a folder: " << oldRemoteId;
                     return QByteArray();
                 });
         } else if (operation == Sink::Operation_Modification) {
-            SinkTrace() << "Renaming a folder: " << oldRemoteId << folder.getName();
+            SinkTraceCtx(mLogCtx) << "Renaming a folder: " << oldRemoteId << folder.getName();
             auto rid = QSharedPointer<QByteArray>::create();
             return login.then(imap->renameSubfolder(oldRemoteId, folder.getName()))
-                .then([imap, rid](const QString &createdFolder) {
-                    SinkTrace() << "Finished renaming a folder: " << createdFolder;
+                .then([this, imap, rid](const QString &createdFolder) {
+                    SinkTraceCtx(mLogCtx) << "Finished renaming a folder: " << createdFolder;
                     *rid = createdFolder.toUtf8();
                 })
                 .then([rid] {
