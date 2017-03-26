@@ -59,7 +59,7 @@ Notifier::Notifier(const QSharedPointer<ResourceAccess> &resourceAccess) : d(new
 
 Notifier::Notifier(const QByteArray &instanceIdentifier, const QByteArray &resourceType) : d(new Sink::Notifier::Private)
 {
-    auto resourceAccess = Sink::ResourceAccess::Ptr::create(instanceIdentifier, resourceType);
+    auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(instanceIdentifier, resourceType);
     resourceAccess->open();
     d->listenForNotifications(resourceAccess);
 }
