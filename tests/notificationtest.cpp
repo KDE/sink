@@ -34,7 +34,7 @@ private slots:
 
     void cleanup()
     {
-        VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
+        VERIFYEXEC(Sink::Store::removeDataFromDisk("sink.dummy.instance1"));
     }
 
     void testSyncNotifications()
@@ -50,6 +50,12 @@ private slots:
         notifier.registerHandler([&] (const Sink::Notification &n){
             SinkLogCtx(Sink::Log::Context{"dummyresourcetest"}) << "Received notification " << n;
             if (n.type == Notification::Status) {
+                if (n.id == "changereplay") {
+                    //We filter all changereplay notifications.
+                    //Not the best way but otherwise the test becomes unstable and we currently
+                    //only have the id to detect changereplay notifications.
+                    return;
+                }
                 statusNotifications << n;
             }
             if (n.type == Notification::Info) {
@@ -61,15 +67,17 @@ private slots:
         VERIFYEXEC(Sink::Store::synchronize(query));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
-        //FIXME it can happen that we get a changereplay notification pair first.
-        QTRY_COMPARE(statusNotifications.size(), 5);
+        QVERIFY(statusNotifications.size() <= 3);
+        QTRY_COMPARE(statusNotifications.size(), 3);
         //Sync
         QCOMPARE(statusNotifications.at(0).code, static_cast<int>(ApplicationDomain::Status::ConnectedStatus));
         QCOMPARE(statusNotifications.at(1).code, static_cast<int>(Sink::ApplicationDomain::Status::BusyStatus));
         QCOMPARE(statusNotifications.at(2).code, static_cast<int>(Sink::ApplicationDomain::Status::ConnectedStatus));
         //Changereplay
-        QCOMPARE(statusNotifications.at(3).code, static_cast<int>(Sink::ApplicationDomain::Status::BusyStatus));
-        QCOMPARE(statusNotifications.at(4).code, static_cast<int>(Sink::ApplicationDomain::Status::ConnectedStatus));
+        // It can happen that we get a changereplay notification pair first and then a second one at the end,
+        // we therefore currently filter all changereplay notifications (see above).
+        // QCOMPARE(statusNotifications.at(3).code, static_cast<int>(Sink::ApplicationDomain::Status::BusyStatus));
+        // QCOMPARE(statusNotifications.at(4).code, static_cast<int>(Sink::ApplicationDomain::Status::ConnectedStatus));
 
         QTRY_COMPARE(infoNotifications.size(), 2);
         QCOMPARE(infoNotifications.at(0).code, static_cast<int>(ApplicationDomain::SyncStatus::SyncInProgress));
