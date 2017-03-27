@@ -554,6 +554,10 @@ public:
                         return KAsync::value(folders)
                         .serialEach<void>([=](const Folder &folder) {
                             SinkLog() << "Syncing folder " << folder.path();
+                            //Emit notification that the folder is being synced.
+                            //The synchronizer can't do that because it has no concept of the folder filter on a mail sync scope meaning that the folder is being synchronized.
+                            const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRid(folder));
+                            emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, {}, {}, {folderLocalId});
                             QDate dateFilter;
                             auto filter = query.getFilter<ApplicationDomain::Mail::Date>();
                             if (filter.value.canConvert<QDate>()) {
@@ -561,8 +565,13 @@ public:
                                 SinkLog() << " with date-range " << dateFilter;
                             }
                             return synchronizeFolder(imap, folder, dateFilter, syncHeaders)
-                                .onError([folder](const KAsync::Error &error) {
-                                    SinkWarning() << "Failed to sync folder: " << folder.path() << "Error: " << error.errorMessage;
+                                .then([=](const KAsync::Error &error) {
+                                    if (error) {
+                                        SinkWarning() << "Failed to sync folder: " << folder.path() << "Error: " << error.errorMessage;
+                                        emitNotification(Notification::Info, ApplicationDomain::SyncError, {}, {}, {folderLocalId});
+                                    } else {
+                                        emitNotification(Notification::Info, ApplicationDomain::SyncSuccess, {}, {}, {folderLocalId});
+                                    }
                                 });
                         });
                     });
