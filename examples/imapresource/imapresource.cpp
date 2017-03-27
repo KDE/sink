@@ -473,7 +473,7 @@ public:
     {
         if (error) {
             if (error.errorCode == Imap::CouldNotConnectError) {
-                return {ApplicationDomain::LoginError, error.errorMessage};
+                return {ApplicationDomain::ConnectionError, error.errorMessage};
             } else if (error.errorCode == Imap::SslHandshakeError) {
                 return {ApplicationDomain::LoginError, error.errorMessage};
             }

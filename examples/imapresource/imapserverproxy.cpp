@@ -69,7 +69,7 @@ static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
         QObject::connect(job, &KJob::result, [&future, f](KJob *job) {
             SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
-                SinkWarning() << "Job failed: " << job->errorString();
+                SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className();
                 future.setError(job->error(), job->errorString());
             } else {
                 future.setValue(f(job));
@@ -87,7 +87,7 @@ static KAsync::Job<void> runJob(KJob *job)
         QObject::connect(job, &KJob::result, [&future](KJob *job) {
             SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
-                SinkWarning() << "Job failed: " << job->errorString();
+                SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className();
                 future.setError(job->error(), job->errorString());
             } else {
                 future.setFinished();

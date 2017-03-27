@@ -97,6 +97,7 @@ enum SINK_EXPORT ErrorCode {
     NoError = 0,
     UnknownError,
     NoServerError,
+    ConnectionError,
     LoginError,
     TransmissionError,
 };
