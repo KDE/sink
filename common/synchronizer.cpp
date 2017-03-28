@@ -329,7 +329,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
         return KAsync::start([this, request] {
             SinkLogCtx(mLogCtx) << "Synchronizing: " << request.query;
             emitNotification(Notification::Status, ApplicationDomain::BusyStatus, "Synchronization has started.", request.requestId);
-            emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, {}, {}, request.query.ids());
+            emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, {}, {}, request.applicableEntities);
         }).then(synchronizeWithSource(request.query)).then([this] {
             //Commit after every request, so implementations only have to commit more if they add a lot of data.
             commit();
@@ -337,12 +337,12 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             if (error) {
                 //Emit notification with error
                 SinkWarningCtx(mLogCtx) << "Synchronization failed: " << error.errorMessage;
-                emitNotification(Notification::Warning, ApplicationDomain::SyncError, {}, {}, request.query.ids());
+                emitNotification(Notification::Warning, ApplicationDomain::SyncError, {}, {}, request.applicableEntities);
                 emitNotification(Notification::Status, ApplicationDomain::ErrorStatus, "Synchronization has ended.", request.requestId);
                 return KAsync::error(error);
             } else {
                 SinkLogCtx(mLogCtx) << "Done Synchronizing";
-                emitNotification(Notification::Info, ApplicationDomain::SyncSuccess, {}, {}, request.query.ids());
+                emitNotification(Notification::Info, ApplicationDomain::SyncSuccess, {}, {}, request.applicableEntities);
                 emitNotification(Notification::Status, ApplicationDomain::ConnectedStatus, "Synchronization has ended.", request.requestId);
                 return KAsync::null();
             }

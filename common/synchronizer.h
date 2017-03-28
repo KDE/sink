@@ -134,7 +134,8 @@ protected:
             : requestId(requestId_),
             requestType(Synchronization),
             options(o),
-            query(q)
+            query(q),
+            applicableEntities(q.ids())
         {
         }
 
@@ -155,6 +156,7 @@ protected:
         RequestType requestType;
         RequestOptions options = NoOptions;
         Sink::QueryBase query;
+        QByteArrayList applicableEntities;
     };
 
     /**
