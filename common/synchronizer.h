@@ -184,6 +184,11 @@ protected:
 
     void emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id = QByteArray{}, const QByteArrayList &entiteis = QByteArrayList{});
 
+    /**
+     * Report progress for current task
+     */
+    void reportProgress(int progress, int total);
+
 protected:
     Sink::Log::Context mLogCtx;
 

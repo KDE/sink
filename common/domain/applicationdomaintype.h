@@ -321,8 +321,6 @@ struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
     SINK_PROPERTY(QString, Icon, icon);
     SINK_PROPERTY(QString, AccountType, type);
     SINK_STATUS_PROPERTY(int, Status, status);
-    SINK_STATUS_PROPERTY(ApplicationDomain::Error, Error, error);
-    SINK_STATUS_PROPERTY(ApplicationDomain::Progress, Progress, progress);
 };
 
 
@@ -344,8 +342,6 @@ struct SINK_EXPORT SinkResource : public ApplicationDomainType {
     SINK_PROPERTY(QByteArray, ResourceType, type);
     SINK_PROPERTY(QByteArrayList, Capabilities, capabilities);
     SINK_STATUS_PROPERTY(int, Status, status);
-    SINK_STATUS_PROPERTY(ApplicationDomain::Error, Error, error);
-    SINK_STATUS_PROPERTY(ApplicationDomain::Progress, Progress, progress);
 };
 
 struct SINK_EXPORT Entity : public ApplicationDomainType {

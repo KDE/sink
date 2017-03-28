@@ -303,6 +303,11 @@ void Synchronizer::emitNotification(Notification::NoticationType type, int code,
     emit notify(n);
 }
 
+void Synchronizer::reportProgress(int progress, int total)
+{
+    SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total;
+}
+
 KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
 {
     if (request.options & SyncRequest::RequestFlush) {

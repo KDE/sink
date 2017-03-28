@@ -128,14 +128,14 @@ public:
     public:
         Transaction();
         ~Transaction();
-        bool commit(const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
+        bool commit(const std::function<void(const DataStore::Error &error)> &errorHandler = {});
         void abort();
 
         QList<QByteArray> getDatabaseNames() const;
         bool validateNamedDatabases();
 
-        NamedDatabase openDatabase(const QByteArray &name = QByteArray("default"),
-            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>(), bool allowDuplicates = false) const;
+        NamedDatabase openDatabase(const QByteArray &name = {"default"},
+            const std::function<void(const DataStore::Error &error)> &errorHandler = {}, bool allowDuplicates = false) const;
 
         Transaction(Transaction &&other);
         Transaction &operator=(Transaction &&other);
