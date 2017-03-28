@@ -337,8 +337,12 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             if (error) {
                 //Emit notification with error
                 SinkWarningCtx(mLogCtx) << "Synchronization failed: " << error.errorMessage;
+                if (error.errorCode == ApplicationDomain::ConnectionError) {
+                    emitNotification(Notification::Status, ApplicationDomain::OfflineStatus, "Synchronization has ended.", request.requestId);
+                } else {
+                    emitNotification(Notification::Status, ApplicationDomain::ErrorStatus, "Synchronization has ended.", request.requestId);
+                }
                 emitNotification(Notification::Warning, ApplicationDomain::SyncError, {}, {}, request.applicableEntities);
-                emitNotification(Notification::Status, ApplicationDomain::ErrorStatus, "Synchronization has ended.", request.requestId);
                 return KAsync::error(error);
             } else {
                 SinkLogCtx(mLogCtx) << "Done Synchronizing";
@@ -363,7 +367,30 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             }
         });
     } else if (request.requestType == Synchronizer::SyncRequest::ChangeReplay) {
-        return replayNextRevision();
+        if (ChangeReplay::allChangesReplayed()) {
+            return KAsync::null();
+        } else {
+            return KAsync::start([this, request] {
+                SinkLogCtx(mLogCtx) << "Replaying changes.";
+                emitNotification(Notification::Status, ApplicationDomain::BusyStatus, "Changereplay has started.", "changereplay");
+            })
+            .then(replayNextRevision())
+            .then<void>([this, request](const KAsync::Error &error) {
+                if (error) {
+                    SinkWarningCtx(mLogCtx) << "Changereplay failed: " << error.errorMessage;
+                    if (error.errorCode == ApplicationDomain::ConnectionError) {
+                        emitNotification(Notification::Status, ApplicationDomain::OfflineStatus, "Changereplay has ended.", "changereplay");
+                    } else {
+                        emitNotification(Notification::Status, ApplicationDomain::ErrorStatus, "Changereplay has ended.", "changereplay");
+                    }
+                    return KAsync::error(error);
+                } else {
+                    SinkLogCtx(mLogCtx) << "Done replaying changes";
+                    emitNotification(Notification::Status, ApplicationDomain::ConnectedStatus, "All changes have been replayed.", "changereplay");
+                    return KAsync::null();
+                }
+            });
+        }
     } else {
         SinkWarningCtx(mLogCtx) << "Unknown request type: " << request.requestType;
         return KAsync::error(KAsync::Error{"Unknown request type."});

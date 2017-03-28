@@ -295,24 +295,6 @@ void CommandProcessor::setSynchronizer(const QSharedPointer<Synchronizer> &synch
     mSynchronizer->setup([this](int commandId, const QByteArray &data) {
         enqueueCommand(mSynchronizerQueue, commandId, data);
     }, mSynchronizerQueue);
-
-    QObject::connect(mSynchronizer.data(), &Synchronizer::replayingChanges, [this]() {
-        Sink::Notification n;
-        n.id = "changereplay";
-        n.type = Notification::Status;
-        n.message = "Replaying changes.";
-        n.code = ApplicationDomain::BusyStatus;
-        emit notify(n);
-    });
-    QObject::connect(mSynchronizer.data(), &Synchronizer::changesReplayed, [this]() {
-        Sink::Notification n;
-        n.id = "changereplay";
-        n.type = Notification::Status;
-        n.message = "All changes have been replayed.";
-        n.code = ApplicationDomain::ConnectedStatus;
-        emit notify(n);
-    });
-
     QObject::connect(mSynchronizer.data(), &Synchronizer::notify, this, &CommandProcessor::notify);
     setOldestUsedRevision(mSynchronizer->getLastReplayedRevision());
 }
