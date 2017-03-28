@@ -63,6 +63,7 @@ private:
     bool mReplayInProgress;
     Sink::Storage::DataStore::Transaction mMainStoreTransaction;
     Sink::Log::Context mLogCtx;
+    QSharedPointer<QObject> mGuard;
 };
 
 class NullChangeReplay : public ChangeReplay

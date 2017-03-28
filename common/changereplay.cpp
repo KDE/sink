@@ -99,6 +99,9 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
             SinkTraceCtx(mLogCtx) << "Changereplay from " << *lastReplayedRevision << " to " << *topRevision;
             return KAsync::doWhile(
                 [this, lastReplayedRevision, topRevision]() -> KAsync::Job<KAsync::ControlFlowFlag> {
+                    if (!mGuard) {
+                        return KAsync::value(KAsync::Break);
+                    }
                     if (*lastReplayedRevision >= *topRevision) {
                         SinkTraceCtx(mLogCtx) << "Done replaying";
                         return KAsync::value(KAsync::Break);
