@@ -144,6 +144,8 @@ void TypeImplementation<Contact>::configure(ReadPropertyMapper<Buffer> &property
     propertyMapper.addMapping<Contact::Emails, Buffer>(&Buffer::emails);
     propertyMapper.addMapping<Contact::Vcard, Buffer>(&Buffer::vcard);
     propertyMapper.addMapping<Contact::Addressbook, Buffer>(&Buffer::addressbook);
+    propertyMapper.addMapping<Contact::Firstname, Buffer>(&Buffer::firstname);
+    propertyMapper.addMapping<Contact::Lastname, Buffer>(&Buffer::lastname);
 }
 
 void TypeImplementation<Contact>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
@@ -153,6 +155,8 @@ void TypeImplementation<Contact>::configure(WritePropertyMapper<BufferBuilder> &
     propertyMapper.addMapping<Contact::Emails>(&BufferBuilder::add_emails);
     propertyMapper.addMapping<Contact::Vcard>(&BufferBuilder::add_vcard);
     propertyMapper.addMapping<Contact::Addressbook>(&BufferBuilder::add_addressbook);
+    propertyMapper.addMapping<Contact::Firstname>(&BufferBuilder::add_firstname);
+    propertyMapper.addMapping<Contact::Lastname>(&BufferBuilder::add_lastname);
 }
 
 void TypeImplementation<Contact>::configure(IndexPropertyMapper &)
