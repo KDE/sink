@@ -69,7 +69,7 @@ ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArra
                     //We're not interested
                     return;
             };
-            if (notification.resource.isEmpty()|| notification.entities.isEmpty()) {
+            if (notification.resource.isEmpty() || notification.entities.isEmpty()) {
                 return;
             }
 
@@ -112,6 +112,7 @@ ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArra
                 const auto oldStatus = mEntityStatus.value(id);
                 QVector<int> changedRoles;
                 if (oldStatus != newStatus) {
+                    SinkTraceCtx(mLogCtx) << "Status changed for entity:" << newStatus << ", id: " << id;
                     mEntityStatus.insert(id, newStatus);
                     changedRoles << StatusRole;
                 }
@@ -124,7 +125,9 @@ ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArra
 
                 if (!changedRoles.isEmpty()) {
                     const auto idx = createIndexFromId(id);
-                    emit dataChanged(idx, idx, changedRoles);
+                    SinkTraceCtx(mLogCtx) << "Index changed:" << idx << changedRoles;
+                    //We don't emit the changedRoles because the consuming model likely remaps the role anyways and would then need to translate dataChanged signals as well.
+                    emit dataChanged(idx, idx);
                 }
             }
         });
@@ -192,7 +195,11 @@ QVariant ModelResult<T, Ptr>::data(const QModelIndex &index, int role) const
         return childrenFetched(index);
     }
     if (role == StatusRole) {
-        return mEntityStatus.value(index.internalId());
+        auto it = mEntityStatus.constFind(index.internalId());
+        if (it != mEntityStatus.constEnd()) {
+            return *it;
+        }
+        return {};
     }
     if (role == Qt::DisplayRole && index.isValid()) {
         if (index.column() < mPropertyColumns.size()) {
