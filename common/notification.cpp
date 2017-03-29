@@ -19,8 +19,37 @@
  */
 #include "notification.h"
 
+using namespace Sink;
+
+static QByteArray name(int type)
+{
+    switch (type) {
+        case Notification::Shutdown:
+            return "shutdown";
+        case Notification::Status:
+            return "status";
+        case Notification::Info:
+            return "info";
+        case Notification::Warning:
+            return "warning";
+        case Notification::Error:
+            return "error";
+        case Notification::Progress:
+            return "progress";
+        case Notification::Inspection:
+            return "inspection";
+        case Notification::RevisionUpdate:
+            return "revisionupdate";
+        case Notification::FlushCompletion:
+            return "flushcompletion";
+    }
+    return "Unknown:" + QByteArray::number(type);
+}
+
 QDebug operator<<(QDebug dbg, const Sink::Notification &n)
 {
-    dbg << "Notification(Type: " << n.type << "Id, : " << n.id  << ", Code: " << n.code << ", Message: " << n.message << ", Entities: " << n.entities << ")";
+    dbg << "Notification(Type: " << name(n.type) << "Id, : " << n.id  << ", Code: ";
+    dbg << n.code;
+    dbg << ", Message: " << n.message << ", Entities: " << n.entities << ")";
     return dbg.space();
 }
