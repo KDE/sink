@@ -59,6 +59,7 @@ public:
                 SinkLog() << "Mail is already sent: " << mail.identifier();
                 return KAsync::null();
             }
+            emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, "Sending message.", {}, {mail.identifier()});
             const auto data = mail.getMimeMessage();
             auto msg = KMime::Message::Ptr::create();
             msg->setHead(KMime::CRLFtoLF(data));
@@ -80,10 +81,12 @@ public:
                 }
                 if (!MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), settings.password.toUtf8(), settings.cacert.toUtf8(), options)) {
                     SinkWarning() << "Failed to send message: " << mail;
-                    emitNotification(Notification::Warning, ApplicationDomain::TransmissionError, "Failed to send message.");
+                    emitNotification(Notification::Warning, ApplicationDomain::SyncError, "Failed to send message.", {}, {mail.identifier()});
+                    emitNotification(Notification::Warning, ApplicationDomain::TransmissionError, "Failed to send message.", {}, {mail.identifier()});
                     return KAsync::error("Failed to send the message.");
                 } else {
-                    emitNotification(Notification::Info, ApplicationDomain::TransmissionSuccess, "Message successfully sent.");
+                    emitNotification(Notification::Info, ApplicationDomain::SyncSuccess, "Message successfully sent.", {}, {mail.identifier()});
+                    emitNotification(Notification::Info, ApplicationDomain::TransmissionSuccess, "Message successfully sent.", {}, {mail.identifier()});
                 }
             }
             syncStore().writeValue(mail.identifier(), "sent");

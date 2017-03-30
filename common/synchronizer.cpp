@@ -341,7 +341,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
         }).then<void>([this, request](const KAsync::Error &error) {
             if (error) {
                 //Emit notification with error
-                SinkWarningCtx(mLogCtx) << "Synchronization failed: " << error.errorMessage;
+                SinkWarningCtx(mLogCtx) << "Synchronization failed: " << error;
                 if (error.errorCode == ApplicationDomain::ConnectionError) {
                     emitNotification(Notification::Status, ApplicationDomain::OfflineStatus, "Synchronization has ended.", request.requestId);
                 } else {
