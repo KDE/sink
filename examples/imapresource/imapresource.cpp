@@ -440,10 +440,7 @@ public:
         SinkTrace() << "Connecting to:" << mServer << mPort;
         SinkTrace() << "as:" << mUser;
         return imap->login(mUser, mPassword)
-        .addToContext(imap)
-        .onError([](const KAsync::Error &error) {
-            SinkWarning() << "Login failed.";
-        });
+        .addToContext(imap);
     }
 
     KAsync::Job<QVector<Folder>> getFolderList(QSharedPointer<ImapServerProxy> imap, const Sink::QueryBase &query)
@@ -501,9 +498,6 @@ public:
                 });
             })
             .then([=] (const KAsync::Error &error) {
-                if (error) {
-                    SinkWarning() << "Error during folder sync: " << error.errorMessage;
-                }
                 return imap->logout()
                     .then(KAsync::error(getError(error)));
             });
@@ -575,9 +569,6 @@ public:
                 }
             })
             .then([=] (const KAsync::Error &error) {
-                if (error) {
-                    SinkWarning() << "Error during sync: " << error.errorMessage;
-                }
                 return imap->logout()
                     .then(KAsync::error(getError(error)));
             });
