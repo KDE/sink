@@ -39,7 +39,7 @@ class SINK_EXPORT ChangeReplay : public QObject
 {
     Q_OBJECT
 public:
-    ChangeReplay(const ResourceContext &resourceContext);
+    ChangeReplay(const ResourceContext &resourceContext, const Sink::Log::Context &ctx= {});
 
     qint64 getLastReplayedRevision();
     virtual bool allChangesReplayed();

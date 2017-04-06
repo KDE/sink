@@ -33,7 +33,7 @@
 using namespace Sink;
 
 Synchronizer::Synchronizer(const Sink::ResourceContext &context)
-    : ChangeReplay(context),
+    : ChangeReplay(context, {"synchronizer"}),
     mLogCtx{"synchronizer"},
     mResourceContext(context),
     mEntityStore(Storage::EntityStore::Ptr::create(mResourceContext, mLogCtx)),

@@ -29,8 +29,9 @@
 using namespace Sink;
 using namespace Sink::Storage;
 
-ChangeReplay::ChangeReplay(const ResourceContext &resourceContext)
-    : mStorage(storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly), mChangeReplayStore(storageLocation(), resourceContext.instanceId() + ".changereplay", DataStore::ReadWrite), mReplayInProgress(false), mLogCtx{"changereplay"}
+ChangeReplay::ChangeReplay(const ResourceContext &resourceContext, const Sink::Log::Context &ctx)
+    : mStorage(storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly), mChangeReplayStore(storageLocation(), resourceContext.instanceId() + ".changereplay", DataStore::ReadWrite), mReplayInProgress(false), mLogCtx{ctx.subContext("changereplay")},
+    mGuard{new QObject}
 {
     SinkTraceCtx(mLogCtx) << "Created change replay: " << resourceContext.instanceId();
 }
@@ -100,10 +101,11 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
             return KAsync::doWhile(
                 [this, lastReplayedRevision, topRevision]() -> KAsync::Job<KAsync::ControlFlowFlag> {
                     if (!mGuard) {
+                        SinkTraceCtx(mLogCtx) << "Exit due to guard";
                         return KAsync::value(KAsync::Break);
                     }
                     if (*lastReplayedRevision >= *topRevision) {
-                        SinkTraceCtx(mLogCtx) << "Done replaying";
+                        SinkTraceCtx(mLogCtx) << "Done replaying" << *lastReplayedRevision << *topRevision;
                         return KAsync::value(KAsync::Break);
                     }
 
