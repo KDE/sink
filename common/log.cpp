@@ -200,6 +200,8 @@ QByteArrayList Sink::Log::debugOutputFilter(FilterType type)
             return config()->value("applicationfilter").value<QByteArrayList>();
         case Area:
             return config()->value("areafilter").value<QByteArrayList>();
+        default:
+            return QByteArrayList() << QByteArray("");
     }
 }
 
