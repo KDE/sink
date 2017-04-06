@@ -140,7 +140,6 @@ public:
                 if (error) {
                     SinkWarningCtx(mLogCtx) << "Failed to synchronize addressbooks." << collectionsFetchJob->errorString();
                 } else {
-                    SinkWarningCtx(mLogCtx) << "Fetched addressbooks." << collectionsFetchJob->errorString();
                     synchronizeAddressbooks(collectionsFetchJob ->collections());
                 }
             });

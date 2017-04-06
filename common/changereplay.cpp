@@ -33,7 +33,6 @@ ChangeReplay::ChangeReplay(const ResourceContext &resourceContext, const Sink::L
     : mStorage(storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly), mChangeReplayStore(storageLocation(), resourceContext.instanceId() + ".changereplay", DataStore::ReadWrite), mReplayInProgress(false), mLogCtx{ctx.subContext("changereplay")},
     mGuard{new QObject}
 {
-    SinkTraceCtx(mLogCtx) << "Created change replay: " << resourceContext.instanceId();
 }
 
 qint64 ChangeReplay::getLastReplayedRevision()
@@ -55,7 +54,6 @@ bool ChangeReplay::allChangesReplayed()
         SinkWarningCtx(mLogCtx) << error.message;
     }));
     const qint64 lastReplayedRevision = getLastReplayedRevision();
-    SinkTraceCtx(mLogCtx) << "Checking if all replayed. Top revision:" << topRevision << "Last replayed:" << lastReplayedRevision;
     return (lastReplayedRevision >= topRevision);
 }
 

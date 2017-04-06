@@ -67,7 +67,7 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
     m_checkConnectionsTimer->setInterval(1000);
     connect(m_checkConnectionsTimer.get(), &QTimer::timeout, [this]() {
         if (m_connections.isEmpty()) {
-            SinkLog() << QString("No connections, shutting down.");
+            SinkTrace() << QString("No connections, shutting down.");
             quit();
         }
     });
