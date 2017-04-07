@@ -88,6 +88,12 @@ Listener::~Listener()
 
 void Listener::emergencyAbortAllConnections()
 {
+    Sink::Notification n;
+    n.type = Sink::Notification::Status;
+    n.message = "The resource crashed.";
+    n.code = Sink::ApplicationDomain::ErrorStatus;
+    notify(n);
+
     for (Client &client : m_connections) {
         if (client.socket) {
             SinkWarning() << "Sending panic";
