@@ -400,6 +400,9 @@ public:
     QByteArray getFolderFromLocalId(const QByteArray &id)
     {
         auto mailRemoteId = syncStore().resolveLocalId(ApplicationDomain::getTypeName<ApplicationDomain::Mail>(), id);
+        if (mailRemoteId.isEmpty()) {
+            return {};
+        }
         return folderIdFromMailRid(mailRemoteId);
     }
 
@@ -419,6 +422,10 @@ public:
         if (isIndividualMailSync(request)) {
             auto newId = request.query.ids().first();
             auto requestFolder = getFolderFromLocalId(newId);
+            if (requestFolder.isEmpty()) {
+                SinkWarningCtx(mLogCtx) << "Failed to find folder for local id. Ignoring request: " << request.query;
+                return;
+            }
             for (auto &r : queue) {
                 if (isIndividualMailSync(r)) {
                     auto queueFolder = getFolderFromLocalId(r.query.ids().first());

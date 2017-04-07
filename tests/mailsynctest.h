@@ -70,6 +70,8 @@ private slots:
     void testFlagChange();
 
     void testSyncSingleFolder();
+    void testSyncSingleMail();
+    void testSyncSingleMailWithBogusId();
 
     void testFailingSync();
 };

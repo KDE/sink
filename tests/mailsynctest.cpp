@@ -411,6 +411,43 @@ void MailSyncTest::testSyncSingleFolder()
 
 }
 
+void MailSyncTest::testSyncSingleMail()
+{
+    VERIFYEXEC(Store::synchronize(Sink::SyncScope{}.resourceFilter(mResourceInstanceIdentifier)));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+    Mail::Ptr mail;
+    {
+        auto job = Store::fetchAll<Mail>(Sink::Query{}.resourceFilter(mResourceInstanceIdentifier)).template then([&](const QList<Mail::Ptr> &mails) {
+            QVERIFY(mails.size() >= 1);
+            mail = mails.first();
+        });
+        VERIFYEXEC(job);
+    }
+
+    auto syncScope = Sink::SyncScope{ApplicationDomain::getTypeName<Mail>()};
+    syncScope.resourceFilter(mResourceInstanceIdentifier);
+    syncScope.filter(mail->identifier());
+
+    // Ensure all local data is processed
+    VERIFYEXEC(Store::synchronize(syncScope));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+}
+
+void MailSyncTest::testSyncSingleMailWithBogusId()
+{
+    VERIFYEXEC(Store::synchronize(Sink::SyncScope{}.resourceFilter(mResourceInstanceIdentifier)));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+    auto syncScope = Sink::SyncScope{ApplicationDomain::getTypeName<Mail>()};
+    syncScope.resourceFilter(mResourceInstanceIdentifier);
+    syncScope.filter("WTFisThisEven?");
+
+    // Ensure all local data is processed
+    VERIFYEXEC(Store::synchronize(syncScope));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+}
+
 void MailSyncTest::testFailingSync()
 {
     auto resource = createFaultyResource();
