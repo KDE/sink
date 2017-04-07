@@ -315,6 +315,9 @@ void Synchronizer::setStatusFromResult(const KAsync::Error &error, const QString
         if (error.errorCode == ApplicationDomain::ConnectionError) {
             //Couldn't connect, so we assume we don't have a network connection.
             setStatus(ApplicationDomain::OfflineStatus, s, requestId);
+        } else if (error.errorCode == ApplicationDomain::ConfigurationError) {
+            //There is an error with the configuration.
+            setStatus(ApplicationDomain::ErrorStatus, s, requestId);
         } else if (error.errorCode == ApplicationDomain::LoginError) {
             //If we failed to login altough we could connect that indicates a problem with our setup.
             setStatus(ApplicationDomain::ErrorStatus, s, requestId);

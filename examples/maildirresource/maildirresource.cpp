@@ -360,12 +360,12 @@ public:
 
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
-        auto job = KAsync::start<void>([this] {
+        auto job = KAsync::start([this] {
             KPIM::Maildir maildir(mMaildirPath, true);
             if (!maildir.isValid(false)) {
-                return KAsync::error<void>(1, "Maildir path doesn't point to a valid maildir: " + mMaildirPath);
+                return KAsync::error(ApplicationDomain::ConfigurationError, "Maildir path doesn't point to a valid maildir: " + mMaildirPath);
             }
-            return KAsync::null<void>();
+            return KAsync::null();
         });
 
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
