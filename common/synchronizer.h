@@ -21,6 +21,7 @@
 
 #include "sink_export.h"
 #include <QObject>
+#include <QStack>
 #include <KAsync/Async>
 #include <domainadaptor.h>
 #include <query.h>
@@ -193,6 +194,12 @@ protected:
     Sink::Log::Context mLogCtx;
 
 private:
+    QStack<ApplicationDomain::Status> mCurrentState;
+    void setStatusFromResult(const KAsync::Error &error, const QString &s, const QByteArray &requestId);
+    void setStatus(ApplicationDomain::Status busy, const QString &reason, const QByteArray requestId);
+    void resetStatus(const QByteArray requestId);
+    void setBusy(bool busy, const QString &reason, const QByteArray requestId);
+
     void modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
     KAsync::Job<void> processRequest(const SyncRequest &request);
     KAsync::Job<void> processSyncQueue();

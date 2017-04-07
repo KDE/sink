@@ -71,8 +71,8 @@ private slots:
         QTRY_COMPARE(statusNotifications.size(), 3);
         //Sync
         QCOMPARE(statusNotifications.at(0).code, static_cast<int>(ApplicationDomain::Status::ConnectedStatus));
-        QCOMPARE(statusNotifications.at(1).code, static_cast<int>(Sink::ApplicationDomain::Status::BusyStatus));
-        QCOMPARE(statusNotifications.at(2).code, static_cast<int>(Sink::ApplicationDomain::Status::ConnectedStatus));
+        QCOMPARE(statusNotifications.at(1).code, static_cast<int>(ApplicationDomain::Status::BusyStatus));
+        QCOMPARE(statusNotifications.at(2).code, static_cast<int>(ApplicationDomain::Status::ConnectedStatus));
         //Changereplay
         // It can happen that we get a changereplay notification pair first and then a second one at the end,
         // we therefore currently filter all changereplay notifications (see above).

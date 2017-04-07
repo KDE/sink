@@ -351,7 +351,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
         const auto resources = Store::read<ApplicationDomain::SinkResource>(query);
         SinkTraceCtx(ctx) << "Found resource belonging to the account " << account.identifier() << " : " << resources;
         auto accountIdentifier = account.identifier();
-        ApplicationDomain::Status status = ApplicationDomain::ConnectedStatus;
+        QList<int> states;
         for (const auto &resource : resources) {
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource.identifier(), ResourceConfig::getResourceType(resource.identifier()));
             if (!monitoredResources->contains(resource.identifier())) {
@@ -364,27 +364,20 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
                 Q_ASSERT(ret);
                 monitoredResources->insert(resource.identifier());
             }
-
-            //Figure out overall status
-            auto s = resourceAccess->getResourceStatus();
-            switch (s) {
-                case ApplicationDomain::ErrorStatus:
-                    status = ApplicationDomain::ErrorStatus;
-                    break;
-                case ApplicationDomain::OfflineStatus:
-                    if (status == ApplicationDomain::ConnectedStatus) {
-                        status = ApplicationDomain::OfflineStatus;
-                    }
-                    break;
-                case ApplicationDomain::ConnectedStatus:
-                    break;
-                case ApplicationDomain::BusyStatus:
-                    if (status != ApplicationDomain::ErrorStatus) {
-                        status = ApplicationDomain::BusyStatus;
-                    }
-                    break;
-            }
+            states << resourceAccess->getResourceStatus();
         }
+        const auto status = [&] {
+            if (states.contains(ApplicationDomain::ErrorStatus)) {
+                return ApplicationDomain::ErrorStatus;
+            }
+            if (states.contains(ApplicationDomain::BusyStatus)) {
+                return ApplicationDomain::BusyStatus;
+            }
+            if (states.contains(ApplicationDomain::ConnectedStatus)) {
+                return ApplicationDomain::ConnectedStatus;
+            }
+            return ApplicationDomain::OfflineStatus;
+        }();
         account.setStatusStatus(status);
     });
     return qMakePair(KAsync::null<void>(), runner->emitter());
