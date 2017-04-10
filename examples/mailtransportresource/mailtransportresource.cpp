@@ -54,7 +54,7 @@ public:
 
     KAsync::Job<void> send(const ApplicationDomain::Mail &mail, const MailtransportResource::Settings &settings)
     {
-        return KAsync::start<void>([=] {
+        return KAsync::start([=] {
             if (!syncStore().readValue(mail.identifier()).isEmpty()) {
                 SinkLog() << "Mail is already sent: " << mail.identifier();
                 return KAsync::null();
@@ -105,9 +105,8 @@ public:
             query.filter<ApplicationDomain::SinkResource::Account>(resource.getAccount());
             return Store::fetchOne<ApplicationDomain::SinkResource>(query)
                 .then([this, modifiedMail](const ApplicationDomain::SinkResource &resource) {
-                    //First modify the mail to have the sent property set to true
+                    //Modify the mail to have the sent property set to true, and move it to the new resource.
                     modify(modifiedMail, resource.identifier(), true);
-                    return KAsync::null<void>();
                 });
         });
     }
@@ -117,12 +116,10 @@ public:
         return KAsync::start<void>([this]() {
             QList<ApplicationDomain::Mail> toSend;
             SinkLog() << "Looking for mails to send.";
-            store().readAll<ApplicationDomain::Mail>([&](const ApplicationDomain::Mail &mail) -> bool {
-                SinkTrace() << "Found mail: " << mail.identifier();
+            store().readAll<ApplicationDomain::Mail>([&](const ApplicationDomain::Mail &mail) {
                 if (!mail.getSent()) {
                     toSend << mail;
                 }
-                return true;
             });
             SinkLog() << "Found " << toSend.size() << " mails to send";
             auto job = KAsync::null<void>();

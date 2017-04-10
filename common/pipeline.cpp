@@ -281,7 +281,6 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
             if (!error) {
                 SinkTraceCtx(d->logCtx) << "Move of " << current.identifier() << "was successfull";
                 if (isMove) {
-                    startTransaction();
                     flatbuffers::FlatBufferBuilder fbb;
                     auto entityId = fbb.CreateString(current.identifier());
                     auto type = fbb.CreateString(bufferType);
@@ -289,14 +288,14 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
                     Sink::Commands::FinishDeleteEntityBuffer(fbb, location);
                     const auto data = BufferUtils::extractBuffer(fbb);
                     deletedEntity(data, data.size()).exec();
-                    commit();
                 }
             } else {
                 SinkErrorCtx(d->logCtx) << "Failed to move entity " << targetResource << " to resource " << current.identifier();
             }
         });
-        job.exec();
-        return KAsync::value<qint64>(0);
+        return job.then([this] {
+            return d->entityStore.maxRevision();
+        });
     }
 
     auto preprocess = [&, this](const ApplicationDomain::ApplicationDomainType &oldEntity, ApplicationDomain::ApplicationDomainType &newEntity) {
