@@ -589,21 +589,19 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     return job.then([this, operation, type, uid, oldRemoteId](const QByteArray &remoteId) {
         if (operation == Sink::Operation_Creation) {
             SinkTraceCtx(mLogCtx) << "Replayed creation with remote id: " << remoteId;
-            if (remoteId.isEmpty()) {
-                SinkWarningCtx(mLogCtx) << "Returned an empty remoteId from the creation";
-            } else {
+            if (!remoteId.isEmpty()) {
                 syncStore().recordRemoteId(type, uid, remoteId);
             }
         } else if (operation == Sink::Operation_Modification) {
             SinkTraceCtx(mLogCtx) << "Replayed modification with remote id: " << remoteId;
-            if (remoteId.isEmpty()) {
-                SinkWarningCtx(mLogCtx) << "Returned an empty remoteId from the modification";
-            } else {
+            if (!remoteId.isEmpty()) {
                syncStore().updateRemoteId(type, uid, remoteId);
             }
         } else if (operation == Sink::Operation_Removal) {
             SinkTraceCtx(mLogCtx) << "Replayed removal with remote id: " << oldRemoteId;
-            syncStore().removeRemoteId(type, uid, oldRemoteId);
+            if (!oldRemoteId.isEmpty()) {
+                syncStore().removeRemoteId(type, uid, oldRemoteId);
+            }
         } else {
             SinkErrorCtx(mLogCtx) << "Unkown operation" << operation;
         }
