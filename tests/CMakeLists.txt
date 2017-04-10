@@ -45,6 +45,7 @@ auto_tests (
     dummyresourcemailtest
     interresourcemovetest
     notificationtest
+    entitystoretest
 )
 generate_flatbuffers(dummyresourcetest calendar)
 target_link_libraries(dummyresourcetest sink_resource_dummy)

@@ -520,15 +520,9 @@ ApplicationDomain::ApplicationDomainType EntityStore::readEntity(const QByteArra
 
 void EntityStore::readAll(const QByteArray &type, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity)> &callback)
 {
-    auto db = DataStore::mainDatabase(d->getTransaction(), type);
-    db.scan("",
-        [=](const QByteArray &key, const QByteArray &value) -> bool {
-            auto uid = DataStore::uidFromKey(key);
-            auto buffer = Sink::EntityBuffer{value.data(), value.size()};
-            callback(d->createApplicationDomainType(type, uid, DataStore::maxRevision(d->getTransaction()), buffer));
-            return true;
-        },
-        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.message; });
+    readAllUids(type, [&] (const QByteArray &uid) {
+        readLatest(type, uid, callback);
+    });
 }
 
 void EntityStore::readRevisions(qint64 baseRevision, const QByteArray &expectedType, const std::function<void(const QByteArray &key)> &callback)
@@ -587,12 +581,16 @@ ApplicationDomain::ApplicationDomainType EntityStore::readPrevious(const QByteAr
 
 void EntityStore::readAllUids(const QByteArray &type, const std::function<void(const QByteArray &uid)> callback)
 {
-    //TODO use uid index instead
-    //FIXME we currently report each uid for every revision with the same uid
+    //TODO use a uid index instead
     auto db = DataStore::mainDatabase(d->getTransaction(), type);
+    QByteArray lastUid;
     db.scan("",
-        [callback](const QByteArray &key, const QByteArray &) -> bool {
-            callback(Sink::Storage::DataStore::uidFromKey(key));
+        [&](const QByteArray &key, const QByteArray &) -> bool {
+            const auto uid = Sink::Storage::DataStore::uidFromKey(key);
+            if (uid != lastUid) {
+                lastUid = uid;
+                callback(uid);
+            }
             return true;
         },
         [&](const Sink::Storage::DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read current value from storage: " << error.message; });
