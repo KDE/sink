@@ -44,13 +44,19 @@ private slots:
         mail2.setExtractedMessageId("messageid2");
         mail2.setExtractedSubject("foo");
 
+        auto mail3 = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::Mail>("res1");
+        mail3.setExtractedMessageId("messageid2");
+        mail3.setExtractedSubject("foo");
+
         store.startTransaction(Storage::DataStore::ReadWrite);
         store.add("mail", mail, false, [] (const ApplicationDomain::ApplicationDomainType &) {});
         store.add("mail", mail2, false, [] (const ApplicationDomain::ApplicationDomainType &) {});
+        store.add("mail", mail3, false, [] (const ApplicationDomain::ApplicationDomainType &) {});
 
         mail.setExtractedSubject("foo");
 
         store.modify("mail", mail, {}, false, [] (const ApplicationDomain::ApplicationDomainType &, ApplicationDomain::ApplicationDomainType &) {});
+        store.remove("mail", mail3.identifier(), false, [] (const ApplicationDomain::ApplicationDomainType &) {});
         store.commitTransaction();
 
         store.startTransaction(Storage::DataStore::ReadOnly);

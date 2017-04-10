@@ -146,6 +146,24 @@ void DataStore::removeRevision(DataStore::Transaction &transaction, qint64 revis
     transaction.openDatabase("revisionType").remove(QByteArray::number(revision));
 }
 
+void DataStore::recordUid(DataStore::Transaction &transaction, const QByteArray &uid)
+{
+    transaction.openDatabase("uids").write(uid, "");
+}
+
+void DataStore::removeUid(DataStore::Transaction &transaction, const QByteArray &uid)
+{
+    transaction.openDatabase("uids").remove(uid);
+}
+
+void DataStore::getUids(const Transaction &transaction, const std::function<void(const QByteArray &uid)> &callback)
+{
+    transaction.openDatabase("uids").scan("", [&] (const QByteArray &key, const QByteArray &) {
+        callback(key);
+        return true;
+    });
+}
+
 bool DataStore::isInternalKey(const char *key)
 {
     return key && strncmp(key, s_internalPrefix, s_internalPrefixSize) == 0;

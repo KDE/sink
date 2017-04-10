@@ -204,6 +204,7 @@ bool EntityStore::add(const QByteArray &type, const ApplicationDomain::Applicati
             [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to write entity" << entity.identifier() << newRevision; });
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, entity.identifier(), type);
+    DataStore::recordUid(d->transaction, entity.identifier());
     SinkTraceCtx(d->logCtx) << "Wrote entity: " << entity.identifier() << type << newRevision;
     return true;
 }
@@ -327,6 +328,7 @@ bool EntityStore::remove(const QByteArray &type, const QByteArray &uid, bool rep
             [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to write entity" << uid << newRevision; });
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, uid, type);
+    DataStore::removeUid(d->transaction, uid);
     return true;
 }
 
@@ -581,19 +583,7 @@ ApplicationDomain::ApplicationDomainType EntityStore::readPrevious(const QByteAr
 
 void EntityStore::readAllUids(const QByteArray &type, const std::function<void(const QByteArray &uid)> callback)
 {
-    //TODO use a uid index instead
-    auto db = DataStore::mainDatabase(d->getTransaction(), type);
-    QByteArray lastUid;
-    db.scan("",
-        [&](const QByteArray &key, const QByteArray &) -> bool {
-            const auto uid = Sink::Storage::DataStore::uidFromKey(key);
-            if (uid != lastUid) {
-                lastUid = uid;
-                callback(uid);
-            }
-            return true;
-        },
-        [&](const Sink::Storage::DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read current value from storage: " << error.message; });
+    DataStore::getUids(d->getTransaction(), callback);
 }
 
 bool EntityStore::contains(const QByteArray &type, const QByteArray &uid)

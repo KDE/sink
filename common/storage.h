@@ -189,6 +189,9 @@ public:
     static QByteArray getTypeFromRevision(const Transaction &, qint64 revision);
     static void recordRevision(Transaction &, qint64 revision, const QByteArray &uid, const QByteArray &type);
     static void removeRevision(Transaction &, qint64 revision);
+    static void recordUid(DataStore::Transaction &transaction, const QByteArray &uid);
+    static void removeUid(DataStore::Transaction &transaction, const QByteArray &uid);
+    static void getUids(const Transaction &, const std::function<void(const QByteArray &uid)> &);
 
     bool exists() const;
 
