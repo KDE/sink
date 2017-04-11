@@ -46,7 +46,7 @@ QByteArray getSpecialPurposeType(const QString &name)
 }
 }
 
-SpecialPurposeProcessor::SpecialPurposeProcessor(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier) : mResourceType(resourceType), mResourceInstanceIdentifier(resourceInstanceIdentifier) {}
+SpecialPurposeProcessor::SpecialPurposeProcessor() : Sink::Preprocessor() {}
 
 QByteArray SpecialPurposeProcessor::findFolder(const QByteArray &specialPurpose, bool createIfMissing)
 {
@@ -60,7 +60,7 @@ QByteArray SpecialPurposeProcessor::findFolder(const QByteArray &specialPurpose,
 
         if (!mSpecialPurposeFolders.contains(specialPurpose) && createIfMissing) {
             SinkTrace() << "Failed to find a " << specialPurpose << " folder, creating a new one";
-            auto folder = ApplicationDomain::Folder::create(mResourceInstanceIdentifier);
+            auto folder = ApplicationDomain::Folder::create(resourceInstanceIdentifier());
             folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
             folder.setName(sSpecialPurposeFolders.value(specialPurpose));
             folder.setIcon("folder");

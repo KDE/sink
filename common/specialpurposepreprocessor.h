@@ -28,7 +28,7 @@ namespace SpecialPurpose {
 class SINK_EXPORT SpecialPurposeProcessor : public Sink::Preprocessor
 {
 public:
-    SpecialPurposeProcessor(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier);
+    SpecialPurposeProcessor();
 
     void newEntity(Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE;
     void modifiedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE;
@@ -39,6 +39,4 @@ private:
     bool isSpecialPurposeFolder(const QByteArray &folder) const;
 
     QHash<QByteArray, QByteArray> mSpecialPurposeFolders;
-    QByteArray mResourceType;
-    QByteArray mResourceInstanceIdentifier;
 };

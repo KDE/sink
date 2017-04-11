@@ -551,7 +551,7 @@ MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext)
     setupSynchronizer(synchronizer);
     setupInspector(QSharedPointer<MaildirInspector>::create(resourceContext));
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor(resourceContext.resourceType, resourceContext.instanceId()) << new MaildirMimeMessageMover(resourceContext.instanceId(), mMaildirPath) << new MaildirMailPropertyExtractor);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor << new MaildirMimeMessageMover(resourceContext.instanceId(), mMaildirPath) << new MaildirMailPropertyExtractor);
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new FolderPreprocessor(mMaildirPath));
 
     KPIM::Maildir dir(mMaildirPath, true);
