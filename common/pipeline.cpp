@@ -175,13 +175,14 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     auto o = Sink::ApplicationDomain::ApplicationDomainType{d->resourceContext.instanceId(), key, revision, memoryAdaptor};
     o.setChangedProperties(o.availableProperties().toSet());
 
-    auto preprocess = [&, this](ApplicationDomain::ApplicationDomainType &newEntity) {
-        foreach (const auto &processor, d->processors[bufferType]) {
-            processor->newEntity(newEntity);
-        }
-    };
+    auto newEntity = *ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(o, o.availableProperties());
+    newEntity.setChangedProperties(newEntity.availableProperties().toSet());
 
-    if (!d->entityStore.add(bufferType, o, replayToSource, preprocess)) {
+    foreach (const auto &processor, d->processors[bufferType]) {
+        processor->newEntity(newEntity);
+    }
+
+    if (!d->entityStore.add(bufferType, o, replayToSource)) {
         return KAsync::error<qint64>(0);
     }
 
@@ -323,14 +324,14 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
     const QByteArray key = QByteArray(reinterpret_cast<char const *>(deleteEntity->entityId()->Data()), deleteEntity->entityId()->size());
     SinkTraceCtx(d->logCtx) << "Deleted Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
 
-    auto preprocess = [&, this](const ApplicationDomain::ApplicationDomainType &oldEntity) {
-        foreach (const auto &processor, d->processors[bufferType]) {
-            processor->deletedEntity(oldEntity);
-        }
-    };
+    const auto current = d->entityStore.readLatest(bufferType, key);
+
+    foreach (const auto &processor, d->processors[bufferType]) {
+        processor->deletedEntity(current);
+    }
 
     d->revisionChanged = true;
-    if (!d->entityStore.remove(bufferType, key, replayToSource, preprocess)) {
+    if (!d->entityStore.remove(bufferType, current, replayToSource)) {
         return KAsync::error<qint64>(0);
     }
 

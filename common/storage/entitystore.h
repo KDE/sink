@@ -38,15 +38,11 @@ public:
     typedef QSharedPointer<EntityStore> Ptr;
     EntityStore(const ResourceContext &resourceContext, const Sink::Log::Context &);
 
-    typedef std::function<void(const ApplicationDomain::ApplicationDomainType &, ApplicationDomain::ApplicationDomainType &)> PreprocessModification;
-    typedef std::function<void(ApplicationDomain::ApplicationDomainType &)> PreprocessCreation;
-    typedef std::function<void(const ApplicationDomain::ApplicationDomainType &)> PreprocessRemoval;
-
     //Only the pipeline may call the following functions outside of tests
-    bool add(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &, bool replayToSource, const PreprocessCreation &);
+    bool add(const QByteArray &type, ApplicationDomain::ApplicationDomainType newEntity, bool replayToSource);
     bool modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions, bool replayToSource);
     bool modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType newEntity, bool replayToSource);
-    bool remove(const QByteArray &type, const QByteArray &uid, bool replayToSource, const PreprocessRemoval &);
+    bool remove(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, bool replayToSource);
     bool cleanupRevisions(qint64 revision);
     ApplicationDomain::ApplicationDomainType applyDiff(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions) const;
 
@@ -107,7 +103,11 @@ public:
 
     void readRevisions(qint64 baseRevision, const QByteArray &type, const std::function<void(const QByteArray &key)> &callback);
 
+    ///Db contains entity (but may already be marked as removed
     bool contains(const QByteArray &type, const QByteArray &uid);
+
+    ///Db contains entity and entity is not yet removed
+    bool exists(const QByteArray &type, const QByteArray &uid);
 
     qint64 maxRevision();
 

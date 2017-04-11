@@ -167,19 +167,15 @@ void EntityStore::copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qi
     }
 }
 
-bool EntityStore::add(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &entity_, bool replayToSource, const PreprocessCreation &preprocess)
+bool EntityStore::add(const QByteArray &type, ApplicationDomain::ApplicationDomainType entity, bool replayToSource)
 {
-    if (entity_.identifier().isEmpty()) {
+    if (entity.identifier().isEmpty()) {
         SinkWarningCtx(d->logCtx) << "Can't write entity with an empty identifier";
         return false;
     }
 
-    auto entity = *ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(entity_, entity_.availableProperties());
-    entity.setChangedProperties(entity.availableProperties().toSet());
-
     SinkTraceCtx(d->logCtx) << "New entity " << entity;
 
-    preprocess(entity);
     d->typeIndex(type).add(entity.identifier(), entity, d->transaction);
 
     //The maxRevision may have changed meanwhile if the entity created sub-entities
@@ -285,36 +281,14 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
     return true;
 }
 
-bool EntityStore::remove(const QByteArray &type, const QByteArray &uid, bool replayToSource, const PreprocessRemoval &preprocess)
+bool EntityStore::remove(const QByteArray &type, const Sink::ApplicationDomain::ApplicationDomainType &current, bool replayToSource)
 {
-    bool found = false;
-    bool alreadyRemoved = false;
-    DataStore::mainDatabase(d->transaction, type)
-        .findLatest(uid,
-            [&found, &alreadyRemoved](const QByteArray &key, const QByteArray &data) -> bool {
-                auto entity = GetEntity(data.data());
-                if (entity && entity->metadata()) {
-                    auto metadata = GetMetadata(entity->metadata()->Data());
-                    found = true;
-                    if (metadata->operation() == Operation_Removal) {
-                        alreadyRemoved = true;
-                    }
-                }
-                return false;
-            },
-            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read old revision from storage: " << error.message; });
-
-    if (!found) {
-        SinkWarningCtx(d->logCtx) << "Remove: Failed to find entity " << uid;
-        return false;
-    }
-    if (alreadyRemoved) {
+    const auto uid = current.identifier();
+    if (!exists(type, uid)) {
         SinkWarningCtx(d->logCtx) << "Remove: Entity is already removed " << uid;
         return false;
     }
 
-    const auto current = readLatest(type, uid);
-    preprocess(current);
     d->typeIndex(type).remove(current.identifier(), current, d->transaction);
 
     SinkTraceCtx(d->logCtx) << "Removed entity " << current;
@@ -600,6 +574,36 @@ bool EntityStore::contains(const QByteArray &type, const QByteArray &uid)
 {
     return DataStore::mainDatabase(d->getTransaction(), type).contains(uid);
 }
+
+bool EntityStore::exists(const QByteArray &type, const QByteArray &uid)
+{
+    bool found = false;
+    bool alreadyRemoved = false;
+    DataStore::mainDatabase(d->transaction, type)
+        .findLatest(uid,
+            [&found, &alreadyRemoved](const QByteArray &key, const QByteArray &data) -> bool {
+                auto entity = GetEntity(data.data());
+                if (entity && entity->metadata()) {
+                    auto metadata = GetMetadata(entity->metadata()->Data());
+                    found = true;
+                    if (metadata->operation() == Operation_Removal) {
+                        alreadyRemoved = true;
+                    }
+                }
+                return false;
+            },
+            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read old revision from storage: " << error.message; });
+    if (!found) {
+        SinkTraceCtx(d->logCtx) << "Remove: Failed to find entity " << uid;
+        return false;
+    }
+    if (alreadyRemoved) {
+        SinkTraceCtx(d->logCtx) << "Remove: Entity is already removed " << uid;
+        return false;
+    }
+    return true;
+}
+
 
 qint64 EntityStore::maxRevision()
 {

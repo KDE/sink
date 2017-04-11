@@ -49,14 +49,14 @@ private slots:
         mail3.setExtractedSubject("foo");
 
         store.startTransaction(Storage::DataStore::ReadWrite);
-        store.add("mail", mail, false, [] (const ApplicationDomain::ApplicationDomainType &) {});
-        store.add("mail", mail2, false, [] (const ApplicationDomain::ApplicationDomainType &) {});
-        store.add("mail", mail3, false, [] (const ApplicationDomain::ApplicationDomainType &) {});
+        store.add("mail", mail, false);
+        store.add("mail", mail2, false);
+        store.add("mail", mail3, false);
 
         mail.setExtractedSubject("foo");
 
-        store.modify("mail", mail, {}, false, [] (const ApplicationDomain::ApplicationDomainType &, ApplicationDomain::ApplicationDomainType &) {});
-        store.remove("mail", mail3.identifier(), false, [] (const ApplicationDomain::ApplicationDomainType &) {});
+        store.modify("mail", mail, QByteArrayList{}, false);
+        store.remove("mail", mail3, false);
         store.commitTransaction();
 
         store.startTransaction(Storage::DataStore::ReadOnly);

@@ -72,7 +72,7 @@ class MailQueryBenchmark : public QObject
                 domainObject.setFolder(QByteArray("folder") + QByteArray::number(i - (i % folderSpreadFactor)));
             }
 
-            entityStore.add("mail", domainObject, false, [] (const Mail &) {});
+            entityStore.add("mail", domainObject, false);
         }
 
         entityStore.commitTransaction();
