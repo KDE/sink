@@ -209,22 +209,15 @@ bool EntityStore::add(const QByteArray &type, const ApplicationDomain::Applicati
     return true;
 }
 
-bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions, bool replayToSource, const PreprocessModification &preprocess)
+ApplicationDomain::ApplicationDomainType EntityStore::applyDiff(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions) const
 {
-    auto changeset = diff.changedProperties();
-    const auto current = readLatest(type, diff.identifier());
-    if (current.identifier().isEmpty()) {
-        SinkWarningCtx(d->logCtx) << "Failed to read current version: " << diff.identifier();
-        return false;
-    }
-
     auto newEntity = *ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(current, current.availableProperties());
 
     SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
 
     // Apply diff
     //SinkTrace() << "Applying changed properties: " << changeset;
-    for (const auto &property : changeset) {
+    for (const auto &property : diff.changedProperties()) {
         const auto value = diff.getProperty(property);
         if (value.isValid()) {
             //SinkTrace() << "Setting property: " << property;
@@ -237,8 +230,25 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
         //SinkTrace() << "Removing property: " << property;
         newEntity.setProperty(property, QVariant());
     }
+    return newEntity;
+}
 
-    preprocess(current, newEntity);
+bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions, bool replayToSource)
+{
+    const auto current = readLatest(type, diff.identifier());
+    if (current.identifier().isEmpty()) {
+        SinkWarningCtx(d->logCtx) << "Failed to read current version: " << diff.identifier();
+        return false;
+    }
+
+    auto newEntity = applyDiff(type, current, diff, deletions);
+    return modify(type, current, newEntity, replayToSource);
+}
+
+bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType newEntity, bool replayToSource)
+{
+    SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
+
     d->typeIndex(type).remove(current.identifier(), current, d->transaction);
     d->typeIndex(type).add(newEntity.identifier(), newEntity, d->transaction);
 
@@ -250,7 +260,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
     flatbuffers::FlatBufferBuilder metadataFbb;
     {
         //We add availableProperties to account for the properties that have been changed by the preprocessors
-        auto modifiedProperties = BufferUtils::toVector(metadataFbb, changeset + newEntity.changedProperties());
+        auto modifiedProperties = BufferUtils::toVector(metadataFbb, newEntity.changedProperties());
         auto metadataBuilder = MetadataBuilder(metadataFbb);
         metadataBuilder.add_revision(newRevision);
         metadataBuilder.add_operation(Operation_Modification);
@@ -259,7 +269,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
         auto metadataBuffer = metadataBuilder.Finish();
         FinishMetadataBuffer(metadataFbb, metadataBuffer);
     }
-    SinkTraceCtx(d->logCtx) << "Changed properties: " << changeset + newEntity.changedProperties();
+    SinkTraceCtx(d->logCtx) << "Changed properties: " << newEntity.changedProperties();
 
     newEntity.setChangedProperties(newEntity.availableProperties().toSet());
 

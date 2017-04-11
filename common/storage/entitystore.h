@@ -44,9 +44,11 @@ public:
 
     //Only the pipeline may call the following functions outside of tests
     bool add(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &, bool replayToSource, const PreprocessCreation &);
-    bool modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &, const QByteArrayList &deletions, bool replayToSource, const PreprocessModification &);
+    bool modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions, bool replayToSource);
+    bool modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType newEntity, bool replayToSource);
     bool remove(const QByteArray &type, const QByteArray &uid, bool replayToSource, const PreprocessRemoval &);
     bool cleanupRevisions(qint64 revision);
+    ApplicationDomain::ApplicationDomainType applyDiff(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions) const;
 
     void startTransaction(Sink::Storage::DataStore::AccessMode);
     void commitTransaction();

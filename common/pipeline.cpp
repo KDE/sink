@@ -195,6 +195,11 @@ struct CreateHelper {
     }
 };
 
+static KAsync::Job<void> create(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &newEntity)
+{
+    return TypeHelper<CreateHelper>{type}.operator()<KAsync::Job<void>, const ApplicationDomain::ApplicationDomainType&>(newEntity);
+}
+
 KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 {
     d->transactionItemCount++;
@@ -248,64 +253,52 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         deletions = BufferUtils::fromVector(*modifyEntity->deletions());
     }
 
-    if (modifyEntity->targetResource()) {
-        auto isMove = modifyEntity->removeEntity();
-        auto targetResource = BufferUtils::extractBuffer(modifyEntity->targetResource());
-        auto changeset = diff.changedProperties();
-        const auto current = d->entityStore.readLatest(bufferType, diff.identifier());
-        if (current.identifier().isEmpty()) {
-            SinkWarningCtx(d->logCtx) << "Failed to read current version: " << diff.identifier();
-            return KAsync::error<qint64>(0);
-        }
-
-        auto newEntity = *ApplicationDomain::ApplicationDomainType::getInMemoryCopy<ApplicationDomain::ApplicationDomainType>(current, current.availableProperties());
-
-        // Apply diff
-        for (const auto &property : changeset) {
-            const auto value = diff.getProperty(property);
-            if (value.isValid()) {
-                newEntity.setProperty(property, value);
-            }
-        }
-
-        // Remove deletions
-        for (const auto &property : deletions) {
-            newEntity.setProperty(property, QVariant());
-        }
-        newEntity.setResource(targetResource);
-        newEntity.setChangedProperties(newEntity.availableProperties().toSet());
-
-        SinkTraceCtx(d->logCtx) << "Moving entity to new resource " << newEntity.identifier() << newEntity.resourceInstanceIdentifier() << targetResource;
-        auto job = TypeHelper<CreateHelper>{bufferType}.operator()<KAsync::Job<void>, ApplicationDomain::ApplicationDomainType&>(newEntity);
-        job = job.then([this, current, isMove, targetResource, bufferType](const KAsync::Error &error) {
-            if (!error) {
-                SinkTraceCtx(d->logCtx) << "Move of " << current.identifier() << "was successfull";
-                if (isMove) {
-                    flatbuffers::FlatBufferBuilder fbb;
-                    auto entityId = fbb.CreateString(current.identifier());
-                    auto type = fbb.CreateString(bufferType);
-                    auto location = Sink::Commands::CreateDeleteEntity(fbb, current.revision(), entityId, type, true);
-                    Sink::Commands::FinishDeleteEntityBuffer(fbb, location);
-                    const auto data = BufferUtils::extractBuffer(fbb);
-                    deletedEntity(data, data.size()).exec();
-                }
-            } else {
-                SinkErrorCtx(d->logCtx) << "Failed to move entity " << targetResource << " to resource " << current.identifier();
-            }
-        });
-        return job.then([this] {
-            return d->entityStore.maxRevision();
-        });
+    const auto current = d->entityStore.readLatest(bufferType, diff.identifier());
+    if (current.identifier().isEmpty()) {
+        SinkWarningCtx(d->logCtx) << "Failed to read current version: " << diff.identifier();
+        return KAsync::error<qint64>(0);
     }
 
-    auto preprocess = [&, this](const ApplicationDomain::ApplicationDomainType &oldEntity, ApplicationDomain::ApplicationDomainType &newEntity) {
-        foreach (const auto &processor, d->processors[bufferType]) {
-            processor->modifiedEntity(oldEntity, newEntity);
-        }
-    };
+    auto newEntity = d->entityStore.applyDiff(bufferType, current, diff, deletions);
+
+    bool isMove = false;
+    if (modifyEntity->targetResource()) {
+        isMove = modifyEntity->removeEntity();
+        newEntity.setResource(BufferUtils::extractBuffer(modifyEntity->targetResource()));
+    }
+
+    foreach (const auto &processor, d->processors[bufferType]) {
+        processor->modifiedEntity(current, newEntity);
+    }
+
+    //The entity is either being copied or moved
+    if (newEntity.resourceInstanceIdentifier() != d->resourceContext.resourceInstanceIdentifier) {
+        SinkTraceCtx(d->logCtx) << "Moving entity to new resource " << newEntity.identifier() << newEntity.resourceInstanceIdentifier();
+        newEntity.setChangedProperties(newEntity.availableProperties().toSet());
+        return create(bufferType, newEntity)
+            .then([=](const KAsync::Error &error) {
+                if (!error) {
+                    SinkTraceCtx(d->logCtx) << "Move of " << current.identifier() << "was successfull";
+                    if (isMove) {
+                        flatbuffers::FlatBufferBuilder fbb;
+                        auto entityId = fbb.CreateString(current.identifier());
+                        auto type = fbb.CreateString(bufferType);
+                        auto location = Sink::Commands::CreateDeleteEntity(fbb, current.revision(), entityId, type, true);
+                        Sink::Commands::FinishDeleteEntityBuffer(fbb, location);
+                        const auto data = BufferUtils::extractBuffer(fbb);
+                        deletedEntity(data, data.size()).exec();
+                    }
+                } else {
+                    SinkErrorCtx(d->logCtx) << "Failed to move entity " << newEntity.identifier() << " to resource " << newEntity.resourceInstanceIdentifier();
+                }
+            })
+            .then([this] {
+                return d->entityStore.maxRevision();
+            });
+    }
 
     d->revisionChanged = true;
-    if (!d->entityStore.modify(bufferType, diff, deletions, replayToSource, preprocess)) {
+    if (!d->entityStore.modify(bufferType, current, newEntity, replayToSource)) {
         return KAsync::error<qint64>(0);
     }
 
