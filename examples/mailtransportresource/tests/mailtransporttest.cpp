@@ -59,7 +59,7 @@ private slots:
     {
         auto message = KMime::Message::Ptr::create();
         message->messageID(true)->generate("foo.com");
-        message->subject(true)->fromUnicodeString(QString::fromLatin1("Foobar"), "utf8");
+        message->subject(true)->fromUnicodeString(QString::fromLatin1("send: Foobar"), "utf8");
         message->assemble();
 
         auto mail = ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
@@ -83,7 +83,37 @@ private slots:
         QVERIFY(!mailInSentMailFolder.getSubject().isEmpty());
     }
 
-    //TODO test mail that fails to be sent. add a special header to the mail and have the resource fail sending. Ensure we can modify the mail to fix sending of the message.
+    void testSendFailure()
+    {
+        auto message = KMime::Message::Ptr::create();
+        message->messageID(true)->generate("foo.com");
+        message->subject(true)->fromUnicodeString(QString::fromLatin1("error: Foobar"), "utf8");
+        message->assemble();
+
+        auto mail = ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
+        mail.setMimeMessage(message->encodedContent());
+
+        VERIFYEXEC(Store::create(mail));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
+
+        //Ensure the mail is queryable in the outbox
+        auto mailInOutbox = Store::readOne<ApplicationDomain::Mail>(Query().resourceFilter(mResourceInstanceIdentifier).filter<Mail::Sent>(false));
+        QVERIFY(!mailInOutbox.identifier().isEmpty());
+
+        //Modify back to drafts
+        auto modifiedMail = mailInOutbox;
+        modifiedMail.setDraft(true);
+        VERIFYEXEC(Store::modify(modifiedMail));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
+
+        QTest::qWait(100);
+        // auto mailsInOutbox = Store::read<ApplicationDomain::Mail>(Query().resourceFilter(mResourceInstanceIdentifier));
+        // QCOMPARE(mailsInOutbox.size(), 0);
+
+        auto mailsInDrafts = Store::read<ApplicationDomain::Mail>(Query().resourceFilter(mStorageResource));
+        QCOMPARE(mailsInDrafts.size(), 1);
+
+    }
 
 };
 

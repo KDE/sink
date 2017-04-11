@@ -43,6 +43,44 @@ SINK_DEBUG_AREA("mailtransportresource")
 
 using namespace Sink;
 
+class MailtransportPreprocessor : public Sink::Preprocessor
+{
+public:
+    MailtransportPreprocessor() : Sink::Preprocessor() {}
+
+    QByteArray getTargetResource()
+    {
+        using namespace Sink::ApplicationDomain;
+
+        auto resource = Store::readOne<ApplicationDomain::SinkResource>(Query{}.filter(resourceInstanceIdentifier()).request<ApplicationDomain::SinkResource::Account>());
+        if (resource.identifier().isEmpty()) {
+            SinkWarning() << "Failed to retrieve this resource: " << resourceInstanceIdentifier();
+        }
+        Query query;
+        query.containsFilter<ApplicationDomain::SinkResource::Capabilities>(ApplicationDomain::ResourceCapabilities::Mail::sent);
+        query.filter<ApplicationDomain::SinkResource::Account>(resource.getAccount());
+        auto targetResource = Store::readOne<ApplicationDomain::SinkResource>(query);
+        if (targetResource.identifier().isEmpty()) {
+            SinkWarning() << "Failed to find target resource: " << targetResource.identifier();
+        }
+        return targetResource.identifier();
+    }
+
+    void modifiedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE
+    {
+        using namespace Sink::ApplicationDomain;
+        auto mail = newEntity.cast<Mail>();
+        if (mail.changedProperties().contains(Mail::Trash::name)) {
+            //Move back to regular resource
+            newEntity.setResource(getTargetResource());
+        } else if (mail.changedProperties().contains(Mail::Draft::name)) {
+            //Move back to regular resource
+            newEntity.setResource(getTargetResource());
+        }
+        //TODO this will only copy it back, but not yet move
+    }
+};
+
 class MailtransportSynchronizer : public Sink::Synchronizer {
 public:
     MailtransportSynchronizer(const Sink::ResourceContext &resourceContext)
@@ -65,7 +103,11 @@ public:
             msg->setHead(KMime::CRLFtoLF(data));
             msg->parse();
             if (settings.testMode) {
-                SinkLog() << "I would totally send that mail, but I'm in test mode." << mail.identifier();
+                auto subject = msg->subject(true)->asUnicodeString();
+                SinkLog() << "I would totally send that mail, but I'm in test mode." << mail.identifier() << subject;
+                if (!subject.contains("send")) {
+                    return KAsync::error("Failed to send the message.");
+                }
                 auto path = resourceStorageLocation(mResourceInstanceIdentifier) + "/test/";
                 SinkTrace() << path;
                 QDir dir;
@@ -194,7 +236,7 @@ MailtransportResource::MailtransportResource(const Sink::ResourceContext &resour
     setupSynchronizer(synchronizer);
     setupInspector(QSharedPointer<MailtransportInspector>::create(resourceContext));
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MailPropertyExtractor);
+    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new MailPropertyExtractor << new MailtransportPreprocessor);
 }
 
 MailtransportResourceFactory::MailtransportResourceFactory(QObject *parent)
