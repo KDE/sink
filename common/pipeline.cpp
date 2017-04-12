@@ -182,7 +182,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
         processor->newEntity(newEntity);
     }
 
-    if (!d->entityStore.add(bufferType, o, replayToSource)) {
+    if (!d->entityStore.add(bufferType, newEntity, replayToSource)) {
         return KAsync::error<qint64>(0);
     }
 
