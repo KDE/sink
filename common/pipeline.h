@@ -98,7 +98,7 @@ public:
     virtual void newEntity(ApplicationDomain::ApplicationDomainType &newEntity);
     virtual void modifiedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity, ApplicationDomain::ApplicationDomainType &newEntity);
     virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity);
-    virtual Result processModification(Type type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType &diff);
+    virtual Result process(Type type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType &diff);
     virtual void finalizeBatch();
 
     void setup(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Pipeline *, Storage::EntityStore *entityStore);

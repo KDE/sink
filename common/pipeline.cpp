@@ -270,7 +270,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     foreach (const auto &processor, d->processors[bufferType]) {
         bool exitLoop = false;
-        const auto result = processor->processModification(Preprocessor::Modification, current, newEntity);
+        const auto result = processor->process(Preprocessor::Modification, current, newEntity);
         switch (result.action) {
             case Preprocessor::MoveToResource:
                 isMove = true;
@@ -412,18 +412,18 @@ void Preprocessor::deletedEntity(const ApplicationDomain::ApplicationDomainType 
 
 }
 
-Preprocessor::Result Preprocessor::processModification(Type type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType &diff)
+Preprocessor::Result Preprocessor::process(Type type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType &diff)
 {
     switch(type) {
         case Creation:
             newEntity(diff);
-            return {NoAction};
+            break;
         case Modification:
             modifiedEntity(current, diff);
-            return {NoAction};
+            break;
         case Deletion:
             deletedEntity(current);
-            return {NoAction};
+            break;
         default:
             break;
     }

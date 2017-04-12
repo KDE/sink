@@ -66,7 +66,7 @@ public:
         return targetResource.identifier();
     }
 
-    virtual Result processModification(Type type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType &diff) Q_DECL_OVERRIDE
+    virtual Result process(Type type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType &diff) Q_DECL_OVERRIDE
     {
         if (type == Preprocessor::Modification) {
             using namespace Sink::ApplicationDomain;
