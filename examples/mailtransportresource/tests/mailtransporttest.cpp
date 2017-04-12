@@ -47,7 +47,8 @@ private slots:
 
     void cleanup()
     {
-        VERIFYEXEC(ResourceControl::shutdown(mResourceInstanceIdentifier));
+        VERIFYEXEC(Store::removeDataFromDisk(mResourceInstanceIdentifier));
+        VERIFYEXEC(Store::removeDataFromDisk(mStorageResource));
     }
 
     void init()
@@ -107,8 +108,8 @@ private slots:
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
         QTest::qWait(100);
-        // auto mailsInOutbox = Store::read<ApplicationDomain::Mail>(Query().resourceFilter(mResourceInstanceIdentifier));
-        // QCOMPARE(mailsInOutbox.size(), 0);
+        auto mailsInOutbox = Store::read<ApplicationDomain::Mail>(Query().resourceFilter(mResourceInstanceIdentifier));
+        QCOMPARE(mailsInOutbox.size(), 0);
 
         auto mailsInDrafts = Store::read<ApplicationDomain::Mail>(Query().resourceFilter(mStorageResource));
         QCOMPARE(mailsInDrafts.size(), 1);

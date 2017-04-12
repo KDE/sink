@@ -269,7 +269,26 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     }
 
     foreach (const auto &processor, d->processors[bufferType]) {
-        processor->modifiedEntity(current, newEntity);
+        bool exitLoop = false;
+        const auto result = processor->processModification(Preprocessor::Modification, current, newEntity);
+        switch (result.action) {
+            case Preprocessor::MoveToResource:
+                isMove = true;
+                exitLoop = true;
+                break;
+            case Preprocessor::CopyToResource:
+                isMove = true;
+                exitLoop = true;
+                break;
+            case Preprocessor::DropModification:
+                SinkTraceCtx(d->logCtx) << "Dropping modification";
+                return KAsync::error<qint64>(0);
+            default:
+                break;
+        }
+        if (exitLoop) {
+            break;
+        }
     }
 
     //The entity is either being copied or moved
@@ -376,6 +395,39 @@ void Preprocessor::startBatch()
 
 void Preprocessor::finalizeBatch()
 {
+}
+
+void Preprocessor::newEntity(ApplicationDomain::ApplicationDomainType &newEntity)
+{
+
+}
+
+void Preprocessor::modifiedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity, ApplicationDomain::ApplicationDomainType &newEntity)
+{
+
+}
+
+void Preprocessor::deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity)
+{
+
+}
+
+Preprocessor::Result Preprocessor::processModification(Type type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType &diff)
+{
+    switch(type) {
+        case Creation:
+            newEntity(diff);
+            return {NoAction};
+        case Modification:
+            modifiedEntity(current, diff);
+            return {NoAction};
+        case Deletion:
+            deletedEntity(current);
+            return {NoAction};
+        default:
+            break;
+    }
+    return {NoAction};
 }
 
 QByteArray Preprocessor::resourceInstanceIdentifier() const

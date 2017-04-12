@@ -77,10 +77,28 @@ public:
     Preprocessor();
     virtual ~Preprocessor();
 
+    enum Action {
+        NoAction,
+        MoveToResource,
+        CopyToResource,
+        DropModification,
+        DeleteEntity
+    };
+
+    enum Type {
+        Creation,
+        Modification,
+        Deletion
+    };
+    struct Result {
+        Action action;
+    };
+
     virtual void startBatch();
-    virtual void newEntity(ApplicationDomain::ApplicationDomainType &newEntity) {};
-    virtual void modifiedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity, ApplicationDomain::ApplicationDomainType &newEntity) {};
-    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) {};
+    virtual void newEntity(ApplicationDomain::ApplicationDomainType &newEntity);
+    virtual void modifiedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity, ApplicationDomain::ApplicationDomainType &newEntity);
+    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity);
+    virtual Result processModification(Type type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType &diff);
     virtual void finalizeBatch();
 
     void setup(const QByteArray &resourceType, const QByteArray &resourceInstanceIdentifier, Pipeline *, Storage::EntityStore *entityStore);

@@ -66,18 +66,21 @@ public:
         return targetResource.identifier();
     }
 
-    void modifiedEntity(const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, Sink::ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE
+    virtual Result processModification(Type type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType &diff) Q_DECL_OVERRIDE
     {
-        using namespace Sink::ApplicationDomain;
-        auto mail = newEntity.cast<Mail>();
-        if (mail.changedProperties().contains(Mail::Trash::name)) {
-            //Move back to regular resource
-            newEntity.setResource(getTargetResource());
-        } else if (mail.changedProperties().contains(Mail::Draft::name)) {
-            //Move back to regular resource
-            newEntity.setResource(getTargetResource());
+        if (type == Preprocessor::Modification) {
+            using namespace Sink::ApplicationDomain;
+            if (diff.changedProperties().contains(Mail::Trash::name)) {
+                //Move back to regular resource
+                diff.setResource(getTargetResource());
+                return {MoveToResource};
+            } else if (diff.changedProperties().contains(Mail::Draft::name)) {
+                //Move back to regular resource
+                diff.setResource(getTargetResource());
+                return {MoveToResource};
+            }
         }
-        //TODO this will only copy it back, but not yet move
+        return {NoAction};
     }
 };
 
