@@ -237,7 +237,7 @@ QByteArray ApplicationDomainType::getBlobProperty(const QByteArray &key) const
     const auto path = getProperty(key).value<BLOB>().value;
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
-        SinkError() << "Failed to open the file for reading: " << file.errorString() << path << " For property " << key;
+        SinkError() << "Failed to open the file for reading: " << file.errorString() << "Path:" << path << " For property:" << key;
         return QByteArray();
     }
     return file.readAll();
