@@ -161,12 +161,16 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
         // SinkTrace() << "Found user namespaces: " << mNamespaces.user;
     }).then([=] (const KAsync::Error &error) {
         if (error) {
-            if (error.errorCode == KIMAP2::LoginJob::ErrorCode::ERR_COULD_NOT_CONNECT) {
+            switch (error.errorCode) {
+            case KIMAP2::LoginJob::ErrorCode::ERR_HOST_NOT_FOUND:
+                return KAsync::error(HostNotFoundError, "Host not found: " + error.errorMessage);
+            case KIMAP2::LoginJob::ErrorCode::ERR_COULD_NOT_CONNECT:
                 return KAsync::error(CouldNotConnectError, "Failed to connect: " + error.errorMessage);
-            } else if (error.errorCode == KIMAP2::LoginJob::ErrorCode::ERR_SSL_HANDSHAKE_FAILED) {
+            case KIMAP2::LoginJob::ErrorCode::ERR_SSL_HANDSHAKE_FAILED:
                 return KAsync::error(SslHandshakeError, "Ssl handshake failed: " + error.errorMessage);
+            default:
+                return KAsync::error(error);
             }
-            return KAsync::error(error);
         }
         return KAsync::null();
     });

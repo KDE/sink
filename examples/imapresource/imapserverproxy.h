@@ -31,6 +31,7 @@ namespace Imap {
 
 enum ErrorCode {
     NoError,
+    HostNotFoundError,
     CouldNotConnectError,
     SslHandshakeError
 };
