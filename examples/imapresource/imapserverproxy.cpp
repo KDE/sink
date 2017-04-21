@@ -471,7 +471,7 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
             bool sent = caseInsensitiveContains(FolderFlags::Sent, flags);
             bool drafts = caseInsensitiveContains(FolderFlags::Drafts, flags);
             bool trash = caseInsensitiveContains(FolderFlags::Trash, flags);
-            bool isgmailParent = mailbox.name.toLower() == "[gmail]";
+            bool isgmailParent = mailbox.name.toLower() == "[gmail]" || mailbox.name.toLower() == "[Google Mail]";
             /**
              * Because gmail duplicates messages all over the place we only support a few selected folders for now that should be mostly exclusive.
              */
