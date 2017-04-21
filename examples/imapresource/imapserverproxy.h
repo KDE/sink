@@ -61,6 +61,7 @@ namespace FolderFlags
     extern const char* Junk;
     extern const char* Flagged;
     extern const char* All;
+    extern const char* Drafts;
 }
 
 namespace Capabilities
@@ -78,6 +79,8 @@ struct Message {
     KMime::Message::Ptr msg;
     bool fullPayload;
 };
+
+bool flagsContain(const QByteArray &f, const QByteArrayList &flags);
 
 struct Folder {
     Folder() = default;
@@ -226,11 +229,6 @@ private:
 };
 
 class ImapServerProxy {
-    KIMAP2::Session *mSession;
-    QStringList mCapabilities;
-    Namespaces mNamespaces;
-
-
 public:
     ImapServerProxy(const QString &serverUrl, int port, SessionCache *sessionCache = nullptr);
 
@@ -280,9 +278,14 @@ public:
     KAsync::Job<QVector<qint64>> fetchUids(const Folder &folder);
 
 private:
+    bool isGmail() const;
+
     QString getNamespace(const QString &name);
     QObject mGuard;
     SessionCache *mSessionCache;
+    KIMAP2::Session *mSession;
+    QStringList mCapabilities;
+    Namespaces mNamespaces;
 };
 
 }

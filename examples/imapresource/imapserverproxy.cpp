@@ -57,6 +57,7 @@ const char* Imap::FolderFlags::Trash = "\\Trash";
 const char* Imap::FolderFlags::Archive = "\\Archive";
 const char* Imap::FolderFlags::Junk = "\\Junk";
 const char* Imap::FolderFlags::Flagged = "\\Flagged";
+const char* Imap::FolderFlags::Drafts = "\\Drafts";
 
 const char* Imap::Capabilities::Namespace = "NAMESPACE";
 const char* Imap::Capabilities::Uidplus = "UIDPLUS";
@@ -190,6 +191,12 @@ KAsync::Job<void> ImapServerProxy::logout()
     } else {
         return KAsync::null();
     }
+}
+
+bool ImapServerProxy::isGmail() const
+{
+    //Magic capability that only gmail has
+    return mCapabilities.contains("X-GM-EXT-1");
 }
 
 KAsync::Job<SelectResult> ImapServerProxy::select(const QString &mailbox)
@@ -441,6 +448,15 @@ QString ImapServerProxy::getNamespace(const QString &name)
     return ns.name;
 }
 
+static bool caseInsensitiveContains(const QByteArray &f, const QByteArrayList &list) {
+    return list.contains(f) || list.contains(f.toLower());
+}
+
+bool Imap::flagsContain(const QByteArray &f, const QByteArrayList &flags)
+{
+    return caseInsensitiveContains(f, flags);
+}
+
 KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder &)> callback)
 {
     SinkTrace() << "Fetching folders";
@@ -448,8 +464,21 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
     return list(KIMAP2::ListJob::NoOption, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &){
         *subscribedList << mailbox.name;
     }).then(list(KIMAP2::ListJob::IncludeUnsubscribed, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &flags) {
-        bool noselect = flags.contains(QByteArray(FolderFlags::Noselect).toLower()) || flags.contains(QByteArray(FolderFlags::Noselect));
+        bool noselect = caseInsensitiveContains(FolderFlags::Noselect, flags);
         bool subscribed = subscribedList->contains(mailbox.name);
+        if (isGmail()) {
+            bool inbox = mailbox.name.toLower() == "inbox";
+            bool sent = caseInsensitiveContains(FolderFlags::Sent, flags);
+            bool drafts = caseInsensitiveContains(FolderFlags::Drafts, flags);
+            bool trash = caseInsensitiveContains(FolderFlags::Trash, flags);
+            bool isgmailParent = mailbox.name.toLower() == "[gmail]";
+            /**
+             * Because gmail duplicates messages all over the place we only support a few selected folders for now that should be mostly exclusive.
+             */
+            if (!(inbox || sent || drafts || trash || isgmailParent)) {
+                return;
+            }
+        }
         SinkLog() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect  << " sub: " << subscribed;
         auto ns = getNamespace(mailbox.name);
         callback(Folder{mailbox.name, ns, mailbox.separator, noselect, subscribed, flags});

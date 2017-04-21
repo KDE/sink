@@ -87,6 +87,25 @@ static QByteArray parentRid(const Imap::Folder &folder)
     return folder.parentPath().toUtf8();
 }
 
+static QByteArray getSpecialPurposeType(const QByteArrayList &flags)
+{
+    if (Imap::flagsContain(Imap::FolderFlags::Trash, flags)) {
+        return ApplicationDomain::SpecialPurpose::Mail::trash;
+    }
+    if (Imap::flagsContain(Imap::FolderFlags::Drafts, flags)) {
+        return ApplicationDomain::SpecialPurpose::Mail::drafts;
+    }
+    if (Imap::flagsContain(Imap::FolderFlags::Sent, flags)) {
+        return ApplicationDomain::SpecialPurpose::Mail::sent;
+    }
+    return {};
+}
+
+static bool hasSpecialPurposeFlag(const QByteArrayList &flags)
+{
+    return !getSpecialPurposeType(flags).isEmpty();
+}
+
 
 class ImapSynchronizer : public Sink::Synchronizer {
     Q_OBJECT
@@ -100,7 +119,7 @@ public:
     QByteArray createFolder(const Imap::Folder &f)
     {
         const auto parentFolderRid = parentRid(f);
-        SinkTraceCtx(mLogCtx) << "Creating folder: " << f.name() << parentFolderRid;
+        SinkTraceCtx(mLogCtx) << "Creating folder: " << f.name() << parentFolderRid << f.flags;
 
         const auto remoteId = folderRid(f);
         Sink::ApplicationDomain::Folder folder;
@@ -108,10 +127,17 @@ public:
         folder.setIcon("folder");
         folder.setEnabled(f.subscribed);
         QHash<QByteArray, Query::Comparator> mergeCriteria;
-        if (SpecialPurpose::isSpecialPurposeFolderName(f.name()) && parentFolderRid.isEmpty()) {
-            auto type = SpecialPurpose::getSpecialPurposeType(f.name());
-            folder.setSpecialPurpose(QByteArrayList() << type);
-            mergeCriteria.insert(ApplicationDomain::Folder::SpecialPurpose::name, Query::Comparator(type, Query::Comparator::Contains));
+        auto specialPurpose = [&] {
+            if (hasSpecialPurposeFlag(f.flags)) {
+                return getSpecialPurposeType(f.flags);
+            } else if (SpecialPurpose::isSpecialPurposeFolderName(f.name()) && parentFolderRid.isEmpty()) {
+                return SpecialPurpose::getSpecialPurposeType(f.name());
+            }
+            return QByteArray{};
+        }();
+        if (!specialPurpose.isEmpty()) {
+            folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
+            mergeCriteria.insert(ApplicationDomain::Folder::SpecialPurpose::name, Query::Comparator(specialPurpose, Query::Comparator::Contains));
         }
 
         if (!parentFolderRid.isEmpty()) {
