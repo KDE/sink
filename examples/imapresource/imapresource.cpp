@@ -119,6 +119,8 @@ public:
     QByteArray createFolder(const Imap::Folder &f)
     {
         const auto parentFolderRid = parentRid(f);
+        bool isToplevel = parentFolderRid.isEmpty();
+
         SinkTraceCtx(mLogCtx) << "Creating folder: " << f.name() << parentFolderRid << f.flags;
 
         const auto remoteId = folderRid(f);
@@ -126,22 +128,20 @@ public:
         folder.setName(f.name());
         folder.setIcon("folder");
         folder.setEnabled(f.subscribed);
-        QHash<QByteArray, Query::Comparator> mergeCriteria;
         auto specialPurpose = [&] {
             if (hasSpecialPurposeFlag(f.flags)) {
                 return getSpecialPurposeType(f.flags);
-            } else if (SpecialPurpose::isSpecialPurposeFolderName(f.name()) && parentFolderRid.isEmpty()) {
+            } else if (SpecialPurpose::isSpecialPurposeFolderName(f.name()) && isToplevel) {
                 return SpecialPurpose::getSpecialPurposeType(f.name());
             }
             return QByteArray{};
         }();
         if (!specialPurpose.isEmpty()) {
             folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
-            mergeCriteria.insert(ApplicationDomain::Folder::SpecialPurpose::name, Query::Comparator(specialPurpose, Query::Comparator::Contains));
         }
 
-        if (!parentFolderRid.isEmpty()) {
-            folder.setParent(syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, parentFolderRid));
+        if (!isToplevel) {
+            folder.setParent(syncStore().resolveRemoteId(ApplicationDomain::Folder::name, parentFolderRid));
         }
         createOrModify(ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), remoteId, folder);
         return remoteId;

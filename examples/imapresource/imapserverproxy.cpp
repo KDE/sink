@@ -457,10 +457,23 @@ bool Imap::flagsContain(const QByteArray &f, const QByteArrayList &flags)
     return caseInsensitiveContains(f, flags);
 }
 
+static void reportFolder(const Folder &f, QSharedPointer<QSet<QString>> reportedList, std::function<void(const Folder &)> callback) {
+    if (!reportedList->contains(f.path())) {
+        reportedList->insert(f.path());
+        auto c = f;
+        c.noselect = true;
+        callback(c);
+        if (!f.parentPath().isEmpty()){
+            reportFolder(f.parentFolder(), reportedList, callback);
+        }
+    }
+}
+
 KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder &)> callback)
 {
     SinkTrace() << "Fetching folders";
     auto subscribedList = QSharedPointer<QSet<QString>>::create() ;
+    auto reportedList = QSharedPointer<QSet<QString>>::create() ;
     return list(KIMAP2::ListJob::NoOption, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &){
         *subscribedList << mailbox.name;
     }).then(list(KIMAP2::ListJob::IncludeUnsubscribed, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &flags) {
@@ -471,17 +484,24 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
             bool sent = caseInsensitiveContains(FolderFlags::Sent, flags);
             bool drafts = caseInsensitiveContains(FolderFlags::Drafts, flags);
             bool trash = caseInsensitiveContains(FolderFlags::Trash, flags);
-            bool isgmailParent = mailbox.name.toLower() == "[gmail]" || mailbox.name.toLower() == "[Google Mail]";
             /**
              * Because gmail duplicates messages all over the place we only support a few selected folders for now that should be mostly exclusive.
              */
-            if (!(inbox || sent || drafts || trash || isgmailParent)) {
+            if (!(inbox || sent || drafts || trash)) {
                 return;
             }
         }
         SinkLog() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect  << " sub: " << subscribed;
         auto ns = getNamespace(mailbox.name);
-        callback(Folder{mailbox.name, ns, mailbox.separator, noselect, subscribed, flags});
+        auto folder = Folder{mailbox.name, ns, mailbox.separator, noselect, subscribed, flags};
+
+        //call callback for parents if that didn't already happen.
+        //This is necessary because we can have missing bits in the hierarchy in IMAP, but this will not work in sink because we'd end up with an incomplete tree.
+        if (!folder.parentPath().isEmpty() && !reportedList->contains(folder.parentPath())) {
+            reportFolder(folder.parentFolder(), reportedList, callback);
+        }
+        reportedList->insert(folder.path());
+        callback(folder);
     }));
 }
 

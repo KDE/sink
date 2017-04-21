@@ -118,6 +118,15 @@ struct Folder {
         return parentPath;
     }
 
+    Folder parentFolder() const
+    {
+        Folder parent;
+        parent.mPath = parentPath();
+        parent.mNamespace = mNamespace;
+        parent.mSeparator = mSeparator;
+        return parent;
+    }
+
     QString name() const
     {
         auto pathParts = mPath.split(mSeparator);
