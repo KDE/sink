@@ -99,17 +99,25 @@ static KAsync::Job<void> runJob(KJob *job)
     });
 }
 
-ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, SessionCache *sessionCache) : mSession(new KIMAP2::Session(serverUrl, qint16(port))), mSessionCache(sessionCache)
+KIMAP2::Session *createNewSession(const QString &serverUrl, int port)
 {
-    QObject::connect(mSession, &KIMAP2::Session::sslErrors, [this](const QList<QSslError> &errors) {
-        SinkLog() << "Received ssl error: " << errors;
-        mSession->ignoreErrors(errors);
-    });
-
+    auto newSession = new KIMAP2::Session(serverUrl, qint16(port));
     if (Sink::Test::testModeEnabled()) {
-        mSession->setTimeout(1);
+        newSession->setTimeout(1);
     } else {
-        mSession->setTimeout(40);
+        newSession->setTimeout(40);
+    }
+    QObject::connect(newSession, &KIMAP2::Session::sslErrors, [=](const QList<QSslError> &errors) {
+        SinkLog() << "Received ssl error: " << errors;
+        newSession->ignoreErrors(errors);
+    });
+    return newSession;
+}
+
+ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, SessionCache *sessionCache) : mSessionCache(sessionCache), mSession(nullptr)
+{
+    if (!mSessionCache || mSessionCache->isEmpty()) {
+        mSession = createNewSession(serverUrl, port);
     }
 }
 

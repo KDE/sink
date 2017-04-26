@@ -231,7 +231,12 @@ public:
                 return session;
             }
         }
-        return CachedSession{};
+        return {};
+    }
+
+    bool isEmpty() const
+    {
+        return mSessions.isEmpty();
     }
 private:
     QList<CachedSession> mSessions;
