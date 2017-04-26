@@ -40,8 +40,8 @@ public:
     void listenForNotifications(const QSharedPointer<ResourceAccess> &access)
     {
         QObject::connect(access.data(), &ResourceAccess::notification, &context, [this](const Notification &notification) {
-            for (const auto &handler : handler) {
-                handler(notification);
+            for (const auto &h : handler) {
+                h(notification);
             }
         });
         resourceAccess << access;
