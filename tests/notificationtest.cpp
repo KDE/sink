@@ -67,12 +67,22 @@ private slots:
         VERIFYEXEC(Sink::Store::synchronize(query));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
-        QVERIFY(statusNotifications.size() <= 3);
-        QTRY_COMPARE(statusNotifications.size(), 3);
-        //Sync
-        QCOMPARE(statusNotifications.at(0).code, static_cast<int>(ApplicationDomain::Status::ConnectedStatus));
-        QCOMPARE(statusNotifications.at(1).code, static_cast<int>(ApplicationDomain::Status::BusyStatus));
-        QCOMPARE(statusNotifications.at(2).code, static_cast<int>(ApplicationDomain::Status::ConnectedStatus));
+        using namespace Sink::ApplicationDomain;
+        {
+            QList<Status> expected = {
+                Status::OfflineStatus,
+                Status::ConnectedStatus,
+                Status::BusyStatus,
+                Status::ConnectedStatus
+            };
+            qInfo() << "Received notifications " << statusNotifications;
+            QVERIFY2(statusNotifications.size() <= expected.size(), "More notifications than expected.");
+            QTRY_COMPARE(statusNotifications.size(), expected.size());
+            qInfo() << "All received notifications " << statusNotifications;
+            for (auto i = 0; i < statusNotifications.size(); i++) {
+                QCOMPARE(statusNotifications.at(i).code, static_cast<int>(expected.at(i)));
+            }
+        }
         //Changereplay
         // It can happen that we get a changereplay notification pair first and then a second one at the end,
         // we therefore currently filter all changereplay notifications (see above).
