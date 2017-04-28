@@ -38,7 +38,7 @@
  */
 template <class Builder, class Buffer>
 flatbuffers::Offset<Buffer>
-createBufferPart(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, const WritePropertyMapper &mapper)
+createBufferPart(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, const PropertyMapper &mapper)
 {
     // First create a primitives such as strings using the mappings
     QList<std::function<void(void *builder)>> propertiesToAddToResource;
@@ -66,7 +66,7 @@ createBufferPart(const Sink::ApplicationDomain::ApplicationDomainType &domainObj
  * After this the buffer can be extracted from the FlatBufferBuilder object.
  */
 template <typename Buffer, typename BufferBuilder>
-static void createBufferPartBuffer(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, WritePropertyMapper &mapper)
+static void createBufferPartBuffer(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, PropertyMapper &mapper)
 {
     auto pos = createBufferPart<BufferBuilder, Buffer>(domainObject, fbb, mapper);
     // Because we cannot template the following call
@@ -151,7 +151,7 @@ public:
     }
 
     void const *mLocalBuffer;
-    QSharedPointer<ReadPropertyMapper> mLocalMapper;
+    QSharedPointer<PropertyMapper> mLocalMapper;
     QSharedPointer<IndexPropertyMapper> mIndexMapper;
     TypeIndex *mIndex;
 };
@@ -169,12 +169,10 @@ class SINK_EXPORT DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInte
 
 public:
     DomainTypeAdaptorFactory()
-        : mLocalMapper(QSharedPointer<ReadPropertyMapper>::create()),
-          mLocalWriteMapper(QSharedPointer<WritePropertyMapper>::create()),
+        : mPropertyMapper(QSharedPointer<PropertyMapper>::create()),
           mIndexMapper(QSharedPointer<IndexPropertyMapper>::create())
     {
-        Sink::ApplicationDomain::TypeImplementation<DomainType>::configure(*mLocalMapper);
-        Sink::ApplicationDomain::TypeImplementation<DomainType>::configure(*mLocalWriteMapper);
+        Sink::ApplicationDomain::TypeImplementation<DomainType>::configure(*mPropertyMapper);
         Sink::ApplicationDomain::TypeImplementation<DomainType>::configure(*mIndexMapper);
     }
 
@@ -189,7 +187,7 @@ public:
     {
         auto adaptor = QSharedPointer<DatastoreBufferAdaptor>::create();
         adaptor->mLocalBuffer = Sink::EntityBuffer::readBuffer<LocalBuffer>(entity.local());
-        adaptor->mLocalMapper = mLocalMapper;
+        adaptor->mLocalMapper = mPropertyMapper;
         adaptor->mIndexMapper = mIndexMapper;
         adaptor->mIndex = index;
         return adaptor;
@@ -199,11 +197,7 @@ public:
     createBuffer(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) Q_DECL_OVERRIDE
     {
         flatbuffers::FlatBufferBuilder localFbb;
-        if (mLocalWriteMapper) {
-            // SinkTrace() << "Creating local buffer part";
-            createBufferPartBuffer<LocalBuffer, LocalBuilder>(domainObject, localFbb, *mLocalWriteMapper);
-        }
-
+        createBufferPartBuffer<LocalBuffer, LocalBuilder>(domainObject, localFbb, *mPropertyMapper);
         Sink::EntityBuffer::assembleEntityBuffer(fbb, metadataData, metadataSize, 0, 0, localFbb.GetBufferPointer(), localFbb.GetSize());
         return true;
     }
@@ -219,8 +213,7 @@ public:
 
 
 protected:
-    QSharedPointer<ReadPropertyMapper> mLocalMapper;
-    QSharedPointer<WritePropertyMapper> mLocalWriteMapper;
+    QSharedPointer<PropertyMapper> mPropertyMapper;
     QSharedPointer<IndexPropertyMapper> mIndexMapper;
 };
 

@@ -32,6 +32,10 @@
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
+#define SINK_REGISTER_SERIALIZER(MAPPER, ENTITYTYPE, PROPERTY, LOWERCASEPROPERTY) \
+    MAPPER.addMapping<ENTITYTYPE::PROPERTY, Sink::ApplicationDomain::Buffer::ENTITYTYPE, Sink::ApplicationDomain::Buffer::ENTITYTYPE##Builder>(&Sink::ApplicationDomain::Buffer::ENTITYTYPE::LOWERCASEPROPERTY, &Sink::ApplicationDomain::Buffer::ENTITYTYPE##Builder::add_##LOWERCASEPROPERTY);
+
+
 void TypeImplementation<Mail>::configure(TypeIndex &index)
 {
     // index.addProperty<Mail::Sender>();
@@ -61,46 +65,25 @@ void TypeImplementation<Mail>::configure(IndexPropertyMapper &indexPropertyMappe
         });
 }
 
-void TypeImplementation<Mail>::configure(ReadPropertyMapper &propertyMapper)
+void TypeImplementation<Mail>::configure(PropertyMapper &propertyMapper)
 {
-    propertyMapper.addMapping<Mail::Sender, Buffer>(&Buffer::sender);
-    propertyMapper.addMapping<Mail::To, Buffer>(&Buffer::to);
-    propertyMapper.addMapping<Mail::Cc, Buffer>(&Buffer::cc);
-    propertyMapper.addMapping<Mail::Bcc, Buffer>(&Buffer::bcc);
-    propertyMapper.addMapping<Mail::Subject, Buffer>(&Buffer::subject);
-    propertyMapper.addMapping<Mail::Date, Buffer>(&Buffer::date);
-    propertyMapper.addMapping<Mail::Unread, Buffer>(&Buffer::unread);
-    propertyMapper.addMapping<Mail::Important, Buffer>(&Buffer::important);
-    propertyMapper.addMapping<Mail::Folder, Buffer>(&Buffer::folder);
-    propertyMapper.addMapping<Mail::MimeMessage, Buffer>(&Buffer::mimeMessage);
-    propertyMapper.addMapping<Mail::FullPayloadAvailable, Buffer>(&Buffer::fullPayloadAvailable);
-    propertyMapper.addMapping<Mail::Draft, Buffer>(&Buffer::draft);
-    propertyMapper.addMapping<Mail::Trash, Buffer>(&Buffer::trash);
-    propertyMapper.addMapping<Mail::Sent, Buffer>(&Buffer::sent);
-    propertyMapper.addMapping<Mail::MessageId, Buffer>(&Buffer::messageId);
-    propertyMapper.addMapping<Mail::ParentMessageId, Buffer>(&Buffer::parentMessageId);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Sender, sender);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, To, to);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Cc, cc);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Bcc, bcc);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Subject, subject);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Date, date);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Unread, unread);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Important, important);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Folder, folder);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, MimeMessage, mimeMessage);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, FullPayloadAvailable, fullPayloadAvailable);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Draft, draft);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Trash, trash);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Sent, sent);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, MessageId, messageId);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, ParentMessageId, parentMessageId);
 }
-
-void TypeImplementation<Mail>::configure(WritePropertyMapper &propertyMapper)
-{
-    propertyMapper.addMapping<Mail::Sender, BufferBuilder>(&BufferBuilder::add_sender);
-    propertyMapper.addMapping<Mail::To, BufferBuilder>(&BufferBuilder::add_to);
-    propertyMapper.addMapping<Mail::Cc, BufferBuilder>(&BufferBuilder::add_cc);
-    propertyMapper.addMapping<Mail::Bcc, BufferBuilder>(&BufferBuilder::add_bcc);
-    propertyMapper.addMapping<Mail::Subject, BufferBuilder>(&BufferBuilder::add_subject);
-    propertyMapper.addMapping<Mail::Date, BufferBuilder>(&BufferBuilder::add_date);
-    propertyMapper.addMapping<Mail::Unread, BufferBuilder>(&BufferBuilder::add_unread);
-    propertyMapper.addMapping<Mail::Important, BufferBuilder>(&BufferBuilder::add_important);
-    propertyMapper.addMapping<Mail::Folder, BufferBuilder>(&BufferBuilder::add_folder);
-    propertyMapper.addMapping<Mail::MimeMessage, BufferBuilder>(&BufferBuilder::add_mimeMessage);
-    propertyMapper.addMapping<Mail::FullPayloadAvailable, BufferBuilder>(&BufferBuilder::add_fullPayloadAvailable);
-    propertyMapper.addMapping<Mail::Draft, BufferBuilder>(&BufferBuilder::add_draft);
-    propertyMapper.addMapping<Mail::Trash, BufferBuilder>(&BufferBuilder::add_trash);
-    propertyMapper.addMapping<Mail::Sent, BufferBuilder>(&BufferBuilder::add_sent);
-    propertyMapper.addMapping<Mail::MessageId, BufferBuilder>(&BufferBuilder::add_messageId);
-    propertyMapper.addMapping<Mail::ParentMessageId, BufferBuilder>(&BufferBuilder::add_parentMessageId);
-}
-
 
 void TypeImplementation<Folder>::configure(TypeIndex &index)
 {
@@ -108,22 +91,13 @@ void TypeImplementation<Folder>::configure(TypeIndex &index)
     index.addProperty<QString>(Folder::Name::name);
 }
 
-void TypeImplementation<Folder>::configure(ReadPropertyMapper &propertyMapper)
+void TypeImplementation<Folder>::configure(PropertyMapper &propertyMapper)
 {
-    propertyMapper.addMapping<Folder::Parent, Buffer>(&Buffer::parent);
-    propertyMapper.addMapping<Folder::Name, Buffer>(&Buffer::name);
-    propertyMapper.addMapping<Folder::Icon, Buffer>(&Buffer::icon);
-    propertyMapper.addMapping<Folder::SpecialPurpose, Buffer>(&Buffer::specialpurpose);
-    propertyMapper.addMapping<Folder::Enabled, Buffer>(&Buffer::enabled);
-}
-
-void TypeImplementation<Folder>::configure(WritePropertyMapper &propertyMapper)
-{
-    propertyMapper.addMapping<Folder::Parent, BufferBuilder>(&BufferBuilder::add_parent);
-    propertyMapper.addMapping<Folder::Name, BufferBuilder>(&BufferBuilder::add_name);
-    propertyMapper.addMapping<Folder::Icon, BufferBuilder>(&BufferBuilder::add_icon);
-    propertyMapper.addMapping<Folder::SpecialPurpose, BufferBuilder>(&BufferBuilder::add_specialpurpose);
-    propertyMapper.addMapping<Folder::Enabled, BufferBuilder>(&BufferBuilder::add_enabled);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Folder, Parent, parent);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Folder, Name, name);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Folder, Icon, icon);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Folder, SpecialPurpose, specialpurpose);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Folder, Enabled, enabled);
 }
 
 void TypeImplementation<Folder>::configure(IndexPropertyMapper &)
@@ -137,26 +111,15 @@ void TypeImplementation<Contact>::configure(TypeIndex &index)
     index.addProperty<QByteArray>(Contact::Uid::name);
 }
 
-void TypeImplementation<Contact>::configure(ReadPropertyMapper &propertyMapper)
+void TypeImplementation<Contact>::configure(PropertyMapper &propertyMapper)
 {
-    propertyMapper.addMapping<Contact::Uid, Buffer>(&Buffer::uid);
-    propertyMapper.addMapping<Contact::Fn, Buffer>(&Buffer::fn);
-    propertyMapper.addMapping<Contact::Emails, Buffer>(&Buffer::emails);
-    propertyMapper.addMapping<Contact::Vcard, Buffer>(&Buffer::vcard);
-    propertyMapper.addMapping<Contact::Addressbook, Buffer>(&Buffer::addressbook);
-    propertyMapper.addMapping<Contact::Firstname, Buffer>(&Buffer::firstname);
-    propertyMapper.addMapping<Contact::Lastname, Buffer>(&Buffer::lastname);
-}
-
-void TypeImplementation<Contact>::configure(WritePropertyMapper &propertyMapper)
-{
-    propertyMapper.addMapping<Contact::Uid, BufferBuilder>(&BufferBuilder::add_uid);
-    propertyMapper.addMapping<Contact::Fn, BufferBuilder>(&BufferBuilder::add_fn);
-    propertyMapper.addMapping<Contact::Emails, BufferBuilder>(&BufferBuilder::add_emails);
-    propertyMapper.addMapping<Contact::Vcard, BufferBuilder>(&BufferBuilder::add_vcard);
-    propertyMapper.addMapping<Contact::Addressbook, BufferBuilder>(&BufferBuilder::add_addressbook);
-    propertyMapper.addMapping<Contact::Firstname, BufferBuilder>(&BufferBuilder::add_firstname);
-    propertyMapper.addMapping<Contact::Lastname, BufferBuilder>(&BufferBuilder::add_lastname);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Contact, Uid, uid);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Contact, Fn, fn);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Contact, Emails, emails);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Contact, Vcard, vcard);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Contact, Addressbook, addressbook);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Contact, Firstname, firstname);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Contact, Lastname, lastname);
 }
 
 void TypeImplementation<Contact>::configure(IndexPropertyMapper &)
@@ -171,16 +134,10 @@ void TypeImplementation<Addressbook>::configure(TypeIndex &index)
     index.addProperty<QString>(Addressbook::Name::name);
 }
 
-void TypeImplementation<Addressbook>::configure(ReadPropertyMapper &propertyMapper)
+void TypeImplementation<Addressbook>::configure(PropertyMapper &propertyMapper)
 {
-    propertyMapper.addMapping<Addressbook::Parent, Buffer>(&Buffer::parent);
-    propertyMapper.addMapping<Addressbook::Name, Buffer>(&Buffer::name);
-}
-
-void TypeImplementation<Addressbook>::configure(WritePropertyMapper &propertyMapper)
-{
-    propertyMapper.addMapping<Addressbook::Parent, BufferBuilder>(&BufferBuilder::add_parent);
-    propertyMapper.addMapping<Addressbook::Name, BufferBuilder>(&BufferBuilder::add_name);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Addressbook, Parent, parent);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Addressbook, Name, name);
 }
 
 void TypeImplementation<Addressbook>::configure(IndexPropertyMapper &)
@@ -194,20 +151,12 @@ void TypeImplementation<Event>::configure(TypeIndex &index)
     index.addProperty<QByteArray>(Event::Uid::name);
 }
 
-void TypeImplementation<Event>::configure(ReadPropertyMapper &propertyMapper)
+void TypeImplementation<Event>::configure(PropertyMapper &propertyMapper)
 {
-    propertyMapper.addMapping<Event::Summary, Buffer>(&Buffer::summary);
-    propertyMapper.addMapping<Event::Description, Buffer>(&Buffer::description);
-    propertyMapper.addMapping<Event::Uid, Buffer>(&Buffer::uid);
-    propertyMapper.addMapping<Event::Attachment, Buffer>(&Buffer::attachment);
-}
-
-void TypeImplementation<Event>::configure(WritePropertyMapper &propertyMapper)
-{
-    propertyMapper.addMapping<Event::Summary, BufferBuilder>(&BufferBuilder::add_summary);
-    propertyMapper.addMapping<Event::Description, BufferBuilder>(&BufferBuilder::add_description);
-    propertyMapper.addMapping<Event::Uid, BufferBuilder>(&BufferBuilder::add_uid);
-    propertyMapper.addMapping<Event::Attachment, BufferBuilder>(&BufferBuilder::add_attachment);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Event, Summary, summary);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Event, Description, description);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Event, Uid, uid);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Event, Attachment, attachment);
 }
 
 void TypeImplementation<Event>::configure(IndexPropertyMapper &)

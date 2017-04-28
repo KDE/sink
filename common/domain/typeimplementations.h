@@ -26,8 +26,7 @@
 #include "contact_generated.h"
 #include "addressbook_generated.h"
 
-class ReadPropertyMapper;
-class WritePropertyMapper;
+class PropertyMapper;
 class IndexPropertyMapper;
 
 class TypeIndex;
@@ -46,8 +45,7 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Mail Buffer;
     typedef Sink::ApplicationDomain::Buffer::MailBuilder BufferBuilder;
     static void configure(TypeIndex &index);
-    static void configure(ReadPropertyMapper &propertyMapper);
-    static void configure(WritePropertyMapper &propertyMapper);
+    static void configure(PropertyMapper &propertyMapper);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
@@ -57,8 +55,7 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Folder Buffer;
     typedef Sink::ApplicationDomain::Buffer::FolderBuilder BufferBuilder;
     static void configure(TypeIndex &);
-    static void configure(ReadPropertyMapper &);
-    static void configure(WritePropertyMapper &);
+    static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
@@ -68,8 +65,7 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Contact Buffer;
     typedef Sink::ApplicationDomain::Buffer::ContactBuilder BufferBuilder;
     static void configure(TypeIndex &);
-    static void configure(ReadPropertyMapper &);
-    static void configure(WritePropertyMapper &);
+    static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
@@ -79,8 +75,7 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Addressbook Buffer;
     typedef Sink::ApplicationDomain::Buffer::AddressbookBuilder BufferBuilder;
     static void configure(TypeIndex &);
-    static void configure(ReadPropertyMapper &);
-    static void configure(WritePropertyMapper &);
+    static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
@@ -90,8 +85,7 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Event Buffer;
     typedef Sink::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
     static void configure(TypeIndex &);
-    static void configure(ReadPropertyMapper &);
-    static void configure(WritePropertyMapper &);
+    static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 

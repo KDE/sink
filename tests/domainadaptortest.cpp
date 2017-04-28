@@ -47,7 +47,7 @@ private slots:
 
     void testCreateBufferPart()
     {
-        auto writeMapper = QSharedPointer<WritePropertyMapper>::create();
+        auto writeMapper = QSharedPointer<PropertyMapper>::create();
         Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Event>::configure(*writeMapper);
 
         Sink::ApplicationDomain::Event event;
@@ -100,7 +100,7 @@ private slots:
 
     void testMail()
     {
-        auto writeMapper = QSharedPointer<WritePropertyMapper>::create();
+        auto writeMapper = QSharedPointer<PropertyMapper>::create();
         Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Mail>::configure(*writeMapper);
 
         Sink::ApplicationDomain::Mail mail;
