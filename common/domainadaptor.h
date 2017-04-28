@@ -120,7 +120,6 @@ private:
 /**
  * A generic adaptor implementation that uses a property mapper to read/write values.
  */
-template <class LocalBuffer, class ResourceBuffer>
 class DatastoreBufferAdaptor : public Sink::ApplicationDomain::BufferAdaptor
 {
     SINK_DEBUG_AREA("bufferadaptor")
@@ -155,8 +154,8 @@ public:
         return mResourceMapper->availableProperties() + mLocalMapper->availableProperties() + mIndexMapper->availableProperties();
     }
 
-    LocalBuffer const *mLocalBuffer;
-    ResourceBuffer const *mResourceBuffer;
+    void const *mLocalBuffer;
+    void const *mResourceBuffer;
     QSharedPointer<ReadPropertyMapper> mLocalMapper;
     QSharedPointer<ReadPropertyMapper> mResourceMapper;
     QSharedPointer<IndexPropertyMapper> mIndexMapper;
@@ -196,7 +195,7 @@ public:
      */
     virtual QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> createAdaptor(const Sink::Entity &entity, TypeIndex *index = nullptr) Q_DECL_OVERRIDE
     {
-        auto adaptor = QSharedPointer<DatastoreBufferAdaptor<LocalBuffer, ResourceBuffer>>::create();
+        auto adaptor = QSharedPointer<DatastoreBufferAdaptor>::create();
         adaptor->mLocalBuffer = Sink::EntityBuffer::readBuffer<LocalBuffer>(entity.local());
         adaptor->mLocalMapper = mLocalMapper;
         adaptor->mResourceBuffer = Sink::EntityBuffer::readBuffer<ResourceBuffer>(entity.resource());
