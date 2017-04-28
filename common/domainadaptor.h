@@ -157,8 +157,8 @@ public:
 
     LocalBuffer const *mLocalBuffer;
     ResourceBuffer const *mResourceBuffer;
-    QSharedPointer<ReadPropertyMapper<LocalBuffer>> mLocalMapper;
-    QSharedPointer<ReadPropertyMapper<ResourceBuffer>> mResourceMapper;
+    QSharedPointer<ReadPropertyMapper> mLocalMapper;
+    QSharedPointer<ReadPropertyMapper> mResourceMapper;
     QSharedPointer<IndexPropertyMapper> mIndexMapper;
     TypeIndex *mIndex;
 };
@@ -176,8 +176,8 @@ class SINK_EXPORT DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInte
 
 public:
     DomainTypeAdaptorFactory()
-        : mLocalMapper(QSharedPointer<ReadPropertyMapper<LocalBuffer>>::create()),
-          mResourceMapper(QSharedPointer<ReadPropertyMapper<ResourceBuffer>>::create()),
+        : mLocalMapper(QSharedPointer<ReadPropertyMapper>::create()),
+          mResourceMapper(QSharedPointer<ReadPropertyMapper>::create()),
           mLocalWriteMapper(QSharedPointer<WritePropertyMapper<LocalBuilder>>::create()),
           mResourceWriteMapper(QSharedPointer<WritePropertyMapper<ResourceBuilder>>::create()),
           mIndexMapper(QSharedPointer<IndexPropertyMapper>::create())
@@ -236,8 +236,8 @@ public:
 
 
 protected:
-    QSharedPointer<ReadPropertyMapper<LocalBuffer>> mLocalMapper;
-    QSharedPointer<ReadPropertyMapper<ResourceBuffer>> mResourceMapper;
+    QSharedPointer<ReadPropertyMapper> mLocalMapper;
+    QSharedPointer<ReadPropertyMapper> mResourceMapper;
     QSharedPointer<WritePropertyMapper<LocalBuilder>> mLocalWriteMapper;
     QSharedPointer<WritePropertyMapper<ResourceBuilder>> mResourceWriteMapper;
     QSharedPointer<IndexPropertyMapper> mIndexMapper;

@@ -61,7 +61,7 @@ void TypeImplementation<Mail>::configure(IndexPropertyMapper &indexPropertyMappe
         });
 }
 
-void TypeImplementation<Mail>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
+void TypeImplementation<Mail>::configure(ReadPropertyMapper &propertyMapper)
 {
     propertyMapper.addMapping<Mail::Sender, Buffer>(&Buffer::sender);
     propertyMapper.addMapping<Mail::To, Buffer>(&Buffer::to);
@@ -108,7 +108,7 @@ void TypeImplementation<Folder>::configure(TypeIndex &index)
     index.addProperty<QString>(Folder::Name::name);
 }
 
-void TypeImplementation<Folder>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
+void TypeImplementation<Folder>::configure(ReadPropertyMapper &propertyMapper)
 {
     propertyMapper.addMapping<Folder::Parent, Buffer>(&Buffer::parent);
     propertyMapper.addMapping<Folder::Name, Buffer>(&Buffer::name);
@@ -137,7 +137,7 @@ void TypeImplementation<Contact>::configure(TypeIndex &index)
     index.addProperty<QByteArray>(Contact::Uid::name);
 }
 
-void TypeImplementation<Contact>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
+void TypeImplementation<Contact>::configure(ReadPropertyMapper &propertyMapper)
 {
     propertyMapper.addMapping<Contact::Uid, Buffer>(&Buffer::uid);
     propertyMapper.addMapping<Contact::Fn, Buffer>(&Buffer::fn);
@@ -171,7 +171,7 @@ void TypeImplementation<Addressbook>::configure(TypeIndex &index)
     index.addProperty<QString>(Addressbook::Name::name);
 }
 
-void TypeImplementation<Addressbook>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
+void TypeImplementation<Addressbook>::configure(ReadPropertyMapper &propertyMapper)
 {
     propertyMapper.addMapping<Addressbook::Parent, Buffer>(&Buffer::parent);
     propertyMapper.addMapping<Addressbook::Name, Buffer>(&Buffer::name);
@@ -194,7 +194,7 @@ void TypeImplementation<Event>::configure(TypeIndex &index)
     index.addProperty<QByteArray>(Event::Uid::name);
 }
 
-void TypeImplementation<Event>::configure(ReadPropertyMapper<Buffer> &propertyMapper)
+void TypeImplementation<Event>::configure(ReadPropertyMapper &propertyMapper)
 {
     propertyMapper.addMapping<Event::Summary, Buffer>(&Buffer::summary);
     propertyMapper.addMapping<Event::Description, Buffer>(&Buffer::description);
