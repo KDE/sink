@@ -29,11 +29,9 @@
 #include "domain/typeimplementations.h"
 #include "bufferadaptor.h"
 #include "entity_generated.h"
-#include "metadata_generated.h"
 #include "entitybuffer.h"
 #include "propertymapper.h"
 #include "log.h"
-#include "dummy_generated.h"
 
 /**
  * Create a buffer from a domain object using the provided mappings
@@ -136,9 +134,7 @@ public:
 
     virtual QVariant getProperty(const QByteArray &key) const Q_DECL_OVERRIDE
     {
-        if (mResourceBuffer && mResourceMapper->hasMapping(key)) {
-            return mResourceMapper->getProperty(key, mResourceBuffer);
-        } else if (mLocalBuffer && mLocalMapper->hasMapping(key)) {
+        if (mLocalBuffer && mLocalMapper->hasMapping(key)) {
             return mLocalMapper->getProperty(key, mLocalBuffer);
         } else if (mIndex && mIndexMapper->hasMapping(key)) {
             return mIndexMapper->getProperty(key, *mIndex, *this);
@@ -151,23 +147,21 @@ public:
      */
     virtual QList<QByteArray> availableProperties() const Q_DECL_OVERRIDE
     {
-        return mResourceMapper->availableProperties() + mLocalMapper->availableProperties() + mIndexMapper->availableProperties();
+        return mLocalMapper->availableProperties() + mIndexMapper->availableProperties();
     }
 
     void const *mLocalBuffer;
-    void const *mResourceBuffer;
     QSharedPointer<ReadPropertyMapper> mLocalMapper;
-    QSharedPointer<ReadPropertyMapper> mResourceMapper;
     QSharedPointer<IndexPropertyMapper> mIndexMapper;
     TypeIndex *mIndex;
 };
 
 /**
- * The factory should define how to go from an entitybuffer (local + resource buffer), to a domain type adapter.
+ * The factory should define how to go from an entitybuffer (local buffer), to a domain type adapter.
  * It defines how values are split accross local and resource buffer.
  * This is required by the facade the read the value, and by the pipeline preprocessors to access the domain values in a generic way.
  */
-template <typename DomainType, typename ResourceBuffer = Sink::ApplicationDomain::Buffer::Dummy, typename ResourceBuilder = Sink::ApplicationDomain::Buffer::DummyBuilder>
+template <typename DomainType>
 class SINK_EXPORT DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInterface
 {
     typedef typename Sink::ApplicationDomain::TypeImplementation<DomainType>::Buffer LocalBuffer;
@@ -176,9 +170,7 @@ class SINK_EXPORT DomainTypeAdaptorFactory : public DomainTypeAdaptorFactoryInte
 public:
     DomainTypeAdaptorFactory()
         : mLocalMapper(QSharedPointer<ReadPropertyMapper>::create()),
-          mResourceMapper(QSharedPointer<ReadPropertyMapper>::create()),
           mLocalWriteMapper(QSharedPointer<WritePropertyMapper>::create()),
-          mResourceWriteMapper(QSharedPointer<WritePropertyMapper>::create()),
           mIndexMapper(QSharedPointer<IndexPropertyMapper>::create())
     {
         Sink::ApplicationDomain::TypeImplementation<DomainType>::configure(*mLocalMapper);
@@ -189,7 +181,7 @@ public:
     virtual ~DomainTypeAdaptorFactory(){};
 
     /**
-     * Creates an adaptor for the given domain and resource types.
+     * Creates an adaptor for the given domain types.
      *
      * This returns by default a DatastoreBufferAdaptor initialized with the corresponding property mappers.
      */
@@ -198,8 +190,6 @@ public:
         auto adaptor = QSharedPointer<DatastoreBufferAdaptor>::create();
         adaptor->mLocalBuffer = Sink::EntityBuffer::readBuffer<LocalBuffer>(entity.local());
         adaptor->mLocalMapper = mLocalMapper;
-        adaptor->mResourceBuffer = Sink::EntityBuffer::readBuffer<ResourceBuffer>(entity.resource());
-        adaptor->mResourceMapper = mResourceMapper;
         adaptor->mIndexMapper = mIndexMapper;
         adaptor->mIndex = index;
         return adaptor;
@@ -214,13 +204,7 @@ public:
             createBufferPartBuffer<LocalBuffer, LocalBuilder>(domainObject, localFbb, *mLocalWriteMapper);
         }
 
-        flatbuffers::FlatBufferBuilder resFbb;
-        if (mResourceWriteMapper) {
-            // SinkTrace() << "Creating resouce buffer part";
-            createBufferPartBuffer<ResourceBuffer, ResourceBuilder>(domainObject, resFbb, *mResourceWriteMapper);
-        }
-
-        Sink::EntityBuffer::assembleEntityBuffer(fbb, metadataData, metadataSize, resFbb.GetBufferPointer(), resFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
+        Sink::EntityBuffer::assembleEntityBuffer(fbb, metadataData, metadataSize, 0, 0, localFbb.GetBufferPointer(), localFbb.GetSize());
         return true;
     }
 
@@ -236,9 +220,7 @@ public:
 
 protected:
     QSharedPointer<ReadPropertyMapper> mLocalMapper;
-    QSharedPointer<ReadPropertyMapper> mResourceMapper;
     QSharedPointer<WritePropertyMapper> mLocalWriteMapper;
-    QSharedPointer<WritePropertyMapper> mResourceWriteMapper;
     QSharedPointer<IndexPropertyMapper> mIndexMapper;
 };
 

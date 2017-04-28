@@ -33,7 +33,7 @@
 #include "mail_generated.h"
 #include "createentity_generated.h"
 
-class TestEventAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event, Sink::ApplicationDomain::Buffer::Event, Sink::ApplicationDomain::Buffer::EventBuilder>
+class TestEventAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event>
 {
 public:
     TestEventAdaptorFactory() : DomainTypeAdaptorFactory()
@@ -43,7 +43,7 @@ public:
     virtual ~TestEventAdaptorFactory(){};
 };
 
-class TestMailAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail, Sink::ApplicationDomain::Buffer::Mail, Sink::ApplicationDomain::Buffer::MailBuilder>
+class TestMailAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail>
 {
 public:
     TestMailAdaptorFactory() : DomainTypeAdaptorFactory()

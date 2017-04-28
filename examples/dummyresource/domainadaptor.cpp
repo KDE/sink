@@ -28,9 +28,6 @@ using namespace flatbuffers;
 DummyEventAdaptorFactory::DummyEventAdaptorFactory()
     : DomainTypeAdaptorFactory()
 {
-    //TODO turn this into initializeReadPropertyMapper as well?
-    mResourceMapper->addMapping<Sink::ApplicationDomain::Event::Summary, DummyEvent>(&DummyEvent::summary);
-    mResourceWriteMapper->addMapping<Sink::ApplicationDomain::Event::Summary>(&DummyEventBuilder::add_summary);
 }
 
 DummyMailAdaptorFactory::DummyMailAdaptorFactory()

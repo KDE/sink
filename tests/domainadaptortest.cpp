@@ -14,23 +14,19 @@
 #include "metadata_generated.h"
 #include "entity_generated.h"
 
-class TestFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event, Sink::ApplicationDomain::Buffer::Event, Sink::ApplicationDomain::Buffer::EventBuilder>
+class TestFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event>
 {
 public:
     TestFactory()
     {
-        mResourceWriteMapper = QSharedPointer<WritePropertyMapper>::create();
-        Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Event>::configure(*mResourceWriteMapper);
     }
 };
 
-class TestMailFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail, Sink::ApplicationDomain::Buffer::Mail, Sink::ApplicationDomain::Buffer::MailBuilder>
+class TestMailFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail>
 {
 public:
     TestMailFactory()
     {
-        mResourceWriteMapper = QSharedPointer<WritePropertyMapper>::create();
-        Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Mail>::configure(*mResourceWriteMapper);
     }
 };
 
