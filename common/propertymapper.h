@@ -104,13 +104,12 @@ private:
     QHash<QByteArray, std::function<QVariant(void const *)>> mReadAccessors;
 };
 
-template <typename BufferBuilder>
 class WritePropertyMapper
 {
 public:
     virtual ~WritePropertyMapper(){};
 
-    virtual void setProperty(const QByteArray &key, const QVariant &value, QList<std::function<void(BufferBuilder &)>> &builderCalls, flatbuffers::FlatBufferBuilder &fbb) const
+    virtual void setProperty(const QByteArray &key, const QVariant &value, QList<std::function<void(void *builder)>> &builderCalls, flatbuffers::FlatBufferBuilder &fbb) const
     {
         if (mWriteAccessors.contains(key)) {
             auto accessor = mWriteAccessors.value(key);
@@ -123,36 +122,36 @@ public:
         return mWriteAccessors.contains(key);
     }
 
-    void addMapping(const QByteArray &property, const std::function<std::function<void(BufferBuilder &)>(const QVariant &, flatbuffers::FlatBufferBuilder &)> &mapping)
+    void addMapping(const QByteArray &property, const std::function<std::function<void(void *builder)>(const QVariant &, flatbuffers::FlatBufferBuilder &)> &mapping)
     {
         mWriteAccessors.insert(property, mapping);
     }
 
-    template <typename T>
+    template <typename T, typename BufferBuilder>
     void addMapping(void (BufferBuilder::*f)(uint8_t))
     {
-        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-            return [value, f](BufferBuilder &builder) { (builder.*f)(value.value<typename T::Type>()); };
+        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(void *builder)> {
+            return [value, f](void *builder) { (static_cast<BufferBuilder*>(builder)->*f)(value.value<typename T::Type>()); };
         });
     }
 
-    template <typename T>
+    template <typename T, typename BufferBuilder>
     void addMapping(void (BufferBuilder::*f)(bool))
     {
-        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
-            return [value, f](BufferBuilder &builder) { (builder.*f)(value.value<typename T::Type>()); };
+        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(void *builder)> {
+            return [value, f](void *builder) { (static_cast<BufferBuilder*>(builder)->*f)(value.value<typename T::Type>()); };
         });
     }
 
-    template <typename T, typename Arg>
+    template <typename T, typename BufferBuilder, typename Arg>
     void addMapping(void (BufferBuilder::*f)(flatbuffers::Offset<Arg>))
     {
-        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(BufferBuilder &)> {
+        addMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(void *builder)> {
             auto offset = variantToProperty<typename T::Type>(value, fbb);
-            return [offset, f](BufferBuilder &builder) { (builder.*f)(offset); };
+            return [offset, f](void *builder) { (static_cast<BufferBuilder*>(builder)->*f)(offset); };
         });
     }
 
 private:
-    QHash<QByteArray, std::function<std::function<void(BufferBuilder &)>(const QVariant &, flatbuffers::FlatBufferBuilder &)>> mWriteAccessors;
+    QHash<QByteArray, std::function<std::function<void(void *builder)>(const QVariant &, flatbuffers::FlatBufferBuilder &)>> mWriteAccessors;
 };

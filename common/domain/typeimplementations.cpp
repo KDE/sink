@@ -81,24 +81,24 @@ void TypeImplementation<Mail>::configure(ReadPropertyMapper &propertyMapper)
     propertyMapper.addMapping<Mail::ParentMessageId, Buffer>(&Buffer::parentMessageId);
 }
 
-void TypeImplementation<Mail>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
+void TypeImplementation<Mail>::configure(WritePropertyMapper &propertyMapper)
 {
-    propertyMapper.addMapping<Mail::Sender>(&BufferBuilder::add_sender);
-    propertyMapper.addMapping<Mail::To>(&BufferBuilder::add_to);
-    propertyMapper.addMapping<Mail::Cc>(&BufferBuilder::add_cc);
-    propertyMapper.addMapping<Mail::Bcc>(&BufferBuilder::add_bcc);
-    propertyMapper.addMapping<Mail::Subject>(&BufferBuilder::add_subject);
-    propertyMapper.addMapping<Mail::Date>(&BufferBuilder::add_date);
-    propertyMapper.addMapping<Mail::Unread>(&BufferBuilder::add_unread);
-    propertyMapper.addMapping<Mail::Important>(&BufferBuilder::add_important);
-    propertyMapper.addMapping<Mail::Folder>(&BufferBuilder::add_folder);
-    propertyMapper.addMapping<Mail::MimeMessage>(&BufferBuilder::add_mimeMessage);
-    propertyMapper.addMapping<Mail::FullPayloadAvailable>(&BufferBuilder::add_fullPayloadAvailable);
-    propertyMapper.addMapping<Mail::Draft>(&BufferBuilder::add_draft);
-    propertyMapper.addMapping<Mail::Trash>(&BufferBuilder::add_trash);
-    propertyMapper.addMapping<Mail::Sent>(&BufferBuilder::add_sent);
-    propertyMapper.addMapping<Mail::MessageId>(&BufferBuilder::add_messageId);
-    propertyMapper.addMapping<Mail::ParentMessageId>(&BufferBuilder::add_parentMessageId);
+    propertyMapper.addMapping<Mail::Sender, BufferBuilder>(&BufferBuilder::add_sender);
+    propertyMapper.addMapping<Mail::To, BufferBuilder>(&BufferBuilder::add_to);
+    propertyMapper.addMapping<Mail::Cc, BufferBuilder>(&BufferBuilder::add_cc);
+    propertyMapper.addMapping<Mail::Bcc, BufferBuilder>(&BufferBuilder::add_bcc);
+    propertyMapper.addMapping<Mail::Subject, BufferBuilder>(&BufferBuilder::add_subject);
+    propertyMapper.addMapping<Mail::Date, BufferBuilder>(&BufferBuilder::add_date);
+    propertyMapper.addMapping<Mail::Unread, BufferBuilder>(&BufferBuilder::add_unread);
+    propertyMapper.addMapping<Mail::Important, BufferBuilder>(&BufferBuilder::add_important);
+    propertyMapper.addMapping<Mail::Folder, BufferBuilder>(&BufferBuilder::add_folder);
+    propertyMapper.addMapping<Mail::MimeMessage, BufferBuilder>(&BufferBuilder::add_mimeMessage);
+    propertyMapper.addMapping<Mail::FullPayloadAvailable, BufferBuilder>(&BufferBuilder::add_fullPayloadAvailable);
+    propertyMapper.addMapping<Mail::Draft, BufferBuilder>(&BufferBuilder::add_draft);
+    propertyMapper.addMapping<Mail::Trash, BufferBuilder>(&BufferBuilder::add_trash);
+    propertyMapper.addMapping<Mail::Sent, BufferBuilder>(&BufferBuilder::add_sent);
+    propertyMapper.addMapping<Mail::MessageId, BufferBuilder>(&BufferBuilder::add_messageId);
+    propertyMapper.addMapping<Mail::ParentMessageId, BufferBuilder>(&BufferBuilder::add_parentMessageId);
 }
 
 
@@ -117,13 +117,13 @@ void TypeImplementation<Folder>::configure(ReadPropertyMapper &propertyMapper)
     propertyMapper.addMapping<Folder::Enabled, Buffer>(&Buffer::enabled);
 }
 
-void TypeImplementation<Folder>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
+void TypeImplementation<Folder>::configure(WritePropertyMapper &propertyMapper)
 {
-    propertyMapper.addMapping<Folder::Parent>(&BufferBuilder::add_parent);
-    propertyMapper.addMapping<Folder::Name>(&BufferBuilder::add_name);
-    propertyMapper.addMapping<Folder::Icon>(&BufferBuilder::add_icon);
-    propertyMapper.addMapping<Folder::SpecialPurpose>(&BufferBuilder::add_specialpurpose);
-    propertyMapper.addMapping<Folder::Enabled>(&BufferBuilder::add_enabled);
+    propertyMapper.addMapping<Folder::Parent, BufferBuilder>(&BufferBuilder::add_parent);
+    propertyMapper.addMapping<Folder::Name, BufferBuilder>(&BufferBuilder::add_name);
+    propertyMapper.addMapping<Folder::Icon, BufferBuilder>(&BufferBuilder::add_icon);
+    propertyMapper.addMapping<Folder::SpecialPurpose, BufferBuilder>(&BufferBuilder::add_specialpurpose);
+    propertyMapper.addMapping<Folder::Enabled, BufferBuilder>(&BufferBuilder::add_enabled);
 }
 
 void TypeImplementation<Folder>::configure(IndexPropertyMapper &)
@@ -148,15 +148,15 @@ void TypeImplementation<Contact>::configure(ReadPropertyMapper &propertyMapper)
     propertyMapper.addMapping<Contact::Lastname, Buffer>(&Buffer::lastname);
 }
 
-void TypeImplementation<Contact>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
+void TypeImplementation<Contact>::configure(WritePropertyMapper &propertyMapper)
 {
-    propertyMapper.addMapping<Contact::Uid>(&BufferBuilder::add_uid);
-    propertyMapper.addMapping<Contact::Fn>(&BufferBuilder::add_fn);
-    propertyMapper.addMapping<Contact::Emails>(&BufferBuilder::add_emails);
-    propertyMapper.addMapping<Contact::Vcard>(&BufferBuilder::add_vcard);
-    propertyMapper.addMapping<Contact::Addressbook>(&BufferBuilder::add_addressbook);
-    propertyMapper.addMapping<Contact::Firstname>(&BufferBuilder::add_firstname);
-    propertyMapper.addMapping<Contact::Lastname>(&BufferBuilder::add_lastname);
+    propertyMapper.addMapping<Contact::Uid, BufferBuilder>(&BufferBuilder::add_uid);
+    propertyMapper.addMapping<Contact::Fn, BufferBuilder>(&BufferBuilder::add_fn);
+    propertyMapper.addMapping<Contact::Emails, BufferBuilder>(&BufferBuilder::add_emails);
+    propertyMapper.addMapping<Contact::Vcard, BufferBuilder>(&BufferBuilder::add_vcard);
+    propertyMapper.addMapping<Contact::Addressbook, BufferBuilder>(&BufferBuilder::add_addressbook);
+    propertyMapper.addMapping<Contact::Firstname, BufferBuilder>(&BufferBuilder::add_firstname);
+    propertyMapper.addMapping<Contact::Lastname, BufferBuilder>(&BufferBuilder::add_lastname);
 }
 
 void TypeImplementation<Contact>::configure(IndexPropertyMapper &)
@@ -177,10 +177,10 @@ void TypeImplementation<Addressbook>::configure(ReadPropertyMapper &propertyMapp
     propertyMapper.addMapping<Addressbook::Name, Buffer>(&Buffer::name);
 }
 
-void TypeImplementation<Addressbook>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
+void TypeImplementation<Addressbook>::configure(WritePropertyMapper &propertyMapper)
 {
-    propertyMapper.addMapping<Addressbook::Parent>(&BufferBuilder::add_parent);
-    propertyMapper.addMapping<Addressbook::Name>(&BufferBuilder::add_name);
+    propertyMapper.addMapping<Addressbook::Parent, BufferBuilder>(&BufferBuilder::add_parent);
+    propertyMapper.addMapping<Addressbook::Name, BufferBuilder>(&BufferBuilder::add_name);
 }
 
 void TypeImplementation<Addressbook>::configure(IndexPropertyMapper &)
@@ -202,12 +202,12 @@ void TypeImplementation<Event>::configure(ReadPropertyMapper &propertyMapper)
     propertyMapper.addMapping<Event::Attachment, Buffer>(&Buffer::attachment);
 }
 
-void TypeImplementation<Event>::configure(WritePropertyMapper<BufferBuilder> &propertyMapper)
+void TypeImplementation<Event>::configure(WritePropertyMapper &propertyMapper)
 {
-    propertyMapper.addMapping<Event::Summary>(&BufferBuilder::add_summary);
-    propertyMapper.addMapping<Event::Description>(&BufferBuilder::add_description);
-    propertyMapper.addMapping<Event::Uid>(&BufferBuilder::add_uid);
-    propertyMapper.addMapping<Event::Attachment>(&BufferBuilder::add_attachment);
+    propertyMapper.addMapping<Event::Summary, BufferBuilder>(&BufferBuilder::add_summary);
+    propertyMapper.addMapping<Event::Description, BufferBuilder>(&BufferBuilder::add_description);
+    propertyMapper.addMapping<Event::Uid, BufferBuilder>(&BufferBuilder::add_uid);
+    propertyMapper.addMapping<Event::Attachment, BufferBuilder>(&BufferBuilder::add_attachment);
 }
 
 void TypeImplementation<Event>::configure(IndexPropertyMapper &)

@@ -40,10 +40,10 @@
  */
 template <class Builder, class Buffer>
 flatbuffers::Offset<Buffer>
-createBufferPart(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, const WritePropertyMapper<Builder> &mapper)
+createBufferPart(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, const WritePropertyMapper &mapper)
 {
     // First create a primitives such as strings using the mappings
-    QList<std::function<void(Builder &)>> propertiesToAddToResource;
+    QList<std::function<void(void *builder)>> propertiesToAddToResource;
     for (const auto &property : domainObject.changedProperties()) {
         // SinkTrace() << "copying property " << property;
         const auto value = domainObject.getProperty(property);
@@ -57,7 +57,7 @@ createBufferPart(const Sink::ApplicationDomain::ApplicationDomainType &domainObj
     // Then create all porperties using the above generated builderCalls
     Builder builder(fbb);
     for (auto propertyBuilder : propertiesToAddToResource) {
-        propertyBuilder(builder);
+        propertyBuilder(&builder);
     }
     return builder.Finish();
 }
@@ -68,7 +68,7 @@ createBufferPart(const Sink::ApplicationDomain::ApplicationDomainType &domainObj
  * After this the buffer can be extracted from the FlatBufferBuilder object.
  */
 template <typename Buffer, typename BufferBuilder>
-static void createBufferPartBuffer(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, WritePropertyMapper<BufferBuilder> &mapper)
+static void createBufferPartBuffer(const Sink::ApplicationDomain::ApplicationDomainType &domainObject, flatbuffers::FlatBufferBuilder &fbb, WritePropertyMapper &mapper)
 {
     auto pos = createBufferPart<BufferBuilder, Buffer>(domainObject, fbb, mapper);
     // Because we cannot template the following call
@@ -178,8 +178,8 @@ public:
     DomainTypeAdaptorFactory()
         : mLocalMapper(QSharedPointer<ReadPropertyMapper>::create()),
           mResourceMapper(QSharedPointer<ReadPropertyMapper>::create()),
-          mLocalWriteMapper(QSharedPointer<WritePropertyMapper<LocalBuilder>>::create()),
-          mResourceWriteMapper(QSharedPointer<WritePropertyMapper<ResourceBuilder>>::create()),
+          mLocalWriteMapper(QSharedPointer<WritePropertyMapper>::create()),
+          mResourceWriteMapper(QSharedPointer<WritePropertyMapper>::create()),
           mIndexMapper(QSharedPointer<IndexPropertyMapper>::create())
     {
         Sink::ApplicationDomain::TypeImplementation<DomainType>::configure(*mLocalMapper);
@@ -238,8 +238,8 @@ public:
 protected:
     QSharedPointer<ReadPropertyMapper> mLocalMapper;
     QSharedPointer<ReadPropertyMapper> mResourceMapper;
-    QSharedPointer<WritePropertyMapper<LocalBuilder>> mLocalWriteMapper;
-    QSharedPointer<WritePropertyMapper<ResourceBuilder>> mResourceWriteMapper;
+    QSharedPointer<WritePropertyMapper> mLocalWriteMapper;
+    QSharedPointer<WritePropertyMapper> mResourceWriteMapper;
     QSharedPointer<IndexPropertyMapper> mIndexMapper;
 };
 

@@ -19,7 +19,7 @@ class TestFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Eve
 public:
     TestFactory()
     {
-        mResourceWriteMapper = QSharedPointer<WritePropertyMapper<Sink::ApplicationDomain::Buffer::EventBuilder>>::create();
+        mResourceWriteMapper = QSharedPointer<WritePropertyMapper>::create();
         Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Event>::configure(*mResourceWriteMapper);
     }
 };
@@ -29,7 +29,7 @@ class TestMailFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain:
 public:
     TestMailFactory()
     {
-        mResourceWriteMapper = QSharedPointer<WritePropertyMapper<Sink::ApplicationDomain::Buffer::MailBuilder>>::create();
+        mResourceWriteMapper = QSharedPointer<WritePropertyMapper>::create();
         Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Mail>::configure(*mResourceWriteMapper);
     }
 };
@@ -51,7 +51,7 @@ private slots:
 
     void testCreateBufferPart()
     {
-        auto writeMapper = QSharedPointer<WritePropertyMapper<Sink::ApplicationDomain::Buffer::EventBuilder>>::create();
+        auto writeMapper = QSharedPointer<WritePropertyMapper>::create();
         Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Event>::configure(*writeMapper);
 
         Sink::ApplicationDomain::Event event;
@@ -104,7 +104,7 @@ private slots:
 
     void testMail()
     {
-        auto writeMapper = QSharedPointer<WritePropertyMapper<Sink::ApplicationDomain::Buffer::MailBuilder>>::create();
+        auto writeMapper = QSharedPointer<WritePropertyMapper>::create();
         Sink::ApplicationDomain::TypeImplementation<Sink::ApplicationDomain::Mail>::configure(*writeMapper);
 
         Sink::ApplicationDomain::Mail mail;

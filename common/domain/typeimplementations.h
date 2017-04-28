@@ -27,7 +27,6 @@
 #include "addressbook_generated.h"
 
 class ReadPropertyMapper;
-template<typename T>
 class WritePropertyMapper;
 class IndexPropertyMapper;
 
@@ -48,7 +47,7 @@ public:
     typedef Sink::ApplicationDomain::Buffer::MailBuilder BufferBuilder;
     static void configure(TypeIndex &index);
     static void configure(ReadPropertyMapper &propertyMapper);
-    static void configure(WritePropertyMapper<BufferBuilder> &propertyMapper);
+    static void configure(WritePropertyMapper &propertyMapper);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
@@ -59,7 +58,7 @@ public:
     typedef Sink::ApplicationDomain::Buffer::FolderBuilder BufferBuilder;
     static void configure(TypeIndex &);
     static void configure(ReadPropertyMapper &);
-    static void configure(WritePropertyMapper<BufferBuilder> &);
+    static void configure(WritePropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
@@ -70,7 +69,7 @@ public:
     typedef Sink::ApplicationDomain::Buffer::ContactBuilder BufferBuilder;
     static void configure(TypeIndex &);
     static void configure(ReadPropertyMapper &);
-    static void configure(WritePropertyMapper<BufferBuilder> &);
+    static void configure(WritePropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
@@ -81,7 +80,7 @@ public:
     typedef Sink::ApplicationDomain::Buffer::AddressbookBuilder BufferBuilder;
     static void configure(TypeIndex &);
     static void configure(ReadPropertyMapper &);
-    static void configure(WritePropertyMapper<BufferBuilder> &);
+    static void configure(WritePropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
@@ -92,7 +91,7 @@ public:
     typedef Sink::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
     static void configure(TypeIndex &);
     static void configure(ReadPropertyMapper &);
-    static void configure(WritePropertyMapper<BufferBuilder> &);
+    static void configure(WritePropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
 };
 
