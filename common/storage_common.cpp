@@ -207,6 +207,11 @@ QByteArray DataStore::generateUid()
 
 DataStore::NamedDatabase DataStore::mainDatabase(const DataStore::Transaction &t, const QByteArray &type)
 {
+    if (type.isEmpty()) {
+        SinkError() << "Tried to open main database for empty type.";
+        Q_ASSERT(false);
+        return {};
+    }
     return t.openDatabase(type + ".main");
 }
 
