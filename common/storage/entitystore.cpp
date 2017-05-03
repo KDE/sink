@@ -320,6 +320,11 @@ void EntityStore::cleanupEntityRevisionsUntil(qint64 revision)
 {
     const auto uid = DataStore::getUidFromRevision(d->transaction, revision);
     const auto bufferType = DataStore::getTypeFromRevision(d->transaction, revision);
+    if (bufferType.isEmpty() || uid.isEmpty()) {
+        SinkErrorCtx(d->logCtx) << "Failed to find revision during cleanup: " << revision;
+        Q_ASSERT(false);
+        return;
+    }
     SinkTraceCtx(d->logCtx) << "Cleaning up revision " << revision << uid << bufferType;
     DataStore::mainDatabase(d->transaction, bufferType)
         .scan(uid,

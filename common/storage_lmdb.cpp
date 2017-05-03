@@ -169,6 +169,26 @@ public:
             if (const int rc = mdb_dbi_open(transaction, db.constData(), flags, &dbi)) {
                 //Create the db if it is not existing already
                 if (rc == MDB_NOTFOUND && !readOnly) {
+                    //Sanity check db name
+                    {
+                        auto parts = db.split('.');
+                        for (const auto &p : parts) {
+                            auto containsSpecialCharacter = [] (const QByteArray &p) {
+                                for (int i = 0; i < p.size(); i++) {
+                                    const auto c = p.at(i);
+                                    //Between 0 and z in the ascii table. Essentially ensures that the name is printable and doesn't contain special chars
+                                    if (c < 0x30 || c > 0x7A) {
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            };
+                            if (p.isEmpty() || containsSpecialCharacter(p)) {
+                                SinkError() << "Tried to create a db with an invalid name. Hex:" << db.toHex() << " ASCII:" << db;
+                                Q_ASSERT(false);
+                            }
+                        }
+                    }
                     if (const int rc = mdb_dbi_open(transaction, db.constData(), flags | MDB_CREATE, &dbi)) {
                         SinkWarning() << "Failed to create db " << QByteArray(mdb_strerror(rc));
                         Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while creating database: " + QByteArray(mdb_strerror(rc)));
