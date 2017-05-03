@@ -113,7 +113,7 @@ QByteArray DataStore::getUidFromRevision(const DataStore::Transaction &transacti
     transaction.openDatabase("revisions")
         .scan(QByteArray::number(revision),
             [&](const QByteArray &, const QByteArray &value) -> bool {
-                uid = value;
+                uid = QByteArray{value.constData(), value.size()};
                 return false;
             },
             [revision](const Error &error) { SinkWarning() << "Couldn't find uid for revision: " << revision << error.message; });
@@ -126,7 +126,7 @@ QByteArray DataStore::getTypeFromRevision(const DataStore::Transaction &transact
     transaction.openDatabase("revisionType")
         .scan(QByteArray::number(revision),
             [&](const QByteArray &, const QByteArray &value) -> bool {
-                type = value;
+                type = QByteArray{value.constData(), value.size()};
                 return false;
             },
             [revision](const Error &error) { SinkWarning() << "Couldn't find type for revision " << revision; });
