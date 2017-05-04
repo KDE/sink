@@ -112,7 +112,6 @@ void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMo
     Q_ASSERT(!d->transaction);
     Sink::Storage::DataStore store(Sink::storageLocation(), d->resourceContext.instanceId(), accessMode);
     d->transaction = store.createTransaction(accessMode);
-    Q_ASSERT(d->transaction.validateNamedDatabases());
 }
 
 void EntityStore::commitTransaction()
@@ -618,29 +617,6 @@ qint64 EntityStore::maxRevision()
     }
     return DataStore::maxRevision(d->getTransaction());
 }
-
-/* DataStore::Transaction getTransaction() */
-/* { */
-/*     Sink::Storage::DataStore::Transaction transaction; */
-/*     { */
-/*         Sink::Storage::DataStore storage(Sink::storageLocation(), mResourceInstanceIdentifier); */
-/*         if (!storage.exists()) { */
-/*             //This is not an error if the resource wasn't started before */
-/*             SinkLogCtx(d->logCtx) << "Store doesn't exist: " << mResourceInstanceIdentifier; */
-/*             return Sink::Storage::DataStore::Transaction(); */
-/*         } */
-/*         storage.setDefaultErrorHandler([this](const Sink::Storage::DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.store << error.message; }); */
-/*         transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly); */
-/*     } */
-
-/*     //FIXME this is a temporary measure to recover from a failure to open the named databases correctly. */
-/*     //Once the actual problem is fixed it will be enough to simply crash if we open the wrong database (which we check in openDatabase already). */
-/*     while (!transaction.validateNamedDatabases()) { */
-/*         Sink::Storage::DataStore storage(Sink::storageLocation(), mResourceInstanceIdentifier); */
-/*         transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly); */
-/*     } */
-/*     return transaction; */
-/* } */
 
 Sink::Log::Context EntityStore::logContext() const
 {

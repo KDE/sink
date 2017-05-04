@@ -659,11 +659,6 @@ static bool ensureCorrectDb(DataStore::NamedDatabase &database, const QByteArray
     return !openedTheWrongDatabase;
 }
 
-bool DataStore::Transaction::validateNamedDatabases()
-{
-    return true;
-}
-
 DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &db, const std::function<void(const DataStore::Error &error)> &errorHandler, bool allowDuplicates) const
 {
     if (!d) {
