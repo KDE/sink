@@ -317,8 +317,10 @@ void Synchronizer::emitProgressNotification(Notification::NoticationType type, i
 
 void Synchronizer::reportProgress(int progress, int total)
 {
-    SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total;
-    emitProgressNotification(Notification::Progress, progress, total, mCurrentRequest.requestId, mCurrentRequest.applicableEntities);
+    if (progress > 0 && total > 0) {
+        SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total;
+        emitProgressNotification(Notification::Progress, progress, total, mCurrentRequest.requestId, mCurrentRequest.applicableEntities);
+    }
 }
 
 void Synchronizer::setStatusFromResult(const KAsync::Error &error, const QString &s, const QByteArray &requestId)
