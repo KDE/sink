@@ -584,6 +584,10 @@ public:
                         //Synchronize folders
                         return KAsync::value(folders)
                         .serialEach<void>([=](const Folder &folder) {
+                            //Skip unsubscribed folders
+                            if (!folder.subscribed) {
+                                return KAsync::null<void>();
+                            }
                             SinkLog() << "Syncing folder " << folder.path();
                             //Emit notification that the folder is being synced.
                             //The synchronizer can't do that because it has no concept of the folder filter on a mail sync scope meaning that the folder is being synchronized.
