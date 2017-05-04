@@ -24,7 +24,7 @@
 #include <flatbuffers/flatbuffers.h>
 #include <QByteArray>
 
-class QIODevice;
+class QLocalSocket;
 
 namespace Sink {
 
@@ -55,9 +55,9 @@ enum CommandIds
 QByteArray name(int commandId);
 
 int SINK_EXPORT headerSize();
-void SINK_EXPORT write(QIODevice *device, int messageId, int commandId);
-void SINK_EXPORT write(QIODevice *device, int messageId, int commandId, const char *buffer, uint size);
-void SINK_EXPORT write(QIODevice *device, int messageId, int commandId, flatbuffers::FlatBufferBuilder &fbb);
+void SINK_EXPORT write(QLocalSocket *device, int messageId, int commandId);
+void SINK_EXPORT write(QLocalSocket *device, int messageId, int commandId, const char *buffer, uint size);
+void SINK_EXPORT write(QLocalSocket *device, int messageId, int commandId, flatbuffers::FlatBufferBuilder &fbb);
 }
 
 } // namespace Sink
