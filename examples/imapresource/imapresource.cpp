@@ -324,7 +324,7 @@ public:
                     synchronizeMails(folderRemoteId, m);
                 },
                 [this, maxUid, folder](int progress, int total) {
-                    SinkLog() << "Progress: " << progress << " out of " << total;
+                    reportProgress(progress, total);
                     //commit every 10 messages
                     if ((progress % 10) == 0) {
                         commit();
@@ -365,7 +365,7 @@ public:
                         synchronizeMails(folderRemoteId, m);
                     },
                     [=](int progress, int total) {
-                        SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total;
+                        reportProgress(progress, total);
                         //commit every 100 messages
                         if ((progress % 100) == 0) {
                             commit();

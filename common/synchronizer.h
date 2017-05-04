@@ -131,6 +131,8 @@ protected:
             RequestFlush
         };
 
+        SyncRequest() = default;
+
         SyncRequest(const Sink::QueryBase &q, const QByteArray &requestId_ = QByteArray(), RequestOptions o = NoOptions)
             : requestId(requestId_),
             requestType(Synchronization),
@@ -142,6 +144,12 @@ protected:
 
         SyncRequest(RequestType type)
             : requestType(type)
+        {
+        }
+
+        SyncRequest(RequestType type, const QByteArray &requestId_)
+            : requestId(requestId_),
+            requestType(type)
         {
         }
 
@@ -184,6 +192,7 @@ protected:
     virtual void mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue);
 
     void emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id = QByteArray{}, const QByteArrayList &entiteis = QByteArrayList{});
+    void emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArrayList &entities);
 
     /**
      * Report progress for current task
@@ -211,6 +220,7 @@ private:
     Sink::Storage::DataStore::Transaction mSyncTransaction;
     std::function<void(int commandId, const QByteArray &data)> mEnqueue;
     QList<SyncRequest> mSyncRequestQueue;
+    SyncRequest mCurrentRequest;
     MessageQueue *mMessageQueue;
     bool mSyncInProgress;
     QMultiHash<QByteArray, SyncRequest> mPendingSyncRequests;

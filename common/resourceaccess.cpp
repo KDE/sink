@@ -547,6 +547,8 @@ static Sink::Notification getNotification(const Sink::Commands::Notification *bu
     }
     n.type = buffer->type();
     n.code = buffer->code();
+    n.progress = buffer->progress();
+    n.total = buffer->total();
     n.entities = BufferUtils::fromVector(*buffer->entities());
     return n;
 }

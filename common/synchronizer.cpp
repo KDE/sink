@@ -304,9 +304,21 @@ void Synchronizer::emitNotification(Notification::NoticationType type, int code,
     emit notify(n);
 }
 
+void Synchronizer::emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArrayList &entities)
+{
+    Sink::Notification n;
+    n.id = id;
+    n.type = type;
+    n.progress = progress;
+    n.total = total;
+    n.entities = entities;
+    emit notify(n);
+}
+
 void Synchronizer::reportProgress(int progress, int total)
 {
     SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total;
+    emitProgressNotification(Notification::Progress, progress, total, mCurrentRequest.requestId, mCurrentRequest.applicableEntities);
 }
 
 void Synchronizer::setStatusFromResult(const KAsync::Error &error, const QString &s, const QByteArray &requestId)
@@ -465,13 +477,15 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
             setBusy(true, "Synchronization has started.", request.requestId);
         } else if (request.requestType == Synchronizer::SyncRequest::ChangeReplay) {
-            setBusy(true, "ChangeReplay has started.", "changereplay");
+            setBusy(true, "ChangeReplay has started.", request.requestId);
         }
+        mCurrentRequest = request;
     })
     .then(processRequest(request))
     .then<void>([this, request](const KAsync::Error &error) {
         SinkTraceCtx(mLogCtx) << "Sync request processed";
         setBusy(false, {}, request.requestId);
+        mCurrentRequest = {};
         mEntityStore->abortTransaction();
         mSyncTransaction.abort();
         mMessageQueue->commit();
@@ -516,7 +530,7 @@ void Synchronizer::revisionChanged()
             return;
         }
     }
-    mSyncRequestQueue << Synchronizer::SyncRequest{Synchronizer::SyncRequest::ChangeReplay};
+    mSyncRequestQueue << Synchronizer::SyncRequest{Synchronizer::SyncRequest::ChangeReplay, "changereplay"};
     processSyncQueue().exec();
 }
 
