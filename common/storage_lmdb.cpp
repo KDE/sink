@@ -186,6 +186,7 @@ public:
                             if (p.isEmpty() || containsSpecialCharacter(p)) {
                                 SinkError() << "Tried to create a db with an invalid name. Hex:" << db.toHex() << " ASCII:" << db;
                                 Q_ASSERT(false);
+                                throw std::runtime_error("Fatal error while creating db.");
                             }
                         }
                     }
