@@ -492,7 +492,7 @@ public:
             //Otherwise fetch full payload for daterange
             auto folderList = QSharedPointer<QVector<Folder>>::create();
             return  imap->fetchFolders([folderList](const Folder &folder) {
-                if (!folder.noselect) {
+                if (!folder.noselect && folder.subscribed) {
                     *folderList << folder;
                 }
             })
@@ -580,14 +580,7 @@ public:
                     bool syncHeaders = query.hasFilter<ApplicationDomain::Mail::Folder>();
                     //FIXME If we were able to to flush in between we could just query the local store for the folder list.
                     return getFolderList(imap, query)
-                    .then([=] (const QVector<Folder> &folders) {
-                        //Synchronize folders
-                        return KAsync::value(folders)
                         .serialEach<void>([=](const Folder &folder) {
-                            //Skip unsubscribed folders
-                            if (!folder.subscribed) {
-                                return KAsync::null<void>();
-                            }
                             SinkLog() << "Syncing folder " << folder.path();
                             //Emit notification that the folder is being synced.
                             //The synchronizer can't do that because it has no concept of the folder filter on a mail sync scope meaning that the folder is being synchronized.
@@ -602,7 +595,6 @@ public:
                                     SinkWarning() << "Failed to sync folder: " << folder.path() << "Error: " << error.errorMessage;
                                 });
                         });
-                    });
                 }
             })
             .then([=] (const KAsync::Error &error) {
