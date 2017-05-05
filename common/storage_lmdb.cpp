@@ -563,6 +563,7 @@ DataStore::Transaction::Transaction(Transaction &&other) : d(nullptr)
 DataStore::Transaction &DataStore::Transaction::operator=(DataStore::Transaction &&other)
 {
     if (&other != this) {
+        abort();
         delete d;
         d = other.d;
         other.d = nullptr;

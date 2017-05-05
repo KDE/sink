@@ -487,6 +487,24 @@ private slots:
         }
     }
 
+    void testCopyTransaction()
+    {
+        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        {
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+            transaction.openDatabase("a", nullptr, false);
+            transaction.openDatabase("b", nullptr, false);
+            transaction.openDatabase("c", nullptr, false);
+            transaction.commit();
+        }
+        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+        for (int i = 0; i < 1000; i++) {
+            transaction.openDatabase("a", nullptr, false);
+            transaction.openDatabase("b", nullptr, false);
+            transaction.openDatabase("c", nullptr, false);
+            transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+        }
+    }
 };
 
 QTEST_MAIN(StorageTest)
