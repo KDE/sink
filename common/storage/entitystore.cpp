@@ -36,6 +36,33 @@
 using namespace Sink;
 using namespace Sink::Storage;
 
+static Sink::Storage::DbLayout dbLayout(const QByteArray &instanceId)
+{
+    return Sink::Storage::DbLayout {
+                        instanceId,
+                        {
+                            {"folder.main", 0},
+                            {"folder.index.name", 1},
+                            {"folder.index.parent", 1},
+                            {"mail.main", 0},
+                            {"mail.index.date", 1},
+                            {"mail.index.folder", 1},
+                            {"mail.index.folder.sort.date", 0},
+                            {"mail.index.messageId", 1},
+                            {"mail.index.messageIdthreadId", 1},
+                            {"mail.index.parentMessageId", 1},
+                            {"mail.index.subjectthreadId", 1},
+                            {"mail.index.threadIdmessageId", 1},
+                            {"revisionType", 0},
+                            {"revisions", 0},
+                            {"uids", 0},
+                            {"default", 0},
+                            {"__flagtable", 0}
+                        }
+                    };
+}
+
+
 class EntityStore::Private {
 public:
     Private(const ResourceContext &context, const Sink::Log::Context &ctx) : resourceContext(context), logCtx(ctx.subContext("entitystore")) {}
@@ -47,7 +74,7 @@ public:
 
     bool exists()
     {
-        return Sink::Storage::DataStore(Sink::storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly).exists();
+        return Sink::Storage::DataStore(Sink::storageLocation(), dbLayout(resourceContext.instanceId()), DataStore::ReadOnly).exists();
     }
 
     DataStore::Transaction &getTransaction()
@@ -56,7 +83,7 @@ public:
             return transaction;
         }
 
-        Sink::Storage::DataStore store(Sink::storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly);
+        Sink::Storage::DataStore store(Sink::storageLocation(), dbLayout(resourceContext.instanceId()), DataStore::ReadOnly);
         transaction = store.createTransaction(DataStore::ReadOnly);
         return transaction;
     }
@@ -110,7 +137,7 @@ void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMo
 {
     SinkTraceCtx(d->logCtx) << "Starting transaction: " << accessMode;
     Q_ASSERT(!d->transaction);
-    Sink::Storage::DataStore store(Sink::storageLocation(), d->resourceContext.instanceId(), accessMode);
+    Sink::Storage::DataStore store(Sink::storageLocation(), dbLayout(d->resourceContext.instanceId()), accessMode);
     d->transaction = store.createTransaction(accessMode);
 }
 

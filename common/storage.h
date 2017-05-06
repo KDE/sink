@@ -25,9 +25,15 @@
 #include <string>
 #include <functional>
 #include <QString>
+#include <QMap>
 
 namespace Sink {
 namespace Storage {
+
+struct DbLayout {
+    QByteArray name;
+    QMap<QByteArray, int> tables;
+};
 
 class SINK_EXPORT DataStore
 {
@@ -151,6 +157,7 @@ public:
     };
 
     DataStore(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly);
+    DataStore(const QString &storageRoot, const DbLayout &layout, AccessMode mode = ReadOnly);
     ~DataStore();
 
     Transaction createTransaction(AccessMode mode = ReadWrite, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());

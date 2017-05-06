@@ -711,7 +711,7 @@ QList<QByteArray> DataStore::Transaction::getDatabaseNames() const
 class DataStore::Private
 {
 public:
-    Private(const QString &s, const QString &n, AccessMode m);
+    Private(const QString &s, const QString &n, AccessMode m, const DbLayout &layout = {});
     ~Private();
 
     QString storageRoot;
@@ -721,7 +721,7 @@ public:
     AccessMode mode;
 };
 
-DataStore::Private::Private(const QString &s, const QString &n, AccessMode m) : storageRoot(s), name(n), env(0), mode(m)
+DataStore::Private::Private(const QString &s, const QString &n, AccessMode m, const DbLayout &layout) : storageRoot(s), name(n), env(0), mode(m)
 {
     const QString fullPath(storageRoot + '/' + name);
     QFileInfo dirInfo(fullPath);
@@ -772,9 +772,16 @@ DataStore::Private::Private(const QString &s, const QString &n, AccessMode m) : 
                     bool noLock = true;
                     bool requestedRead = m == ReadOnly;
                     auto t = Transaction(new Transaction::Private(requestedRead, nullptr, name, env, noLock));
-                    for (const auto &db : t.getDatabaseNames()) {
-                        //Get dbi to store for future use.
-                        t.openDatabase(db);
+                    if (!layout.tables.isEmpty()) {
+                        for (auto it = layout.tables.constBegin(); it != layout.tables.constEnd(); it++) {
+                            bool allowDuplicates = it.value();
+                            t.openDatabase(it.key(), {}, allowDuplicates);
+                        }
+                    } else {
+                        for (const auto &db : t.getDatabaseNames()) {
+                            //Get dbi to store for future use.
+                            t.openDatabase(db);
+                        }
                     }
                     //To persist the dbis (this is also necessary for read-only transactions)
                     t.commit();
@@ -791,6 +798,10 @@ DataStore::Private::~Private()
 }
 
 DataStore::DataStore(const QString &storageRoot, const QString &name, AccessMode mode) : d(new Private(storageRoot, name, mode))
+{
+}
+
+DataStore::DataStore(const QString &storageRoot, const DbLayout &dbLayout, AccessMode mode) : d(new Private(storageRoot, dbLayout.name, mode, dbLayout))
 {
 }
 
