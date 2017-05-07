@@ -505,6 +505,43 @@ private slots:
             transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
         }
     }
+
+    /*
+     * This test is meant to find problems with the multi-process architecture and initial database creation.
+     * If we create named databases dynamically (not all up front), it is possilbe that we violate the rule
+     * that mdb_open_dbi may only be used by a single thread at a time.
+     * This test is meant to stress that condition.
+     *
+     * However, it yields absolutely nothing.
+     */
+    void testReadDuringExternalProcessWrite()
+    {
+        QSKIP("Not running multiprocess test");
+
+        QList<QFuture<void>> futures;
+        for (int i = 0; i < 5; i++) {
+            futures <<  QtConcurrent::run([&]() {
+                QTRY_VERIFY(Sink::Storage::DataStore(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly).exists());
+                Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly);
+                auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+                for (int i = 0; i < 100000; i++) {
+                    transaction.openDatabase("a", nullptr, false);
+                    transaction.openDatabase("b", nullptr, false);
+                    transaction.openDatabase("c", nullptr, false);
+                    transaction.openDatabase("p", nullptr, false);
+                    transaction.openDatabase("q", nullptr, false);
+                }
+            });
+        }
+
+        //Start writing to the db from a separate process
+        QVERIFY(QProcess::startDetached(QCoreApplication::applicationDirPath() + "/dbwriter", QStringList() << testDataPath << dbName << QString::number(100000)));
+
+        for (auto future : futures) {
+            future.waitForFinished();
+        }
+
+    }
 };
 
 QTEST_MAIN(StorageTest)
