@@ -30,8 +30,7 @@ using namespace Sink;
 using namespace Sink::Storage;
 
 ChangeReplay::ChangeReplay(const ResourceContext &resourceContext, const Sink::Log::Context &ctx)
-    : mStorage(storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly), mChangeReplayStore(storageLocation(), resourceContext.instanceId() + ".changereplay", DataStore::ReadWrite), mReplayInProgress(false), mLogCtx{ctx.subContext("changereplay")},
-    mGuard{new QObject}
+    : mStorage(storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly), mChangeReplayStore(storageLocation(), resourceContext.instanceId() + ".changereplay", DataStore::ReadWrite), mReplayInProgress(false), mLogCtx{ctx.subContext("changereplay")}
 {
 }
 
@@ -84,6 +83,8 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
             auto replayStoreTransaction = mChangeReplayStore.createTransaction(DataStore::ReadOnly, [this](const DataStore::Error &error) {
                 SinkWarningCtx(mLogCtx) << error.message;
             });
+            Q_ASSERT(mMainStoreTransaction);
+            Q_ASSERT(replayStoreTransaction);
             replayStoreTransaction.openDatabase().scan("lastReplayedRevision",
                 [lastReplayedRevision](const QByteArray &key, const QByteArray &value) -> bool {
                     *lastReplayedRevision = value.toLongLong();
@@ -98,14 +99,11 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
             SinkTraceCtx(mLogCtx) << "Changereplay from " << *lastReplayedRevision << " to " << *topRevision;
             return KAsync::doWhile(
                 [this, lastReplayedRevision, topRevision]() -> KAsync::Job<KAsync::ControlFlowFlag> {
-                    if (!mGuard) {
-                        SinkTraceCtx(mLogCtx) << "Exit due to guard";
-                        return KAsync::value(KAsync::Break);
-                    }
                     if (*lastReplayedRevision >= *topRevision) {
                         SinkTraceCtx(mLogCtx) << "Done replaying" << *lastReplayedRevision << *topRevision;
                         return KAsync::value(KAsync::Break);
                     }
+                    Q_ASSERT(mMainStoreTransaction);
 
                     KAsync::Job<void> replayJob = KAsync::null<void>();
                     qint64 revision = *lastReplayedRevision + 1;
@@ -164,7 +162,7 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                         //We shouldn't ever get here
                         Q_ASSERT(false);
                         return KAsync::value(KAsync::Break);
-                    });
+                    }).guard(&mGuard);
             });
         })
         .then([this](const KAsync::Error &error) {
@@ -181,7 +179,7 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                     emit changesReplayed();
                 }
             }
-        });
+        }).guard(&mGuard);
 }
 
 void ChangeReplay::revisionChanged()
