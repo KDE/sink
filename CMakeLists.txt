@@ -28,7 +28,7 @@ include(KDEInstallDirs)
 find_package(Qt5 COMPONENTS REQUIRED Core Network Gui)
 find_package(KF5 COMPONENTS REQUIRED Mime Contacts)
 find_package(FlatBuffers REQUIRED 1.4.0)
-find_package(KAsync REQUIRED 0.1.0)
+find_package(KAsync REQUIRED 0.1.2)
 find_package(LMDB REQUIRED 0.9)
 
 find_program(MEMORYCHECK_COMMAND valgrind)
