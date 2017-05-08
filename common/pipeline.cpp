@@ -283,6 +283,8 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
             case Preprocessor::DropModification:
                 SinkTraceCtx(d->logCtx) << "Dropping modification";
                 return KAsync::error<qint64>(0);
+            case Preprocessor::NoAction:
+            case Preprocessor::DeleteEntity:
             default:
                 break;
         }
