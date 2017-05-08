@@ -30,9 +30,10 @@
 namespace Sink {
 namespace Storage {
 
-struct DbLayout {
+struct SINK_EXPORT DbLayout {
+    typedef QMap<QByteArray, int> Databases;
     QByteArray name;
-    QMap<QByteArray, int> tables;
+    Databases tables;
 };
 
 class SINK_EXPORT DataStore
