@@ -47,6 +47,7 @@ public:
     static void configure(TypeIndex &index);
     static void configure(PropertyMapper &propertyMapper);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
+    static QMap<QByteArray, int> typeDatabases();
 };
 
 template<>
@@ -57,6 +58,7 @@ public:
     static void configure(TypeIndex &);
     static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
+    static QMap<QByteArray, int> typeDatabases();
 };
 
 template<>
@@ -67,6 +69,7 @@ public:
     static void configure(TypeIndex &);
     static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
+    static QMap<QByteArray, int> typeDatabases();
 };
 
 template<>
@@ -77,6 +80,7 @@ public:
     static void configure(TypeIndex &);
     static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
+    static QMap<QByteArray, int> typeDatabases();
 };
 
 template<>
@@ -87,6 +91,7 @@ public:
     static void configure(TypeIndex &);
     static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
+    static QMap<QByteArray, int> typeDatabases();
 };
 
 }

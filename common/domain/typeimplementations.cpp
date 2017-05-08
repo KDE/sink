@@ -28,6 +28,7 @@
 #include "entity_generated.h"
 #include "mail/threadindexer.h"
 #include "domainadaptor.h"
+#include "typeimplementations_p.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -35,22 +36,43 @@ using namespace Sink::ApplicationDomain;
 #define SINK_REGISTER_SERIALIZER(MAPPER, ENTITYTYPE, PROPERTY, LOWERCASEPROPERTY) \
     MAPPER.addMapping<ENTITYTYPE::PROPERTY, Sink::ApplicationDomain::Buffer::ENTITYTYPE, Sink::ApplicationDomain::Buffer::ENTITYTYPE##Builder>(&Sink::ApplicationDomain::Buffer::ENTITYTYPE::LOWERCASEPROPERTY, &Sink::ApplicationDomain::Buffer::ENTITYTYPE##Builder::add_##LOWERCASEPROPERTY);
 
+typedef IndexConfig<Mail,
+        ValueIndex<Mail::Date>,
+        ValueIndex<Mail::Folder>,
+        ValueIndex<Mail::ParentMessageId>,
+        ValueIndex<Mail::MessageId>,
+        SortedIndex<Mail::Folder, Mail::Date>,
+        SecondaryIndex<Mail::MessageId, Mail::ThreadId>,
+        SecondaryIndex<Mail::ThreadId, Mail::MessageId>,
+        CustomSecondaryIndex<Mail::MessageId, Mail::ThreadId, ThreadIndexer>
+    > MailIndexConfig;
+
+typedef IndexConfig<Folder,
+        ValueIndex<Folder::Name>,
+        ValueIndex<Folder::Parent>
+    > FolderIndexConfig;
+
+typedef IndexConfig<Contact,
+        ValueIndex<Contact::Uid>
+    > ContactIndexConfig;
+
+typedef IndexConfig<Addressbook,
+        ValueIndex<Addressbook::Parent>
+    > AddressbookIndexConfig;
+
+typedef IndexConfig<Event,
+        ValueIndex<Event::Uid>
+    > EventIndexConfig;
+
 
 void TypeImplementation<Mail>::configure(TypeIndex &index)
 {
-    // index.addProperty<Mail::Sender>();
-    /* index.addProperty<QByteArray>(Mail::SenderName::name); */
-    /* index->addProperty<QString>(Mail::Subject::name); */
-    /* index->addFulltextProperty<QString>(Mail::Subject::name); */
-    index.addProperty<Mail::Date>();
-    index.addProperty<Mail::Folder>();
-    index.addPropertyWithSorting<Mail::Folder, Mail::Date>();
-    index.addProperty<Mail::ParentMessageId>();
-    index.addProperty<Mail::MessageId>();
+    MailIndexConfig::configure(index);
+}
 
-    index.addSecondaryPropertyIndexer<Mail::MessageId, Mail::ThreadId, ThreadIndexer>();
-    index.addSecondaryProperty<Mail::MessageId, Mail::ThreadId>();
-    index.addSecondaryProperty<Mail::ThreadId, Mail::MessageId>();
+QMap<QByteArray, int> TypeImplementation<Mail>::typeDatabases()
+{
+    return merge(QMap<QByteArray, int>{{QByteArray{Mail::name} + ".main", 0}}, MailIndexConfig::databases());
 }
 
 void TypeImplementation<Mail>::configure(IndexPropertyMapper &indexPropertyMapper)
@@ -85,10 +107,15 @@ void TypeImplementation<Mail>::configure(PropertyMapper &propertyMapper)
     SINK_REGISTER_SERIALIZER(propertyMapper, Mail, ParentMessageId, parentMessageId);
 }
 
+
 void TypeImplementation<Folder>::configure(TypeIndex &index)
 {
-    index.addProperty<QByteArray>(Folder::Parent::name);
-    index.addProperty<QString>(Folder::Name::name);
+    FolderIndexConfig::configure(index);
+}
+
+QMap<QByteArray, int> TypeImplementation<Folder>::typeDatabases()
+{
+    return merge(QMap<QByteArray, int>{{QByteArray{Folder::name} + ".main", 0}}, FolderIndexConfig::databases());
 }
 
 void TypeImplementation<Folder>::configure(PropertyMapper &propertyMapper)
@@ -108,7 +135,12 @@ void TypeImplementation<Folder>::configure(IndexPropertyMapper &)
 
 void TypeImplementation<Contact>::configure(TypeIndex &index)
 {
-    index.addProperty<QByteArray>(Contact::Uid::name);
+    ContactIndexConfig::configure(index);
+}
+
+QMap<QByteArray, int> TypeImplementation<Contact>::typeDatabases()
+{
+    return merge(QMap<QByteArray, int>{{QByteArray{Contact::name} + ".main", 0}}, ContactIndexConfig::databases());
 }
 
 void TypeImplementation<Contact>::configure(PropertyMapper &propertyMapper)
@@ -130,8 +162,12 @@ void TypeImplementation<Contact>::configure(IndexPropertyMapper &)
 
 void TypeImplementation<Addressbook>::configure(TypeIndex &index)
 {
-    index.addProperty<QByteArray>(Addressbook::Parent::name);
-    index.addProperty<QString>(Addressbook::Name::name);
+    AddressbookIndexConfig::configure(index);
+}
+
+QMap<QByteArray, int> TypeImplementation<Addressbook>::typeDatabases()
+{
+    return merge(QMap<QByteArray, int>{{QByteArray{Addressbook::name} + ".main", 0}}, AddressbookIndexConfig::databases());
 }
 
 void TypeImplementation<Addressbook>::configure(PropertyMapper &propertyMapper)
@@ -148,7 +184,12 @@ void TypeImplementation<Addressbook>::configure(IndexPropertyMapper &)
 
 void TypeImplementation<Event>::configure(TypeIndex &index)
 {
-    index.addProperty<QByteArray>(Event::Uid::name);
+    EventIndexConfig::configure(index);
+}
+
+QMap<QByteArray, int> TypeImplementation<Event>::typeDatabases()
+{
+    return merge(QMap<QByteArray, int>{{QByteArray{Event::name} + ".main", 0}}, EventIndexConfig::databases());
 }
 
 void TypeImplementation<Event>::configure(PropertyMapper &propertyMapper)
@@ -163,3 +204,4 @@ void TypeImplementation<Event>::configure(IndexPropertyMapper &)
 {
 
 }
+

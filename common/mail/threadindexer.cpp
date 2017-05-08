@@ -145,3 +145,10 @@ void ThreadIndexer::remove(const ApplicationDomain::ApplicationDomainType &entit
 
 }
 
+QMap<QByteArray, int> ThreadIndexer::databases()
+{
+    return {{"mail.index.messageIdthreadId", 1},
+            {"mail.index.subjectthreadId", 1},
+            {"mail.index.threadIdmessageId", 1}};
+}
+

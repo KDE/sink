@@ -36,30 +36,59 @@
 using namespace Sink;
 using namespace Sink::Storage;
 
+static QMap<QByteArray, int> baseDbs()
+{
+    return {{"revisionType", 0},
+            {"revisions", 0},
+            {"uids", 0},
+            {"default", 0},
+            {"__flagtable", 0}};
+}
+
+template <typename T, typename First>
+void mergeImpl(T &map, First f)
+{
+    for (auto it = f.constBegin(); it != f.constEnd(); it++) {
+        map.insert(it.key(), it.value());
+    }
+}
+
+template <typename T, typename First, typename ... Tail>
+void mergeImpl(T &map, First f, Tail ...maps)
+{
+    for (auto it = f.constBegin(); it != f.constEnd(); it++) {
+        map.insert(it.key(), it.value());
+    }
+    mergeImpl<T, Tail...>(map, maps...);
+}
+
+template <typename First, typename ... Tail>
+First merge(First f, Tail ...maps)
+{
+    First map;
+    mergeImpl(f, maps...);
+    return map;
+}
+
+template <class T>
+struct DbLayoutHelper {
+    void operator()(QMap<QByteArray, int> map) const {
+        mergeImpl(map, ApplicationDomain::TypeImplementation<T>::typeDatabases());
+    }
+};
+
 static Sink::Storage::DbLayout dbLayout(const QByteArray &instanceId)
 {
-    return Sink::Storage::DbLayout {
-                        instanceId,
-                        {
-                            {"folder.main", 0},
-                            {"folder.index.name", 1},
-                            {"folder.index.parent", 1},
-                            {"mail.main", 0},
-                            {"mail.index.date", 1},
-                            {"mail.index.folder", 1},
-                            {"mail.index.folder.sort.date", 0},
-                            {"mail.index.messageId", 1},
-                            {"mail.index.messageIdthreadId", 1},
-                            {"mail.index.parentMessageId", 1},
-                            {"mail.index.subjectthreadId", 1},
-                            {"mail.index.threadIdmessageId", 1},
-                            {"revisionType", 0},
-                            {"revisions", 0},
-                            {"uids", 0},
-                            {"default", 0},
-                            {"__flagtable", 0}
-                        }
-                    };
+    static auto databases = [] {
+        QMap<QByteArray, int> map;
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Mail>::typeDatabases());
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::typeDatabases());
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Contact>::typeDatabases());
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Addressbook>::typeDatabases());
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::typeDatabases());
+        return merge(baseDbs(), map);
+    }();
+    return {instanceId, databases};
 }
 
 
