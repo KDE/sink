@@ -66,7 +66,7 @@ template <typename First, typename ... Tail>
 First merge(First f, Tail ...maps)
 {
     First map;
-    mergeImpl(f, maps...);
+    mergeImpl(map, f, maps...);
     return map;
 }
 
