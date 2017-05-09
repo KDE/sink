@@ -506,12 +506,16 @@ public:
     KAsync::Error getError(const KAsync::Error &error)
     {
         if (error) {
-            if (error.errorCode == Imap::CouldNotConnectError) {
-                return {ApplicationDomain::ConnectionError, error.errorMessage};
-            } else if (error.errorCode == Imap::SslHandshakeError) {
-                return {ApplicationDomain::LoginError, error.errorMessage};
+            switch(error.errorCode) {
+                case Imap::CouldNotConnectError:
+                    return {ApplicationDomain::ConnectionError, error.errorMessage};
+                case Imap::SslHandshakeError:
+                    return {ApplicationDomain::LoginError, error.errorMessage};
+                case Imap::HostNotFoundError:
+                    return {ApplicationDomain::NoServerError, error.errorMessage};
+                default:
+                    return {ApplicationDomain::UnknownError, error.errorMessage};
             }
-            return {ApplicationDomain::UnknownError, error.errorMessage};
         }
         return {};
     }
