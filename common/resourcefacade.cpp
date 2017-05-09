@@ -21,11 +21,9 @@
 #include "resourceconfig.h"
 #include "query.h"
 #include "definitions.h"
-#include "storage.h"
 #include "store.h"
 #include "resourceaccess.h"
 #include "resource.h"
-#include <QDir>
 
 using namespace Sink;
 
