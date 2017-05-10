@@ -371,10 +371,10 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
             if (states.contains(ApplicationDomain::BusyStatus)) {
                 return ApplicationDomain::BusyStatus;
             }
-            if (states.contains(ApplicationDomain::ConnectedStatus)) {
-                return ApplicationDomain::ConnectedStatus;
+            if (states.contains(ApplicationDomain::OfflineStatus)) {
+                return ApplicationDomain::OfflineStatus;
             }
-            return ApplicationDomain::OfflineStatus;
+            return ApplicationDomain::ConnectedStatus;
         }();
         account.setStatusStatus(status);
     });
