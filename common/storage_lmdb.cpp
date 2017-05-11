@@ -716,75 +716,85 @@ public:
 
     MDB_env *env;
     AccessMode mode;
+    Sink::Log::Context logCtx;
+
+    void initEnvironment(const QString &fullPath, const DbLayout &layout)
+    {
+        // Ensure the environment is only created once, and that we only have one environment per process
+        if (!(env = sEnvironments.value(fullPath))) {
+            QMutexLocker locker(&sMutex);
+            if (!(env = sEnvironments.value(fullPath))) {
+                int rc = 0;
+                if ((rc = mdb_env_create(&env))) {
+                    SinkWarningCtx(logCtx) << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
+                    qCritical() << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
+                } else {
+                    //Limit large enough to accomodate all our named dbs. This only starts to matter if the number gets large, otherwise it's just a bunch of extra entries in the main table.
+                    mdb_env_set_maxdbs(env, 50);
+                    const bool readOnly = (mode == ReadOnly);
+                    unsigned int flags = MDB_NOTLS;
+                    if (readOnly) {
+                        flags |= MDB_RDONLY;
+                    }
+                    if ((rc = mdb_env_open(env, fullPath.toStdString().data(), flags, 0664))) {
+                        SinkWarningCtx(logCtx) << "mdb_env_open: " << rc << ":" << mdb_strerror(rc);
+                        mdb_env_close(env);
+                        env = 0;
+                    } else {
+                        if (RUNNING_ON_VALGRIND) {
+                            // In order to run valgrind this size must be smaller than half your available RAM
+                            // https://github.com/BVLC/caffe/issues/2404
+                            mdb_env_set_mapsize(env, (size_t)10485760 * (size_t)1000); // 1MB * 1000
+                        } else {
+                            //This is the maximum size of the db (but will not be used directly), so we make it large enough that we hopefully never run into the limit.
+                            mdb_env_set_mapsize(env, (size_t)10485760 * (size_t)100000); // 1MB * 1000
+                        }
+                        Q_ASSERT(env);
+                        sEnvironments.insert(fullPath, env);
+                        //Open all available dbi's
+                        bool noLock = true;
+                        auto t = Transaction(new Transaction::Private(readOnly, nullptr, name, env, noLock));
+                        if (!layout.tables.isEmpty()) {
+
+                            //TODO upgrade db if the layout has changed:
+                            //* read existing layout
+                            //* if layout is not the same create new layout
+                        //If the db is read only, abort if the db is not yet existing.
+                        //If the db is not read-only but is not existing, ensure we have a layout and create all tables.
+
+                            for (auto it = layout.tables.constBegin(); it != layout.tables.constEnd(); it++) {
+                                bool allowDuplicates = it.value();
+                                t.openDatabase(it.key(), {}, allowDuplicates);
+                            }
+                        } else {
+                            for (const auto &db : t.getDatabaseNames()) {
+                                //Get dbi to store for future use.
+                                t.openDatabase(db);
+                            }
+                        }
+                        //To persist the dbis (this is also necessary for read-only transactions)
+                        t.commit();
+                    }
+                }
+            }
+        }
+    }
+
 };
 
-DataStore::Private::Private(const QString &s, const QString &n, AccessMode m, const DbLayout &layout) : storageRoot(s), name(n), env(0), mode(m)
+DataStore::Private::Private(const QString &s, const QString &n, AccessMode m, const DbLayout &layout) : storageRoot(s), name(n), env(0), mode(m), logCtx(n.toLatin1())
 {
+
     const QString fullPath(storageRoot + '/' + name);
     QFileInfo dirInfo(fullPath);
     if (!dirInfo.exists() && mode == ReadWrite) {
         QDir().mkpath(fullPath);
         dirInfo.refresh();
     }
-    Sink::Log::Context logCtx{n.toLatin1()};
     if (mode == ReadWrite && !dirInfo.permission(QFile::WriteOwner)) {
         qCritical() << fullPath << "does not have write permissions. Aborting";
     } else if (dirInfo.exists()) {
-        // Ensure the environment is only created once
-        QMutexLocker locker(&sMutex);
-
-        /*
-        * It seems we can only ever have one environment open in the process.
-        * Otherwise multi-threading breaks.
-        */
-        env = sEnvironments.value(fullPath);
-        if (!env) {
-            int rc = 0;
-            if ((rc = mdb_env_create(&env))) {
-                // TODO: handle error
-                SinkWarningCtx(logCtx) << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
-            } else {
-                mdb_env_set_maxdbs(env, 50);
-                unsigned int flags = MDB_NOTLS;
-                if (mode == ReadOnly) {
-                    flags |= MDB_RDONLY;
-                }
-                if ((rc = mdb_env_open(env, fullPath.toStdString().data(), flags, 0664))) {
-                    SinkWarningCtx(logCtx) << "mdb_env_open: " << rc << ":" << mdb_strerror(rc);
-                    mdb_env_close(env);
-                    env = 0;
-                } else {
-                    if (RUNNING_ON_VALGRIND) {
-                        // In order to run valgrind this size must be smaller than half your available RAM
-                        // https://github.com/BVLC/caffe/issues/2404
-                        const size_t dbSize = (size_t)10485760 * (size_t)1000; // 1MB * 1000
-                        mdb_env_set_mapsize(env, dbSize);
-                    } else {
-                        // FIXME: dynamic resize
-                        const size_t dbSize = (size_t)10485760 * (size_t)8000; // 1MB * 8000
-                        mdb_env_set_mapsize(env, dbSize);
-                    }
-                    sEnvironments.insert(fullPath, env);
-                    //Open all available dbi's
-                    bool noLock = true;
-                    bool requestedRead = m == ReadOnly;
-                    auto t = Transaction(new Transaction::Private(requestedRead, nullptr, name, env, noLock));
-                    if (!layout.tables.isEmpty()) {
-                        for (auto it = layout.tables.constBegin(); it != layout.tables.constEnd(); it++) {
-                            bool allowDuplicates = it.value();
-                            t.openDatabase(it.key(), {}, allowDuplicates);
-                        }
-                    } else {
-                        for (const auto &db : t.getDatabaseNames()) {
-                            //Get dbi to store for future use.
-                            t.openDatabase(db);
-                        }
-                    }
-                    //To persist the dbis (this is also necessary for read-only transactions)
-                    t.commit();
-                }
-            }
-        }
+        initEnvironment(fullPath, layout);
     }
 }
 
