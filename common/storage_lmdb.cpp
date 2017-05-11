@@ -35,9 +35,6 @@
 #include <lmdb.h>
 #include "log.h"
 
-SINK_DEBUG_AREA("storage")
-// SINK_DEBUG_COMPONENT(d->storageRoot.toLatin1() + '/' + d->name.toLatin1())
-
 namespace Sink {
 namespace Storage {
 
