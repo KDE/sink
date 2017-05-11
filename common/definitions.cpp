@@ -40,10 +40,12 @@ QString Sink::configLocation()
 
 QString Sink::temporaryFileLocation()
 {
-    auto path = dataLocation() + "/temporaryFiles";
-    //FIXME create in a singleton on startup?
-    QDir dir;
-    dir.mkpath(path);
+    static auto path = dataLocation() + "/temporaryFiles";
+    static bool initialized = false;
+    if (!initialized) {
+        QDir{}.mkpath(path);
+        initialized = true;
+    }
     return path;
 }
 
