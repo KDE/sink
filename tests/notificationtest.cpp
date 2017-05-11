@@ -70,10 +70,9 @@ private slots:
         using namespace Sink::ApplicationDomain;
         {
             QList<Status> expected = {
-                Status::OfflineStatus,
                 Status::ConnectedStatus,
                 Status::BusyStatus,
-                Status::ConnectedStatus
+                Status::ConnectedStatus,
             };
             qInfo() << "Received notifications " << statusNotifications;
             QVERIFY2(statusNotifications.size() <= expected.size(), "More notifications than expected.");
