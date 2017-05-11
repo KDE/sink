@@ -277,6 +277,19 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
         });
 }
 
+KAsync::Job<void> Store::upgrade()
+{
+    SinkLog() << "Upgrading...";
+    return fetchAll<ApplicationDomain::SinkResource>({})
+        .template each([](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {
+            SinkLog() << "Removing caches for " << resource->identifier();
+            return removeDataFromDisk(resource->identifier());
+        })
+        .then([] {
+            SinkLog() << "Upgrade complete.";
+        });
+}
+
 static KAsync::Job<void> synchronize(const QByteArray &resource, const Sink::SyncScope &scope)
 {
     SinkLog() << "Synchronizing " << resource << scope;
