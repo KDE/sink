@@ -503,12 +503,13 @@ private slots:
             Folder folder2(resource2.identifier());
             VERIFYEXEC(Sink::Store::create<Folder>(folder2));
         }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << resource1.identifier()));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << resource2.identifier()));
 
         // Test
         Sink::Query query;
         query.resourceFilter<SinkResource::Account>(account1);
 
-        // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto folders = Sink::Store::read<Folder>(query);
         QCOMPARE(folders.size(), 1);
     }
@@ -625,6 +626,9 @@ private slots:
         VERIFYEXEC(Sink::Store::create<Folder>(folder1));
         Folder folder2(resource2.identifier());
         VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << resource1.identifier()));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << resource2.identifier()));
 
         // Test
         Sink::Query query;
