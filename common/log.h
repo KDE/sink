@@ -90,25 +90,27 @@ SINK_EXPORT inline QDebug operator<<(QDebug d, const TraceTime &time)
 
 static const char *getComponentName() { return nullptr; }
 
-#define Trace_area(AREA) Sink::Log::debugStream(Sink::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, AREA)
-#define Log_area(AREA) Sink::Log::debugStream(Sink::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, AREA)
-#define Warning_area(AREA) Sink::Log::debugStream(Sink::Log::DebugLevel::Warning, __LINE__, __FILE__, Q_FUNC_INFO, AREA)
-#define Error_area(AREA) Sink::Log::debugStream(Sink::Log::DebugLevel::Error, __LINE__, __FILE__, Q_FUNC_INFO, AREA)
+#define SINK_DEBUG_STREAM_IMPL(LEVEL, AREA, COMPONENT) Sink::Log::debugStream(LEVEL, __LINE__, __FILE__, Q_FUNC_INFO, AREA, COMPONENT)
 
-#define SinkTrace_(COMPONENT, AREA) Sink::Log::debugStream(Sink::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, AREA, COMPONENT)
-#define SinkLog_(COMPONENT, AREA) Sink::Log::debugStream(Sink::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, AREA, COMPONENT)
-#define SinkWarning_(COMPONENT, AREA) Sink::Log::debugStream(Sink::Log::DebugLevel::Warning, __LINE__, __FILE__, Q_FUNC_INFO, AREA, COMPONENT)
-#define SinkError_(COMPONENT, AREA) Sink::Log::debugStream(Sink::Log::DebugLevel::Error, __LINE__, __FILE__, Q_FUNC_INFO, AREA, COMPONENT)
+#define Trace_area(AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Trace, AREA, nullptr)
+#define Log_area(AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Log, AREA, nullptr)
+#define Warning_area(AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Warning, AREA, nullptr)
+#define Error_area(AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Error, AREA, nullptr)
 
-#define SinkTrace() Sink::Log::debugStream(Sink::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, s_sinkDebugArea, getComponentName())
-#define SinkLog() Sink::Log::debugStream(Sink::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, s_sinkDebugArea, getComponentName())
-#define SinkWarning() Sink::Log::debugStream(Sink::Log::DebugLevel::Warning, __LINE__, __FILE__, Q_FUNC_INFO, s_sinkDebugArea, getComponentName())
-#define SinkError() Sink::Log::debugStream(Sink::Log::DebugLevel::Error, __LINE__, __FILE__, Q_FUNC_INFO, s_sinkDebugArea, getComponentName())
+#define SinkTrace_(COMPONENT, AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Trace, AREA, COMPONENT)
+#define SinkLog_(COMPONENT, AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Log, AREA, COMPONENT)
+#define SinkWarning_(COMPONENT, AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Warning, AREA, COMPONENT)
+#define SinkError_(COMPONENT, AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Error, AREA, COMPONENT)
 
-#define SinkTraceCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Trace, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name)
-#define SinkLogCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Log, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name)
-#define SinkWarningCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Warning, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name)
-#define SinkErrorCtx(CTX) Sink::Log::debugStream(Sink::Log::DebugLevel::Error, __LINE__, __FILE__, Q_FUNC_INFO, CTX.name)
+#define SinkTrace() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Trace, s_sinkDebugArea, getComponentName())
+#define SinkLog() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Log, s_sinkDebugArea, getComponentName())
+#define SinkWarning() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Warning, s_sinkDebugArea, getComponentName())
+#define SinkError() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Error, s_sinkDebugArea, getComponentName())
+
+#define SinkTraceCtx(CTX) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Trace, CTX.name, nullptr)
+#define SinkLogCtx(CTX) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Log, CTX.name, nullptr)
+#define SinkWarningCtx(CTX) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Warning, CTX.name, nullptr)
+#define SinkErrorCtx(CTX) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Error, CTX.name, nullptr)
 
 #define SINK_DEBUG_AREA(AREA) static constexpr const char* s_sinkDebugArea{AREA};
 #define SINK_DEBUG_COMPONENT(COMPONENT) const char* getComponentName() const { return COMPONENT; };
