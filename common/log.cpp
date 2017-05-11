@@ -12,12 +12,17 @@
 #include <memory>
 #include <atomic>
 #include <definitions.h>
+#include <QThreadStorage>
 
 using namespace Sink::Log;
 
-static QSharedPointer<QSettings> config()
+QThreadStorage<QSharedPointer<QSettings>> sSettings;
+static QSettings &config()
 {
-    return QSharedPointer<QSettings>::create(Sink::configLocation() + "/log.ini", QSettings::IniFormat);
+    if (!sSettings.hasLocalData()) {
+        sSettings.setLocalData(QSharedPointer<QSettings>::create(Sink::configLocation() + "/log.ini", QSettings::IniFormat));
+    }
+    return *sSettings.localData();
 }
 
 static QByteArray sPrimaryComponent;
@@ -173,22 +178,22 @@ DebugLevel Sink::Log::debugLevelFromName(const QByteArray &name)
 
 void Sink::Log::setDebugOutputLevel(DebugLevel debugLevel)
 {
-    config()->setValue("level", debugLevel);
+    config().setValue("level", debugLevel);
 }
 
 Sink::Log::DebugLevel Sink::Log::debugOutputLevel()
 {
-    return static_cast<Sink::Log::DebugLevel>(config()->value("level", Sink::Log::Log).toInt());
+    return static_cast<Sink::Log::DebugLevel>(config().value("level", Sink::Log::Log).toInt());
 }
 
 void Sink::Log::setDebugOutputFilter(FilterType type, const QByteArrayList &filter)
 {
     switch (type) {
         case ApplicationName:
-            config()->setValue("applicationfilter", QVariant::fromValue(filter));
+            config().setValue("applicationfilter", QVariant::fromValue(filter));
             break;
         case Area:
-            config()->setValue("areafilter", QVariant::fromValue(filter));
+            config().setValue("areafilter", QVariant::fromValue(filter));
             break;
     }
 }
@@ -197,9 +202,9 @@ QByteArrayList Sink::Log::debugOutputFilter(FilterType type)
 {
     switch (type) {
         case ApplicationName:
-            return config()->value("applicationfilter").value<QByteArrayList>();
+            return config().value("applicationfilter").value<QByteArrayList>();
         case Area:
-            return config()->value("areafilter").value<QByteArrayList>();
+            return config().value("areafilter").value<QByteArrayList>();
         default:
             return QByteArrayList();
     }
@@ -207,12 +212,12 @@ QByteArrayList Sink::Log::debugOutputFilter(FilterType type)
 
 void Sink::Log::setDebugOutputFields(const QByteArrayList &output)
 {
-    config()->setValue("outputfields", QVariant::fromValue(output));
+    config().setValue("outputfields", QVariant::fromValue(output));
 }
 
 QByteArrayList Sink::Log::debugOutputFields()
 {
-    return config()->value("outputfields").value<QByteArrayList>();
+    return config().value("outputfields").value<QByteArrayList>();
 }
 
 static QByteArray getProgramName()
