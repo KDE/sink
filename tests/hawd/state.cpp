@@ -117,7 +117,7 @@ void State::findGitHash()
 {
 #ifdef HAVE_LIBGIT2
     git_libgit2_init();
-    git_buf root;
+    git_buf root = {0};
     int error = git_repository_discover(&root, projectPath().toStdString().data(), 0, NULL);
     if (!error) {
         git_repository *repo = NULL;

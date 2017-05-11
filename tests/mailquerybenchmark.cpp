@@ -78,7 +78,7 @@ class MailQueryBenchmark : public QObject
         entityStore.commitTransaction();
     }
 
-    void testLoad(const Sink::Query &query, int count, int expectedSize)
+    void testLoad(const QByteArray &name, const Sink::Query &query, int count, int expectedSize)
     {
         const auto startingRss = getCurrentRSS();
 
@@ -124,7 +124,7 @@ class MailQueryBenchmark : public QObject
         std::cout << "Rss without db [kb]: " << rssWithoutDb / 1024 << std::endl;
         std::cout << "Percentage error: " << percentageRssError << std::endl;
 
-        HAWD::Dataset dataset("mail_query", mHawdState);
+        HAWD::Dataset dataset(QString{"mail_query"} + name, mHawdState);
         HAWD::Dataset::Row row = dataset.row();
         row.setValue("rows", list.size());
         row.setValue("queryResultPerMs", (qreal)list.size() / elapsed);
@@ -159,7 +159,7 @@ private slots:
         query.limit(1000);
 
         populateDatabase(50000);
-        testLoad(query, 50000, query.limit());
+        testLoad({}, query, 50000, query.limit());
     }
 
     void test50kThreadleader()
@@ -176,7 +176,7 @@ private slots:
 
         int count = 50000;
         populateDatabase(count, mailsPerFolder);
-        testLoad(query, count, query.limit());
+        testLoad("_threadleader", query, count, query.limit());
     }
 };
 

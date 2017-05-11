@@ -1,0 +1,8 @@
+{
+    "name": "Mail Query performance",
+    "description": "Measures performance of mail queries",
+    "columns": [
+        { "name": "rows", "type": "int" },
+        { "name": "queryResultPerMs", "type": "float", "unit": "result/ms" }
+    ]
+}
