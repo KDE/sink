@@ -105,7 +105,7 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                     }
                     Q_ASSERT(mMainStoreTransaction);
 
-                    KAsync::Job<void> replayJob = KAsync::null<void>();
+                    auto replayJob = KAsync::null();
                     qint64 revision = *lastReplayedRevision + 1;
                     while (revision <= *topRevision) {
                         const auto uid = DataStore::getUidFromRevision(mMainStoreTransaction, revision);
@@ -129,14 +129,14 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                                 if (canReplay(type, key, entityBuffer)) {
                                     SinkTraceCtx(mLogCtx) << "Replaying " << key;
                                     replayJob = replay(type, key, entityBuffer);
+                                    //Set the last revision we tried to replay
+                                    *lastReplayedRevision = revision;
+                                    //Execute replay job and commit
+                                    break;
                                 } else {
-                                    SinkTraceCtx(mLogCtx) << "Cannot replay " << key;
+                                    SinkTraceCtx(mLogCtx) << "Not replaying " << key;
                                     //We silently skip over revisions that cannot be replayed, as this is not an error.
-                                    replayJob = KAsync::null();
                                 }
-                                //Set the last revision we tried to replay
-                                *lastReplayedRevision = revision;
-                                break;
                             }
                         }
                         //Bump the revision if we failed to even attempt to replay. This will simply skip over those revisions, as we can't recover from those situations.
@@ -148,20 +148,20 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                             SinkWarningCtx(mLogCtx) << "Change replay failed: " << error  << "Last replayed revision: "  << *lastReplayedRevision;
                             //We're probably not online or so, so postpone retrying
                             return KAsync::value(KAsync::Break);
-                        } else {
-                            SinkTraceCtx(mLogCtx) << "Replayed until: " << *lastReplayedRevision;
-                            recordReplayedRevision(*lastReplayedRevision);
-                            if (*lastReplayedRevision < *topRevision) {
-                                SinkTraceCtx(mLogCtx) << "Replaying some more...";
-                                //Replay more if we have more
-                                return KAsync::wait(0).then(KAsync::value(KAsync::Continue));
-                            } else {
-                                return KAsync::value(KAsync::Break);
-                            }
                         }
-                        //We shouldn't ever get here
-                        Q_ASSERT(false);
-                        return KAsync::value(KAsync::Break);
+                        SinkTraceCtx(mLogCtx) << "Replayed until: " << *lastReplayedRevision;
+
+                        recordReplayedRevision(*lastReplayedRevision);
+                        reportProgress(*lastReplayedRevision, *topRevision);
+
+                        const bool gotMoreToReplay = (*lastReplayedRevision < *topRevision);
+                        if (gotMoreToReplay) {
+                            SinkTraceCtx(mLogCtx) << "Replaying some more...";
+                            //Replay more if we have more
+                            return KAsync::wait(0).then(KAsync::value(KAsync::Continue));
+                        } else {
+                            return KAsync::value(KAsync::Break);
+                        }
                     }).guard(&mGuard);
             });
         })

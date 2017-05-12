@@ -197,7 +197,7 @@ protected:
     /**
      * Report progress for current task
      */
-    void reportProgress(int progress, int total);
+    virtual void reportProgress(int progress, int total) Q_DECL_OVERRIDE;
 
 protected:
     Sink::Log::Context mLogCtx;
