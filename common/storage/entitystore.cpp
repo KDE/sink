@@ -96,9 +96,13 @@ class EntityStore::Private {
 public:
     Private(const ResourceContext &context, const Sink::Log::Context &ctx) : resourceContext(context), logCtx(ctx.subContext("entitystore"))
     {
-
-        if (!QDir().mkpath(entityBlobStorageDir())) {
-            SinkWarningCtx(logCtx) << "Failed to create the directory: " << entityBlobStorageDir();
+        static bool initialized = false;
+        if (!initialized) {
+            if (QDir{}.mkpath(entityBlobStorageDir())) {
+                initialized = true;
+            } else {
+                SinkWarningCtx(logCtx) << "Failed to create the directory: " << entityBlobStorageDir();
+            }
         }
     }
 

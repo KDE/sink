@@ -30,12 +30,14 @@ QString Sink::storageLocation()
 
 QString Sink::dataLocation()
 {
-    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink";
+    static auto location = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink";
+    return location;
 }
 
 QString Sink::configLocation()
 {
-    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/sink";
+    static auto location = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/sink";
+    return location;
 }
 
 QString Sink::temporaryFileLocation()
@@ -43,8 +45,9 @@ QString Sink::temporaryFileLocation()
     static auto path = dataLocation() + "/temporaryFiles";
     static bool initialized = false;
     if (!initialized) {
-        QDir{}.mkpath(path);
-        initialized = true;
+        if (QDir{}.mkpath(path)) {
+            initialized = true;
+        }
     }
     return path;
 }
