@@ -102,10 +102,10 @@ static const char *getComponentName() { return nullptr; }
 #define SinkWarning_(COMPONENT, AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Warning, AREA, COMPONENT)
 #define SinkError_(COMPONENT, AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Error, AREA, COMPONENT)
 
-#define SinkTrace() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Trace, __FILE__, getComponentName())
-#define SinkLog() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Log, __FILE__, getComponentName())
-#define SinkWarning() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Warning, __FILE__, getComponentName())
-#define SinkError() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Error, __FILE__, getComponentName())
+#define SinkTrace() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Trace, nullptr, getComponentName())
+#define SinkLog() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Log, nullptr, getComponentName())
+#define SinkWarning() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Warning, nullptr, getComponentName())
+#define SinkError() SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Error, nullptr, getComponentName())
 
 #define SinkTraceCtx(CTX) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Trace, CTX.name, nullptr)
 #define SinkLogCtx(CTX) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Log, CTX.name, nullptr)

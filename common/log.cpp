@@ -305,6 +305,12 @@ static bool caseInsensitiveContains(const QByteArray &pattern, const QByteArrayL
     return false;
 }
 
+static QByteArray getFileName(const char *file)
+{
+    auto filename = QByteArray(file).split('/').last();
+    return filename.split('.').first();
+}
+
 QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea, const char *debugComponent)
 {
     static NullStream nullstream;
@@ -315,7 +321,7 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     if (sPrimaryComponent.isEmpty()) {
         sPrimaryComponent = getProgramName();
     }
-    QString fullDebugArea = sPrimaryComponent + "." + (debugComponent ? (QString::fromLatin1(debugComponent) + ".") : "") + (debugArea ? QString::fromLatin1(debugArea) : "");
+    QString fullDebugArea = sPrimaryComponent + "." + (debugComponent ? (QString::fromLatin1(debugComponent) + ".") : "") + (debugArea ? QString::fromLatin1(debugArea) : getFileName(file));
 
     collectDebugArea(fullDebugArea);
 
