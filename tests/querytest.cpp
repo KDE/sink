@@ -98,10 +98,7 @@ private slots:
     void testSingle()
     {
         // Setup
-        {
-            Mail mail("sink.dummy.instance1");
-            VERIFYEXEC(Sink::Store::create<Mail>(mail));
-        }
+        VERIFYEXEC(Sink::Store::create<Mail>(Mail("sink.dummy.instance1")));
 
         // Test
         Sink::Query query;
@@ -116,10 +113,7 @@ private slots:
     void testSingleWithDelay()
     {
         // Setup
-        {
-            Mail mail("sink.dummy.instance1");
-            Sink::Store::create<Mail>(mail).exec().waitForFinished();
-        }
+        VERIFYEXEC(Sink::Store::create<Mail>(Mail("sink.dummy.instance1")));
 
         // Test
         Sink::Query query;
@@ -142,13 +136,13 @@ private slots:
             Mail mail("sink.dummy.instance1");
             mail.setExtractedMessageId("test1");
             mail.setFolder("folder1");
-            Sink::Store::create<Mail>(mail).exec().waitForFinished();
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
         }
         {
             Mail mail("sink.dummy.instance1");
             mail.setExtractedMessageId("test2");
             mail.setFolder("folder2");
-            Sink::Store::create<Mail>(mail).exec().waitForFinished();
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
         }
 
         // Test
@@ -164,13 +158,13 @@ private slots:
         auto mail = model->index(0, 0, QModelIndex()).data(Sink::Store::DomainObjectRole).value<Mail::Ptr>();
         {
             mail->setFolder("folder2");
-            Sink::Store::modify<Mail>(*mail).exec().waitForFinished();
+            VERIFYEXEC(Sink::Store::modify<Mail>(*mail));
         }
         QTRY_COMPARE(model->rowCount(), 0);
 
         {
             mail->setFolder("folder1");
-            Sink::Store::modify<Mail>(*mail).exec().waitForFinished();
+            VERIFYEXEC(Sink::Store::modify<Mail>(*mail));
         }
         QTRY_COMPARE(model->rowCount(), 1);
     }
@@ -181,8 +175,8 @@ private slots:
         // Setup
         {
             Mail mail("sink.dummy.instance1");
-            Sink::Store::create<Mail>(mail).exec().waitForFinished();
-            Sink::Store::create<Mail>(mail).exec().waitForFinished();
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
 
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
@@ -211,7 +205,7 @@ private slots:
         // Setup
         {
             Folder folder("sink.dummy.instance1");
-            Sink::Store::create<Folder>(folder).exec().waitForFinished();
+            VERIFYEXEC(Sink::Store::create<Folder>(folder));
         }
 
         // Test
@@ -622,20 +616,14 @@ private slots:
         resource2.setResourceType("sink.dummy");
         VERIFYEXEC(Store::create(resource2));
 
-        Folder folder1(resource1.identifier());
-        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
-        Folder folder2(resource2.identifier());
-        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+        VERIFYEXEC(Sink::Store::create<Folder>(Folder{resource1.identifier()}));
+        VERIFYEXEC(Sink::Store::create<Folder>(Folder{resource2.identifier()}));
 
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << resource1.identifier()));
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << resource2.identifier()));
-
-        // Test
-        Sink::Query query;
-        query.resourceContainsFilter<SinkResource::Capabilities>("cap1");
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(resource1.identifier()));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(resource2.identifier()));
 
         // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
-        auto folders = Sink::Store::read<Folder>(query);
+        auto folders = Sink::Store::read<Folder>(Sink::Query{}.resourceContainsFilter<SinkResource::Capabilities>("cap1"));
         QCOMPARE(folders.size(), 1);
     }
 
@@ -1063,30 +1051,18 @@ private slots:
         QDateTime now{QDate{2017, 2, 3}, QTime{10, 0, 0}};
         QDateTime later{QDate{2017, 2, 3}, QTime{11, 0, 0}};
 
-        {
-            auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
-            mail1.setExtractedMessageId("mail1");
-            mail1.setFolder(folder1);
-            mail1.setExtractedDate(now);
-            mail1.setImportant(false);
-            VERIFYEXEC(Sink::Store::create(mail1));
-        }
-        {
-            auto mail2 = Mail::createEntity<Mail>("sink.dummy.instance1");
-            mail2.setExtractedMessageId("mail2");
-            mail2.setFolder(folder1);
-            mail2.setExtractedDate(earlier);
-            mail2.setImportant(false);
-            VERIFYEXEC(Sink::Store::create(mail2));
-        }
-        {
-            auto mail3 = Mail::createEntity<Mail>("sink.dummy.instance1");
-            mail3.setExtractedMessageId("mail3");
-            mail3.setFolder(folder1);
-            mail3.setExtractedDate(later);
-            mail3.setImportant(true);
-            VERIFYEXEC(Sink::Store::create(mail3));
-        }
+        auto createMail = [] (const QByteArray &messageid, const Folder &folder, const QDateTime &date, bool important) {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setExtractedMessageId(messageid);
+            mail.setFolder(folder);
+            mail.setExtractedDate(date);
+            mail.setImportant(important);
+            return mail;
+        };
+
+        VERIFYEXEC(Sink::Store::create(createMail("mail1", folder1, now, false)));
+        VERIFYEXEC(Sink::Store::create(createMail("mail2", folder1, earlier, false)));
+        VERIFYEXEC(Sink::Store::create(createMail("mail3", folder1, later, true)));
 
         // Ensure all local data is processed
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
