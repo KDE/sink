@@ -407,7 +407,7 @@ void EntityStore::cleanupEntityRevisionsUntil(qint64 revision)
                     if (isRemoval) {
                         QDir dir{d->entityBlobStorageDir()};
                         const auto infoList = dir.entryInfoList(QStringList{} << QString{uid + "*"});
-                        for (const auto fileInfo : infoList) {
+                        for (const auto &fileInfo : infoList) {
                             QFile::remove(fileInfo.filePath());
                         }
                     }
