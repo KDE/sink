@@ -1,6 +1,7 @@
 #include "log.h"
 
 #include <QString>
+#include <QDir>
 #include <QIODevice>
 #include <QCoreApplication>
 #include <QSettings>
@@ -282,14 +283,16 @@ static bool containsItemStartingWith(const QByteArray &pattern, const QByteArray
     for (const auto &item : list) {
         if (item.startsWith('*')) {
             auto stripped = item.mid(1);
-            stripped.endsWith('*');
-            stripped.chop(1);
+            if (stripped.endsWith('*')) {
+                stripped.chop(1);
+            }
             if (pattern.contains(stripped)) {
                 return true;
             }
-        }
-        if (pattern.startsWith(item)) {
-            return true;
+        } else {
+            if (pattern.contains(item)) {
+                return true;
+            }
         }
     }
     return false;
@@ -307,29 +310,39 @@ static bool caseInsensitiveContains(const QByteArray &pattern, const QByteArrayL
 
 static QByteArray getFileName(const char *file)
 {
-    auto filename = QByteArray(file).split('/').last();
+    static char sep = QDir::separator().toLatin1();
+    auto filename = QByteArray(file).split(sep).last();
     return filename.split('.').first();
+}
+
+bool isFiltered(DebugLevel debugLevel, const QByteArray &fullDebugArea)
+{
+    if (debugLevel < debugOutputLevel()) {
+        return true;
+    }
+    auto areas = debugOutputFilter(Sink::Log::Area);
+    if (debugLevel <= Sink::Log::Trace && !areas.isEmpty()) {
+        if (!containsItemStartingWith(fullDebugArea, areas)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea, const char *debugComponent)
 {
-    static NullStream nullstream;
-    if (debugLevel < debugOutputLevel()) {
-        return QDebug(&nullstream);
-    }
-
     if (sPrimaryComponent.isEmpty()) {
         sPrimaryComponent = getProgramName();
     }
-    QString fullDebugArea = sPrimaryComponent + "." + (debugComponent ? (QString::fromLatin1(debugComponent) + ".") : "") + (debugArea ? QString::fromLatin1(debugArea) : getFileName(file));
+    const QByteArray fullDebugArea = sPrimaryComponent + "." +
+        (debugComponent ? (QByteArray{debugComponent} + ".") : "") +
+        (debugArea ? QByteArray{debugArea} : getFileName(file));
 
     collectDebugArea(fullDebugArea);
 
-    auto areas = debugOutputFilter(Sink::Log::Area);
-    if (debugLevel <= Sink::Log::Trace && !areas.isEmpty()) {
-        if (!containsItemStartingWith(fullDebugArea.toUtf8(), areas)) {
-            return QDebug(&nullstream);
-        }
+    static NullStream nullstream;
+    if (isFiltered(debugLevel, fullDebugArea)) {
+        return QDebug(&nullstream);
     }
 
     QString prefix;
@@ -378,12 +391,12 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     }
     static std::atomic<int> maxDebugAreaSize{25};
     maxDebugAreaSize = qMax(fullDebugArea.size(), maxDebugAreaSize.load());
-    output += QString(" %1 ").arg(fullDebugArea.leftJustified(maxDebugAreaSize, ' ', false));
+    output += QString(" %1 ").arg(QString{fullDebugArea}.leftJustified(maxDebugAreaSize, ' ', false));
     if (useColor) {
         output += resetColor;
     }
     if (showFunction) {
-        output += QString(" %3").arg(fullDebugArea.leftJustified(25, ' ', true));
+        output += QString(" %3").arg(QString{fullDebugArea}.leftJustified(25, ' ', true));
     }
     if (showLocation) {
         const auto filename = QString::fromLatin1(file).split('/').last();
