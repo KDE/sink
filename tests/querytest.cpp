@@ -625,6 +625,41 @@ private slots:
         // We fetch before the data is available and rely on the live query mechanism to deliver the actual data
         auto folders = Sink::Store::read<Folder>(Sink::Query{}.resourceContainsFilter<SinkResource::Capabilities>("cap1"));
         QCOMPARE(folders.size(), 1);
+
+        //TODO this should be part of the regular cleanup between tests
+        VERIFYEXEC(Store::remove(resource1));
+        VERIFYEXEC(Store::remove(resource2));
+    }
+
+    void testFilteredLiveResourceSubQuery()
+    {
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
+
+        //Setup
+        auto resource1 = ApplicationDomainType::createEntity<SinkResource>();
+        resource1.setResourceType("sink.dummy");
+        resource1.setCapabilities(QByteArrayList() << "cap1");
+        VERIFYEXEC(Store::create(resource1));
+        VERIFYEXEC(Store::create<Folder>(Folder{resource1.identifier()}));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(resource1.identifier()));
+
+        auto model = Sink::Store::loadModel<Folder>(Query{Query::LiveQuery}.resourceContainsFilter<SinkResource::Capabilities>("cap1"));
+        QTRY_COMPARE(model->rowCount(), 1);
+
+        auto resource2 = ApplicationDomainType::createEntity<SinkResource>();
+        resource2.setCapabilities(QByteArrayList() << "cap2");
+        resource2.setResourceType("sink.dummy");
+        VERIFYEXEC(Store::create(resource2));
+        VERIFYEXEC(Store::create<Folder>(Folder{resource2.identifier()}));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(resource2.identifier()));
+
+        //The new resource should be filtered and thus not make it in here
+        QCOMPARE(model->rowCount(), 1);
+
+        //TODO this should be part of the regular cleanup between tests
+        VERIFYEXEC(Store::remove(resource1));
+        VERIFYEXEC(Store::remove(resource2));
     }
 
     void testLivequeryUnmatchInThread()
