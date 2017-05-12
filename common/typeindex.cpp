@@ -31,6 +31,10 @@ static QByteArray getByteArray(const QVariant &value)
         if (result.isEmpty()) {
             return "nodate";
         }
+        return result;
+    }
+    if (value.type() == QVariant::Bool) {
+        return value.toBool() ? "t" : "f";
     }
     if (value.canConvert<Sink::ApplicationDomain::Reference>()) {
         const auto ba = value.value<Sink::ApplicationDomain::Reference>().value;
@@ -72,6 +76,20 @@ void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 {
     auto indexer = [this, property](bool add, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
         // SinkTraceCtx(mLogCtx) << "Indexing " << mType + ".index." + property << value.toByteArray();
+        if (add) {
+            Index(indexName(property), transaction).add(getByteArray(value), identifier);
+        } else {
+            Index(indexName(property), transaction).remove(getByteArray(value), identifier);
+        }
+    };
+    mIndexer.insert(property, indexer);
+    mProperties << property;
+}
+
+template <>
+void TypeIndex::addProperty<bool>(const QByteArray &property)
+{
+    auto indexer = [this, property](bool add, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
         if (add) {
             Index(indexName(property), transaction).add(getByteArray(value), identifier);
         } else {
