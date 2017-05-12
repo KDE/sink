@@ -16,7 +16,7 @@
 
 using namespace Sink::Log;
 
-QThreadStorage<QSharedPointer<QSettings>> sSettings;
+static QThreadStorage<QSharedPointer<QSettings>> sSettings;
 static QSettings &config()
 {
     if (!sSettings.hasLocalData()) {
