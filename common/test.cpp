@@ -29,8 +29,6 @@
 #include "resourceconfig.h"
 #include "definitions.h"
 
-SINK_DEBUG_AREA("test")
-
 using namespace Sink;
 
 void Sink::Test::initTest()

@@ -37,8 +37,6 @@
 #include "log.h"
 #include "test.h"
 
-SINK_DEBUG_AREA("imapserverproxy")
-
 using namespace Imap;
 
 const char* Imap::Flags::Seen = "\\Seen";

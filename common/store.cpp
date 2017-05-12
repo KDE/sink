@@ -36,8 +36,6 @@
 #include "storage.h"
 #include "log.h"
 
-SINK_DEBUG_AREA("store")
-
 Q_DECLARE_METATYPE(QSharedPointer<Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>>)
 Q_DECLARE_METATYPE(QSharedPointer<Sink::ResourceAccessInterface>);
 Q_DECLARE_METATYPE(std::shared_ptr<void>);

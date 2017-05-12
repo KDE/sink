@@ -120,7 +120,6 @@ private:
  */
 class DatastoreBufferAdaptor : public Sink::ApplicationDomain::BufferAdaptor
 {
-    SINK_DEBUG_AREA("bufferadaptor")
 public:
     DatastoreBufferAdaptor() : BufferAdaptor()
     {

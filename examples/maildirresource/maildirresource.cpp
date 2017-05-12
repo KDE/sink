@@ -43,8 +43,6 @@
 #define ENTITY_TYPE_MAIL "mail"
 #define ENTITY_TYPE_FOLDER "folder"
 
-SINK_DEBUG_AREA("maildirresource")
-
 using namespace Sink;
 
 static QString getFilePathFromMimeMessagePath(const QString &mimeMessagePath)

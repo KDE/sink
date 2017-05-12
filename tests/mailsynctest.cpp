@@ -33,8 +33,6 @@
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
-SINK_DEBUG_AREA("mailsynctest")
-
 void MailSyncTest::initTestCase()
 {
     Test::initTest();

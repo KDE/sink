@@ -25,8 +25,6 @@
 
 using namespace Sink;
 
-SINK_DEBUG_AREA("synchronizerstore")
-
 SynchronizerStore::SynchronizerStore(Sink::Storage::DataStore::Transaction &transaction)
     : mTransaction(transaction)
 {

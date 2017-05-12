@@ -3,8 +3,6 @@
 #include <QDebug>
 #include <log.h>
 
-SINK_DEBUG_AREA("messagequeue")
-
 MessageQueue::MessageQueue(const QString &storageRoot, const QString &name) : mStorage(storageRoot, name, Sink::Storage::DataStore::ReadWrite)
 {
 }

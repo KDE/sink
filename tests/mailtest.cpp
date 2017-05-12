@@ -31,8 +31,6 @@
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
-SINK_DEBUG_AREA("mailtest")
-
 void MailTest::initTestCase()
 {
     Test::initTest();

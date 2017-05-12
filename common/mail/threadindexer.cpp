@@ -21,8 +21,6 @@
 #include "typeindex.h"
 #include "log.h"
 
-SINK_DEBUG_AREA("threadindex")
-
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 

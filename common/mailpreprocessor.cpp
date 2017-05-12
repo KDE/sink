@@ -29,8 +29,6 @@
 
 using namespace Sink;
 
-SINK_DEBUG_AREA("mailpreprocessor")
-
 QString MailPropertyExtractor::getFilePathFromMimeMessagePath(const QString &s) const
 {
     return s;

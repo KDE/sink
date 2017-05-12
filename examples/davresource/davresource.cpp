@@ -42,8 +42,6 @@
 #define ENTITY_TYPE_CONTACT "contact"
 #define ENTITY_TYPE_ADDRESSBOOK "addressbook"
 
-SINK_DEBUG_AREA("davresource")
-
 using namespace Sink;
 
 static KAsync::Job<void> runJob(KJob *job)

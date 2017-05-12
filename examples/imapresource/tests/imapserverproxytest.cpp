@@ -12,8 +12,6 @@
 
 using namespace Imap;
 
-// SINK_DEBUG_AREA("imapserverproxytest")
-
 /**
  */
 class ImapServerProxyTest : public QObject

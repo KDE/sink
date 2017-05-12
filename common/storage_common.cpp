@@ -24,8 +24,6 @@
 #include "log.h"
 #include <QUuid>
 
-SINK_DEBUG_AREA("storage")
-
 QDebug& operator<<(QDebug &dbg, const Sink::Storage::DataStore::Error &error)
 {
     dbg << error.message << "Code: " << error.code << "Db: " << error.store;

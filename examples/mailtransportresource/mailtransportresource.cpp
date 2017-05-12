@@ -39,8 +39,6 @@
 
 #define ENTITY_TYPE_MAIL "mail"
 
-SINK_DEBUG_AREA("mailtransportresource")
-
 using namespace Sink;
 
 class MailtransportPreprocessor : public Sink::Preprocessor

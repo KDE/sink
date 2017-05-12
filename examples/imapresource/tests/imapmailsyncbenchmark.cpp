@@ -31,8 +31,6 @@
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
-SINK_DEBUG_AREA("ImapMailSyncBenchmark")
-
 /**
  * Test of complete system using the imap resource.
  *

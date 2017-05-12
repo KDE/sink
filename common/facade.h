@@ -48,7 +48,6 @@ template <typename DomainType>
 class SINK_EXPORT GenericFacade : public Sink::StoreFacade<DomainType>
 {
 protected:
-    SINK_DEBUG_AREA("facade")
     SINK_DEBUG_COMPONENT(mResourceContext.resourceInstanceIdentifier)
 public:
     /**

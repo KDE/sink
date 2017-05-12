@@ -22,8 +22,6 @@
 #include "index.h"
 #include <QDateTime>
 
-SINK_DEBUG_AREA("typeindex")
-
 using namespace Sink;
 
 static QByteArray getByteArray(const QVariant &value)

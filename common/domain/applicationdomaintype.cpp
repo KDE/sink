@@ -25,8 +25,6 @@
 #include "storage.h" //for generateUid()
 #include <QFile>
 
-SINK_DEBUG_AREA("applicationdomaintype");
-
 QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::Mail::Contact &c)
 {
     d << "Contact(" << c.name << ", " << c.emailAddress << ")";

@@ -26,8 +26,6 @@
 
 #include "common/log.h"
 
-SINK_DEBUG_AREA("state")
-
 static bool s_hasEventLoop = false;
 
 class State::Private

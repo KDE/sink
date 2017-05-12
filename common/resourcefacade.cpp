@@ -27,8 +27,6 @@
 
 using namespace Sink;
 
-SINK_DEBUG_AREA("ResourceFacade")
-
 template<typename DomainType>
 ConfigNotifier LocalStorageFacade<DomainType>::sConfigNotifier;
 

@@ -46,8 +46,6 @@
 #define ENTITY_TYPE_MAIL "mail"
 #define ENTITY_TYPE_FOLDER "folder"
 
-SINK_DEBUG_AREA("imapresource")
-
 Q_DECLARE_METATYPE(QSharedPointer<Imap::ImapServerProxy>)
 
 using namespace Imap;
