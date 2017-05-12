@@ -21,16 +21,16 @@
 #include "log.h"
 #include "index.h"
 #include <QDateTime>
+#include <QDataStream>
 
 using namespace Sink;
 
 static QByteArray getByteArray(const QVariant &value)
 {
     if (value.type() == QVariant::DateTime) {
-        const auto result = value.toDateTime().toString().toLatin1();
-        if (result.isEmpty()) {
-            return "nodate";
-        }
+        QByteArray result;
+        QDataStream ds(&result, QIODevice::WriteOnly);
+        ds << value.toDateTime();
         return result;
     }
     if (value.type() == QVariant::Bool) {
