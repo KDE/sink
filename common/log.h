@@ -85,12 +85,15 @@ SINK_EXPORT inline QDebug operator<<(QDebug d, const TraceTime &time)
     d << time.time << "[ms]";
     return d;
 }
+
+SINK_EXPORT bool isFiltered(DebugLevel debugLevel, const char *debugArea, const char *debugComponent, const char *file);
+
 }
 }
 
 static const char *getComponentName() { return nullptr; }
 
-#define SINK_DEBUG_STREAM_IMPL(LEVEL, AREA, COMPONENT) Sink::Log::debugStream(LEVEL, __LINE__, __FILE__, Q_FUNC_INFO, AREA, COMPONENT)
+#define SINK_DEBUG_STREAM_IMPL(LEVEL, AREA, COMPONENT) if (!Sink::Log::isFiltered(LEVEL, AREA, COMPONENT, __FILE__)) Sink::Log::debugStream(LEVEL, __LINE__, __FILE__, Q_FUNC_INFO, AREA, COMPONENT)
 
 #define Trace_area(AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Trace, AREA, nullptr)
 #define Log_area(AREA) SINK_DEBUG_STREAM_IMPL(Sink::Log::DebugLevel::Log, AREA, nullptr)

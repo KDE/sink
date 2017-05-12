@@ -14,6 +14,7 @@
 #include <atomic>
 #include <definitions.h>
 #include <QThreadStorage>
+#include <QStringBuilder>
 
 using namespace Sink::Log;
 
@@ -315,13 +316,24 @@ static QByteArray getFileName(const char *file)
     return filename.split('.').first();
 }
 
-bool isFiltered(DebugLevel debugLevel, const QByteArray &fullDebugArea)
+static QString assembleDebugArea(const char *debugArea, const char *debugComponent, const char *file)
+{
+    if (sPrimaryComponent.isEmpty()) {
+        sPrimaryComponent = getProgramName();
+    }
+    //Using stringbuilder for fewer allocations
+    return QLatin1String{sPrimaryComponent} % QLatin1String{"."} %
+        (debugComponent ? (QLatin1String{debugComponent} + QLatin1String{"."}) : QLatin1String{""}) %
+        (debugArea ? QLatin1String{debugArea} : QLatin1String{getFileName(file)});
+}
+
+static bool isFiltered(DebugLevel debugLevel, const QByteArray &fullDebugArea)
 {
     if (debugLevel < debugOutputLevel()) {
         return true;
     }
-    auto areas = debugOutputFilter(Sink::Log::Area);
-    if (debugLevel <= Sink::Log::Trace && !areas.isEmpty()) {
+    const auto areas = debugOutputFilter(Sink::Log::Area);
+    if ((debugLevel <= Sink::Log::Trace) && !areas.isEmpty()) {
         if (!containsItemStartingWith(fullDebugArea, areas)) {
             return true;
         }
@@ -329,19 +341,18 @@ bool isFiltered(DebugLevel debugLevel, const QByteArray &fullDebugArea)
     return false;
 }
 
+bool Sink::Log::isFiltered(DebugLevel debugLevel, const char *debugArea, const char *debugComponent, const char *file)
+{
+    return isFiltered(debugLevel, assembleDebugArea(debugArea, debugComponent, file).toLatin1());
+}
+
 QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea, const char *debugComponent)
 {
-    if (sPrimaryComponent.isEmpty()) {
-        sPrimaryComponent = getProgramName();
-    }
-    const QByteArray fullDebugArea = sPrimaryComponent + "." +
-        (debugComponent ? (QByteArray{debugComponent} + ".") : "") +
-        (debugArea ? QByteArray{debugArea} : getFileName(file));
-
+    const auto fullDebugArea = assembleDebugArea(debugArea, debugComponent, file);
     collectDebugArea(fullDebugArea);
 
     static NullStream nullstream;
-    if (isFiltered(debugLevel, fullDebugArea)) {
+    if (isFiltered(debugLevel, fullDebugArea.toLatin1())) {
         return QDebug(&nullstream);
     }
 
@@ -391,12 +402,12 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     }
     static std::atomic<int> maxDebugAreaSize{25};
     maxDebugAreaSize = qMax(fullDebugArea.size(), maxDebugAreaSize.load());
-    output += QString(" %1 ").arg(QString{fullDebugArea}.leftJustified(maxDebugAreaSize, ' ', false));
+    output += QString(" %1 ").arg(fullDebugArea.leftJustified(maxDebugAreaSize, ' ', false));
     if (useColor) {
         output += resetColor;
     }
     if (showFunction) {
-        output += QString(" %3").arg(QString{fullDebugArea}.leftJustified(25, ' ', true));
+        output += QString(" %3").arg(fullDebugArea.leftJustified(25, ' ', true));
     }
     if (showLocation) {
         const auto filename = QString::fromLatin1(file).split('/').last();
