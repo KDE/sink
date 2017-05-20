@@ -420,7 +420,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             })
             .then(replayNextRevision())
             .then<void>([this, request](const KAsync::Error &error) {
-                setStatusFromResult(error, "Changereplay has ended.", "changereplay");
+                setStatusFromResult(error, "Changereplay has ended.", request.requestId);
                 if (error) {
                     SinkWarningCtx(mLogCtx) << "Changereplay failed: " << error.errorMessage;
                     return KAsync::error(error);
