@@ -81,6 +81,7 @@ void Sink::Test::initTest()
 void Sink::Test::setTestModeEnabled(bool enabled)
 {
     QStandardPaths::setTestModeEnabled(enabled);
+    Sink::clearLocationCache();
     if (enabled) {
         qputenv("SINK_TESTMODE", "TRUE");
     } else {
