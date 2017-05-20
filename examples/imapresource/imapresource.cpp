@@ -689,6 +689,12 @@ public:
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Folder &folder, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
+        if (operation != Sink::Operation_Creation) {
+            if(oldRemoteId.isEmpty()) {
+                Q_ASSERT(false);
+                return KAsync::error<QByteArray>("Tried to replay modification without old remoteId.");
+            }
+        }
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, &mSessionCache);
         auto login = imap->login(mUser, mPassword);
         if (operation == Sink::Operation_Creation) {
