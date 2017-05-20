@@ -315,11 +315,17 @@ void Synchronizer::emitProgressNotification(Notification::NoticationType type, i
     emit notify(n);
 }
 
-void Synchronizer::reportProgress(int progress, int total)
+void Synchronizer::reportProgress(int progress, int total, const QByteArrayList &entities)
 {
     if (progress > 0 && total > 0) {
-        SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total;
-        emitProgressNotification(Notification::Progress, progress, total, mCurrentRequest.requestId, mCurrentRequest.applicableEntities);
+        SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total << mCurrentRequest.requestId << mCurrentRequest.applicableEntities;
+        const auto applicableEntities = [&] {
+            if (entities.isEmpty()) {
+                return mCurrentRequest.applicableEntities;
+            }
+            return entities;
+        }();
+        emitProgressNotification(Notification::Progress, progress, total, mCurrentRequest.requestId, applicableEntities);
     }
 }
 
@@ -371,6 +377,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
     } else if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
         return KAsync::start([this, request] {
             SinkLogCtx(mLogCtx) << "Synchronizing: " << request.query;
+            setBusy(true, "Synchronization has started.", request.requestId);
             emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, {}, {}, request.applicableEntities);
         }).then(synchronizeWithSource(request.query)).then([this] {
             //Commit after every request, so implementations only have to commit more if they add a lot of data.
@@ -408,6 +415,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             return KAsync::null();
         } else {
             return KAsync::start([this, request] {
+                setBusy(true, "ChangeReplay has started.", request.requestId);
                 SinkLogCtx(mLogCtx) << "Replaying changes.";
             })
             .then(replayNextRevision())
@@ -479,11 +487,6 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         mMessageQueue->startTransaction();
         mEntityStore->startTransaction(Sink::Storage::DataStore::ReadOnly);
         mSyncInProgress = true;
-        if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
-            setBusy(true, "Synchronization has started.", request.requestId);
-        } else if (request.requestType == Synchronizer::SyncRequest::ChangeReplay) {
-            setBusy(true, "ChangeReplay has started.", request.requestId);
-        }
         mCurrentRequest = request;
     })
     .then(processRequest(request))

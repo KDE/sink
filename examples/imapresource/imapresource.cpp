@@ -184,13 +184,11 @@ public:
         return flags;
     }
 
-    void synchronizeMails(const QByteArray &folderRid, const Message &message)
+    void synchronizeMails(const QByteArray &folderRid, const QByteArray &folderLocalId, const Message &message)
     {
         auto time = QSharedPointer<QTime>::create();
         time->start();
         SinkTraceCtx(mLogCtx) << "Importing new mail." << folderRid;
-
-        const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRid);
 
         const auto remoteId = assembleMailRid(folderLocalId, message.uid);
 
@@ -315,14 +313,15 @@ public:
                 SinkTraceCtx(mLogCtx) << "Uids to fetch: " << filteredAndSorted;
 
                 bool headersOnly = false;
+                const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                 return imap->fetchMessages(folder, filteredAndSorted, headersOnly, [=](const Message &m) {
                     if (*maxUid < m.uid) {
                         *maxUid = m.uid;
                     }
-                    synchronizeMails(folderRemoteId, m);
+                    synchronizeMails(folderRemoteId, folderLocalId, m);
                 },
-                [this, maxUid, folder](int progress, int total) {
-                    reportProgress(progress, total);
+                [=](int progress, int total) {
+                    reportProgress(progress, total, QByteArrayList{} << folderLocalId);
                     //commit every 10 messages
                     if ((progress % 10) == 0) {
                         commit();
@@ -359,11 +358,12 @@ public:
                     SinkLogCtx(mLogCtx) << "Fetching headers for: " << toFetch;
 
                     bool headersOnly = true;
+                    const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                     return imap->fetchMessages(folder, toFetch, headersOnly, [=](const Message &m) {
-                        synchronizeMails(folderRemoteId, m);
+                        synchronizeMails(folderRemoteId, folderLocalId, m);
                     },
                     [=](int progress, int total) {
-                        reportProgress(progress, total);
+                        reportProgress(progress, total, QByteArrayList{} << folderLocalId);
                         //commit every 100 messages
                         if ((progress % 100) == 0) {
                             commit();
@@ -567,11 +567,12 @@ public:
                     }
                     SinkLog() << "Fetching messages: " << toFetch << folderRemoteId;
                     bool headersOnly = false;
+                    const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                     return imap->fetchMessages(Folder{folderRemoteId}, toFetch, headersOnly, [=](const Message &m) {
-                        synchronizeMails(folderRemoteId, m);
+                        synchronizeMails(folderRemoteId, folderLocalId, m);
                     },
                     [=](int progress, int total) {
-                        reportProgress(progress, total);
+                        reportProgress(progress, total, QByteArrayList{} << folderLocalId);
                         //commit every 100 messages
                         if ((progress % 100) == 0) {
                             commit();

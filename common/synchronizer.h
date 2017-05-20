@@ -197,7 +197,7 @@ protected:
     /**
      * Report progress for current task
      */
-    virtual void reportProgress(int progress, int total) Q_DECL_OVERRIDE;
+    virtual void reportProgress(int progress, int total, const QByteArrayList &entities = {}) Q_DECL_OVERRIDE;
 
 protected:
     Sink::Log::Context mLogCtx;
