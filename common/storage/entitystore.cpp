@@ -113,7 +113,7 @@ public:
 
     bool exists()
     {
-        return Sink::Storage::DataStore(Sink::storageLocation(), dbLayout(resourceContext.instanceId()), DataStore::ReadOnly).exists();
+        return Sink::Storage::DataStore(Sink::storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly).exists();
     }
 
     DataStore::Transaction &getTransaction()
