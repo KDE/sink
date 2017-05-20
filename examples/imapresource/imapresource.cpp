@@ -680,7 +680,7 @@ public:
                 if (error) {
                     SinkWarning() << "Error during changereplay: " << error.errorMessage;
                     return imap->logout()
-                        .then(KAsync::error<QByteArray>(error));
+                        .then(KAsync::error<QByteArray>(getError(error)));
                 }
                 return imap->logout()
                     .then(KAsync::value(remoteId));

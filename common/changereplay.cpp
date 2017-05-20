@@ -147,7 +147,7 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                         if (error) {
                             SinkWarningCtx(mLogCtx) << "Change replay failed: " << error  << "Last replayed revision: "  << *lastReplayedRevision;
                             //We're probably not online or so, so postpone retrying
-                            return KAsync::value(KAsync::Break);
+                            return KAsync::value(KAsync::Break).then(KAsync::error<KAsync::ControlFlowFlag>(error));
                         }
                         SinkTraceCtx(mLogCtx) << "Replayed until: " << *lastReplayedRevision;
 
@@ -178,6 +178,11 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                     SinkTraceCtx(mLogCtx) << "All changes replayed";
                     emit changesReplayed();
                 }
+            }
+            if (error) {
+                return KAsync::error(error);
+            } else {
+                return KAsync::null();
             }
         }).guard(&mGuard);
 }

@@ -629,11 +629,14 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         }
     })
     .then([this](const KAsync::Error &error) {
-        if (error) {
-            SinkWarningCtx(mLogCtx) << "Failed to replay change: " << error.errorMessage;
-        }
+        //We need to commit here otherwise the next change-replay step will abort the transaction
         mSyncStore.clear();
         mSyncTransaction.commit();
+        if (error) {
+            SinkWarningCtx(mLogCtx) << "Failed to replay change: " << error.errorMessage;
+            return KAsync::error(error);
+        }
+        return KAsync::null();
     });
 }
 
