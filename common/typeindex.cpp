@@ -282,6 +282,18 @@ void TypeIndex::index<QString, QByteArray>(const QByteArray &leftName, const QBy
 }
 
 template <>
+void TypeIndex::unindex<QByteArray, QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction)
+{
+    Index(indexName(leftName + rightName), transaction).remove(getByteArray(leftValue), getByteArray(rightValue));
+}
+
+template <>
+void TypeIndex::unindex<QString, QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction)
+{
+    Index(indexName(leftName + rightName), transaction).remove(getByteArray(leftValue), getByteArray(rightValue));
+}
+
+template <>
 QVector<QByteArray> TypeIndex::secondaryLookup<QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &value)
 {
     QVector<QByteArray> keys;

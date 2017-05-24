@@ -71,7 +71,10 @@ void ThreadIndexer::modify(const ApplicationDomain::ApplicationDomainType &old, 
 
 void ThreadIndexer::remove(const ApplicationDomain::ApplicationDomainType &entity)
 {
-
+    auto messageId = entity.getProperty(Mail::MessageId::name);
+    auto thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
+    index().unindex<Mail::MessageId, Mail::ThreadId>(messageId.toByteArray(), thread.first(), transaction());
+    index().unindex<Mail::ThreadId, Mail::MessageId>(thread.first(), messageId.toByteArray(), transaction());
 }
 
 QMap<QByteArray, int> ThreadIndexer::databases()
