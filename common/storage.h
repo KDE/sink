@@ -32,6 +32,8 @@ namespace Storage {
 
 struct SINK_EXPORT DbLayout {
     typedef QMap<QByteArray, int> Databases;
+    DbLayout();
+    DbLayout(const QByteArray &, const Databases &);
     QByteArray name;
     Databases tables;
 };

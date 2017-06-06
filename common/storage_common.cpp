@@ -36,6 +36,18 @@ namespace Storage {
 static const char *s_internalPrefix = "__internal";
 static const int s_internalPrefixSize = strlen(s_internalPrefix);
 
+DbLayout::DbLayout()
+{
+
+}
+
+DbLayout::DbLayout(const QByteArray &n, const Databases &t)
+    : name(n),
+    tables(t)
+{
+
+}
+
 void errorHandler(const DataStore::Error &error)
 {
     if (error.code == DataStore::TransactionError) {
