@@ -38,11 +38,6 @@ Development headers for sink
 %prep
 %setup -q
 
-sed -i \
-    -e '/inspectiontest/d' \
-    -e '/maildirresourcetest/d' \
-    tests/CMakeLists.txt
-
 %build
 mkdir -p build/
 pushd build
@@ -59,7 +54,6 @@ pushd build
 %make_install
 popd
 
-#rm -rf %{buildroot}%{_prefix}/mkspecs/modules/qt_KMime.pri
 rm %{buildroot}%{_prefix}/bin/resetmailbox.sh
 rm %{buildroot}%{_prefix}/bin/populatemailbox.sh
 rm %{buildroot}%{_prefix}/bin/sink_smtp_test
