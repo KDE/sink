@@ -43,6 +43,8 @@ class Source : public FilterBase {
 
     QVector<QByteArray> mIds;
     QVector<QByteArray>::ConstIterator mIt;
+    QVector<QByteArray> mIncrementalIds;
+    QVector<QByteArray>::ConstIterator mIncrementalIt;
 
     Source (const QVector<QByteArray> &ids, DataStoreQuery *store)
         : FilterBase(store),
@@ -63,21 +65,36 @@ class Source : public FilterBase {
 
     void add(const QVector<QByteArray> &ids)
     {
-        mIds = ids;
-        mIt = mIds.constBegin();
+        mIncrementalIds = ids;
+        mIncrementalIt = mIncrementalIds.constBegin();
     }
 
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
     {
-        if (mIt == mIds.constEnd()) {
-            return false;
+        if (!mIncrementalIds.isEmpty()) {
+            if (mIncrementalIt == mIncrementalIds.constEnd()) {
+                return false;
+            }
+            readEntity(*mIncrementalIt, [this, callback](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+                SinkTraceCtx(mDatastore->mLogCtx) << "Source: Read entity: " << entity.identifier() << operationName(operation);
+                callback({entity, operation});
+            });
+            mIncrementalIt++;
+            if (mIncrementalIt == mIncrementalIds.constEnd()) {
+                return false;
+            }
+            return true;
+        } else {
+            if (mIt == mIds.constEnd()) {
+                return false;
+            }
+            readEntity(*mIt, [this, callback](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+                SinkTraceCtx(mDatastore->mLogCtx) << "Source: Read entity: " << entity.identifier() << operationName(operation);
+                callback({entity, operation});
+            });
+            mIt++;
+            return mIt != mIds.constEnd();
         }
-        readEntity(*mIt, [this, callback](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
-            SinkTraceCtx(mDatastore->mLogCtx) << "Source: Read entity: " << entity.identifier() << operationName(operation);
-            callback({entity, operation});
-        });
-        mIt++;
-        return mIt != mIds.constEnd();
     }
 };
 
@@ -599,6 +616,10 @@ ResultSet DataStoreQuery::update(qint64 baseRevision)
     return ResultSet(generator, [this]() { mCollector->skip(); });
 }
 
+void DataStoreQuery::updateComplete()
+{
+    mSource->mIncrementalIds.clear();
+}
 
 ResultSet DataStoreQuery::execute()
 {

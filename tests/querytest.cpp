@@ -381,6 +381,7 @@ private slots:
     {
         // Setup
         Folder::Ptr folderEntity;
+        const auto date = QDateTime(QDate(2015, 7, 7), QTime(12, 0));
         {
             Folder folder("sink.dummy.instance1");
             Sink::Store::create<Folder>(folder).exec().waitForFinished();
@@ -398,7 +399,6 @@ private slots:
             folderEntity = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Folder::Ptr>();
             QVERIFY(!folderEntity->identifier().isEmpty());
 
-            const auto date = QDateTime(QDate(2015, 7, 7), QTime(12, 0));
             {
                 Mail mail("sink.dummy.instance1");
                 mail.setExtractedMessageId("testSecond");
@@ -428,6 +428,11 @@ private slots:
         query.filter<Mail::Folder>(*folderEntity);
         query.sort<Mail::Date>();
         query.limit(1);
+        query.setFlags(Query::LiveQuery);
+        query.reduce<ApplicationDomain::Mail::ThreadId>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>())
+            .count("count")
+            .collect<ApplicationDomain::Mail::Unread>("unreadCollected")
+            .collect<ApplicationDomain::Mail::Important>("importantCollected");
 
         // Ensure all local data is processed
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
@@ -443,6 +448,26 @@ private slots:
         QCOMPARE(model->rowCount(), 2);
         // We can't make any assumptions about the order of the indexes
         // QCOMPARE(model->index(1, 0).data(Sink::Store::DomainObjectRole).value<Mail::Ptr>()->getProperty("messageId").toByteArray(), QByteArray("testSecond"));
+
+        //New revisions always go through
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setExtractedMessageId("testInjected");
+            mail.setFolder(folderEntity->identifier());
+            mail.setExtractedDate(date.addDays(-2));
+            Sink::Store::create<Mail>(mail).exec().waitForFinished();
+        }
+        QTRY_COMPARE(model->rowCount(), 3);
+
+        //Ensure we can continue fetching after the incremental update
+        model->fetchMore(QModelIndex());
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 4);
+
+        //Ensure we have fetched all
+        model->fetchMore(QModelIndex());
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 4);
     }
 
     void testReactToNewResource()

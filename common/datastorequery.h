@@ -50,6 +50,7 @@ public:
     ~DataStoreQuery();
     ResultSet execute();
     ResultSet update(qint64 baseRevision);
+    void updateComplete();
 
     State::Ptr getState();
 

@@ -231,11 +231,11 @@ ReplayResult QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query 
     auto replayResult = resultSet.replaySet(0, 0, [this, query, &resultProvider](const ResultSet::Result &result) {
         resultProviderCallback(query, resultProvider, result);
     });
-
+    preparedQuery.updateComplete();
     SinkTraceCtx(mLogCtx) << "Replayed " << replayResult.replayedEntities << " results.\n"
         << (replayResult.replayedAll ? "Replayed all available results.\n" : "")
         << "Incremental query took: " << Log::TraceTime(time.elapsed());
-    return {entityStore.maxRevision(), replayResult.replayedEntities, replayResult.replayedAll, preparedQuery.getState()};
+    return {entityStore.maxRevision(), replayResult.replayedEntities, false, preparedQuery.getState()};
 }
 
 template <class DomainType>
@@ -264,7 +264,7 @@ ReplayResult QueryWorker<DomainType>::executeInitialQuery(
             return DataStoreQuery{modifiedQuery, ApplicationDomain::getTypeName<DomainType>(), entityStore};
         }
     }();
-    auto resultSet = preparedQuery.execute();;
+    auto resultSet = preparedQuery.execute();
 
     SinkTraceCtx(mLogCtx) << "Filtered set retrieved." << Log::TraceTime(time.elapsed());
     auto replayResult = resultSet.replaySet(0, batchsize, [this, query, &resultProvider](const ResultSet::Result &result) {
