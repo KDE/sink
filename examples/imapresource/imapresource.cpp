@@ -193,7 +193,7 @@ public:
         const auto remoteId = assembleMailRid(folderLocalId, message.uid);
 
         Q_ASSERT(message.msg);
-        SinkTraceCtx(mLogCtx) << "Found a mail " << remoteId << message.msg->subject(true)->asUnicodeString() << message.flags;
+        SinkTraceCtx(mLogCtx) << "Found a mail " << remoteId << message.flags;
 
         auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
         mail.setFolder(folderLocalId);

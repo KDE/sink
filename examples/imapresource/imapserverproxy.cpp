@@ -314,6 +314,7 @@ KAsync::Job<void> ImapServerProxy::fetch(const KIMAP2::ImapSet &set, KIMAP2::Fet
     fetch->setSequenceSet(set);
     fetch->setUidBased(true);
     fetch->setScope(scope);
+    fetch->setAvoidParsing(true);
     QObject::connect(fetch, &KIMAP2::FetchJob::resultReceived, callback);
     return runJob(fetch);
 }
