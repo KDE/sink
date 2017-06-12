@@ -615,10 +615,10 @@ public:
         auto login = imap->login(mUser, mPassword);
         KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
         if (operation == Sink::Operation_Creation) {
-            QString mailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
-            QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
-            auto flags = getFlags(mail);
-            QDateTime internalDate = mail.getDate();
+            const QString mailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
+            const QByteArray content = mail.getMimeMessage();
+            const auto flags = getFlags(mail);
+            const QDateTime internalDate = mail.getDate();
             job = login.then(imap->append(mailbox, content, flags, internalDate))
                 .addToContext(imap)
                 .then([mail](qint64 uid) {
@@ -649,11 +649,11 @@ public:
             const bool messageMoved = changedProperties.contains(ApplicationDomain::Mail::Folder::name);
             const bool messageChanged = changedProperties.contains(ApplicationDomain::Mail::MimeMessage::name);
             if (messageChanged || messageMoved) {
-                SinkTrace() << "Replacing message.";
                 const auto folderId = folderIdFromMailRid(oldRemoteId);
                 const QString oldMailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, folderId);
-                QByteArray content = KMime::LFtoCRLF(mail.getMimeMessage());
-                QDateTime internalDate = mail.getDate();
+                const QByteArray content = mail.getMimeMessage();
+                const QDateTime internalDate = mail.getDate();
+                SinkTrace() << "Replacing message. Old mailbox: " << oldMailbox << "New mailbox: " << mailbox << "Flags: " << flags << "Content: " << content;
                 KIMAP2::ImapSet set;
                 set.add(uid);
                 job = login.then(imap->append(mailbox, content, flags, internalDate))
