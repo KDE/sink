@@ -224,7 +224,8 @@ void MailSyncTest::testListNewSubFolder()
         for (const auto &folder : folders) {
             names << folder->getName();
         }
-        QVERIFY(names.contains("sub1"));
+        ASYNCVERIFY(names.contains("sub1"));
+        return KAsync::null();
     });
     VERIFYEXEC(job);
 }
@@ -252,7 +253,8 @@ void MailSyncTest::testListRemovedSubFolder()
         for (const auto &folder : folders) {
             names << folder->getName();
         }
-        QVERIFY(!names.contains("sub1"));
+        ASYNCVERIFY(!names.contains("sub1"));
+        return KAsync::null();
     });
     VERIFYEXEC(job);
 }
@@ -268,18 +270,19 @@ void MailSyncTest::testListMails()
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto job = Store::fetchAll<Mail>(query).then([](const QList<Mail::Ptr> &mails) {
-        QCOMPARE(mails.size(), 1);
+        ASYNCCOMPARE(mails.size(), 1);
         auto mail = mails.first();
-        QVERIFY(mail->getSubject().startsWith(QString("[Nepomuk] Jenkins build is still unstable")));
+        ASYNCVERIFY(mail->getSubject().startsWith(QString("[Nepomuk] Jenkins build is still unstable")));
         const auto data = mail->getMimeMessage();
-        QVERIFY(!data.isEmpty());
+        ASYNCVERIFY(!data.isEmpty());
 
         KMime::Message m;
         m.setContent(KMime::CRLFtoLF(data));
         m.parse();
-        QCOMPARE(mail->getSubject(), m.subject(true)->asUnicodeString());
-        QVERIFY(!mail->getFolder().isEmpty());
-        QVERIFY(mail->getDate().isValid());
+        ASYNCCOMPARE(mail->getSubject(), m.subject(true)->asUnicodeString());
+        ASYNCVERIFY(!mail->getFolder().isEmpty());
+        ASYNCVERIFY(mail->getDate().isValid());
+        return KAsync::null();
     });
     VERIFYEXEC(job);
 }
@@ -300,10 +303,11 @@ void MailSyncTest::testResyncMails()
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
     auto job = Store::fetchAll<Mail>(query).then([](const QList<Mail::Ptr> &mails) {
-        QCOMPARE(mails.size(), 1);
+        ASYNCCOMPARE(mails.size(), 1);
         auto mail = mails.first();
-        QVERIFY(!mail->getSubject().isEmpty());
-        QVERIFY(!mail->getMimeMessagePath().isEmpty());
+        ASYNCVERIFY(!mail->getSubject().isEmpty());
+        ASYNCVERIFY(!mail->getMimeMessagePath().isEmpty());
+        return KAsync::null();
     });
     VERIFYEXEC(job);
 }
@@ -328,7 +332,8 @@ void MailSyncTest::testFetchNewRemovedMessages()
 
     {
         auto job = Store::fetchAll<Mail>(query).then([](const QList<Mail::Ptr> &mails) {
-            QCOMPARE(mails.size(), 2);
+            ASYNCCOMPARE(mails.size(), 2);
+            return KAsync::null();
         });
         VERIFYEXEC(job);
     }
@@ -340,7 +345,8 @@ void MailSyncTest::testFetchNewRemovedMessages()
 
     {
         auto job = Store::fetchAll<Mail>(query).then([](const QList<Mail::Ptr> &mails) {
-            QCOMPARE(mails.size(), 1);
+            ASYNCCOMPARE(mails.size(), 1);
+            return KAsync::null();
         });
         VERIFYEXEC(job);
     }
@@ -363,7 +369,8 @@ void MailSyncTest::testFlagChange()
 
     {
         auto job = Store::fetchAll<Mail>(query).then([](const QList<Mail::Ptr> &mails) {
-            QCOMPARE(mails.size(), 0);
+            ASYNCCOMPARE(mails.size(), 0);
+            return KAsync::null();
         });
         VERIFYEXEC(job);
     }
@@ -376,8 +383,9 @@ void MailSyncTest::testFlagChange()
 
     {
         auto job = Store::fetchAll<Mail>(query).then([](const QList<Mail::Ptr> &mails) {
-            QCOMPARE(mails.size(), 1);
-            QVERIFY(mails.first()->getImportant());
+            ASYNCCOMPARE(mails.size(), 1);
+            ASYNCVERIFY(mails.first()->getImportant());
+            return KAsync::null();
         });
         VERIFYEXEC(job);
     }
@@ -392,8 +400,9 @@ void MailSyncTest::testSyncSingleFolder()
     Folder::Ptr folder;
     {
         auto job = Store::fetchAll<Folder>(Sink::Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>("test")).template then([&](const QList<Folder::Ptr> &folders) {
-            QCOMPARE(folders.size(), 1);
+            ASYNCCOMPARE(folders.size(), 1);
             folder = folders.first();
+            return KAsync::null();
         });
         VERIFYEXEC(job);
     }
@@ -417,11 +426,13 @@ void MailSyncTest::testSyncSingleMail()
     Mail::Ptr mail;
     {
         auto job = Store::fetchAll<Mail>(Sink::Query{}.resourceFilter(mResourceInstanceIdentifier)).template then([&](const QList<Mail::Ptr> &mails) {
-            QVERIFY(mails.size() >= 1);
+            ASYNCVERIFY(mails.size() >= 1);
             mail = mails.first();
+            return KAsync::null();
         });
         VERIFYEXEC(job);
     }
+    QVERIFY(mail);
 
     auto syncScope = Sink::SyncScope{ApplicationDomain::getTypeName<Mail>()};
     syncScope.resourceFilter(mResourceInstanceIdentifier);
