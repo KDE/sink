@@ -152,7 +152,7 @@ void MailTest::testCreateModifyDeleteMail()
     message->assemble();
 
     auto mail = Mail::create(mResourceInstanceIdentifier);
-    mail.setMimeMessage(message->encodedContent());
+    mail.setMimeMessage(message->encodedContent(true));
     mail.setFolder(folder);
 
     VERIFYEXEC(Store::create(mail));
@@ -166,7 +166,7 @@ void MailTest::testCreateModifyDeleteMail()
                 QCOMPARE(mail.getFolder(), folder.identifier());
                 QVERIFY(QFile(mail.getMimeMessagePath()).exists());
                 KMime::Message m;
-                m.setContent(mail.getMimeMessage());
+                m.setContent(KMime::CRLFtoLF(mail.getMimeMessage()));
                 m.parse();
                 QCOMPARE(m.subject(true)->asUnicodeString(), subject);
             });
@@ -182,7 +182,7 @@ void MailTest::testCreateModifyDeleteMail()
     auto message2 = KMime::Message::Ptr::create();
     message2->subject(true)->fromUnicodeString(subject2, "utf8");
     message2->assemble();
-    mail.setMimeMessage(message2->encodedContent());
+    mail.setMimeMessage(message2->encodedContent(true));
 
     VERIFYEXEC(Store::modify(mail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
@@ -195,7 +195,7 @@ void MailTest::testCreateModifyDeleteMail()
                 QCOMPARE(mail.getFolder(), folder.identifier());
                 QVERIFY(QFile(mail.getMimeMessagePath()).exists());
                 KMime::Message m;
-                m.setContent(mail.getMimeMessage());
+                m.setContent(KMime::CRLFtoLF(mail.getMimeMessage()));
                 m.parse();
                 QCOMPARE(m.subject(true)->asUnicodeString(), subject2);
             });
@@ -237,7 +237,7 @@ void MailTest::testMoveMail()
     message->assemble();
 
     auto mail = Mail::create(mResourceInstanceIdentifier);
-    mail.setMimeMessage(message->encodedContent());
+    mail.setMimeMessage(message->encodedContent(true));
     mail.setFolder(folder);
 
     VERIFYEXEC(Store::create(mail));
@@ -289,7 +289,7 @@ void MailTest::testMarkMailAsRead()
     message->assemble();
 
     auto mail = Mail::create(mResourceInstanceIdentifier);
-    mail.setMimeMessage(message->encodedContent());
+    mail.setMimeMessage(message->encodedContent(true));
     mail.setFolder(folder);
     mail.setUnread(true);
     VERIFYEXEC(Store::create(mail));
@@ -341,7 +341,7 @@ void MailTest::testCreateDraft()
     message->assemble();
 
     auto mail = ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
-    mail.setMimeMessage(message->encodedContent());
+    mail.setMimeMessage(message->encodedContent(true));
     mail.setDraft(true);
 
     VERIFYEXEC(Store::create(mail));
@@ -391,7 +391,7 @@ void MailTest::testModifyMailToDraft()
     message->assemble();
 
     auto mail = ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
-    mail.setMimeMessage(message->encodedContent());
+    mail.setMimeMessage(message->encodedContent(true));
     mail.setDraft(false);
     mail.setFolder(folder);
 
@@ -438,7 +438,7 @@ void MailTest::testModifyMailToTrash()
     message->assemble();
 
     auto mail = ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
-    mail.setMimeMessage(message->encodedContent());
+    mail.setMimeMessage(message->encodedContent(true));
     mail.setTrash(false);
     mail.setFolder(folder);
 

@@ -275,7 +275,7 @@ void MailSyncTest::testListMails()
         QVERIFY(!data.isEmpty());
 
         KMime::Message m;
-        m.setContent(data);
+        m.setContent(KMime::CRLFtoLF(data));
         m.parse();
         QCOMPARE(mail->getSubject(), m.subject(true)->asUnicodeString());
         QVERIFY(!mail->getFolder().isEmpty());

@@ -197,7 +197,7 @@ public:
 
         auto mail = Sink::ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
         mail.setFolder(folderLocalId);
-        mail.setMimeMessage(message.msg->encodedContent());
+        mail.setMimeMessage(message.msg->encodedContent(true));
         mail.setExtractedFullPayloadAvailable(message.fullPayload);
         setFlags(mail, message.flags);
 
@@ -608,6 +608,15 @@ public:
         }
         return KAsync::error<void>("Nothing to do");
     }
+    static QByteArray ensureCRLF(const QByteArray &data) {
+        auto index = data.indexOf('\n');
+        if (index > 0 && data.at(index - 1) == '\r') { //First line is LF-only terminated
+            //Convert back and forth in case there's a mix. We don't want to expand CRLF into CRCRLF.
+            return KMime::LFtoCRLF(KMime::CRLFtoLF(data));
+        } else {
+            return data;
+        }
+    }
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
@@ -616,7 +625,7 @@ public:
         KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
         if (operation == Sink::Operation_Creation) {
             const QString mailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
-            const QByteArray content = mail.getMimeMessage();
+            const auto content = ensureCRLF(mail.getMimeMessage());
             const auto flags = getFlags(mail);
             const QDateTime internalDate = mail.getDate();
             job = login.then(imap->append(mailbox, content, flags, internalDate))
@@ -651,7 +660,7 @@ public:
             if (messageChanged || messageMoved) {
                 const auto folderId = folderIdFromMailRid(oldRemoteId);
                 const QString oldMailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, folderId);
-                const QByteArray content = mail.getMimeMessage();
+                const auto content = ensureCRLF(mail.getMimeMessage());
                 const QDateTime internalDate = mail.getDate();
                 SinkTrace() << "Replacing message. Old mailbox: " << oldMailbox << "New mailbox: " << mailbox << "Flags: " << flags << "Content: " << content;
                 KIMAP2::ImapSet set;

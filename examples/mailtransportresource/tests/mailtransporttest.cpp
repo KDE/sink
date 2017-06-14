@@ -64,7 +64,7 @@ private slots:
         message->assemble();
 
         auto mail = ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
-        mail.setMimeMessage(message->encodedContent());
+        mail.setMimeMessage(message->encodedContent(true));
 
         VERIFYEXEC(Store::create(mail));
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
@@ -92,7 +92,7 @@ private slots:
         message->assemble();
 
         auto mail = ApplicationDomain::Mail::create(mResourceInstanceIdentifier);
-        mail.setMimeMessage(message->encodedContent());
+        mail.setMimeMessage(message->encodedContent(true));
 
         VERIFYEXEC(Store::create(mail));
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
