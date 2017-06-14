@@ -834,6 +834,10 @@ protected:
                 .then(imap->select(folderRemoteId))
                 .then([](Imap::SelectResult){})
                 .then(imap->fetch(set, scope, [imap, messageByUid](const Imap::Message &message) {
+                    //We avoid parsing normally, so we have to do it explicitly here
+                    if (message.msg) {
+                        message.msg->parse();
+                    }
                     messageByUid->insert(message.uid, message);
                 }));
 
