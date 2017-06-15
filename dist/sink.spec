@@ -1,7 +1,7 @@
 
 Name:           sink
 Version:        0.3
-Release:	    8%{?dist}
+Release:	    9%{?dist}
 Summary:        sink
 
 Group:          Applications/Desktop
