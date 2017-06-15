@@ -415,9 +415,8 @@ public:
             list << Synchronizer::SyncRequest{query};
         } else {
             list << Synchronizer::SyncRequest{Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Folder>())};
-            //TODO automatic syncing off all folders is disabled for the time being
             //This request depends on the previous one so we flush first.
-            //list << Synchronizer::SyncRequest{applyMailDefaults(Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Mail>())), QByteArray{}, Synchronizer::SyncRequest::RequestFlush};
+            list << Synchronizer::SyncRequest{applyMailDefaults(Sink::QueryBase(ApplicationDomain::getTypeName<ApplicationDomain::Mail>())), QByteArray{}, Synchronizer::SyncRequest::RequestFlush};
         }
         return list;
     }
