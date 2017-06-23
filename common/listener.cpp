@@ -405,6 +405,7 @@ void Listener::updateClientsWithRevision(qint64 revision)
 
         SinkTrace() << "Sending revision update for " << client.name << revision;
         Sink::Commands::write(client.socket, ++m_messageId, Sink::Commands::RevisionUpdateCommand, m_fbb);
+        client.socket->flush();
     }
     m_fbb.Clear();
 }
