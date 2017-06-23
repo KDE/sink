@@ -38,7 +38,7 @@ static flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::
 {
     std::vector<flatbuffers::Offset<flatbuffers::String>> modifiedPropertiesList;
     for (const auto &change : list) {
-        auto s = fbb.CreateString(change);
+        auto s = fbb.CreateString(change.toStdString());
         modifiedPropertiesList.push_back(s);
     }
     return fbb.CreateVector(modifiedPropertiesList);
