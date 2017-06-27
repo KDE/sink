@@ -58,7 +58,9 @@ template <>
 flatbuffers::uoffset_t variantToProperty<QByteArray>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
 {
     if (property.isValid()) {
-        return fbb.CreateString(property.toByteArray().toStdString()).o;
+        const auto ba = property.toByteArray();
+        const auto s = fbb.CreateString(ba.constData(), ba.size());
+        return s.o;
     }
     return 0;
 }
@@ -135,7 +137,7 @@ QString propertyToString(const flatbuffers::String *property)
 {
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
-        return QString::fromStdString(property->c_str());
+        return QString::fromStdString(property->str());
     }
     return QString();
 }
@@ -145,7 +147,7 @@ QVariant propertyToVariant<QString>(const flatbuffers::String *property)
 {
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
-        return QString::fromStdString(property->c_str());
+        return QString::fromStdString(property->str());
     }
     return QVariant();
 }
@@ -155,7 +157,7 @@ QVariant propertyToVariant<Sink::ApplicationDomain::BLOB>(const flatbuffers::Str
 {
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
-        auto s = QString::fromStdString(property->c_str());
+        auto s = QString::fromStdString(property->str());
         auto ext = s.endsWith(":ext");
         s.chop(4);
 
@@ -171,7 +173,7 @@ QVariant propertyToVariant<Sink::ApplicationDomain::Reference>(const flatbuffers
 {
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
-        return QVariant::fromValue(Sink::ApplicationDomain::Reference{QString::fromStdString(property->c_str()).toUtf8()});
+        return QVariant::fromValue(Sink::ApplicationDomain::Reference{QString::fromStdString(property->str()).toUtf8()});
     }
     return QVariant();
 }
@@ -181,7 +183,7 @@ QVariant propertyToVariant<QByteArray>(const flatbuffers::String *property)
 {
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
-        return QString::fromStdString(property->c_str()).toUtf8();
+        return QByteArray(property->c_str(), property->Length());
     }
     return QVariant();
 }
@@ -203,7 +205,7 @@ QVariant propertyToVariant<QByteArrayList>(const flatbuffers::Vector<flatbuffers
         QByteArrayList list;
         for (auto it = property->begin(); it != property->end();) {
             // We have to copy the memory, otherwise it would become eventually invalid
-            list << QString::fromStdString((*it)->c_str()).toUtf8();
+            list << QString::fromStdString((*it)->str()).toUtf8();
             it.operator++();
         }
         return QVariant::fromValue(list);
