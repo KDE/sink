@@ -153,6 +153,7 @@ void TypeImplementation<Contact>::configure(PropertyMapper &propertyMapper)
     SINK_REGISTER_SERIALIZER(propertyMapper, Contact, Addressbook, addressbook);
     SINK_REGISTER_SERIALIZER(propertyMapper, Contact, Firstname, firstname);
     SINK_REGISTER_SERIALIZER(propertyMapper, Contact, Lastname, lastname);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Contact, Photo, photo);
 }
 
 void TypeImplementation<Contact>::configure(IndexPropertyMapper &)

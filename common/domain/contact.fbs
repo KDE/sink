@@ -13,6 +13,7 @@ table Contact {
   addressbook:string;
   emails: [ContactEmail];
   vcard: string;
+  photo: string;
 }
 
 root_type Contact;

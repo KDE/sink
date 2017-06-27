@@ -377,6 +377,7 @@ struct SINK_EXPORT Contact : public Entity {
     SINK_PROPERTY(QString, Lastname, lastname);
     SINK_PROPERTY(QList<Email>, Emails, emails);
     SINK_PROPERTY(QByteArray, Vcard, vcard);
+    SINK_PROPERTY(QByteArray, Photo, photo);
     SINK_REFERENCE_PROPERTY(Addressbook, Addressbook, addressbook);
 };
 

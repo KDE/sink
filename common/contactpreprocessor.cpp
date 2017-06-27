@@ -35,6 +35,9 @@ void updatedProperties(Sink::ApplicationDomain::Contact &contact, const KContact
         emails << Sink::ApplicationDomain::Contact::Email{Sink::ApplicationDomain::Contact::Email::Undefined, email};
     }
     contact.setEmails(emails);
+
+    const auto photo = addressee.photo().rawData();
+    contact.setPhoto(photo);
 }
 
 ContactPropertyExtractor::~ContactPropertyExtractor()
