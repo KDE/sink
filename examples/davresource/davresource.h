@@ -21,7 +21,7 @@
 
 #include "common/genericresource.h"
 
-#include <KDAV/DavUrl>
+#include <KDAV2/DavUrl>
 #include <KAsync/Async>
 
 #include <flatbuffers/flatbuffers.h>
@@ -48,7 +48,7 @@ public:
 private:
     QStringList listAvailableFolders();
 
-    KDAV::DavUrl mResourceUrl;
+    KDAV2::DavUrl mResourceUrl;
 };
 
 class DavResourceFactory : public Sink::ResourceFactory

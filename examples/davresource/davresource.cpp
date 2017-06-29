@@ -31,12 +31,12 @@
 
 #include "contactpreprocessor.h"
 
-#include <KDAV/DavCollection>
-#include <KDAV/DavCollectionsFetchJob>
-#include <KDAV/DavItem>
-#include <KDAV/DavItemsListJob>
-#include <KDAV/DavItemFetchJob>
-#include <KDAV/EtagCache>
+#include <KDAV2/DavCollection>
+#include <KDAV2/DavCollectionsFetchJob>
+#include <KDAV2/DavItem>
+#include <KDAV2/DavItemsListJob>
+#include <KDAV2/DavItemFetchJob>
+#include <KDAV2/EtagCache>
 
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_CONTACT "contact"
@@ -85,7 +85,7 @@ public:
         return remoteId;
     }
 
-    void synchronizeAddressbooks(const KDAV::DavCollection::List &addressbookList)
+    void synchronizeAddressbooks(const KDAV2::DavCollection::List &addressbookList)
     {
         const QByteArray bufferType = ENTITY_TYPE_ADDRESSBOOK;
         SinkTrace() << "Found addressbooks " << addressbookList.size();
@@ -119,12 +119,12 @@ public:
         return list;
     }
 
-    static QByteArray getRid(const KDAV::DavItem &item)
+    static QByteArray getRid(const KDAV2::DavItem &item)
     {
         return item.url().toDisplayString().toUtf8();
     }
 
-    static QByteArray getRid(const KDAV::DavCollection &item)
+    static QByteArray getRid(const KDAV2::DavCollection &item)
     {
         return item.url().toDisplayString().toUtf8();
     }
@@ -133,7 +133,7 @@ public:
     {
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Addressbook>()) {
             SinkLogCtx(mLogCtx) << "Synchronizing addressbooks:" <<  mResourceUrl.url();
-            auto collectionsFetchJob = new KDAV::DavCollectionsFetchJob(mResourceUrl);
+            auto collectionsFetchJob = new KDAV2::DavCollectionsFetchJob(mResourceUrl);
             auto job = runJob(collectionsFetchJob).then([this, collectionsFetchJob] (const KAsync::Error &error) {
                 if (error) {
                     SinkWarningCtx(mLogCtx) << "Failed to synchronize addressbooks." << collectionsFetchJob->errorString();
@@ -145,29 +145,29 @@ public:
         } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Contact>()) {
             SinkLogCtx(mLogCtx) << "Synchronizing contacts.";
             auto ridList = QSharedPointer<QByteArrayList>::create();
-            auto collectionsFetchJob = new KDAV::DavCollectionsFetchJob(mResourceUrl);
+            auto collectionsFetchJob = new KDAV2::DavCollectionsFetchJob(mResourceUrl);
             auto job = runJob(collectionsFetchJob).then([this, collectionsFetchJob] {
                 synchronizeAddressbooks(collectionsFetchJob ->collections());
                 return collectionsFetchJob->collections();
             })
-            .serialEach([this, ridList](const KDAV::DavCollection &collection) {
+            .serialEach([this, ridList](const KDAV2::DavCollection &collection) {
                 auto collId = getRid(collection);
                 const auto addressbookLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_ADDRESSBOOK, collId);
                 auto ctag = collection.CTag().toLatin1();
                 if (ctag != syncStore().readValue(collId + "_ctagXX")) {
                     SinkTraceCtx(mLogCtx) << "Syncing " << collId;
-                    auto cache = std::shared_ptr<KDAV::EtagCache>(new KDAV::EtagCache());
-                    auto davItemsListJob = new KDAV::DavItemsListJob(collection.url(), cache);
+                    auto cache = std::shared_ptr<KDAV2::EtagCache>(new KDAV2::EtagCache());
+                    auto davItemsListJob = new KDAV2::DavItemsListJob(collection.url(), cache);
                     const QByteArray bufferType = ENTITY_TYPE_CONTACT;
                     QHash<QByteArray, Query::Comparator> mergeCriteria;
                     auto colljob = runJob(davItemsListJob).then([davItemsListJob] {
                         return KAsync::value(davItemsListJob->items());
                     })
-                    .serialEach([=] (const KDAV::DavItem &item) {
+                    .serialEach([=] (const KDAV2::DavItem &item) {
                         QByteArray rid = getRid(item);
                         if (item.etag().toLatin1() != syncStore().readValue(rid + "_etag")){
                             SinkTrace() << "Updating " << rid;
-                            auto davItemFetchJob = new KDAV::DavItemFetchJob(item);
+                            auto davItemFetchJob = new KDAV2::DavItemFetchJob(item);
                             auto itemjob = runJob(davItemFetchJob)
                             .then([=] {
                                 const auto item = davItemFetchJob->item();
@@ -178,7 +178,7 @@ public:
                                 createOrModify(bufferType, rid, contact, mergeCriteria);
                                 return item;
                             })
-                            .then([this, ridList] (const KDAV::DavItem &item) {
+                            .then([this, ridList] (const KDAV2::DavItem &item) {
                                 const auto rid = getRid(item);
                                 syncStore().writeValue(rid + "_etag", item.etag().toLatin1());
                                 ridList->append(rid);
@@ -225,7 +225,7 @@ KAsync::Job<QByteArray> replay(const ApplicationDomain::Contact &contact, Sink::
     }
 
 public:
-    KDAV::DavUrl mResourceUrl;
+    KDAV2::DavUrl mResourceUrl;
 };
 
 
@@ -242,7 +242,7 @@ DavResource::DavResource(const Sink::ResourceContext &resourceContext)
     resourceUrl.setUserName(config.value("username").toString());
     resourceUrl.setPassword(config.value("password").toString());
 
-    mResourceUrl = KDAV::DavUrl(resourceUrl, KDAV::CardDav);
+    mResourceUrl = KDAV2::DavUrl(resourceUrl, KDAV2::CardDav);
 
     auto synchronizer = QSharedPointer<ContactSynchronizer>::create(resourceContext);
     synchronizer->mResourceUrl = mResourceUrl;
