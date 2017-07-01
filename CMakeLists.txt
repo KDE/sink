@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0048 NEW)
 cmake_policy(SET CMP0028 NEW)
 
-project(sink VERSION 0.3)
+project(sink VERSION 0.3.0)
 
 option(BUILD_MAILDIR "BUILD_MAILDIR" ON)
 option(BUILD_DAV "BUILD_DAV" ON)
