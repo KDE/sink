@@ -39,8 +39,6 @@
 #include "test.h"
 #include "definitions.h"
 
-SINK_DEBUG_AREA("main")
-
 static Listener *listener = nullptr;
 
 //Print a demangled stacktrace

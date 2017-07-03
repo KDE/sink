@@ -5,6 +5,8 @@ table Notification {
     identifier: string; //An identifier that links back to the something related to the notification (e.g. a command id)
     message: string;
     code: int = 0; //See notification.h
+    progress: int = 0; //See notification.h
+    total: int = 0; //See notification.h
     entities: [string]; //A list of entities this applies to
 }
 

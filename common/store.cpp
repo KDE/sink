@@ -36,8 +36,6 @@
 #include "storage.h"
 #include "log.h"
 
-SINK_DEBUG_AREA("store")
-
 Q_DECLARE_METATYPE(QSharedPointer<Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>>)
 Q_DECLARE_METATYPE(QSharedPointer<Sink::ResourceAccessInterface>);
 Q_DECLARE_METATYPE(std::shared_ptr<void>);
@@ -274,6 +272,19 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
         })
         .then([time]() {
             SinkTrace() << "Remove from disk complete." << Log::TraceTime(time->elapsed());
+        });
+}
+
+KAsync::Job<void> Store::upgrade()
+{
+    SinkLog() << "Upgrading...";
+    return fetchAll<ApplicationDomain::SinkResource>({})
+        .template each([](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {
+            SinkLog() << "Removing caches for " << resource->identifier();
+            return removeDataFromDisk(resource->identifier());
+        })
+        .then([] {
+            SinkLog() << "Upgrade complete.";
         });
 }
 

@@ -30,8 +30,6 @@
 #include "log.h"
 #include "notifier.h"
 
-SINK_DEBUG_AREA("resourcecontrol")
-
 namespace Sink {
 
 KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)

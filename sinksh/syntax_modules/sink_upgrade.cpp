@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2015 Christian Mollekopf <chrigi_1@fastmail.fm>
+ *   Copyright (C) 2017 Christian Mollekopf <mollekopf@kolabsys.com>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -17,28 +17,31 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include "domainadaptor.h"
+#include <QDebug>
+#include <QObject> // tr()
+#include <QTimer>
 
-#include "dummycalendar_generated.h"
-#include "applicationdomaintype.h"
+#include "common/store.h"
 
-using namespace DummyCalendar;
-using namespace flatbuffers;
+#include "state.h"
+#include "syntaxtree.h"
 
-DummyEventAdaptorFactory::DummyEventAdaptorFactory()
-    : DomainTypeAdaptorFactory()
-{
-}
-
-DummyMailAdaptorFactory::DummyMailAdaptorFactory()
-    : DomainTypeAdaptorFactory()
+namespace SinkUpgrade
 {
 
-}
-
-DummyFolderAdaptorFactory::DummyFolderAdaptorFactory()
-    : DomainTypeAdaptorFactory()
+bool upgrade(const QStringList &args, State &state)
 {
-
+    state.print(QObject::tr("Upgrading..."));
+    Sink::Store::upgrade().exec().waitForFinished();
+    state.printLine(QObject::tr("done"));
+    return true;
 }
 
+Syntax::List syntax()
+{
+    return Syntax::List() << Syntax{"upgrade", QObject::tr("Upgrades your storage to the latest version (be careful!)"), &SinkUpgrade::upgrade, Syntax::NotInteractive};
+}
+
+REGISTER_SYNTAX(SinkUpgrade)
+
+}

@@ -95,6 +95,15 @@ public:
     template <typename LeftType, typename RightType>
     void index(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction);
 
+    template <typename Left, typename Right>
+    void unindex(const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction)
+    {
+        index<typename Left::Type, typename Right::Type>(Left::name, Right::name, leftValue, rightValue, transaction);
+    }
+
+    template <typename LeftType, typename RightType>
+    void unindex(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction);
+
 
 private:
     friend class Sink::Storage::EntityStore;

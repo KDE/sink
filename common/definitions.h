@@ -25,6 +25,7 @@
 #include <QByteArray>
 
 namespace Sink {
+void SINK_EXPORT clearLocationCache();
 QString SINK_EXPORT storageLocation();
 QString SINK_EXPORT dataLocation();
 QString SINK_EXPORT configLocation();

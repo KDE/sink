@@ -24,8 +24,6 @@
 #include "log.h"
 #include <QUuid>
 
-SINK_DEBUG_AREA("storage")
-
 QDebug& operator<<(QDebug &dbg, const Sink::Storage::DataStore::Error &error)
 {
     dbg << error.message << "Code: " << error.code << "Db: " << error.store;
@@ -37,6 +35,18 @@ namespace Storage {
 
 static const char *s_internalPrefix = "__internal";
 static const int s_internalPrefixSize = strlen(s_internalPrefix);
+
+DbLayout::DbLayout()
+{
+
+}
+
+DbLayout::DbLayout(const QByteArray &n, const Databases &t)
+    : name(n),
+    tables(t)
+{
+
+}
 
 void errorHandler(const DataStore::Error &error)
 {
@@ -113,7 +123,7 @@ QByteArray DataStore::getUidFromRevision(const DataStore::Transaction &transacti
     transaction.openDatabase("revisions")
         .scan(QByteArray::number(revision),
             [&](const QByteArray &, const QByteArray &value) -> bool {
-                uid = value;
+                uid = QByteArray{value.constData(), value.size()};
                 return false;
             },
             [revision](const Error &error) { SinkWarning() << "Couldn't find uid for revision: " << revision << error.message; });
@@ -126,7 +136,7 @@ QByteArray DataStore::getTypeFromRevision(const DataStore::Transaction &transact
     transaction.openDatabase("revisionType")
         .scan(QByteArray::number(revision),
             [&](const QByteArray &, const QByteArray &value) -> bool {
-                type = value;
+                type = QByteArray{value.constData(), value.size()};
                 return false;
             },
             [revision](const Error &error) { SinkWarning() << "Couldn't find type for revision " << revision; });
@@ -207,6 +217,11 @@ QByteArray DataStore::generateUid()
 
 DataStore::NamedDatabase DataStore::mainDatabase(const DataStore::Transaction &t, const QByteArray &type)
 {
+    if (type.isEmpty()) {
+        SinkError() << "Tried to open main database for empty type.";
+        Q_ASSERT(false);
+        return {};
+    }
     return t.openDatabase(type + ".main");
 }
 

@@ -48,7 +48,7 @@ class InterResourceMoveTest : public QObject
         m.subject(true)->fromUnicodeString(subject, "utf8");
         m.messageID(true)->setIdentifier(uid);
         m.assemble();
-        return m.encodedContent();
+        return m.encodedContent(true);
     }
 
 private slots:

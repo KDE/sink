@@ -224,7 +224,6 @@ QModelIndex ModelResult<T, Ptr>::index(int row, int column, const QModelIndex &p
         return createIndex(row, column, childId);
     }
     SinkWarningCtx(mLogCtx) << "Index not available " << row << column << parent;
-    Q_ASSERT(false);
     return QModelIndex();
 }
 

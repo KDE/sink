@@ -21,18 +21,20 @@
 #include "log.h"
 #include "index.h"
 #include <QDateTime>
-
-SINK_DEBUG_AREA("typeindex")
+#include <QDataStream>
 
 using namespace Sink;
 
 static QByteArray getByteArray(const QVariant &value)
 {
     if (value.type() == QVariant::DateTime) {
-        const auto result = value.toDateTime().toString().toLatin1();
-        if (result.isEmpty()) {
-            return "nodate";
-        }
+        QByteArray result;
+        QDataStream ds(&result, QIODevice::WriteOnly);
+        ds << value.toDateTime();
+        return result;
+    }
+    if (value.type() == QVariant::Bool) {
+        return value.toBool() ? "t" : "f";
     }
     if (value.canConvert<Sink::ApplicationDomain::Reference>()) {
         const auto ba = value.value<Sink::ApplicationDomain::Reference>().value;
@@ -74,6 +76,20 @@ void TypeIndex::addProperty<QByteArray>(const QByteArray &property)
 {
     auto indexer = [this, property](bool add, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
         // SinkTraceCtx(mLogCtx) << "Indexing " << mType + ".index." + property << value.toByteArray();
+        if (add) {
+            Index(indexName(property), transaction).add(getByteArray(value), identifier);
+        } else {
+            Index(indexName(property), transaction).remove(getByteArray(value), identifier);
+        }
+    };
+    mIndexer.insert(property, indexer);
+    mProperties << property;
+}
+
+template <>
+void TypeIndex::addProperty<bool>(const QByteArray &property)
+{
+    auto indexer = [this, property](bool add, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
         if (add) {
             Index(indexName(property), transaction).add(getByteArray(value), identifier);
         } else {
@@ -263,6 +279,18 @@ template <>
 void TypeIndex::index<QString, QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction)
 {
     Index(indexName(leftName + rightName), transaction).add(getByteArray(leftValue), getByteArray(rightValue));
+}
+
+template <>
+void TypeIndex::unindex<QByteArray, QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction)
+{
+    Index(indexName(leftName + rightName), transaction).remove(getByteArray(leftValue), getByteArray(rightValue));
+}
+
+template <>
+void TypeIndex::unindex<QString, QByteArray>(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction)
+{
+    Index(indexName(leftName + rightName), transaction).remove(getByteArray(leftValue), getByteArray(rightValue));
 }
 
 template <>

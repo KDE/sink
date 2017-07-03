@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2014 Aaron Seigo <aseigo@kde.org>
+ * Copyright (C) 2016 Christian Mollekopf <mollekopf@kolabsys.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,7 +21,7 @@
 
 #include "commands.h"
 
-#include <QIODevice>
+#include <QLocalSocket>
 #include <log.h>
 
 namespace Sink {
@@ -73,19 +74,19 @@ int headerSize()
     return sizeof(int) + (sizeof(uint) * 2);
 }
 
-void write(QIODevice *device, int messageId, int commandId)
+void write(QLocalSocket *device, int messageId, int commandId)
 {
     write(device, messageId, commandId, 0, 0);
 }
 
-static void write(QIODevice *device, const char *buffer, uint size)
+static void write(QLocalSocket *device, const char *buffer, uint size)
 {
     if (device->write(buffer, size) < 0) {
         SinkWarningCtx(Sink::Log::Context{"commands"}) << "Error while writing " << device->errorString();
     }
 }
 
-void write(QIODevice *device, int messageId, int commandId, const char *buffer, uint size)
+void write(QLocalSocket *device, int messageId, int commandId, const char *buffer, uint size)
 {
     if (size > 0 && !buffer) {
         size = 0;
@@ -97,15 +98,16 @@ void write(QIODevice *device, int messageId, int commandId, const char *buffer, 
     if (buffer) {
         write(device, buffer, size);
     }
+    //The default implementation will happily buffer 200k bytes before sending it out which doesn't make the sytem exactly responsive.
+    //1k is arbitrary, but fits a bunch of messages at least.
+    if (device->bytesToWrite() > 1000) {
+        device->flush();
+    }
 }
 
-void write(QIODevice *device, int messageId, int commandId, flatbuffers::FlatBufferBuilder &fbb)
+void write(QLocalSocket *device, int messageId, int commandId, flatbuffers::FlatBufferBuilder &fbb)
 {
-    const int dataSize = fbb.GetSize();
-    write(device, (const char *)&messageId, sizeof(int));
-    write(device, (const char *)&commandId, sizeof(int));
-    write(device, (const char *)&dataSize, sizeof(int));
-    write(device, (const char *)fbb.GetBufferPointer(), dataSize);
+    write(device, messageId, commandId, (const char *)fbb.GetBufferPointer(), fbb.GetSize());
 }
 
 } // namespace Commands

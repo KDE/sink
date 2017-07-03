@@ -36,9 +36,75 @@
 using namespace Sink;
 using namespace Sink::Storage;
 
+static QMap<QByteArray, int> baseDbs()
+{
+    return {{"revisionType", 0},
+            {"revisions", 0},
+            {"uids", 0},
+            {"default", 0},
+            {"__flagtable", 0}};
+}
+
+template <typename T, typename First>
+void mergeImpl(T &map, First f)
+{
+    for (auto it = f.constBegin(); it != f.constEnd(); it++) {
+        map.insert(it.key(), it.value());
+    }
+}
+
+template <typename T, typename First, typename ... Tail>
+void mergeImpl(T &map, First f, Tail ...maps)
+{
+    for (auto it = f.constBegin(); it != f.constEnd(); it++) {
+        map.insert(it.key(), it.value());
+    }
+    mergeImpl<T, Tail...>(map, maps...);
+}
+
+template <typename First, typename ... Tail>
+First merge(First f, Tail ...maps)
+{
+    First map;
+    mergeImpl(map, f, maps...);
+    return map;
+}
+
+template <class T>
+struct DbLayoutHelper {
+    void operator()(QMap<QByteArray, int> map) const {
+        mergeImpl(map, ApplicationDomain::TypeImplementation<T>::typeDatabases());
+    }
+};
+
+static Sink::Storage::DbLayout dbLayout(const QByteArray &instanceId)
+{
+    static auto databases = [] {
+        QMap<QByteArray, int> map;
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Mail>::typeDatabases());
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::typeDatabases());
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Contact>::typeDatabases());
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Addressbook>::typeDatabases());
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::typeDatabases());
+        return merge(baseDbs(), map);
+    }();
+    return {instanceId, databases};
+}
+
+
 class EntityStore::Private {
 public:
-    Private(const ResourceContext &context, const Sink::Log::Context &ctx) : resourceContext(context), logCtx(ctx.subContext("entitystore")) {}
+    Private(const ResourceContext &context, const Sink::Log::Context &ctx) : resourceContext(context), logCtx(ctx.subContext("entitystore"))
+    {
+        static bool initialized = false;
+        if (!initialized) {
+            if (QDir{}.mkpath(entityBlobStorageDir())) {
+                initialized = true;
+            } else {
+                SinkWarningCtx(logCtx) << "Failed to create the directory: " << entityBlobStorageDir();
+            }
+        }
+    }
 
     ResourceContext resourceContext;
     DataStore::Transaction transaction;
@@ -56,7 +122,7 @@ public:
             return transaction;
         }
 
-        Sink::Storage::DataStore store(Sink::storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly);
+        Sink::Storage::DataStore store(Sink::storageLocation(), dbLayout(resourceContext.instanceId()), DataStore::ReadOnly);
         transaction = store.createTransaction(DataStore::ReadOnly);
         return transaction;
     }
@@ -93,9 +159,14 @@ public:
         return ApplicationDomain::ApplicationDomainType{resourceContext.instanceId(), uid, revision, adaptor};
     }
 
+    QString entityBlobStorageDir()
+    {
+        return Sink::resourceStorageLocation(resourceContext.instanceId()) + "/blob";
+    }
+
     QString entityBlobStoragePath(const QByteArray &id)
     {
-        return Sink::resourceStorageLocation(resourceContext.instanceId()) + "/blob/" + id;
+        return entityBlobStorageDir() +"/"+ id;
     }
 
 };
@@ -110,9 +181,8 @@ void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMo
 {
     SinkTraceCtx(d->logCtx) << "Starting transaction: " << accessMode;
     Q_ASSERT(!d->transaction);
-    Sink::Storage::DataStore store(Sink::storageLocation(), d->resourceContext.instanceId(), accessMode);
+    Sink::Storage::DataStore store(Sink::storageLocation(), dbLayout(d->resourceContext.instanceId()), accessMode);
     d->transaction = store.createTransaction(accessMode);
-    Q_ASSERT(d->transaction.validateNamedDatabases());
 }
 
 void EntityStore::commitTransaction()
@@ -138,9 +208,6 @@ bool EntityStore::hasTransaction() const
 void EntityStore::copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qint64 newRevision)
 {
     const auto directory = d->entityBlobStoragePath(entity.identifier());
-    if (!QDir().mkpath(directory)) {
-        SinkWarningCtx(d->logCtx) << "Failed to create the directory: " << directory;
-    }
 
     for (const auto &property : entity.changedProperties()) {
         const auto value = entity.getProperty(property);
@@ -149,7 +216,7 @@ void EntityStore::copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qi
             //Any blob that is not part of the storage yet has to be moved there.
             if (blob.isExternal) {
                 auto oldPath = blob.value;
-                auto filePath = directory + QString("/%1%2.blob").arg(QString::number(newRevision)).arg(QString::fromLatin1(property));
+                auto filePath = directory + QString("_%1%2.blob").arg(QString::number(newRevision)).arg(QString::fromLatin1(property));
                 //In case we hit the same revision again due to a rollback.
                 QFile::remove(filePath);
                 QFile origFile(oldPath);
@@ -320,6 +387,11 @@ void EntityStore::cleanupEntityRevisionsUntil(qint64 revision)
 {
     const auto uid = DataStore::getUidFromRevision(d->transaction, revision);
     const auto bufferType = DataStore::getTypeFromRevision(d->transaction, revision);
+    if (bufferType.isEmpty() || uid.isEmpty()) {
+        SinkErrorCtx(d->logCtx) << "Failed to find revision during cleanup: " << revision;
+        Q_ASSERT(false);
+        return;
+    }
     SinkTraceCtx(d->logCtx) << "Cleaning up revision " << revision << uid << bufferType;
     DataStore::mainDatabase(d->transaction, bufferType)
         .scan(uid,
@@ -337,10 +409,10 @@ void EntityStore::cleanupEntityRevisionsUntil(qint64 revision)
                         DataStore::mainDatabase(d->transaction, bufferType).remove(key);
                     }
                     if (isRemoval) {
-                        const auto directory = d->entityBlobStoragePath(uid);
-                        QDir dir(directory);
-                        if (!dir.removeRecursively()) {
-                            SinkErrorCtx(d->logCtx) << "Failed to cleanup: " << directory;
+                        QDir dir{d->entityBlobStorageDir()};
+                        const auto infoList = dir.entryInfoList(QStringList{} << QString{uid + "*"});
+                        for (const auto &fileInfo : infoList) {
+                            QFile::remove(fileInfo.filePath());
                         }
                     }
                     //Don't cleanup more than specified
@@ -613,29 +685,6 @@ qint64 EntityStore::maxRevision()
     }
     return DataStore::maxRevision(d->getTransaction());
 }
-
-/* DataStore::Transaction getTransaction() */
-/* { */
-/*     Sink::Storage::DataStore::Transaction transaction; */
-/*     { */
-/*         Sink::Storage::DataStore storage(Sink::storageLocation(), mResourceInstanceIdentifier); */
-/*         if (!storage.exists()) { */
-/*             //This is not an error if the resource wasn't started before */
-/*             SinkLogCtx(d->logCtx) << "Store doesn't exist: " << mResourceInstanceIdentifier; */
-/*             return Sink::Storage::DataStore::Transaction(); */
-/*         } */
-/*         storage.setDefaultErrorHandler([this](const Sink::Storage::DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.store << error.message; }); */
-/*         transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly); */
-/*     } */
-
-/*     //FIXME this is a temporary measure to recover from a failure to open the named databases correctly. */
-/*     //Once the actual problem is fixed it will be enough to simply crash if we open the wrong database (which we check in openDatabase already). */
-/*     while (!transaction.validateNamedDatabases()) { */
-/*         Sink::Storage::DataStore storage(Sink::storageLocation(), mResourceInstanceIdentifier); */
-/*         transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly); */
-/*     } */
-/*     return transaction; */
-/* } */
 
 Sink::Log::Context EntityStore::logContext() const
 {

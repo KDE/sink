@@ -1,6 +1,7 @@
 #include "log.h"
 
 #include <QString>
+#include <QDir>
 #include <QIODevice>
 #include <QCoreApplication>
 #include <QSettings>
@@ -12,12 +13,18 @@
 #include <memory>
 #include <atomic>
 #include <definitions.h>
+#include <QThreadStorage>
+#include <QStringBuilder>
 
 using namespace Sink::Log;
 
-static QSharedPointer<QSettings> config()
+static QThreadStorage<QSharedPointer<QSettings>> sSettings;
+static QSettings &config()
 {
-    return QSharedPointer<QSettings>::create(Sink::configLocation() + "/log.ini", QSettings::IniFormat);
+    if (!sSettings.hasLocalData()) {
+        sSettings.setLocalData(QSharedPointer<QSettings>::create(Sink::configLocation() + "/log.ini", QSettings::IniFormat));
+    }
+    return *sSettings.localData();
 }
 
 static QByteArray sPrimaryComponent;
@@ -173,22 +180,22 @@ DebugLevel Sink::Log::debugLevelFromName(const QByteArray &name)
 
 void Sink::Log::setDebugOutputLevel(DebugLevel debugLevel)
 {
-    config()->setValue("level", debugLevel);
+    config().setValue("level", debugLevel);
 }
 
 Sink::Log::DebugLevel Sink::Log::debugOutputLevel()
 {
-    return static_cast<Sink::Log::DebugLevel>(config()->value("level", Sink::Log::Log).toInt());
+    return static_cast<Sink::Log::DebugLevel>(config().value("level", Sink::Log::Log).toInt());
 }
 
 void Sink::Log::setDebugOutputFilter(FilterType type, const QByteArrayList &filter)
 {
     switch (type) {
         case ApplicationName:
-            config()->setValue("applicationfilter", QVariant::fromValue(filter));
+            config().setValue("applicationfilter", QVariant::fromValue(filter));
             break;
         case Area:
-            config()->setValue("areafilter", QVariant::fromValue(filter));
+            config().setValue("areafilter", QVariant::fromValue(filter));
             break;
     }
 }
@@ -197,9 +204,9 @@ QByteArrayList Sink::Log::debugOutputFilter(FilterType type)
 {
     switch (type) {
         case ApplicationName:
-            return config()->value("applicationfilter").value<QByteArrayList>();
+            return config().value("applicationfilter").value<QByteArrayList>();
         case Area:
-            return config()->value("areafilter").value<QByteArrayList>();
+            return config().value("areafilter").value<QByteArrayList>();
         default:
             return QByteArrayList();
     }
@@ -207,12 +214,12 @@ QByteArrayList Sink::Log::debugOutputFilter(FilterType type)
 
 void Sink::Log::setDebugOutputFields(const QByteArrayList &output)
 {
-    config()->setValue("outputfields", QVariant::fromValue(output));
+    config().setValue("outputfields", QVariant::fromValue(output));
 }
 
 QByteArrayList Sink::Log::debugOutputFields()
 {
-    return config()->value("outputfields").value<QByteArrayList>();
+    return config().value("outputfields").value<QByteArrayList>();
 }
 
 static QByteArray getProgramName()
@@ -277,14 +284,16 @@ static bool containsItemStartingWith(const QByteArray &pattern, const QByteArray
     for (const auto &item : list) {
         if (item.startsWith('*')) {
             auto stripped = item.mid(1);
-            stripped.endsWith('*');
-            stripped.chop(1);
+            if (stripped.endsWith('*')) {
+                stripped.chop(1);
+            }
             if (pattern.contains(stripped)) {
                 return true;
             }
-        }
-        if (pattern.startsWith(item)) {
-            return true;
+        } else {
+            if (pattern.contains(item)) {
+                return true;
+            }
         }
     }
     return false;
@@ -300,25 +309,51 @@ static bool caseInsensitiveContains(const QByteArray &pattern, const QByteArrayL
     return false;
 }
 
-QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea, const char *debugComponent)
+static QByteArray getFileName(const char *file)
 {
-    static NullStream nullstream;
-    if (debugLevel < debugOutputLevel()) {
-        return QDebug(&nullstream);
-    }
+    static char sep = QDir::separator().toLatin1();
+    auto filename = QByteArray(file).split(sep).last();
+    return filename.split('.').first();
+}
 
+static QString assembleDebugArea(const char *debugArea, const char *debugComponent, const char *file)
+{
     if (sPrimaryComponent.isEmpty()) {
         sPrimaryComponent = getProgramName();
     }
-    QString fullDebugArea = sPrimaryComponent + "." + (debugComponent ? (QString::fromLatin1(debugComponent) + ".") : "") + (debugArea ? QString::fromLatin1(debugArea) : "");
+    //Using stringbuilder for fewer allocations
+    return QLatin1String{sPrimaryComponent} % QLatin1String{"."} %
+        (debugComponent ? (QLatin1String{debugComponent} + QLatin1String{"."}) : QLatin1String{""}) %
+        (debugArea ? QLatin1String{debugArea} : QLatin1String{getFileName(file)});
+}
 
+static bool isFiltered(DebugLevel debugLevel, const QByteArray &fullDebugArea)
+{
+    if (debugLevel < debugOutputLevel()) {
+        return true;
+    }
+    const auto areas = debugOutputFilter(Sink::Log::Area);
+    if ((debugLevel <= Sink::Log::Trace) && !areas.isEmpty()) {
+        if (!containsItemStartingWith(fullDebugArea, areas)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Sink::Log::isFiltered(DebugLevel debugLevel, const char *debugArea, const char *debugComponent, const char *file)
+{
+    return isFiltered(debugLevel, assembleDebugArea(debugArea, debugComponent, file).toLatin1());
+}
+
+QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea, const char *debugComponent)
+{
+    const auto fullDebugArea = assembleDebugArea(debugArea, debugComponent, file);
     collectDebugArea(fullDebugArea);
 
-    auto areas = debugOutputFilter(Sink::Log::Area);
-    if (debugLevel <= Sink::Log::Trace && !areas.isEmpty()) {
-        if (!containsItemStartingWith(fullDebugArea.toUtf8(), areas)) {
-            return QDebug(&nullstream);
-        }
+    static NullStream nullstream;
+    if (isFiltered(debugLevel, fullDebugArea.toLatin1())) {
+        return QDebug(&nullstream);
     }
 
     QString prefix;

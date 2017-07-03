@@ -56,6 +56,8 @@ public:
     QString message;
     //A return code. Zero typically indicates success.
     int code = 0;
+    int progress = 0;
+    int total = 0;
     QByteArray resource;
 };
 }

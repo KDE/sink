@@ -37,8 +37,6 @@
 #include "log.h"
 #include "test.h"
 
-SINK_DEBUG_AREA("imapserverproxy")
-
 using namespace Imap;
 
 const char* Imap::Flags::Seen = "\\Seen";
@@ -57,6 +55,7 @@ const char* Imap::FolderFlags::Trash = "\\Trash";
 const char* Imap::FolderFlags::Archive = "\\Archive";
 const char* Imap::FolderFlags::Junk = "\\Junk";
 const char* Imap::FolderFlags::Flagged = "\\Flagged";
+const char* Imap::FolderFlags::Drafts = "\\Drafts";
 
 const char* Imap::Capabilities::Namespace = "NAMESPACE";
 const char* Imap::Capabilities::Uidplus = "UIDPLUS";
@@ -98,17 +97,25 @@ static KAsync::Job<void> runJob(KJob *job)
     });
 }
 
-ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, SessionCache *sessionCache) : mSession(new KIMAP2::Session(serverUrl, qint16(port))), mSessionCache(sessionCache)
+KIMAP2::Session *createNewSession(const QString &serverUrl, int port)
 {
-    QObject::connect(mSession, &KIMAP2::Session::sslErrors, [this](const QList<QSslError> &errors) {
-        SinkLog() << "Received ssl error: " << errors;
-        mSession->ignoreErrors(errors);
-    });
-
+    auto newSession = new KIMAP2::Session(serverUrl, qint16(port));
     if (Sink::Test::testModeEnabled()) {
-        mSession->setTimeout(1);
+        newSession->setTimeout(1);
     } else {
-        mSession->setTimeout(40);
+        newSession->setTimeout(40);
+    }
+    QObject::connect(newSession, &KIMAP2::Session::sslErrors, [=](const QList<QSslError> &errors) {
+        SinkLog() << "Received ssl error: " << errors;
+        newSession->ignoreErrors(errors);
+    });
+    return newSession;
+}
+
+ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, SessionCache *sessionCache) : mSessionCache(sessionCache), mSession(nullptr)
+{
+    if (!mSessionCache || mSessionCache->isEmpty()) {
+        mSession = createNewSession(serverUrl, port);
     }
 }
 
@@ -161,12 +168,16 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
         // SinkTrace() << "Found user namespaces: " << mNamespaces.user;
     }).then([=] (const KAsync::Error &error) {
         if (error) {
-            if (error.errorCode == KIMAP2::LoginJob::ErrorCode::ERR_COULD_NOT_CONNECT) {
+            switch (error.errorCode) {
+            case KIMAP2::LoginJob::ErrorCode::ERR_HOST_NOT_FOUND:
+                return KAsync::error(HostNotFoundError, "Host not found: " + error.errorMessage);
+            case KIMAP2::LoginJob::ErrorCode::ERR_COULD_NOT_CONNECT:
                 return KAsync::error(CouldNotConnectError, "Failed to connect: " + error.errorMessage);
-            } else if (error.errorCode == KIMAP2::LoginJob::ErrorCode::ERR_SSL_HANDSHAKE_FAILED) {
+            case KIMAP2::LoginJob::ErrorCode::ERR_SSL_HANDSHAKE_FAILED:
                 return KAsync::error(SslHandshakeError, "Ssl handshake failed: " + error.errorMessage);
+            default:
+                return KAsync::error(error);
             }
-            return KAsync::error(error);
         }
         return KAsync::null();
     });
@@ -186,6 +197,12 @@ KAsync::Job<void> ImapServerProxy::logout()
     } else {
         return KAsync::null();
     }
+}
+
+bool ImapServerProxy::isGmail() const
+{
+    //Magic capability that only gmail has
+    return mCapabilities.contains("X-GM-EXT-1");
 }
 
 KAsync::Job<SelectResult> ImapServerProxy::select(const QString &mailbox)
@@ -297,6 +314,7 @@ KAsync::Job<void> ImapServerProxy::fetch(const KIMAP2::ImapSet &set, KIMAP2::Fet
     fetch->setSequenceSet(set);
     fetch->setUidBased(true);
     fetch->setScope(scope);
+    fetch->setAvoidParsing(true);
     QObject::connect(fetch, &KIMAP2::FetchJob::resultReceived, callback);
     return runJob(fetch);
 }
@@ -437,18 +455,60 @@ QString ImapServerProxy::getNamespace(const QString &name)
     return ns.name;
 }
 
+static bool caseInsensitiveContains(const QByteArray &f, const QByteArrayList &list) {
+    return list.contains(f) || list.contains(f.toLower());
+}
+
+bool Imap::flagsContain(const QByteArray &f, const QByteArrayList &flags)
+{
+    return caseInsensitiveContains(f, flags);
+}
+
+static void reportFolder(const Folder &f, QSharedPointer<QSet<QString>> reportedList, std::function<void(const Folder &)> callback) {
+    if (!reportedList->contains(f.path())) {
+        reportedList->insert(f.path());
+        auto c = f;
+        c.noselect = true;
+        callback(c);
+        if (!f.parentPath().isEmpty()){
+            reportFolder(f.parentFolder(), reportedList, callback);
+        }
+    }
+}
+
 KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder &)> callback)
 {
     SinkTrace() << "Fetching folders";
     auto subscribedList = QSharedPointer<QSet<QString>>::create() ;
+    auto reportedList = QSharedPointer<QSet<QString>>::create() ;
     return list(KIMAP2::ListJob::NoOption, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &){
         *subscribedList << mailbox.name;
     }).then(list(KIMAP2::ListJob::IncludeUnsubscribed, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &flags) {
-        bool noselect = flags.contains(QByteArray(FolderFlags::Noselect).toLower()) || flags.contains(QByteArray(FolderFlags::Noselect));
+        bool noselect = caseInsensitiveContains(FolderFlags::Noselect, flags);
         bool subscribed = subscribedList->contains(mailbox.name);
+        if (isGmail()) {
+            bool inbox = mailbox.name.toLower() == "inbox";
+            bool sent = caseInsensitiveContains(FolderFlags::Sent, flags);
+            bool drafts = caseInsensitiveContains(FolderFlags::Drafts, flags);
+            bool trash = caseInsensitiveContains(FolderFlags::Trash, flags);
+            /**
+             * Because gmail duplicates messages all over the place we only support a few selected folders for now that should be mostly exclusive.
+             */
+            if (!(inbox || sent || drafts || trash)) {
+                return;
+            }
+        }
         SinkLog() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect  << " sub: " << subscribed;
         auto ns = getNamespace(mailbox.name);
-        callback(Folder{mailbox.name, ns, mailbox.separator, noselect, subscribed, flags});
+        auto folder = Folder{mailbox.name, ns, mailbox.separator, noselect, subscribed, flags};
+
+        //call callback for parents if that didn't already happen.
+        //This is necessary because we can have missing bits in the hierarchy in IMAP, but this will not work in sink because we'd end up with an incomplete tree.
+        if (!folder.parentPath().isEmpty() && !reportedList->contains(folder.parentPath())) {
+            reportFolder(folder.parentFolder(), reportedList, callback);
+        }
+        reportedList->insert(folder.path());
+        callback(folder);
     }));
 }
 

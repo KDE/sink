@@ -36,24 +36,24 @@ class ConfigNotifier : public QObject
 {
     Q_OBJECT
 public:
-    void add(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account)
+    void add(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account, const QByteArray &type)
     {
-        emit added(account);
+        emit added(account, type);
     }
 
-    void remove(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account)
+    void remove(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account, const QByteArray &type)
     {
-        emit removed(account);
+        emit removed(account, type);
     }
 
-    void modify(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account)
+    void modify(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account, const QByteArray &type)
     {
-        emit modified(account);
+        emit modified(account, type);
     }
 signals:
-    void added(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account);
-    void removed(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account);
-    void modified(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account);
+    void added(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account, const QByteArray &type);
+    void removed(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account, const QByteArray &type);
+    void modified(const Sink::ApplicationDomain::ApplicationDomainType::Ptr &account, const QByteArray &type);
 };
 
 template <typename DomainType>

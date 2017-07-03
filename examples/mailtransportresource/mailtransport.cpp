@@ -23,8 +23,6 @@
 #include <QDebug>
 #include <common/log.h>
 
-SINK_DEBUG_AREA("mailtransport")
-
 extern "C" {
 
 #include <stdio.h>

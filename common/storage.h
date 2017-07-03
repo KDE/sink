@@ -25,9 +25,18 @@
 #include <string>
 #include <functional>
 #include <QString>
+#include <QMap>
 
 namespace Sink {
 namespace Storage {
+
+struct SINK_EXPORT DbLayout {
+    typedef QMap<QByteArray, int> Databases;
+    DbLayout();
+    DbLayout(const QByteArray &, const Databases &);
+    QByteArray name;
+    Databases tables;
+};
 
 class SINK_EXPORT DataStore
 {
@@ -132,7 +141,6 @@ public:
         void abort();
 
         QList<QByteArray> getDatabaseNames() const;
-        bool validateNamedDatabases();
 
         NamedDatabase openDatabase(const QByteArray &name = {"default"},
             const std::function<void(const DataStore::Error &error)> &errorHandler = {}, bool allowDuplicates = false) const;
@@ -152,6 +160,7 @@ public:
     };
 
     DataStore(const QString &storageRoot, const QString &name, AccessMode mode = ReadOnly);
+    DataStore(const QString &storageRoot, const DbLayout &layout, AccessMode mode = ReadOnly);
     ~DataStore();
 
     Transaction createTransaction(AccessMode mode = ReadWrite, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());

@@ -304,9 +304,29 @@ void Synchronizer::emitNotification(Notification::NoticationType type, int code,
     emit notify(n);
 }
 
-void Synchronizer::reportProgress(int progress, int total)
+void Synchronizer::emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArrayList &entities)
 {
-    SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total;
+    Sink::Notification n;
+    n.id = id;
+    n.type = type;
+    n.progress = progress;
+    n.total = total;
+    n.entities = entities;
+    emit notify(n);
+}
+
+void Synchronizer::reportProgress(int progress, int total, const QByteArrayList &entities)
+{
+    if (progress > 0 && total > 0) {
+        SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total << mCurrentRequest.requestId << mCurrentRequest.applicableEntities;
+        const auto applicableEntities = [&] {
+            if (entities.isEmpty()) {
+                return mCurrentRequest.applicableEntities;
+            }
+            return entities;
+        }();
+        emitProgressNotification(Notification::Progress, progress, total, mCurrentRequest.requestId, applicableEntities);
+    }
 }
 
 void Synchronizer::setStatusFromResult(const KAsync::Error &error, const QString &s, const QByteArray &requestId)
@@ -314,6 +334,9 @@ void Synchronizer::setStatusFromResult(const KAsync::Error &error, const QString
     if (error) {
         if (error.errorCode == ApplicationDomain::ConnectionError) {
             //Couldn't connect, so we assume we don't have a network connection.
+            setStatus(ApplicationDomain::OfflineStatus, s, requestId);
+        } else if (error.errorCode == ApplicationDomain::NoServerError) {
+            //Failed to contact the server.
             setStatus(ApplicationDomain::OfflineStatus, s, requestId);
         } else if (error.errorCode == ApplicationDomain::ConfigurationError) {
             //There is an error with the configuration.
@@ -354,6 +377,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
     } else if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
         return KAsync::start([this, request] {
             SinkLogCtx(mLogCtx) << "Synchronizing: " << request.query;
+            setBusy(true, "Synchronization has started.", request.requestId);
             emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, {}, {}, request.applicableEntities);
         }).then(synchronizeWithSource(request.query)).then([this] {
             //Commit after every request, so implementations only have to commit more if they add a lot of data.
@@ -391,11 +415,12 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             return KAsync::null();
         } else {
             return KAsync::start([this, request] {
+                setBusy(true, "ChangeReplay has started.", request.requestId);
                 SinkLogCtx(mLogCtx) << "Replaying changes.";
             })
             .then(replayNextRevision())
             .then<void>([this, request](const KAsync::Error &error) {
-                setStatusFromResult(error, "Changereplay has ended.", "changereplay");
+                setStatusFromResult(error, "Changereplay has ended.", request.requestId);
                 if (error) {
                     SinkWarningCtx(mLogCtx) << "Changereplay failed: " << error.errorMessage;
                     return KAsync::error(error);
@@ -462,16 +487,13 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         mMessageQueue->startTransaction();
         mEntityStore->startTransaction(Sink::Storage::DataStore::ReadOnly);
         mSyncInProgress = true;
-        if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
-            setBusy(true, "Synchronization has started.", request.requestId);
-        } else if (request.requestType == Synchronizer::SyncRequest::ChangeReplay) {
-            setBusy(true, "ChangeReplay has started.", "changereplay");
-        }
+        mCurrentRequest = request;
     })
     .then(processRequest(request))
     .then<void>([this, request](const KAsync::Error &error) {
         SinkTraceCtx(mLogCtx) << "Sync request processed";
         setBusy(false, {}, request.requestId);
+        mCurrentRequest = {};
         mEntityStore->abortTransaction();
         mSyncTransaction.abort();
         mMessageQueue->commit();
@@ -516,7 +538,7 @@ void Synchronizer::revisionChanged()
             return;
         }
     }
-    mSyncRequestQueue << Synchronizer::SyncRequest{Synchronizer::SyncRequest::ChangeReplay};
+    mSyncRequestQueue << Synchronizer::SyncRequest{Synchronizer::SyncRequest::ChangeReplay, "changereplay"};
     processSyncQueue().exec();
 }
 
@@ -607,11 +629,14 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         }
     })
     .then([this](const KAsync::Error &error) {
-        if (error) {
-            SinkWarningCtx(mLogCtx) << "Failed to replay change: " << error.errorMessage;
-        }
+        //We need to commit here otherwise the next change-replay step will abort the transaction
         mSyncStore.clear();
         mSyncTransaction.commit();
+        if (error) {
+            SinkWarningCtx(mLogCtx) << "Failed to replay change: " << error.errorMessage;
+            return KAsync::error(error);
+        }
+        return KAsync::null();
     });
 }
 

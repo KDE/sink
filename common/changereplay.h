@@ -54,6 +54,7 @@ public slots:
 protected:
     virtual KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) = 0;
     virtual bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) = 0;
+    virtual void reportProgress(int progress, int total, const QByteArrayList &applicableEntities = {}){};
     Sink::Storage::DataStore mStorage;
     KAsync::Job<void> replayNextRevision();
 
@@ -63,7 +64,7 @@ private:
     bool mReplayInProgress;
     Sink::Storage::DataStore::Transaction mMainStoreTransaction;
     Sink::Log::Context mLogCtx;
-    QSharedPointer<QObject> mGuard;
+    QObject mGuard;
 };
 
 class NullChangeReplay : public ChangeReplay

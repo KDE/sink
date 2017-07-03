@@ -1,7 +1,7 @@
 
 Name:           sink
-Version:        0.2.0
-Release:	    0%{?dist}
+Version:        0.3
+Release:	    10%{?dist}
 Summary:        sink
 
 Group:          Applications/Desktop
@@ -18,6 +18,7 @@ BuildRequires:  kf5-kcoreaddons-devel
 BuildRequires:  kf5-kcontacts-devel
 BuildRequires:  kf5-kmime-devel
 BuildRequires:  kimap2-devel
+BuildRequires:  kdav2-devel
 BuildRequires:  libcurl-devel
 BuildRequires:  libgit2-devel
 BuildRequires:  lmdb-devel
@@ -37,17 +38,11 @@ Development headers for sink
 %prep
 %setup -q
 
-sed -i \
-    -e '/inspectiontest/d' \
-    -e '/maildirresourcetest/d' \
-    tests/CMakeLists.txt
-
 %build
 mkdir -p build/
 pushd build
 %{cmake} \
     -DQT_PLUGIN_INSTALL_DIR:PATH=%{_libdir}/qt5/plugins/ \
-    -DBUILD_DAV=OFF \
     ..
 
 make %{?_smp_mflags}
@@ -58,7 +53,6 @@ pushd build
 %make_install
 popd
 
-#rm -rf %{buildroot}%{_prefix}/mkspecs/modules/qt_KMime.pri
 rm %{buildroot}%{_prefix}/bin/resetmailbox.sh
 rm %{buildroot}%{_prefix}/bin/populatemailbox.sh
 rm %{buildroot}%{_prefix}/bin/sink_smtp_test

@@ -5,8 +5,6 @@
 
 using namespace Sink;
 
-SINK_DEBUG_AREA("SpecialPurposeProcessor")
-
 static QHash<QByteArray, QString> specialPurposeFolders()
 {
     QHash<QByteArray, QString> hash;

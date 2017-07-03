@@ -32,8 +32,6 @@
 class QueryRunnerBase : public QObject
 {
     Q_OBJECT
-protected:
-    SINK_DEBUG_AREA("queryrunner")
 public:
     typedef std::function<void(Sink::ApplicationDomain::ApplicationDomainType &domainObject)> ResultTransformation;
 

@@ -25,8 +25,6 @@
 #include "storage.h" //for generateUid()
 #include <QFile>
 
-SINK_DEBUG_AREA("applicationdomaintype");
-
 QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::Mail::Contact &c)
 {
     d << "Contact(" << c.name << ", " << c.emailAddress << ")";
@@ -114,6 +112,7 @@ SINK_REGISTER_PROPERTY(Contact, Lastname);
 SINK_REGISTER_PROPERTY(Contact, Emails);
 SINK_REGISTER_PROPERTY(Contact, Vcard);
 SINK_REGISTER_PROPERTY(Contact, Addressbook);
+SINK_REGISTER_PROPERTY(Contact, Photo);
 
 SINK_REGISTER_ENTITY(Addressbook);
 SINK_REGISTER_PROPERTY(Addressbook, Name);

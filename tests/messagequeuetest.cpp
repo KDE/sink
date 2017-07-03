@@ -9,8 +9,6 @@
 #include "log.h"
 #include "test.h"
 
-SINK_DEBUG_AREA("messagequeuetest")
-
 /**
  * Test of the messagequeue implementation.
  */

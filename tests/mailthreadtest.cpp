@@ -117,7 +117,7 @@ void MailThreadTest::testIndexInMixedOrder()
 
     {
         auto mail = Mail::create(mResourceInstanceIdentifier);
-        mail.setMimeMessage(message3->encodedContent());
+        mail.setMimeMessage(message3->encodedContent(true));
         mail.setFolder(folder);
         VERIFYEXEC(Store::create(mail));
     }
@@ -140,7 +140,7 @@ void MailThreadTest::testIndexInMixedOrder()
 
     {
         auto mail = Mail::create(mResourceInstanceIdentifier);
-        mail.setMimeMessage(message2->encodedContent());
+        mail.setMimeMessage(message2->encodedContent(true));
         mail.setFolder(folder);
         VERIFYEXEC(Store::create(mail));
     }
@@ -156,7 +156,7 @@ void MailThreadTest::testIndexInMixedOrder()
 
     {
         auto mail = Mail::create(mResourceInstanceIdentifier);
-        mail.setMimeMessage(message1->encodedContent());
+        mail.setMimeMessage(message1->encodedContent(true));
         mail.setFolder(folder);
         VERIFYEXEC(Store::create(mail));
     }

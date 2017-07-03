@@ -22,25 +22,23 @@
 #include "event_generated.h"
 #include "mail_generated.h"
 #include "folder_generated.h"
-#include "dummy_generated.h"
-#include "dummycalendar_generated.h"
 #include "entity_generated.h"
 
-class DummyEventAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event, DummyCalendar::DummyEvent, DummyCalendar::DummyEventBuilder>
+class DummyEventAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event>
 {
 public:
     DummyEventAdaptorFactory();
     virtual ~DummyEventAdaptorFactory() {};
 };
 
-class DummyMailAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail, Sink::ApplicationDomain::Buffer::Dummy, Sink::ApplicationDomain::Buffer::DummyBuilder>
+class DummyMailAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail>
 {
 public:
     DummyMailAdaptorFactory();
     virtual ~DummyMailAdaptorFactory() {};
 };
 
-class DummyFolderAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Folder, Sink::ApplicationDomain::Buffer::Dummy, Sink::ApplicationDomain::Buffer::DummyBuilder>
+class DummyFolderAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Folder>
 {
 public:
     DummyFolderAdaptorFactory();

@@ -21,15 +21,11 @@
 #include "resourceconfig.h"
 #include "query.h"
 #include "definitions.h"
-#include "storage.h"
 #include "store.h"
 #include "resourceaccess.h"
 #include "resource.h"
-#include <QDir>
 
 using namespace Sink;
-
-SINK_DEBUG_AREA("ResourceFacade")
 
 template<typename DomainType>
 ConfigNotifier LocalStorageFacade<DomainType>::sConfigNotifier;
@@ -100,17 +96,24 @@ template<typename DomainType>
 LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query, const QByteArray &identifier, const QByteArray &typeName, ConfigNotifier &configNotifier, const Sink::Log::Context &ctx)
     : mResultProvider(new ResultProvider<typename DomainType::Ptr>), mConfigStore(identifier, typeName), mGuard(new QObject), mLogCtx(ctx.subContext("config"))
 {
+
+    auto matchesTypeAndIds = [query, this] (const QByteArray &type, const QByteArray &id) {
+        if (query.hasFilter(ApplicationDomain::SinkResource::ResourceType::name) && query.getFilter(ApplicationDomain::SinkResource::ResourceType::name).value.toByteArray() != type) {
+            SinkTraceCtx(mLogCtx) << "Skipping due to type.";
+            return false;
+        }
+        if (!query.ids().isEmpty() && !query.ids().contains(id)) {
+            return false;
+        }
+        return true;
+    };
+
     QObject *guard = new QObject;
-    mResultProvider->setFetcher([this, query, guard, &configNotifier](const QSharedPointer<DomainType> &) {
+    mResultProvider->setFetcher([this, query, guard, &configNotifier, matchesTypeAndIds](const QSharedPointer<DomainType> &) {
         const auto entries = mConfigStore.getEntries();
         for (const auto &res : entries.keys()) {
             const auto type = entries.value(res);
-
-            if (query.hasFilter(ApplicationDomain::SinkResource::ResourceType::name) && query.getFilter(ApplicationDomain::SinkResource::ResourceType::name).value.toByteArray() != type) {
-                SinkTraceCtx(mLogCtx) << "Skipping due to type.";
-                continue;
-            }
-            if (!query.ids().isEmpty() && !query.ids().contains(res)) {
+            if (!matchesTypeAndIds(type, res)){
                 continue;
             }
             auto entity = readFromConfig<DomainType>(mConfigStore, res, type, query.requestedProperties);
@@ -128,8 +131,14 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
     });
     if (query.liveQuery()) {
         {
-            auto ret = QObject::connect(&configNotifier, &ConfigNotifier::added, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
+            auto ret = QObject::connect(&configNotifier, &ConfigNotifier::added, guard, [this, query, matchesTypeAndIds](const ApplicationDomain::ApplicationDomainType::Ptr &entry, const QByteArray &type) {
                 auto entity = entry.staticCast<DomainType>();
+                if (!matchesTypeAndIds(type, entity->identifier())){
+                    return;
+                }
+                if (!matchesFilter(query.getBaseFilters(), *entity)){
+                    return;
+                }
                 SinkTraceCtx(mLogCtx) << "A new resource has been added: " << entity->identifier();
                 updateStatus(*entity);
                 mResultProvider->add(entity);
@@ -137,8 +146,14 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
             Q_ASSERT(ret);
         }
         {
-            auto ret = QObject::connect(&configNotifier, &ConfigNotifier::modified, guard, [this](const ApplicationDomain::ApplicationDomainType::Ptr &entry) {
+            auto ret = QObject::connect(&configNotifier, &ConfigNotifier::modified, guard, [this, query, matchesTypeAndIds](const ApplicationDomain::ApplicationDomainType::Ptr &entry, const QByteArray &type) {
                 auto entity = entry.staticCast<DomainType>();
+                if (!matchesTypeAndIds(type, entity->identifier())){
+                    return;
+                }
+                if (!matchesFilter(query.getBaseFilters(), *entity)){
+                    return;
+                }
                 updateStatus(*entity);
                 mResultProvider->modify(entity);
             });
@@ -222,7 +237,7 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::create(const DomainType &domai
             }
             configStore.modify(identifier, configurationValues);
         }
-        sConfigNotifier.add(::readFromConfig<DomainType>(configStore, identifier, type, QByteArrayList{}));
+        sConfigNotifier.add(::readFromConfig<DomainType>(configStore, identifier, type, QByteArrayList{}), type);
     });
 }
 
@@ -251,7 +266,7 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::modify(const DomainType &domai
         }
 
         const auto type = configStore.getEntries().value(identifier);
-        sConfigNotifier.modify(::readFromConfig<DomainType>(configStore, identifier, type, QByteArrayList{}));
+        sConfigNotifier.modify(::readFromConfig<DomainType>(configStore, identifier, type, QByteArrayList{}), type);
     });
 }
 
@@ -281,7 +296,7 @@ KAsync::Job<void> LocalStorageFacade<DomainType>::remove(const DomainType &domai
         SinkTrace() << "Removing: " << identifier;
         auto configStore = ConfigStore(configStoreIdentifier, typeName);
         configStore.remove(identifier);
-        sConfigNotifier.remove(QSharedPointer<DomainType>::create(domainObject));
+        sConfigNotifier.remove(QSharedPointer<DomainType>::create(domainObject), typeName);
     });
 }
 
@@ -373,10 +388,10 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
             if (states.contains(ApplicationDomain::BusyStatus)) {
                 return ApplicationDomain::BusyStatus;
             }
-            if (states.contains(ApplicationDomain::ConnectedStatus)) {
-                return ApplicationDomain::ConnectedStatus;
+            if (states.contains(ApplicationDomain::OfflineStatus)) {
+                return ApplicationDomain::OfflineStatus;
             }
-            return ApplicationDomain::OfflineStatus;
+            return ApplicationDomain::ConnectedStatus;
         }();
         account.setStatusStatus(status);
     });

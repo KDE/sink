@@ -43,8 +43,6 @@
 #define ENTITY_TYPE_MAIL "mail"
 #define ENTITY_TYPE_FOLDER "folder"
 
-SINK_DEBUG_AREA("maildirresource")
-
 using namespace Sink;
 
 static QString getFilePathFromMimeMessagePath(const QString &mimeMessagePath)
@@ -555,18 +553,20 @@ MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext)
     setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new FolderPreprocessor(mMaildirPath));
 
     KPIM::Maildir dir(mMaildirPath, true);
+    if (dir.isValid(false)) {
+        {
+            auto draftsFolder = dir.addSubFolder("Drafts");
+            auto remoteId = synchronizer->createFolder(draftsFolder, "folder", QByteArrayList() << "drafts");
+            auto draftsFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
+        }
+        {
+            auto trashFolder = dir.addSubFolder("Trash");
+            auto remoteId = synchronizer->createFolder(trashFolder, "folder", QByteArrayList() << "trash");
+            auto trashFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
+        }
+        synchronizer->commit();
+    }
     SinkTrace() << "Started maildir resource for maildir: " << mMaildirPath;
-    {
-        auto draftsFolder = dir.addSubFolder("Drafts");
-        auto remoteId = synchronizer->createFolder(draftsFolder, "folder", QByteArrayList() << "drafts");
-        auto draftsFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
-    }
-    {
-        auto trashFolder = dir.addSubFolder("Trash");
-        auto remoteId = synchronizer->createFolder(trashFolder, "folder", QByteArrayList() << "trash");
-        auto trashFolderLocalId = synchronizer->syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, remoteId);
-    }
-    synchronizer->commit();
 }
 
 

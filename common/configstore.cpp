@@ -24,8 +24,6 @@
 #include <log.h>
 #include <definitions.h>
 
-SINK_DEBUG_AREA("configstore")
-
 static QSharedPointer<QSettings> getConfig(const QByteArray &identifier)
 {
     return QSharedPointer<QSettings>::create(Sink::configLocation() + "/" + identifier + ".ini", QSettings::IniFormat);

@@ -35,8 +35,6 @@ class CommandProcessor;
  */
 class SINK_EXPORT GenericResource : public Resource
 {
-protected:
-    SINK_DEBUG_AREA("resource")
 public:
     GenericResource(const Sink::ResourceContext &context, const QSharedPointer<Pipeline> &pipeline = QSharedPointer<Pipeline>());
     virtual ~GenericResource();

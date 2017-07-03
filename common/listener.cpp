@@ -405,6 +405,7 @@ void Listener::updateClientsWithRevision(qint64 revision)
 
         SinkTrace() << "Sending revision update for " << client.name << revision;
         Sink::Commands::write(client.socket, ++m_messageId, Sink::Commands::RevisionUpdateCommand, m_fbb);
+        client.socket->flush();
     }
     m_fbb.Clear();
 }
@@ -420,6 +421,8 @@ void Listener::notify(const Sink::Notification &notification)
     builder.add_identifier(idString);
     builder.add_message(messageString);
     builder.add_entities(entities);
+    builder.add_progress(notification.progress);
+    builder.add_total(notification.total);
     auto command = builder.Finish();
     Sink::Commands::FinishNotificationBuffer(m_fbb, command);
     for (Client &client : m_connections) {

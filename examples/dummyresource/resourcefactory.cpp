@@ -42,8 +42,6 @@
 #define ENTITY_TYPE_MAIL "mail"
 #define ENTITY_TYPE_FOLDER "folder"
 
-SINK_DEBUG_AREA("dummyresource")
-
 using namespace Sink;
 
 class DummySynchronizer : public Sink::Synchronizer {

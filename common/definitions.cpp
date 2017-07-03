@@ -23,6 +23,17 @@
 #include <QStandardPaths>
 #include <QDir>
 
+static bool rereadDataLocation = true;
+static bool rereadConfigLocation = true;
+static bool rereadTemporaryFileLocation = true;
+
+void Sink::clearLocationCache()
+{
+    rereadDataLocation = true;
+    rereadConfigLocation = true;
+    rereadTemporaryFileLocation = true;
+}
+
 QString Sink::storageLocation()
 {
     return dataLocation() + "/storage";
@@ -30,21 +41,37 @@ QString Sink::storageLocation()
 
 QString Sink::dataLocation()
 {
-    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink";
+    static QString location;
+    if (rereadDataLocation) {
+        location = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink";
+        rereadDataLocation = false;
+    }
+    return location;
 }
 
 QString Sink::configLocation()
 {
-    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/sink";
+    static QString location;
+    if (rereadConfigLocation) {
+        location = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/sink";
+        rereadConfigLocation = false;
+    }
+    return location;
 }
 
 QString Sink::temporaryFileLocation()
 {
-    auto path = dataLocation() + "/temporaryFiles";
-    //FIXME create in a singleton on startup?
-    QDir dir;
-    dir.mkpath(path);
-    return path;
+    static QString location;
+    static bool dirCreated = false;
+    if (rereadTemporaryFileLocation) {
+        location = dataLocation() + "/temporaryFiles";
+        dirCreated = QDir{}.mkpath(location);
+        rereadTemporaryFileLocation = false;
+    }
+    if (!dirCreated && QDir{}.mkpath(location)) {
+        dirCreated = true;
+    }
+    return location;
 }
 
 QString Sink::resourceStorageLocation(const QByteArray &resourceInstanceIdentifier)

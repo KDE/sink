@@ -16,6 +16,9 @@ add_library(sink_test SHARED testimplementations.cpp getrssusage.cpp mailtest.cp
 qt5_use_modules(sink_test Core Test Concurrent)
 target_link_libraries(sink_test sink libhawd KF5::Mime)
 
+add_executable(dbwriter dbwriter.cpp)
+target_link_libraries(dbwriter sink)
+
 include(SinkTest)
 
 manual_tests (

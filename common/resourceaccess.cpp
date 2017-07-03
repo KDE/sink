@@ -477,7 +477,7 @@ void ResourceAccess::connected()
 
     {
         flatbuffers::FlatBufferBuilder fbb;
-        auto name = fbb.CreateString(QString("PID: %1 ResourceAccess: %2").arg(QCoreApplication::applicationPid()).arg(reinterpret_cast<qlonglong>(this)).toLatin1());
+        auto name = fbb.CreateString(QString("PID: %1 ResourceAccess: %2").arg(QCoreApplication::applicationPid()).arg(reinterpret_cast<qlonglong>(this)).toLatin1().toStdString());
         auto command = Sink::Commands::CreateHandshake(fbb, name);
         Sink::Commands::FinishHandshakeBuffer(fbb, command);
         Commands::write(d->socket.data(), ++d->messageId, Commands::HandshakeCommand, fbb);
@@ -547,6 +547,8 @@ static Sink::Notification getNotification(const Sink::Commands::Notification *bu
     }
     n.type = buffer->type();
     n.code = buffer->code();
+    n.progress = buffer->progress();
+    n.total = buffer->total();
     n.entities = BufferUtils::fromVector(*buffer->entities());
     return n;
 }

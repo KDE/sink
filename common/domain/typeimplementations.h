@@ -26,10 +26,7 @@
 #include "contact_generated.h"
 #include "addressbook_generated.h"
 
-template<typename T>
-class ReadPropertyMapper;
-template<typename T>
-class WritePropertyMapper;
+class PropertyMapper;
 class IndexPropertyMapper;
 
 class TypeIndex;
@@ -48,9 +45,9 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Mail Buffer;
     typedef Sink::ApplicationDomain::Buffer::MailBuilder BufferBuilder;
     static void configure(TypeIndex &index);
-    static void configure(ReadPropertyMapper<Buffer> &propertyMapper);
-    static void configure(WritePropertyMapper<BufferBuilder> &propertyMapper);
+    static void configure(PropertyMapper &propertyMapper);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
+    static QMap<QByteArray, int> typeDatabases();
 };
 
 template<>
@@ -59,9 +56,9 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Folder Buffer;
     typedef Sink::ApplicationDomain::Buffer::FolderBuilder BufferBuilder;
     static void configure(TypeIndex &);
-    static void configure(ReadPropertyMapper<Buffer> &);
-    static void configure(WritePropertyMapper<BufferBuilder> &);
+    static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
+    static QMap<QByteArray, int> typeDatabases();
 };
 
 template<>
@@ -70,9 +67,9 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Contact Buffer;
     typedef Sink::ApplicationDomain::Buffer::ContactBuilder BufferBuilder;
     static void configure(TypeIndex &);
-    static void configure(ReadPropertyMapper<Buffer> &);
-    static void configure(WritePropertyMapper<BufferBuilder> &);
+    static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
+    static QMap<QByteArray, int> typeDatabases();
 };
 
 template<>
@@ -81,9 +78,9 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Addressbook Buffer;
     typedef Sink::ApplicationDomain::Buffer::AddressbookBuilder BufferBuilder;
     static void configure(TypeIndex &);
-    static void configure(ReadPropertyMapper<Buffer> &);
-    static void configure(WritePropertyMapper<BufferBuilder> &);
+    static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
+    static QMap<QByteArray, int> typeDatabases();
 };
 
 template<>
@@ -92,9 +89,9 @@ public:
     typedef Sink::ApplicationDomain::Buffer::Event Buffer;
     typedef Sink::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
     static void configure(TypeIndex &);
-    static void configure(ReadPropertyMapper<Buffer> &);
-    static void configure(WritePropertyMapper<BufferBuilder> &);
+    static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);
+    static QMap<QByteArray, int> typeDatabases();
 };
 
 }
