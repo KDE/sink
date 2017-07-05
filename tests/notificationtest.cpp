@@ -128,7 +128,7 @@ private slots:
         VERIFYEXEC(Sink::Store::synchronize(newQuery));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
 
-        QCOMPARE(status.size(), 3);
+        QTRY_COMPARE(status.size(), 3);
         //Sync progress of item
         QCOMPARE(status.at(0), static_cast<int>(ApplicationDomain::SyncStatus::SyncInProgress));
         QCOMPARE(status.at(1), static_cast<int>(ApplicationDomain::SyncStatus::SyncSuccess));
