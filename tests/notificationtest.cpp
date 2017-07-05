@@ -135,6 +135,34 @@ private slots:
         //Modification triggered during sync
         QCOMPARE(status.at(2), static_cast<int>(ApplicationDomain::SyncStatus::SyncSuccess));
     }
+
+    void testNotifier()
+    {
+        QList<int> status;
+        Sink::Notifier notifier{Sink::Query{Sink::Query::LiveQuery}.resourceFilter("sink.dummy.instance2")};
+        notifier.registerHandler([&] (const Sink::Notification &notification) {
+            if (notification.type == Notification::Info) {
+                status << notification.code;
+            }
+        });
+
+        auto query = Query().resourceFilter("sink.dummy.instance2");
+        query.setType<ApplicationDomain::Mail>();
+        query.setFlags(Query::LiveQuery | Query::UpdateStatus);
+
+        auto resource = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::SinkResource>("", "sink.dummy.instance2");
+        resource.setResourceType("sink.dummy");
+        VERIFYEXEC(Store::create(resource));
+
+        VERIFYEXEC(Sink::Store::synchronize(query));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance2"));
+
+        QTRY_COMPARE(status.size(), 2);
+        //Sync progress of item
+        QCOMPARE(status.at(0), static_cast<int>(ApplicationDomain::SyncStatus::SyncInProgress));
+        QCOMPARE(status.at(1), static_cast<int>(ApplicationDomain::SyncStatus::SyncSuccess));
+    }
+
 };
 
 QTEST_MAIN(NotificationTest)
