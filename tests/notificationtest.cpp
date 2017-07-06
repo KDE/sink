@@ -131,7 +131,7 @@ private slots:
         QTRY_COMPARE(status.size(), 3);
         //Sync progress of item
         QCOMPARE(status.at(0), static_cast<int>(ApplicationDomain::SyncStatus::SyncInProgress));
-        QCOMPARE(status.at(1), static_cast<int>(ApplicationDomain::SyncStatus::SyncSuccess));
+        QCOMPARE(status.at(1), static_cast<int>(ApplicationDomain::SyncStatus::SyncInProgress));
         //Modification triggered during sync
         QCOMPARE(status.at(2), static_cast<int>(ApplicationDomain::SyncStatus::SyncSuccess));
     }
