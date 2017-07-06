@@ -104,9 +104,6 @@ static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, KMime:
     mail.setExtractedBcc(getContactList(msg->bcc(true)));
     mail.setExtractedDate(msg->date(true)->dateTime());
 
-    //The rest should never change, unless we didn't have the headers available initially.
-    auto messageId = msg->messageID(true)->identifier();
-
     //Ensure the mssageId is unique.
     //If there already is one with the same id we'd have to assign a new message id, which probably doesn't make any sense.
 
@@ -125,12 +122,21 @@ static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, KMime:
             parentMessageId = inReplyTo.first();
         }
     }
+
+    //The rest should never change, unless we didn't have the headers available initially.
+    auto messageId = msg->messageID(true)->identifier();
     if (messageId.isEmpty()) {
-        auto tmp = KMime::Message::Ptr::create();
-        auto header = tmp->messageID(true);
-        header->generate("kube.kde.org");
-        messageId = header->as7BitString();
-        SinkWarning() << "Message id is empty, generating one: " << messageId;
+        //reuse an existing messageis (on modification)
+        auto existing = mail.getMessageId();
+        if (existing.isEmpty()) {
+            auto tmp = KMime::Message::Ptr::create();
+            auto header = tmp->messageID(true);
+            header->generate("kube.kde.org");
+            messageId = header->as7BitString();
+            SinkWarning() << "Message id is empty, generating one: " << messageId;
+        } else {
+            messageId = existing;
+        }
     }
 
     mail.setExtractedMessageId(messageId);
