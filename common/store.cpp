@@ -311,9 +311,14 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 
 KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
 {
+    auto resourceFilter = scope.getResourceFilter();
+    //Filter resources by type by default
+    if (!resourceFilter.propertyFilter.contains(ApplicationDomain::SinkResource::Capabilities::name) && !scope.type().isEmpty()) {
+        resourceFilter.propertyFilter.insert(ApplicationDomain::SinkResource::Capabilities::name, Query::Comparator{scope.type(), Query::Comparator::Contains});
+    }
     Sink::Query query;
-    query.setFilter(scope.getResourceFilter());
-    SinkLog() << "Synchronizing: " << query;
+    query.setFilter(resourceFilter);
+    SinkLog() << "Synchronizing all resource matching: " << query;
     return fetchAll<ApplicationDomain::SinkResource>(query)
         .template each([scope](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {
             return synchronize(resource->identifier(), scope);
