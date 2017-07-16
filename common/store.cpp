@@ -40,6 +40,25 @@ Q_DECLARE_METATYPE(QSharedPointer<Sink::ResultEmitter<Sink::ApplicationDomain::S
 Q_DECLARE_METATYPE(QSharedPointer<Sink::ResourceAccessInterface>);
 Q_DECLARE_METATYPE(std::shared_ptr<void>);
 
+
+static bool sanityCheckQuery(const Sink::Query &query)
+{
+    for (const auto &id : query.ids()) {
+        if (id.isEmpty()) {
+            SinkError() << "Empty id in query.";
+            return false;
+        }
+    }
+    for (const auto &id : query.getResourceFilter().ids) {
+        if (id.isEmpty()) {
+            SinkError() << "Empty resourceid in query.";
+            return false;
+        }
+    }
+    return true;
+}
+
+
 namespace Sink {
 
 QString Store::storageLocation()
@@ -138,6 +157,7 @@ static Log::Context getQueryContext(const Sink::Query &query, const QByteArray &
 template <class DomainType>
 QSharedPointer<QAbstractItemModel> Store::loadModel(const Query &query)
 {
+    Q_ASSERT(sanityCheckQuery(query));
     auto ctx = getQueryContext(query, ApplicationDomain::getTypeName<DomainType>());
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties, ctx);
 
@@ -342,6 +362,7 @@ KAsync::Job<QList<typename DomainType::Ptr>> Store::fetchAll(const Sink::Query &
 template <class DomainType>
 KAsync::Job<QList<typename DomainType::Ptr>> Store::fetch(const Sink::Query &query, int minimumAmount)
 {
+    Q_ASSERT(sanityCheckQuery(query));
     auto model = loadModel<DomainType>(query);
     auto list = QSharedPointer<QList<typename DomainType::Ptr>>::create();
     auto context = QSharedPointer<QObject>::create();
@@ -393,6 +414,7 @@ DomainType Store::readOne(const Sink::Query &query)
 template <class DomainType>
 QList<DomainType> Store::read(const Sink::Query &query_)
 {
+    Q_ASSERT(sanityCheckQuery(query_));
     auto query = query_;
     query.setFlags(Query::SynchronousQuery);
 
