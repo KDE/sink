@@ -406,7 +406,7 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
     mdb_cursor_close(cursor);
 
     if (rc) {
-        Error error(d->name.toLatin1() + d->db, getErrorCode(rc), QByteArray("Key: ") + k + " : " + QByteArray(mdb_strerror(rc)));
+        Error error(d->name.toLatin1() + d->db, getErrorCode(rc), QByteArray("Error during scan. Key: ") + k + " : " + QByteArray(mdb_strerror(rc)));
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     }
 
@@ -418,6 +418,11 @@ void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::functi
 {
     if (!d || !d->transaction) {
         // Not an error. We rely on this to read nothing from non-existing databases.
+        return;
+    }
+    if (k.isEmpty()) {
+        Error error(d->name.toLatin1() + d->db, GenericError, QByteArray("Can't use findLatest with empty key."));
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
         return;
     }
 
@@ -471,10 +476,10 @@ void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::functi
     mdb_cursor_close(cursor);
 
     if (rc) {
-        Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Key: ") + k + " : " + QByteArray(mdb_strerror(rc)));
+        Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Error during find latest. Key: ") + k + " : " + QByteArray(mdb_strerror(rc)));
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     } else if (!foundValue) {
-        Error error(d->name.toLatin1(), 1, QByteArray("Key: ") + k + " : No value found");
+        Error error(d->name.toLatin1(), 1, QByteArray("Error during find latest. Key: ") + k + " : No value found");
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     }
 
