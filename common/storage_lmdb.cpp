@@ -446,25 +446,23 @@ void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::functi
     if ((rc = mdb_cursor_get(cursor, &key, &data, op)) == 0) {
         // The first lookup will find a key that is equal or greather than our key
         if (QByteArray::fromRawData((char *)key.mv_data, key.mv_size).startsWith(k)) {
-            bool advanced = false;
+            //Read next value until we no longer match
             while (QByteArray::fromRawData((char *)key.mv_data, key.mv_size).startsWith(k)) {
-                advanced = true;
                 MDB_cursor_op nextOp = MDB_NEXT;
                 rc = mdb_cursor_get(cursor, &key, &data, nextOp);
                 if (rc) {
                     break;
                 }
             }
-            if (advanced) {
-                MDB_cursor_op prefOp = MDB_PREV;
-                // We read past the end above, just take the last value
-                if (rc == MDB_NOTFOUND) {
-                    prefOp = MDB_LAST;
-                }
-                rc = mdb_cursor_get(cursor, &key, &data, prefOp);
-                foundValue = true;
-                resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size));
+            //Now read the previous value, and that's the latest one
+            MDB_cursor_op prefOp = MDB_PREV;
+            // We read past the end above, just take the last value
+            if (rc == MDB_NOTFOUND) {
+                prefOp = MDB_LAST;
             }
+            rc = mdb_cursor_get(cursor, &key, &data, prefOp);
+            foundValue = true;
+            resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size));
         }
     }
 
