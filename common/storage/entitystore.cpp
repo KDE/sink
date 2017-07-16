@@ -516,9 +516,8 @@ void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, cons
 {
     auto db = DataStore::mainDatabase(d->getTransaction(), type);
     db.findLatest(uid,
-        [=](const QByteArray &key, const QByteArray &value) -> bool {
+        [=](const QByteArray &key, const QByteArray &value) {
             callback(DataStore::uidFromKey(key), Sink::EntityBuffer(value.data(), value.size()));
-            return false;
         },
         [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.message << uid; });
 }
@@ -653,7 +652,7 @@ bool EntityStore::exists(const QByteArray &type, const QByteArray &uid)
     bool alreadyRemoved = false;
     DataStore::mainDatabase(d->transaction, type)
         .findLatest(uid,
-            [&found, &alreadyRemoved](const QByteArray &key, const QByteArray &data) -> bool {
+            [&found, &alreadyRemoved](const QByteArray &key, const QByteArray &data) {
                 auto entity = GetEntity(data.data());
                 if (entity && entity->metadata()) {
                     auto metadata = GetMetadata(entity->metadata()->Data());
@@ -662,7 +661,6 @@ bool EntityStore::exists(const QByteArray &type, const QByteArray &uid)
                         alreadyRemoved = true;
                     }
                 }
-                return false;
             },
             [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read old revision from storage: " << error.message; });
     if (!found) {
