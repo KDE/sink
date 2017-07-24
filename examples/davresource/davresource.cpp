@@ -93,7 +93,7 @@ public:
         QVector<QByteArray> ridList;
         for(const auto &f : addressbookList) {
             const auto &rid = getRid(f);
-            SinkTrace() << "Found addressbook:" << rid;
+            SinkLog() << "Found addressbook:" << rid << f.displayName();
             ridList.append(rid);
             createAddressbook(f.displayName(), rid, "");
         }
@@ -138,19 +138,21 @@ public:
                 if (error) {
                     SinkWarningCtx(mLogCtx) << "Failed to synchronize addressbooks." << collectionsFetchJob->errorString();
                 } else {
-                    synchronizeAddressbooks(collectionsFetchJob ->collections());
+                    synchronizeAddressbooks(collectionsFetchJob->collections());
                 }
             });
             return job;
         } else if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Contact>()) {
             SinkLogCtx(mLogCtx) << "Synchronizing contacts.";
             auto ridList = QSharedPointer<QByteArrayList>::create();
+            auto total = QSharedPointer<int>::create(0);
+            auto progress = QSharedPointer<int>::create(0);
             auto collectionsFetchJob = new KDAV2::DavCollectionsFetchJob(mResourceUrl);
             auto job = runJob(collectionsFetchJob).then([this, collectionsFetchJob] {
                 synchronizeAddressbooks(collectionsFetchJob ->collections());
                 return collectionsFetchJob->collections();
             })
-            .serialEach([this, ridList](const KDAV2::DavCollection &collection) {
+            .serialEach([=](const KDAV2::DavCollection &collection) {
                 auto collId = getRid(collection);
                 const auto addressbookLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_ADDRESSBOOK, collId);
                 auto ctag = collection.CTag().toLatin1();
@@ -158,10 +160,11 @@ public:
                     SinkTraceCtx(mLogCtx) << "Syncing " << collId;
                     auto cache = std::shared_ptr<KDAV2::EtagCache>(new KDAV2::EtagCache());
                     auto davItemsListJob = new KDAV2::DavItemsListJob(collection.url(), cache);
-                    const QByteArray bufferType = ENTITY_TYPE_CONTACT;
                     QHash<QByteArray, Query::Comparator> mergeCriteria;
-                    auto colljob = runJob(davItemsListJob).then([davItemsListJob] {
-                        return KAsync::value(davItemsListJob->items());
+                    auto colljob = runJob(davItemsListJob).then([=] {
+                        const auto items = davItemsListJob->items();
+                        *total = items.size();
+                        return KAsync::value(items);
                     })
                     .serialEach([=] (const KDAV2::DavItem &item) {
                         QByteArray rid = getRid(item);
@@ -175,13 +178,19 @@ public:
                                 Sink::ApplicationDomain::Contact contact;
                                 contact.setVcard(item.data());
                                 contact.setAddressbook(addressbookLocalId);
-                                createOrModify(bufferType, rid, contact, mergeCriteria);
+                                createOrModify(ENTITY_TYPE_CONTACT, rid, contact, mergeCriteria);
                                 return item;
                             })
-                            .then([this, ridList] (const KDAV2::DavItem &item) {
+                            .then([=] (const KDAV2::DavItem &item) {
                                 const auto rid = getRid(item);
                                 syncStore().writeValue(rid + "_etag", item.etag().toLatin1());
                                 ridList->append(rid);
+                                *progress += 1;
+                                reportProgress(*progress, *total, QByteArrayList{} << addressbookLocalId);
+                                //commit every 5 contacts (so contacts start appearing in the UI)
+                                if ((*progress % 5) == 0) {
+                                    commit();
+                                }
                                 return rid;
                             });
                             return itemjob;
@@ -190,7 +199,7 @@ public:
                             return KAsync::value(rid);
                         }
                     })
-                    .then([this, collId, ctag] () {
+                    .then([=] () {
                         syncStore().writeValue(collId + "_ctag", ctag);
                     });
                     return colljob;
