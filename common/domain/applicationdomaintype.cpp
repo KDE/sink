@@ -34,7 +34,13 @@ QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDom
 QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::ApplicationDomainType &type)
 {
     d << "ApplicationDomainType(\n";
-    auto properties = type.mAdaptor->availableProperties();
+    auto properties = [&] {
+        if (!type.changedProperties().isEmpty()) {
+            return type.changedProperties();
+        } else {
+            return type.mAdaptor->availableProperties();
+        }
+    }();
     std::sort(properties.begin(), properties.end());
     d << " " << "Id: " << "\t" << type.identifier() << "\n";
     d << " " << "Resource: " << "\t" << type.resourceInstanceIdentifier() << "\n";
