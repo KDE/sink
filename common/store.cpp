@@ -209,6 +209,10 @@ KAsync::Job<void> Store::create(const DomainType &domainObject)
 template <class DomainType>
 KAsync::Job<void> Store::modify(const DomainType &domainObject)
 {
+    if (domainObject.changedProperties().isEmpty()) {
+        SinkLog() << "Nothing to modify: " << domainObject.identifier();
+        return KAsync::null();
+    }
     SinkLog() << "Modify: " << domainObject;
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
@@ -218,6 +222,10 @@ KAsync::Job<void> Store::modify(const DomainType &domainObject)
 template <class DomainType>
 KAsync::Job<void> Store::modify(const Query &query, const DomainType &domainObject)
 {
+    if (domainObject.changedProperties().isEmpty()) {
+        SinkLog() << "Nothing to modify: " << domainObject.identifier();
+        return KAsync::null();
+    }
     SinkLog() << "Modify: " << query << domainObject;
     return fetchAll<DomainType>(query)
         .each([=] (const typename DomainType::Ptr &entity) {
