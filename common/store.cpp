@@ -49,12 +49,6 @@ static bool sanityCheckQuery(const Sink::Query &query)
             return false;
         }
     }
-    for (const auto &id : query.getResourceFilter().ids) {
-        if (id.isEmpty()) {
-            SinkError() << "Empty resourceid in query.";
-            return false;
-        }
-    }
     return true;
 }
 
