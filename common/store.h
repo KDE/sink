@@ -75,12 +75,15 @@ KAsync::Job<void> SINK_EXPORT create(const DomainType &domainObject);
  * Modify an entity.
  *
  * This includes moving etc. since these are also simple settings on a property.
+ * Note that the modification will be dropped if there is no changedProperty on the domain object.
  */
 template <class DomainType>
 KAsync::Job<void> SINK_EXPORT modify(const DomainType &domainObject);
 
 /**
  * Modify a set of entities identified by @param query.
+ * 
+ * Note that the modification will be dropped if there is no changedProperty on the domain object.
  */
 template <class DomainType>
 KAsync::Job<void> SINK_EXPORT modify(const Query &query, const DomainType &domainObject);

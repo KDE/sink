@@ -270,7 +270,17 @@ public:
     bool hasProperty(const QByteArray &key) const;
 
     QVariant getProperty(const QByteArray &key) const;
+
+    /**
+     * Set a property and record a changed property
+     *
+     * If the propery is available and did not change the call will be ignored.
+     */
     void setProperty(const QByteArray &key, const QVariant &value);
+
+    /**
+     * Convenience method to set a reference property.
+     */
     void setProperty(const QByteArray &key, const ApplicationDomainType &value);
 
     QByteArray getBlobProperty(const QByteArray &key) const;

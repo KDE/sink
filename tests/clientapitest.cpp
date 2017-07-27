@@ -360,6 +360,8 @@ private slots:
         auto event = Sink::ApplicationDomain::Event::createEntity<Sink::ApplicationDomain::Event>("dummyresource.instance1");
         Sink::Store::create(event).exec().waitForFinished();
         QCOMPARE(facade->creations.size(), 1);
+        //Modify something so the mdofication won't be dropped
+        event.setSummary("foobar");
         Sink::Store::modify(event).exec().waitForFinished();
         QCOMPARE(facade->modifications.size(), 1);
         Sink::Store::remove(event).exec().waitForFinished();
