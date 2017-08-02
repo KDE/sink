@@ -19,6 +19,7 @@ set(sink_cli_SRCS
     syntax_modules/sink_inspect.cpp
     syntax_modules/sink_drop.cpp
     syntax_modules/sink_upgrade.cpp
+    syntax_modules/sink_info.cpp
     sinksh_utils.cpp
     repl/repl.cpp
     repl/replStates.cpp
