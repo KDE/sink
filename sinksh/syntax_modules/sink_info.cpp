@@ -25,12 +25,14 @@
 #include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
+#include "sink_version.h"
 
 namespace SinkInfo
 {
 
 bool info(const QStringList &args, State &state)
 {
+    state.printLine(QString("Sink version: %1").arg(sink_VERSION_STRING));
     state.printLine(QString("Storage location: %1").arg(Sink::storageLocation()));
     state.printLine(QString("Data location: %1").arg(Sink::dataLocation()));
     state.printLine(QString("Config location: %1").arg(Sink::configLocation()));

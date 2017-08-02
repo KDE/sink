@@ -25,6 +25,11 @@ include(CMakePackageConfigHelpers)
 include(ECMSetupVersion)
 include(KDEInstallDirs)
 
+ecm_setup_version(PROJECT
+                  SOVERSION sink_VERSION_MAJOR
+                  VERSION_HEADER sink_version.h
+                  )
+
 find_package(Qt5 COMPONENTS REQUIRED Core Concurrent Network Gui Test)
 find_package(KF5 COMPONENTS REQUIRED Mime Contacts)
 find_package(FlatBuffers REQUIRED 1.4.0)
