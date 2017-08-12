@@ -19,8 +19,6 @@
 
 #include <QDebug>
 #include <QObject> // tr()
-#include <QTimer>
-#include <QDir>
 
 #include "common/resource.h"
 #include "common/storage.h"
@@ -30,6 +28,7 @@
 #include "common/definitions.h"
 #include "common/entitybuffer.h"
 #include "common/metadata_generated.h"
+#include "common/bufferutils.h"
 
 #include "sinksh_utils.h"
 #include "state.h"
@@ -96,7 +95,10 @@ bool inspect(const QStringList &args, State &state)
                             state.printError("Read invalid buffer from disk: " + key);
                         } else {
                             const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
-                            state.printLine("Key: " + key + " Operation: " + QString::number(metadata->operation()));
+                            state.printLine("Key: " + key
+                                          + " Operation: " + QString::number(metadata->operation())
+                                          + " Replay: " + (metadata->replayToSource() ? "true" : "false")
+                                          + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" Changeset: " + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(",")) : ""));
                         }
                     } else {
                         state.printLine("Key: " + key + " Value: " + QString::fromUtf8(data));
