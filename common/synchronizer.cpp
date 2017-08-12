@@ -593,17 +593,13 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
     //TODO This requires supporting every domain type here as well. Can we solve this better so we can do the dispatch somewhere centrally?
     if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
-        auto folder = store().readEntity<ApplicationDomain::Folder>(key);
-        job = replay(folder, operation, oldRemoteId, modifiedProperties);
+        job = replay(store().readEntity<ApplicationDomain::Folder>(key), operation, oldRemoteId, modifiedProperties);
     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
-        auto mail = store().readEntity<ApplicationDomain::Mail>(key);
-        job = replay(mail, operation, oldRemoteId, modifiedProperties);
+        job = replay(store().readEntity<ApplicationDomain::Mail>(key), operation, oldRemoteId, modifiedProperties);
     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Contact>()) {
-        auto mail = store().readEntity<ApplicationDomain::Contact>(key);
-        job = replay(mail, operation, oldRemoteId, modifiedProperties);
+        job = replay(store().readEntity<ApplicationDomain::Contact>(key), operation, oldRemoteId, modifiedProperties);
     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Addressbook>()) {
-        auto mail = store().readEntity<ApplicationDomain::Addressbook>(key);
-        job = replay(mail, operation, oldRemoteId, modifiedProperties);
+        job = replay(store().readEntity<ApplicationDomain::Addressbook>(key), operation, oldRemoteId, modifiedProperties);
     } else {
         SinkErrorCtx(mLogCtx) << "Replayed unknown type: " << type;
     }
