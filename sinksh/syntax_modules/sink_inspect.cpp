@@ -155,7 +155,7 @@ bool inspect(const QStringList &args, State &state)
                             state.printLine("Key: " + key
                                           + " Operation: " + QString::number(metadata->operation())
                                           + " Replay: " + (metadata->replayToSource() ? "true" : "false")
-                                          + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" Changeset: " + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(",")) : ""));
+                                          + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": ""));
                         }
                     } else {
                         state.printLine("Key: " + key + " Value: " + QString::fromUtf8(data));
