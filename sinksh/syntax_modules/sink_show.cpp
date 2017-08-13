@@ -18,18 +18,12 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include <QCoreApplication>
 #include <QDebug>
 #include <QObject> // tr()
 #include <QModelIndex>
 #include <QTime>
 
-#include "common/resource.h"
 #include "common/storage.h"
-#include "common/resourceconfig.h"
-#include "common/log.h"
-#include "common/storage.h"
-#include "common/definitions.h"
 
 #include "sinksh_utils.h"
 #include "state.h"
@@ -41,25 +35,24 @@ namespace SinkShow
 bool show(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("Please provide at least one type to show (e.g. resource, .."));
+        state.printError(QObject::tr("Options: $type --resource $resource --id $id"));
         return false;
     }
 
-    auto argList = args;
-    if (argList.size() < 2 || !SinkshUtils::isValidStoreType(argList.at(0))) {
+    auto options = SyntaxTree::parseOptions(args);
+
+    auto type = options.positionalArguments.isEmpty() ? QString{} : options.positionalArguments.first();
+    auto resource = options.options.value("resource");
+    auto id = options.options.value("id");
+
+    if (id.isEmpty() || resource.isEmpty() || !SinkshUtils::isValidStoreType(type)) {
         state.printError(QObject::tr("Invalid command syntax. Supply type and resource at least."));
         return false;
     }
-    auto type = argList.takeFirst();
-    auto resource = argList.takeFirst();
-    bool queryForResourceOrAgent = argList.isEmpty();
 
     Sink::Query query;
-    if (queryForResourceOrAgent) {
-        query.filter(resource.toLatin1());
-    } else {
-        query.resourceFilter(resource.toLatin1());
-    }
+    query.resourceFilter(resource.first().toLatin1());
+    query.filter(id.first().toLatin1());
 
     QTime time;
     time.start();
