@@ -40,13 +40,70 @@ namespace SinkInspect
 bool inspect(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("Options: $type [--resource $resource] [--db $db] [--filter $id] [--showinternal]"));
+        state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] [--showinternal] | [--validaterids $type])"));
     }
     auto options = SyntaxTree::parseOptions(args);
     auto resource = options.options.value("resource").value(0);
 
     Sink::Storage::DataStore storage(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
     auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
+
+    bool validateRids = options.options.contains("validaterids");
+    if (validateRids) {
+        if (options.options.value("validaterids").isEmpty()) {
+            state.printError(QObject::tr("Specify a type to validate."));
+            return false;
+        }
+        auto type = options.options.value("validaterids").first().toUtf8();
+        /*
+         * Try to find all rid's for all uid's.
+         * If we have entities without rid's that either means we have only created it locally or that we have a problem.
+         */
+        Sink::Storage::DataStore syncStore(Sink::storageLocation(), resource + ".synchronization", Sink::Storage::DataStore::ReadOnly);
+        auto syncTransaction = syncStore.createTransaction(Sink::Storage::DataStore::ReadOnly);
+
+        auto db = transaction.openDatabase(type + ".main",
+                [&] (const Sink::Storage::DataStore::Error &e) {
+                    Q_ASSERT(false);
+                    state.printError(e.message);
+                }, false);
+
+        auto ridMap = syncTransaction.openDatabase("localid.mapping." + type,
+                [&] (const Sink::Storage::DataStore::Error &e) {
+                    Q_ASSERT(false);
+                    state.printError(e.message);
+                }, false);
+
+        QHash<QByteArray, QByteArray> hash;
+
+        ridMap.scan("", [&] (const QByteArray &key, const QByteArray &data) {
+                    hash.insert(key, data);
+                    return true;
+                },
+                [&](const Sink::Storage::DataStore::Error &e) {
+                    state.printError(e.message);
+                },
+                false);
+
+        db.scan("", [&] (const QByteArray &key, const QByteArray &data) {
+                    if (!hash.remove(Sink::Storage::DataStore::uidFromKey(key))) {
+                        qWarning() << "Failed to find RID for " << key;
+                    }
+                    return true;
+                },
+                [&](const Sink::Storage::DataStore::Error &e) {
+                    state.printError(e.message);
+                },
+                false);
+
+        //If we still have items in the hash it means we have rid mappings for entities
+        //that no longer exist.
+        if (!hash.isEmpty()) {
+            qWarning() << "Have rids left: " << hash.size();
+        }
+
+        return false;
+    }
 
     auto dbs = options.options.value("db");
     auto idFilter = options.options.value("filter");
