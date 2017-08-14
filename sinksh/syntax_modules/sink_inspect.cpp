@@ -85,16 +85,26 @@ bool inspect(const QStringList &args, State &state)
                 },
                 false);
 
+        QSet<QByteArray> uids;
         db.scan("", [&] (const QByteArray &key, const QByteArray &data) {
-                    if (!hash.remove(Sink::Storage::DataStore::uidFromKey(key))) {
-                        qWarning() << "Failed to find RID for " << key;
-                    }
+                    uids.insert(Sink::Storage::DataStore::uidFromKey(key));
                     return true;
                 },
                 [&](const Sink::Storage::DataStore::Error &e) {
                     state.printError(e.message);
                 },
                 false);
+
+        int missing = 0;
+        for (const auto &uid : uids) {
+            if (!hash.remove(uid)) {
+                missing++;
+                qWarning() << "Failed to find RID for " << uid;
+            }
+        }
+        if (missing) {
+            qWarning() << "Found a total of " << missing << " missing rids";
+        }
 
         //If we still have items in the hash it means we have rid mappings for entities
         //that no longer exist.
