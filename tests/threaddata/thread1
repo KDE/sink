@@ -1,0 +1,228 @@
+Return-Path: <kde-community-bounces@kde.org>
+Received: from imapb010.mykolab.com ([unix socket])
+	 by imapb010.mykolab.com (Cyrus 2.5.10-49-g2e214b4-Kolab-2.5.10-8.1.el7.kolab_14) with LMTPA;
+	 Sun, 13 Aug 2017 11:50:30 +0200
+X-Sieve: CMU Sieve 2.4
+Received: from int-mx002.mykolab.com (unknown [10.9.13.2])
+	by imapb010.mykolab.com (Postfix) with ESMTPS id E79C512C084C4
+	for <christian@mailqueue.ch>; Sun, 13 Aug 2017 11:50:29 +0200 (CEST)
+Received: from mx.kolabnow.com (unknown [10.9.4.1])
+	by int-mx002.mykolab.com (Postfix) with ESMTPS id BE41F2329
+	for <christian@mailqueue.ch>; Sun, 13 Aug 2017 11:50:29 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at mykolab.com
+Authentication-Results: ext-mx-in001.mykolab.com (amavisd-new);
+	dkim=pass (1024-bit key) header.d=kde.org
+X-Greylist: domain auto-whitelisted by SQLgrey-1.8.0
+Received: from forward2-smtp.messagingengine.com (forward2-smtp.messagingengine.com [66.111.4.226])
+	by ext-mx-in001.mykolab.com (Postfix) with ESMTPS id 5614B11BB
+	for <christian@mailqueue.ch>; Sun, 13 Aug 2017 11:50:08 +0200 (CEST)
+Received: from mailredirect.nyi.internal (imap36.nyi.internal [10.202.2.86])
+	by mailforward.nyi.internal (Postfix) with ESMTP id E9026D1C6
+	for <christian@mailqueue.ch>; Sun, 13 Aug 2017 05:50:06 -0400 (EDT)
+Received: by mailredirect.nyi.internal (Postfix, from userid 501)
+	id D95328E3AC; Sun, 13 Aug 2017 05:50:06 -0400 (EDT)
+Received: from compute1.internal (compute1.nyi.internal [10.202.2.41])
+	 by sloti36d2t28 (Cyrus fastmail-fmjessie44745-15358-git-fastmail-15358) with LMTPA;
+	 Sun, 13 Aug 2017 05:50:06 -0400
+X-Cyrus-Session-Id: sloti36d2t28-2961984-1502617806-2-9300763073201928650
+X-Sieve: CMU Sieve 3.0
+X-Spam-known-sender: no
+X-Orig-Spam-score: 0.0
+X-Spam-hits: BAYES_20 -0.001, RCVD_IN_DNSWL_MED -2.3, RP_MATCHES_RCVD -0.001,
+  SPF_PASS -0.001, LANGUAGES en, BAYES_USED global, SA_VERSION 3.4.0
+X-Spam-source: IP='46.4.96.248', Host='postbox.kde.org', Country='DE', FromHeader='org',
+  MailFrom='org'
+X-Spam-charsets: plain='us-ascii'
+X-Attached: signature.asc
+X-Resolved-to: chrigi_1@fastmail.fm
+X-Delivered-to: chrigi_1@fastmail.fm
+X-Mail-from: kde-community-bounces@kde.org
+Received: from mx4 ([10.202.2.203])
+  by compute1.internal (LMTPProxy); Sun, 13 Aug 2017 05:50:06 -0400
+Authentication-Results: mx4.messagingengine.com;
+    dkim=pass (1024-bit rsa key sha256) header.d=kde.org header.i=@kde.org header.b=aAtxmD+3;
+    dmarc=none (p=none;has-list-id=yes) header.from=kde.org;
+    smime=temperror;
+    spf=pass smtp.mailfrom=kde-community-bounces@kde.org smtp.helo=postbox.kde.org
+Received-SPF: pass
+    (kde.org: 46.4.96.248 is authorized to use 'kde-community-bounces@kde.org' in 'mfrom' identity (mechanism 'mx' matched))
+    receiver=mx4.messagingengine.com;
+    identity=mailfrom;
+    envelope-from="kde-community-bounces@kde.org";
+    helo=postbox.kde.org;
+    client-ip=46.4.96.248
+Received: from postbox.kde.org (postbox.kde.org [46.4.96.248])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mx4.messagingengine.com (Postfix) with ESMTPS
+	for <chrigi_1@fastmail.fm>; Sun, 13 Aug 2017 05:50:05 -0400 (EDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=kde.org; s=default;
+	t=1502617803; bh=IzJP1FRz6gX2xTBV2xMDBc2KfNLK284LvmfZvBQHRwU=;
+	h=From:To:Subject:Date:Reply-To:List-Id:List-Unsubscribe:
+	 List-Archive:List-Post:List-Help:List-Subscribe:From;
+	b=aAtxmD+3cXY913YngN6okQjxPwOn+T9Cw1Hl1NpSZ2E4VbNDeuQ9IVj6zCqeAZE6y
+	 elk2GquLeHlXeLnygo2n5LQL6epM83pkS+1AWSHQI11mBDT5byLUrXX64hOSZ579jG
+	 L6+jAJT8vcqnXZcGg5EjBQqYmFp4HLedW/xduUVg=
+X-Original-To: kde-community@kde.org
+X-Remote-Delivered-To: kde-community@localhost.kde.org
+Received-SPF: Neutral (access neither permitted nor denied) identity=mailfrom;
+ client-ip=85.214.75.115; helo=h2670809.stratoserver.net;
+ envelope-from=vkrause@kde.org; receiver=kde-community@kde.org 
+Received: from h2670809.stratoserver.net (deltatauchi.de [85.214.75.115])
+ by postbox.kde.org (Postfix) with ESMTP id 61C21A308E
+ for <kde-community@kde.org>; Sun, 13 Aug 2017 09:49:38 +0000 (UTC)
+Received: from deltatauchi.de (ip5b403802.dynamic.kabel-deutschland.de
+ [91.64.56.2])
+ by h2670809.stratoserver.net (Postfix) with ESMTPSA id 521BBF1A0104
+ for <kde-community@kde.org>; Sun, 13 Aug 2017 11:49:07 +0200 (CEST)
+From: Volker Krause <vkrause@kde.org>
+To: kde-community@kde.org
+Subject: Telemetry Policy
+Date: Sun, 13 Aug 2017 11:47:28 +0200
+Message-ID: <2048912.XfIJe3ZSdj@vkpc5>
+Organization: KDE
+X-Face: rgzmh}R?iq<z7H#sc'l86vzjJ"{\d6`}N5x*9!HFBn`A^tnU?<Q%ruT(jt5PG1$td=GDXe
+ XsXW(lVZ%Z0.2|w-)y[+@HI})\pNZEMi/UY_D";
+ tt:5C'5&O9_xAqO!$HA8Ks-5}uMz%`D "2{s`Mt$}N]I`0UI=0;
+ '4v"!]XgBET9Q%cB?\vr#1=5X3,[a3k@083{n9H0m~Ey5_5xOb; @06MoJe"3/Rfe[eki
+MIME-Version: 1.0
+Content-Type: multipart/signed; boundary="nextPart1627232.ab0ruIHapE";
+ micalg="pgp-sha1"; protocol="application/pgp-signature"
+X-BeenThere: kde-community@kde.org
+X-Mailman-Version: 2.1.16
+Precedence: list
+Reply-To: informing about and discussing non-technical community topics
+ <kde-community@kde.org>
+List-Id: informing about and discussing non-technical community topics
+ <kde-community.kde.org>
+List-Unsubscribe: <https://mail.kde.org/mailman/options/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=unsubscribe>
+List-Archive: <http://mail.kde.org/pipermail/kde-community/>
+List-Post: <mailto:kde-community@kde.org>
+List-Help: <mailto:kde-community-request@kde.org?subject=help>
+List-Subscribe: <https://mail.kde.org/mailman/listinfo/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=subscribe>
+Errors-To: kde-community-bounces@kde.org
+Sender: "kde-community" <kde-community-bounces@kde.org>
+
+--nextPart1627232.ab0ruIHapE
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+
+Hi,
+
+during the KUserFeedback BoF at Akademy there was quite some interest in 
+collecting telemetry data in KDE applications. But before actually 
+implementing that we agreed to define the rules under which we would want to 
+do that. I've tried to put the input we collected during Akademy into proper 
+wording below. What do you think? Did I miss anything?
+
+Regards,
+Volker
+
+
+# Telemetry Policy Draft
+
+Application telemetry data can be a valuable tool for tailoring our products 
+to the needs of our users. The following rules define how KDE collects and 
+uses such application telemetry data. As privacy is of utmost importance to 
+us, the general rule of thumb is to err on the side of caution here. Privacy 
+always trumps any need for telemetry data, no matter how legitimate.
+
+These rules apply to all products released by KDE.
+
+## Transparency
+
+We provide detailed information about the data that is going to be shared, in 
+a way that:
+- is easy to understand
+- is precise and complete
+- is available locally without network connectivity
+
+Any changes or additions to the telemetry functionality of an application will 
+be highlighted in the corresponding release announcement.
+
+## Control
+
+We give the user full control over what data they want to share with KDE. In 
+particular:
+- application telemetry is always opt-in, that is off by default
+- application telemetry settings can be changed at any time, and are provided 
+as prominent in the application interface as other application settings
+- applications honor system-wide telemetry settings where they exist (global 
+"kill switch")
+- we provide detailed documentation about how to control the application 
+telemetry system
+
+In order to ensure control over the data after it has been shared with KDE, 
+applications will only transmit this data to KDE servers, that is servers 
+under the full control of the KDE sysadmin team.
+
+We will provide a designated contact point for users who have concerns about 
+the data they have shared with KDE. While we are willing to delete data a user 
+no longer wants to have shared, it should be understood that the below rules 
+are designed to make identification of data of a specific user impossible, and 
+thus a deletion request impractical.
+
+## Anonymity
+
+We do not transmit data that could be used to identify a specific user. In 
+particular:
+- we will not use any unique device, installation or user id
+- data is stripped of any unnecessary detail and downsampled appropriately 
+before sharing to avoid fingerprinting
+- network addresses (which are exposed inevitably as part of the data 
+transmission) are not stored together with the telemetry data, and must only 
+be stored or used to the extend necessary for abuse counter-measures
+
+## Minimalism
+
+We only track the bare minimum of data necessary to answer specific questions, 
+we do not collect data preemptively or for exploratory research. In 
+particular, this means:
+- collected data  must have a clear purpose
+- data is downsampled to the maximum extend possible at the source
+- relevant correlations between individual bits of data should be computed at 
+the source whenever possible
+- data collection is stopped once corresponding question has been answered
+
+## Privacy
+
+We will never transmit anything containing user content, or even just hints at 
+possible user content such as e.g. file names, URLs, etc.
+
+We will only ever track:
+- system information that are specific to the installation/environment, but 
+independent of how the application/machine/installation is actually used
+- statistical usage data of an installation/application
+
+## Compliance
+
+KDE only releases products capable of acquiring telemetry data if compliance 
+with these rules has been established by a public review on [kde-core-devel|
+kde-community]@kde.org from at least two reviewers. The review has to be 
+repeated for every release if changes have been made to how/what data is 
+collected.
+
+Received data is regularly reviewed for violations of these rules, in 
+particular for data that is prone to fingerprinting. Should such violations be 
+found, the affected data will be deleted, and data recording will be suspended 
+until compliance with these rules has been established again. In order to 
+enable reviewing of the data, every KDE contributor with a developer account 
+will have access to all telemetry data gathered by any KDE product.
+
+--nextPart1627232.ab0ruIHapE
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part.
+Content-Transfer-Encoding: 7Bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iF0EABECAB0WIQQAnu3FVHA48KjZ07R/lszWTRLSRwUCWZAgMAAKCRB/lszWTRLS
+Ry5WAJ9+8r8e7IFPh54YBsEkisE3+dNs8QCfY+0b0jcYPVP1HdpsTZVoh33JfhU=
+=v6cZ
+-----END PGP SIGNATURE-----
+
+--nextPart1627232.ab0ruIHapE--
+
+

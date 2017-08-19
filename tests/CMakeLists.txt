@@ -9,6 +9,7 @@ include_directories(
     )
 
 add_definitions(-DTESTDATAPATH="${CMAKE_CURRENT_SOURCE_DIR}/data")
+add_definitions(-DTHREADTESTDATAPATH="${CMAKE_CURRENT_SOURCE_DIR}/threaddata")
 
 find_package(KF5 COMPONENTS REQUIRED Mime)
 

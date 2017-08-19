@@ -1,0 +1,119 @@
+Return-Path: <kde-community-bounces@kde.org>
+Received: from imapb010.mykolab.com ([unix socket])
+	 by imapb010.mykolab.com (Cyrus 2.5.10-49-g2e214b4-Kolab-2.5.10-8.1.el7.kolab_14) with LMTPA;
+	 Wed, 16 Aug 2017 15:30:55 +0200
+X-Sieve: CMU Sieve 2.4
+Received: from int-mx001.mykolab.com (unknown [10.9.13.1])
+	by imapb010.mykolab.com (Postfix) with ESMTPS id 2C73C14646FD6
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 15:30:55 +0200 (CEST)
+Received: from mx.kolabnow.com (unknown [10.9.4.2])
+	by int-mx001.mykolab.com (Postfix) with ESMTPS id 0324D114
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 15:30:54 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at mykolab.com
+Authentication-Results: ext-mx-in002.mykolab.com (amavisd-new);
+	dkim=pass (1024-bit key) header.d=kde.org
+X-Greylist: domain auto-whitelisted by SQLgrey-1.8.0
+Received: from forward1-smtp.messagingengine.com (forward1-smtp.messagingengine.com [66.111.4.223])
+	by ext-mx-in002.mykolab.com (Postfix) with ESMTPS id C91AA866
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 15:30:34 +0200 (CEST)
+Received: from mailredirect.nyi.internal (imap36.nyi.internal [10.202.2.86])
+	by mailforward.nyi.internal (Postfix) with ESMTP id 5C87A1858
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 09:30:33 -0400 (EDT)
+Received: by mailredirect.nyi.internal (Postfix, from userid 501)
+	id 4CC8B8E597; Wed, 16 Aug 2017 09:30:33 -0400 (EDT)
+Received: from compute1.internal (compute1.nyi.internal [10.202.2.41])
+	 by sloti36d2t28 (Cyrus fastmail-fmjessie44745-15358-git-fastmail-15358) with LMTPA;
+	 Wed, 16 Aug 2017 09:30:33 -0400
+X-Cyrus-Session-Id: sloti36d2t28-1026013-1502890233-2-11003035487755983862
+X-Sieve: CMU Sieve 3.0
+X-Spam-known-sender: no
+X-Orig-Spam-score: 0.0
+X-Spam-hits: BAYES_00 -1.9, HEADER_FROM_DIFFERENT_DOMAINS 0.001, RCVD_IN_DNSWL_MED -2.3,
+  RP_MATCHES_RCVD -0.001, SPF_PASS -0.001, LANGUAGES en, BAYES_USED global,
+  SA_VERSION 3.4.0
+X-Spam-source: IP='46.4.96.248', Host='postbox.kde.org', Country='DE', FromHeader='org',
+  MailFrom='org'
+X-Spam-charsets: 
+X-Resolved-to: chrigi_1@fastmail.fm
+X-Delivered-to: chrigi_1@fastmail.fm
+X-Mail-from: kde-community-bounces@kde.org
+Received: from mx5 ([10.202.2.204])
+  by compute1.internal (LMTPProxy); Wed, 16 Aug 2017 09:30:33 -0400
+Authentication-Results: mx5.messagingengine.com;
+    dkim=pass (1024-bit rsa key sha256) header.d=kde.org header.i=@kde.org header.b=RolpJ4HJ;
+    dmarc=none (p=none;has-list-id=yes) header.from=valdyas.org;
+    spf=pass smtp.mailfrom=kde-community-bounces@kde.org smtp.helo=postbox.kde.org
+Received-SPF: pass
+    (kde.org: 46.4.96.248 is authorized to use 'kde-community-bounces@kde.org' in 'mfrom' identity (mechanism 'mx' matched))
+    receiver=mx5.messagingengine.com;
+    identity=mailfrom;
+    envelope-from="kde-community-bounces@kde.org";
+    helo=postbox.kde.org;
+    client-ip=46.4.96.248
+Received: from postbox.kde.org (postbox.kde.org [46.4.96.248])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mx5.messagingengine.com (Postfix) with ESMTPS
+	for <chrigi_1@fastmail.fm>; Wed, 16 Aug 2017 09:30:32 -0400 (EDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=kde.org; s=default;
+	t=1502890227; bh=z989fztQpyrmqEjIXZUifZvjlTrbUJ38xgYnpo5TWHY=;
+	h=Date:From:To:Subject:In-Reply-To:References:Reply-To:List-Id:
+	 List-Unsubscribe:List-Archive:List-Post:List-Help:List-Subscribe:
+	 From;
+	b=RolpJ4HJf2ZKKk0rJkqOuvP1Ed5rERJZdvt2+FMMsImGArH3hWTlgl1qQewN3B81n
+	 Nq4o83kvWrlw2Y0i0n/fd+NjBLY9wtDBeRslr06KZSnZe4vL6N8p15wkQIs+oUAvCL
+	 01Uy2pFX/99m+u66rd5IH2Epkdj9iSn2S6U0S3Ew=
+X-Original-To: kde-community@kde.org
+X-Remote-Delivered-To: kde-community@localhost.kde.org
+Received-SPF: None (no SPF record) identity=mailfrom; client-ip=80.100.45.33;
+ helo=calcifer.valdyas.org; envelope-from=boud@valdyas.org;
+ receiver=kde-community@kde.org 
+Received: from calcifer.valdyas.org (calcifer.xs4all.nl [80.100.45.33])
+ by postbox.kde.org (Postfix) with ESMTP id 6A134A0178
+ for <kde-community@kde.org>; Wed, 16 Aug 2017 13:30:15 +0000 (UTC)
+Received: by calcifer.valdyas.org (Postfix, from userid 1001)
+ id D3C2BC283D; Wed, 16 Aug 2017 15:30:14 +0200 (CEST)
+Date: Wed, 16 Aug 2017 15:30:14 +0200 (CEST)
+From: Boudewijn Rempt <boud@valdyas.org>
+To: informing about and discussing non-technical community topics
+ <kde-community@kde.org>
+Subject: Re: Telemetry Policy
+In-Reply-To: <1942419.JquqIjZoWq@vkpc19>
+Message-ID: <alpine.LNX.2.00.1708161528260.1363@calcifer.valdyas.org>
+References: <2048912.XfIJe3ZSdj@vkpc5> <2990543.KVDkBByYO0@minixfox>
+ <CACpu024EH1OeDqwL94QK33eq4sCGjKjwedcQDR_PWjprBevzfg@mail.gmail.com>
+ <1942419.JquqIjZoWq@vkpc19>
+User-Agent: Alpine 2.00 (LNX 1167 2008-08-23)
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+X-BeenThere: kde-community@kde.org
+X-Mailman-Version: 2.1.16
+Precedence: list
+Reply-To: informing about and discussing non-technical community topics
+ <kde-community@kde.org>
+List-Id: informing about and discussing non-technical community topics
+ <kde-community.kde.org>
+List-Unsubscribe: <https://mail.kde.org/mailman/options/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=unsubscribe>
+List-Archive: <http://mail.kde.org/pipermail/kde-community/>
+List-Post: <mailto:kde-community@kde.org>
+List-Help: <mailto:kde-community-request@kde.org?subject=help>
+List-Subscribe: <https://mail.kde.org/mailman/listinfo/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=subscribe>
+Errors-To: kde-community-bounces@kde.org
+Sender: "kde-community" <kde-community-bounces@kde.org>
+
+On Wed, 16 Aug 2017, Volker Krause wrote:
+
+> Seeing yesterday's blog from the Krita team (https://akapust1n.github.io/
+> 2017-08-15-sixth-blog-gsoc-2017/), I'd particularly be interested in their 
+> view on this.
+
+I've pointed alexey at this thread, but there's a huge language barrier:
+he basically communicates through google translate. I've made it a firm
+condition of merging and operating the telemetry that we adhere to the
+KDE policy in every way. Even then, I still consider his work to be
+an experimental research project.
+
+-- 
+Boudewijn Rempt | http://www.krita.org, http://www.valdyas.org

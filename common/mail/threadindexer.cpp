@@ -34,8 +34,36 @@ void ThreadIndexer::updateThreadingIndex(const QByteArray &identifier, const App
 
     QVector<QByteArray> thread;
 
-    //a child already registered our thread.
+    //check if a child already registered our thread.
     thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
+
+    if (!thread.isEmpty()) {
+        //A child already registered our thread so we merge the childs thread
+        //* check if we have a parent thread, if not just continue as usual
+        //* get all messages that have the same threadid as the child
+        //* switch all to the parents thread
+        auto parentThread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId);
+        if (!parentThread.isEmpty()) {
+            auto childThreadId = thread.first();
+            auto parentThreadId = parentThread.first();
+            SinkTrace() << "Merging child thread: " << childThreadId << " into parent thread: " << parentThreadId;
+
+            //Ensure this mail ends up in the correct thread
+            index().unindex<Mail::MessageId, Mail::ThreadId>(messageId, childThreadId, transaction);
+            //We have to copy the id here, otherwise it doesn't survive the subsequent writes
+            thread = QVector<QByteArray>() << QByteArray{parentThreadId.data(), parentThreadId.size()};
+
+            //Merge all child messages into the correct thread
+            auto childThreadMessageIds = index().secondaryLookup<Mail::ThreadId, Mail::MessageId>(childThreadId);
+            for (const auto &msgId : childThreadMessageIds) {
+                SinkTrace() << "Merging child message: " << msgId;
+                index().unindex<Mail::MessageId, Mail::ThreadId>(msgId, childThreadId, transaction);
+                index().unindex<Mail::ThreadId, Mail::MessageId>(childThreadId, msgId, transaction);
+                index().index<Mail::MessageId, Mail::ThreadId>(msgId, parentThreadId, transaction);
+                index().index<Mail::ThreadId, Mail::MessageId>(parentThreadId, msgId, transaction);
+            }
+        }
+    }
 
     //If parent is already available, add to thread of parent
     if (thread.isEmpty() && parentMessageId.isValid()) {

@@ -1,0 +1,187 @@
+Return-Path: <kde-community-bounces@kde.org>
+Received: from imapb010.mykolab.com ([unix socket])
+	 by imapb010.mykolab.com (Cyrus 2.5.10-49-g2e214b4-Kolab-2.5.10-8.1.el7.kolab_14) with LMTPA;
+	 Wed, 16 Aug 2017 14:15:52 +0200
+X-Sieve: CMU Sieve 2.4
+Received: from int-mx001.mykolab.com (unknown [10.9.13.1])
+	by imapb010.mykolab.com (Postfix) with ESMTPS id B5DFE145C97EA
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 14:15:52 +0200 (CEST)
+Received: from mx.kolabnow.com (unknown [10.9.4.3])
+	by int-mx001.mykolab.com (Postfix) with ESMTPS id 9430B114
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 14:15:52 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at mykolab.com
+Authentication-Results: ext-mx-in003.mykolab.com (amavisd-new);
+	dkim=pass (1024-bit key) header.d=kde.org
+X-Greylist: domain auto-whitelisted by SQLgrey-1.8.0
+Received: from forward1-smtp.messagingengine.com (forward1-smtp.messagingengine.com [66.111.4.223])
+	by ext-mx-in003.mykolab.com (Postfix) with ESMTPS id 87ADC292C
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 14:15:41 +0200 (CEST)
+Received: from mailredirect.nyi.internal (imap36.nyi.internal [10.202.2.86])
+	by mailforward.nyi.internal (Postfix) with ESMTP id 14E06F2B
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 08:15:41 -0400 (EDT)
+Received: by mailredirect.nyi.internal (Postfix, from userid 501)
+	id 02B668E597; Wed, 16 Aug 2017 08:15:40 -0400 (EDT)
+Received: from compute1.internal (compute1.nyi.internal [10.202.2.41])
+	 by sloti36d2t28 (Cyrus fastmail-fmjessie44745-15358-git-fastmail-15358) with LMTPA;
+	 Wed, 16 Aug 2017 08:15:40 -0400
+X-Cyrus-Session-Id: sloti36d2t28-920397-1502885740-5-10891205693403350257
+X-Sieve: CMU Sieve 3.0
+X-Spam-known-sender: no
+X-Orig-Spam-score: 0.0
+X-Spam-hits: BAYES_00 -1.9, RCVD_IN_DNSWL_MED -2.3, RP_MATCHES_RCVD -0.001,
+  SPF_PASS -0.001, LANGUAGES en, BAYES_USED global, SA_VERSION 3.4.0
+X-Spam-source: IP='46.4.96.248', Host='postbox.kde.org', Country='DE', FromHeader='org',
+  MailFrom='org'
+X-Spam-charsets: plain='utf-8'
+X-Attached: signature.asc
+X-Resolved-to: chrigi_1@fastmail.fm
+X-Delivered-to: chrigi_1@fastmail.fm
+X-Mail-from: kde-community-bounces@kde.org
+Received: from mx1 ([10.202.2.200])
+  by compute1.internal (LMTPProxy); Wed, 16 Aug 2017 08:15:40 -0400
+Authentication-Results: mx1.messagingengine.com;
+    dkim=pass (1024-bit rsa key sha256) header.d=kde.org header.i=@kde.org header.b=dcc9ZeF1;
+    dmarc=none (p=none;has-list-id=yes) header.from=kde.org;
+    smime=temperror;
+    spf=pass smtp.mailfrom=kde-community-bounces@kde.org smtp.helo=postbox.kde.org
+Received-SPF: pass
+    (kde.org: 46.4.96.248 is authorized to use 'kde-community-bounces@kde.org' in 'mfrom' identity (mechanism 'mx' matched))
+    receiver=mx1.messagingengine.com;
+    identity=mailfrom;
+    envelope-from="kde-community-bounces@kde.org";
+    helo=postbox.kde.org;
+    client-ip=46.4.96.248
+Received: from postbox.kde.org (postbox.kde.org [46.4.96.248])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mx1.messagingengine.com (Postfix) with ESMTPS
+	for <chrigi_1@fastmail.fm>; Wed, 16 Aug 2017 08:15:40 -0400 (EDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=kde.org; s=default;
+	t=1502885735; bh=SH/qVWnJJ/KE8PqQNaOwBRNoy7rIm5VobJE4/TZFZ9g=;
+	h=From:To:Subject:Date:In-Reply-To:References:Reply-To:List-Id:
+	 List-Unsubscribe:List-Archive:List-Post:List-Help:List-Subscribe:
+	 From;
+	b=dcc9ZeF1EO5Q0C8mVOjhOITKyPmrCB9KGB4gKdTSfuxo4OZGKHg/xi7VH0/UDLYxy
+	 Ni1GHXrJiD50yXOLDYICYr0XsDpYQaHmRQXGs6O6g/hIYxR2BCdqH1/5/NgNzPyjLH
+	 5aKmEZt4LH8/JKYnv1UJCiKdhG2UQrs3fSg/ZMpM=
+X-Original-To: kde-community@kde.org
+X-Remote-Delivered-To: kde-community@localhost.kde.org
+Received-SPF: Neutral (access neither permitted nor denied) identity=mailfrom;
+ client-ip=85.214.75.115; helo=h2670809.stratoserver.net;
+ envelope-from=vkrause@kde.org; receiver=kde-community@kde.org 
+Received: from h2670809.stratoserver.net (deltatauchi.de [85.214.75.115])
+ by postbox.kde.org (Postfix) with ESMTP id 7F686A0160
+ for <kde-community@kde.org>; Wed, 16 Aug 2017 12:15:15 +0000 (UTC)
+Received: from vkpc19.localnet (unknown [185.28.184.2])
+ by h2670809.stratoserver.net (Postfix) with ESMTPSA id 59DBAF1A0104
+ for <kde-community@kde.org>; Wed, 16 Aug 2017 14:14:44 +0200 (CEST)
+From: Volker Krause <vkrause@kde.org>
+To: kde-community@kde.org
+Subject: Re: Telemetry Policy
+Date: Wed, 16 Aug 2017 14:13:48 +0200
+Message-ID: <1942419.JquqIjZoWq@vkpc19>
+Organization: KDE
+In-Reply-To: <CACpu024EH1OeDqwL94QK33eq4sCGjKjwedcQDR_PWjprBevzfg@mail.gmail.com>
+References: <2048912.XfIJe3ZSdj@vkpc5> <2990543.KVDkBByYO0@minixfox>
+ <CACpu024EH1OeDqwL94QK33eq4sCGjKjwedcQDR_PWjprBevzfg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; boundary="nextPart3633370.DIlRsSa6NW";
+ micalg="pgp-sha1"; protocol="application/pgp-signature"
+X-BeenThere: kde-community@kde.org
+X-Mailman-Version: 2.1.16
+Precedence: list
+Reply-To: informing about and discussing non-technical community topics
+ <kde-community@kde.org>
+List-Id: informing about and discussing non-technical community topics
+ <kde-community.kde.org>
+List-Unsubscribe: <https://mail.kde.org/mailman/options/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=unsubscribe>
+List-Archive: <http://mail.kde.org/pipermail/kde-community/>
+List-Post: <mailto:kde-community@kde.org>
+List-Help: <mailto:kde-community-request@kde.org?subject=help>
+List-Subscribe: <https://mail.kde.org/mailman/listinfo/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=subscribe>
+Errors-To: kde-community-bounces@kde.org
+Sender: "kde-community" <kde-community-bounces@kde.org>
+
+--nextPart3633370.DIlRsSa6NW
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
+
+On Wednesday, 16 August 2017 09:33:02 CEST Valorie Zimmerman wrote:
+> Hi all, Mozilla has done a lot of work on telemetry, and we might be
+> able to use some of their findings. On this page:
+> https://wiki.mozilla.org/Firefox/Data_Collection they break down the
+> data they might possibly collect into four buckets - technical (such
+> as crashes), user interaction, web activity, and sensitive (personal
+> data).
+
+without making it that explicit, we basically have the same four categories of 
+data too, and explicitly exclude the use of category 3 and 4, ie user content/
+activity and personal data, only technical and interaction data are allowed to 
+be used (category 1 and 2).
+ 
+> This bit might be relevant to our discussion: "Categories 1 & 2
+> (Technical & Interaction data)
+> Pre-Release & Release: Data may default on, provided the data is
+> exclusively in these categories (it cannot be in any other category).
+> In Release, an opt-out must be available for most types of Technical
+> and Interaction data. "
+> 
+> I think the entire page might be enlightening to this discussion. I
+> believe our analysis of needs should be more fine-grained, and that
+> some parts of what we need can be "default on" especially for
+> pre-release testing. For releases, we can provide an opt-out.
+> 
+> Other more sensitive data will need to be opt-in. I think it's a
+> mistake to treat all the data we might want all in the same way.
+
+This again brings up opt-out, which so far doesn't seem to have a chance for 
+consensus. Can we defer this to when we have some more experience with the 
+opt-in approach and how much participation we get with that? Or are people 
+feeling this would too strongly limit what they are allowed to do in their 
+applications? 
+
+Seeing yesterday's blog from the Krita team (https://akapust1n.github.io/
+2017-08-15-sixth-blog-gsoc-2017/), I'd particularly be interested in their 
+view on this.
+
+Regards,
+Volker
+
+> On Sun, Aug 13, 2017 at 3:18 AM, Christian Loosli
+> 
+> <christian.loosli@fuchsnet.ch> wrote:
+> > Hi,
+> > 
+> > thank you very much for this work, sounds great!
+> > 
+> > Only point I have: maybe make sure that the opt-in / default settings are
+> > not only mandatory for application developers, but also for packagers /
+> > distributions.
+> > 
+> > Some distributions have rather questionable views on privacy and by
+> > default
+> > sent information to third parties, so I would feel much more safe if they
+> > weren't allowed (in theory) to flick the switch in their package by
+> > default to "on" either.
+> > 
+> > Kind regards,
+> > 
+> > Christian
+
+
+
+--nextPart3633370.DIlRsSa6NW
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part.
+Content-Transfer-Encoding: 7Bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iF0EABECAB0WIQQAnu3FVHA48KjZ07R/lszWTRLSRwUCWZQ2/AAKCRB/lszWTRLS
+R+niAKCpVjpRVPq455bnZlAVxpARkGWE/gCcCaBN1QAFz8Da6XIKJGY7iukaS3A=
+=ZSiq
+-----END PGP SIGNATURE-----
+
+--nextPart3633370.DIlRsSa6NW--
