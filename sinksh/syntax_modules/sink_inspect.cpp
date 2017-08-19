@@ -110,6 +110,8 @@ bool inspect(const QStringList &args, State &state)
         //that no longer exist.
         if (!hash.isEmpty()) {
             qWarning() << "Have rids left: " << hash.size();
+        } else if (!missing) {
+            qWarning() << "Everything is in order.";
         }
 
         return false;
