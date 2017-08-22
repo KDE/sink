@@ -36,6 +36,17 @@
 #include "storage.h"
 #include "log.h"
 
+#define ASSERT_ENUMS_MATCH(A, B) Q_STATIC_ASSERT_X(static_cast<int>(A) == static_cast<int>(B), "The enum values must match");
+
+//Ensure the copied enum matches
+typedef ModelResult<Sink::ApplicationDomain::Mail, Sink::ApplicationDomain::Mail::Ptr> MailModelResult;
+ASSERT_ENUMS_MATCH(Sink::Store::DomainObjectBaseRole, MailModelResult::DomainObjectBaseRole)
+ASSERT_ENUMS_MATCH(Sink::Store::ChildrenFetchedRole, MailModelResult::ChildrenFetchedRole)
+ASSERT_ENUMS_MATCH(Sink::Store::DomainObjectRole, MailModelResult::DomainObjectRole)
+ASSERT_ENUMS_MATCH(Sink::Store::StatusRole, MailModelResult::StatusRole)
+ASSERT_ENUMS_MATCH(Sink::Store::WarningRole, MailModelResult::WarningRole)
+ASSERT_ENUMS_MATCH(Sink::Store::ProgressRole, MailModelResult::ProgressRole)
+
 Q_DECLARE_METATYPE(QSharedPointer<Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>>)
 Q_DECLARE_METATYPE(QSharedPointer<Sink::ResourceAccessInterface>);
 Q_DECLARE_METATYPE(std::shared_ptr<void>);
