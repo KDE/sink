@@ -260,6 +260,7 @@ DavResourceFactory::DavResourceFactory(QObject *parent)
     : Sink::ResourceFactory(parent,
             {Sink::ApplicationDomain::ResourceCapabilities::Contact::contact,
             Sink::ApplicationDomain::ResourceCapabilities::Contact::addressbook,
+            Sink::ApplicationDomain::ResourceCapabilities::Contact::storage
             }
             )
 {
