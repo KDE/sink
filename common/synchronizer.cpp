@@ -40,7 +40,7 @@ Synchronizer::Synchronizer(const Sink::ResourceContext &context)
     mSyncStorage(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::DataStore::ReadWrite),
     mSyncInProgress(false)
 {
-    mCurrentState.push(ApplicationDomain::Status::OfflineStatus);
+    mCurrentState.push(ApplicationDomain::Status::NoStatus);
     SinkTraceCtx(mLogCtx) << "Starting synchronizer: " << mResourceContext.resourceType << mResourceContext.instanceId();
 }
 
