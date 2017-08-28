@@ -511,6 +511,8 @@ public:
                     return {ApplicationDomain::LoginError, error.errorMessage};
                 case Imap::HostNotFoundError:
                     return {ApplicationDomain::NoServerError, error.errorMessage};
+                case Imap::ConnectionLost:
+                    return {ApplicationDomain::ConnectionLostError, error.errorMessage};
                 default:
                     return {ApplicationDomain::UnknownError, error.errorMessage};
             }

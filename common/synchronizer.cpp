@@ -344,8 +344,11 @@ void Synchronizer::setStatusFromResult(const KAsync::Error &error, const QString
         } else if (error.errorCode == ApplicationDomain::LoginError) {
             //If we failed to login altough we could connect that indicates a problem with our setup.
             setStatus(ApplicationDomain::ErrorStatus, s, requestId);
+        } else if (error.errorCode == ApplicationDomain::ConnectionLostError) {
+            //We've lost the connection so we assume the connection to the server broke.
+            setStatus(ApplicationDomain::OfflineStatus, s, requestId);
         }
-        //We don't know what kind of error this was, so we assume it's transient and don't change ou status.
+        //We don't know what kind of error this was, so we assume it's transient and don't change our status.
     } else {
         //An operation against the server worked, so we're probably online.
         setStatus(ApplicationDomain::ConnectedStatus, s, requestId);

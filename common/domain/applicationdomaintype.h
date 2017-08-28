@@ -101,6 +101,7 @@ enum SINK_EXPORT ErrorCode {
     LoginError,
     ConfigurationError,
     TransmissionError,
+    ConnectionLostError,
 };
 
 enum SINK_EXPORT SuccessCode {
