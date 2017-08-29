@@ -270,12 +270,17 @@ Q_GLOBAL_STATIC(DebugAreaCollector, sDebugAreaCollector);
 
 QSet<QString> Sink::Log::debugAreas()
 {
-    return sDebugAreaCollector->debugAreas();
+    if (!sDebugAreaCollector.isDestroyed()) {
+        return sDebugAreaCollector->debugAreas();
+    }
+    return {};
 }
 
 static void collectDebugArea(const QString &debugArea)
 {
-    sDebugAreaCollector->add(debugArea);
+    if (!sDebugAreaCollector.isDestroyed()) {
+        sDebugAreaCollector->add(debugArea);
+    }
 }
 
 static bool containsItemStartingWith(const QByteArray &pattern, const QByteArrayList &list)
