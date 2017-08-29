@@ -10,7 +10,6 @@
 #include <QMutexLocker>
 #include <iostream>
 #include <unistd.h>
-#include <memory>
 #include <atomic>
 #include <definitions.h>
 #include <QThreadStorage>
@@ -267,7 +266,7 @@ public:
     QSet<QString> mDebugAreas;
 };
 
-static auto sDebugAreaCollector = std::unique_ptr<DebugAreaCollector>(new DebugAreaCollector);
+Q_GLOBAL_STATIC(DebugAreaCollector, sDebugAreaCollector);
 
 QSet<QString> Sink::Log::debugAreas()
 {
