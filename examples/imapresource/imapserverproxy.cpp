@@ -61,25 +61,6 @@ const char* Imap::Capabilities::Namespace = "NAMESPACE";
 const char* Imap::Capabilities::Uidplus = "UIDPLUS";
 const char* Imap::Capabilities::Condstore = "CONDSTORE";
 
-template <typename T>
-static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
-{
-    return KAsync::start<T>([job, f](KAsync::Future<T> &future) {
-        QObject::connect(job, &KJob::result, [&future, f](KJob *job) {
-            SinkTrace() << "Job done: " << job->metaObject()->className();
-            if (job->error()) {
-                SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className();
-                future.setError(job->error(), job->errorString());
-            } else {
-                future.setValue(f(job));
-                future.setFinished();
-            }
-        });
-        SinkTrace() << "Starting job: " << job->metaObject()->className();
-        job->start();
-    });
-}
-
 static int translateImapError(int error)
 {
     switch (error) {
@@ -93,6 +74,26 @@ static int translateImapError(int error)
             return Imap::SslHandshakeError;
     }
     return Imap::UnknownError;
+}
+
+template <typename T>
+static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
+{
+    return KAsync::start<T>([job, f](KAsync::Future<T> &future) {
+        QObject::connect(job, &KJob::result, [&future, f](KJob *job) {
+            SinkTrace() << "Job done: " << job->metaObject()->className();
+            if (job->error()) {
+                SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className();
+                auto proxyError = translateImapError(job->error());
+                future.setError(proxyError, job->errorString());
+            } else {
+                future.setValue(f(job));
+                future.setFinished();
+            }
+        });
+        SinkTrace() << "Starting job: " << job->metaObject()->className();
+        job->start();
+    });
 }
 
 static KAsync::Job<void> runJob(KJob *job)
