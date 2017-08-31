@@ -39,11 +39,17 @@ QString Sink::storageLocation()
     return dataLocation() + "/storage";
 }
 
+static QString sinkLocation(QStandardPaths::StandardLocation location)
+{
+    return QStandardPaths::writableLocation(location) + "/sink";
+}
+
 QString Sink::dataLocation()
 {
-    static QString location;
+    static QString location = sinkLocation(QStandardPaths::GenericDataLocation);
+    //Warning: This is not threadsafe, but clearLocationCache is only ever used in testcode. The initialization above is required to make at least the initialization threadsafe (relies on C++11 threadsafe initialization).
     if (rereadDataLocation) {
-        location = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/sink";
+        location = sinkLocation(QStandardPaths::GenericDataLocation);
         rereadDataLocation = false;
     }
     return location;
@@ -51,9 +57,10 @@ QString Sink::dataLocation()
 
 QString Sink::configLocation()
 {
-    static QString location;
+    static QString location = sinkLocation(QStandardPaths::GenericConfigLocation);
+    //Warning: This is not threadsafe, but clearLocationCache is only ever used in testcode. The initialization above is required to make at least the initialization threadsafe (relies on C++11 threadsafe initialization).
     if (rereadConfigLocation) {
-        location = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/sink";
+        location = sinkLocation(QStandardPaths::GenericConfigLocation);
         rereadConfigLocation = false;
     }
     return location;
@@ -61,8 +68,9 @@ QString Sink::configLocation()
 
 QString Sink::temporaryFileLocation()
 {
-    static QString location;
+    static QString location = dataLocation() + "/temporaryFiles";
     static bool dirCreated = false;
+    //Warning: This is not threadsafe, but clearLocationCache is only ever used in testcode. The initialization above is required to make at least the initialization threadsafe (relies on C++11 threadsafe initialization).
     if (rereadTemporaryFileLocation) {
         location = dataLocation() + "/temporaryFiles";
         dirCreated = QDir{}.mkpath(location);
