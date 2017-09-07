@@ -267,7 +267,7 @@ bool EntityStore::add(const QByteArray &type, ApplicationDomain::ApplicationDoma
             [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to write entity" << entity.identifier() << newRevision; });
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, entity.identifier(), type);
-    DataStore::recordUid(d->transaction, entity.identifier());
+    DataStore::recordUid(d->transaction, entity.identifier(), type);
     SinkTraceCtx(d->logCtx) << "Wrote entity: " << entity.identifier() << type << newRevision;
     return true;
 }
@@ -379,7 +379,7 @@ bool EntityStore::remove(const QByteArray &type, const Sink::ApplicationDomain::
             [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to write entity" << uid << newRevision; });
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, uid, type);
-    DataStore::removeUid(d->transaction, uid);
+    DataStore::removeUid(d->transaction, uid, type);
     return true;
 }
 
@@ -638,7 +638,7 @@ ApplicationDomain::ApplicationDomainType EntityStore::readPrevious(const QByteAr
 
 void EntityStore::readAllUids(const QByteArray &type, const std::function<void(const QByteArray &uid)> callback)
 {
-    DataStore::getUids(d->getTransaction(), callback);
+    DataStore::getUids(type, d->getTransaction(), callback);
 }
 
 bool EntityStore::contains(const QByteArray &type, const QByteArray &uid)
