@@ -294,6 +294,7 @@ public:
     KAsync::Job<QVector<qint64>> fetchUids(const Folder &folder);
 
 private:
+    KAsync::Job<void> getMetaData(std::function<void(const QHash<QString, QMap<QByteArray, QByteArray> > &metadata)> callback);
     bool isGmail() const;
 
     QString getNamespace(const QString &name);

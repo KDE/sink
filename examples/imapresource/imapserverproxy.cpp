@@ -31,6 +31,7 @@
 #include <KIMAP2/ExpungeJob>
 #include <KIMAP2/CapabilitiesJob>
 #include <KIMAP2/SearchJob>
+#include <KIMAP2/GetMetaDataJob>
 
 #include <KCoreAddons/KJob>
 
@@ -479,14 +480,33 @@ static void reportFolder(const Folder &f, QSharedPointer<QSet<QString>> reported
     }
 }
 
+KAsync::Job<void> ImapServerProxy::getMetaData(std::function<void(const QHash<QString, QMap<QByteArray, QByteArray> > &metadata)> callback)
+{
+    if (!mCapabilities.contains("METADATA")) {
+        return KAsync::null();
+    }
+    KIMAP2::GetMetaDataJob *meta = new KIMAP2::GetMetaDataJob(mSession);
+    meta->setMailBox(QLatin1String("*"));
+    meta->setServerCapability( KIMAP2::MetaDataJobBase::Metadata );
+    meta->setDepth(KIMAP2::GetMetaDataJob::AllLevels);
+    meta->addRequestedEntry("/shared/vendor/kolab/folder-type");
+    meta->addRequestedEntry("/private/vendor/kolab/folder-type");
+    return runJob(meta).then<void>([callback, meta] () {
+        callback(meta->allMetaDataForMailboxes());
+    });
+}
+
 KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder &)> callback)
 {
     SinkTrace() << "Fetching folders";
     auto subscribedList = QSharedPointer<QSet<QString>>::create() ;
     auto reportedList = QSharedPointer<QSet<QString>>::create() ;
-    return list(KIMAP2::ListJob::NoOption, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &){
+    auto metaData = QSharedPointer<QHash<QString, QMap<QByteArray, QByteArray>>>::create() ;
+    return getMetaData([=] (const QHash<QString, QMap<QByteArray, QByteArray>> &m) {
+        *metaData = m;
+    }).then(list(KIMAP2::ListJob::NoOption, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &){
         *subscribedList << mailbox.name;
-    }).then(list(KIMAP2::ListJob::IncludeUnsubscribed, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &flags) {
+    })).then(list(KIMAP2::ListJob::IncludeUnsubscribed, [=](const KIMAP2::MailBoxDescriptor &mailbox, const QList<QByteArray> &flags) {
         bool noselect = caseInsensitiveContains(FolderFlags::Noselect, flags);
         bool subscribed = subscribedList->contains(mailbox.name);
         if (isGmail()) {
@@ -502,6 +522,17 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
             }
         }
         SinkLog() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect  << " sub: " << subscribed;
+        //Ignore all non-mail folders
+        if (metaData->contains(mailbox.name)) {
+            auto m = metaData->value(mailbox.name);
+            auto sharedType = m.value("/shared/vendor/kolab/folder-type");
+            auto privateType = m.value("/private/vendor/kolab/folder-type");
+            auto type = !privateType.isEmpty() ? privateType : sharedType;
+            if (!type.isEmpty() && !type.contains("mail")) {
+                SinkLog() << "Skipping due to folder type: " << type;
+                return;
+            }
+        }
         auto ns = getNamespace(mailbox.name);
         auto folder = Folder{mailbox.name, ns, mailbox.separator, noselect, subscribed, flags};
 
