@@ -395,13 +395,13 @@ public:
     }
 
 
-    Query(const ApplicationDomain::Entity &value) : mLimit(0)
+    Query(const ApplicationDomain::Entity &value)
     {
         filter(value.identifier());
         resourceFilter(value.resourceInstanceIdentifier());
     }
 
-    Query(Flags flags = Flags()) : mLimit(0), mFlags(flags)
+    Query(Flags flags = Flags()) : mFlags(flags)
     {
     }
 
@@ -436,6 +436,16 @@ public:
     int limit() const
     {
         return mLimit;
+    }
+
+    Query &offset(int o)
+    {
+        return *this;
+    }
+
+    int offset() const
+    {
+        return mOffset;
     }
 
     Filter getResourceFilter() const
@@ -476,7 +486,8 @@ public:
 
 private:
     friend class SyncScope;
-    int mLimit;
+    int mLimit {0};
+    int mOffset {0};
     Flags mFlags;
     Filter mResourceFilter;
     QByteArray mParentProperty;
