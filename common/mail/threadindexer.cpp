@@ -46,6 +46,11 @@ void ThreadIndexer::updateThreadingIndex(const QByteArray &identifier, const App
         if (!parentThread.isEmpty()) {
             auto childThreadId = thread.first();
             auto parentThreadId = parentThread.first();
+            //Can happen if the message is already available locally.
+            if (childThreadId == parentThreadId) {
+                //Nothing to do
+                return;
+            }
             SinkTrace() << "Merging child thread: " << childThreadId << " into parent thread: " << parentThreadId;
 
             //Ensure this mail ends up in the correct thread
