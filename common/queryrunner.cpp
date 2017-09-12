@@ -267,7 +267,7 @@ ReplayResult QueryWorker<DomainType>::executeInitialQuery(
     auto resultSet = preparedQuery.execute();
 
     SinkTraceCtx(mLogCtx) << "Filtered set retrieved." << Log::TraceTime(time.elapsed());
-    auto replayResult = resultSet.replaySet(0, batchsize, [this, query, &resultProvider](const ResultSet::Result &result) {
+    auto replayResult = resultSet.replaySet(query.offset(), batchsize, [this, query, &resultProvider](const ResultSet::Result &result) {
         resultProviderCallback(query, resultProvider, result);
     });
 
