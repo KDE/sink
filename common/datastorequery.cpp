@@ -524,6 +524,7 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
 {
     auto query = query_;
     auto baseFilters = query.getBaseFilters();
+    //Resolve any subqueries we have
     for (const auto &k : baseFilters.keys()) {
         const auto comparator = baseFilters.value(k);
         if (comparator.value.canConvert<Query>()) {
@@ -534,26 +535,30 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
     }
     query.setBaseFilters(baseFilters);
 
-    FilterBase::Ptr baseSet;
     QSet<QByteArray> remainingFilters = query.getBaseFilters().keys().toSet();
     QByteArray appliedSorting;
-    if (!query.ids().isEmpty()) {
-        mSource = Source::Ptr::create(query.ids().toVector(), this);
-        baseSet = mSource;
-    } else {
-        QSet<QByteArray> appliedFilters;
 
-        auto resultSet = mStore.indexLookup(mType, query, appliedFilters, appliedSorting);
-        remainingFilters = remainingFilters - appliedFilters;
-
-        // We do a full scan if there were no indexes available to create the initial set.
-        if (appliedFilters.isEmpty()) {
-            mSource = Source::Ptr::create(mStore.fullScan(mType), this);
+    //Determine initial set
+    mSource = [&]() {
+        if (!query.ids().isEmpty()) {
+            //We have a set of ids as a starting point
+            return Source::Ptr::create(query.ids().toVector(), this);
         } else {
-            mSource = Source::Ptr::create(resultSet, this);
+            QSet<QByteArray> appliedFilters;
+
+            auto resultSet = mStore.indexLookup(mType, query, appliedFilters, appliedSorting);
+            remainingFilters = remainingFilters - appliedFilters;
+
+            if (!appliedFilters.isEmpty()) {
+                //We have an index lookup as starting point
+                return Source::Ptr::create(resultSet, this);
+            }
+            // We do a full scan if there were no indexes available to create the initial set (this is going to be expensive for large sets).
+            return Source::Ptr::create(mStore.fullScan(mType), this);
         }
-        baseSet = mSource;
-    }
+    }();
+
+    FilterBase::Ptr baseSet = mSource;
     if (!query.getBaseFilters().isEmpty()) {
         auto filter = Filter::Ptr::create(baseSet, this);
         //For incremental queries the remaining filters are not sufficient
