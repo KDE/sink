@@ -535,7 +535,6 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
     }
     query.setBaseFilters(baseFilters);
 
-    QSet<QByteArray> remainingFilters = query.getBaseFilters().keys().toSet();
     QByteArray appliedSorting;
 
     //Determine initial set
@@ -545,10 +544,7 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
             return Source::Ptr::create(query.ids().toVector(), this);
         } else {
             QSet<QByteArray> appliedFilters;
-
             auto resultSet = mStore.indexLookup(mType, query, appliedFilters, appliedSorting);
-            remainingFilters = remainingFilters - appliedFilters;
-
             if (!appliedFilters.isEmpty()) {
                 //We have an index lookup as starting point
                 return Source::Ptr::create(resultSet, this);
