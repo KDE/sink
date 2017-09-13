@@ -24,6 +24,7 @@
 #include "store.h"
 #include "resourceaccess.h"
 #include "resource.h"
+#include "facadefactory.h"
 
 using namespace Sink;
 
@@ -358,27 +359,50 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
     auto ctx = parentCtx.subContext("accounts");
     auto runner = new LocalStorageQueryRunner<ApplicationDomain::SinkAccount>(query, mIdentifier, mTypeName, sConfigNotifier, ctx);
     auto monitoredResources = QSharedPointer<QSet<QByteArray>>::create();
-    runner->setStatusUpdater([runner, monitoredResources, ctx](ApplicationDomain::SinkAccount &account) {
-        Query query;
+    auto monitorResource = [monitoredResources, runner, ctx] (const QByteArray &accountIdentifier, const ApplicationDomain::SinkResource &resource, const ResourceAccess::Ptr &resourceAccess) {
+        if (!monitoredResources->contains(resource.identifier())) {
+            auto ret = QObject::connect(resourceAccess.data(), &ResourceAccess::notification, runner->guard(), [resource, runner, resourceAccess, accountIdentifier, ctx](const Notification &notification) {
+                SinkTraceCtx(ctx) << "Received notification in facade: " << notification.type;
+                if (notification.type == Notification::Status) {
+                    runner->statusChanged(accountIdentifier);
+                }
+            });
+            Q_ASSERT(ret);
+            monitoredResources->insert(resource.identifier());
+        }
+    };
+    runner->setStatusUpdater([this, runner, monitoredResources, ctx, monitorResource](ApplicationDomain::SinkAccount &account) {
+        Query query{Query::LiveQuery};
         query.filter<ApplicationDomain::SinkResource::Account>(account.identifier());
         query.request<ApplicationDomain::SinkResource::Account>()
              .request<ApplicationDomain::SinkResource::Capabilities>();
         const auto resources = Store::read<ApplicationDomain::SinkResource>(query);
         SinkTraceCtx(ctx) << "Found resource belonging to the account " << account.identifier() << " : " << resources;
         auto accountIdentifier = account.identifier();
+
+        //Monitor for new resources so they can be monitored as well
+        if (!runner->mResourceEmitter.contains(accountIdentifier)) {
+            auto facade = Sink::FacadeFactory::instance().getFacade<ApplicationDomain::SinkResource>();
+            Q_ASSERT(facade);
+
+            auto emitter = facade->load(query, ctx).second;
+            emitter->onAdded([=](const ApplicationDomain::SinkResource::Ptr &resource) {
+                auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(resource->identifier(), ResourceConfig::getResourceType(resource->identifier()));
+                monitorResource(accountIdentifier, *resource, resourceAccess);
+            });
+            emitter->onModified([](const ApplicationDomain::SinkResource::Ptr &) {});
+            emitter->onRemoved([](const ApplicationDomain::SinkResource::Ptr &) {});
+            emitter->onInitialResultSetComplete([](const ApplicationDomain::SinkResource::Ptr &, bool) {});
+            emitter->onComplete([]() {});
+            emitter->fetch({});
+            runner->mResourceEmitter[accountIdentifier] = emitter;
+        }
+
         QList<int> states;
+        //Gather all resources and ensure they are monitored
         for (const auto &resource : resources) {
             auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource.identifier(), ResourceConfig::getResourceType(resource.identifier()));
-            if (!monitoredResources->contains(resource.identifier())) {
-                auto ret = QObject::connect(resourceAccess.data(), &ResourceAccess::notification, runner->guard(), [resource, runner, resourceAccess, accountIdentifier, ctx](const Notification &notification) {
-                    SinkTraceCtx(ctx) << "Received notification in facade: " << notification.type;
-                    if (notification.type == Notification::Status) {
-                        runner->statusChanged(accountIdentifier);
-                    }
-                });
-                Q_ASSERT(ret);
-                monitoredResources->insert(resource.identifier());
-            }
+            monitorResource(accountIdentifier, resource, resourceAccess);
             states << resourceAccess->getResourceStatus();
         }
         const auto status = [&] {
@@ -391,7 +415,10 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
             if (states.contains(ApplicationDomain::OfflineStatus)) {
                 return ApplicationDomain::OfflineStatus;
             }
-            return ApplicationDomain::ConnectedStatus;
+            if (states.contains(ApplicationDomain::ConnectedStatus)) {
+                return ApplicationDomain::ConnectedStatus;
+            }
+            return ApplicationDomain::NoStatus;
         }();
         account.setStatusStatus(status);
     });

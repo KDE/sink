@@ -1,0 +1,253 @@
+Return-Path: <kde-community-bounces@kde.org>
+Received: from imapb010.mykolab.com ([unix socket])
+	 by imapb010.mykolab.com (Cyrus 2.5.10-49-g2e214b4-Kolab-2.5.10-8.1.el7.kolab_14) with LMTPA;
+	 Thu, 17 Aug 2017 18:40:51 +0200
+X-Sieve: CMU Sieve 2.4
+Received: from int-mx001.mykolab.com (unknown [10.9.13.1])
+	by imapb010.mykolab.com (Postfix) with ESMTPS id A9D23150D1CA9
+	for <christian@mailqueue.ch>; Thu, 17 Aug 2017 18:40:51 +0200 (CEST)
+Received: from mx.kolabnow.com (unknown [10.9.4.1])
+	by int-mx001.mykolab.com (Postfix) with ESMTPS id 8FACC185
+	for <christian@mailqueue.ch>; Thu, 17 Aug 2017 18:40:51 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at mykolab.com
+Authentication-Results: ext-mx-in001.mykolab.com (amavisd-new);
+	dkim=pass (1024-bit key) header.d=kde.org
+X-Greylist: domain auto-whitelisted by SQLgrey-1.8.0
+Received: from forward1-smtp.messagingengine.com (forward1-smtp.messagingengine.com [66.111.4.223])
+	by ext-mx-in001.mykolab.com (Postfix) with ESMTPS id 1B005169D
+	for <christian@mailqueue.ch>; Thu, 17 Aug 2017 18:20:40 +0200 (CEST)
+Received: from mailredirect.nyi.internal (imap36.nyi.internal [10.202.2.86])
+	by mailforward.nyi.internal (Postfix) with ESMTP id B9C0FFD6
+	for <christian@mailqueue.ch>; Thu, 17 Aug 2017 12:20:39 -0400 (EDT)
+Received: by mailredirect.nyi.internal (Postfix, from userid 501)
+	id A9EF58E9B6; Thu, 17 Aug 2017 12:20:39 -0400 (EDT)
+Received: from compute1.internal (compute1.nyi.internal [10.202.2.41])
+	 by sloti36d2t28 (Cyrus fastmail-fmjessie44745-15358-git-fastmail-15358) with LMTPA;
+	 Thu, 17 Aug 2017 12:20:39 -0400
+X-Cyrus-Session-Id: sloti36d2t28-3239059-1502986839-5-11465270081887081630
+X-Sieve: CMU Sieve 3.0
+X-Spam-known-sender: yes ("Address thomas.pfeiffer@kde.org in From header is in addressbook");
+ in-addressbook
+X-Orig-Spam-score: 0.0
+X-Spam-hits: BAYES_00 -1.9, HTML_MESSAGE 0.001, RCVD_IN_DNSWL_MED -2.3,
+  RCVD_IN_SORBS_SPAM 0.5, RP_MATCHES_RCVD -0.001, SPF_PASS -0.001,
+  LANGUAGES en, BAYES_USED global, SA_VERSION 3.4.0
+X-Spam-source: IP='46.4.96.248', Host='postbox.kde.org', Country='DE', FromHeader='org',
+  MailFrom='org'
+X-Spam-charsets: plain='utf-8', html='utf-8'
+X-Resolved-to: chrigi_1@fastmail.fm
+X-Delivered-to: chrigi_1@fastmail.fm
+X-Mail-from: kde-community-bounces@kde.org
+Received: from mx3 ([10.202.2.202])
+  by compute1.internal (LMTPProxy); Thu, 17 Aug 2017 12:20:39 -0400
+Authentication-Results: mx3.messagingengine.com;
+    dkim=pass (1024-bit rsa key sha256) header.d=kde.org header.i=@kde.org header.b=iaOusBVL;
+    dmarc=none (p=none;has-list-id=yes) header.from=kde.org;
+    spf=pass smtp.mailfrom=kde-community-bounces@kde.org smtp.helo=postbox.kde.org;
+    x-google-dkim=pass (2048-bit rsa key) header.d=1e100.net header.i=@1e100.net header.b=J3ZGQfFP
+Received-SPF: pass
+    (kde.org: 46.4.96.248 is authorized to use 'kde-community-bounces@kde.org' in 'mfrom' identity (mechanism 'mx' matched))
+    receiver=mx3.messagingengine.com;
+    identity=mailfrom;
+    envelope-from="kde-community-bounces@kde.org";
+    helo=postbox.kde.org;
+    client-ip=46.4.96.248
+Received: from postbox.kde.org (postbox.kde.org [46.4.96.248])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mx3.messagingengine.com (Postfix) with ESMTPS
+	for <chrigi_1@fastmail.fm>; Thu, 17 Aug 2017 12:20:38 -0400 (EDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=kde.org; s=default;
+	t=1502986836; bh=NN9eLPZMdRJe0stu0TDb+ROhjuNPhd/mDnhblsQ4F04=;
+	h=From:Subject:Date:References:To:In-Reply-To:Reply-To:List-Id:
+	 List-Unsubscribe:List-Archive:List-Post:List-Help:List-Subscribe:
+	 From;
+	b=iaOusBVLSdEJElb2uoxf5ubKrt5iXH5zKZqAsGo/Ltor16eJ57YIP6QGSNn+L7fCO
+	 QHgR+fL1/OCWmfEs80xz7ycwjVTdHSt8a9nP7EwwLfQFJ3b1bCs8hNFyLpwrlzH87p
+	 6I1z36M4x53j3Yq7OU5DIWw7TieU2TaHCCClC1Cg=
+X-Original-To: kde-community@kde.org
+X-Remote-Delivered-To: kde-community@localhost.kde.org
+Received-SPF: Pass (sender SPF authorized) identity=mailfrom;
+ client-ip=209.85.128.181; helo=mail-wr0-f181.google.com;
+ envelope-from=t.pfeiffer.ux@gmail.com; receiver=kde-community@kde.org 
+Received: from mail-wr0-f181.google.com (mail-wr0-f181.google.com
+ [209.85.128.181])
+ by postbox.kde.org (Postfix) with ESMTPS id A2098A0194
+ for <kde-community@kde.org>; Thu, 17 Aug 2017 16:20:19 +0000 (UTC)
+Received: by mail-wr0-f181.google.com with SMTP id f8so3729162wrf.3
+ for <kde-community@kde.org>; Thu, 17 Aug 2017 09:20:19 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=1e100.net; s=20161025;
+ h=x-gm-message-state:from:mime-version:subject:date:references:to
+ :in-reply-to:message-id;
+ bh=wicjkfxhAhrD+Lja6y+RkFl7BL7WSAOVLHUYZTaQM+E=;
+ b=J3ZGQfFPOcZSNOlqbFSZ/oBBPQSnoMN2pIBb5YlfFBYeCY2Rt6Xx0X0S/wET6IAcE6
+ ZILrUjwPh9q3Bjhx0x+CAGscD/sNJBosuBoVrE1ZFX2d8prqRz9D8fNeeCtuPnRgkDmm
+ EBW3JP5ifajIMbUnHPevV1W8er5VY1uqWW/z6lZu7iH1zabPs+5wS+X0M1xx71xBxTb1
+ Dx4jpLO/SRNSEIKZ0q1l0p6f9/9P9VScWbyDw7NeI1yj0GfRhNSP64dlQU3Z07vqaoKP
+ vfhpG0gFX/FEr0+MPz2r10v6LP1iACBlhOHwHZxYLTz/mNwvHvsLB6JWFoZ0FuwLRQFN
+ X47g==
+X-Gm-Message-State: AHYfb5hGX37YHJwSkL5Gin7U/eRe+E5RLYqxnYErKBibvkrRhrJDArNX
+ VyIneA7/u3wUDC0Wvl8=
+X-Received: by 10.223.176.5 with SMTP id f5mr3522751wra.194.1502986818721;
+ Thu, 17 Aug 2017 09:20:18 -0700 (PDT)
+Received: from [172.16.5.187] ([109.109.206.114])
+ by smtp.gmail.com with ESMTPSA id 5sm4544042wre.5.2017.08.17.09.20.17
+ for <kde-community@kde.org>
+ (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+ Thu, 17 Aug 2017 09:20:17 -0700 (PDT)
+From: Thomas Pfeiffer <thomas.pfeiffer@kde.org>
+Content-Type: multipart/alternative;
+ boundary="Apple-Mail=_AF2C4455-1CF7-489B-98CD-6BFD8687BF81"
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: Telemetry Policy
+Date: Thu, 17 Aug 2017 18:20:16 +0200
+References: <2048912.XfIJe3ZSdj@vkpc5> <2990543.KVDkBByYO0@minixfox>
+ <CACpu024EH1OeDqwL94QK33eq4sCGjKjwedcQDR_PWjprBevzfg@mail.gmail.com>
+ <5231282.Ch11jfsTMl@lenovo> <B95D7D2A-23A9-4245-AAC0-8A3FAE330090@kde.org>
+To: informing about and discussing non-technical community topics
+ <kde-community@kde.org>
+In-Reply-To: <B95D7D2A-23A9-4245-AAC0-8A3FAE330090@kde.org>
+Message-Id: <5A696707-744C-4035-A8FA-CA83EE8691D6@kde.org>
+X-Mailer: Apple Mail (2.3273)
+X-BeenThere: kde-community@kde.org
+X-Mailman-Version: 2.1.16
+Precedence: list
+Reply-To: informing about and discussing non-technical community topics
+ <kde-community@kde.org>
+List-Id: informing about and discussing non-technical community topics
+ <kde-community.kde.org>
+List-Unsubscribe: <https://mail.kde.org/mailman/options/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=unsubscribe>
+List-Archive: <http://mail.kde.org/pipermail/kde-community/>
+List-Post: <mailto:kde-community@kde.org>
+List-Help: <mailto:kde-community-request@kde.org?subject=help>
+List-Subscribe: <https://mail.kde.org/mailman/listinfo/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=subscribe>
+Errors-To: kde-community-bounces@kde.org
+Sender: "kde-community" <kde-community-bounces@kde.org>
+
+
+--Apple-Mail=_AF2C4455-1CF7-489B-98CD-6BFD8687BF81
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=utf-8
+
+
+> On 17. Aug 2017, at 17:38, Mirko Boehm - KDE <mirko@kde.org> wrote:
+>=20
+> Hi,=20
+>=20
+>> On 17. Aug 2017, at 01:46, Thomas Pfeiffer <thomas.pfeiffer@kde.org =
+<mailto:thomas.pfeiffer@kde.org>> wrote:
+>>=20
+>> Hi Valorie,
+>> Even if opt-out for some data is legally and even morally fine, it =
+does not=20
+>> align with the values we communicate to our users:
+>> Unlike Mozilla's Mission, our Vision mentions privacy explicitly, and =
+we're=20
+>> striving to make privacy our USP.
+>=20
+> We seem to assume a contradiction between telemetry and privacy. I =
+believe this is a knee-jerk reaction. We can implement telemetry in a =
+way that privacy is not violated. In fact, I would say that it follows =
+from our vision that we should do this.
+>=20
+
+The problem is: I expect users to have the same knee-jerk reaction. I =
+don=E2=80=99t see us being able to explain to users that actually their =
+privacy is perfectly safe before they freak out.
+Privacy-minded Free Software users have freaked out in the past over =
+things which objectively speaking were not a huge deal.
+It=E2=80=99s emotion more than rational arguments
+
+
+--Apple-Mail=_AF2C4455-1CF7-489B-98CD-6BFD8687BF81
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html;
+	charset=utf-8
+
+<html><head><meta http-equiv=3D"Content-Type" content=3D"text/html =
+charset=3Dutf-8"></head><body style=3D"word-wrap: break-word; =
+-webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" =
+class=3D""><br class=3D""><div><blockquote type=3D"cite" class=3D""><div =
+class=3D"">On 17. Aug 2017, at 17:38, Mirko Boehm - KDE &lt;<a =
+href=3D"mailto:mirko@kde.org" class=3D"">mirko@kde.org</a>&gt; =
+wrote:</div><br class=3D"Apple-interchange-newline"><div class=3D""><meta =
+http-equiv=3D"Content-Type" content=3D"text/html charset=3Dus-ascii" =
+class=3D""><div style=3D"word-wrap: break-word; -webkit-nbsp-mode: =
+space; -webkit-line-break: after-white-space;" class=3D"">Hi,&nbsp;<div =
+class=3D""><br class=3D""><div class=3D""><blockquote type=3D"cite" =
+class=3D""><div class=3D"">On 17. Aug 2017, at 01:46, Thomas Pfeiffer =
+&lt;<a href=3D"mailto:thomas.pfeiffer@kde.org" =
+class=3D"">thomas.pfeiffer@kde.org</a>&gt; wrote:</div><br =
+class=3D"Apple-interchange-newline"><div class=3D""><span =
+style=3D"font-family: Menlo-Regular; font-size: 11px; font-style: =
+normal; font-variant-caps: normal; font-weight: normal; letter-spacing: =
+normal; text-align: start; text-indent: 0px; text-transform: none; =
+white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px; =
+float: none; display: inline !important;" class=3D"">Hi =
+Valorie,</span><br style=3D"font-family: Menlo-Regular; font-size: 11px; =
+font-style: normal; font-variant-caps: normal; font-weight: normal; =
+letter-spacing: normal; text-align: start; text-indent: 0px; =
+text-transform: none; white-space: normal; word-spacing: 0px; =
+-webkit-text-stroke-width: 0px;" class=3D""><span style=3D"font-family: =
+Menlo-Regular; font-size: 11px; font-style: normal; font-variant-caps: =
+normal; font-weight: normal; letter-spacing: normal; text-align: start; =
+text-indent: 0px; text-transform: none; white-space: normal; =
+word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; display: =
+inline !important;" class=3D"">Even if opt-out for some data is legally =
+and even morally fine, it does not<span =
+class=3D"Apple-converted-space">&nbsp;</span></span><br =
+style=3D"font-family: Menlo-Regular; font-size: 11px; font-style: =
+normal; font-variant-caps: normal; font-weight: normal; letter-spacing: =
+normal; text-align: start; text-indent: 0px; text-transform: none; =
+white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
+class=3D""><span style=3D"font-family: Menlo-Regular; font-size: 11px; =
+font-style: normal; font-variant-caps: normal; font-weight: normal; =
+letter-spacing: normal; text-align: start; text-indent: 0px; =
+text-transform: none; white-space: normal; word-spacing: 0px; =
+-webkit-text-stroke-width: 0px; float: none; display: inline =
+!important;" class=3D"">align with the values we communicate to our =
+users:</span><br style=3D"font-family: Menlo-Regular; font-size: 11px; =
+font-style: normal; font-variant-caps: normal; font-weight: normal; =
+letter-spacing: normal; text-align: start; text-indent: 0px; =
+text-transform: none; white-space: normal; word-spacing: 0px; =
+-webkit-text-stroke-width: 0px;" class=3D""><span style=3D"font-family: =
+Menlo-Regular; font-size: 11px; font-style: normal; font-variant-caps: =
+normal; font-weight: normal; letter-spacing: normal; text-align: start; =
+text-indent: 0px; text-transform: none; white-space: normal; =
+word-spacing: 0px; -webkit-text-stroke-width: 0px; float: none; display: =
+inline !important;" class=3D"">Unlike Mozilla's Mission, our Vision =
+mentions privacy explicitly, and we're<span =
+class=3D"Apple-converted-space">&nbsp;</span></span><br =
+style=3D"font-family: Menlo-Regular; font-size: 11px; font-style: =
+normal; font-variant-caps: normal; font-weight: normal; letter-spacing: =
+normal; text-align: start; text-indent: 0px; text-transform: none; =
+white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
+class=3D""><span style=3D"font-family: Menlo-Regular; font-size: 11px; =
+font-style: normal; font-variant-caps: normal; font-weight: normal; =
+letter-spacing: normal; text-align: start; text-indent: 0px; =
+text-transform: none; white-space: normal; word-spacing: 0px; =
+-webkit-text-stroke-width: 0px; float: none; display: inline =
+!important;" class=3D"">striving to make privacy our USP.</span><br =
+style=3D"font-family: Menlo-Regular; font-size: 11px; font-style: =
+normal; font-variant-caps: normal; font-weight: normal; letter-spacing: =
+normal; text-align: start; text-indent: 0px; text-transform: none; =
+white-space: normal; word-spacing: 0px; -webkit-text-stroke-width: 0px;" =
+class=3D""></div></blockquote><br class=3D""></div><div class=3D"">We =
+seem to assume a contradiction between telemetry and privacy. I believe =
+this is a knee-jerk reaction. We can implement telemetry in a way that =
+privacy is not violated. In fact, I would say that it follows from our =
+vision that we should do this.</div><div class=3D""><br =
+class=3D""></div></div></div></div></blockquote><div><br =
+class=3D""></div>The problem is: I expect users to have the same =
+knee-jerk reaction. I don=E2=80=99t see us being able to explain to =
+users that actually their privacy is perfectly safe before they freak =
+out.</div><div>Privacy-minded Free Software users have freaked out in =
+the past over things which objectively speaking were not a huge =
+deal.</div><div>It=E2=80=99s emotion more than rational =
+arguments</div><br class=3D""></body></html>=
+
+--Apple-Mail=_AF2C4455-1CF7-489B-98CD-6BFD8687BF81--

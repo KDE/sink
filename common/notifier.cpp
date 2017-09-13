@@ -49,6 +49,7 @@ public:
 
     QList<QSharedPointer<ResourceAccess>> resourceAccess;
     QList<std::function<void(const Notification &)>> handler;
+    QSharedPointer<Sink::ResultEmitter<QSharedPointer<Sink::ApplicationDomain::SinkResource> > > mResourceEmitter;
     QObject context;
 };
 
@@ -91,6 +92,9 @@ Notifier::Notifier(const Sink::Query &resourceQuery) : d(new Sink::Notifier::Pri
         SinkTraceCtx(resourceCtx) << "Resource query complete";
     });
     emitter->fetch({});
+    if (resourceQuery.liveQuery()) {
+        d->mResourceEmitter = emitter;
+    }
     result.first.exec();
 }
 

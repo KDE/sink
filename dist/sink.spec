@@ -1,7 +1,7 @@
 
 Name:           sink
-Version:        0.3
-Release:	    10%{?dist}
+Version:        0.4.0
+Release:        0%{?dist}
 Summary:        sink
 
 Group:          Applications/Desktop
@@ -17,7 +17,7 @@ BuildRequires:  kasync-devel
 BuildRequires:  kf5-kcoreaddons-devel
 BuildRequires:  kf5-kcontacts-devel
 BuildRequires:  kf5-kmime-devel
-BuildRequires:  kimap2-devel
+BuildRequires:  kimap2-devel >= 0.2
 BuildRequires:  kdav2-devel
 BuildRequires:  libcurl-devel
 BuildRequires:  libgit2-devel

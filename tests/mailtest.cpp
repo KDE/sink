@@ -328,6 +328,15 @@ void MailTest::testMarkMailAsRead()
             return KAsync::null<void>();
         });
     VERIFYEXEC(job2);
+
+    //Verify we can mark the mail as unread again
+    {
+        auto readMail = Store::readOne<Mail>(Query{mail});
+        readMail.setUnread(true);
+        VERIFYEXEC(Store::modify(readMail));
+        VERIFYEXEC(ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
+        VERIFYEXEC(ResourceControl::inspect<Mail>(ResourceControl::Inspection::PropertyInspection(readMail, Mail::Unread::name, true)));
+    }
 }
 
 void MailTest::testCreateDraft()

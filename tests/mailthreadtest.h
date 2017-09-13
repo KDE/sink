@@ -52,6 +52,7 @@ private slots:
 
     void testListThreadLeader();
     void testIndexInMixedOrder();
+    void testRealWorldThread();
 };
 
 }

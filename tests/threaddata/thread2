@@ -1,0 +1,129 @@
+Return-Path: <kde-community-bounces@kde.org>
+Received: from imapb010.mykolab.com ([unix socket])
+	 by imapb010.mykolab.com (Cyrus 2.5.10-49-g2e214b4-Kolab-2.5.10-8.1.el7.kolab_14) with LMTPA;
+	 Wed, 16 Aug 2017 09:15:00 +0200
+X-Sieve: CMU Sieve 2.4
+Received: from int-mx002.mykolab.com (unknown [10.9.13.2])
+	by imapb010.mykolab.com (Postfix) with ESMTPS id 1772014401C83
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 09:15:00 +0200 (CEST)
+Received: from mx.kolabnow.com (unknown [10.9.4.1])
+	by int-mx002.mykolab.com (Postfix) with ESMTPS id 01CCB2348
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 09:14:59 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at mykolab.com
+Authentication-Results: ext-mx-in001.mykolab.com (amavisd-new);
+	dkim=pass (1024-bit key) header.d=kde.org
+X-Greylist: domain auto-whitelisted by SQLgrey-1.8.0
+Received: from forward1-smtp.messagingengine.com (forward1-smtp.messagingengine.com [66.111.4.223])
+	by ext-mx-in001.mykolab.com (Postfix) with ESMTPS id 3BC6B11AC
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 09:14:42 +0200 (CEST)
+Received: from mailredirect.nyi.internal (imap36.nyi.internal [10.202.2.86])
+	by mailforward.nyi.internal (Postfix) with ESMTP id 9F77F12C6
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 03:14:41 -0400 (EDT)
+Received: by mailredirect.nyi.internal (Postfix, from userid 501)
+	id 8EF798E597; Wed, 16 Aug 2017 03:14:41 -0400 (EDT)
+Received: from compute1.internal (compute1.nyi.internal [10.202.2.41])
+	 by sloti36d2t28 (Cyrus fastmail-fmjessie44745-15358-git-fastmail-15358) with LMTPA;
+	 Wed, 16 Aug 2017 03:14:41 -0400
+X-Cyrus-Session-Id: sloti36d2t28-476506-1502867681-2-17694110317903435823
+X-Sieve: CMU Sieve 3.0
+X-Spam-known-sender: no
+X-Orig-Spam-score: 0.0
+X-Spam-hits: BAYES_20 -0.001, HEADER_FROM_DIFFERENT_DOMAINS 0.001,
+  RCVD_IN_DNSWL_MED -2.3, RP_MATCHES_RCVD -0.001, SPF_PASS -0.001,
+  LANGUAGES en, BAYES_USED global, SA_VERSION 3.4.0
+X-Spam-source: IP='46.4.96.248', Host='postbox.kde.org', Country='DE', FromHeader='ch',
+  MailFrom='org'
+X-Spam-charsets: plain='us-ascii'
+X-Resolved-to: chrigi_1@fastmail.fm
+X-Delivered-to: chrigi_1@fastmail.fm
+X-Mail-from: kde-community-bounces@kde.org
+Received: from mx4 ([10.202.2.203])
+  by compute1.internal (LMTPProxy); Wed, 16 Aug 2017 03:14:41 -0400
+Authentication-Results: mx4.messagingengine.com;
+    dkim=pass (1024-bit rsa key sha256) header.d=kde.org header.i=@kde.org header.b=cVfBDwjP;
+    dmarc=none (p=none;has-list-id=yes) header.from=fuchsnet.ch;
+    spf=pass smtp.mailfrom=kde-community-bounces@kde.org smtp.helo=postbox.kde.org
+Received-SPF: pass
+    (kde.org: 46.4.96.248 is authorized to use 'kde-community-bounces@kde.org' in 'mfrom' identity (mechanism 'mx' matched))
+    receiver=mx4.messagingengine.com;
+    identity=mailfrom;
+    envelope-from="kde-community-bounces@kde.org";
+    helo=postbox.kde.org;
+    client-ip=46.4.96.248
+Received: from postbox.kde.org (postbox.kde.org [46.4.96.248])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mx4.messagingengine.com (Postfix) with ESMTPS
+	for <chrigi_1@fastmail.fm>; Wed, 16 Aug 2017 03:14:40 -0400 (EDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=kde.org; s=default;
+	t=1502867678; bh=70oyTvxfLkdYUd1D8WFhrBEneI7DP4MY5KH1tM/AxUI=;
+	h=From:To:Subject:Date:In-Reply-To:References:Reply-To:List-Id:
+	 List-Unsubscribe:List-Archive:List-Post:List-Help:List-Subscribe:
+	 From;
+	b=cVfBDwjPyB0OrVy5jQaU1YBZtx/95ktf4lpQDQddz0Udb+QkxzLzv6S3He6EjQIRs
+	 nnEfVM/Y6V/Q9IHj+AYQckxyZxbXNOmfb9jOgU/R5bhPMkpstCvw/gQTD+LMGsFuSl
+	 fCKdwg+KmAWmvBhoe+8Oa6BMR3KKViYziJgMTuwI=
+X-Original-To: kde-community@kde.org
+X-Remote-Delivered-To: kde-community@localhost.kde.org
+Received-SPF: None (no SPF record) identity=mailfrom;
+ client-ip=2a00:d70:0:e::317; helo=mxout017.mail.hostpoint.ch;
+ envelope-from=christian.loosli@fuchsnet.ch; receiver=kde-community@kde.org 
+Received: from mxout017.mail.hostpoint.ch (mxout017.mail.hostpoint.ch
+ [IPv6:2a00:d70:0:e::317])
+ by postbox.kde.org (Postfix) with ESMTPS id AA196A3AC5
+ for <kde-community@kde.org>; Sun, 13 Aug 2017 10:18:17 +0000 (UTC)
+Received: from [10.0.2.45] (helo=asmtp012.mail.hostpoint.ch)
+ by mxout017.mail.hostpoint.ch with esmtp (Exim 4.89 (FreeBSD))
+ (envelope-from <christian.loosli@fuchsnet.ch>) id 1dgpyK-000DwH-Of
+ for kde-community@kde.org; Sun, 13 Aug 2017 12:18:16 +0200
+Received: from 77-56-19-119.dclient.hispeed.ch ([77.56.19.119]
+ helo=minixfox.localnet) by asmtp012.mail.hostpoint.ch with esmtpsa
+ (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256) (Exim 4.89 (FreeBSD))
+ (envelope-from <christian.loosli@fuchsnet.ch>) id 1dgpyK-000CRa-ML
+ for kde-community@kde.org; Sun, 13 Aug 2017 12:18:16 +0200
+X-Authenticated-Sender-Id: mail@fuchsnet.ch
+From: Christian Loosli <christian.loosli@fuchsnet.ch>
+To: kde-community@kde.org
+Subject: Re: Telemetry Policy
+Date: Sun, 13 Aug 2017 12:18:16 +0200
+Message-ID: <2990543.KVDkBByYO0@minixfox>
+User-Agent: KMail/5.2.3 (Linux/4.6.2-040602-generic; KDE/5.35.0; x86_64; ; )
+In-Reply-To: <2048912.XfIJe3ZSdj@vkpc5>
+References: <2048912.XfIJe3ZSdj@vkpc5>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+X-Mailman-Approved-At: Wed, 16 Aug 2017 07:14:22 +0000
+X-BeenThere: kde-community@kde.org
+X-Mailman-Version: 2.1.16
+Precedence: list
+Reply-To: informing about and discussing non-technical community topics
+ <kde-community@kde.org>
+List-Id: informing about and discussing non-technical community topics
+ <kde-community.kde.org>
+List-Unsubscribe: <https://mail.kde.org/mailman/options/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=unsubscribe>
+List-Archive: <http://mail.kde.org/pipermail/kde-community/>
+List-Post: <mailto:kde-community@kde.org>
+List-Help: <mailto:kde-community-request@kde.org?subject=help>
+List-Subscribe: <https://mail.kde.org/mailman/listinfo/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=subscribe>
+Errors-To: kde-community-bounces@kde.org
+Sender: "kde-community" <kde-community-bounces@kde.org>
+
+Hi, 
+
+thank you very much for this work, sounds great! 
+
+Only point I have: maybe make sure that the opt-in / default settings are not 
+only mandatory for application developers, but also for packagers / 
+distributions. 
+
+Some distributions have rather questionable views on privacy and by default 
+sent information to third parties, so I would feel much more safe if they 
+weren't allowed (in theory) to flick the switch in their package by default to 
+"on" either.
+
+Kind regards, 
+
+Christian 

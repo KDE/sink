@@ -91,7 +91,7 @@ private slots:
             auto model = Sink::Store::loadModel<SinkResource>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
             auto resource = model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<SinkResource::Ptr>();
-            QCOMPARE(resource->getStatus(), static_cast<int>(OfflineStatus));
+            QCOMPARE(resource->getStatus(), static_cast<int>(NoStatus));
 
             //Synchronize to connect
             VERIFYEXEC(Sink::Store::synchronize(query));

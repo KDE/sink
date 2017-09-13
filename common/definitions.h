@@ -25,10 +25,16 @@
 #include <QByteArray>
 
 namespace Sink {
-void SINK_EXPORT clearLocationCache();
 QString SINK_EXPORT storageLocation();
 QString SINK_EXPORT dataLocation();
 QString SINK_EXPORT configLocation();
 QString SINK_EXPORT temporaryFileLocation();
 QString SINK_EXPORT resourceStorageLocation(const QByteArray &resourceInstanceIdentifier);
+
+/**
+ * Clear the location cache and lookup locations again.
+ *
+ * Warning: Calling this results in non-threadsafe initialization, only use it in test-code.
+ */
+void SINK_EXPORT clearLocationCache();
 }

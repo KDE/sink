@@ -33,7 +33,9 @@ enum ErrorCode {
     NoError,
     HostNotFoundError,
     CouldNotConnectError,
-    SslHandshakeError
+    SslHandshakeError,
+    ConnectionLost,
+    UnknownError
 };
 
 namespace Flags

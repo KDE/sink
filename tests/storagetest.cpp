@@ -542,6 +542,35 @@ private slots:
         }
 
     }
+
+    void testRecordUid()
+    {
+        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore::recordUid(transaction, "uid1", "type");
+        Sink::Storage::DataStore::recordUid(transaction, "uid2", "type");
+        Sink::Storage::DataStore::recordUid(transaction, "uid3", "type2");
+
+        {
+            QVector<QByteArray> uids;
+            Sink::Storage::DataStore::getUids("type", transaction, [&](const QByteArray &r) {
+                uids << r;
+            });
+            QVector<QByteArray> expected{{"uid1"}, {"uid2"}};
+            QCOMPARE(uids, expected);
+        }
+
+        Sink::Storage::DataStore::removeUid(transaction, "uid2", "type");
+
+        {
+            QVector<QByteArray> uids;
+            Sink::Storage::DataStore::getUids("type", transaction, [&](const QByteArray &r) {
+                uids << r;
+            });
+            QVector<QByteArray> expected{{"uid1"}};
+            QCOMPARE(uids, expected);
+        }
+    }
 };
 
 QTEST_MAIN(StorageTest)

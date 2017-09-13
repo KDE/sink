@@ -298,16 +298,16 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
     auto parent = createIndexFromId(id);
     SinkTraceCtx(mLogCtx) << "Added entity " << childId <<  "id: " << value->identifier() << "parent: " << id;
     const auto keys = mTree[id];
-    int index = 0;
-    for (; index < keys.size(); index++) {
-        if (childId < keys.at(index)) {
+    int idx = 0;
+    for (; idx < keys.size(); idx++) {
+        if (childId < keys.at(idx)) {
             break;
         }
     }
     // SinkTraceCtx(mLogCtx) << "Inserting rows " << index << parent;
-    beginInsertRows(parent, index, index);
+    beginInsertRows(parent, idx, idx);
     mEntities.insert(childId, value);
-    mTree[id].insert(index, childId);
+    mTree[id].insert(idx, childId);
     mParents.insert(childId, id);
     endInsertRows();
     // SinkTraceCtx(mLogCtx) << "Inserted rows " << mTree[id].size();

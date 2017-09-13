@@ -48,7 +48,7 @@ static QByteArray name(int type)
 
 QDebug operator<<(QDebug dbg, const Sink::Notification &n)
 {
-    dbg << "Notification(Type:" << name(n.type) << "Id, :" << n.id  << ", Code:";
+    dbg << "Notification(Type:" << name(n.type) << ", Id:" << n.id  << ", Code:";
     dbg << n.code;
     dbg << ", Message:" << n.message << ", Entities:" << n.entities << ")";
     return dbg.space();

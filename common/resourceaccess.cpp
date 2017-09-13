@@ -232,7 +232,7 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
 ResourceAccess::ResourceAccess(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType)
     : ResourceAccessInterface(), d(new Private(resourceType, resourceInstanceIdentifier, this))
 {
-    mResourceStatus = Sink::ApplicationDomain::OfflineStatus;
+    mResourceStatus = Sink::ApplicationDomain::NoStatus;
     SinkTrace() << "Starting access";
 }
 

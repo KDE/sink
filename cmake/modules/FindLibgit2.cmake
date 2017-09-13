@@ -26,8 +26,6 @@ FIND_LIBRARY(LIBGIT2_LIBRARIES NAMES git2
    ${PC_LIBGIT2_LIBRARY_DIRS}
    )
 
-message("foo: ${LIBGIT2_INCLUDE_DIR} : ${PC_LIBGIT2_INCLUDEDIR} : ${PC_LIBGIT2_INCLUDE_DIRS}")
-
 # get version from header, should work on windows, too
 if(LIBGIT2_INCLUDE_DIR)
     file(STRINGS "${LIBGIT2_INCLUDE_DIR}/git2/version.h" LIBGIT2_H REGEX "^#define LIBGIT2_VERSION \"[^\"]*\"$")

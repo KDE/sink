@@ -139,9 +139,43 @@ private slots:
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkAccount>(query);
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
             auto account = model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkAccount::Ptr>();
-            QCOMPARE(account->getStatus(), static_cast<int>(Sink::ApplicationDomain::OfflineStatus));
+            QCOMPARE(account->getStatus(), static_cast<int>(Sink::ApplicationDomain::NoStatus));
 
             //Synchronize to connect
+            VERIFYEXEC(Sink::Store::synchronize(Query().resourceFilter(res.identifier())));
+
+            QTRY_COMPARE_WITH_TIMEOUT(model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkAccount::Ptr>()->getStatus(), static_cast<int>(Sink::ApplicationDomain::ConnectedStatus), 1000);
+        }
+    }
+
+    void testLoadAccountStatusLive()
+    {
+        using namespace Sink;
+        using namespace Sink::ApplicationDomain;
+
+        {
+            //Create a live query for all accounts
+            Sink::Query query;
+            query.setFlags(Query::LiveQuery);
+            query.request<Sink::ApplicationDomain::SinkAccount::Status>();
+
+            auto model = Sink::Store::loadModel<Sink::ApplicationDomain::SinkAccount>(query);
+
+            //Create the account
+            auto account = ApplicationDomainType::createEntity<SinkAccount>();
+            account.setAccountType("dummy");
+            account.setName("name");
+            VERIFYEXEC(Store::create(account));
+
+            auto res = Sink::ApplicationDomain::DummyResource::create(account.identifier());
+            VERIFYEXEC(Sink::Store::create(res));
+
+            //Ensure the account was created
+            QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
+            auto retrievedAccount = model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkAccount::Ptr>();
+            QCOMPARE(retrievedAccount->getStatus(), static_cast<int>(Sink::ApplicationDomain::NoStatus));
+
+            //Synchronize to connect and ensure we receive the update
             VERIFYEXEC(Sink::Store::synchronize(Query().resourceFilter(res.identifier())));
 
             QTRY_COMPARE_WITH_TIMEOUT(model->data(model->index(0, 0, QModelIndex()), Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::SinkAccount::Ptr>()->getStatus(), static_cast<int>(Sink::ApplicationDomain::ConnectedStatus), 1000);

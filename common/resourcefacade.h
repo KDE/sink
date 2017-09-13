@@ -65,6 +65,7 @@ public:
     void setStatusUpdater(const std::function<void(DomainType &)> &);
     void statusChanged(const QByteArray &identifier);
     QObject *guard() const;
+    QMap<QByteArray, QSharedPointer<Sink::ResultEmitter<QSharedPointer<Sink::ApplicationDomain::SinkResource> > > > mResourceEmitter;
 
 private:
     void updateStatus(DomainType &entity);

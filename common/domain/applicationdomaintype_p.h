@@ -45,5 +45,7 @@ struct TypeHelper {
         } else {
             Q_ASSERT(false);
         }
+        //Silence compiler warning
+        return Func<Sink::ApplicationDomain::Mail>{}(std::forward<Args...>(args...));
     }
 };

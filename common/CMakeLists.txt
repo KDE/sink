@@ -116,13 +116,13 @@ SET_TARGET_PROPERTIES(${PROJECT_NAME}
     EXPORT_NAME ${PROJECT_NAME}
 )
 
-qt5_use_modules(${PROJECT_NAME} LINK_PUBLIC Network)
-qt5_use_modules(${PROJECT_NAME} LINK_PRIVATE Gui)
 target_link_libraries(${PROJECT_NAME}
 PUBLIC
     KAsync
+    Qt5::Network
 PRIVATE
     ${storage_LIBS}
+    Qt5::Gui
     KF5::Mime
     KF5::Contacts
 )

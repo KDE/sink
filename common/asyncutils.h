@@ -31,12 +31,12 @@ KAsync::Job<T> run(const std::function<T()> &f, bool runAsync = true)
         return KAsync::start<T>([f](KAsync::Future<T> &future) {
             auto result = QtConcurrent::run(f);
             auto watcher = new QFutureWatcher<T>;
-            watcher->setFuture(result);
             QObject::connect(watcher, &QFutureWatcher<T>::finished, watcher, [&future, watcher]() {
                 future.setValue(watcher->future().result());
                 delete watcher;
                 future.setFinished();
             });
+            watcher->setFuture(result);
         });
     } else {
         return KAsync::start<T>([f]() {

@@ -511,6 +511,8 @@ public:
                     return {ApplicationDomain::LoginError, error.errorMessage};
                 case Imap::HostNotFoundError:
                     return {ApplicationDomain::NoServerError, error.errorMessage};
+                case Imap::ConnectionLost:
+                    return {ApplicationDomain::ConnectionLostError, error.errorMessage};
                 default:
                     return {ApplicationDomain::UnknownError, error.errorMessage};
             }
@@ -619,6 +621,15 @@ public:
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
+        if (operation != Sink::Operation_Creation) {
+            if(oldRemoteId.isEmpty()) {
+                // return KAsync::error<QByteArray>("Tried to replay modification without old remoteId.");
+                qWarning() << "Tried to replay modification without old remoteId.";
+                // Since we can't recover from the situation we just skip over the revision.
+                // FIXME figure out how we can ever end up in this situation
+                return KAsync::null<QByteArray>();
+            }
+        }
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, &mSessionCache);
         auto login = imap->login(mUser, mPassword);
         KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();

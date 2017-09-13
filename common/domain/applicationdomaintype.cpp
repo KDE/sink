@@ -34,7 +34,13 @@ QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDom
 QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::ApplicationDomainType &type)
 {
     d << "ApplicationDomainType(\n";
-    auto properties = type.mAdaptor->availableProperties();
+    auto properties = [&] {
+        if (!type.changedProperties().isEmpty()) {
+            return type.changedProperties();
+        } else {
+            return type.mAdaptor->availableProperties();
+        }
+    }();
     std::sort(properties.begin(), properties.end());
     d << " " << "Id: " << "\t" << type.identifier() << "\n";
     d << " " << "Resource: " << "\t" << type.resourceInstanceIdentifier() << "\n";
@@ -216,8 +222,13 @@ QVariant ApplicationDomainType::getProperty(const QByteArray &key) const
 void ApplicationDomainType::setProperty(const QByteArray &key, const QVariant &value)
 {
     Q_ASSERT(mAdaptor);
-    mChangeSet->insert(key);
-    mAdaptor->setProperty(key, value);
+    auto existing = mAdaptor->getProperty(key);
+    if (existing.isValid() && existing == value) {
+        SinkTrace() << "Tried to set property that is still the same: " << key << value;
+    } else {
+        mChangeSet->insert(key);
+        mAdaptor->setProperty(key, value);
+    }
 }
 
 void ApplicationDomainType::setResource(const QByteArray &identifier)

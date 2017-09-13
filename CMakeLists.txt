@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0048 NEW)
 cmake_policy(SET CMP0028 NEW)
 
-project(sink VERSION 0.3.0)
+project(sink VERSION 0.4.0)
 
 option(BUILD_MAILDIR "BUILD_MAILDIR" ON)
 option(BUILD_DAV "BUILD_DAV" ON)
@@ -25,7 +25,12 @@ include(CMakePackageConfigHelpers)
 include(ECMSetupVersion)
 include(KDEInstallDirs)
 
-find_package(Qt5 COMPONENTS REQUIRED Core Network Gui)
+ecm_setup_version(PROJECT
+                  SOVERSION sink_VERSION_MAJOR
+                  VERSION_HEADER sink_version.h
+                  )
+
+find_package(Qt5 COMPONENTS REQUIRED Core Concurrent Network Gui Test)
 find_package(KF5 COMPONENTS REQUIRED Mime Contacts)
 find_package(FlatBuffers REQUIRED 1.4.0)
 find_package(KAsync REQUIRED 0.1.2)

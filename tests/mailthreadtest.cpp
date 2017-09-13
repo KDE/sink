@@ -21,6 +21,7 @@
 #include <QtTest>
 
 #include <QString>
+#include <QFile>
 #include <KMime/Message>
 
 #include "store.h"
@@ -183,6 +184,69 @@ void MailThreadTest::testIndexInMixedOrder()
     /*     VERIFYEXEC(job); */
     /* } */
     /* VERIFYEXEC(ResourceControl::flushReplayQueue(QByteArrayList() << mResourceInstanceIdentifier)); */
+}
+
+static QByteArray readMailFromFile(const QString &mailFile)
+{
+    QFile file(QLatin1String(THREADTESTDATAPATH) + QLatin1Char('/') + mailFile);
+    file.open(QIODevice::ReadOnly);
+    Q_ASSERT(file.isOpen());
+    return file.readAll();
+}
+
+static KMime::Message::Ptr readMail(const QString &mailFile)
+{
+    auto msg = KMime::Message::Ptr::create();
+    msg->setContent(readMailFromFile(mailFile));
+    msg->parse();
+    return msg;
+}
+
+void MailThreadTest::testRealWorldThread()
+{
+    auto folder = Folder::create(mResourceInstanceIdentifier);
+    folder.setName("folder");
+    VERIFYEXEC(Store::create(folder));
+
+    auto createMail = [this, folder] (KMime::Message::Ptr msg) {
+        auto mail = Mail::create(mResourceInstanceIdentifier);
+        mail.setMimeMessage(msg->encodedContent(true));
+        mail.setFolder(folder);
+        VERIFYEXEC(Store::create(mail));
+    };
+
+    createMail(readMail("thread1"));
+
+    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
+
+    auto query = Sink::StandardQueries::threadLeaders(folder);
+    query.resourceFilter(mResourceInstanceIdentifier);
+    query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
+
+    //Ensure we find the thread leader
+    Mail threadLeader = [&] {
+        auto mails = Store::read<Mail>(query);
+        Q_ASSERT(mails.size() == 1);
+        return mails.first();
+    }();
+
+    createMail(readMail("thread2"));
+    createMail(readMail("thread3"));
+    createMail(readMail("thread4"));
+    createMail(readMail("thread5"));
+    createMail(readMail("thread6"));
+    createMail(readMail("thread7"));
+    createMail(readMail("thread8")); //This mail is breaking the thread
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+    //Ensure the thread is complete
+    {
+        auto query = Sink::StandardQueries::completeThread(threadLeader);
+        query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
+
+        auto mails = Store::read<Mail>(query);
+        QCOMPARE(mails.size(), 8);
+    }
 }
 
 #include "mailthreadtest.moc"

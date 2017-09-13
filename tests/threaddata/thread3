@@ -1,0 +1,184 @@
+Return-Path: <kde-community-bounces@kde.org>
+Received: from imapb010.mykolab.com ([unix socket])
+	 by imapb010.mykolab.com (Cyrus 2.5.10-49-g2e214b4-Kolab-2.5.10-8.1.el7.kolab_14) with LMTPA;
+	 Wed, 16 Aug 2017 09:33:42 +0200
+X-Sieve: CMU Sieve 2.4
+Received: from int-mx001.mykolab.com (unknown [10.9.13.1])
+	by imapb010.mykolab.com (Postfix) with ESMTPS id 5444D14414C34
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 09:33:42 +0200 (CEST)
+Received: from mx.kolabnow.com (unknown [10.9.4.2])
+	by int-mx001.mykolab.com (Postfix) with ESMTPS id 3DB4C114
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 09:33:42 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at mykolab.com
+Authentication-Results: ext-mx-in002.mykolab.com (amavisd-new);
+	dkim=pass (1024-bit key) header.d=kde.org header.b=PXk+9Qyc;
+	dkim=pass (2048-bit key) header.d=gmail.com header.b=j1CN7DJ2
+X-Greylist: domain auto-whitelisted by SQLgrey-1.8.0
+Received: from forward1-smtp.messagingengine.com (forward1-smtp.messagingengine.com [66.111.4.223])
+	by ext-mx-in002.mykolab.com (Postfix) with ESMTPS id DEAFCE9E
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 09:33:36 +0200 (CEST)
+Received: from mailredirect.nyi.internal (imap36.nyi.internal [10.202.2.86])
+	by mailforward.nyi.internal (Postfix) with ESMTP id 6AD87108D
+	for <christian@mailqueue.ch>; Wed, 16 Aug 2017 03:33:35 -0400 (EDT)
+Received: by mailredirect.nyi.internal (Postfix, from userid 501)
+	id 444F38E597; Wed, 16 Aug 2017 03:33:35 -0400 (EDT)
+Received: from compute1.internal (compute1.nyi.internal [10.202.2.41])
+	 by sloti36d2t28 (Cyrus fastmail-fmjessie44745-15358-git-fastmail-15358) with LMTPA;
+	 Wed, 16 Aug 2017 03:33:35 -0400
+X-Cyrus-Session-Id: sloti36d2t28-546055-1502868815-2-14217351451016405562
+X-Sieve: CMU Sieve 3.0
+X-Spam-known-sender: no
+X-Orig-Spam-score: 0.0
+X-Spam-hits: BAYES_00 -1.9, FREEMAIL_FORGED_FROMDOMAIN 0.199, FREEMAIL_FROM 0.001,
+  HEADER_FROM_DIFFERENT_DOMAINS 0.001, RCVD_IN_DNSWL_MED -2.3,
+  RP_MATCHES_RCVD -0.001, SPF_PASS -0.001, LANGUAGES en, BAYES_USED global,
+  SA_VERSION 3.4.0
+X-Spam-source: IP='46.4.96.248', Host='postbox.kde.org', Country='DE', FromHeader='com',
+  MailFrom='org'
+X-Spam-charsets: plain='UTF-8'
+X-Resolved-to: chrigi_1@fastmail.fm
+X-Delivered-to: chrigi_1@fastmail.fm
+X-Mail-from: kde-community-bounces@kde.org
+Received: from mx1 ([10.202.2.200])
+  by compute1.internal (LMTPProxy); Wed, 16 Aug 2017 03:33:35 -0400
+Authentication-Results: mx1.messagingengine.com;
+    dkim=pass (1024-bit rsa key sha256) header.d=kde.org header.i=@kde.org header.b=PXk+9Qyc;
+    dkim=pass (2048-bit rsa key sha256) header.d=gmail.com header.i=@gmail.com header.b=j1CN7DJ2;
+    dmarc=pass header.from=gmail.com;
+    spf=pass smtp.mailfrom=kde-community-bounces@kde.org smtp.helo=postbox.kde.org;
+    x-google-dkim=pass (2048-bit rsa key) header.d=1e100.net header.i=@1e100.net header.b=nOWNMzab
+Received-SPF: pass
+    (kde.org: 46.4.96.248 is authorized to use 'kde-community-bounces@kde.org' in 'mfrom' identity (mechanism 'mx' matched))
+    receiver=mx1.messagingengine.com;
+    identity=mailfrom;
+    envelope-from="kde-community-bounces@kde.org";
+    helo=postbox.kde.org;
+    client-ip=46.4.96.248
+Received: from postbox.kde.org (postbox.kde.org [46.4.96.248])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mx1.messagingengine.com (Postfix) with ESMTPS
+	for <chrigi_1@fastmail.fm>; Wed, 16 Aug 2017 03:33:34 -0400 (EDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=kde.org; s=default;
+	t=1502868810; bh=dVFv3mcZvqPFeac2frbs+zJpMjYutwuTUR/aZqUTbZY=;
+	h=In-Reply-To:References:From:Date:Subject:To:Reply-To:List-Id:
+	 List-Unsubscribe:List-Archive:List-Post:List-Help:List-Subscribe:
+	 From;
+	b=PXk+9Qyc+iRxwLPIHod4loutgNXu9pHl4peiPK0rI8Bl+4b02Cw0SUrzyf2JPqyDn
+	 zuoxSnetdDbzoPnV1ep3yyHX+MhXiWvvc+PTKk15kIuBJYB77t+EJq3I/awvqG++Fa
+	 d4Um24yPg/LUw5fFTsMuJ+Ra5MtpmFOmVbXrHDt0=
+X-Original-To: kde-community@kde.org
+X-Remote-Delivered-To: kde-community@localhost.kde.org
+Received-SPF: Pass (sender SPF authorized) identity=mailfrom;
+ client-ip=2607:f8b0:4001:c0b::22f; helo=mail-it0-x22f.google.com;
+ envelope-from=valorie.zimmerman@gmail.com; receiver=kde-community@kde.org 
+Authentication-Results: postbox.kde.org; dkim=pass
+ reason="2048-bit key; unprotected key"
+ header.d=gmail.com header.i=@gmail.com header.b=j1CN7DJ2;
+ dkim-adsp=pass; dkim-atps=neutral
+Received: from mail-it0-x22f.google.com (mail-it0-x22f.google.com
+ [IPv6:2607:f8b0:4001:c0b::22f])
+ by postbox.kde.org (Postfix) with ESMTPS id 06F4BA0243
+ for <kde-community@kde.org>; Wed, 16 Aug 2017 07:33:19 +0000 (UTC)
+Received: by mail-it0-x22f.google.com with SMTP id 76so14155500ith.0
+ for <kde-community@kde.org>; Wed, 16 Aug 2017 00:33:19 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=gmail.com; s=20161025;
+ h=mime-version:in-reply-to:references:from:date:message-id:subject:to;
+ bh=FXMFEApKo547tDMnIu6insMVxFcMsw7/E/4fcI3MkkQ=;
+ b=j1CN7DJ2CYaCWqNWOR7Hpjah/U+OYATQhmN+zVkgRNbVJOMVW6B4hWmUihH5Nll4/G
+ YX5O5OQv6i2y1hAqT3R3iISGAz70o2gIWjq14Ea+zqM9ztCM/ZX4XGaBqdv4dHTAMyDh
+ mg556PB77JLPlwHtf2CsR9gTSAC2BAuY8lsTdBV7jVkLjCGdjaSPRxiyf2t4WbcVmiUt
+ yZzWB7QmtQA4JHQ8N/bJ2lEg8cTWSj8p9o4kSAF7HDZ4X7pXfQgAPEAs/DHf9LMNGiys
+ 1xgAuYNxywGvtLaArQ+NXfgYH6VfRcFf7HFbMLs6yLyn63G9GLyUPHlHIgqWVAJrdn65
+ Nsow==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=1e100.net; s=20161025;
+ h=x-gm-message-state:mime-version:in-reply-to:references:from:date
+ :message-id:subject:to;
+ bh=FXMFEApKo547tDMnIu6insMVxFcMsw7/E/4fcI3MkkQ=;
+ b=nOWNMzabDGsTEZISXzVD7236lDYmFHF2kAEUxMmDSvGYEcq1/FjZwj7w7SJT62S/pY
+ oS29tWyY7LE4I+Fq5E6D8H2sfMAfaCoYQ1J27ftPVClg/kmiTGRzxf2tcv6TR/v56+vD
+ pwgDEDwgZs1oM6IBFrJr65u2+0mlcmK3qsRHBdjoQLEbZMa+GugjcI2HILqtmpTS+NJi
+ HZcVfEgOwkyqgoZkgBsaBui+5OUpz/yqryOsYx7kQxCy6uZJIFCB0dsvk7COE8nG7LYa
+ 0H8aRhVFxXRW76MUR6E67EhGMS+MS9F3DiXiUsWTn4yEZnC8cy76YPcPHVBBmGQ7CH0a
+ ScwA==
+X-Gm-Message-State: AHYfb5g0PFdyP1pw7TVZRMJqzU/nu12G3R2adj9OD2MzSxEew1QKnS99
+ U5MlthDVsG6C1f9Ak0fXNCtdI5w4CaBJhbc=
+X-Received: by 10.36.37.143 with SMTP id g137mr1056087itg.35.1502868798009;
+ Wed, 16 Aug 2017 00:33:18 -0700 (PDT)
+MIME-Version: 1.0
+Received: by 10.107.6.142 with HTTP; Wed, 16 Aug 2017 00:33:02 -0700 (PDT)
+In-Reply-To: <2990543.KVDkBByYO0@minixfox>
+References: <2048912.XfIJe3ZSdj@vkpc5> <2990543.KVDkBByYO0@minixfox>
+From: Valorie Zimmerman <valorie.zimmerman@gmail.com>
+Date: Wed, 16 Aug 2017 00:33:02 -0700
+Message-ID: <CACpu024EH1OeDqwL94QK33eq4sCGjKjwedcQDR_PWjprBevzfg@mail.gmail.com>
+Subject: Re: Telemetry Policy
+To: informing about and discussing non-technical community topics
+ <kde-community@kde.org>
+Content-Type: text/plain; charset="UTF-8"
+X-BeenThere: kde-community@kde.org
+X-Mailman-Version: 2.1.16
+Precedence: list
+Reply-To: informing about and discussing non-technical community topics
+ <kde-community@kde.org>
+List-Id: informing about and discussing non-technical community topics
+ <kde-community.kde.org>
+List-Unsubscribe: <https://mail.kde.org/mailman/options/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=unsubscribe>
+List-Archive: <http://mail.kde.org/pipermail/kde-community/>
+List-Post: <mailto:kde-community@kde.org>
+List-Help: <mailto:kde-community-request@kde.org?subject=help>
+List-Subscribe: <https://mail.kde.org/mailman/listinfo/kde-community>,
+ <mailto:kde-community-request@kde.org?subject=subscribe>
+Errors-To: kde-community-bounces@kde.org
+Sender: "kde-community" <kde-community-bounces@kde.org>
+
+Hi all, Mozilla has done a lot of work on telemetry, and we might be
+able to use some of their findings. On this page:
+https://wiki.mozilla.org/Firefox/Data_Collection they break down the
+data they might possibly collect into four buckets - technical (such
+as crashes), user interaction, web activity, and sensitive (personal
+data).
+
+This bit might be relevant to our discussion: "Categories 1 & 2
+(Technical & Interaction data)
+Pre-Release & Release: Data may default on, provided the data is
+exclusively in these categories (it cannot be in any other category).
+In Release, an opt-out must be available for most types of Technical
+and Interaction data. "
+
+I think the entire page might be enlightening to this discussion. I
+believe our analysis of needs should be more fine-grained, and that
+some parts of what we need can be "default on" especially for
+pre-release testing. For releases, we can provide an opt-out.
+
+Other more sensitive data will need to be opt-in. I think it's a
+mistake to treat all the data we might want all in the same way.
+
+Valorie
+
+
+On Sun, Aug 13, 2017 at 3:18 AM, Christian Loosli
+<christian.loosli@fuchsnet.ch> wrote:
+> Hi,
+>
+> thank you very much for this work, sounds great!
+>
+> Only point I have: maybe make sure that the opt-in / default settings are not
+> only mandatory for application developers, but also for packagers /
+> distributions.
+>
+> Some distributions have rather questionable views on privacy and by default
+> sent information to third parties, so I would feel much more safe if they
+> weren't allowed (in theory) to flick the switch in their package by default to
+> "on" either.
+>
+> Kind regards,
+>
+> Christian
+
+
+
+-- 
+http://about.me/valoriez

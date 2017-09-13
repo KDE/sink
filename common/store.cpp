@@ -36,9 +36,33 @@
 #include "storage.h"
 #include "log.h"
 
+#define ASSERT_ENUMS_MATCH(A, B) Q_STATIC_ASSERT_X(static_cast<int>(A) == static_cast<int>(B), "The enum values must match");
+
+//Ensure the copied enum matches
+typedef ModelResult<Sink::ApplicationDomain::Mail, Sink::ApplicationDomain::Mail::Ptr> MailModelResult;
+ASSERT_ENUMS_MATCH(Sink::Store::DomainObjectBaseRole, MailModelResult::DomainObjectBaseRole)
+ASSERT_ENUMS_MATCH(Sink::Store::ChildrenFetchedRole, MailModelResult::ChildrenFetchedRole)
+ASSERT_ENUMS_MATCH(Sink::Store::DomainObjectRole, MailModelResult::DomainObjectRole)
+ASSERT_ENUMS_MATCH(Sink::Store::StatusRole, MailModelResult::StatusRole)
+ASSERT_ENUMS_MATCH(Sink::Store::WarningRole, MailModelResult::WarningRole)
+ASSERT_ENUMS_MATCH(Sink::Store::ProgressRole, MailModelResult::ProgressRole)
+
 Q_DECLARE_METATYPE(QSharedPointer<Sink::ResultEmitter<Sink::ApplicationDomain::SinkResource::Ptr>>)
 Q_DECLARE_METATYPE(QSharedPointer<Sink::ResourceAccessInterface>);
 Q_DECLARE_METATYPE(std::shared_ptr<void>);
+
+
+static bool sanityCheckQuery(const Sink::Query &query)
+{
+    for (const auto &id : query.ids()) {
+        if (id.isEmpty()) {
+            SinkError() << "Empty id in query.";
+            return false;
+        }
+    }
+    return true;
+}
+
 
 namespace Sink {
 
@@ -138,6 +162,7 @@ static Log::Context getQueryContext(const Sink::Query &query, const QByteArray &
 template <class DomainType>
 QSharedPointer<QAbstractItemModel> Store::loadModel(const Query &query)
 {
+    Q_ASSERT(sanityCheckQuery(query));
     auto ctx = getQueryContext(query, ApplicationDomain::getTypeName<DomainType>());
     auto model = QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>>::create(query, query.requestedProperties, ctx);
 
@@ -189,6 +214,10 @@ KAsync::Job<void> Store::create(const DomainType &domainObject)
 template <class DomainType>
 KAsync::Job<void> Store::modify(const DomainType &domainObject)
 {
+    if (domainObject.changedProperties().isEmpty()) {
+        SinkLog() << "Nothing to modify: " << domainObject.identifier();
+        return KAsync::null();
+    }
     SinkLog() << "Modify: " << domainObject;
     // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
@@ -198,6 +227,10 @@ KAsync::Job<void> Store::modify(const DomainType &domainObject)
 template <class DomainType>
 KAsync::Job<void> Store::modify(const Query &query, const DomainType &domainObject)
 {
+    if (domainObject.changedProperties().isEmpty()) {
+        SinkLog() << "Nothing to modify: " << domainObject.identifier();
+        return KAsync::null();
+    }
     SinkLog() << "Modify: " << query << domainObject;
     return fetchAll<DomainType>(query)
         .each([=] (const typename DomainType::Ptr &entity) {
@@ -311,9 +344,14 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 
 KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
 {
+    auto resourceFilter = scope.getResourceFilter();
+    //Filter resources by type by default
+    if (!resourceFilter.propertyFilter.contains(ApplicationDomain::SinkResource::Capabilities::name) && !scope.type().isEmpty()) {
+        resourceFilter.propertyFilter.insert(ApplicationDomain::SinkResource::Capabilities::name, Query::Comparator{scope.type(), Query::Comparator::Contains});
+    }
     Sink::Query query;
-    query.setFilter(scope.getResourceFilter());
-    SinkLog() << "Synchronizing: " << query;
+    query.setFilter(resourceFilter);
+    SinkLog() << "Synchronizing all resource matching: " << query;
     return fetchAll<ApplicationDomain::SinkResource>(query)
         .template each([scope](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {
             return synchronize(resource->identifier(), scope);
@@ -337,6 +375,7 @@ KAsync::Job<QList<typename DomainType::Ptr>> Store::fetchAll(const Sink::Query &
 template <class DomainType>
 KAsync::Job<QList<typename DomainType::Ptr>> Store::fetch(const Sink::Query &query, int minimumAmount)
 {
+    Q_ASSERT(sanityCheckQuery(query));
     auto model = loadModel<DomainType>(query);
     auto list = QSharedPointer<QList<typename DomainType::Ptr>>::create();
     auto context = QSharedPointer<QObject>::create();
@@ -388,6 +427,7 @@ DomainType Store::readOne(const Sink::Query &query)
 template <class DomainType>
 QList<DomainType> Store::read(const Sink::Query &query_)
 {
+    Q_ASSERT(sanityCheckQuery(query_));
     auto query = query_;
     query.setFlags(Query::SynchronousQuery);
 

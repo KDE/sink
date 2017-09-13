@@ -10,7 +10,6 @@
 #include <QMutexLocker>
 #include <iostream>
 #include <unistd.h>
-#include <memory>
 #include <atomic>
 #include <definitions.h>
 #include <QThreadStorage>
@@ -27,10 +26,13 @@ static QSettings &config()
     return *sSettings.localData();
 }
 
-static QByteArray sPrimaryComponent;
+Q_GLOBAL_STATIC(QByteArray, sPrimaryComponent);
+
 void Sink::Log::setPrimaryComponent(const QString &component)
 {
-    sPrimaryComponent = component.toUtf8();
+    if (!sPrimaryComponent.isDestroyed()) {
+        *sPrimaryComponent = component.toUtf8();
+    }
 }
 
 class DebugStream : public QIODevice
@@ -267,16 +269,21 @@ public:
     QSet<QString> mDebugAreas;
 };
 
-static auto sDebugAreaCollector = std::unique_ptr<DebugAreaCollector>(new DebugAreaCollector);
+Q_GLOBAL_STATIC(DebugAreaCollector, sDebugAreaCollector);
 
 QSet<QString> Sink::Log::debugAreas()
 {
-    return sDebugAreaCollector->debugAreas();
+    if (!sDebugAreaCollector.isDestroyed()) {
+        return sDebugAreaCollector->debugAreas();
+    }
+    return {};
 }
 
 static void collectDebugArea(const QString &debugArea)
 {
-    sDebugAreaCollector->add(debugArea);
+    if (!sDebugAreaCollector.isDestroyed()) {
+        sDebugAreaCollector->add(debugArea);
+    }
 }
 
 static bool containsItemStartingWith(const QByteArray &pattern, const QByteArrayList &list)
@@ -318,13 +325,17 @@ static QByteArray getFileName(const char *file)
 
 static QString assembleDebugArea(const char *debugArea, const char *debugComponent, const char *file)
 {
-    if (sPrimaryComponent.isEmpty()) {
-        sPrimaryComponent = getProgramName();
+    if (!sPrimaryComponent.isDestroyed() && sPrimaryComponent->isEmpty()) {
+        *sPrimaryComponent = getProgramName();
     }
-    //Using stringbuilder for fewer allocations
-    return QLatin1String{sPrimaryComponent} % QLatin1String{"."} %
-        (debugComponent ? (QLatin1String{debugComponent} + QLatin1String{"."}) : QLatin1String{""}) %
-        (debugArea ? QLatin1String{debugArea} : QLatin1String{getFileName(file)});
+    if (!sPrimaryComponent.isDestroyed()) {
+        //Using stringbuilder for fewer allocations
+        return QLatin1String{*sPrimaryComponent} % QLatin1String{"."} %
+            (debugComponent ? (QLatin1String{debugComponent} + QLatin1String{"."}) : QLatin1String{""}) %
+            (debugArea ? QLatin1String{debugArea} : QLatin1String{getFileName(file)});
+    } else {
+        return {};
+    }
 }
 
 static bool isFiltered(DebugLevel debugLevel, const QByteArray &fullDebugArea)
@@ -346,14 +357,19 @@ bool Sink::Log::isFiltered(DebugLevel debugLevel, const char *debugArea, const c
     return isFiltered(debugLevel, assembleDebugArea(debugArea, debugComponent, file).toLatin1());
 }
 
+Q_GLOBAL_STATIC(NullStream, sNullStream);
+Q_GLOBAL_STATIC(DebugStream, sDebugStream);
+
 QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea, const char *debugComponent)
 {
     const auto fullDebugArea = assembleDebugArea(debugArea, debugComponent, file);
     collectDebugArea(fullDebugArea);
 
-    static NullStream nullstream;
     if (isFiltered(debugLevel, fullDebugArea.toLatin1())) {
-        return QDebug(&nullstream);
+        if (!sNullStream.isDestroyed()) {
+            return QDebug(sNullStream);
+        }
+        return QDebug{QtDebugMsg};
     }
 
     QString prefix;
@@ -418,8 +434,10 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     }
     output += ":";
 
-    static DebugStream stream;
-    QDebug debug(&stream);
+    if (sDebugStream.isDestroyed()) {
+        return QDebug{QtDebugMsg};
+    }
+    QDebug debug(sDebugStream);
 
     debug.noquote().nospace() << output;
 

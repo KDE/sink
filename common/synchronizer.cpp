@@ -40,7 +40,7 @@ Synchronizer::Synchronizer(const Sink::ResourceContext &context)
     mSyncStorage(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::DataStore::ReadWrite),
     mSyncInProgress(false)
 {
-    mCurrentState.push(ApplicationDomain::Status::OfflineStatus);
+    mCurrentState.push(ApplicationDomain::Status::NoStatus);
     SinkTraceCtx(mLogCtx) << "Starting synchronizer: " << mResourceContext.resourceType << mResourceContext.instanceId();
 }
 
@@ -344,8 +344,11 @@ void Synchronizer::setStatusFromResult(const KAsync::Error &error, const QString
         } else if (error.errorCode == ApplicationDomain::LoginError) {
             //If we failed to login altough we could connect that indicates a problem with our setup.
             setStatus(ApplicationDomain::ErrorStatus, s, requestId);
+        } else if (error.errorCode == ApplicationDomain::ConnectionLostError) {
+            //We've lost the connection so we assume the connection to the server broke.
+            setStatus(ApplicationDomain::OfflineStatus, s, requestId);
         }
-        //We don't know what kind of error this was, so we assume it's transient and don't change ou status.
+        //We don't know what kind of error this was, so we assume it's transient and don't change our status.
     } else {
         //An operation against the server worked, so we're probably online.
         setStatus(ApplicationDomain::ConnectedStatus, s, requestId);
@@ -593,17 +596,13 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
     //TODO This requires supporting every domain type here as well. Can we solve this better so we can do the dispatch somewhere centrally?
     if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
-        auto folder = store().readEntity<ApplicationDomain::Folder>(key);
-        job = replay(folder, operation, oldRemoteId, modifiedProperties);
+        job = replay(store().readEntity<ApplicationDomain::Folder>(key), operation, oldRemoteId, modifiedProperties);
     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Mail>()) {
-        auto mail = store().readEntity<ApplicationDomain::Mail>(key);
-        job = replay(mail, operation, oldRemoteId, modifiedProperties);
+        job = replay(store().readEntity<ApplicationDomain::Mail>(key), operation, oldRemoteId, modifiedProperties);
     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Contact>()) {
-        auto mail = store().readEntity<ApplicationDomain::Contact>(key);
-        job = replay(mail, operation, oldRemoteId, modifiedProperties);
+        job = replay(store().readEntity<ApplicationDomain::Contact>(key), operation, oldRemoteId, modifiedProperties);
     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Addressbook>()) {
-        auto mail = store().readEntity<ApplicationDomain::Addressbook>(key);
-        job = replay(mail, operation, oldRemoteId, modifiedProperties);
+        job = replay(store().readEntity<ApplicationDomain::Addressbook>(key), operation, oldRemoteId, modifiedProperties);
     } else {
         SinkErrorCtx(mLogCtx) << "Replayed unknown type: " << type;
     }

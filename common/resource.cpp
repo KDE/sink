@@ -56,10 +56,10 @@ class ResourceFactory::Private
 {
 public:
     QByteArrayList capabilities;
-    static QHash<QString, QPointer<ResourceFactory>> s_loadedFactories;
 };
 
-QHash<QString, QPointer<ResourceFactory>> ResourceFactory::Private::s_loadedFactories;
+typedef QHash<QString, QPointer<ResourceFactory>> FactoryRegistry;
+Q_GLOBAL_STATIC(FactoryRegistry, s_loadedFactories);
 
 ResourceFactory::ResourceFactory(QObject *parent, const QByteArrayList &capabilities) : QObject(parent), d(new ResourceFactory::Private)
 {
@@ -73,7 +73,7 @@ ResourceFactory::~ResourceFactory()
 
 ResourceFactory *ResourceFactory::load(const QByteArray &resourceName)
 {
-    ResourceFactory *factory = Private::s_loadedFactories.value(resourceName);
+    ResourceFactory *factory = s_loadedFactories->value(resourceName);
     if (factory) {
         return factory;
     }
@@ -96,7 +96,7 @@ ResourceFactory *ResourceFactory::load(const QByteArray &resourceName)
                     if (object) {
                         factory = qobject_cast<ResourceFactory *>(object);
                         if (factory) {
-                            Private::s_loadedFactories.insert(resourceName, factory);
+                            s_loadedFactories->insert(resourceName, factory);
                             //TODO: Instead of always loading both facades and adaptorfactories into the respective singletons, we could also leave this up to the caller. (ResourceFactory::loadFacades(...))
                             factory->registerFacades(resourceName, FacadeFactory::instance());
                             factory->registerAdaptorFactories(resourceName, AdaptorFactoryRegistry::instance());

@@ -61,6 +61,21 @@ const char* Imap::Capabilities::Namespace = "NAMESPACE";
 const char* Imap::Capabilities::Uidplus = "UIDPLUS";
 const char* Imap::Capabilities::Condstore = "CONDSTORE";
 
+static int translateImapError(int error)
+{
+    switch (error) {
+        case KJob::UserDefinedError:
+            return Imap::ConnectionLost;
+        case KIMAP2::LoginJob::ErrorCode::ERR_HOST_NOT_FOUND:
+            return Imap::HostNotFoundError;
+        case KIMAP2::LoginJob::ErrorCode::ERR_COULD_NOT_CONNECT:
+            return Imap::CouldNotConnectError;
+        case KIMAP2::LoginJob::ErrorCode::ERR_SSL_HANDSHAKE_FAILED:
+            return Imap::SslHandshakeError;
+    }
+    return Imap::UnknownError;
+}
+
 template <typename T>
 static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
 {
@@ -69,7 +84,8 @@ static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
             SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
                 SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className();
-                future.setError(job->error(), job->errorString());
+                auto proxyError = translateImapError(job->error());
+                future.setError(proxyError, job->errorString());
             } else {
                 future.setValue(f(job));
                 future.setFinished();
@@ -87,7 +103,8 @@ static KAsync::Job<void> runJob(KJob *job)
             SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
                 SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className();
-                future.setError(job->error(), job->errorString());
+                auto proxyError = translateImapError(job->error());
+                future.setError(proxyError, job->errorString());
             } else {
                 future.setFinished();
             }
@@ -166,20 +183,6 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
         // SinkTrace() << "Found personal namespaces: " << mNamespaces.personal;
         // SinkTrace() << "Found shared namespaces: " << mNamespaces.shared;
         // SinkTrace() << "Found user namespaces: " << mNamespaces.user;
-    }).then([=] (const KAsync::Error &error) {
-        if (error) {
-            switch (error.errorCode) {
-            case KIMAP2::LoginJob::ErrorCode::ERR_HOST_NOT_FOUND:
-                return KAsync::error(HostNotFoundError, "Host not found: " + error.errorMessage);
-            case KIMAP2::LoginJob::ErrorCode::ERR_COULD_NOT_CONNECT:
-                return KAsync::error(CouldNotConnectError, "Failed to connect: " + error.errorMessage);
-            case KIMAP2::LoginJob::ErrorCode::ERR_SSL_HANDSHAKE_FAILED:
-                return KAsync::error(SslHandshakeError, "Ssl handshake failed: " + error.errorMessage);
-            default:
-                return KAsync::error(error);
-            }
-        }
-        return KAsync::null();
     });
 }
 
