@@ -71,6 +71,11 @@ public:
         return KAsync::null<void>();
     }
 
+    void revisionUpdate(qint64 rev)
+    {
+        emit revisionChanged(rev);
+    }
+
 public slots:
     void open() Q_DECL_OVERRIDE
     {

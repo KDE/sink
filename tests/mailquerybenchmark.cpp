@@ -51,16 +51,18 @@ class MailQueryBenchmark : public QObject
     QByteArray resourceIdentifier;
     HAWD::State mHawdState;
 
-    void populateDatabase(int count, int folderSpreadFactor = 0)
+    void populateDatabase(int count, int folderSpreadFactor = 0, bool clear = true, int offset = 0)
     {
-        TestResource::removeFromDisk(resourceIdentifier);
+        if (clear) {
+            TestResource::removeFromDisk(resourceIdentifier);
+        }
 
         Sink::ResourceContext resourceContext{resourceIdentifier, "test", {{"mail", QSharedPointer<TestMailAdaptorFactory>::create()}}};
         Sink::Storage::EntityStore entityStore{resourceContext, {}};
         entityStore.startTransaction(Sink::Storage::DataStore::ReadWrite);
 
         const auto date = QDateTime::currentDateTimeUtc();
-        for (int i = 0; i < count; i++) {
+        for (int i = offset; i < offset + count; i++) {
             auto domainObject = Mail::createEntity<Mail>(resourceIdentifier);
             domainObject.setExtractedMessageId("uid");
             domainObject.setExtractedParentMessageId("parentuid");
@@ -85,7 +87,6 @@ class MailQueryBenchmark : public QObject
         // Benchmark
         QTime time;
         time.start();
-        auto resultSet = QSharedPointer<Sink::ResultProvider<Mail::Ptr>>::create();
 
         //FIXME why do we need this here?
         auto domainTypeAdaptorFactory = QSharedPointer<TestMailAdaptorFactory>::create();
@@ -177,6 +178,56 @@ private slots:
         int count = 50000;
         populateDatabase(count, mailsPerFolder);
         testLoad("_threadleader", query, count, query.limit());
+    }
+
+    void testIncremental()
+    {
+        Sink::Query query{Sink::Query::LiveQuery};
+        query.request<Mail::MessageId>()
+             .request<Mail::Subject>()
+             .request<Mail::Date>();
+        query.sort<ApplicationDomain::Mail::Date>();
+        query.reduce<ApplicationDomain::Mail::Folder>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>());
+        query.limit(1000);
+
+        int count = 1000;
+        populateDatabase(count, 10);
+        auto expectedSize = 100;
+        QTime time;
+        time.start();
+        auto domainTypeAdaptorFactory = QSharedPointer<TestMailAdaptorFactory>::create();
+        Sink::ResourceContext context{resourceIdentifier, "test", {{"mail", domainTypeAdaptorFactory}}};
+        context.mResourceAccess = QSharedPointer<TestResourceAccess>::create();
+        TestMailResourceFacade facade(context);
+
+        auto ret = facade.load(query, Sink::Log::Context{"benchmark"});
+        ret.first.exec().waitForFinished();
+        auto emitter = ret.second;
+        QList<Mail::Ptr> added;
+        QList<Mail::Ptr> removed;
+        QList<Mail::Ptr> modified;
+        emitter->onAdded([&](const Mail::Ptr &mail) { added << mail; /*qWarning() << "Added";*/ });
+        emitter->onRemoved([&](const Mail::Ptr &mail) { removed << mail; /*qWarning() << "Removed";*/ });
+        emitter->onModified([&](const Mail::Ptr &mail) { modified << mail; /*qWarning() << "Modified";*/ });
+        bool done = false;
+        emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail, bool) { done = true; });
+        emitter->fetch(Mail::Ptr());
+        QTRY_VERIFY(done);
+        QCOMPARE(added.size(), expectedSize);
+
+        std::cout << "Initial query took: " << time.elapsed() << std::endl;
+
+        populateDatabase(count, 10, false, count);
+        time.restart();
+        context.mResourceAccess->revisionChanged(2000);
+        //We should have 200 items in total in the end. 2000 mails / 10 folders => 200 reduced mails
+        QTRY_COMPARE(added.count(), 200);
+        //For every email we have to redo the reduction and increase the count, which is a modification.
+        QTRY_COMPARE(modified.count(), 900);
+        std::cout << "Incremental query took " << time.elapsed() << std::endl;
+        std::cout << "added " << added.count() << std::endl;
+        std::cout << "modified " << modified.count() << std::endl;
+        std::cout << "removed " << removed.count() << std::endl;
     }
 };
 
