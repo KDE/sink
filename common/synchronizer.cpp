@@ -318,6 +318,10 @@ void Synchronizer::emitProgressNotification(Notification::NoticationType type, i
 void Synchronizer::reportProgress(int progress, int total, const QByteArrayList &entities)
 {
     if (progress > 0 && total > 0) {
+        //Limit progress updates for large amounts
+        if (total >= 100 && progress % 10 != 0) {
+            return;
+        }
         SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total << mCurrentRequest.requestId << mCurrentRequest.applicableEntities;
         const auto applicableEntities = [&] {
             if (entities.isEmpty()) {
