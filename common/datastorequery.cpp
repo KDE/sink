@@ -303,8 +303,9 @@ public:
                 } else {
                     //During initial query, do nothing. The lookup above will take care of it.
                     //During updates adjust the reduction according to the modification/addition or removal
+                    //We have to redo the reduction for every element, because of the aggregation values.
                     if (mIncremental) {
-                        //redo the reduction
+                        //Redo the reduction to find new aggregated values
                         QMap<QByteArray, QVariant> aggregateValues;
                         auto selectionResult = reduceOnValue(reductionValue, aggregateValues);
 
