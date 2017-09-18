@@ -33,6 +33,7 @@
 #include "common/revisionupdate_generated.h"
 #include "common/notification_generated.h"
 #include "common/revisionreplayed_generated.h"
+#include "common/secret_generated.h"
 
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -240,6 +241,17 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             }
             break;
         }
+        case Sink::Commands::SecretCommand: {
+            flatbuffers::Verifier verifier((const uint8_t *)commandBuffer.constData(), commandBuffer.size());
+            if (Sink::Commands::VerifySecretBuffer(verifier)) {
+                auto buffer = Sink::Commands::GetSecret(commandBuffer.constData());
+                loadResource().setSecret(QString{buffer->secret()->c_str()});
+            } else {
+                SinkWarning() << "received invalid command";
+            }
+            break;
+        }
+
         case Sink::Commands::SynchronizeCommand:
         case Sink::Commands::InspectionCommand:
         case Sink::Commands::DeleteEntityCommand:

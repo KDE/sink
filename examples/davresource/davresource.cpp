@@ -132,8 +132,8 @@ public:
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Addressbook>()) {
-            SinkLogCtx(mLogCtx) << "Synchronizing addressbooks:" <<  mResourceUrl.url();
-            auto collectionsFetchJob = new KDAV2::DavCollectionsFetchJob(mResourceUrl);
+            SinkLogCtx(mLogCtx) << "Synchronizing addressbooks:" <<  resourceUrl().url();
+            auto collectionsFetchJob = new KDAV2::DavCollectionsFetchJob(resourceUrl());
             auto job = runJob(collectionsFetchJob).then([this, collectionsFetchJob] (const KAsync::Error &error) {
                 if (error) {
                     SinkWarningCtx(mLogCtx) << "Failed to synchronize addressbooks." << collectionsFetchJob->errorString();
@@ -147,7 +147,7 @@ public:
             auto ridList = QSharedPointer<QByteArrayList>::create();
             auto total = QSharedPointer<int>::create(0);
             auto progress = QSharedPointer<int>::create(0);
-            auto collectionsFetchJob = new KDAV2::DavCollectionsFetchJob(mResourceUrl);
+            auto collectionsFetchJob = new KDAV2::DavCollectionsFetchJob(resourceUrl());
             auto job = runJob(collectionsFetchJob).then([this, collectionsFetchJob] {
                 synchronizeAddressbooks(collectionsFetchJob ->collections());
                 return collectionsFetchJob->collections();
@@ -233,8 +233,20 @@ KAsync::Job<QByteArray> replay(const ApplicationDomain::Contact &contact, Sink::
         return KAsync::null<QByteArray>();
     }
 
+    KDAV2::DavUrl resourceUrl() const
+    {
+        if (secret().isEmpty()) {
+            return {};
+        }
+        auto resourceUrl = mServer;
+        resourceUrl.setUserName(mUsername);
+        resourceUrl.setPassword(secret());
+        return KDAV2::DavUrl{resourceUrl, KDAV2::CardDav};
+    }
+
 public:
-    KDAV2::DavUrl mResourceUrl;
+    QUrl mServer;
+    QString mUsername;
 };
 
 
@@ -242,14 +254,12 @@ DavResource::DavResource(const Sink::ResourceContext &resourceContext)
     : Sink::GenericResource(resourceContext)
 {
     auto config = ResourceConfig::getConfiguration(resourceContext.instanceId());
-    auto resourceUrl = QUrl::fromUserInput(config.value("server").toString());
-    resourceUrl.setUserName(config.value("username").toString());
-    resourceUrl.setPassword(config.value("password").toString());
-
-    mResourceUrl = KDAV2::DavUrl(resourceUrl, KDAV2::CardDav);
+    auto server = QUrl::fromUserInput(config.value("server").toString());
+    auto username = config.value("username").toString();
 
     auto synchronizer = QSharedPointer<ContactSynchronizer>::create(resourceContext);
-    synchronizer->mResourceUrl = mResourceUrl;
+    synchronizer->mServer = server;
+    synchronizer->mUsername = username;
     setupSynchronizer(synchronizer);
 
     setupPreprocessors(ENTITY_TYPE_CONTACT, QVector<Sink::Preprocessor*>() << new ContactPropertyExtractor);

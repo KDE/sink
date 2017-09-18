@@ -45,6 +45,13 @@ GenericResource::~GenericResource()
 {
 }
 
+void GenericResource::setSecret(const QString &s)
+{
+    if (mSynchronizer) {
+        mSynchronizer->setSecret(s);
+    }
+}
+
 void GenericResource::setupPreprocessors(const QByteArray &type, const QVector<Sink::Preprocessor *> &preprocessors)
 {
     mPipeline->setPreprocessors(type, preprocessors);

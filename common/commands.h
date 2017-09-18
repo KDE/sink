@@ -48,6 +48,7 @@ enum CommandIds
     InspectionCommand,
     RemoveFromDiskCommand,
     FlushCommand,
+    SecretCommand,
     CustomCommand = 0xffff
 };
 

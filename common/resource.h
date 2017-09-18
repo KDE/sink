@@ -47,6 +47,8 @@ public:
      */
     virtual void setLowerBoundRevision(qint64 revision);
 
+    virtual void setSecret(const QString &s);
+
 signals:
     void revisionUpdated(qint64);
     void notify(Notification);

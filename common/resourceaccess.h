@@ -80,6 +80,11 @@ public:
         return KAsync::null<void>();
     }
 
+    virtual KAsync::Job<void> sendSecret(const QString &secret)
+    {
+        return KAsync::null<void>();
+    }
+
     int getResourceStatus() const
     {
         return mResourceStatus;
@@ -121,6 +126,7 @@ public:
     KAsync::Job<void>
     sendInspectionCommand(int inspectionType,const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expecedValue) Q_DECL_OVERRIDE;
     KAsync::Job<void> sendFlushCommand(int flushType, const QByteArray &flushId) Q_DECL_OVERRIDE;
+    KAsync::Job<void> sendSecret(const QString &secret) Q_DECL_OVERRIDE;
     /**
      * Tries to connect to server, and returns a connected socket on success.
      */

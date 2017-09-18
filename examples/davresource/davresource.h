@@ -44,11 +44,6 @@ class DavResource : public Sink::GenericResource
 {
 public:
     DavResource(const Sink::ResourceContext &resourceContext);
-
-private:
-    QStringList listAvailableFolders();
-
-    KDAV2::DavUrl mResourceUrl;
 };
 
 class DavResourceFactory : public Sink::ResourceFactory

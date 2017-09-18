@@ -33,6 +33,7 @@ set(storage_LIBS lmdb)
 
 set(command_SRCS
     store.cpp
+    secretstore.cpp
     notifier.cpp
     resourcecontrol.cpp
     modelresult.cpp
@@ -97,6 +98,7 @@ generate_flatbuffers(
     commands/revisionreplayed
     commands/inspection
     commands/flush
+    commands/secret
     domain/contact
     domain/addressbook
     domain/event
@@ -144,6 +146,7 @@ install(FILES
     test.h
     log.h
     flush.h
+    secretstore.h
     ${CMAKE_CURRENT_BINARY_DIR}/sink_export.h
     DESTINATION ${INCLUDE_INSTALL_DIR}/${PROJECT_NAME} COMPONENT Devel
 )

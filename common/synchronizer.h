@@ -60,6 +60,8 @@ public:
     bool allChangesReplayed() Q_DECL_OVERRIDE;
     void flushComplete(const QByteArray &flushId);
 
+    void setSecret(const QString &s);
+
 signals:
     void notify(Notification);
 
@@ -78,6 +80,8 @@ protected:
     virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Mail &, Sink::Operation, const QByteArray &oldRemoteId, const QList<QByteArray> &);
     virtual KAsync::Job<QByteArray> replay(const Sink::ApplicationDomain::Folder &, Sink::Operation, const QByteArray &oldRemoteId, const QList<QByteArray> &);
 protected:
+    QString secret() const;
+
     ///Calls the callback to enqueue the command
     void enqueueCommand(int commandId, const QByteArray &data);
 
@@ -224,6 +228,7 @@ private:
     MessageQueue *mMessageQueue;
     bool mSyncInProgress;
     QMultiHash<QByteArray, SyncRequest> mPendingSyncRequests;
+    QString mSecret;
 };
 
 }

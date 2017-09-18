@@ -470,7 +470,7 @@ public:
     {
         SinkTrace() << "Connecting to:" << mServer << mPort;
         SinkTrace() << "as:" << mUser;
-        return imap->login(mUser, mPassword)
+        return imap->login(mUser, secret())
         .addToContext(imap);
     }
 
@@ -513,6 +513,8 @@ public:
                     return {ApplicationDomain::NoServerError, error.errorMessage};
                 case Imap::ConnectionLost:
                     return {ApplicationDomain::ConnectionLostError, error.errorMessage};
+                case Imap::MissingCredentialsError:
+                    return {ApplicationDomain::MissingCredentialsError, error.errorMessage};
                 default:
                     return {ApplicationDomain::UnknownError, error.errorMessage};
             }
@@ -631,7 +633,7 @@ public:
             }
         }
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, &mSessionCache);
-        auto login = imap->login(mUser, mPassword);
+        auto login = imap->login(mUser, secret());
         KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
         if (operation == Sink::Operation_Creation) {
             const QString mailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
@@ -716,7 +718,7 @@ public:
             }
         }
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, &mSessionCache);
-        auto login = imap->login(mUser, mPassword);
+        auto login = imap->login(mUser, secret());
         if (operation == Sink::Operation_Creation) {
             QString parentFolder;
             if (!folder.getParent().isEmpty()) {
@@ -736,7 +738,7 @@ public:
                     });
             } else { //We try to merge special purpose folders first
                 auto  specialPurposeFolders = QSharedPointer<QHash<QByteArray, QString>>::create();
-                auto mergeJob = imap->login(mUser, mPassword)
+                auto mergeJob = imap->login(mUser, secret())
                     .then(imap->fetchFolders([=](const Imap::Folder &folder) {
                         if (SpecialPurpose::isSpecialPurposeFolderName(folder.name())) {
                             specialPurposeFolders->insert(SpecialPurpose::getSpecialPurposeType(folder.name()), folder.path());
@@ -790,7 +792,6 @@ public:
     QString mServer;
     int mPort;
     QString mUser;
-    QString mPassword;
     int mDaysToSync = 0;
     QByteArray mResourceInstanceIdentifier;
     Imap::SessionCache mSessionCache;
@@ -959,7 +960,6 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     auto server = config.value("server").toString();
     auto port = config.value("port").toInt();
     auto user = config.value("username").toString();
-    auto password = config.value("password").toString();
     if (server.startsWith("imap")) {
         server.remove("imap://");
         server.remove("imaps://");
@@ -974,7 +974,6 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     synchronizer->mServer = server;
     synchronizer->mPort = port;
     synchronizer->mUser = user;
-    synchronizer->mPassword = password;
     synchronizer->mDaysToSync = 14;
     setupSynchronizer(synchronizer);
 
@@ -982,7 +981,8 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     inspector->mServer = server;
     inspector->mPort = port;
     inspector->mUser = user;
-    inspector->mPassword = password;
+    //TODO
+    // inspector->mPassword = password;
     setupInspector(inspector);
 
     setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor << new MailPropertyExtractor);

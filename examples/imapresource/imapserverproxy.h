@@ -35,6 +35,7 @@ enum ErrorCode {
     CouldNotConnectError,
     SslHandshakeError,
     ConnectionLost,
+    MissingCredentialsError,
     UnknownError
 };
 

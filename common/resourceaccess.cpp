@@ -32,9 +32,11 @@
 #include "common/revisionreplayed_generated.h"
 #include "common/inspection_generated.h"
 #include "common/flush_generated.h"
+#include "common/secret_generated.h"
 #include "common/entitybuffer.h"
 #include "common/bufferutils.h"
 #include "common/test.h"
+#include "common/secretstore.h"
 #include "log.h"
 
 #include <QCoreApplication>
@@ -234,6 +236,12 @@ ResourceAccess::ResourceAccess(const QByteArray &resourceInstanceIdentifier, con
 {
     mResourceStatus = Sink::ApplicationDomain::NoStatus;
     SinkTrace() << "Starting access";
+
+    QObject::connect(&SecretStore::instance(), &SecretStore::secretAvailable, this, [this] (const QByteArray &resourceId) {
+        if (resourceId == d->resourceInstanceIdentifier) {
+            sendSecret(SecretStore::instance().resourceSecret(d->resourceInstanceIdentifier)).exec();
+        }
+    });
 }
 
 ResourceAccess::~ResourceAccess()
@@ -387,6 +395,15 @@ KAsync::Job<void> ResourceAccess::sendFlushCommand(int flushType, const QByteArr
     return sendCommand(Sink::Commands::FlushCommand, fbb);
 }
 
+KAsync::Job<void> ResourceAccess::sendSecret(const QString &secret)
+{
+    flatbuffers::FlatBufferBuilder fbb;
+    auto s = fbb.CreateString(secret.toStdString());
+    auto location = Sink::Commands::CreateSecret(fbb, s);
+    Sink::Commands::FinishSecretBuffer(fbb, location);
+    return sendCommand(Sink::Commands::SecretCommand, fbb);
+}
+
 void ResourceAccess::open()
 {
     if (d->socket && d->socket->isValid()) {
@@ -481,6 +498,11 @@ void ResourceAccess::connected()
         auto command = Sink::Commands::CreateHandshake(fbb, name);
         Sink::Commands::FinishHandshakeBuffer(fbb, command);
         Commands::write(d->socket.data(), ++d->messageId, Commands::HandshakeCommand, fbb);
+    }
+
+    auto secret = SecretStore::instance().resourceSecret(d->resourceInstanceIdentifier);
+    if (!secret.isEmpty()) {
+        sendSecret(secret).exec();
     }
 
     // Reenqueue pending commands, we failed to send them

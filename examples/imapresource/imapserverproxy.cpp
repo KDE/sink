@@ -139,6 +139,9 @@ ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, SessionCach
 
 KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString &password)
 {
+    if (password.isEmpty()) {
+        return KAsync::error(Imap::MissingCredentialsError);
+    }
     if (mSessionCache) {
         auto session = mSessionCache->getSession();
         if (session.isValid()) {

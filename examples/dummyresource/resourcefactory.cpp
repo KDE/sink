@@ -50,7 +50,7 @@ class DummySynchronizer : public Sink::Synchronizer {
     DummySynchronizer(const Sink::ResourceContext &context)
         : Sink::Synchronizer(context)
     {
-
+        setSecret("dummy");
     }
 
     Sink::ApplicationDomain::Event::Ptr createEvent(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data)

@@ -215,7 +215,7 @@ public:
     MaildirSynchronizer(const Sink::ResourceContext &resourceContext)
         : Sink::Synchronizer(resourceContext)
     {
-
+        setSecret("dummy");
     }
 
     static QStringList listRecursive( const QString &root, const KPIM::Maildir &dir )

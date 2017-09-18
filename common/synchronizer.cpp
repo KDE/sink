@@ -49,6 +49,20 @@ Synchronizer::~Synchronizer()
 
 }
 
+void Synchronizer::setSecret(const QString &s)
+{
+    mSecret = s;
+
+    if (!mSyncRequestQueue.isEmpty()) {
+        processSyncQueue().exec();
+    }
+}
+
+QString Synchronizer::secret() const
+{
+    return mSecret;
+}
+
 void Synchronizer::setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback, MessageQueue &mq)
 {
     mEnqueue = enqueueCommandCallback;
@@ -474,6 +488,10 @@ void Synchronizer::setBusy(bool busy, const QString &reason, const QByteArray re
 
 KAsync::Job<void> Synchronizer::processSyncQueue()
 {
+    if (secret().isEmpty()) {
+        SinkLogCtx(mLogCtx) << "Secret not available but required.";
+        return KAsync::null<void>();
+    }
     if (mSyncRequestQueue.isEmpty()) {
         SinkLogCtx(mLogCtx) << "All requests processed.";
         return KAsync::null<void>();
