@@ -41,6 +41,13 @@
 
 using namespace Sink;
 
+struct Settings {
+    QString server;
+    QString username;
+    QString cacert;
+    bool testMode;
+};
+
 class MailtransportPreprocessor : public Sink::Preprocessor
 {
 public:
@@ -91,7 +98,7 @@ public:
 
     }
 
-    KAsync::Job<void> send(const ApplicationDomain::Mail &mail, const MailtransportResource::Settings &settings)
+    KAsync::Job<void> send(const ApplicationDomain::Mail &mail, const Settings &settings)
     {
         return KAsync::start([=] {
             if (!syncStore().readValue(mail.identifier()).isEmpty()) {
@@ -122,7 +129,7 @@ public:
                 if (settings.server.contains("smtps")) {
                     options |= MailTransport::UseTls;
                 }
-                if (!MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), settings.password.toUtf8(), settings.cacert.toUtf8(), options)) {
+                if (!MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), secret().toUtf8(), settings.cacert.toUtf8(), options)) {
                     SinkWarning() << "Failed to send message: " << mail;
                     emitNotification(Notification::Warning, ApplicationDomain::SyncError, "Failed to send message.", {}, {mail.identifier()});
                     emitNotification(Notification::Warning, ApplicationDomain::TransmissionError, "Failed to send message.", {}, {mail.identifier()});
@@ -193,7 +200,7 @@ public:
 
 public:
     QByteArray mResourceInstanceIdentifier;
-    MailtransportResource::Settings mSettings;
+    Settings mSettings;
 };
 
 class MailtransportInspector : public Sink::Inspector {
@@ -225,15 +232,13 @@ MailtransportResource::MailtransportResource(const Sink::ResourceContext &resour
     : Sink::GenericResource(resourceContext)
 {
     auto config = ResourceConfig::getConfiguration(resourceContext.instanceId());
-    mSettings = {config.value("server").toString(),
-                config.value("username").toString(),
-                config.value("cacert").toString(),
-                config.value("password").toString(),
-                config.value("testmode").toBool()
-    };
 
     auto synchronizer = QSharedPointer<MailtransportSynchronizer>::create(resourceContext);
-    synchronizer->mSettings = mSettings;
+    synchronizer->mSettings = {config.value("server").toString(),
+                config.value("username").toString(),
+                config.value("cacert").toString(),
+                config.value("testmode").toBool()
+    };
     setupSynchronizer(synchronizer);
     setupInspector(QSharedPointer<MailtransportInspector>::create(resourceContext));
 

@@ -26,16 +26,6 @@ class MailtransportResource : public Sink::GenericResource
 {
 public:
     MailtransportResource(const Sink::ResourceContext &resourceContext);
-
-    struct Settings {
-        QString server;
-        QString username;
-        QString cacert;
-        QString password;
-        bool testMode;
-    };
-private:
-    Settings mSettings;
 };
 
 class MailtransportResourceFactory : public Sink::ResourceFactory
