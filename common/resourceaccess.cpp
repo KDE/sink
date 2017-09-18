@@ -500,15 +500,12 @@ void ResourceAccess::connected()
         Commands::write(d->socket.data(), ++d->messageId, Commands::HandshakeCommand, fbb);
     }
 
+    // Reenqueue pending commands, we failed to send them
+    processPendingCommandQueue();
     auto secret = SecretStore::instance().resourceSecret(d->resourceInstanceIdentifier);
     if (!secret.isEmpty()) {
         sendSecret(secret).exec();
     }
-
-    // Reenqueue pending commands, we failed to send them
-    processPendingCommandQueue();
-    // Send queued commands
-    processCommandQueue();
 
     emit ready(true);
 }
