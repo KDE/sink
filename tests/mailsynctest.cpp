@@ -471,10 +471,12 @@ void MailSyncTest::testFailingSync()
     //Wait for the error notifiction
     auto notifier = QSharedPointer<Sink::Notifier>::create(resource.identifier());
     notifier->registerHandler([&](const Notification &notification) {
-        SinkWarning() << "Received notification " << notification;
-        if (notification.type == Sink::Notification::Error  && notification.code == ApplicationDomain::ConnectionError) {
+        SinkTrace() << "Received notification " << notification;
+        //Maildir detects misconfiguration, imap fails to connect
+        if (notification.type == Sink::Notification::Error &&
+                (notification.code == ApplicationDomain::ConnectionError ||
+                 notification.code == ApplicationDomain::ConfigurationError)) {
             errorReceived = true;
-            SinkWarning() << "Sync return an error";
         }
     });
 
