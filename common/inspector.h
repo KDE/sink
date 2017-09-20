@@ -41,13 +41,19 @@ public:
 
     KAsync::Job<void> processCommand(void const *command, size_t size);
 
+    void setSecret(const QString &s);
+
 signals:
     void notify(Notification);
 
 protected:
+    QString secret() const;
     virtual KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue);
 
     Sink::ResourceContext mResourceContext;
+
+private:
+    QString mSecret;
 };
 
 }

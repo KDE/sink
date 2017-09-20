@@ -841,7 +841,7 @@ protected:
             auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
             SinkTrace() << "Connecting to:" << mServer << mPort;
             SinkTrace() << "as:" << mUser;
-            auto inspectionJob = imap->login(mUser, mPassword)
+            auto inspectionJob = imap->login(mUser, secret())
                 .then(imap->select(folderRemoteId))
                 .then([](Imap::SelectResult){})
                 .then(imap->fetch(set, scope, [imap, messageByUid](const Imap::Message &message) {
@@ -907,7 +907,7 @@ protected:
                 scope.mode = KIMAP2::FetchJob::FetchScope::Headers;
                 auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
                 auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
-                return imap->login(mUser, mPassword)
+                return imap->login(mUser, secret())
                     .then(imap->select(remoteId))
                     .then(imap->fetch(set, scope, [=](const Imap::Message message) {
                         messageByUid->insert(message.uid, message);
@@ -924,7 +924,7 @@ protected:
                 auto  folderByName = QSharedPointer<QSet<QString>>::create();
 
                 auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
-                auto inspectionJob = imap->login(mUser, mPassword)
+                auto inspectionJob = imap->login(mUser, secret())
                     .then(imap->fetchFolders([=](const Imap::Folder &f) {
                         *folderByPath << f.path();
                         *folderByName << f.name();
@@ -949,7 +949,6 @@ public:
     QString mServer;
     int mPort;
     QString mUser;
-    QString mPassword;
 };
 
 
@@ -981,8 +980,6 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     inspector->mServer = server;
     inspector->mPort = port;
     inspector->mUser = user;
-    //TODO
-    // inspector->mPassword = password;
     setupInspector(inspector);
 
     setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor << new MailPropertyExtractor);

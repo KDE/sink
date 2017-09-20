@@ -42,6 +42,9 @@ Q_SIGNALS:
     void secretAvailable(const QByteArray &resourceId);
 
 private:
+    Q_DISABLE_COPY(SecretStore);
+    SecretStore();
+
     QMap<QByteArray, QString> mCache;
     static QMutex sMutex;
 };

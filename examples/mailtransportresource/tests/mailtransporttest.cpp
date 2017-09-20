@@ -8,6 +8,7 @@
 #include "common/resourcecontrol.h"
 #include "common/domain/applicationdomaintype.h"
 #include "common/log.h"
+#include "common/secretstore.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -22,7 +23,7 @@ class MailtransportTest : public QObject
         resource.setProperty("server", "localhost");
         // resource.setProperty("port", 993);
         resource.setProperty("user", "doe");
-        resource.setProperty("password", "doe");
+        Sink::SecretStore::instance().insert(resource.identifier(), "doe");
         resource.setProperty("testmode", true);
         return resource;
     }

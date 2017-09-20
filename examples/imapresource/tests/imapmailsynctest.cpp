@@ -25,6 +25,7 @@
 
 #include "common/test.h"
 #include "common/domain/applicationdomaintype.h"
+#include "common/secretstore.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -57,7 +58,7 @@ protected:
         resource.setProperty("server", "localhost");
         resource.setProperty("port", 993);
         resource.setProperty("username", "doe");
-        resource.setProperty("password", "doe");
+        Sink::SecretStore::instance().insert(resource.identifier(), "doe");
         return resource;
     }
 
@@ -68,7 +69,7 @@ protected:
         resource.setProperty("server", "111.111.1.1");
         resource.setProperty("port", 993);
         resource.setProperty("username", "doe");
-        resource.setProperty("password", "doe");
+        Sink::SecretStore::instance().insert(resource.identifier(), "doe");
         return resource;
     }
 

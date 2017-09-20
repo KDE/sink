@@ -70,6 +70,7 @@ private:
     QSharedPointer<Pipeline> mPipeline;
     QSharedPointer<CommandProcessor> mProcessor;
     QSharedPointer<Synchronizer> mSynchronizer;
+    QSharedPointer<Inspector> mInspector;
     int mError;
     qint64 mClientLowerBoundRevision;
 };

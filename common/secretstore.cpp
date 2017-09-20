@@ -29,6 +29,12 @@ using namespace Sink;
 
 QMutex SecretStore::sMutex;
 
+SecretStore::SecretStore()
+    : QObject()
+{
+
+}
+
 SecretStore &SecretStore::instance()
 {
     static SecretStore s;

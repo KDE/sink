@@ -30,15 +30,22 @@ using namespace Sink;
 Inspector::Inspector(const ResourceContext &context)
     : QObject(),
     mResourceContext(context)
-    // mEntityStore(Storage::EntityStore::Ptr::create(mResourceContext)),
-    // mSyncStorage(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::DataStore::ReadWrite)
 {
-    // SinkTrace() << "Starting synchronizer: " << mResourceContext.resourceType << mResourceContext.instanceId();
 }
 
 Inspector::~Inspector()
 {
 
+}
+
+void Inspector::setSecret(const QString &s)
+{
+    mSecret = s;
+}
+
+QString Inspector::secret() const
+{
+    return mSecret;
 }
 
 KAsync::Job<void> Inspector::processCommand(void const *command, size_t size)

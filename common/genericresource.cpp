@@ -21,6 +21,7 @@
 
 #include "pipeline.h"
 #include "synchronizer.h"
+#include "inspector.h"
 #include "commandprocessor.h"
 #include "definitions.h"
 #include "storage.h"
@@ -50,6 +51,9 @@ void GenericResource::setSecret(const QString &s)
     if (mSynchronizer) {
         mSynchronizer->setSecret(s);
     }
+    if (mInspector) {
+        mInspector->setSecret(s);
+    }
 }
 
 void GenericResource::setupPreprocessors(const QByteArray &type, const QVector<Sink::Preprocessor *> &preprocessors)
@@ -68,6 +72,7 @@ void GenericResource::setupSynchronizer(const QSharedPointer<Synchronizer> &sync
 
 void GenericResource::setupInspector(const QSharedPointer<Inspector> &inspector)
 {
+    mInspector = inspector;
     mProcessor->setInspector(inspector);
 }
 
