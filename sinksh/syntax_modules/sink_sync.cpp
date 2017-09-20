@@ -28,6 +28,7 @@
 #include "common/log.h"
 #include "common/storage.h"
 #include "common/definitions.h"
+#include "common/secretstore.h"
 
 #include "sinksh_utils.h"
 #include "state.h"
@@ -38,16 +39,30 @@ namespace SinkSync
 
 bool sync(const QStringList &args, State &state)
 {
+    auto options = SyntaxTree::parseOptions(args);
+    if (options.options.value("password").isEmpty()) {
+        state.printError(QObject::tr("Pass in a password with --password"));
+        return false;
+    }
+    auto password = options.options.value("password").first();
+
     Sink::Query query;
-    
-    if (!args.isEmpty() && !SinkshUtils::isValidStoreType(args.first())) {
-        query.resourceFilter(args.first().toLatin1());
+    if (!options.positionalArguments.isEmpty() && !SinkshUtils::isValidStoreType(options.positionalArguments.first())) {
+        //We have only specified a resource
+        query.resourceFilter(options.positionalArguments.first().toLatin1());
     } else {
-        if (!SinkshUtils::applyFilter(query, args)) {
-            state.printError(QObject::tr("Options: $type $resource/$folder/$subfolder"));
+        //We have specified a full filter
+        if (!SinkshUtils::applyFilter(query, options.positionalArguments)) {
+            state.printError(QObject::tr("Options: $type $resource/$folder/$subfolder --password $password"));
             return false;
         }
     }
+    if (query.getResourceFilter().ids.isEmpty()) {
+        state.printError(QObject::tr("Failed to find resource filter"));
+        return false;
+    }
+    auto resourceId = query.getResourceFilter().ids.first();
+    Sink::SecretStore::instance().insert(resourceId, password);
 
     Sink::Store::synchronize(query)
         .then(Sink::ResourceControl::flushMessageQueue(query.getResourceFilter().ids))
@@ -65,7 +80,7 @@ bool sync(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax sync("sync", QObject::tr("Syncronizes all resources that are listed; and empty list triggers a syncronizaton on all resources"), &SinkSync::sync, Syntax::EventDriven);
+    Syntax sync("sync", QObject::tr("Synchronizes a resource."), &SinkSync::sync, Syntax::EventDriven);
     sync.completer = &SinkshUtils::resourceCompleter;
 
     return Syntax::List() << sync;
