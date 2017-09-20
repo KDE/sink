@@ -468,14 +468,14 @@ void MailSyncTest::testFailingSync()
 
     bool errorReceived = false;
 
-    //We currently don't get a proper error notification except for the status change
+    //Wait for the error notifiction
     auto notifier = QSharedPointer<Sink::Notifier>::create(resource.identifier());
     notifier->registerHandler([&](const Notification &notification) {
-        SinkTrace() << "Received notification " << notification.type << notification.id;
-        if (notification.code == ApplicationDomain::ErrorStatus) {
+        SinkWarning() << "Received notification " << notification;
+        if (notification.type == Sink::Notification::Error  && notification.code == ApplicationDomain::ConnectionError) {
             errorReceived = true;
             SinkWarning() << "Sync return an error";
-        } 
+        }
     });
 
     VERIFYEXEC(Store::synchronize(query));
