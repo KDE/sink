@@ -959,6 +959,7 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     auto server = config.value("server").toString();
     auto port = config.value("port").toInt();
     auto user = config.value("username").toString();
+    auto daysToSync = config.value("daysToSync", 14).toInt();
     if (server.startsWith("imap")) {
         server.remove("imap://");
         server.remove("imaps://");
@@ -973,7 +974,7 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     synchronizer->mServer = server;
     synchronizer->mPort = port;
     synchronizer->mUser = user;
-    synchronizer->mDaysToSync = 14;
+    synchronizer->mDaysToSync = daysToSync;
     setupSynchronizer(synchronizer);
 
     auto inspector = QSharedPointer<ImapInspector>::create(resourceContext);
