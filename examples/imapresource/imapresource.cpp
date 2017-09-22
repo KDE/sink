@@ -509,6 +509,8 @@ public:
                     return {ApplicationDomain::ConnectionError, error.errorMessage};
                 case Imap::SslHandshakeError:
                     return {ApplicationDomain::LoginError, error.errorMessage};
+                case Imap::LoginFailed:
+                    return {ApplicationDomain::LoginError, error.errorMessage};
                 case Imap::HostNotFoundError:
                     return {ApplicationDomain::NoServerError, error.errorMessage};
                 case Imap::ConnectionLost:

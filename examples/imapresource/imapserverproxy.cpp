@@ -62,17 +62,23 @@ const char* Imap::Capabilities::Namespace = "NAMESPACE";
 const char* Imap::Capabilities::Uidplus = "UIDPLUS";
 const char* Imap::Capabilities::Condstore = "CONDSTORE";
 
-static int translateImapError(int error)
+static int translateImapError(int error, bool isLoginJob)
 {
     switch (error) {
-        case KJob::UserDefinedError:
-            return Imap::ConnectionLost;
         case KIMAP2::LoginJob::ErrorCode::ERR_HOST_NOT_FOUND:
             return Imap::HostNotFoundError;
         case KIMAP2::LoginJob::ErrorCode::ERR_COULD_NOT_CONNECT:
             return Imap::CouldNotConnectError;
         case KIMAP2::LoginJob::ErrorCode::ERR_SSL_HANDSHAKE_FAILED:
             return Imap::SslHandshakeError;
+    }
+    //Hack to detect login failures
+    if (isLoginJob) {
+        return Imap::LoginFailed;
+    }
+    //Hack to detect connection lost
+    if (error == KJob::UserDefinedError) {
+        return Imap::ConnectionLost;
     }
     return Imap::UnknownError;
 }
@@ -84,8 +90,8 @@ static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
         QObject::connect(job, &KJob::result, [&future, f](KJob *job) {
             SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
-                SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className();
-                auto proxyError = translateImapError(job->error());
+                SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className() << job->error();
+                auto proxyError = translateImapError(job->error(), dynamic_cast<KIMAP2::LoginJob*>(job));
                 future.setError(proxyError, job->errorString());
             } else {
                 future.setValue(f(job));
@@ -103,8 +109,8 @@ static KAsync::Job<void> runJob(KJob *job)
         QObject::connect(job, &KJob::result, [&future](KJob *job) {
             SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
-                SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className();
-                auto proxyError = translateImapError(job->error());
+                SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className() << job->error();
+                auto proxyError = translateImapError(job->error(), dynamic_cast<KIMAP2::LoginJob*>(job));
                 future.setError(proxyError, job->errorString());
             } else {
                 future.setFinished();
