@@ -12,6 +12,8 @@
 #include "log.h"
 #include "resourceconfig.h"
 #include "definitions.h"
+#include "facadefactory.h"
+#include "adaptorfactoryregistry.h"
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
@@ -108,7 +110,11 @@ class DummyResourceWriteBenchmark : public QObject
         QTime time;
         time.start();
 
-        ::DummyResource resource(Sink::ResourceContext{"sink.dummy.instance1", "dummy"});
+        auto factory = new ::DummyResourceFactory;
+        factory->registerFacades("dummy", Sink::FacadeFactory::instance());
+        factory->registerAdaptorFactories("dummy", Sink::AdaptorFactoryRegistry::instance());
+
+        ::DummyResource resource(Sink::ResourceContext{"sink.dummy.instance1", "dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("dummy")});
 
         int bufferSize = 0;
         auto command = createEntityBuffer(bufferSize);
