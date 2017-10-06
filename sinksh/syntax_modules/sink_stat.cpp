@@ -38,8 +38,8 @@ namespace SinkStat
 
 void statResources(const QStringList &resources, const State &state)
 {
-    qint64 total = 0;
     for (const auto &resource : resources) {
+        qint64 total = 0;
         Sink::Storage::DataStore storage(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
         auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
 
@@ -51,17 +51,18 @@ void statResources(const QStringList &resources, const State &state)
             state.printLine(QObject::tr("Size [kb]: %1").arg(size), 1);
             total += size;
         }
+        state.printLine(QObject::tr("Resource total in database [kb]: %1").arg(total), 1);
         int diskUsage = 0;
 
         QDir dir(Sink::storageLocation());
         for (const auto &folder : dir.entryList(QStringList() << resource + "*")) {
+            state.printLine(QObject::tr("Accumulating %1").arg(folder), 1);
             diskUsage += Sink::Storage::DataStore(Sink::storageLocation(), folder, Sink::Storage::DataStore::ReadOnly).diskUsage();
         }
         auto size = diskUsage / 1024;
-        state.printLine(QObject::tr("Disk usage [kb]: %1").arg(size), 1);
+        state.printLine(QObject::tr("Actual database file sizes [kb]: %1").arg(size), 1);
     }
 
-    state.printLine(QObject::tr("Total [kb]: %1").arg(total));
 }
 
 bool statAllResources(State &state)
