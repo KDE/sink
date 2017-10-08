@@ -14,6 +14,7 @@
 #include "notification_generated.h"
 #include "test.h"
 #include "testutils.h"
+#include "adaptorfactoryregistry.h"
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
@@ -150,7 +151,7 @@ private slots:
         QTime time;
         time.start();
 
-        DummyResource resource(Sink::ResourceContext{"sink.dummy.instance1", "test"});
+        DummyResource resource(Sink::ResourceContext{"sink.dummy.instance1", "sink.dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("sink.dummy")});
 
         flatbuffers::FlatBufferBuilder eventFbb;
         eventFbb.Clear();

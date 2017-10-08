@@ -113,12 +113,7 @@ class DummyResourceWriteBenchmark : public QObject
 
         QTime time;
         time.start();
-
-        auto factory = new ::DummyResourceFactory;
-        factory->registerFacades("dummy", Sink::FacadeFactory::instance());
-        factory->registerAdaptorFactories("dummy", Sink::AdaptorFactoryRegistry::instance());
-
-        ::DummyResource resource(Sink::ResourceContext{"sink.dummy.instance1", "dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("dummy")});
+        DummyResource resource(Sink::ResourceContext{"sink.dummy.instance1", "sink.dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("sink.dummy")});
 
         int bufferSize = 0;
         auto command = createEntityBuffer(bufferSize);
@@ -184,6 +179,8 @@ private slots:
     void initTestCase()
     {
         Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
+        auto factory = Sink::ResourceFactory::load("sink.dummy");
+        QVERIFY(factory);
     }
 
     void cleanup()
