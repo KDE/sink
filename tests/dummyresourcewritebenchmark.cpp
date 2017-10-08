@@ -27,6 +27,10 @@
 
 static double variance(const QList<double> &values)
 {
+    //The variance of a single value is 0
+    if (values.size() == 1) {
+        return 0;
+    }
     double mean = 0;
     for (auto value : values) {
         mean += value;
