@@ -208,6 +208,7 @@ public:
     };
 
     QSet<QByteArray> mReducedValues;
+    QSet<QByteArray> mIncrementallyReducedValues;
     QHash<QByteArray, QByteArray> mSelectedValues;
     QByteArray mReductionProperty;
     QByteArray mSelectionProperty;
@@ -224,6 +225,11 @@ public:
     }
 
     virtual ~Reduce(){}
+
+    void updateComplete() Q_DECL_OVERRIDE
+    {
+        mIncrementallyReducedValues.clear();
+    }
 
     static QByteArray getByteArray(const QVariant &value) {
         if (value.type() == QVariant::DateTime) {
@@ -304,7 +310,8 @@ public:
                     //During initial query, do nothing. The lookup above will take care of it.
                     //During updates adjust the reduction according to the modification/addition or removal
                     //We have to redo the reduction for every element, because of the aggregation values.
-                    if (mIncremental) {
+                    if (mIncremental && !mIncrementallyReducedValues.contains(reductionValueBa)) {
+                        mIncrementallyReducedValues.insert(reductionValueBa);
                         //Redo the reduction to find new aggregated values
                         QMap<QByteArray, QVariant> aggregateValues;
                         auto selectionResult = reduceOnValue(reductionValue, aggregateValues);
@@ -621,6 +628,11 @@ ResultSet DataStoreQuery::update(qint64 baseRevision)
 void DataStoreQuery::updateComplete()
 {
     mSource->mIncrementalIds.clear();
+    auto source = mCollector;
+    while (source) {
+        source->updateComplete();
+        source = source->mSource;
+    }
 }
 
 ResultSet DataStoreQuery::execute()

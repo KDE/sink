@@ -107,10 +107,12 @@ public:
         return mDatastore->indexLookup(property, value);
     }
 
-    virtual void skip() { mSource->skip(); };
+    virtual void skip() { mSource->skip(); }
 
     //Returns true for as long as a result is available
     virtual bool next(const std::function<void(const ResultSet::Result &)> &callback) = 0;
+
+    virtual void updateComplete() { }
 
     FilterBase::Ptr mSource;
     DataStoreQuery *mDatastore;

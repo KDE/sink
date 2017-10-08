@@ -219,11 +219,14 @@ private slots:
 
         populateDatabase(count, 10, false, count);
         time.restart();
-        context.mResourceAccess->revisionChanged(2000);
+        for (int i = 0; i <= 10; i++) {
+            //Simulate revision updates in steps of 100
+            context.mResourceAccess->revisionChanged(1000 + i * 100);
+        }
         //We should have 200 items in total in the end. 2000 mails / 10 folders => 200 reduced mails
         QTRY_COMPARE(added.count(), 200);
-        //For every email we have to redo the reduction and increase the count, which is a modification.
-        QTRY_COMPARE(modified.count(), 900);
+        //We get one modification per thread from the first 100 (1000 mails / 10 folders), everything else is optimized away because we ignore repeated updates to the same thread.
+        QTRY_COMPARE(modified.count(), 100);
         std::cout << "Incremental query took " << time.elapsed() << std::endl;
         std::cout << "added " << added.count() << std::endl;
         std::cout << "modified " << modified.count() << std::endl;
