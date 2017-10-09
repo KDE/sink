@@ -108,13 +108,8 @@ private slots:
         VERIFYEXEC(Store::modify(modifiedMail));
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
-        QTest::qWait(100);
-        auto mailsInOutbox = Store::read<ApplicationDomain::Mail>(Query().resourceFilter(mResourceInstanceIdentifier));
-        QCOMPARE(mailsInOutbox.size(), 0);
-
-        auto mailsInDrafts = Store::read<ApplicationDomain::Mail>(Query().resourceFilter(mStorageResource));
-        QCOMPARE(mailsInDrafts.size(), 1);
-
+        QTRY_COMPARE(Store::read<ApplicationDomain::Mail>(Query().resourceFilter(mStorageResource)).size(), 1);
+        QTRY_COMPARE(Store::read<ApplicationDomain::Mail>(Query().resourceFilter(mResourceInstanceIdentifier)).size(), 0);
     }
 
 };
