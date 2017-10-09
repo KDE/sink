@@ -146,7 +146,9 @@ void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::Applicatio
         if (copyBlobs && value.canConvert<BLOB>()) {
             const auto oldPath = value.value<BLOB>().value;
             const auto newPath = Sink::temporaryFileLocation() + "/" + QUuid::createUuid().toString();
-            QFile::copy(oldPath, newPath);
+            if (!QFile::copy(oldPath, newPath)) {
+                SinkWarning() << "Failed to copy file from: " << oldPath << "to: " << newPath;
+            }
             memoryAdaptor.setProperty(property, QVariant::fromValue(BLOB{newPath}));
         } else if (pruneReferences && value.canConvert<Reference>()) {
             continue;
@@ -258,10 +260,12 @@ void ApplicationDomainType::setBlobProperty(const QByteArray &key, const QByteAr
     const auto path = Sink::temporaryFileLocation() + "/" + QUuid::createUuid().toString();
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
-        SinkError() << "Failed to open the file for writing: " << file.errorString() << path<< " For property " << key;
+        SinkError() << "Failed to open the file for writing: " << file.errorString() << path << " For property " << key;
         return;
     }
-    file.write(value);
+    if (file.write(value) < 0) {
+        SinkError() << "Failed to write to file: " << file.errorString() << path << " For property " << key;
+    }
     //Ensure that the file is written to disk immediately
     file.close();
     setProperty(key, QVariant::fromValue(BLOB{path}));
