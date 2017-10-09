@@ -121,24 +121,26 @@ private slots:
 
     void testCopy()
     {
-        Event event("instance1");
-        event.setProperty("uid", "testuid");
-        QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
-        event.setProperty("summary", "summaryValue");
-        VERIFYEXEC(Sink::Store::create<Event>(event));
+        QByteArray testuid = "testuid@test.test";
+        QString subject = "summaryValue";
+        auto mimeMessage = message(testuid, subject);
+
+        Mail mail("instance1");
+        mail.setMimeMessage(mimeMessage);
+        VERIFYEXEC(Sink::Store::create<Mail>(mail));
 
 
-        Event createdEvent;
+        Mail createdMail;
         // Ensure all local data is processed
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "instance1"));
         {
             auto query = Query().resourceFilter("instance1") ;
-            auto list = Sink::Store::read<Event>(query.filter<Event::Uid>("testuid"));
+            auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
             QCOMPARE(list.size(), 1);
-            createdEvent = list.first();
+            createdMail = list.first();
         }
 
-        VERIFYEXEC(Sink::Store::copy<Event>(createdEvent, "instance2"));
+        VERIFYEXEC(Sink::Store::copy<Mail>(createdMail, "instance2"));
 
         //FIXME we can't guarantee that that the create command arrives at instance2 before the flush command, so we'll just wait for a little bit.
         QTest::qWait(100);
@@ -148,15 +150,23 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "instance2"));
         {
             auto query = Query().resourceFilter("instance2") ;
-            auto list = Sink::Store::read<Event>(query.filter<Event::Uid>("testuid"));
+            auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
             QCOMPARE(list.size(), 1);
+            const auto mail = list.first();
+            QVERIFY(!mail.getMimeMessagePath().isEmpty());
+            QCOMPARE(mail.getSubject(), subject);
+            QCOMPARE(mail.getMimeMessage(), mimeMessage);
         }
 
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "instance1"));
         {
             auto query = Query().resourceFilter("instance1") ;
-            auto list = Sink::Store::read<Event>(query.filter<Event::Uid>("testuid"));
+            auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
             QCOMPARE(list.size(), 1);
+            const auto mail = list.first();
+            QVERIFY(!mail.getMimeMessagePath().isEmpty());
+            QCOMPARE(mail.getSubject(), subject);
+            QCOMPARE(mail.getMimeMessage(), mimeMessage);
         }
     }
 

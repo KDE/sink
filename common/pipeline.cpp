@@ -295,9 +295,11 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     //The entity is either being copied or moved
     if (newEntity.resourceInstanceIdentifier() != d->resourceContext.resourceInstanceIdentifier) {
-        SinkTraceCtx(d->logCtx) << "Moving entity to new resource " << newEntity.identifier() << newEntity.resourceInstanceIdentifier();
-        newEntity.setChangedProperties(newEntity.availableProperties().toSet());
-        return create(bufferType, newEntity)
+        auto copy = *ApplicationDomain::ApplicationDomainType::getInMemoryCopy<ApplicationDomain::ApplicationDomainType>(newEntity, newEntity.availableProperties());
+        copy.setResource(newEntity.resourceInstanceIdentifier());
+        copy.setChangedProperties(copy.availableProperties().toSet());
+        SinkTraceCtx(d->logCtx) << "Moving entity to new resource " << copy.identifier() << copy.resourceInstanceIdentifier();
+        return create(bufferType, copy)
             .then([=](const KAsync::Error &error) {
                 if (!error) {
                     SinkTraceCtx(d->logCtx) << "Move of " << current.identifier() << "was successfull";
