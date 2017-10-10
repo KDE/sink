@@ -162,7 +162,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
 
     auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceContext.resourceType, bufferType);
     if (!adaptorFactory) {
-        SinkWarningCtx(d->logCtx) << "no adaptor factory for type " << bufferType;
+        SinkWarningCtx(d->logCtx) << "no adaptor factory for type " << bufferType << d->resourceContext.resourceType;
         return KAsync::error<qint64>(0);
     }
 
