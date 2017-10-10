@@ -125,7 +125,7 @@ class MailQueryBenchmark : public QObject
         std::cout << "Rss without db [kb]: " << rssWithoutDb / 1024 << std::endl;
         std::cout << "Percentage error: " << percentageRssError << std::endl;
 
-        HAWD::Dataset dataset(QString{"mail_query"} + name, mHawdState);
+        HAWD::Dataset dataset(name, mHawdState);
         HAWD::Dataset::Row row = dataset.row();
         row.setValue("rows", list.size());
         row.setValue("queryResultPerMs", (qreal)list.size() / elapsed);
@@ -160,7 +160,7 @@ private slots:
         query.limit(1000);
 
         populateDatabase(50000);
-        testLoad({}, query, 50000, query.limit());
+        testLoad("mail_query", query, 50000, query.limit());
     }
 
     void test50kThreadleader()
@@ -177,7 +177,7 @@ private slots:
 
         int count = 50000;
         populateDatabase(count, mailsPerFolder);
-        testLoad("_threadleader", query, count, query.limit());
+        testLoad("mail_query_threadleader", query, count, query.limit());
     }
 
     void testIncremental()
