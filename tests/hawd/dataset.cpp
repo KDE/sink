@@ -77,6 +77,11 @@ void Dataset::Row::setValue(const QString &col, const QVariant &value)
     }
 }
 
+QVariant Dataset::Row::value(const QString &col) const
+{
+    return m_data.value(col);
+}
+
 void Dataset::Row::annotate(const QString &note)
 {
     m_annotation = note;
@@ -176,6 +181,19 @@ QString Dataset::tableHeaders(const QStringList &cols, int standardCols, const Q
     return strings.join(seperator);
 }
 
+
+QString Dataset::Row::commitHash() const
+{
+    return m_commitHash;
+}
+
+QDateTime Dataset::Row::timestamp() const
+{
+    QDateTime dt;
+    dt.setMSecsSinceEpoch(m_key);
+    return dt;
+}
+
 QString Dataset::Row::toString(const QStringList &cols, int standardCols, const QString &seperator) const
 {
     if (m_data.isEmpty()) {
@@ -185,9 +203,7 @@ QString Dataset::Row::toString(const QStringList &cols, int standardCols, const 
     QStringList strings;
 
     if (standardCols & Timestamp) {
-        QDateTime dt;
-        dt.setMSecsSinceEpoch(m_key);
-        strings << dt.toString("yyMMdd:hhmmss").leftJustified(s_fieldWidth, ' ');
+        strings << timestamp().toString("yyMMdd:hhmmss").leftJustified(s_fieldWidth, ' ');
     }
 
     if (standardCols & CommitHash) {

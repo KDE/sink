@@ -47,7 +47,9 @@ public:
             Row(const Row &other);
             Row &operator=(const Row &rhs);
             void setValue(const QString &column, const QVariant &value);
-            QVariant value(const QString &column);
+            QVariant value(const QString &column) const;
+            QString commitHash() const;
+            QDateTime timestamp() const;
             void annotate(const QString &note);
             void setCommitHash(const QString &hash);
             qint64 key() const;

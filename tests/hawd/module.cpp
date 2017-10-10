@@ -22,6 +22,7 @@
 #include "modules/list.h"
 #include "modules/check.h"
 #include "modules/print.h"
+#include "modules/json.h"
 
 #include <QCoreApplication>
 
@@ -53,6 +54,7 @@ void Module::loadModules()
     addModule(Check());
     addModule(CheckAll());
     addModule(Print());
+    addModule(Json());
 //    addModule(Annotate());
 //    addModule(Remove());
 }

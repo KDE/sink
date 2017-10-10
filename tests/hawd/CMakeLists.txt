@@ -23,6 +23,7 @@ set(SRCS
     modules/list.cpp
     modules/check.cpp
     modules/print.cpp
+    modules/json.cpp
 )
 
 add_library(lib${PROJECT_NAME} SHARED ${lib_SRCS})
