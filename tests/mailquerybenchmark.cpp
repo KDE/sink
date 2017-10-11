@@ -102,7 +102,9 @@ class MailQueryBenchmark : public QObject
         bool done = false;
         emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail, bool) { done = true; });
         emitter->fetch(Mail::Ptr());
-        QTRY_VERIFY(done);
+        while (!done) {
+            QTest::qWait(1);
+        }
         QCOMPARE(list.size(), expectedSize);
 
         const auto elapsed = time.elapsed();
@@ -212,7 +214,9 @@ private slots:
         bool done = false;
         emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail, bool) { done = true; });
         emitter->fetch(Mail::Ptr());
-        QTRY_VERIFY(done);
+        while (!done) {
+            QTest::qWait(1);
+        }
         QCOMPARE(added.size(), expectedSize);
 
         std::cout << "Initial query took: " << time.elapsed() << std::endl;
