@@ -226,7 +226,7 @@ private slots:
         std::cout << "Rss max difference [byte]" << maxDifference(mRssGrowthPerEntity) << std::endl;
         std::cout << "Time standard deviation " << timeStandardDeviation << std::endl;
         std::cout << "Time max difference [ms]" << maxDifference(mTimePerEntity) << std::endl;
-        QVERIFY(rssStandardDeviation < 500);
+        QVERIFY(rssStandardDeviation < 1000);
         QVERIFY(timeStandardDeviation < 1);
     }
 };
