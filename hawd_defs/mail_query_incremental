@@ -1,0 +1,8 @@
+{
+    "name": "Compare performance of incremental vs non-incremental",
+    "description": "Compare performance of incremental vs non-incremental",
+    "columns": [
+        { "name": "nonincremental", "type": "float", "unit": "result/ms" },
+        { "name": "incremental", "type": "float", "unit": "result/ms" }
+    ]
+}

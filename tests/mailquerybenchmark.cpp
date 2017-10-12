@@ -223,7 +223,8 @@ private slots:
         }
         QCOMPARE(added.size(), expectedSize);
 
-        std::cout << "Initial query took: " << time.elapsed() << std::endl;
+        auto initialQueryTime = time.elapsed();
+        std::cout << "Initial query took: " << initialQueryTime << std::endl;
 
         populateDatabase(count, 10, false, count);
         time.restart();
@@ -232,13 +233,25 @@ private slots:
             context.mResourceAccess->revisionChanged(1000 + i * 100);
         }
         //We should have 200 items in total in the end. 2000 mails / 10 folders => 200 reduced mails
-        QTRY_COMPARE(added.count(), 200);
+        while (added.count() != 200) {
+            QTest::qWait(1);
+        }
         //We get one modification per thread from the first 100 (1000 mails / 10 folders), everything else is optimized away because we ignore repeated updates to the same thread.
-        QTRY_COMPARE(modified.count(), 100);
-        std::cout << "Incremental query took " << time.elapsed() << std::endl;
+        while (modified.count() != 100) {
+            QTest::qWait(1);
+        }
+        auto incrementalQueryTime = time.elapsed();
+        std::cout << "Incremental query took " << incrementalQueryTime << std::endl;
         std::cout << "added " << added.count() << std::endl;
         std::cout << "modified " << modified.count() << std::endl;
         std::cout << "removed " << removed.count() << std::endl;
+
+        HAWD::Dataset dataset("mail_query_incremental", mHawdState);
+        HAWD::Dataset::Row row = dataset.row();
+        row.setValue("nonincremental", initialQueryTime);
+        row.setValue("incremental", incrementalQueryTime);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
     }
 };
 
