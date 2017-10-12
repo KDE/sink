@@ -80,7 +80,7 @@ class MailQueryBenchmark : public QObject
         entityStore.commitTransaction();
     }
 
-    void testLoad(const QByteArray &name, const Sink::Query &query, int count, int expectedSize)
+    qreal testLoad(const Sink::Query &query, int count, int expectedSize)
     {
         const auto startingRss = getCurrentRSS();
 
@@ -105,7 +105,7 @@ class MailQueryBenchmark : public QObject
         while (!done) {
             QTest::qWait(1);
         }
-        QCOMPARE(list.size(), expectedSize);
+        Q_ASSERT(list.size() == expectedSize);
 
         const auto elapsed = time.elapsed();
 
@@ -127,21 +127,15 @@ class MailQueryBenchmark : public QObject
         std::cout << "Rss without db [kb]: " << rssWithoutDb / 1024 << std::endl;
         std::cout << "Percentage error: " << percentageRssError << std::endl;
 
-        HAWD::Dataset dataset(name, mHawdState);
-        HAWD::Dataset::Row row = dataset.row();
-        row.setValue("rows", list.size());
-        row.setValue("queryResultPerMs", (qreal)list.size() / elapsed);
-        dataset.insertRow(row);
-        HAWD::Formatter::print(dataset);
-
-        QVERIFY(percentageRssError < 10);
+        Q_ASSERT(percentageRssError < 10);
         // TODO This is much more than it should it seems, although adding the attachment results in pretty exactly a 1k increase,
         // so it doesn't look like that memory is being duplicated.
-        QVERIFY(rssGrowthPerEntity < 3300);
+        Q_ASSERT(rssGrowthPerEntity < 3300);
 
         // Print memory layout, RSS is what is in memory
         // std::system("exec pmap -x \"$PPID\"");
         // std::system("top -p \"$PPID\" -b -n 1");
+        return (qreal)list.size() / elapsed;
     }
 
 private slots:
@@ -153,33 +147,43 @@ private slots:
 
     void test50k()
     {
-        Sink::Query query;
-        query.request<Mail::MessageId>()
-             .request<Mail::Subject>()
-             .request<Mail::Date>();
-        query.sort<Mail::Date>();
-        query.filter<Mail::Folder>("folder1");
-        query.limit(1000);
-
-        populateDatabase(50000);
-        testLoad("mail_query", query, 50000, query.limit());
-    }
-
-    void test50kThreadleader()
-    {
-        Sink::Query query;
-        query.request<Mail::MessageId>()
-             .request<Mail::Subject>()
-             .request<Mail::Date>();
-        // query.filter<ApplicationDomain::Mail::Trash>(false);
-        query.reduce<ApplicationDomain::Mail::Folder>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>());
-        query.limit(1000);
-
-        int mailsPerFolder = 10;
-
         int count = 50000;
-        populateDatabase(count, mailsPerFolder);
-        testLoad("mail_query_threadleader", query, count, query.limit());
+        int limit = 1000;
+        qreal simpleResultRate = 0;
+        qreal threadResultRate = 0;
+        {
+            Sink::Query query;
+            query.request<Mail::MessageId>()
+                .request<Mail::Subject>()
+                .request<Mail::Date>();
+            query.sort<Mail::Date>();
+            query.filter<Mail::Folder>("folder1");
+            query.limit(limit);
+
+            populateDatabase(count);
+            simpleResultRate = testLoad(query, count, query.limit());
+        }
+        {
+            Sink::Query query;
+            query.request<Mail::MessageId>()
+                .request<Mail::Subject>()
+                .request<Mail::Date>();
+            // query.filter<ApplicationDomain::Mail::Trash>(false);
+            query.reduce<ApplicationDomain::Mail::Folder>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>());
+            query.limit(limit);
+
+            int mailsPerFolder = 10;
+
+            populateDatabase(count, mailsPerFolder);
+            threadResultRate = testLoad(query, count, query.limit());
+        }
+        HAWD::Dataset dataset("mail_query", mHawdState);
+        HAWD::Dataset::Row row = dataset.row();
+        row.setValue("rows", limit);
+        row.setValue("simple", simpleResultRate);
+        row.setValue("threadleader", threadResultRate);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
     }
 
     void testIncremental()

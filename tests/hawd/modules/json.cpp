@@ -73,9 +73,15 @@ bool Json::toJson(const QStringList &commands, State &state)
             QJsonObject jsonRow;
             jsonRow.insert("timestamp", QJsonValue::fromVariant(row.timestamp()));
             jsonRow.insert("commit", row.commitHash());
+            QJsonArray columnsArray;
             for (const auto &col : columns) {
-                jsonRow.insert(col.first, QJsonValue::fromVariant(row.value(col.first)));
+                QJsonObject columnObject;
+                columnObject.insert("unit", QJsonValue::fromVariant(col.second.unit()));
+                columnObject.insert("name", QJsonValue::fromVariant(col.first));
+                columnObject.insert("value", QJsonValue::fromVariant(row.value(col.first)));
+                columnsArray << columnObject;
             }
+            jsonRow.insert("columns", columnsArray);
             array.append(jsonRow);
         });
     json.insert("rows", array);
