@@ -1,8 +1,8 @@
 {
-    "name": "Compare performance of incremental vs non-incremental",
-    "description": "Compare performance of incremental vs non-incremental",
+    "name": "Compare execution time of incremental vs non-incremental",
+    "description": "Execution time of incremental vs non-incremental query",
     "columns": [
-        { "name": "nonincremental", "type": "float", "unit": "result/ms" },
-        { "name": "incremental", "type": "float", "unit": "result/ms" }
+        { "name": "nonincremental", "type": "float", "unit": "ms" },
+        { "name": "incremental", "type": "float", "unit": "ms" }
     ]
 }
