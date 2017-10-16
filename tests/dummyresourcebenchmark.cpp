@@ -73,7 +73,7 @@ private slots:
         Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec();
 
         // Wait for notification
-        QTRY_VERIFY(gotNotification);
+        QUICK_TRY_VERIFY(gotNotification);
 
         QVERIFY2(duration < 100, QString::fromLatin1("Processing a create command took more than 100ms: %1").arg(duration).toLatin1());
         VERIFYEXEC(Sink::ResourceControl::shutdown("sink.dummy.instance1"));

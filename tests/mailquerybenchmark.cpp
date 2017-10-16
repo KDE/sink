@@ -37,6 +37,7 @@
 #include "mail_generated.h"
 #include "createentity_generated.h"
 #include "getrssusage.h"
+#include "testutils.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -102,9 +103,7 @@ class MailQueryBenchmark : public QObject
         bool done = false;
         emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail, bool) { done = true; });
         emitter->fetch(Mail::Ptr());
-        while (!done) {
-            QTest::qWait(1);
-        }
+        QUICK_TRY_VERIFY(!done);
         Q_ASSERT(list.size() == expectedSize);
 
         const auto elapsed = time.elapsed();
@@ -218,9 +217,7 @@ private slots:
         bool done = false;
         emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail, bool) { done = true; });
         emitter->fetch(Mail::Ptr());
-        while (!done) {
-            QTest::qWait(1);
-        }
+        QUICK_TRY_VERIFY(!done);
         QCOMPARE(added.size(), expectedSize);
 
         auto initialQueryTime = time.elapsed();
@@ -233,13 +230,9 @@ private slots:
             context.mResourceAccess->revisionChanged(1000 + i * 100);
         }
         //We should have 200 items in total in the end. 2000 mails / 10 folders => 200 reduced mails
-        while (added.count() != 200) {
-            QTest::qWait(1);
-        }
+        QUICK_TRY_VERIFY(added.count() != 200);
         //We get one modification per thread from the first 100 (1000 mails / 10 folders), everything else is optimized away because we ignore repeated updates to the same thread.
-        while (modified.count() != 100) {
-            QTest::qWait(1);
-        }
+        QUICK_TRY_VERIFY(modified.count() != 100);
         auto incrementalQueryTime = time.elapsed();
         std::cout << "Incremental query took " << incrementalQueryTime << std::endl;
         std::cout << "added " << added.count() << std::endl;

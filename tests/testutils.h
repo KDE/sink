@@ -45,3 +45,11 @@ do {\
     if (!QTest::qVerify(result.errorCode(), #statement, "", __FILE__, __LINE__))\
         return;\
 } while (0)
+
+#define QUICK_TRY_VERIFY(statement) \
+do {\
+    static int timeout = 5000; \
+    for (int i = 0; i < timeout && #statement; i++) { \
+        QTest::qWait(1); \
+    } \
+} while (0)
