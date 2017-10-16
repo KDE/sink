@@ -1,0 +1,10 @@
+{
+    "name": "Summary values for in process write using DummyResource",
+    "description": "Summary values that should remain stable over dataset sized.",
+    "columns": [
+        { "name": "rssStandardDeviation", "type": "float", "unit": "SD" },
+        { "name": "rssMaxDifference", "type": "float", "unit": "byte" },
+        { "name": "timeStandardDeviation", "type": "float", "unit": "SD" },
+        { "name": "timeMaxDifference", "type": "float", "unit": "ms" }
+    ]
+}

@@ -77,7 +77,6 @@ class DummyResourceWriteBenchmark : public QObject
     {
         DummyResource::removeFromDisk("sink.dummy.instance1");
 
-
         QTime time;
         time.start();
         DummyResource resource(Sink::ResourceContext{"sink.dummy.instance1", "sink.dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("sink.dummy")});
@@ -128,14 +127,20 @@ class DummyResourceWriteBenchmark : public QObject
         // so it doesn't look like that memory is being duplicated.
         QVERIFY(rssGrowthPerEntity < 2500);
 
-        // HAWD::Dataset dataset("dummy_write_in_process", m_hawdState);
-        // HAWD::Dataset::Row row = dataset.row();
-        //
-        // row.setValue("rows", num);
-        // row.setValue("append", (qreal)num/appendTime);
-        // row.setValue("total", (qreal)num/allProcessedTime);
-        // dataset.insertRow(row);
-        // HAWD::Formatter::print(dataset);
+        HAWD::Dataset dataset("dummy_write_in_process", m_hawdState);
+        HAWD::Dataset::Row row = dataset.row();
+        row.setValue("rows", num);
+        row.setValue("append", (qreal)num/appendTime);
+        row.setValue("total", (qreal)num/allProcessedTime);
+        row.setValue("onDisk", onDisk / 1024);
+        row.setValue("bufferSize", bufferSizeTotal / 1024);
+        row.setValue("writeAmplification", writeAmplification);
+        row.setValue("rss", QVariant::fromValue(finalRss / 1024));
+        row.setValue("peakRss", QVariant::fromValue(peakRss / 1024));
+        row.setValue("rssGrowthPerEntity", QVariant::fromValue(rssGrowthPerEntity));
+        row.setValue("rssWithoutDb", rssWithoutDb / 1024);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
 
         // Print memory layout, RSS is what is in memory
         // std::system("exec pmap -x \"$PPID\"");
@@ -154,42 +159,28 @@ private slots:
     {
     }
 
-    void test1k()
+    void runBenchmarks()
     {
         writeInProcess(1000);
-    }
-
-    void test2k()
-    {
         writeInProcess(2000);
-    }
-
-    void test5k()
-    {
         writeInProcess(5000);
+        writeInProcess(20000);
     }
 
-    // void test20k()
-    // {
-    //     writeInProcess(20000);
-    // }
-    //
     void ensureUsedMemoryRemainsStable()
     {
         auto rssStandardDeviation = sqrt(variance(mRssGrowthPerEntity));
         auto timeStandardDeviation = sqrt(variance(mTimePerEntity));
-        std::cout << "Rss standard deviation " << rssStandardDeviation << std::endl;
-        std::cout << "Rss max difference [byte]" << maxDifference(mRssGrowthPerEntity) << std::endl;
-        std::cout << "Time standard deviation " << timeStandardDeviation << std::endl;
-        std::cout << "Time max difference [ms]" << maxDifference(mTimePerEntity) << std::endl;
-        QVERIFY(rssStandardDeviation < 1000);
-        QVERIFY(timeStandardDeviation < 1);
+        HAWD::Dataset dataset("dummy_write_in_process_summary", m_hawdState);
+        HAWD::Dataset::Row row = dataset.row();
+        row.setValue("rssStandardDeviation", rssStandardDeviation);
+        row.setValue("rssMaxDifference", maxDifference(mRssGrowthPerEntity));
+        row.setValue("timeStandardDeviation", timeStandardDeviation);
+        row.setValue("timeMaxDifference", maxDifference(mTimePerEntity));
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
     }
 
-    void getFreePages()
-    {
-        std::system(QString("mdb_stat %1/%2 -ff").arg(Sink::storageLocation()).arg("sink.dummy.instance1").toLatin1().constData());
-    }
 
     // This allows to run individual parts without doing a cleanup, but still cleaning up normally
     void testCleanupForCompleteTest()
