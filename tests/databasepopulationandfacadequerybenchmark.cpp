@@ -16,10 +16,10 @@
 #include "hawd/formatter.h"
 
 #include <iostream>
-#include <math.h>
 
 #include "event_generated.h"
 #include "getrssusage.h"
+#include "utils.h"
 
 /**
  * Benchmark read performance of the facade implementation.
@@ -187,36 +187,6 @@ private slots:
     //     populateDatabase(10000);
     //     testLoad(10000);
     // }
-
-    static double variance(const QList<double> &values)
-    {
-        double mean = 0;
-        for (auto value : values) {
-            mean += value;
-        }
-        mean = mean / static_cast<double>(values.size());
-        double variance = 0;
-        for (auto value : values) {
-            variance += pow(static_cast<double>(value) - mean, 2);
-        }
-        variance = variance / static_cast<double>(values.size() - 1);
-        return variance;
-    }
-
-    static double maxDifference(const QList<double> &values)
-    {
-        auto max = values.first();
-        auto min = values.first();
-        for (auto value : values) {
-            if (value > max) {
-                max = value;
-            }
-            if (value < min) {
-                min = value;
-            }
-        }
-        return max - min;
-    }
 
     void ensureUsedMemoryRemainsStable()
     {
