@@ -63,6 +63,7 @@ bool Json::toJson(const QStringList &commands, State &state)
 
     QJsonObject json;
     json.insert("dataset", datasetName);
+    json.insert("name", definition.name());
     json.insert("description", definition.description());
 
     const auto columns = definition.columns();

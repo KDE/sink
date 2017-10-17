@@ -1,6 +1,7 @@
 #include <QtTest>
 
 #include <QString>
+#include <QDateTime>
 
 #include <iostream>
 
@@ -72,8 +73,9 @@ class DummyResourceWriteBenchmark : public QObject
 
     QList<double> mRssGrowthPerEntity;
     QList<double> mTimePerEntity;
+    QDateTime mTimeStamp{QDateTime::currentDateTimeUtc()};
 
-    void writeInProcess(int num)
+    void writeInProcess(int num, const QDateTime &timestamp)
     {
         DummyResource::removeFromDisk("sink.dummy.instance1");
 
@@ -122,25 +124,42 @@ class DummyResourceWriteBenchmark : public QObject
         mTimePerEntity << static_cast<double>(allProcessedTime) / static_cast<double>(num);
         mRssGrowthPerEntity << rssGrowthPerEntity;
 
-        QVERIFY(percentageRssError < 10);
-        // TODO This is much more than it should it seems, although adding the attachment results in pretty exactly a 1k increase,
-        // so it doesn't look like that memory is being duplicated.
-        QVERIFY(rssGrowthPerEntity < 2500);
+        {
+            HAWD::Dataset dataset("dummy_write_perf", m_hawdState);
+            HAWD::Dataset::Row row = dataset.row();
+            row.setValue("rows", num);
+            row.setValue("append", (qreal)num/appendTime);
+            row.setValue("total", (qreal)num/allProcessedTime);
+            row.setTimestamp(timestamp);
+            dataset.insertRow(row);
+            HAWD::Formatter::print(dataset);
+        }
 
-        HAWD::Dataset dataset("dummy_write_in_process", m_hawdState);
-        HAWD::Dataset::Row row = dataset.row();
-        row.setValue("rows", num);
-        row.setValue("append", (qreal)num/appendTime);
-        row.setValue("total", (qreal)num/allProcessedTime);
-        row.setValue("onDisk", onDisk / 1024);
-        row.setValue("bufferSize", bufferSizeTotal / 1024);
-        row.setValue("writeAmplification", writeAmplification);
-        row.setValue("rss", QVariant::fromValue(finalRss / 1024));
-        row.setValue("peakRss", QVariant::fromValue(peakRss / 1024));
-        row.setValue("rssGrowthPerEntity", QVariant::fromValue(rssGrowthPerEntity));
-        row.setValue("rssWithoutDb", rssWithoutDb / 1024);
-        dataset.insertRow(row);
-        HAWD::Formatter::print(dataset);
+        {
+            HAWD::Dataset dataset("dummy_write_memory", m_hawdState);
+            HAWD::Dataset::Row row = dataset.row();
+            row.setValue("rows", num);
+            row.setValue("rss", QVariant::fromValue(finalRss / 1024));
+            row.setValue("peakRss", QVariant::fromValue(peakRss / 1024));
+            row.setValue("percentagePeakRssError", percentageRssError);
+            row.setValue("rssGrowthPerEntity", QVariant::fromValue(rssGrowthPerEntity));
+            row.setValue("rssWithoutDb", rssWithoutDb / 1024);
+            row.setTimestamp(timestamp);
+            dataset.insertRow(row);
+            HAWD::Formatter::print(dataset);
+        }
+
+        {
+            HAWD::Dataset dataset("dummy_write_disk", m_hawdState);
+            HAWD::Dataset::Row row = dataset.row();
+            row.setValue("rows", num);
+            row.setValue("onDisk", onDisk / 1024);
+            row.setValue("bufferSize", bufferSizeTotal / 1024);
+            row.setValue("writeAmplification", writeAmplification);
+            row.setTimestamp(timestamp);
+            dataset.insertRow(row);
+            HAWD::Formatter::print(dataset);
+        }
 
         // Print memory layout, RSS is what is in memory
         // std::system("exec pmap -x \"$PPID\"");
@@ -161,22 +180,23 @@ private slots:
 
     void runBenchmarks()
     {
-        writeInProcess(1000);
-        writeInProcess(2000);
-        writeInProcess(5000);
-        writeInProcess(20000);
+        writeInProcess(1000, mTimeStamp);
+        writeInProcess(2000, mTimeStamp);
+        writeInProcess(5000, mTimeStamp);
+        writeInProcess(20000, mTimeStamp);
     }
 
     void ensureUsedMemoryRemainsStable()
     {
         auto rssStandardDeviation = sqrt(variance(mRssGrowthPerEntity));
         auto timeStandardDeviation = sqrt(variance(mTimePerEntity));
-        HAWD::Dataset dataset("dummy_write_in_process_summary", m_hawdState);
+        HAWD::Dataset dataset("dummy_write_summary", m_hawdState);
         HAWD::Dataset::Row row = dataset.row();
         row.setValue("rssStandardDeviation", rssStandardDeviation);
         row.setValue("rssMaxDifference", maxDifference(mRssGrowthPerEntity));
         row.setValue("timeStandardDeviation", timeStandardDeviation);
         row.setValue("timeMaxDifference", maxDifference(mTimePerEntity));
+        row.setTimestamp(mTimeStamp);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
     }

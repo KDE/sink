@@ -1,0 +1,9 @@
+{
+    "name": "In process write using DummyResource",
+    "description": "Measures performance of writing to the db.",
+    "columns": [
+        { "name": "rows", "type": "int" },
+        { "name": "append", "type": "float", "unit": "ops/ms" },
+        { "name": "total", "type": "float", "unit": "ops/ms" }
+    ]
+}

@@ -1,0 +1,12 @@
+{
+    "name": "In process write using DummyResource",
+    "description": "Memory usage of writing to the db.",
+    "columns": [
+        { "name": "rows", "type": "int" },
+        { "name": "rss", "type": "int", "unit": "kb" },
+        { "name": "peakRss", "type": "int", "unit": "kb" },
+        { "name": "rssWithoutDb", "type": "int", "unit": "kb" },
+        { "name": "rssGrowthPerEntity", "type": "int", "unit": "byte" },
+        { "name": "percentagePeakRssError", "type": "float", "unit": "%" }
+    ]
+}

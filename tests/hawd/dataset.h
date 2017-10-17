@@ -28,6 +28,7 @@
 
 #include <QHash>
 #include <QVariant>
+#include <QDateTime>
 
 namespace HAWD
 {
@@ -52,6 +53,7 @@ public:
             QDateTime timestamp() const;
             void annotate(const QString &note);
             void setCommitHash(const QString &hash);
+            void setTimestamp(const QDateTime &dt);
             qint64 key() const;
             QByteArray toBinary() const;
             QString toString(const QStringList &cols = QStringList(), int standardCols = All, const QString &seperator = "|") const;
@@ -66,6 +68,7 @@ public:
             QHash<QString, QVariant> m_data;
             QString m_annotation;
             QString m_commitHash;
+            QDateTime m_timeStamp;
             const Dataset *m_dataset;
             friend class Dataset;
     };
@@ -82,7 +85,6 @@ public:
     void eachRow(const std::function<void(const Row &row)> &resultHandler);
     Row row(qint64 key = 0);
     Row lastRow();
-    //TODO: row cursor
 
 private:
     DatasetDefinition m_definition;

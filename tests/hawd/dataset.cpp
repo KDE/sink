@@ -31,6 +31,7 @@ namespace HAWD
 
 static const QString s_annotationKey("__annotation__");
 static const QString s_hashKey("__commithash__");
+static const QString s_timestampKey("__timestamp");
 static const int s_fieldWidth(20);
 
 Dataset::Row::Row(const Row &other)
@@ -118,6 +119,8 @@ void Dataset::Row::fromBinary(QByteArray data)
             m_annotation = value.toString();
         } else if (key == s_hashKey) {
             m_commitHash = value.toString();
+        } else if (key == s_timestampKey) {
+            m_timeStamp = value.toDateTime();
         } else {
             setValue(key, value);
         }
@@ -139,6 +142,10 @@ QByteArray Dataset::Row::toBinary() const
 
     if (!m_commitHash.isEmpty()) {
         stream << s_hashKey << QVariant(m_commitHash);
+    }
+
+    if (!m_timeStamp.isValid()) {
+        stream << s_timestampKey << QVariant(m_timeStamp);
     }
 
     if (!m_annotation.isEmpty()) {
@@ -189,9 +196,17 @@ QString Dataset::Row::commitHash() const
 
 QDateTime Dataset::Row::timestamp() const
 {
+    if (m_timeStamp.isValid()) {
+        return m_timeStamp;
+    }
     QDateTime dt;
     dt.setMSecsSinceEpoch(m_key);
     return dt;
+}
+
+void Dataset::Row::setTimestamp(const QDateTime &dt)
+{
+    m_timeStamp = dt;
 }
 
 QString Dataset::Row::toString(const QStringList &cols, int standardCols, const QString &seperator) const
