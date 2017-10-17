@@ -151,7 +151,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         QVERIFY(percentageRssError < 10);
         // TODO This is much more than it should it seems, although adding the attachment results in pretty exactly a 1k increase,
         // so it doesn't look like that memory is being duplicated.
-        QVERIFY(rssGrowthPerEntity < 3300);
+        QVERIFY(rssGrowthPerEntity < 5000);
 
         // Print memory layout, RSS is what is in memory
         // std::system("exec pmap -x \"$PPID\"");
