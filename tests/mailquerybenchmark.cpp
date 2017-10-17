@@ -27,6 +27,7 @@
 #include <common/definitions.h>
 #include <common/query.h>
 #include <common/storage/entitystore.h>
+#include <common/resourcecontrol.h>
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
@@ -81,15 +82,9 @@ class MailQueryBenchmark : public QObject
         entityStore.commitTransaction();
     }
 
-    qreal testLoad(const Sink::Query &query, int count, int expectedSize)
+    //Execute query and block until the initial query is complete
+    int load(const Sink::Query &query)
     {
-        const auto startingRss = getCurrentRSS();
-
-        // Benchmark
-        QTime time;
-        time.start();
-
-        //FIXME why do we need this here?
         auto domainTypeAdaptorFactory = QSharedPointer<TestMailAdaptorFactory>::create();
         Sink::ResourceContext context{resourceIdentifier, "test", {{"mail", domainTypeAdaptorFactory}}};
         context.mResourceAccess = QSharedPointer<TestResourceAccess>::create();
@@ -98,13 +93,25 @@ class MailQueryBenchmark : public QObject
         auto ret = facade.load(query, Sink::Log::Context{"benchmark"});
         ret.first.exec().waitForFinished();
         auto emitter = ret.second;
-        QList<Mail::Ptr> list;
-        emitter->onAdded([&list](const Mail::Ptr &mail) { list << mail; });
+        int i = 0;
+        emitter->onAdded([&](const Mail::Ptr &) { i++; });
         bool done = false;
         emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail, bool) { done = true; });
         emitter->fetch(Mail::Ptr());
         QUICK_TRY_VERIFY(done);
-        Q_ASSERT(list.size() == expectedSize);
+        return i;
+    }
+
+    qreal testLoad(const Sink::Query &query, int count, int expectedSize)
+    {
+        const auto startingRss = getCurrentRSS();
+
+        // Benchmark
+        QTime time;
+        time.start();
+
+        auto loadedResults = load(query);
+        Q_ASSERT(loadedResults == expectedSize);
 
         const auto elapsed = time.elapsed();
 
@@ -117,7 +124,7 @@ class MailQueryBenchmark : public QObject
         const auto percentageRssError = static_cast<double>(peakRss - finalRss) * 100.0 / static_cast<double>(finalRss);
         auto rssGrowthPerEntity = rssGrowth / count;
 
-        std::cout << "Loaded " << list.size() << " results." << std::endl;
+        std::cout << "Loaded " << expectedSize << " results." << std::endl;
         std::cout << "The query took [ms]: " << elapsed << std::endl;
         std::cout << "Current Rss usage [kb]: " << finalRss / 1024 << std::endl;
         std::cout << "Peak Rss usage [kb]: " << peakRss / 1024 << std::endl;
@@ -134,7 +141,7 @@ class MailQueryBenchmark : public QObject
         // Print memory layout, RSS is what is in memory
         // std::system("exec pmap -x \"$PPID\"");
         // std::system("top -p \"$PPID\" -b -n 1");
-        return (qreal)list.size() / elapsed;
+        return (qreal)expectedSize / elapsed;
     }
 
 private slots:
@@ -144,6 +151,56 @@ private slots:
         resourceIdentifier = "sink.test.instance1";
     }
 
+    void testInitialQueryResult()
+    {
+        int count = 50000;
+        int limit = 1;
+        populateDatabase(count);
+
+        //Run a warm-up query first
+        Sink::Query query{};
+        query.request<Mail::MessageId>()
+            .request<Mail::Subject>()
+            .request<Mail::Date>();
+        query.sort<Mail::Date>();
+        query.filter<Mail::Folder>("folder1");
+        query.limit(limit);
+
+        load(query);
+
+        int liveQueryTime = 0;
+        {
+            VERIFYEXEC(Sink::ResourceControl::shutdown(resourceIdentifier));
+
+            auto q = query;
+            q.setFlags(Sink::Query::LiveQuery);
+
+            QTime time;
+            time.start();
+            load(q);
+            liveQueryTime = time.elapsed();
+        }
+
+        int nonLiveQueryTime = 0;
+        {
+            VERIFYEXEC(Sink::ResourceControl::shutdown(resourceIdentifier));
+
+            auto q = query;
+
+            QTime time;
+            time.start();
+            load(q);
+            nonLiveQueryTime = time.elapsed();
+        }
+
+        HAWD::Dataset dataset("mail_query_initial", mHawdState);
+        HAWD::Dataset::Row row = dataset.row();
+        row.setValue("live", liveQueryTime);
+        row.setValue("nonlive", nonLiveQueryTime);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
+    }
+
     void test50k()
     {
         int count = 50000;
@@ -151,6 +208,7 @@ private slots:
         qreal simpleResultRate = 0;
         qreal threadResultRate = 0;
         {
+            //A query that just filters by a property and sorts (using an index)
             Sink::Query query;
             query.request<Mail::MessageId>()
                 .request<Mail::Subject>()
@@ -163,11 +221,11 @@ private slots:
             simpleResultRate = testLoad(query, count, query.limit());
         }
         {
+            //A query that reduces (like the maillist query)
             Sink::Query query;
             query.request<Mail::MessageId>()
                 .request<Mail::Subject>()
                 .request<Mail::Date>();
-            // query.filter<ApplicationDomain::Mail::Trash>(false);
             query.reduce<ApplicationDomain::Mail::Folder>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>());
             query.limit(limit);
 

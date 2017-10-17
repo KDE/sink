@@ -1,0 +1,8 @@
+{
+    "name": "Initial query time",
+    "description": "Initial query of 1 result",
+    "columns": [
+        { "name": "live", "type": "float", "unit": "ms" },
+        { "name": "nonlive", "type": "float", "unit": "ms" }
+    ]
+}
