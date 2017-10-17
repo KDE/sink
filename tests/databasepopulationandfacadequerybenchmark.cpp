@@ -20,6 +20,7 @@
 #include "event_generated.h"
 #include "getrssusage.h"
 #include "utils.h"
+#include "testutils.h"
 
 /**
  * Benchmark read performance of the facade implementation.
@@ -114,7 +115,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         bool done = false;
         emitter->onInitialResultSetComplete([&done](const Sink::ApplicationDomain::Event::Ptr &event, bool) { done = true; });
         emitter->fetch(Sink::ApplicationDomain::Event::Ptr());
-        QTRY_VERIFY(done);
+        QUICK_TRY_VERIFY(done);
         QCOMPARE(list.size(), count);
 
         const auto elapsed = time.elapsed();
