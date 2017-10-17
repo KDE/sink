@@ -61,7 +61,7 @@ class PipelineBenchmark : public QObject
     {
         TestResource::removeFromDisk(resourceIdentifier);
 
-        auto pipeline = QSharedPointer<Sink::Pipeline>::create(Sink::ResourceContext{resourceIdentifier, "test"}, "test");
+        auto pipeline = QSharedPointer<Sink::Pipeline>::create(Sink::ResourceContext{resourceIdentifier, "test", Sink::AdaptorFactoryRegistry::instance().getFactories("test")}, "test");
         pipeline->setPreprocessors("mail", preprocessors);
 
         QTime time;
