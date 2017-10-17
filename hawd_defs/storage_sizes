@@ -1,0 +1,9 @@
+{
+    "name": "Storage Read/Write db sizes",
+    "description": "Compare db size to a simple file size",
+    "columns": [
+        { "name": "rows", "type": "int" },
+        { "name": "dbSize", "type": "float", "unit": "kb" },
+        { "name": "fileSize", "type": "float", "unit": "kb" }
+    ]
+}

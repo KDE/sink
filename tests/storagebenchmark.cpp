@@ -122,15 +122,19 @@ private slots:
         row.setValue("dbRead", readOpsPerMs);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
-    }
 
-    void testSizes()
-    {
-        Sink::Storage::DataStore store(testDataPath, dbName);
-        qDebug() << "Database size [kb]: " << store.diskUsage() / 1024;
+        {
+            Sink::Storage::DataStore store(testDataPath, dbName);
+            QFileInfo fileInfo(filePath);
 
-        QFileInfo fileInfo(filePath);
-        qDebug() << "File size [kb]: " << fileInfo.size() / 1024;
+            HAWD::Dataset dataset("storage_sizes", m_hawdState);
+            HAWD::Dataset::Row row = dataset.row();
+            row.setValue("rows", count);
+            row.setValue("dbSize", store.diskUsage() / 1024);
+            row.setValue("fileSize", fileInfo.size() / 1024);
+            dataset.insertRow(row);
+            HAWD::Formatter::print(dataset);
+        }
     }
 
     void testScan()
