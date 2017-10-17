@@ -46,10 +46,15 @@ do {\
         return;\
 } while (0)
 
+//qWait(1) seems to simply skip waiting at all.
 #define QUICK_TRY_VERIFY(statement) \
 do {\
-    static int timeout = 5000; \
-    for (int i = 0; i < timeout && #statement; i++) { \
-        QTest::qWait(1); \
+    static int timeout = 2500; \
+    int i = 0; \
+    for (; i < timeout && !(statement); i++) { \
+        QTest::qWait(2); \
+    } \
+    if (i >= timeout) { \
+        qWarning() << "Timeout during QUICK_TRY_VERIFY"; \
     } \
 } while (0)

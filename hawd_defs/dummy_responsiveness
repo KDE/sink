@@ -1,0 +1,7 @@
+{
+    "name": "Dummy resource command responsiveness",
+    "description": "Measure roundtriptime of command",
+    "columns": [
+        { "name": "responsetime", "type": "float", "unit": "ms" }
+    ]
+}

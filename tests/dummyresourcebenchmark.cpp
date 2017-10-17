@@ -74,10 +74,13 @@ private slots:
 
         // Wait for notification
         QUICK_TRY_VERIFY(gotNotification);
+        HAWD::Dataset dataset("dummy_responsiveness", m_hawdState);
+        HAWD::Dataset::Row row = dataset.row();
+        row.setValue("responsetime", duration);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
 
-        QVERIFY2(duration < 100, QString::fromLatin1("Processing a create command took more than 100ms: %1").arg(duration).toLatin1());
         VERIFYEXEC(Sink::ResourceControl::shutdown("sink.dummy.instance1"));
-        qDebug() << "Single command took [ms]: " << duration;
     }
 
     void testWriteToFacade()
@@ -113,12 +116,6 @@ private slots:
         row.setValue("total", (qreal)num / allProcessedTime);
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
-
-        auto diskUsage = DummyResource::diskUsage("sink.dummy.instance1");
-        qDebug() << "Database size [kb]: " << diskUsage / 1024;
-
-        // Print memory layout, RSS is what is in memory
-        // std::system("exec pmap -x \"$PPID\"");
     }
 
     void testQueryByUid()
@@ -133,7 +130,7 @@ private slots:
 
             query.filter("uid", Sink::Query::Comparator("testuid"));
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Event>(query);
-            QTRY_COMPARE(model->rowCount(QModelIndex()), num);
+            QUICK_TRY_VERIFY(model->rowCount(QModelIndex()) == num);
         }
         auto queryTime = time.elapsed();
 
@@ -145,83 +142,6 @@ private slots:
         HAWD::Formatter::print(dataset);
     }
 
-    void testWriteInProcess()
-    {
-        VERIFYEXEC(Sink::Store::removeDataFromDisk("sink.dummy.instance1"));
-        QTime time;
-        time.start();
-
-        DummyResource resource(Sink::ResourceContext{"sink.dummy.instance1", "sink.dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("sink.dummy")});
-
-        flatbuffers::FlatBufferBuilder eventFbb;
-        eventFbb.Clear();
-        {
-            auto summary = eventFbb.CreateString("summary");
-            Sink::ApplicationDomain::Buffer::EventBuilder eventBuilder(eventFbb);
-            eventBuilder.add_summary(summary);
-            auto eventLocation = eventBuilder.Finish();
-            Sink::ApplicationDomain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
-        }
-
-        flatbuffers::FlatBufferBuilder localFbb;
-        {
-            auto uid = localFbb.CreateString("testuid");
-            auto localBuilder = Sink::ApplicationDomain::Buffer::EventBuilder(localFbb);
-            localBuilder.add_uid(uid);
-            auto location = localBuilder.Finish();
-            Sink::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
-        }
-
-        flatbuffers::FlatBufferBuilder entityFbb;
-        Sink::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
-
-        flatbuffers::FlatBufferBuilder fbb;
-        auto type = fbb.CreateString(Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>().toStdString().data());
-        auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
-        Sink::Commands::CreateEntityBuilder builder(fbb);
-        builder.add_domainType(type);
-        builder.add_delta(delta);
-        auto location = builder.Finish();
-        Sink::Commands::FinishCreateEntityBuffer(fbb, location);
-
-        const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
-
-        for (int i = 0; i < num; i++) {
-            resource.processCommand(Sink::Commands::CreateEntityCommand, command);
-        }
-        auto appendTime = time.elapsed();
-
-        // Wait until all messages have been processed
-        resource.processAllMessages().exec().waitForFinished();
-
-        auto allProcessedTime = time.elapsed();
-
-
-        // Print memory layout, RSS is what is in memory
-        // std::system("exec pmap -x \"$PPID\"");
-    }
-
-    void testCreateCommand()
-    {
-        Sink::ApplicationDomain::Event event;
-
-        QBENCHMARK {
-            auto mFactory = new DummyEventAdaptorFactory;
-            static flatbuffers::FlatBufferBuilder entityFbb;
-            entityFbb.Clear();
-            mFactory->createBuffer(event, entityFbb);
-
-            static flatbuffers::FlatBufferBuilder fbb;
-            fbb.Clear();
-            // This is the resource buffer type and not the domain type
-            auto entityId = fbb.CreateString("");
-            auto type = fbb.CreateString("event");
-            // auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
-            auto delta = Sink::EntityBuffer::appendAsVector(fbb, entityFbb.GetBufferPointer(), entityFbb.GetSize());
-            auto location = Sink::Commands::CreateCreateEntity(fbb, entityId, type, delta);
-            Sink::Commands::FinishCreateEntityBuffer(fbb, location);
-        }
-    }
 
     // This allows to run individual parts without doing a cleanup, but still cleaning up normally
     void testCleanupForCompleteTest()
