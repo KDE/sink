@@ -29,7 +29,6 @@ add_definitions("-fvisibility=hidden")
 install(EXPORT SinkTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE SinkTargets.cmake)
 
 set(storage_SRCS storage_lmdb.cpp)
-set(storage_LIBS lmdb)
 
 set(command_SRCS
     store.cpp
@@ -123,7 +122,7 @@ PUBLIC
     KAsync
     Qt5::Network
 PRIVATE
-    ${storage_LIBS}
+    ${LMDB_LIBRARIES}
     Qt5::Gui
     KF5::Mime
     KF5::Contacts
