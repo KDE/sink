@@ -276,37 +276,6 @@ private slots:
             QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
         }
     }
-
-    void testCommandResponsiveness()
-    {
-        // Test responsiveness including starting the process.
-        VERIFYEXEC(Sink::Store::removeDataFromDisk("sink.dummy.instance1"));
-
-        QTime time;
-        time.start();
-
-        Sink::ApplicationDomain::Event event("sink.dummy.instance1");
-        event.setProperty("uid", "testuid");
-        QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
-        event.setProperty("summary", "summaryValue");
-
-        auto notifier = QSharedPointer<Sink::Notifier>::create("sink.dummy.instance1", "sink.dummy");
-        bool gotNotification = false;
-        int duration = 0;
-        notifier->registerHandler([&gotNotification, &duration, &time](const Sink::Notification &notification) {
-            if (notification.type == Sink::Notification::RevisionUpdate) {
-                gotNotification = true;
-                duration = time.elapsed();
-            }
-        });
-
-        Sink::Store::create<Sink::ApplicationDomain::Event>(event).exec();
-        // Wait for notification
-        QUICK_TRY_VERIFY(gotNotification);
-
-        QVERIFY2(duration < 100, QString::fromLatin1("Processing a create command took more than 100ms: %1").arg(duration).toLatin1());
-        VERIFYEXEC(Sink::ResourceControl::shutdown("sink.dummy.instance1"));
-    }
 };
 
 QTEST_MAIN(DummyResourceTest)
