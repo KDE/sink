@@ -552,7 +552,8 @@ QByteArray Maildir::readEntryHeadersFromFile(const QString& file)
         qCWarning(log) << "Maildir::readEntryHeaders unable to find: " << file;
         return result;
     }
-    f.map(0, qMin((qint64)8000, f.size()));
+    f.map(0, f.size());
+    //Seek for end of headers
     forever {
         QByteArray line = f.readLine();
         if (line.isEmpty() || line.startsWith('\n'))

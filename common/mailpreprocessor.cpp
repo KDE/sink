@@ -37,8 +37,7 @@ QString MailPropertyExtractor::getFilePathFromMimeMessagePath(const QString &s) 
 struct MimeMessageReader {
     MimeMessageReader(const QString &mimeMessagePath)
         : f(mimeMessagePath),
-        mapped(0),
-        mappedSize(0)
+        mapped(0)
     {
         if (mimeMessagePath.isNull()) {
             SinkTrace() << "No mime message";
@@ -53,8 +52,7 @@ struct MimeMessageReader {
             SinkWarning() << "The file is empty.";
             return;
         }
-        mappedSize = qMin((qint64)8000, f.size());
-        mapped = f.map(0, mappedSize);
+        mapped = f.map(0, f.size());
         if (!mapped) {
             SinkWarning() << "Failed to map the file: " << f.errorString();
             return;
@@ -64,19 +62,30 @@ struct MimeMessageReader {
     KMime::Message::Ptr mimeMessage()
     {
         if (!mapped) {
-            return KMime::Message::Ptr();
+            return {};
         }
-        Q_ASSERT(mapped);
-        Q_ASSERT(mappedSize);
-        auto msg = KMime::Message::Ptr(new KMime::Message);
-        msg->setHead(KMime::CRLFtoLF(QByteArray::fromRawData(reinterpret_cast<const char*>(mapped), mappedSize)));
-        msg->parse();
-        return msg;
+        QByteArray result;
+        //Seek for end of headers
+        const auto content = QByteArray::fromRawData(reinterpret_cast<const char*>(mapped), f.size());
+        int pos = content.indexOf("\r\n\r\n", 0);
+        int offset = 2;
+        if (pos < 0) {
+            pos = content.indexOf("\n\n", 0);
+            offset = 1;
+        }
+        if (pos > -1) {
+            const auto header = content.left(pos + offset);    //header *must* end with "\n" !!
+            auto msg = KMime::Message::Ptr(new KMime::Message);
+            msg->setHead(KMime::CRLFtoLF(header));
+            msg->parse();
+            return msg;
+        }
+        SinkWarning() << "Failed to find end of headers" << content;
+        return {};
     }
 
     QFile f;
     uchar *mapped;
-    qint64 mappedSize;
 };
 
 static Sink::ApplicationDomain::Mail::Contact getContact(const KMime::Headers::Generics::MailboxList *header)
