@@ -37,6 +37,10 @@ namespace SinkClear
 
 bool clear(const QStringList &args, State &state)
 {
+    if (args.isEmpty()) {
+        state.printError(QObject::tr("Please provide at least one resource to clear."));
+        return false;
+    }
     for (const auto &resource : args) {
         state.print(QObject::tr("Removing local cache for '%1' ...").arg(resource));
         Sink::Store::removeDataFromDisk(resource.toLatin1()).exec().waitForFinished();
