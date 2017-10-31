@@ -101,10 +101,13 @@ KAsync::Job<void> ResourceControl::flush(Flush::FlushType type, const QByteArray
             SinkTrace() << "Waiting for flush completion notification " << id;
             notifier->registerHandler([&future, id](const Notification &notification) {
                 SinkTrace() << "Received notification: " << notification.type << notification.id;
-                if (notification.id == id) {
+                if (notification.type == Notification::Error && notification.code == ApplicationDomain::ResourceCrashedError) {
+                    SinkWarning() << "Error during flush";
+                    future.setError(-1, "Error during flush: " + notification.message);
+                } else if (notification.id == id) {
                     SinkTrace() << "FlushComplete";
                     if (notification.code) {
-                        SinkWarning() << "Flush return an error";
+                        SinkWarning() << "Flush returned an error";
                         future.setError(-1, "Flush returned an error: " + notification.message);
                     } else {
                         future.setFinished();

@@ -67,12 +67,14 @@ bool sync(const QStringList &args, State &state)
     Sink::Store::synchronize(query)
         .then(Sink::ResourceControl::flushMessageQueue(query.getResourceFilter().ids))
         .then([state](const KAsync::Error &error) {
+            int exitCode = 0;
             if (error) {
                 state.printLine("Synchronization failed!");
+                exitCode = 1;
             } else {
                 state.printLine("Synchronization complete!");
             }
-            state.commandFinished();
+            state.commandFinished(exitCode);
         }).exec();
 
     return true;

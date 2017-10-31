@@ -526,6 +526,10 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
         Sink::Notification n;
         n.type = Sink::Notification::Status;
         emit notification(n);
+        Sink::Notification crashNotification;
+        crashNotification.type = Sink::Notification::Error;
+        crashNotification.code = Sink::ApplicationDomain::ResourceCrashedError;
+        emit notification(crashNotification);
         d->abortPendingOperations();
     } else if (error == QLocalSocket::PeerClosedError) {
         SinkLog() << "The resource closed the connection.";

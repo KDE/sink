@@ -57,16 +57,16 @@ Syntax::List SyntaxTree::syntax() const
     return m_syntax;
 }
 
-bool SyntaxTree::run(const QStringList &commands)
+int SyntaxTree::run(const QStringList &commands)
 {
-    bool success = false;
+    int returnCode = 0;
     m_timeElapsed.start();
     Command command = match(commands);
     if (command.first) {
         if (command.first->lambda) {
-            success = command.first->lambda(command.second, m_state);
+            bool success = command.first->lambda(command.second, m_state);
             if (success && command.first->interactivity == Syntax::EventDriven) {
-                success = m_state.commandStarted();
+                returnCode = m_state.commandStarted();
             }
         } else if (command.first->children.isEmpty()) {
             m_state.printError(QObject::tr("Broken command... sorry :("), "st_broken");
@@ -85,7 +85,7 @@ bool SyntaxTree::run(const QStringList &commands)
     if (m_state.commandTiming()) {
         m_state.printLine(QObject::tr("Time elapsed: %1").arg(m_timeElapsed.elapsed()));
     }
-    return false;
+    return returnCode;
 }
 
 SyntaxTree::Command SyntaxTree::match(const QStringList &commandLine) const

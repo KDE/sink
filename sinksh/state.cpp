@@ -139,7 +139,7 @@ int State::commandStarted() const
 
 void State::commandFinished(int returnCode) const
 {
-    SinkTrace() << "Command finished";
+    SinkTrace() << "Command finished. Exit code: " << returnCode;
     if (!s_hasEventLoop) {
         QCoreApplication::exit(returnCode);
     } else {
