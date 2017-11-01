@@ -45,7 +45,16 @@ public:
     QString keyword;
     QString help;
     Interactivity interactivity;
-    std::function<bool(const QStringList &, State &)> lambda;
+
+    /**
+     * This function will be called to execute the command.
+     *
+     * @arguments: The command arguments
+     * @state: The state object
+     * @return: Return true for success and false for error. If the command is event driven, returning false will not start an event loop and abort immediately.
+     * If the command is not event driven, returning false will set the exit code to 1.
+     */
+    std::function<bool(const QStringList &arguments, State &state)> lambda;
     std::function<QStringList(const QStringList &, const QString &, State &state)> completer;
 
     QVector<Syntax> children;

@@ -68,6 +68,9 @@ int SyntaxTree::run(const QStringList &commands)
             if (success && command.first->interactivity == Syntax::EventDriven) {
                 returnCode = m_state.commandStarted();
             }
+            if (!success && command.first->interactivity != Syntax::EventDriven) {
+                returnCode = 1;
+            }
         } else if (command.first->children.isEmpty()) {
             m_state.printError(QObject::tr("Broken command... sorry :("), "st_broken");
         } else {

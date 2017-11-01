@@ -169,14 +169,12 @@ bool list(const QStringList &args_, State &state)
         }
     }
     state.flushTable();
-    state.commandFinished();
-
-    return false;
+    return true;
 }
 
 Syntax::List syntax()
 {
-    Syntax list("list", QObject::tr("List all resources, or the contents of one or more resources."), &SinkList::list, Syntax::EventDriven);
+    Syntax list("list", QObject::tr("List all resources, or the contents of one or more resources."), &SinkList::list, Syntax::NotInteractive);
     list.completer = &SinkshUtils::resourceOrTypeCompleter;
     return Syntax::List() << list;
 }
