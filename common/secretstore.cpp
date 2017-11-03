@@ -55,3 +55,7 @@ QString SecretStore::resourceSecret(const QByteArray &resourceId)
     return mCache.value(resourceId);
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#include "moc_secretstore.cpp"
+#pragma clang diagnostic pop
