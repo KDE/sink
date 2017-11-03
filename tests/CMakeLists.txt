@@ -34,6 +34,7 @@ manual_tests (
     mailquerybenchmark
     pipelinebenchmark
     dummyresourcewritebenchmark
+    databasepopulationandfacadequerybenchmark
 )
 
 auto_tests (
@@ -55,7 +56,6 @@ auto_tests (
     interresourcemovetest
     notificationtest
     entitystoretest
-    databasepopulationandfacadequerybenchmark
 )
 generate_flatbuffers(dummyresourcetest calendar)
 target_link_libraries(dummyresourcetest sink_resource_dummy)
