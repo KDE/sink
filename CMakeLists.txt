@@ -36,8 +36,13 @@ find_package(FlatBuffers REQUIRED 1.4.0)
 find_package(KAsync REQUIRED 0.1.2)
 find_package(LMDB REQUIRED 0.9)
 
-find_program(MEMORYCHECK_COMMAND valgrind)
-set(MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full")
+if (${ENABLE_MEMCHECK})
+    find_program(MEMORYCHECK_COMMAND valgrind)
+    if(NOT MEMORYCHECK_COMMAND)
+        message(FATAL_ERROR "valgrind not found!")
+    endif()
+    set(MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full")
+endif()
 
 #Clang-format support
 add_custom_command(
