@@ -10,6 +10,7 @@ option(BUILD_DAV "BUILD_DAV" ON)
 option(AVOID_BINDING_REBUILD "AVOID_BINDING_REBUILD" OFF)
 option(CATCH_ERRORS "CATCH_ERRORS" OFF)
 option(ENABLE_MEMCHECK "Build valgrind tests" OFF)
+option(ENABLE_ASAN "Enable the address sanitizer" OFF)
 
 # ECM setup
 find_package(ECM 1.0.0 REQUIRED NO_MODULE)
@@ -43,6 +44,16 @@ if (${ENABLE_MEMCHECK})
     endif()
     set(MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full")
 endif()
+
+if (ENABLE_ASAN)
+    set(SINK_ASAN_FLAG "-fsanitize=address -fPIE -fno-omit-frame-pointer -O1 ")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SINK_ASAN_FLAG}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SINK_ASAN_FLAG}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${SINK_ASAN_FLAG}")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${SINK_ASAN_FLAG}")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${SINK_ASAN_FLAG}")
+endif()
+
 
 #Clang-format support
 add_custom_command(
