@@ -676,8 +676,7 @@ Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &ins
     if (!mCache.contains(instanceIdentifier)) {
         // Reuse the pointer if something else kept the resourceaccess alive
         if (mWeakCache.contains(instanceIdentifier)) {
-            auto sharedPointer = mWeakCache.value(instanceIdentifier).toStrongRef();
-            if (sharedPointer) {
+            if (auto sharedPointer = mWeakCache.value(instanceIdentifier).toStrongRef()) {
                 mCache.insert(instanceIdentifier, sharedPointer);
             }
         }
@@ -686,7 +685,12 @@ Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &ins
             auto sharedPointer = Sink::ResourceAccess::Ptr::create(instanceIdentifier, resourceType);
             QObject::connect(sharedPointer.data(), &Sink::ResourceAccess::ready, sharedPointer.data(), [this, instanceIdentifier](bool ready) {
                 if (!ready) {
-                    mCache.remove(instanceIdentifier);
+                    //We want to remove, but we don't want shared pointer to be destroyed until end of the function as this might trigger further steps.
+                    auto ptr = mCache.take(instanceIdentifier);
+                    if (auto timer = mTimer.take(instanceIdentifier)) {
+                        timer->stop();
+                    }
+                    Q_UNUSED(ptr);
                 }
             });
             mCache.insert(instanceIdentifier, sharedPointer);
@@ -694,15 +698,18 @@ Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &ins
         }
     }
     if (!mTimer.contains(instanceIdentifier)) {
-        auto timer = new QTimer;
+        auto timer = QSharedPointer<QTimer>::create();
         timer->setSingleShot(true);
         // Drop connection after 3 seconds (which is a random value)
-        QObject::connect(timer, &QTimer::timeout, timer, [this, instanceIdentifier]() { mCache.remove(instanceIdentifier); });
+        QObject::connect(timer.data(), &QTimer::timeout, timer.data(), [this, instanceIdentifier]() {
+            //We want to remove, but we don't want shared pointer to be destroyed until end of the function as this might trigger further steps.
+            auto ptr = mCache.take(instanceIdentifier);
+            Q_UNUSED(ptr);
+        });
         timer->setInterval(3000);
         mTimer.insert(instanceIdentifier, timer);
     }
-    auto timer = mTimer.value(instanceIdentifier);
-    timer->start();
+    mTimer.value(instanceIdentifier)->start();
     return mCache.value(instanceIdentifier);
 }
 }

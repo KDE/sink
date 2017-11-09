@@ -169,6 +169,6 @@ public:
 
     QHash<QByteArray, QWeakPointer<Sink::ResourceAccess>> mWeakCache;
     QHash<QByteArray, Sink::ResourceAccess::Ptr> mCache;
-    QHash<QByteArray, QTimer *> mTimer;
+    QHash<QByteArray, QSharedPointer<QTimer>> mTimer;
 };
 }
