@@ -250,6 +250,7 @@ ResourceAccess::~ResourceAccess()
     if (!d->resultHandler.isEmpty()) {
         SinkWarning() << "Left jobs running while shutting down ResourceAccess: " << d->resultHandler.keys();
     }
+    delete d;
 }
 
 QByteArray ResourceAccess::resourceName() const
