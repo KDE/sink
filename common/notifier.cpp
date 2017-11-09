@@ -33,7 +33,7 @@ using namespace Sink;
 class Sink::Notifier::Private
 {
 public:
-    Private() : context(new QObject)
+    Private()
     {
     }
 
