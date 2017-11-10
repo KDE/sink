@@ -132,7 +132,3 @@ void GenericResource::setLowerBoundRevision(qint64 revision)
     updateLowerBoundRevision();
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
-#include "genericresource.moc"
-#pragma clang diagnostic pop

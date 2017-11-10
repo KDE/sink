@@ -116,4 +116,3 @@ QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> 
 
 SINK_REGISTER_TYPES()
 
-#include "facade.moc"
