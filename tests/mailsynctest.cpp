@@ -484,5 +484,3 @@ void MailSyncTest::testFailingSync()
     // Ensure sync fails if resource is misconfigured
     QTRY_VERIFY(errorReceived);
 }
-
-#include "mailsynctest.moc"

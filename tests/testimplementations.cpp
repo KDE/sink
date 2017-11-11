@@ -19,5 +19,3 @@
  */
 
 #include "testimplementations.h"
-
-#include "testimplementations.moc"

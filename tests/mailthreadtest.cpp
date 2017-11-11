@@ -248,5 +248,3 @@ void MailThreadTest::testRealWorldThread()
         QCOMPARE(mails.size(), 8);
     }
 }
-
-#include "mailthreadtest.moc"

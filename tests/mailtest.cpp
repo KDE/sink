@@ -478,5 +478,3 @@ void MailTest::testModifyMailToTrash()
     }
     VERIFYEXEC(ResourceControl::inspect<ApplicationDomain::Mail>(ResourceControl::Inspection::ExistenceInspection(mail, true)));
 }
-
-#include "mailtest.moc"
