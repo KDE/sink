@@ -90,3 +90,8 @@ KAsync::Job<void> Inspector::inspect(int inspectionType, const QByteArray &inspe
     return KAsync::error(-1, "Inspection not implemented.");
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
+#include "inspector.moc"
+#include "moc_inspector.cpp"
+#pragma clang diagnostic pop
