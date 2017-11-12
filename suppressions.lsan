@@ -1,0 +1,4 @@
+leak:mdb_env_open
+leak:mdb_dbi_open
+#Catch everything from lmdb for now
+leak:liblmdb.so
