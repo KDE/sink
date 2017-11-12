@@ -125,8 +125,9 @@ void ResourceAccess::Private::abortPendingOperations()
 
 void ResourceAccess::Private::callCallbacks()
 {
-    for (auto id : completeCommands.keys()) {
-        const bool success = completeCommands.value(id);
+    const auto commandIds = completeCommands.keys();
+    for (auto id : commandIds) {
+        const bool success = completeCommands.take(id);
         // We remove the callbacks first because the handler can kill resourceaccess directly
         const auto callbacks = resultHandler.values(id);
         resultHandler.remove(id);
