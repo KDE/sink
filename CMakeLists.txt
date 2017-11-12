@@ -7,7 +7,6 @@ project(sink VERSION 0.5)
 
 option(BUILD_MAILDIR "BUILD_MAILDIR" ON)
 option(BUILD_DAV "BUILD_DAV" ON)
-option(AVOID_BINDING_REBUILD "AVOID_BINDING_REBUILD" OFF)
 option(CATCH_ERRORS "CATCH_ERRORS" OFF)
 option(ENABLE_MEMCHECK "Build valgrind tests" OFF)
 option(ENABLE_ASAN "Enable the address sanitizer" OFF)
@@ -76,25 +75,22 @@ add_custom_command(
 )
 add_custom_target(format DEPENDS format.dummy)
 
-#Generate flatbuffer bindings
-if (${AVOID_BINDING_REBUILD})
-    add_custom_target(generate_bindings)
-else()
-    add_custom_target(generate_bindings ALL)
-endif()
-
 function(generate_flatbuffers _target)
     foreach(fbs ${ARGN})
-       message("making ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h from ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs")
-       add_custom_command(
-              OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h
-              COMMAND ${FLATBUFFERS_FLATC_EXECUTABLE} -c -b -o ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs
-              DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs
-            )
-       set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h PROPERTIES GENERATED 1)
-       string(REGEX REPLACE "/" "_" target_name ${fbs})
-       add_custom_target(${_target}-generate_bindings${target_name} DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h)
-       add_dependencies(generate_bindings ${_target}-generate_bindings${target_name})
+        #Necessary because we can get relative paths as name, e.g. commands/create_entity
+        get_filename_component(filename ${fbs} NAME)
+        #We first generate into a temporary directory to avoid changing the timestamp of the actual dependency unnecessarily.
+        #Otherwise we'd end up unnecessarily rebuilding the target.
+        add_custom_command(
+            OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h
+            COMMAND ${FLATBUFFERS_FLATC_EXECUTABLE} -c -b -o ${CMAKE_CURRENT_BINARY_DIR}/flatbufferstmp ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_CURRENT_BINARY_DIR}/flatbufferstmp/${filename}_generated.h
+                ${CMAKE_CURRENT_BINARY_DIR}/${filename}_generated.h
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${fbs}.fbs
+
+        )
+        target_sources(${_target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h)
     endforeach(fbs)
 endfunction(generate_flatbuffers)
 
