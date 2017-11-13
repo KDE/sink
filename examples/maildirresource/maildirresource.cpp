@@ -474,7 +474,7 @@ protected:
                     return KAsync::null<void>();
                 }
                 if (property == "subject") {
-                    KMime::Message *msg = new KMime::Message;
+                    auto msg = KMime::Message::Ptr(new KMime::Message);
                     msg->setHead(KMime::CRLFtoLF(KPIM::Maildir::readEntryHeadersFromFile(filePath)));
                     msg->parse();
 
