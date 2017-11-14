@@ -6,3 +6,11 @@ leak:liblmdb.so
 leak:ResourceAccess
 #There seems to be a tiny leak in qrand that we can't do anything about
 leak:qrand
+leak:ApplicationDomain::getTypeName
+leak:QByteArray::QByteArray(char const*, int)
+#static map that is essentially a leak (but it's only in testscode, so not relevant)
+leak:TestDummyResourceFacade
+leak:QArrayData::allocate
+leak:QListData::detach_grow
+leak:QArrayData::reallocateUnaligned
+leak:QHostAddress::clear
