@@ -57,7 +57,7 @@ auto_tests (
     notificationtest
     entitystoretest
 )
-generate_flatbuffers(dummyresourcetest calendar)
+generate_flatbuffers(sink_test calendar)
 target_link_libraries(dummyresourcetest sink_resource_dummy)
 target_link_libraries(dummyresourcebenchmark sink_resource_dummy)
 target_link_libraries(dummyresourcewritebenchmark sink_resource_dummy)
