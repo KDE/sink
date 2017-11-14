@@ -30,10 +30,11 @@ public:
     virtual bool notify(QObject *receiver, QEvent *event)
     {
         t.start();
+        auto receiverName = receiver->metaObject()->className();
         const bool ret = QCoreApplication::notify(receiver, event);
         if (t.elapsed() > 1) {
             std::cout
-                << QString("processing event type %1 for object %2 took %3ms").arg((int)event->type()).arg(receiver->metaObject()->className()).arg((int)t.elapsed()).toStdString()
+                << QString("processing event type %1 for object %2 took %3ms").arg((int)event->type()).arg(receiverName).arg((int)t.elapsed()).toStdString()
                 << std::endl;
         }
         blockingTime += t.elapsed();
