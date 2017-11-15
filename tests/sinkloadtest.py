@@ -6,6 +6,8 @@ import os
 import sys
 import signal
 import datetime
+from threading import Timer
+import time
 
 def execute(cmd):
     print (str(datetime.datetime.now()) + " Running command: ", cmd)
@@ -40,9 +42,29 @@ def loadtest():
             else:
                 raise Exception("Something went wrong during the query: ", proc.returncode)
 
+def timeout():
+    # This is not an error
+    print("Exceeded runtime. Test successfully completed.")
+    sys.stdout.flush()
+    os._exit(0)
+
+def executionTimeout():
+    print("Closed because execution timed out")
+    sys.stdout.flush()
+    os._exit(1)
+
 try:
+    runtime = 30 * 60
+    executionTimeoutTime = 120
+    t = Timer(runtime, timeout)
+    t.start()
+    start = time.time()
     while True:
+        executionTimer = Timer(executionTimeoutTime, executionTimeout)
+        executionTimer.start()
         loadtest();
+        executionTimer.cancel()
+        print("Running for ", time.time() - start)
 except (KeyboardInterrupt, SystemExit):
     print("Aborted with Ctrl-c")
     sys.exit(0)
