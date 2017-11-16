@@ -2,8 +2,6 @@ leak:mdb_env_open
 leak:mdb_dbi_open
 #Catch everything from lmdb for now
 leak:liblmdb.so
-#We're currently leaking ResourceAccess::Private
-leak:ResourceAccess
 #There seems to be a tiny leak in qrand that we can't do anything about
 leak:qrand
 leak:ApplicationDomain::getTypeName

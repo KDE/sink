@@ -44,6 +44,7 @@ public:
     typedef QSharedPointer<ResourceAccessInterface> Ptr;
 
     ResourceAccessInterface()
+        : QObject()
     {
     }
     virtual ~ResourceAccessInterface()
@@ -110,7 +111,7 @@ public:
     typedef QSharedPointer<ResourceAccess> Ptr;
 
     ResourceAccess(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType);
-    ~ResourceAccess();
+    virtual ~ResourceAccess();
 
     QByteArray resourceName() const;
     bool isReady() const;
@@ -166,6 +167,9 @@ class SINK_EXPORT ResourceAccessFactory
 public:
     static ResourceAccessFactory &instance();
     Sink::ResourceAccess::Ptr getAccess(const QByteArray &instanceIdentifier, const QByteArray resourceType);
+
+private:
+    ResourceAccessFactory();
 
     QHash<QByteArray, QWeakPointer<Sink::ResourceAccess>> mWeakCache;
     QHash<QByteArray, Sink::ResourceAccess::Ptr> mCache;

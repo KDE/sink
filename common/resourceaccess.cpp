@@ -82,6 +82,7 @@ class ResourceAccess::Private
 {
 public:
     Private(const QByteArray &name, const QByteArray &instanceIdentifier, ResourceAccess *ra);
+    ~Private();
     KAsync::Job<void> tryToConnect();
     KAsync::Job<void> initializeSocket();
     void abortPendingOperations();
@@ -103,6 +104,9 @@ public:
 
 ResourceAccess::Private::Private(const QByteArray &name, const QByteArray &instanceIdentifier, ResourceAccess *q)
     : resourceName(name), resourceInstanceIdentifier(instanceIdentifier), messageId(0), openingSocket(false)
+{
+}
+ResourceAccess::Private::~Private()
 {
 }
 
@@ -144,7 +148,7 @@ void ResourceAccess::Private::callCallbacks()
 // Connects to server and returns connected socket on success
 KAsync::Job<QSharedPointer<QLocalSocket>> ResourceAccess::connectToServer(const QByteArray &identifier)
 {
-    auto s = QSharedPointer<QLocalSocket>::create();
+    auto s = QSharedPointer<QLocalSocket>{new QLocalSocket, &QObject::deleteLater};
     return KAsync::start<QSharedPointer<QLocalSocket>>([identifier, s](KAsync::Future<QSharedPointer<QLocalSocket>> &future) {
         s->setServerName(identifier);
         auto context = new QObject;
@@ -251,6 +255,7 @@ ResourceAccess::~ResourceAccess()
     if (!d->resultHandler.isEmpty()) {
         SinkWarning() << "Left jobs running while shutting down ResourceAccess: " << d->resultHandler.keys();
     }
+    delete d;
 }
 
 QByteArray ResourceAccess::resourceName() const
@@ -662,6 +667,13 @@ bool ResourceAccess::processMessageBuffer()
     return d->partialMessageBuffer.size() >= headerSize;
 }
 
+
+
+ResourceAccessFactory::ResourceAccessFactory()
+{
+
+}
+
 ResourceAccessFactory &ResourceAccessFactory::instance()
 {
     static ResourceAccessFactory *instance = 0;
@@ -682,7 +694,7 @@ Sink::ResourceAccess::Ptr ResourceAccessFactory::getAccess(const QByteArray &ins
         }
         if (!mCache.contains(instanceIdentifier)) {
             // Create a new instance if necessary
-            auto sharedPointer = Sink::ResourceAccess::Ptr::create(instanceIdentifier, resourceType);
+            auto sharedPointer = Sink::ResourceAccess::Ptr{new Sink::ResourceAccess(instanceIdentifier, resourceType), &QObject::deleteLater};
             QObject::connect(sharedPointer.data(), &Sink::ResourceAccess::ready, sharedPointer.data(), [this, instanceIdentifier](bool ready) {
                 if (!ready) {
                     //We want to remove, but we don't want shared pointer to be destroyed until end of the function as this might trigger further steps.
