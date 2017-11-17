@@ -157,7 +157,11 @@ bool inspect(const QStringList &args, State &state)
 
         //Print rest of db
         bool findSubstringKeys = !filter.isEmpty();
+        int keySizeTotal = 0;
+        int valueSizeTotal = 0;
         auto count = db.scan(filter, [&] (const QByteArray &key, const QByteArray &data) {
+                    keySizeTotal += key.size();
+                    valueSizeTotal += data.size();
                     if (isMainDb) {
                         Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
                         if (!buffer.isValid()) {
@@ -167,7 +171,9 @@ bool inspect(const QStringList &args, State &state)
                             state.printLine("Key: " + key
                                           + " Operation: " + QString::number(metadata->operation())
                                           + " Replay: " + (metadata->replayToSource() ? "true" : "false")
-                                          + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": ""));
+                                          + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": "")
+                                          + " Value size: " + QString::number(data.size())
+                                          );
                         }
                     } else {
                         state.printLine("Key: " + key + " Value: " + QString::fromUtf8(data));
@@ -180,6 +186,8 @@ bool inspect(const QStringList &args, State &state)
                 findSubstringKeys);
 
         state.printLine("Found " + QString::number(count) + " entries");
+        state.printLine("Keys take up " + QString::number(keySizeTotal) + " bytes");
+        state.printLine("Values take up " + QString::number(valueSizeTotal) + " bytes");
     }
     return false;
 }
