@@ -284,7 +284,7 @@ bool DataStore::NamedDatabase::write(const QByteArray &sKey, const QByteArray &s
     rc = mdb_put(d->transaction, d->dbi, &key, &data, 0);
 
     if (rc) {
-        Error error(d->name.toLatin1() + d->db, ErrorCodes::GenericError, "mdb_put: " + QByteArray(mdb_strerror(rc)));
+        Error error(d->name.toLatin1() + d->db, ErrorCodes::GenericError, "mdb_put: " + QByteArray(mdb_strerror(rc)) + " Key: " + sKey + " Value: " + sValue);
         errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
     }
 
