@@ -496,13 +496,39 @@ qint64 DataStore::NamedDatabase::getSize()
     if (rc) {
         SinkWarning() << "Something went wrong " << QByteArray(mdb_strerror(rc));
     }
-    // std::cout << "overflow_pages: " << stat.ms_overflow_pages << std::endl;
+    return stat.ms_psize * (stat.ms_leaf_pages + stat.ms_branch_pages + stat.ms_overflow_pages);
+}
+
+DataStore::NamedDatabase::Stat DataStore::NamedDatabase::stat()
+{
+    if (!d || !d->transaction) {
+        return {};
+    }
+
+    int rc;
+    MDB_stat stat;
+    rc = mdb_stat(d->transaction, d->dbi, &stat);
+    if (rc) {
+        SinkWarning() << "Something went wrong " << QByteArray(mdb_strerror(rc));
+        return {};
+    }
+    return {stat.ms_branch_pages,
+            stat.ms_leaf_pages,
+            stat.ms_overflow_pages,
+            stat.ms_entries};
     // std::cout << "page size: " << stat.ms_psize << std::endl;
-    // std::cout << "branch_pages: " << stat.ms_branch_pages << std::endl;
     // std::cout << "leaf_pages: " << stat.ms_leaf_pages << std::endl;
+    // std::cout << "branch_pages: " << stat.ms_branch_pages << std::endl;
+    // std::cout << "overflow_pages: " << stat.ms_overflow_pages << std::endl;
     // std::cout << "depth: " << stat.ms_depth << std::endl;
     // std::cout << "entries: " << stat.ms_entries << std::endl;
-    return stat.ms_psize * (stat.ms_leaf_pages + stat.ms_branch_pages + stat.ms_overflow_pages);
+}
+
+bool DataStore::NamedDatabase::allowsDuplicates() const
+{
+    unsigned int flags;
+    mdb_dbi_flags(d->transaction, d->dbi, &flags);
+    return flags & MDB_DUPSORT;
 }
 
 
@@ -705,6 +731,55 @@ QList<QByteArray> DataStore::Transaction::getDatabaseNames() const
     }
     return Sink::Storage::getDatabaseNames(d->transaction);
 
+}
+
+
+DataStore::Transaction::Stat DataStore::Transaction::stat()
+{
+    const int freeDbi = 0;
+    const int mainDbi = 1;
+
+	MDB_envinfo mei;
+    mdb_env_info(d->env, &mei);
+
+    MDB_stat mst;
+    mdb_stat(d->transaction, freeDbi, &mst);
+    auto freeStat = NamedDatabase::Stat{mst.ms_branch_pages,
+            mst.ms_leaf_pages,
+            mst.ms_overflow_pages,
+            mst.ms_entries};
+
+    mdb_stat(d->transaction, mainDbi, &mst);
+    auto mainStat = NamedDatabase::Stat{mst.ms_branch_pages,
+            mst.ms_leaf_pages,
+            mst.ms_overflow_pages,
+            mst.ms_entries};
+
+    MDB_cursor *cursor;
+    MDB_val key, data;
+    size_t freePages = 0, *iptr;
+
+    int rc = mdb_cursor_open(d->transaction, freeDbi, &cursor);
+    if (rc) {
+        fprintf(stderr, "mdb_cursor_open failed, error %d %s\n", rc, mdb_strerror(rc));
+        return {};
+    }
+
+    while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+        iptr = static_cast<size_t*>(data.mv_data);
+        freePages += *iptr;
+        size_t pg, prev;
+        ssize_t i, j, span = 0;
+        j = *iptr++;
+        for (i = j, prev = 1; --i >= 0; ) {
+            pg = iptr[i];
+            prev = pg;
+            pg += span;
+            for (; i >= span && iptr[i-span] == pg; span++, pg++) ;
+        }
+    }
+    mdb_cursor_close(cursor);
+    return {mei.me_last_pgno + 1, freePages, mst.ms_psize, mainStat, freeStat};
 }
 
 

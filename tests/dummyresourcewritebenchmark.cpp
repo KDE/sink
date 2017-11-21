@@ -27,16 +27,21 @@
 #include "getrssusage.h"
 #include "utils.h"
 
-static QByteArray createEntityBuffer(int &bufferSize)
+static QByteArray createEntityBuffer(size_t attachmentSize, int &bufferSize)
 {
+    uint8_t rawData[attachmentSize];
     flatbuffers::FlatBufferBuilder eventFbb;
     eventFbb.Clear();
     {
+        uint8_t *rawDataPtr = Q_NULLPTR;
+        auto data = eventFbb.CreateUninitializedVector<uint8_t>(attachmentSize, &rawDataPtr);
         auto summary = eventFbb.CreateString("summary");
         Sink::ApplicationDomain::Buffer::EventBuilder eventBuilder(eventFbb);
         eventBuilder.add_summary(summary);
+        eventBuilder.add_attachment(data);
         auto eventLocation = eventBuilder.Finish();
         Sink::ApplicationDomain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
+        memcpy((void *)rawDataPtr, rawData, attachmentSize);
     }
 
     flatbuffers::FlatBufferBuilder localFbb;
@@ -84,7 +89,7 @@ class DummyResourceWriteBenchmark : public QObject
         DummyResource resource(Sink::ResourceContext{"sink.dummy.instance1", "sink.dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("sink.dummy")});
 
         int bufferSize = 0;
-        auto command = createEntityBuffer(bufferSize);
+        auto command = createEntityBuffer(0, bufferSize);
 
         const auto startingRss = getCurrentRSS();
         for (int i = 0; i < num; i++) {
@@ -114,7 +119,7 @@ class DummyResourceWriteBenchmark : public QObject
         std::cout << "Rss without db [kb]: " << rssWithoutDb / 1024 << std::endl;
         std::cout << "Percentage peak rss error: " << percentageRssError << std::endl;
 
-        auto onDisk = DummyResource::diskUsage("sink.dummy.instance1");
+        auto onDisk = Sink::Storage::DataStore(Sink::storageLocation(), "sink.dummy.instance1", Sink::Storage::DataStore::ReadOnly).diskUsage();
         auto writeAmplification = static_cast<double>(onDisk) / static_cast<double>(bufferSizeTotal);
         std::cout << "On disk [kb]: " << onDisk / 1024 << std::endl;
         std::cout << "Buffer size total [kb]: " << bufferSizeTotal / 1024 << std::endl;
@@ -165,6 +170,84 @@ class DummyResourceWriteBenchmark : public QObject
         // std::system("exec pmap -x \"$PPID\"");
     }
 
+    void testDiskUsage(int num)
+    {
+        auto resourceId = "testDiskUsage";
+        DummyResource::removeFromDisk(resourceId);
+
+        {
+            DummyResource resource(Sink::ResourceContext{resourceId, "sink.dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("sink.dummy")});
+
+            int bufferSize = 0;
+            auto command = createEntityBuffer(1000, bufferSize);
+
+            for (int i = 0; i < num; i++) {
+                resource.processCommand(Sink::Commands::CreateEntityCommand, command);
+            }
+
+            // Wait until all messages have been processed
+            resource.processAllMessages().exec().waitForFinished();
+        }
+
+        qint64 totalDbSizes = 0;
+        qint64 totalKeysAndValues = 0;
+        QMap<QByteArray, qint64> dbSizes;
+        Sink::Storage::DataStore storage(Sink::storageLocation(), resourceId, Sink::Storage::DataStore::ReadOnly);
+        auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
+        auto stat = transaction.stat();
+
+        std::cout << "Free pages: " << stat.freePages << std::endl;
+        std::cout << "Total pages: " << stat.totalPages << std::endl;
+        auto totalUsedSize = stat.pageSize * (stat.totalPages - stat.freePages);
+        std::cout << "Used size: " << totalUsedSize << std::endl;
+
+        auto freeDbSize = stat.pageSize * (stat.freeDbStat.leafPages + stat.freeDbStat.overflowPages + stat.freeDbStat.branchPages);
+        std::cout << "Free db size: " << freeDbSize << std::endl;
+        auto mainDbSize = stat.pageSize * (stat.mainDbStat.leafPages + stat.mainDbStat.overflowPages + stat.mainDbStat.branchPages);
+        std::cout << "Main db size: " << mainDbSize << std::endl;
+
+        totalDbSizes += mainDbSize;
+        QList<QByteArray> databases = transaction.getDatabaseNames();
+        for (const auto &databaseName : databases) {
+            auto db = transaction.openDatabase(databaseName);
+            const auto size = db.getSize();
+            dbSizes.insert(databaseName, size);
+            totalDbSizes += size;
+
+            qint64 keySizes = 0;
+            qint64 valueSizes = 0;
+            db.scan({}, [&] (const QByteArray &key, const QByteArray &data) {
+                    keySizes += key.size();
+                    valueSizes += data.size();
+                    return true;
+                },
+                [&](const Sink::Storage::DataStore::Error &e) {
+                    qWarning() << "Error while reading" << e;
+                },
+                false, false);
+
+            auto s = db.stat();
+            auto usedPages = (s.leafPages + s.branchPages + s.overflowPages);
+
+            std::cout << std::endl;
+            std::cout << "Db: " << databaseName.toStdString() << (db.allowsDuplicates() ? " DUP" : "") << std::endl;
+            std::cout << "Used pages " << usedPages << std::endl;
+            std::cout << "Used size " << (keySizes + valueSizes) / 4096.0 << std::endl;
+            std::cout << "Entries " << s.numEntries << std::endl;
+            totalKeysAndValues += (keySizes + valueSizes);
+        }
+        std::cout << std::endl;
+
+        auto mainStoreOnDisk = Sink::Storage::DataStore(Sink::storageLocation(), resourceId, Sink::Storage::DataStore::ReadOnly).diskUsage();
+        auto totalOnDisk = DummyResource::diskUsage(resourceId);
+        std::cout << "Calculated key + value size: " << totalKeysAndValues << std::endl;
+        std::cout << "Calculated total db sizes: " << totalDbSizes << std::endl;
+        std::cout << "Main store on disk: " << mainStoreOnDisk << std::endl;
+        std::cout << "Total on disk: " << totalOnDisk << std::endl;
+        std::cout << "Used size amplification: " << static_cast<double>(totalUsedSize) / static_cast<double>(totalKeysAndValues) << std::endl;
+        std::cout << "Write amplification: " << static_cast<double>(mainStoreOnDisk) / static_cast<double>(totalKeysAndValues) << std::endl;
+        std::cout << std::endl;
+    }
 
 private slots:
     void initTestCase()
@@ -201,6 +284,10 @@ private slots:
         HAWD::Formatter::print(dataset);
     }
 
+    void testDiskUsage()
+    {
+        testDiskUsage(1000);
+    }
 
     // This allows to run individual parts without doing a cleanup, but still cleaning up normally
     void testCleanupForCompleteTest()

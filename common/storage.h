@@ -123,6 +123,16 @@ public:
 
         qint64 getSize();
 
+        struct Stat {
+            size_t branchPages;
+            size_t leafPages;
+            size_t overflowPages;
+            size_t numEntries;
+        };
+        Stat stat();
+
+        bool allowsDuplicates() const;
+
     private:
         friend Transaction;
         NamedDatabase(NamedDatabase &other);
@@ -149,6 +159,15 @@ public:
         Transaction &operator=(Transaction &&other);
 
         operator bool() const;
+
+        struct Stat {
+            size_t totalPages;
+            size_t freePages;
+            size_t pageSize;
+            NamedDatabase::Stat mainDbStat;
+            NamedDatabase::Stat freeDbStat;
+        };
+        Stat stat();
 
     private:
         Transaction(Transaction &other);
