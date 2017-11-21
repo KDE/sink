@@ -768,14 +768,28 @@ DataStore::Transaction::Stat DataStore::Transaction::stat()
     while ((rc = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
         iptr = static_cast<size_t*>(data.mv_data);
         freePages += *iptr;
+        bool bad = false;
         size_t pg, prev;
         ssize_t i, j, span = 0;
         j = *iptr++;
         for (i = j, prev = 1; --i >= 0; ) {
             pg = iptr[i];
+            if (pg <= prev) {
+                bad = true;
+            }
             prev = pg;
             pg += span;
             for (; i >= span && iptr[i-span] == pg; span++, pg++) ;
+        }
+        std::cout << "    Transaction " << *(size_t *)key.mv_data << ", "<< j << " pages, maxspan " << span << (bad ? " [bad sequence]" : "") << std::endl;
+        for (--j; j >= 0; ) {
+            pg = iptr[j];
+            for (span=1; --j >= 0 && iptr[j] == pg+span; span++);
+            if (span > 1) {
+                std::cout << "     " << pg << "[" << span << "]\n";
+            } else {
+                std::cout << "     " << pg << std::endl;
+            }
         }
     }
     mdb_cursor_close(cursor);
