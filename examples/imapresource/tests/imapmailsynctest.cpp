@@ -95,8 +95,8 @@ protected:
     QByteArray createMessage(const QStringList &folderPath, const QByteArray &message) Q_DECL_OVERRIDE
     {
         Imap::ImapServerProxy imap("localhost", 993);
-        imap.login("doe", "doe").exec().waitForFinished();
-        imap.append("INBOX." + folderPath.join('.'), message).exec().waitForFinished();
+        VERIFYEXEC_RET(imap.login("doe", "doe"), {});
+        VERIFYEXEC_RET(imap.append("INBOX." + folderPath.join('.'), message), {});
         return "2:*";
     }
 

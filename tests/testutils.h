@@ -38,6 +38,14 @@ do {\
         return;\
 } while (0)
 
+#define VERIFYEXEC_RET(statement, return) \
+do {\
+    auto result = statement.exec(); \
+    result.waitForFinished(); \
+    if (!QTest::qVerify(!result.errorCode(), #statement, "", __FILE__, __LINE__))\
+        return #return;\
+} while (0)
+
 #define VERIFYEXEC_FAIL(statement) \
 do {\
     auto result = statement.exec(); \
