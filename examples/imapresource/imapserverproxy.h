@@ -246,9 +246,15 @@ private:
     QList<CachedSession> mSessions;
 };
 
+enum EncryptionMode {
+    NoEncryption,
+    Tls,
+    Starttls
+};
+
 class ImapServerProxy {
 public:
-    ImapServerProxy(const QString &serverUrl, int port, SessionCache *sessionCache = nullptr);
+    ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryption, SessionCache *sessionCache = nullptr);
 
     //Standard IMAP calls
     KAsync::Job<void> login(const QString &username, const QString &password);
@@ -305,6 +311,7 @@ private:
     KIMAP2::Session *mSession;
     QStringList mCapabilities;
     Namespaces mNamespaces;
+    EncryptionMode mEncryptionMode;
 };
 
 }

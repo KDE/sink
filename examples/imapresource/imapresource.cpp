@@ -526,7 +526,7 @@ public:
 
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
-        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, &mSessionCache);
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, &mSessionCache);
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
             return login(imap)
             .then([=] {
@@ -634,7 +634,7 @@ public:
                 return KAsync::null<QByteArray>();
             }
         }
-        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, &mSessionCache);
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, &mSessionCache);
         auto login = imap->login(mUser, secret());
         KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
         if (operation == Sink::Operation_Creation) {
@@ -719,7 +719,7 @@ public:
                 return KAsync::error<QByteArray>("Tried to replay modification without old remoteId.");
             }
         }
-        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, &mSessionCache);
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, &mSessionCache);
         auto login = imap->login(mUser, secret());
         if (operation == Sink::Operation_Creation) {
             QString parentFolder;
@@ -793,6 +793,7 @@ public:
 public:
     QString mServer;
     int mPort;
+    Imap::EncryptionMode mEncryptionMode = Imap::NoEncryption;
     QString mUser;
     int mDaysToSync = 0;
     QByteArray mResourceInstanceIdentifier;
@@ -839,7 +840,7 @@ protected:
             }
             KIMAP2::FetchJob::FetchScope scope;
             scope.mode = KIMAP2::FetchJob::FetchScope::Full;
-            auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+            auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode);
             auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
             SinkTrace() << "Connecting to:" << mServer << mPort;
             SinkTrace() << "as:" << mUser;
@@ -907,7 +908,7 @@ protected:
                 auto set = KIMAP2::ImapSet::fromImapSequenceSet("1:*");
                 KIMAP2::FetchJob::FetchScope scope;
                 scope.mode = KIMAP2::FetchJob::FetchScope::Headers;
-                auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+                auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode);
                 auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
                 return imap->login(mUser, secret())
                     .then(imap->select(remoteId))
@@ -925,7 +926,7 @@ protected:
                 auto  folderByPath = QSharedPointer<QSet<QString>>::create();
                 auto  folderByName = QSharedPointer<QSet<QString>>::create();
 
-                auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort);
+                auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode);
                 auto inspectionJob = imap->login(mUser, secret())
                     .then(imap->fetchFolders([=](const Imap::Folder &f) {
                         *folderByPath << f.path();
@@ -950,6 +951,7 @@ protected:
 public:
     QString mServer;
     int mPort;
+    Imap::EncryptionMode mEncryptionMode = Imap::NoEncryption;
     QString mUser;
 };
 
@@ -962,6 +964,16 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     auto port = config.value("port").toInt();
     auto user = config.value("username").toString();
     auto daysToSync = config.value("daysToSync", 14).toInt();
+    auto starttls = config.value("starttls", false).toBool();
+
+    auto encryption = Imap::NoEncryption;
+    if (server.startsWith("imaps")) {
+        encryption = Imap::Tls;
+    }
+    if (starttls) {
+        encryption = Imap::Starttls;
+    }
+
     if (server.startsWith("imap")) {
         server.remove("imap://");
         server.remove("imaps://");
@@ -975,6 +987,7 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     auto synchronizer = QSharedPointer<ImapSynchronizer>::create(resourceContext);
     synchronizer->mServer = server;
     synchronizer->mPort = port;
+    synchronizer->mEncryptionMode = encryption;
     synchronizer->mUser = user;
     synchronizer->mDaysToSync = daysToSync;
     setupSynchronizer(synchronizer);
@@ -982,6 +995,7 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     auto inspector = QSharedPointer<ImapInspector>::create(resourceContext);
     inspector->mServer = server;
     inspector->mPort = port;
+    inspector->mEncryptionMode = encryption;
     inspector->mUser = user;
     setupInspector(inspector);
 

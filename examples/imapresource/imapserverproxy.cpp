@@ -136,11 +136,18 @@ KIMAP2::Session *createNewSession(const QString &serverUrl, int port)
     return newSession;
 }
 
-ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, SessionCache *sessionCache) : mSessionCache(sessionCache), mSession(nullptr)
+ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryptionMode, SessionCache *sessionCache) : mSessionCache(sessionCache), mSession(nullptr), mEncryptionMode(encryptionMode)
 {
     if (!mSessionCache || mSessionCache->isEmpty()) {
         mSession = createNewSession(serverUrl, port);
     }
+}
+
+QDebug operator<<(QDebug debug, const KIMAP2::MailBoxDescriptor &c)
+{
+    QDebugStateSaver saver(debug);
+    debug.nospace() << c.name;
+    return debug;
 }
 
 KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString &password)
@@ -164,12 +171,12 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     auto loginJob = new KIMAP2::LoginJob(mSession);
     loginJob->setUserName(username);
     loginJob->setPassword(password);
-    loginJob->setAuthenticationMode(KIMAP2::LoginJob::Plain);
-    if (mSession->port() == 143) {
+    if (mEncryptionMode == Starttls) {
         loginJob->setEncryptionMode(QSsl::TlsV1_0OrLater, true);
-    } else {
+    } else if (mEncryptionMode == Tls) {
         loginJob->setEncryptionMode(QSsl::AnyProtocol, false);
     }
+    loginJob->setAuthenticationMode(KIMAP2::LoginJob::Plain);
 
     auto capabilitiesJob = new KIMAP2::CapabilitiesJob(mSession);
     QObject::connect(capabilitiesJob, &KIMAP2::CapabilitiesJob::capabilitiesReceived, &mGuard, [this](const QStringList &capabilities) {

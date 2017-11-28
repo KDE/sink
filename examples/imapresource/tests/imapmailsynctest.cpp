@@ -43,7 +43,7 @@ protected:
     bool isBackendAvailable() Q_DECL_OVERRIDE
     {
         QTcpSocket socket;
-        socket.connectToHost("localhost", 993);
+        socket.connectToHost("localhost", 143);
         return socket.waitForConnected(200);
     }
 
@@ -56,7 +56,7 @@ protected:
     {
         auto resource = ApplicationDomain::ImapResource::create("account1");
         resource.setProperty("server", "localhost");
-        resource.setProperty("port", 993);
+        resource.setProperty("port", 143);
         resource.setProperty("username", "doe");
         Sink::SecretStore::instance().insert(resource.identifier(), "doe");
         return resource;
@@ -67,7 +67,7 @@ protected:
         auto resource = ApplicationDomain::ImapResource::create("account1");
         //Using a bogus ip instead of a bogus hostname avoids getting stuck in the hostname lookup
         resource.setProperty("server", "111.111.1.1");
-        resource.setProperty("port", 993);
+        resource.setProperty("port", 143);
         resource.setProperty("username", "doe");
         Sink::SecretStore::instance().insert(resource.identifier(), "doe");
         return resource;
@@ -80,21 +80,21 @@ protected:
 
     void createFolder(const QStringList &folderPath) Q_DECL_OVERRIDE
     {
-        Imap::ImapServerProxy imap("localhost", 993);
+        Imap::ImapServerProxy imap("localhost", 143, Imap::NoEncryption);
         VERIFYEXEC(imap.login("doe", "doe"));
         VERIFYEXEC(imap.create("INBOX." + folderPath.join('.')));
     }
 
     void removeFolder(const QStringList &folderPath) Q_DECL_OVERRIDE
     {
-        Imap::ImapServerProxy imap("localhost", 993);
+        Imap::ImapServerProxy imap("localhost", 143, Imap::NoEncryption);
         VERIFYEXEC(imap.login("doe", "doe"));
         VERIFYEXEC(imap.remove("INBOX." + folderPath.join('.')));
     }
 
     QByteArray createMessage(const QStringList &folderPath, const QByteArray &message) Q_DECL_OVERRIDE
     {
-        Imap::ImapServerProxy imap("localhost", 993);
+        Imap::ImapServerProxy imap("localhost", 143, Imap::NoEncryption);
         VERIFYEXEC_RET(imap.login("doe", "doe"), {});
         VERIFYEXEC_RET(imap.append("INBOX." + folderPath.join('.'), message), {});
         return "2:*";
@@ -102,14 +102,14 @@ protected:
 
     void removeMessage(const QStringList &folderPath, const QByteArray &messages) Q_DECL_OVERRIDE
     {
-        Imap::ImapServerProxy imap("localhost", 993);
+        Imap::ImapServerProxy imap("localhost", 143, Imap::NoEncryption);
         VERIFYEXEC(imap.login("doe", "doe"));
         VERIFYEXEC(imap.remove("INBOX." + folderPath.join('.'), messages));
     }
 
     void markAsImportant(const QStringList &folderPath, const QByteArray &messageIdentifier) Q_DECL_OVERRIDE
     {
-        Imap::ImapServerProxy imap("localhost", 993);
+        Imap::ImapServerProxy imap("localhost", 143, Imap::NoEncryption);
         VERIFYEXEC(imap.login("doe", "doe"));
         VERIFYEXEC(imap.select("INBOX." + folderPath.join('.')));
         VERIFYEXEC(imap.addFlags(KIMAP2::ImapSet::fromImapSequenceSet(messageIdentifier), QByteArrayList() << Imap::Flags::Flagged));

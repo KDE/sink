@@ -25,7 +25,7 @@ private slots:
     {
         Sink::Test::initTest();
         QTcpSocket socket;
-        socket.connectToHost("localhost", 993);
+        socket.connectToHost("localhost", 143);
         QVERIFY(socket.waitForConnected(200));
         system("resetmailbox.sh");
     }
@@ -43,45 +43,47 @@ private slots:
 
     void testLogin()
     {
-        ImapServerProxy imap("localhost", 993);
+        ImapServerProxy imap("localhost", 143, Imap::EncryptionMode::NoEncryption);
         VERIFYEXEC(imap.login("doe", "doe"));
     }
 
     void testLoginFailure()
     {
         //Using a bogus ip instead of a bogus hostname avoids getting stuck in the hostname lookup
-        ImapServerProxy imap("111.111.1.1", 993);
+        ImapServerProxy imap("111.111.1.1", 143, Imap::EncryptionMode::NoEncryption);
         VERIFYEXEC_FAIL(imap.login("doe", "doe"));
     }
 
     void testFetchFolders()
     {
-        QMap<QString, QString> expectedFolderAndParent;
-        expectedFolderAndParent.insert("INBOX", "");
-        expectedFolderAndParent.insert("Drafts", "");
-        expectedFolderAndParent.insert("Trash", "");
-        expectedFolderAndParent.insert("test", "");
-        ImapServerProxy imap("localhost", 993);
+        QMap<QString, QString> expectedFolderAndParent {
+            {"INBOX", ""},
+            {"Drafts", ""},
+            {"Trash", ""},
+            {"test", ""}
+        };
+        ImapServerProxy imap("localhost", 143, Imap::EncryptionMode::NoEncryption);
         VERIFYEXEC(imap.login("doe", "doe"));
         QVector<Folder> list;
         VERIFYEXEC(imap.fetchFolders([&](const Folder &f){ list << f;}));
         for (const auto &f : list) {
-            QVERIFY(expectedFolderAndParent.contains(f.name()));
+            QVERIFY2(expectedFolderAndParent.contains(f.name()), QString{"Didn't expect folder %1"}.arg(f.name()).toUtf8());
             QCOMPARE(expectedFolderAndParent.value(f.name()), f.parentPath());
             expectedFolderAndParent.remove(f.name());
         }
         QVERIFY(expectedFolderAndParent.isEmpty());
+//examples/imapresource/tests/imapserverproxytest testFetchFolders
     }
 
     void testFetchFoldersFailure()
     {
-        ImapServerProxy imap("foobar", 993);
+        ImapServerProxy imap("foobar", 143, Imap::EncryptionMode::NoEncryption);
         VERIFYEXEC_FAIL(imap.fetchFolders([](const Folder &){}));
     }
 
     void testFetchMail()
     {
-        ImapServerProxy imap("localhost", 993);
+        ImapServerProxy imap("localhost", 143, Imap::EncryptionMode::NoEncryption);
         VERIFYEXEC(imap.login("doe", "doe"));
 
         KIMAP2::FetchJob::FetchScope scope;
@@ -98,7 +100,7 @@ private slots:
 
     void testRemoveMail()
     {
-        ImapServerProxy imap("localhost", 993);
+        ImapServerProxy imap("localhost", 143, Imap::EncryptionMode::NoEncryption);
         VERIFYEXEC(imap.login("doe", "doe"));
         VERIFYEXEC(imap.remove("INBOX.test", "1:*"));
 

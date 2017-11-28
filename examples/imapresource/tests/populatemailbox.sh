@@ -23,7 +23,7 @@ sudo echo "sub INBOX.Trash" | cyradm --auth PLAIN -u doe -w doe localhost
 #     # sudo cp /src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S /var/spool/imap/d/user/doe/test/$i.
 # done
 # Because this is way faster than a loop
-FOLDERPATH=/var/spool/imap/u/'user^doe^test'
+FOLDERPATH=/var/spool/imap/d/user/doe/test
 sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{1..1000}.
 sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{1001..2000}.
 sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{2001..3000}.

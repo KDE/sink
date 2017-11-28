@@ -23,7 +23,7 @@ protected:
     bool isBackendAvailable() Q_DECL_OVERRIDE
     {
         QTcpSocket socket;
-        socket.connectToHost("localhost", 993);
+        socket.connectToHost("localhost", 143);
         return socket.waitForConnected(200);
     }
 
@@ -36,7 +36,7 @@ protected:
     {
         auto resource = ApplicationDomain::ImapResource::create("account1");
         resource.setProperty("server", "localhost");
-        resource.setProperty("port", 993);
+        resource.setProperty("port", 143);
         resource.setProperty("username", "doe");
         Sink::SecretStore::instance().insert(resource.identifier(), "doe");
         return resource;
