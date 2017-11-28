@@ -984,6 +984,12 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
         port = list.at(1).toInt();
     }
 
+    //Backwards compatibilty
+    //For kolabnow we assumed that port 143 means starttls
+    if (encryption == Imap::Tls && port == 143) {
+        encryption = Imap::Starttls;
+    }
+
     auto synchronizer = QSharedPointer<ImapSynchronizer>::create(resourceContext);
     synchronizer->mServer = server;
     synchronizer->mPort = port;
