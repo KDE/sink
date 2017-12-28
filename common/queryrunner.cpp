@@ -245,23 +245,12 @@ ReplayResult QueryWorker<DomainType>::executeInitialQuery(
     QTime time;
     time.start();
 
-    auto modifiedQuery = query;
-    if (!query.parentProperty().isEmpty()) {
-        if (parent) {
-            SinkTraceCtx(mLogCtx) << "Running initial query for parent:" << parent->identifier();
-            modifiedQuery.filter(query.parentProperty(), Query::Comparator(QVariant::fromValue(Sink::ApplicationDomain::Reference{parent->identifier()})));
-        } else {
-            SinkTraceCtx(mLogCtx) << "Running initial query for toplevel";
-            modifiedQuery.filter(query.parentProperty(), Query::Comparator(QVariant{}));
-        }
-    }
-
     auto entityStore = EntityStore{mResourceContext, mLogCtx};
     auto preparedQuery = [&] {
         if (state) {
             return DataStoreQuery{*state, ApplicationDomain::getTypeName<DomainType>(), entityStore, false};
         } else {
-            return DataStoreQuery{modifiedQuery, ApplicationDomain::getTypeName<DomainType>(), entityStore};
+            return DataStoreQuery{query, ApplicationDomain::getTypeName<DomainType>(), entityStore};
         }
     }();
     auto resultSet = preparedQuery.execute();
