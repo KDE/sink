@@ -289,18 +289,16 @@ static void collectDebugArea(const QString &debugArea)
 static bool containsItemStartingWith(const QByteArray &pattern, const QByteArrayList &list)
 {
     for (const auto &item : list) {
+        int start = 0;
+        int end = item.size();
         if (item.startsWith('*')) {
-            auto stripped = item.mid(1);
-            if (stripped.endsWith('*')) {
-                stripped.chop(1);
-            }
-            if (pattern.contains(stripped)) {
-                return true;
-            }
-        } else {
-            if (pattern.contains(item)) {
-                return true;
-            }
+            start++;
+        }
+        if (item.endsWith('*')) {
+            end--;
+        }
+        if (pattern.contains(item.mid(start, end - start))) {
+            return true;
         }
     }
     return false;
