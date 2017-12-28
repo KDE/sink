@@ -18,8 +18,6 @@ private slots:
 
     void initTestCase()
     {
-        // Sink::FacadeFactory::instance().resetFactory();
-        // ResourceConfig::clear();
         Test::initTest();
     }
 
