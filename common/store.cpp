@@ -136,12 +136,6 @@ QPair<typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr,  typenam
             Q_ASSERT(!resourceType.isEmpty());
             queryResource<DomainType>(resourceType, resource->identifier(), query, aggregatingEmitter, ctx).exec();
         });
-        emitter->onModified([](const ApplicationDomain::SinkResource::Ptr &) {
-        });
-        emitter->onRemoved([](const ApplicationDomain::SinkResource::Ptr &) {
-        });
-        emitter->onInitialResultSetComplete([](const ApplicationDomain::SinkResource::Ptr &, bool) {
-        });
         emitter->onComplete([query, aggregatingEmitter, resourceCtx]() {
             SinkTraceCtx(resourceCtx) << "Resource query complete";
         });
@@ -178,7 +172,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(const Query &query)
     //Keep the emitter alive
     if (auto resourceEmitter = result.second) {
         model->setProperty("resourceEmitter", QVariant::fromValue(resourceEmitter)); //TODO only neceesary for live queries
-        resourceEmitter->fetch(ApplicationDomain::SinkResource::Ptr());
+        resourceEmitter->fetch();
     }
 
 
@@ -443,10 +437,10 @@ QList<DomainType> Store::read(const Sink::Query &query_)
     });
 
     if (auto resourceEmitter = result.second) {
-        resourceEmitter->fetch(ApplicationDomain::SinkResource::Ptr());
+        resourceEmitter->fetch();
     }
 
-    aggregatingEmitter->fetch(typename DomainType::Ptr());
+    aggregatingEmitter->fetch();
     return list;
 }
 

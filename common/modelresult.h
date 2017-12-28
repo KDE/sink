@@ -65,7 +65,7 @@ public:
     bool canFetchMore(const QModelIndex &parent) const;
     void fetchMore(const QModelIndex &parent);
 
-    void setFetcher(const std::function<void(const Ptr &parent)> &fetcher);
+    void setFetcher(const std::function<void()> &fetcher);
 
 private:
     void add(const Ptr &value);
@@ -75,7 +75,7 @@ private:
 
     qint64 parentId(const Ptr &value);
     QModelIndex createIndexFromId(const qint64 &id) const;
-    void fetchEntities(const QModelIndex &parent);
+    void fetchEntities();
 
     Sink::Log::Context  mLogCtx;
     // TODO we should be able to directly use T as index, with an appropriate hash function, and thus have a QMap<T, T> and QList<T>
@@ -88,7 +88,7 @@ private:
     QMap<qint64 /* entity id */, int /* Status */> mEntityStatus;
     QList<QByteArray> mPropertyColumns;
     Sink::Query mQuery;
-    std::function<void(const Ptr &)> loadEntities;
+    std::function<void()> loadEntities;
     typename Sink::ResultEmitter<Ptr>::Ptr mEmitter;
     async::ThreadBoundary threadBoundary;
     QScopedPointer<Sink::Notifier> mNotifier;

@@ -110,7 +110,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
     };
 
     QObject *guard = new QObject;
-    mResultProvider->setFetcher([this, query, guard, &configNotifier, matchesTypeAndIds](const QSharedPointer<DomainType> &) {
+    mResultProvider->setFetcher([this, query, guard, &configNotifier, matchesTypeAndIds]() {
         const auto entries = mConfigStore.getEntries();
         for (const auto &res : entries.keys()) {
             const auto type = entries.value(res);
@@ -127,7 +127,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
             mResultProvider->add(entity);
         }
         // TODO initialResultSetComplete should be implicit
-        mResultProvider->initialResultSetComplete(typename DomainType::Ptr(), true);
+        mResultProvider->initialResultSetComplete(true);
         mResultProvider->complete();
     });
     if (query.liveQuery()) {
@@ -390,11 +390,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
                 auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(resource->identifier(), ResourceConfig::getResourceType(resource->identifier()));
                 monitorResource(accountIdentifier, *resource, resourceAccess);
             });
-            emitter->onModified([](const ApplicationDomain::SinkResource::Ptr &) {});
-            emitter->onRemoved([](const ApplicationDomain::SinkResource::Ptr &) {});
-            emitter->onInitialResultSetComplete([](const ApplicationDomain::SinkResource::Ptr &, bool) {});
-            emitter->onComplete([]() {});
-            emitter->fetch({});
+            emitter->fetch();
             runner->mResourceEmitter[accountIdentifier] = emitter;
         }
 

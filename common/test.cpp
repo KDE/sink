@@ -150,22 +150,13 @@ public:
         // We have to do it this way, otherwise we're not setting the fetcher right
         auto emitter = resultProvider->emitter();
 
-        resultProvider->setFetcher([query, resultProvider, this](const typename T::Ptr &parent) {
-            if (parent) {
-                SinkTrace() << "Running the fetcher " << parent->identifier();
-            } else {
-                SinkTrace() << "Running the fetcher.";
-            }
+        resultProvider->setFetcher([query, resultProvider, this]() {
+            SinkTrace() << "Running the fetcher.";
             SinkTrace() << "-------------------------.";
             for (const auto &res : mTestAccount->entities<T>()) {
-                qDebug() << "Parent filter " << query.getFilter("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
-                auto parentProperty = res->getProperty("parent").toByteArray();
-                if ((!parent && parentProperty.isEmpty()) || (parent && parentProperty == parent->identifier()) || query.parentProperty().isEmpty()) {
-                    qDebug() << "Found a match" << res->identifier();
-                    resultProvider->add(res.template staticCast<T>());
-                }
+                resultProvider->add(res.template staticCast<T>());
             }
-            resultProvider->initialResultSetComplete(parent, true);
+            resultProvider->initialResultSetComplete(true);
         });
         auto job = KAsync::start([query, resultProvider]() {});
         return qMakePair(job, emitter);

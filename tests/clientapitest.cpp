@@ -13,7 +13,6 @@
 
 template <typename T>
 struct Result {
-    QSharedPointer<T> parent;
     bool fetchedAll;
 };
 
@@ -73,37 +72,28 @@ public:
         // We have to do it this way, otherwise we're not setting the fetcher right
         auto emitter = resultProvider->emitter();
 
-        resultProvider->setFetcher([query, resultProvider, this, ctx](const typename T::Ptr &parent) {
+        resultProvider->setFetcher([query, resultProvider, this, ctx]() {
             async::run<Result<T>>([=] {
-                if (parent) {
-                    SinkTraceCtx(ctx) << "Running the fetcher " << parent->identifier();
-                } else {
-                    SinkTraceCtx(ctx) << "Running the fetcher.";
-                }
+                SinkTraceCtx(ctx) << "Running the fetcher.";
                 SinkTraceCtx(ctx) << "-------------------------.";
                 int count = 0;
                 for (int i = offset; i < results.size(); i++) {
                     const auto res = results.at(i);
                     count++;
-                    // SinkTraceCtx(ctx) << "Parent filter " << query.getFilter("parent").value.toByteArray() << res->identifier() << res->getProperty("parent").toByteArray();
-                    auto parentProperty = res->getProperty("parent").toByteArray();
-                    if ((!parent && parentProperty.isEmpty()) || (parent && parentProperty == parent->identifier()) || query.parentProperty().isEmpty()) {
-                        // SinkTraceCtx(ctx) << "Found a hit" << res->identifier();
-                        resultProvider->add(res);
-                    }
+                    resultProvider->add(res);
                     if (query.limit()) {
                         if (count >= query.limit()) {
                             SinkTraceCtx(ctx) << "Aborting early after " << count << "results.";
                             offset = i + 1;
                             bool fetchedAll = (i + 1 >= results.size());
-                            return Result<T>{parent, fetchedAll};
+                            return Result<T>{fetchedAll};
                         }
                     }
                 }
-                return Result<T>{parent, true};
+                return Result<T>{true};
             }, runAsync)
             .then([=] (const Result<T> &r) {
-                resultProvider->initialResultSetComplete(r.parent, r.fetchedAll);
+                resultProvider->initialResultSetComplete(r.fetchedAll);
             })
             .exec();
         });

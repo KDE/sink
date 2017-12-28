@@ -245,8 +245,6 @@ private slots:
         auto model = Sink::Store::loadModel<Folder>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
-        model->fetchMore(model->index(0, 0));
-        QTRY_VERIFY(model->data(model->index(0, 0), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(model->index(0, 0)), 1);
     }
 
@@ -266,7 +264,6 @@ private slots:
         auto model = Sink::Store::loadModel<Folder>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
-        model->fetchMore(model->index(0, 0));
 
         auto subfolder = ApplicationDomainType::createEntity<Folder>("sink.dummy.instance1");
         subfolder.setParent(folder.identifier());
@@ -274,9 +271,7 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
 
         //Ensure the folder appears
-        model->fetchMore(model->index(0, 0));
-        QTRY_VERIFY(model->data(model->index(0, 0), Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(model->rowCount(model->index(0, 0)), 1);
+        QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
 
         //...and dissapears again after removal
         VERIFYEXEC(Sink::Store::remove<Folder>(subfolder));

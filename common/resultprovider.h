@@ -48,10 +48,10 @@ public:
     virtual void add(const T &value) = 0;
     virtual void modify(const T &value) = 0;
     virtual void remove(const T &value) = 0;
-    virtual void initialResultSetComplete(const T &parent, bool) = 0;
+    virtual void initialResultSetComplete(bool) = 0;
     virtual void complete() = 0;
     virtual void clear() = 0;
-    virtual void setFetcher(const std::function<void(const T &parent)> &fetcher) = 0;
+    virtual void setFetcher(const std::function<void()> &fetcher) = 0;
 
     void setRevision(qint64 revision)
     {
@@ -102,10 +102,10 @@ public:
         }
     }
 
-    void initialResultSetComplete(const T &parent, bool replayedAll)
+    void initialResultSetComplete(bool replayedAll)
     {
         if (auto strongRef = mResultEmitter.toStrongRef()) {
-            strongRef->initialResultSetComplete(parent, replayedAll);
+            strongRef->initialResultSetComplete(replayedAll);
         }
     }
 
@@ -134,9 +134,9 @@ public:
                 delete emitter;
             });
             mResultEmitter = sharedPtr;
-            sharedPtr->setFetcher([this](const T &parent) {
+            sharedPtr->setFetcher([this]() {
                 Q_ASSERT(mFetcher);
-                mFetcher(parent);
+                mFetcher();
             });
             return sharedPtr;
         }
@@ -155,7 +155,7 @@ public:
         return mResultEmitter.toStrongRef().isNull();
     }
 
-    void setFetcher(const std::function<void(const T &parent)> &fetcher)
+    void setFetcher(const std::function<void()> &fetcher)
     {
         mFetcher = fetcher;
     }
@@ -173,7 +173,7 @@ private:
 
     QWeakPointer<ResultEmitter<T>> mResultEmitter;
     std::function<void()> mOnDoneCallback;
-    std::function<void(const T &parent)> mFetcher;
+    std::function<void()> mFetcher;
 };
 
 /*
@@ -222,7 +222,7 @@ public:
         removeHandler = handler;
     }
 
-    void onInitialResultSetComplete(const std::function<void(const DomainType &, bool)> &handler)
+    void onInitialResultSetComplete(const std::function<void(bool)> &handler)
     {
         initialResultSetCompleteHandler = handler;
     }
@@ -246,7 +246,9 @@ public:
     {
         QMutexLocker locker{&mMutex};
         if (guardOk()) {
-            addHandler(value);
+            if (addHandler) {
+                addHandler(value);
+            }
         }
     }
 
@@ -254,7 +256,9 @@ public:
     {
         QMutexLocker locker{&mMutex};
         if (guardOk()) {
-            modifyHandler(value);
+            if (modifyHandler) {
+                modifyHandler(value);
+            }
         }
     }
 
@@ -262,16 +266,20 @@ public:
     {
         QMutexLocker locker{&mMutex};
         if (guardOk()) {
-            removeHandler(value);
+            if (removeHandler) {
+                removeHandler(value);
+            }
         }
     }
 
-    void initialResultSetComplete(const DomainType &parent, bool replayedAll)
+    void initialResultSetComplete(bool replayedAll)
     {
         //This callback is only ever called from the main thread, so we don't do any locking
         if (initialResultSetCompleteHandler && guardOk()) {
-            //This can directly lead to our destruction and thus waitForMethodExecutionEnd
-            initialResultSetCompleteHandler(parent, replayedAll);
+            if (initialResultSetCompleteHandler) {
+                //This can directly lead to our destruction and thus waitForMethodExecutionEnd
+                initialResultSetCompleteHandler(replayedAll);
+            }
         }
     }
 
@@ -279,7 +287,9 @@ public:
     {
         QMutexLocker locker{&mMutex};
         if (completeHandler && guardOk()) {
-            completeHandler();
+            if (completeHandler) {
+                completeHandler();
+            }
         }
     }
 
@@ -287,19 +297,21 @@ public:
     {
         QMutexLocker locker{&mMutex};
         if (clearHandler && guardOk()) {
-            clearHandler();
+            if (clearHandler) {
+                clearHandler();
+            }
         }
     }
 
-    void setFetcher(const std::function<void(const DomainType &parent)> &fetcher)
+    void setFetcher(const std::function<void()> &fetcher)
     {
         mFetcher = fetcher;
     }
 
-    virtual void fetch(const DomainType &parent)
+    virtual void fetch()
     {
         if (mFetcher) {
-            mFetcher(parent);
+            mFetcher();
         }
     }
 
@@ -309,11 +321,11 @@ private:
     std::function<void(const DomainType &)> addHandler;
     std::function<void(const DomainType &)> modifyHandler;
     std::function<void(const DomainType &)> removeHandler;
-    std::function<void(const DomainType &, bool)> initialResultSetCompleteHandler;
+    std::function<void(bool)> initialResultSetCompleteHandler;
     std::function<void(void)> completeHandler;
     std::function<void(void)> clearHandler;
 
-    std::function<void(const DomainType &parent)> mFetcher;
+    std::function<void()> mFetcher;
     /*
      * This mutex is here to protect the emitter from getting destroyed while the producer-thread (ResultProvider) is calling into it,
      * and vice-verca, to protect the producer thread from calling into a destroyed emitter.
@@ -350,53 +362,50 @@ public:
         emitter->onModified([this](const DomainType &value) { this->modify(value); });
         emitter->onRemoved([this](const DomainType &value) { this->remove(value); });
         auto ptr = emitter.data();
-        emitter->onInitialResultSetComplete([this, ptr](const DomainType &parent, bool replayedAll) {
-            auto hashValue = qHash(parent);
+        emitter->onInitialResultSetComplete([this, ptr](bool replayedAll) {
             if (replayedAll) {
-                mAllResultsReplayed.remove(hashValue, ptr);
+                mAllResultsReplayed.remove(ptr);
             }
-            mInitialResultSetInProgress.remove(hashValue, ptr);
-            callInitialResultCompleteIfDone(parent);
+            mInitialResultSetInProgress.remove(ptr);
+            callInitialResultCompleteIfDone();
         });
         emitter->onComplete([this]() { this->complete(); });
         emitter->onClear([this]() { this->clear(); });
         mEmitter << emitter;
     }
 
-    void callInitialResultCompleteIfDone(const DomainType &parent)
+    void callInitialResultCompleteIfDone()
     {
-        auto hashValue = qHash(parent);
         // Normally a parent is only in a single resource, except the toplevel (invalid) parent
-        if (!mInitialResultSetInProgress.contains(hashValue) && mAllResultsFetched && !mResultEmitted) {
-            bool allResourcesReplayedAll = mAllResultsReplayed.isEmpty();
+        if (mInitialResultSetInProgress.isEmpty() && mAllResultsFetched && !mResultEmitted) {
             mResultEmitted = true;
-            this->initialResultSetComplete(parent, allResourcesReplayedAll);
+            this->initialResultSetComplete(mAllResultsReplayed.isEmpty());
         }
     }
 
-    void fetch(const DomainType &parent) Q_DECL_OVERRIDE
+    void fetch() Q_DECL_OVERRIDE
     {
         if (mEmitter.isEmpty()) {
-            this->initialResultSetComplete(parent, true);
+            this->initialResultSetComplete(true);
         } else {
             mResultEmitted = false;
             mAllResultsFetched = false;
+            mInitialResultSetInProgress.clear();
             mAllResultsReplayed.clear();
-            const auto hashValue = qHash(parent);
             for (const auto &emitter : mEmitter) {
-                mInitialResultSetInProgress.insert(hashValue, emitter.data());
-                mAllResultsReplayed.insert(hashValue, emitter.data());
-                emitter->fetch(parent);
+                mInitialResultSetInProgress.insert(emitter.data());
+                mAllResultsReplayed.insert(emitter.data());
+                emitter->fetch();
             }
             mAllResultsFetched = true;
-            callInitialResultCompleteIfDone(parent);
+            callInitialResultCompleteIfDone();
         }
     }
 
 private:
     QList<typename ResultEmitter<DomainType>::Ptr> mEmitter;
-    QMultiMap<qint64, ResultEmitter<DomainType> *> mInitialResultSetInProgress;
-    QMultiMap<qint64, ResultEmitter<DomainType> *> mAllResultsReplayed;
+    QSet<ResultEmitter<DomainType>*> mInitialResultSetInProgress;
+    QSet<ResultEmitter<DomainType>*> mAllResultsReplayed;
     bool mAllResultsFetched;
     bool mResultEmitted;
 };

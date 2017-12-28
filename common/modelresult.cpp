@@ -253,14 +253,14 @@ bool ModelResult<T, Ptr>::hasChildren(const QModelIndex &parent) const
     if (mQuery.parentProperty().isEmpty() && parent.isValid()) {
         return false;
     }
-    //Figure out whether we have children
-    const auto id = parent.internalId();
-    if (!mEntityChildrenFetched.contains(id)) {
-        //Since we don't retrieve that information as part of the entity,
-        //we have to query for the children to see if we have some
-        auto p = const_cast<ModelResult<T, Ptr>*>(this);
-        p->fetchMore(parent);
-    }
+    // //Figure out whether we have children
+    // const auto id = parent.internalId();
+    // if (!mEntityChildrenFetched.contains(id)) {
+    //     //Since we don't retrieve that information as part of the entity,
+    //     //we have to query for the children to see if we have some
+    //     auto p = const_cast<ModelResult<T, Ptr>*>(this);
+    //     p->fetchMore(parent);
+    // }
     return QAbstractItemModel::hasChildren(parent);
 }
 
@@ -278,7 +278,9 @@ template <class T, class Ptr>
 void ModelResult<T, Ptr>::fetchMore(const QModelIndex &parent)
 {
     SinkTraceCtx(mLogCtx) << "Fetching more: " << parent;
-    fetchEntities(parent);
+    if (!parent.isValid()) {
+        fetchEntities();
+    }
 }
 
 template <class T, class Ptr>
@@ -287,10 +289,10 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
     const auto childId = qHash(*value);
     const auto id = parentId(value);
     // Ignore updates we get before the initial fetch is done
-    if (!mEntityChildrenFetched.contains(id)) {
-        SinkTraceCtx(mLogCtx) << "Too early" << id;
-        return;
-    }
+    // if (!mEntityChildrenFetched.contains(id)) {
+    //     SinkTraceCtx(mLogCtx) << "Too early" << id;
+    //     return;
+    // }
     if (mEntities.contains(childId)) {
         SinkWarningCtx(mLogCtx) << "Entity already in model: " << value->identifier();
         return;
@@ -335,27 +337,27 @@ void ModelResult<T, Ptr>::remove(const Ptr &value)
 }
 
 template <class T, class Ptr>
-void ModelResult<T, Ptr>::fetchEntities(const QModelIndex &parent)
+void ModelResult<T, Ptr>::fetchEntities()
 {
     Q_ASSERT(QThread::currentThread() == this->thread());
-    const auto id = getIdentifier(parent);
+    const auto id = getIdentifier({});
     //There is already a fetch in progress, don't fetch again.
     if (mEntityChildrenFetched.contains(id) && !mEntityChildrenFetchComplete.contains(id)) {
-        SinkTraceCtx(mLogCtx) << "A fetch is already in progress: " << parent;
+        SinkTraceCtx(mLogCtx) << "A fetch is already in progress.";
         return;
     }
     mEntityChildrenFetchComplete.remove(id);
     mEntityChildrenFetched.insert(id);
     SinkTraceCtx(mLogCtx) << "Loading child entities of parent " << id;
     if (loadEntities) {
-        loadEntities(parent.data(DomainObjectRole).template value<Ptr>());
+        loadEntities();
     } else {
         SinkWarningCtx(mLogCtx) << "No way to fetch entities";
     }
 }
 
 template <class T, class Ptr>
-void ModelResult<T, Ptr>::setFetcher(const std::function<void(const Ptr &parent)> &fetcher)
+void ModelResult<T, Ptr>::setFetcher(const std::function<void()> &fetcher)
 {
     SinkTraceCtx(mLogCtx) << "Setting fetcher";
     loadEntities = fetcher;
@@ -364,7 +366,7 @@ void ModelResult<T, Ptr>::setFetcher(const std::function<void(const Ptr &parent)
 template <class T, class Ptr>
 void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Ptr &emitter)
 {
-    setFetcher([this](const Ptr &parent) { mEmitter->fetch(parent); });
+    setFetcher([this]() { mEmitter->fetch(); });
 
     QPointer<QObject> guard(this);
     emitter->onAdded([this, guard](const Ptr &value) {
@@ -389,18 +391,19 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
             remove(value);
         });
     });
-    emitter->onInitialResultSetComplete([this, guard](const Ptr &parent, bool fetchedAll) {
+    emitter->onInitialResultSetComplete([this, guard](bool fetchedAll) {
         SinkTraceCtx(mLogCtx) << "Initial result set complete. Fetched all: " << fetchedAll;
         Q_ASSERT(guard);
         Q_ASSERT(QThread::currentThread() == this->thread());
 
-        const qint64 parentId = parent ? qHash(*parent) : 0;
-        const auto parentIndex = createIndexFromId(parentId);
-        mEntityChildrenFetchComplete.insert(parentId);
+        // const qint64 parentId = parent ? qHash(*parent) : 0;
+        // const auto parentIndex = createIndexFromId(parentId);
+        mEntityChildrenFetchComplete.insert(0);
         if (fetchedAll) {
-            mEntityAllChildrenFetched.insert(parentId);
+            mEntityAllChildrenFetched.insert(0);
         }
-        emit dataChanged(parentIndex, parentIndex, QVector<int>() << ChildrenFetchedRole);
+        // emit dataChanged(parentIndex, parentIndex, QVector<int>() << ChildrenFetchedRole);
+        emit dataChanged({}, {}, QVector<int>() << ChildrenFetchedRole);
     });
     mEmitter = emitter;
 }
@@ -423,9 +426,9 @@ void ModelResult<T, Ptr>::modify(const Ptr &value)
     }
     auto id = parentId(value);
     // Ignore updates we get before the initial fetch is done
-    if (!mEntityChildrenFetched.contains(id)) {
-        return;
-    }
+    // if (!mEntityChildrenFetched.contains(id)) {
+    //     return;
+    // }
     auto parent = createIndexFromId(id);
     SinkTraceCtx(mLogCtx) << "Modified entity:" << value->identifier() << ", id: " << childId;
     auto i = mTree[id].indexOf(childId);

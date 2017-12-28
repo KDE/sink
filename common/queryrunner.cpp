@@ -51,7 +51,7 @@ public:
     virtual ~QueryWorker();
 
     ReplayResult executeIncrementalQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, DataStoreQuery::State::Ptr state);
-    ReplayResult executeInitialQuery(const Sink::Query &query, const typename DomainType::Ptr &parent, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, int batchsize, DataStoreQuery::State::Ptr state);
+    ReplayResult executeInitialQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, int batchsize, DataStoreQuery::State::Ptr state);
 
 private:
     void resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const ResultSet::Result &result);
@@ -70,34 +70,33 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
         SinkWarningCtx(mLogCtx) << "A limited query without sorting is typically a bad idea, because there is no telling what you're going to get.";
     }
     auto guardPtr = QPointer<QObject>(&guard);
-    auto fetcher = [=](const typename DomainType::Ptr &parent) {
-        const QByteArray parentId = parent ? parent->identifier() : QByteArray();
+    auto fetcher = [=]() {
         SinkTraceCtx(mLogCtx) << "Running fetcher. Batchsize: " << mBatchSize;
         auto resultProvider = mResultProvider;
         auto resultTransformation = mResultTransformation;
         auto batchSize = mBatchSize;
         auto resourceContext = mResourceContext;
         auto logCtx = mLogCtx;
-        auto state = mQueryState.value(parentId);
+        auto state = mQueryState;
         const bool runAsync = !query.synchronousQuery();
         //The lambda will be executed in a separate thread, so copy all arguments
         async::run<ReplayResult>([=]() {
             QueryWorker<DomainType> worker(query, resourceContext, bufferType, resultTransformation, logCtx);
-            return worker.executeInitialQuery(query, parent, *resultProvider, batchSize, state);
+            return worker.executeInitialQuery(query, *resultProvider, batchSize, state);
         }, runAsync)
-            .then([this, parentId, query, parent, resultProvider, guardPtr](const ReplayResult &result) {
+            .then([this, query, resultProvider, guardPtr](const ReplayResult &result) {
                 if (!guardPtr) {
                     //Not an error, the query can vanish at any time.
                     return;
                 }
                 mInitialQueryComplete = true;
-                mQueryState[parentId] = result.queryState;
+                mQueryState = result.queryState;
                 // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
                 if (query.liveQuery()) {
                     mResourceAccess->sendRevisionReplayedCommand(result.newRevision);
                 }
                 resultProvider->setRevision(result.newRevision);
-                resultProvider->initialResultSetComplete(parent, result.replayedAll);
+                resultProvider->initialResultSetComplete(result.replayedAll);
             })
             .exec();
     };
@@ -110,14 +109,13 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
         Q_ASSERT(!query.synchronousQuery());
         // Incremental updates are always loaded directly, leaving it up to the result to discard the changes if they are not interesting
         setQuery([=]() -> KAsync::Job<void> {
-            const QByteArray parentId;
             auto resultProvider = mResultProvider;
             auto resourceContext = mResourceContext;
             auto logCtx = mLogCtx;
-            auto state = mQueryState.value(parentId);
+            auto state = mQueryState;
             if (!mInitialQueryComplete) {
                 SinkWarningCtx(mLogCtx) << "Can't start the incremental query before the initial query is complete";
-                fetcher({});
+                fetcher();
                 return KAsync::null();
             }
             if (mQueryInProgress) {
@@ -240,7 +238,7 @@ ReplayResult QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query 
 
 template <class DomainType>
 ReplayResult QueryWorker<DomainType>::executeInitialQuery(
-    const Sink::Query &query, const typename DomainType::Ptr &parent, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, int batchsize, DataStoreQuery::State::Ptr state)
+    const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, int batchsize, DataStoreQuery::State::Ptr state)
 {
     QTime time;
     time.start();

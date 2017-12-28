@@ -96,7 +96,7 @@ private:
     QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
     QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr>> mResultProvider;
     ResultTransformation mResultTransformation;
-    QHash<QByteArray, DataStoreQuery::State::Ptr> mQueryState;
+    DataStoreQuery::State::Ptr mQueryState;
     int mBatchSize;
     QObject guard;
     Sink::Log::Context mLogCtx;

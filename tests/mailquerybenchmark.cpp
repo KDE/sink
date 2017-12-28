@@ -96,8 +96,8 @@ class MailQueryBenchmark : public QObject
         int i = 0;
         emitter->onAdded([&](const Mail::Ptr &) { i++; });
         bool done = false;
-        emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail, bool) { done = true; });
-        emitter->fetch(Mail::Ptr());
+        emitter->onInitialResultSetComplete([&done](bool) { done = true; });
+        emitter->fetch();
         QUICK_TRY_VERIFY(done);
         return i;
     }
@@ -273,8 +273,8 @@ private slots:
         emitter->onRemoved([&](const Mail::Ptr &mail) { removed << mail; /*qWarning() << "Removed";*/ });
         emitter->onModified([&](const Mail::Ptr &mail) { modified << mail; /*qWarning() << "Modified";*/ });
         bool done = false;
-        emitter->onInitialResultSetComplete([&done](const Mail::Ptr &mail, bool) { done = true; });
-        emitter->fetch(Mail::Ptr());
+        emitter->onInitialResultSetComplete([&done](bool) { done = true; });
+        emitter->fetch();
         QUICK_TRY_VERIFY(done);
         QCOMPARE(added.size(), expectedSize);
 

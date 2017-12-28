@@ -82,16 +82,10 @@ Notifier::Notifier(const Sink::Query &resourceQuery) : d(new Sink::Notifier::Pri
         resourceAccess->open();
         d->listenForNotifications(resourceAccess);
     });
-    emitter->onModified([](const ApplicationDomain::SinkResource::Ptr &) {
-    });
-    emitter->onRemoved([](const ApplicationDomain::SinkResource::Ptr &) {
-    });
-    emitter->onInitialResultSetComplete([](const ApplicationDomain::SinkResource::Ptr &, bool) {
-    });
     emitter->onComplete([resourceCtx]() {
         SinkTraceCtx(resourceCtx) << "Resource query complete";
     });
-    emitter->fetch({});
+    emitter->fetch();
     if (resourceQuery.liveQuery()) {
         d->mResourceEmitter = emitter;
     }
