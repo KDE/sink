@@ -393,7 +393,6 @@ KAsync::Job<QVector<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbo
 
 KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUids(const QString &mailbox)
 {
-    auto term = KIMAP2::Term(KIMAP2::Term::Uid, KIMAP2::ImapSet(1, 0));
     auto notDeleted = KIMAP2::Term(KIMAP2::Term::Deleted);
     notDeleted.setNegated(true);
     return select(mailbox).then<QVector<qint64>>(search(notDeleted));

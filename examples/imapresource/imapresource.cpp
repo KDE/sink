@@ -285,10 +285,11 @@ public:
         //This will also pull in any new messages in subsequent runs.
         .then([=] {
             auto job = [&] {
-                SinkLogCtx(mLogCtx) << "Fetching messages since: " << dateFilter;
                 if (dateFilter.isValid()) {
+                    SinkLogCtx(mLogCtx) << "Fetching messages since: " << dateFilter;
                     return imap->fetchUidsSince(imap->mailboxFromFolder(folder), dateFilter);
                 } else {
+                    SinkLogCtx(mLogCtx) << "Fetching messages.";
                     return imap->fetchUids(imap->mailboxFromFolder(folder));
                 }
             }();
@@ -394,12 +395,15 @@ public:
 
     Sink::QueryBase applyMailDefaults(const Sink::QueryBase &query)
     {
-        auto defaultDateFilter = QDate::currentDate().addDays(0 - mDaysToSync);
-        auto queryWithDefaults = query;
-        if (!queryWithDefaults.hasFilter<ApplicationDomain::Mail::Date>()) {
-            queryWithDefaults.filter(ApplicationDomain::Mail::Date::name, QVariant::fromValue(defaultDateFilter));
+        if (mDaysToSync > 0) {
+            auto defaultDateFilter = QDate::currentDate().addDays(0 - mDaysToSync);
+            auto queryWithDefaults = query;
+            if (!queryWithDefaults.hasFilter<ApplicationDomain::Mail::Date>()) {
+                queryWithDefaults.filter(ApplicationDomain::Mail::Date::name, QVariant::fromValue(defaultDateFilter));
+            }
+            return queryWithDefaults;
         }
-        return queryWithDefaults;
+        return query;
     }
 
     QList<Synchronizer::SyncRequest> getSyncRequests(const Sink::QueryBase &query) Q_DECL_OVERRIDE

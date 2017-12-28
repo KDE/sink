@@ -38,6 +38,7 @@ protected:
         resource.setProperty("server", "localhost");
         resource.setProperty("port", 143);
         resource.setProperty("username", "doe");
+        resource.setProperty("daysToSync", 0);
         Sink::SecretStore::instance().insert(resource.identifier(), "doe");
         return resource;
     }
