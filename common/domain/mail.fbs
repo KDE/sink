@@ -22,7 +22,7 @@ table Mail {
   sent:bool = false;
   messageId:string;
   parentMessageId:string;
-  fullPayloadAvailable:bool = false;
+  fullPayloadAvailable:bool = true;
 }
 
 root_type Mail;
