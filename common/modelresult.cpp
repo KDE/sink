@@ -318,7 +318,9 @@ template <class T, class Ptr>
 void ModelResult<T, Ptr>::remove(const Ptr &value)
 {
     auto childId = qHash(*value);
-    auto id = parentId(value);
+    //The removed entity will have no properties, but we at least need the parent property.
+    auto actualEntity = mEntities.value(childId);
+    auto id = parentId(actualEntity);
     auto parent = createIndexFromId(id);
     SinkTraceCtx(mLogCtx) << "Removed entity" << childId;
     auto index = mTree[id].indexOf(childId);

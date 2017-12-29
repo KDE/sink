@@ -263,7 +263,6 @@ private slots:
         query.resourceFilter("sink.dummy.instance1");
         query.requestTree<Folder::Parent>();
 
-        // We fetch after the data is available and don't rely on the live query mechanism to deliver the actual data
         auto model = Sink::Store::loadModel<Folder>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
@@ -274,9 +273,15 @@ private slots:
         VERIFYEXEC(Sink::Store::create<Folder>(subfolder));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
 
+        //Ensure the folder appears
         model->fetchMore(model->index(0, 0));
         QTRY_VERIFY(model->data(model->index(0, 0), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(model->index(0, 0)), 1);
+
+        //...and dissapears again after removal
+        VERIFYEXEC(Sink::Store::remove<Folder>(subfolder));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(model->index(0, 0)), 0);
     }
 
     void testMailByMessageId()
