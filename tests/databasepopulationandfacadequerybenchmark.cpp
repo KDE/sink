@@ -7,7 +7,6 @@
 #include <common/facade.h>
 #include <common/domainadaptor.h>
 #include <common/resultprovider.h>
-#include <common/synclistresult.h>
 #include <common/definitions.h>
 #include <common/query.h>
 #include <common/store.h>
