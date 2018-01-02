@@ -62,8 +62,11 @@ const char* Imap::Capabilities::Namespace = "NAMESPACE";
 const char* Imap::Capabilities::Uidplus = "UIDPLUS";
 const char* Imap::Capabilities::Condstore = "CONDSTORE";
 
-static int translateImapError(int error, bool isLoginJob)
+static int translateImapError(KJob *job)
 {
+    const int error = job->error();
+    const bool isLoginJob = dynamic_cast<KIMAP2::LoginJob*>(job);
+    const bool isSelectJob = dynamic_cast<KIMAP2::SelectJob*>(job);
     switch (error) {
         case KIMAP2::LoginJob::ErrorCode::ERR_HOST_NOT_FOUND:
             return Imap::HostNotFoundError;
@@ -75,6 +78,10 @@ static int translateImapError(int error, bool isLoginJob)
     //Hack to detect login failures
     if (isLoginJob) {
         return Imap::LoginFailed;
+    }
+    //Hack to detect selection errors
+    if (isSelectJob) {
+        return Imap::SelectFailed;
     }
     //Hack to detect connection lost
     if (error == KJob::UserDefinedError) {
@@ -91,7 +98,7 @@ static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob*)> &f)
             SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
                 SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className() << job->error();
-                auto proxyError = translateImapError(job->error(), dynamic_cast<KIMAP2::LoginJob*>(job));
+                auto proxyError = translateImapError(job);
                 future.setError(proxyError, job->errorString());
             } else {
                 future.setValue(f(job));
@@ -110,7 +117,7 @@ static KAsync::Job<void> runJob(KJob *job)
             SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
                 SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className() << job->error();
-                auto proxyError = translateImapError(job->error(), dynamic_cast<KIMAP2::LoginJob*>(job));
+                auto proxyError = translateImapError(job);
                 future.setError(proxyError, job->errorString());
             } else {
                 future.setFinished();
