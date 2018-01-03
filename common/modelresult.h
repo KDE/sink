@@ -75,17 +75,16 @@ private:
 
     qint64 parentId(const Ptr &value);
     QModelIndex createIndexFromId(const qint64 &id) const;
-    void fetchEntities();
 
     Sink::Log::Context  mLogCtx;
     // TODO we should be able to directly use T as index, with an appropriate hash function, and thus have a QMap<T, T> and QList<T>
     QMap<qint64 /* entity id */, Ptr> mEntities;
     QMap<qint64 /* parent entity id */, QList<qint64> /* child entity id*/> mTree;
     QMap<qint64 /* child entity id */, qint64 /* parent entity id*/> mParents;
-    QSet<qint64 /* entity id */> mEntityChildrenFetched;
-    QSet<qint64 /* entity id */> mEntityChildrenFetchComplete;
-    QSet<qint64 /* entity id */> mEntityAllChildrenFetched;
     QMap<qint64 /* entity id */, int /* Status */> mEntityStatus;
+    bool mFetchInProgress{false};
+    bool mFetchedAll{false};
+    bool mFetchComplete{false};
     QList<QByteArray> mPropertyColumns;
     Sink::Query mQuery;
     std::function<void()> loadEntities;

@@ -259,8 +259,8 @@ bool ModelResult<T, Ptr>::hasChildren(const QModelIndex &parent) const
 template <class T, class Ptr>
 bool ModelResult<T, Ptr>::canFetchMore(const QModelIndex &parent) const
 {
-    const auto id = parent.internalId();
-    if (mEntityAllChildrenFetched.contains(id)) {
+    //We fetch trees immediately so can never fetch more
+    if (parent.isValid() || mFetchedAll) {
         return false;
     }
     return true;
@@ -270,8 +270,23 @@ template <class T, class Ptr>
 void ModelResult<T, Ptr>::fetchMore(const QModelIndex &parent)
 {
     SinkTraceCtx(mLogCtx) << "Fetching more: " << parent;
-    if (!parent.isValid()) {
-        fetchEntities();
+    Q_ASSERT(QThread::currentThread() == this->thread());
+    //We only suppor fetchMore for flat lists
+    if (parent.isValid()) {
+        return;
+    }
+    //There is already a fetch in progress, don't fetch again.
+    if (mFetchInProgress) {
+        SinkTraceCtx(mLogCtx) << "A fetch is already in progress.";
+        return;
+    }
+    mFetchInProgress = true;
+    mFetchComplete = false;
+    SinkTraceCtx(mLogCtx) << "Fetching more.";
+    if (loadEntities) {
+        loadEntities();
+    } else {
+        SinkWarningCtx(mLogCtx) << "No way to fetch entities";
     }
 }
 
@@ -280,11 +295,6 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
 {
     const auto childId = qHash(*value);
     const auto pId = parentId(value);
-    // Ignore updates we get before the initial fetch is done
-    // if (!mEntityChildrenFetched.contains(id)) {
-    //     SinkTraceCtx(mLogCtx) << "Too early" << id;
-    //     return;
-    // }
     if (mEntities.contains(childId)) {
         SinkWarningCtx(mLogCtx) << "Entity already in model: " << value->identifier();
         return;
@@ -333,26 +343,6 @@ void ModelResult<T, Ptr>::remove(const Ptr &value)
 }
 
 template <class T, class Ptr>
-void ModelResult<T, Ptr>::fetchEntities()
-{
-    Q_ASSERT(QThread::currentThread() == this->thread());
-    const auto id = getIdentifier({});
-    //There is already a fetch in progress, don't fetch again.
-    if (mEntityChildrenFetched.contains(id) && !mEntityChildrenFetchComplete.contains(id)) {
-        SinkTraceCtx(mLogCtx) << "A fetch is already in progress.";
-        return;
-    }
-    mEntityChildrenFetchComplete.remove(id);
-    mEntityChildrenFetched.insert(id);
-    SinkTraceCtx(mLogCtx) << "Loading child entities of parent " << id;
-    if (loadEntities) {
-        loadEntities();
-    } else {
-        SinkWarningCtx(mLogCtx) << "No way to fetch entities";
-    }
-}
-
-template <class T, class Ptr>
 void ModelResult<T, Ptr>::setFetcher(const std::function<void()> &fetcher)
 {
     SinkTraceCtx(mLogCtx) << "Setting fetcher";
@@ -391,14 +381,9 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
         SinkTraceCtx(mLogCtx) << "Initial result set complete. Fetched all: " << fetchedAll;
         Q_ASSERT(guard);
         Q_ASSERT(QThread::currentThread() == this->thread());
-
-        // const qint64 parentId = parent ? qHash(*parent) : 0;
-        // const auto parentIndex = createIndexFromId(parentId);
-        mEntityChildrenFetchComplete.insert(0);
-        if (fetchedAll) {
-            mEntityAllChildrenFetched.insert(0);
-        }
-        // emit dataChanged(parentIndex, parentIndex, QVector<int>() << ChildrenFetchedRole);
+        mFetchInProgress = false;
+        mFetchedAll = fetchedAll;
+        mFetchComplete = true;
         emit dataChanged({}, {}, QVector<int>() << ChildrenFetchedRole);
     });
     mEmitter = emitter;
@@ -407,7 +392,7 @@ void ModelResult<T, Ptr>::setEmitter(const typename Sink::ResultEmitter<Ptr>::Pt
 template <class T, class Ptr>
 bool ModelResult<T, Ptr>::childrenFetched(const QModelIndex &index) const
 {
-    return mEntityChildrenFetchComplete.contains(getIdentifier(index));
+    return mFetchComplete;
 }
 
 template <class T, class Ptr>
@@ -421,10 +406,6 @@ void ModelResult<T, Ptr>::modify(const Ptr &value)
         return;
     }
     auto id = parentId(value);
-    // Ignore updates we get before the initial fetch is done
-    // if (!mEntityChildrenFetched.contains(id)) {
-    //     return;
-    // }
     auto parent = createIndexFromId(id);
     SinkTraceCtx(mLogCtx) << "Modified entity:" << value->identifier() << ", id: " << childId;
     auto i = mTree[id].indexOf(childId);
