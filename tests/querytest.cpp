@@ -98,7 +98,9 @@ private slots:
     void testSingle()
     {
         // Setup
-        VERIFYEXEC(Sink::Store::create<Mail>(Mail("sink.dummy.instance1")));
+        auto mail = Mail("sink.dummy.instance1");
+        mail.setExtractedMessageId("test1");
+        VERIFYEXEC(Sink::Store::create<Mail>(mail));
 
         // Test
         Sink::Query query;
@@ -113,7 +115,9 @@ private slots:
     void testSingleWithDelay()
     {
         // Setup
-        VERIFYEXEC(Sink::Store::create<Mail>(Mail("sink.dummy.instance1")));
+        auto mail = Mail("sink.dummy.instance1");
+        mail.setExtractedMessageId("test1");
+        VERIFYEXEC(Sink::Store::create<Mail>(mail));
 
         // Test
         Sink::Query query;
@@ -175,7 +179,9 @@ private slots:
         // Setup
         {
             Mail mail("sink.dummy.instance1");
+            mail.setExtractedMessageId("test1");
             VERIFYEXEC(Sink::Store::create<Mail>(mail));
+            mail.setExtractedMessageId("test2");
             VERIFYEXEC(Sink::Store::create<Mail>(mail));
 
             Sink::Query query;
