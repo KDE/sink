@@ -189,32 +189,11 @@ private slots:
         query.requestTree("parent");
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
-        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(model->rowCount(), 1);
+        QTRY_COMPARE(model->rowCount(), 1);
         model->fetchMore(model->index(0, 0));
-        QTRY_VERIFY(model->data(model->index(0, 0), Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(model->rowCount(model->index(0, 0)), 1);
+        QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
     }
 
-    void testModelSignals()
-    {
-        auto facade = setupFacade<Sink::ApplicationDomain::Folder>("dummyresource.instance1");
-        auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        auto subfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        subfolder->setParent("id");
-        facade->results << folder << subfolder;
-
-        // Test
-        Sink::Query query;
-        query.resourceFilter("dummyresource.instance1");
-        query.requestTree("parent");
-
-        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
-        QSignalSpy spy(model.data(), SIGNAL(rowsInserted(const QModelIndex &, int, int)));
-        QVERIFY(spy.isValid());
-        model->fetchMore(model->index(0, 0));
-        QTRY_VERIFY(spy.count() >= 1);
-    }
 
     void testModelNestedLive()
     {
