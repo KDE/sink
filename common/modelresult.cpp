@@ -279,7 +279,7 @@ template <class T, class Ptr>
 void ModelResult<T, Ptr>::add(const Ptr &value)
 {
     const auto childId = qHash(*value);
-    const auto id = parentId(value);
+    const auto pId = parentId(value);
     // Ignore updates we get before the initial fetch is done
     // if (!mEntityChildrenFetched.contains(id)) {
     //     SinkTraceCtx(mLogCtx) << "Too early" << id;
@@ -289,21 +289,25 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
         SinkWarningCtx(mLogCtx) << "Entity already in model: " << value->identifier();
         return;
     }
-    auto parent = createIndexFromId(id);
-    SinkTraceCtx(mLogCtx) << "Added entity " << childId <<  "id: " << value->identifier() << "parent: " << id;
-    const auto keys = mTree[id];
+    const auto keys = mTree[pId];
     int idx = 0;
     for (; idx < keys.size(); idx++) {
         if (childId < keys.at(idx)) {
             break;
         }
     }
+    bool parentIsAvailable = mEntities.contains(pId) || (pId == 0);
+    SinkTraceCtx(mLogCtx) << "Added entity " << childId <<  "id: " << value->identifier() << "parent: " << pId;
     // SinkTraceCtx(mLogCtx) << "Inserting rows " << index << parent;
-    beginInsertRows(parent, idx, idx);
+    if (parentIsAvailable) {
+        beginInsertRows(createIndexFromId(pId), idx, idx);
+    }
     mEntities.insert(childId, value);
-    mTree[id].insert(idx, childId);
-    mParents.insert(childId, id);
-    endInsertRows();
+    mTree[pId].insert(idx, childId);
+    mParents.insert(childId, pId);
+    if (parentIsAvailable) {
+        endInsertRows();
+    }
     // SinkTraceCtx(mLogCtx) << "Inserted rows " << mTree[id].size();
 }
 
