@@ -236,6 +236,7 @@ QModelIndex ModelResult<T, Ptr>::createIndexFromId(const qint64 &id) const
     }
     auto grandParentId = mParents.value(id, 0);
     auto row = mTree.value(grandParentId).indexOf(id);
+    Q_ASSERT(row >= 0);
     return createIndex(row, 0, id);
 }
 
@@ -291,6 +292,19 @@ void ModelResult<T, Ptr>::fetchMore(const QModelIndex &parent)
 }
 
 template <class T, class Ptr>
+bool ModelResult<T, Ptr>::allParentsAvailable(qint64 id) const
+{
+    auto p = id;
+    while (p) {
+        if (!mEntities.contains(p)) {
+            return false;
+        }
+        p = mParents.value(p, 0);
+    }
+    return true;
+}
+
+template <class T, class Ptr>
 void ModelResult<T, Ptr>::add(const Ptr &value)
 {
     const auto childId = qHash(*value);
@@ -306,16 +320,16 @@ void ModelResult<T, Ptr>::add(const Ptr &value)
             break;
         }
     }
-    bool parentIsAvailable = mEntities.contains(pId) || (pId == 0);
-    SinkTraceCtx(mLogCtx) << "Added entity " << childId <<  "id: " << value->identifier() << "parent: " << pId;
+    bool parentIsVisible = allParentsAvailable(pId);
     // SinkTraceCtx(mLogCtx) << "Inserting rows " << index << parent;
-    if (parentIsAvailable) {
-        beginInsertRows(createIndexFromId(pId), idx, idx);
+    if (parentIsVisible) {
+        auto parent = createIndexFromId(pId);
+        beginInsertRows(parent, idx, idx);
     }
     mEntities.insert(childId, value);
     mTree[pId].insert(idx, childId);
     mParents.insert(childId, pId);
-    if (parentIsAvailable) {
+    if (parentIsVisible) {
         endInsertRows();
     }
     // SinkTraceCtx(mLogCtx) << "Inserted rows " << mTree[id].size();

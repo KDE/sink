@@ -75,6 +75,7 @@ private:
 
     qint64 parentId(const Ptr &value);
     QModelIndex createIndexFromId(const qint64 &id) const;
+    bool allParentsAvailable(qint64 id) const;
 
     Sink::Log::Context  mLogCtx;
     // TODO we should be able to directly use T as index, with an appropriate hash function, and thus have a QMap<T, T> and QList<T>

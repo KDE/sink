@@ -227,8 +227,12 @@ private slots:
         facade->runAsync = true;
         auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         auto subfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
-        subfolder->setParent("id");
-        facade->results << subfolder << folder;
+        subfolder->setParent(folder->identifier());
+
+        auto subsubfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subsubId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        subsubfolder->setParent(subfolder->identifier());
+
+        facade->results << subsubfolder << subfolder << folder;
 
         // Test
         Sink::Query query;
