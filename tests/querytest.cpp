@@ -1182,6 +1182,78 @@ private slots:
             QCOMPARE(mail->getProperty("folders").toList().size(), 2);
         }
     }
+
+    /*
+     * This test is here to ensure we don't crash if we call removeFromDisk with a running query.
+     */
+    void testRemoveFromDiskWithRunningQuery()
+    {
+        {
+            // Setup
+            Folder::Ptr folderEntity;
+            const auto date = QDateTime(QDate(2015, 7, 7), QTime(12, 0));
+            {
+                Folder folder("sink.dummy.instance1");
+                Sink::Store::create<Folder>(folder).exec().waitForFinished();
+
+                Sink::Query query;
+                query.resourceFilter("sink.dummy.instance1");
+
+                // Ensure all local data is processed
+                VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
+
+                auto model = Sink::Store::loadModel<Folder>(query);
+                QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+                QCOMPARE(model->rowCount(), 1);
+
+                folderEntity = model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Folder::Ptr>();
+                QVERIFY(!folderEntity->identifier().isEmpty());
+
+                {
+                    Mail mail("sink.dummy.instance1");
+                    mail.setExtractedMessageId("testSecond");
+                    mail.setFolder(folderEntity->identifier());
+                    mail.setExtractedDate(date.addDays(-1));
+                    Sink::Store::create<Mail>(mail).exec().waitForFinished();
+                }
+                {
+                    Mail mail("sink.dummy.instance1");
+                    mail.setExtractedMessageId("testLatest");
+                    mail.setFolder(folderEntity->identifier());
+                    mail.setExtractedDate(date);
+                    Sink::Store::create<Mail>(mail).exec().waitForFinished();
+                }
+                {
+                    Mail mail("sink.dummy.instance1");
+                    mail.setExtractedMessageId("testLast");
+                    mail.setFolder(folderEntity->identifier());
+                    mail.setExtractedDate(date.addDays(-2));
+                    Sink::Store::create<Mail>(mail).exec().waitForFinished();
+                }
+            }
+
+            // Test
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Folder>(*folderEntity);
+            query.sort<Mail::Date>();
+            query.limit(1);
+            query.setFlags(Query::LiveQuery);
+            query.reduce<ApplicationDomain::Mail::ThreadId>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>())
+                .count("count")
+                .collect<ApplicationDomain::Mail::Unread>("unreadCollected")
+                .collect<ApplicationDomain::Mail::Important>("importantCollected");
+
+            // Ensure all local data is processed
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "sink.dummy.instance1"));
+
+            auto model = Sink::Store::loadModel<Mail>(query);
+        }
+
+        //FIXME: this will result in a crash in the above still running query.
+        VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
+    }
+
 };
 
 QTEST_MAIN(QueryTest)

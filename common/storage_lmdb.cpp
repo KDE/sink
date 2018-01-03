@@ -23,28 +23,26 @@
 
 #include <iostream>
 
-#include <QAtomicInt>
 #include <QDebug>
 #include <QDir>
 #include <QReadWriteLock>
 #include <QString>
 #include <QTime>
-#include <QMutex>
 #include <valgrind.h>
-
 #include <lmdb.h>
 #include "log.h"
 
 namespace Sink {
 namespace Storage {
 
-    //TODO a QReadWriteLock would be a better choice because we mostly do reads.
-extern QMutex sMutex;
+extern QReadWriteLock sDbisLock;
+extern QReadWriteLock sEnvironmentsLock;
 extern QHash<QString, MDB_env *> sEnvironments;
 extern QHash<QString, MDB_dbi> sDbis;
 
 
-QMutex sMutex;
+QReadWriteLock sDbisLock;
+QReadWriteLock sEnvironmentsLock;
 QHash<QString, MDB_env *> sEnvironments;
 QHash<QString, MDB_dbi> sDbis;
 
@@ -558,6 +556,7 @@ public:
     void startTransaction()
     {
         Q_ASSERT(!transaction);
+        Q_ASSERT(sEnvironments.values().contains(env));
         // auto f = [](const char *msg, void *ctx) -> int {
         //     qDebug() << msg;
         //     return 0;
@@ -636,7 +635,7 @@ bool DataStore::Transaction::commit(const std::function<void(const DataStore::Er
     //Add the created dbis to the shared environment
     if (!d->createdDbs.isEmpty()) {
         if (!d->noLock) {
-            sMutex.lock();
+            sDbisLock.lockForWrite();
         }
         for (auto it = d->createdDbs.constBegin(); it != d->createdDbs.constEnd(); it++) {
             Q_ASSERT(!sDbis.contains(it.key()));
@@ -644,7 +643,7 @@ bool DataStore::Transaction::commit(const std::function<void(const DataStore::Er
         }
         d->createdDbs.clear();
         if (!d->noLock) {
-            sMutex.unlock();
+            sDbisLock.unlock();
         }
     }
 
@@ -698,18 +697,17 @@ DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &
     d->implicitCommit = true;
     auto p = new DataStore::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
     if (!d->noLock) {
-        //This wouldn't be necessary with a read-write lock, we could read-only lock here
-        sMutex.lock();
+        sDbisLock.lockForRead();
     }
     if (!p->openDatabase(d->requestedRead, errorHandler)) {
         if (!d->noLock) {
-            sMutex.unlock();
+            sDbisLock.unlock();
         }
         delete p;
         return DataStore::NamedDatabase();
     }
     if (!d->noLock) {
-        sMutex.unlock();
+        sDbisLock.unlock();
     }
     if (p->createdNewDbi) {
         d->createdDbs.insert(p->createdDbName, p->dbi);
@@ -813,8 +811,11 @@ public:
     void initEnvironment(const QString &fullPath, const DbLayout &layout)
     {
         // Ensure the environment is only created once, and that we only have one environment per process
+        QReadLocker locker(&sEnvironmentsLock);
         if (!(env = sEnvironments.value(fullPath))) {
-            QMutexLocker locker(&sMutex);
+            locker.unlock();
+            QWriteLocker envLocker(&sEnvironmentsLock);
+            QWriteLocker dbiLocker(&sDbisLock);
             if (!(env = sEnvironments.value(fullPath))) {
                 int rc = 0;
                 if ((rc = mdb_env_create(&env))) {
@@ -932,7 +933,10 @@ DataStore::Transaction DataStore::createTransaction(AccessMode type, const std::
         errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Failed to create transaction: Requested read/write transaction in read-only mode."));
         return Transaction();
     }
-
+    QReadLocker locker(&sEnvironmentsLock);
+    if (!sEnvironments.values().contains(d->env)) {
+        return {};
+    }
     return Transaction(new Transaction::Private(requestedRead, defaultErrorHandler(), d->name, d->env));
 }
 
@@ -948,7 +952,8 @@ qint64 DataStore::diskUsage() const
 void DataStore::removeFromDisk() const
 {
     const QString fullPath(d->storageRoot + '/' + d->name);
-    QMutexLocker locker(&sMutex);
+    QWriteLocker dbiLocker(&sDbisLock);
+    QWriteLocker envLocker(&sEnvironmentsLock);
     SinkTrace() << "Removing database from disk: " << fullPath;
     sEnvironments.take(fullPath);
     for (const auto &key : sDbis.keys()) {
@@ -967,7 +972,7 @@ void DataStore::removeFromDisk() const
 
 void DataStore::clearEnv()
 {
-    QMutexLocker locker(&sMutex);
+    QWriteLocker locker(&sEnvironmentsLock);
     for (auto env : sEnvironments) {
         mdb_env_close(env);
     }
