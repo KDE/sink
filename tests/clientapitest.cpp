@@ -198,6 +198,7 @@ private slots:
     void testModelNested()
     {
         auto facade = setupFacade<Sink::ApplicationDomain::Folder>("dummyresource.instance1");
+        facade->runAsync = true;
         auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         auto subfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         subfolder->setParent("id");
@@ -209,11 +210,43 @@ private slots:
         query.requestTree("parent");
 
         auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
+        QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [&] (const QModelIndex &parent, int first, int last) {
+            for (int row = first; row <= last; row++) {
+                auto index = model->index(row, 0, parent);
+                QVERIFY(index.isValid());
+                QVERIFY(index.data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>());
+            }
+        });
         QTRY_COMPARE(model->rowCount(), 1);
-        model->fetchMore(model->index(0, 0));
         QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
     }
 
+    void testModelNestedReverse()
+    {
+        auto facade = setupFacade<Sink::ApplicationDomain::Folder>("dummyresource.instance1");
+        facade->runAsync = true;
+        auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        auto subfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        subfolder->setParent("id");
+        facade->results << subfolder << folder;
+
+        // Test
+        Sink::Query query;
+        query.resourceFilter("dummyresource.instance1");
+        query.requestTree("parent");
+
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
+        QObject::connect(model.data(), &QAbstractItemModel::rowsInserted, [&] (const QModelIndex &parent, int first, int last) {
+            for (int row = first; row <= last; row++) {
+                auto index = model->index(row, 0, parent);
+                QVERIFY(index.isValid());
+                QVERIFY(index.data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>());
+            }
+        });
+        QTRY_COMPARE(model->rowCount(), 1);
+        QVERIFY(model->index(0, 0).data(Sink::Store::DomainObjectRole).value<Sink::ApplicationDomain::Folder::Ptr>());
+        QTRY_COMPARE(model->rowCount(model->index(0, 0)), 1);
+    }
 
     void testModelNestedLive()
     {
