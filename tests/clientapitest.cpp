@@ -175,6 +175,26 @@ private slots:
         QTRY_COMPARE(model->rowCount(), 1);
     }
 
+    void testModelSignals()
+    {
+        auto facade = setupFacade<Sink::ApplicationDomain::Folder>("dummyresource.instance1");
+        facade->runAsync = true;
+        auto folder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "id", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        auto subfolder = QSharedPointer<Sink::ApplicationDomain::Folder>::create("resource", "subId", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        subfolder->setParent("id");
+        facade->results << folder << subfolder;
+
+        // Test
+        Sink::Query query;
+        query.resourceFilter("dummyresource.instance1");
+        query.requestTree("parent");
+
+        auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Folder>(query);
+        QSignalSpy spy(model.data(), SIGNAL(rowsInserted(const QModelIndex &, int, int)));
+        QVERIFY(spy.isValid());
+        QTRY_VERIFY(spy.count() == 2);
+    }
+
     void testModelNested()
     {
         auto facade = setupFacade<Sink::ApplicationDomain::Folder>("dummyresource.instance1");
