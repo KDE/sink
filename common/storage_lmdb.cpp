@@ -829,7 +829,11 @@ public:
                         flags |= MDB_RDONLY;
                     }
                     if ((rc = mdb_env_open(env, fullPath.toStdString().data(), flags, 0664))) {
-                        SinkWarningCtx(logCtx) << "mdb_env_open: " << rc << ":" << mdb_strerror(rc);
+                        if (readOnly) {
+                            SinkLogCtx(logCtx) << "Tried to open non-existing db: " << fullPath;
+                        } else {
+                            SinkWarningCtx(logCtx) << "mdb_env_open: " << rc << ":" << mdb_strerror(rc);
+                        }
                         mdb_env_close(env);
                         env = 0;
                     } else {
