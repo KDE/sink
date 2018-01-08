@@ -113,6 +113,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
             auto resourceContext = mResourceContext;
             auto logCtx = mLogCtx;
             auto state = mQueryState;
+            auto resultTransformation = mResultTransformation;
             if (!mInitialQueryComplete) {
                 SinkWarningCtx(mLogCtx) << "Can't start the incremental query before the initial query is complete";
                 fetcher();
@@ -127,7 +128,7 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
                     mQueryInProgress = true;
                 })
                 .then(async::run<ReplayResult>([=]() {
-                       QueryWorker<DomainType> worker(query, resourceContext, bufferType, mResultTransformation, logCtx);
+                       QueryWorker<DomainType> worker(query, resourceContext, bufferType, resultTransformation, logCtx);
                        return worker.executeIncrementalQuery(query, *resultProvider, state);
                    }))
                 .then([query, this, resultProvider, guardPtr](const ReplayResult &newRevisionAndReplayedEntities) {
