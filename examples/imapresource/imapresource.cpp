@@ -246,10 +246,23 @@ public:
             SinkWarningCtx(mLogCtx) << "Invalid folder " << folderRemoteId << folder.path();
             return KAsync::error<void>("Invalid folder");
         }
-        // auto capabilities = imap->getCapabilities();
 
-        //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
-        return KAsync::start<void>([=]() {
+        //Start by checking if UIDVALIDITY is still correct
+        return KAsync::start([=] {
+            bool ok = false;
+            const auto uidvalidity = syncStore().readValue(folderRemoteId, "uidvalidity").toLongLong(&ok);
+            return imap->select(folder)
+                .then([=](const SelectResult &selectResult) {
+                    SinkLogCtx(mLogCtx) << "Checking UIDVALIDITY. Local" << uidvalidity << "remote " << selectResult.uidValidity;
+                    if (ok && selectResult.uidValidity != uidvalidity) {
+                        SinkWarningCtx(mLogCtx) << "UIDVALIDITY changed " << selectResult.uidValidity << uidvalidity;
+                        syncStore().removePrefix(folderRemoteId);
+                    }
+                    syncStore().writeValue(folderRemoteId, "uidvalidity", QByteArray::number(selectResult.uidValidity));
+                });
+        })
+        // //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
+        .then([=] {
             auto uidNext = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
             bool ok = false;
             const auto changedsince = syncStore().readValue(folderRemoteId, "changedsince").toLongLong(&ok);

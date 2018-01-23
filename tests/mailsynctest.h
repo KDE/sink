@@ -74,6 +74,7 @@ private slots:
     void testSyncSingleMailWithBogusId();
 
     void testFailingSync();
+    void testSyncUidvalidity();
 };
 
 }

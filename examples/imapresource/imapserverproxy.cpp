@@ -244,6 +244,11 @@ KAsync::Job<SelectResult> ImapServerProxy::select(const QString &mailbox)
     });
 }
 
+KAsync::Job<SelectResult> ImapServerProxy::select(const Folder &folder)
+{
+    return select(mailboxFromFolder(folder));
+}
+
 KAsync::Job<qint64> ImapServerProxy::append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags, const QDateTime &internalDate)
 {
     auto append = new KIMAP2::AppendJob(mSession);
@@ -577,7 +582,7 @@ QString ImapServerProxy::mailboxFromFolder(const Folder &folder) const
 KAsync::Job<SelectResult> ImapServerProxy::fetchFlags(const Folder &folder, const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback)
 {
     SinkTrace() << "Fetching flags " << folder.path();
-    return select(mailboxFromFolder(folder)).then<SelectResult, SelectResult>([=](const SelectResult &selectResult) -> KAsync::Job<SelectResult> {
+    return select(folder).then<SelectResult, SelectResult>([=](const SelectResult &selectResult) -> KAsync::Job<SelectResult> {
         SinkTrace() << "Modeseq " << folder.path() << selectResult.highestModSequence << changedsince;
 
         if (selectResult.highestModSequence == static_cast<quint64>(changedsince)) {
@@ -601,7 +606,7 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 ui
 {
     auto time = QSharedPointer<QTime>::create();
     time->start();
-    return select(mailboxFromFolder(folder)).then<void, SelectResult>([this, callback, folder, time, progress, uidNext](const SelectResult &selectResult) -> KAsync::Job<void> {
+    return select(folder).then<void, SelectResult>([this, callback, folder, time, progress, uidNext](const SelectResult &selectResult) -> KAsync::Job<void> {
         SinkTrace() << "UIDNEXT " << folder.path() << selectResult.uidNext << uidNext;
         if (selectResult.uidNext == (uidNext + 1)) {
             SinkTrace()<< folder.path() << "Uidnext didn't change, nothing to do.";
@@ -624,7 +629,7 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, const QVe
 {
     auto time = QSharedPointer<QTime>::create();
     time->start();
-    return select(mailboxFromFolder(folder)).then<void, SelectResult>([this, callback, folder, time, progress, uidsToFetch, headersOnly](const SelectResult &selectResult) -> KAsync::Job<void> {
+    return select(folder).then<void, SelectResult>([this, callback, folder, time, progress, uidsToFetch, headersOnly](const SelectResult &selectResult) -> KAsync::Job<void> {
 
         SinkTrace() << "Fetching messages" << folder.path();
         SinkTrace() << "  Total: " << uidsToFetch.size();

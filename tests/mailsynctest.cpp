@@ -33,6 +33,16 @@
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
+static QByteArray newMessage(const QString &subject)
+{
+    auto msg = KMime::Message::Ptr::create();
+    msg->subject(true)->fromUnicodeString(subject, "utf8");
+    msg->date(true)->setDateTime(QDateTime::currentDateTimeUtc());
+    msg->assemble();
+    return msg->encodedContent(true);
+}
+
+
 void MailSyncTest::initTestCase()
 {
     Test::initTest();
@@ -261,11 +271,7 @@ void MailSyncTest::testListRemovedSubFolder()
 
 void MailSyncTest::testListMails()
 {
-    auto msg = KMime::Message::Ptr::create();
-    msg->subject(true)->fromUnicodeString("This is a Subject.", "utf8");
-    msg->date(true)->setDateTime(QDateTime::currentDateTimeUtc());
-    msg->assemble();
-    createMessage(QStringList() << "test", msg->encodedContent(true));
+    createMessage(QStringList() << "test", newMessage("This is a Subject."));
 
     Sink::Query query;
     query.resourceFilter(mResourceInstanceIdentifier);
@@ -420,8 +426,6 @@ void MailSyncTest::testSyncSingleFolder()
     // Ensure all local data is processed
     VERIFYEXEC(Store::synchronize(syncScope));
     VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
-
-
 }
 
 void MailSyncTest::testSyncSingleMail()
@@ -490,3 +494,50 @@ void MailSyncTest::testFailingSync()
     // Ensure sync fails if resource is misconfigured
     QTRY_VERIFY(errorReceived);
 }
+
+void MailSyncTest::testSyncUidvalidity()
+{
+    createFolder({"uidvalidity"});
+    createMessage({"uidvalidity"}, newMessage("old"));
+
+    VERIFYEXEC(Store::synchronize(SyncScope{ApplicationDomain::getTypeName<Folder>()}.resourceFilter(mResourceInstanceIdentifier)));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+    auto folder = Store::readOne<Folder>(Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>("uidvalidity"));
+
+    auto folderSyncScope = SyncScope{ApplicationDomain::getTypeName<Mail>()};
+    folderSyncScope.resourceFilter(mResourceInstanceIdentifier);
+    folderSyncScope.filter<Mail::Folder>(QVariant::fromValue(folder.identifier()));
+    VERIFYEXEC(Store::synchronize(folderSyncScope));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+
+    {
+        Sink::Query query;
+        query.resourceFilter(mResourceInstanceIdentifier);
+        query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
+        query.filter<Mail::Folder>(folder);
+        auto mails = Store::read<Mail>(query);
+        QCOMPARE(mails.size(), 1);
+    }
+
+    resetTestEnvironment();
+
+    createFolder({"uidvalidity"});
+    createMessage({"uidvalidity"}, newMessage("new"));
+
+    // Ensure all local data is processed
+    VERIFYEXEC(Store::synchronize(folderSyncScope));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+    //Now we should have one message
+    auto folder2 = Store::readOne<Folder>(Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>("uidvalidity"));
+    Sink::Query query;
+    query.resourceFilter(mResourceInstanceIdentifier);
+    query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
+    query.filter<Mail::Folder>(folder2);
+    auto mails = Store::read<Mail>(query);
+    QCOMPARE(mails.size(), 1);
+    QCOMPARE(mails.first().getSubject(), {"new"});
+}
+
