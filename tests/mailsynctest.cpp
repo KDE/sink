@@ -261,6 +261,12 @@ void MailSyncTest::testListRemovedSubFolder()
 
 void MailSyncTest::testListMails()
 {
+    auto msg = KMime::Message::Ptr::create();
+    msg->subject(true)->fromUnicodeString("This is a Subject.", "utf8");
+    msg->date(true)->setDateTime(QDateTime::currentDateTimeUtc());
+    msg->assemble();
+    createMessage(QStringList() << "test", msg->encodedContent(true));
+
     Sink::Query query;
     query.resourceFilter(mResourceInstanceIdentifier);
     query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
@@ -272,7 +278,7 @@ void MailSyncTest::testListMails()
     auto job = Store::fetchAll<Mail>(query).then([](const QList<Mail::Ptr> &mails) {
         ASYNCCOMPARE(mails.size(), 1);
         auto mail = mails.first();
-        ASYNCVERIFY(mail->getSubject().startsWith(QString("[Nepomuk] Jenkins build is still unstable")));
+        ASYNCVERIFY(mail->getSubject().startsWith(QString("This is a Subject.")));
         const auto data = mail->getMimeMessage();
         ASYNCVERIFY(!data.isEmpty());
 

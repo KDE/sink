@@ -81,6 +81,25 @@ private slots:
         VERIFYEXEC_FAIL(imap.fetchFolders([](const Folder &){}));
     }
 
+    void testAppendMail()
+    {
+        ImapServerProxy imap("localhost", 143, Imap::EncryptionMode::NoEncryption);
+        VERIFYEXEC(imap.login("doe", "doe"));
+
+
+        auto mail = KMime::Message::Ptr::create();
+        mail->from(true)->from7BitString("<doe@example.org>");
+        mail->to(true)->from7BitString("<doe@example.org>");
+        mail->subject(true)->from7BitString("subject");
+        mail->setBody("Body");
+        auto content = mail->encodedContent(true);
+
+        KIMAP2::MessageFlags flags;
+        flags << Imap::Flags::Seen;
+        flags << Imap::Flags::Flagged;
+        VERIFYEXEC(imap.append("INBOX.test", content, flags, QDateTime::currentDateTimeUtc()));
+    }
+
     void testFetchMail()
     {
         ImapServerProxy imap("localhost", 143, Imap::EncryptionMode::NoEncryption);
