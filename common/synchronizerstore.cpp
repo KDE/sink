@@ -130,9 +130,14 @@ void SynchronizerStore::removePrefix(const QByteArray &prefix)
     if (prefix.isEmpty()) {
         return;
     }
-    //FIXME remove all values matching prefix
-    // mTransaction.openDatabase("values").remove(prefix, [](const Sink::Storage::DataStore::Error &) {
-    //     //Ignore errors because we may not find the value
-    // });
+    auto db = mTransaction.openDatabase("values");
+    QByteArrayList keys;
+    db.scan(prefix, [&] (const QByteArray &key, const QByteArray &value) {
+        keys << key;
+        return true;
+    }, {}, true, true);
+    for (const auto &k : keys) {
+        db.remove(k);
+    }
 }
 
