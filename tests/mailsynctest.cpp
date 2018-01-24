@@ -334,10 +334,7 @@ void MailSyncTest::testFetchNewRemovedMessages()
     VERIFYEXEC(Store::synchronize(query));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
-    auto msg = KMime::Message::Ptr::create();
-    msg->subject(true)->fromUnicodeString("Foobar", "utf8");
-    msg->assemble();
-    auto messageIdentifier = createMessage(QStringList() << "test", msg->encodedContent(true));
+    auto messageIdentifier = createMessage(QStringList() << "test", newMessage("Foobar"));
 
     VERIFYEXEC(Store::synchronize(query));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
@@ -371,10 +368,7 @@ void MailSyncTest::testFlagChange()
     query.filter<Mail::Important>(true);
     query.request<Mail::Subject>().request<Mail::Important>();
 
-    auto msg = KMime::Message::Ptr::create();
-    msg->subject(true)->fromUnicodeString("Foobar", "utf8");
-    msg->assemble();
-    auto messageIdentifier = createMessage(QStringList() << "test", msg->encodedContent(true));
+    auto messageIdentifier = createMessage(QStringList() << "test", newMessage("Foobar"));
 
     VERIFYEXEC(Store::synchronize(query));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
