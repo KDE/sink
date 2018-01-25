@@ -121,9 +121,15 @@ bool inspect(const QStringList &args, State &state)
     auto idFilter = options.options.value("filter");
     bool showInternal = options.options.contains("showinternal");
 
+    state.printLine(QString("Current revision: %1").arg(Sink::Storage::DataStore::maxRevision(transaction)));
+    state.printLine(QString("Last clean revision: %1").arg(Sink::Storage::DataStore::cleanedUpRevision(transaction)));
+
     auto databases = transaction.getDatabaseNames();
     if (dbs.isEmpty()) {
-        state.printLine(QString("Available databases: ") + databases.join(", "));
+        state.printLine("Available databases: ");
+        for (const auto &db : databases) {
+            state.printLine(db, 1);
+        }
         return false;
     }
     auto dbName = dbs.value(0).toUtf8();
