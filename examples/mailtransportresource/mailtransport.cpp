@@ -21,7 +21,6 @@
 #include <QByteArray>
 #include <QList>
 #include <QDebug>
-#include <common/log.h>
 
 extern "C" {
 
@@ -142,13 +141,14 @@ bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs,
 
         res = curl_easy_perform(curl);
         if(res != CURLE_OK) {
+            errorMessage += "Error code: " + QByteArray::number(res) + ", ";
             errorMessage += curl_easy_strerror(res);
             errorMessage += "; ";
         }
         long http_code = 0;
         curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
         if (http_code == 200 && res != CURLE_ABORTED_BY_CALLBACK) {
-                //Succeeded
+            //Succeeded
         } else {
             errorMessage += errorBuffer;
         }
@@ -161,10 +161,8 @@ bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs,
 
 };
 
-bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert, MailTransport::Options options)
+MailTransport::SendResult MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert, MailTransport::Options options)
 {
-    QByteArray msg = message->encodedContent();
-
     QByteArray from(message->from(true)->mailboxes().isEmpty() ? QByteArray() : message->from(true)->mailboxes().first().address());
     QList<QByteArray> toList;
     for (const auto &mb : message->to(true)->mailboxes()) {
@@ -176,9 +174,6 @@ bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteA
     }
     const bool verifyPeer = options.testFlag(VerifyPeers);
     const bool useTls = options.testFlag(UseTls);
-
-    SinkLog() << "Sending message " << server << username << password << "CaCert: " << cacert  << "Use tls: " << useTls << " Verify peer: " << verifyPeer;
-    SinkTrace() << "Sending message " << msg;
 
     const int numTos = toList.size();
     const char* to[numTos];
@@ -196,9 +191,6 @@ bool MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteA
     serverAddress.replace("smtps://", "smtp://");
 
     QByteArray errorMessage;
-    auto ret =  sendMessageCurl(to, numTos, cc, numCcs, msg, useTls, from.isEmpty() ? nullptr : from, username, password, serverAddress, verifyPeer, cacert, errorMessage);
-    if (!ret) {
-        SinkWarning() << "Failed to send message: " << errorMessage;
-    }
-    return ret;
+    auto ret = sendMessageCurl(to, numTos, cc, numCcs, message->encodedContent(), useTls, from.isEmpty() ? nullptr : from, username, password, serverAddress, verifyPeer, cacert, errorMessage);
+    return {ret, errorMessage};
 }

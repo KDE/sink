@@ -31,10 +31,15 @@ namespace MailTransport
     };
     Q_DECLARE_FLAGS(Options, Option);
 
+    struct SendResult {
+        bool error;
+        QString errorMessage;
+    };
+
     /*
      * For ssl use "smtps://mainserver.example.net
      * @param cacert: "/path/to/certificate.pem";
      */
-    bool sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert, Options flags);
+    SendResult sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert, Options flags);
 };
 Q_DECLARE_OPERATORS_FOR_FLAGS(MailTransport::Options)

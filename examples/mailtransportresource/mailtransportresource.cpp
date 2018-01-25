@@ -129,8 +129,12 @@ public:
                 if (settings.server.contains("smtps")) {
                     options |= MailTransport::UseTls;
                 }
-                if (!MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), secret().toUtf8(), settings.cacert.toUtf8(), options)) {
-                    SinkWarning() << "Failed to send message: " << mail;
+
+                SinkLog() << "Sending message " << settings.server << settings.username << "CaCert: " << settings.cacert;
+                SinkTrace() << "Sending message " << msg;
+                auto result = MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), secret().toUtf8(), settings.cacert.toUtf8(), options);
+                if (!result.error) {
+                    SinkWarning() << "Failed to send message: " << mail << "\n" << result.errorMessage;
                     emitNotification(Notification::Warning, ApplicationDomain::SyncError, "Failed to send message.", {}, {mail.identifier()});
                     emitNotification(Notification::Warning, ApplicationDomain::TransmissionError, "Failed to send message.", {}, {mail.identifier()});
                     return KAsync::error("Failed to send the message.");
