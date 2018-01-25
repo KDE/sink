@@ -96,9 +96,6 @@ bool list(const QStringList &args_, State &state)
     }
 
     auto options = SyntaxTree::parseOptions(args_);
-
-    auto type = options.positionalArguments.isEmpty() ? QString{} : options.positionalArguments.first();
-
     bool asLine = true;
 
     Sink::Query query;
@@ -107,30 +104,14 @@ bool list(const QStringList &args_, State &state)
         state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--showall|--show $property]"));
         return false;
     }
-    if (options.options.contains("resource")) {
-        for (const auto &f : options.options.value("resource")) {
-            query.resourceFilter(f.toLatin1());
-        }
-    }
-    if (options.options.contains("filter")) {
-        for (const auto &f : options.options.value("filter")) {
-            auto filter = f.split("=");
-            const auto property = filter.value(0).toLatin1();
-            query.filter(property, Sink::PropertyParser::parse(type.toLatin1(), property, filter.value(1)));
-        }
-    }
-    if (options.options.contains("id")) {
-        for (const auto &f : options.options.value("id")) {
-            query.filter(f.toUtf8());
-        }
-    }
+
     auto compact = options.options.contains("compact");
     if (!options.options.contains("showall")) {
         if (options.options.contains("show")) {
             auto list = options.options.value("show");
             std::transform(list.constBegin(), list.constEnd(), std::back_inserter(query.requestedProperties), [] (const QString &s) { return s.toLatin1(); });
         } else {
-            query.requestedProperties = SinkshUtils::requestedProperties(type);
+            query.requestedProperties = SinkshUtils::requestedProperties(query.type());
         }
     } else {
         asLine = false;
@@ -139,7 +120,7 @@ bool list(const QStringList &args_, State &state)
     QByteArrayList toPrint;
     QStringList tableLine;
 
-    for (const auto &o : SinkshUtils::getStore(type).read(query)) {
+    for (const auto &o : SinkshUtils::getStore(query.type()).read(query)) {
         if (tableLine.isEmpty()) {
             tableLine << QObject::tr("Resource") << QObject::tr("Identifier");
             if (query.requestedProperties.isEmpty()) {

@@ -22,6 +22,7 @@
 
 #include "common/store.h"
 #include "common/log.h"
+#include "common/propertyparser.h"
 
 #include "utils.h"
 
@@ -195,7 +196,25 @@ bool applyFilter(Sink::Query &query, const QStringList &args_)
 
 bool applyFilter(Sink::Query &query, const SyntaxTree::Options &options)
 {
-    return applyFilter(query, options.positionalArguments);
+    bool ret = applyFilter(query, options.positionalArguments);
+    if (options.options.contains("resource")) {
+        for (const auto &f : options.options.value("resource")) {
+            query.resourceFilter(f.toLatin1());
+        }
+    }
+    if (options.options.contains("filter")) {
+        for (const auto &f : options.options.value("filter")) {
+            auto filter = f.split("=");
+            const auto property = filter.value(0).toLatin1();
+            query.filter(property, Sink::PropertyParser::parse(query.type(), property, filter.value(1)));
+        }
+    }
+    if (options.options.contains("id")) {
+        for (const auto &f : options.options.value("id")) {
+            query.filter(f.toUtf8());
+        }
+    }
+    return ret;
 }
 
 }

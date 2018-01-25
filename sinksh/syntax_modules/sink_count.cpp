@@ -41,7 +41,7 @@ bool count(const QStringList &args, State &state)
 {
     Sink::Query query;
     query.setId("count");
-    if (!SinkshUtils::applyFilter(query, args)) {
+    if (!SinkshUtils::applyFilter(query, SyntaxTree::parseOptions(args))) {
         state.printError(QObject::tr("Options: $type $filter"));
         return false;
     }
