@@ -61,6 +61,14 @@ void statResources(const QStringList &resources, const State &state)
         }
         auto size = diskUsage / 1024;
         state.printLine(QObject::tr("Actual database file sizes [kb]: %1").arg(size), 1);
+
+        QDir dataDir{Sink::resourceStorageLocation(resource.toLatin1()) + "/blob/"};
+        Q_ASSERT(dataDir.exists());
+        qint64 dataSize = 0;
+        for (const auto &e : dataDir.entryInfoList(QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot)) {
+            dataSize += e.size();
+        }
+        state.printLine(QObject::tr("Total BLOB size [kb]: %1").arg(dataSize / 1024), 1);
     }
 
 }
