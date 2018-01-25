@@ -27,6 +27,6 @@ public:
     virtual void newEntity(Sink::ApplicationDomain::Mail &mail) Q_DECL_OVERRIDE;
     virtual void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail) Q_DECL_OVERRIDE;
 protected:
-    virtual QString getFilePathFromMimeMessagePath(const QString &) const;
+    static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, const QByteArray &data);
 };
 

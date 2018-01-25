@@ -29,65 +29,6 @@
 
 using namespace Sink;
 
-QString MailPropertyExtractor::getFilePathFromMimeMessagePath(const QString &s) const
-{
-    return s;
-}
-
-struct MimeMessageReader {
-    MimeMessageReader(const QString &mimeMessagePath)
-        : f(mimeMessagePath),
-        mapped(0)
-    {
-        if (mimeMessagePath.isNull()) {
-            SinkTrace() << "No mime message";
-            return;
-        }
-        SinkTrace() << "Updating indexed properties " << mimeMessagePath;
-        if (!f.open(QIODevice::ReadOnly)) {
-            SinkWarning() << "Failed to open the file: " << mimeMessagePath;
-            return;
-        }
-        if (!f.size()) {
-            SinkWarning() << "The file is empty.";
-            return;
-        }
-        mapped = f.map(0, f.size());
-        if (!mapped) {
-            SinkWarning() << "Failed to map the file: " << f.errorString();
-            return;
-        }
-    }
-
-    KMime::Message::Ptr mimeMessage()
-    {
-        if (!mapped) {
-            return {};
-        }
-        QByteArray result;
-        //Seek for end of headers
-        const auto content = QByteArray::fromRawData(reinterpret_cast<const char*>(mapped), f.size());
-        int pos = content.indexOf("\r\n\r\n", 0);
-        int offset = 2;
-        if (pos < 0) {
-            pos = content.indexOf("\n\n", 0);
-            offset = 1;
-        }
-        if (pos > -1) {
-            const auto header = content.left(pos + offset);    //header *must* end with "\n" !!
-            auto msg = KMime::Message::Ptr(new KMime::Message);
-            msg->setHead(KMime::CRLFtoLF(header));
-            msg->parse();
-            return msg;
-        }
-        SinkWarning() << "Failed to find end of headers" << content;
-        return {};
-    }
-
-    QFile f;
-    uchar *mapped;
-};
-
 static Sink::ApplicationDomain::Mail::Contact getContact(const KMime::Headers::Generics::MailboxList *header)
 {
     const auto name = header->displayNames().isEmpty() ? QString() : header->displayNames().first();
@@ -104,8 +45,18 @@ static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime:
     return list;
 }
 
-static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, KMime::Message::Ptr msg)
+void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, const QByteArray &data)
 {
+    if (data.isEmpty()) {
+        return;
+    }
+    auto msg = KMime::Message::Ptr(new KMime::Message);
+    msg->setHead(KMime::CRLFtoLF(data));
+    msg->parse();
+    if (!msg) {
+        return;
+    }
+
     mail.setExtractedSubject(msg->subject(true)->asUnicodeString());
     mail.setExtractedSender(getContact(msg->from(true)));
     mail.setExtractedTo(getContactList(msg->to(true)));
@@ -156,19 +107,11 @@ static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, KMime:
 
 void MailPropertyExtractor::newEntity(Sink::ApplicationDomain::Mail &mail)
 {
-    MimeMessageReader mimeMessageReader(getFilePathFromMimeMessagePath(mail.getMimeMessagePath()));
-    auto msg = mimeMessageReader.mimeMessage();
-    if (msg) {
-        updatedIndexedProperties(mail, msg);
-    }
+    updatedIndexedProperties(mail, mail.getMimeMessage());
 }
 
 void MailPropertyExtractor::modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail)
 {
-    MimeMessageReader mimeMessageReader(getFilePathFromMimeMessagePath(newMail.getMimeMessagePath()));
-    auto msg = mimeMessageReader.mimeMessage();
-    if (msg) {
-        updatedIndexedProperties(newMail, msg);
-    }
+    updatedIndexedProperties(newMail, newMail.getMimeMessage());
 }
 

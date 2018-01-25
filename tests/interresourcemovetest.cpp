@@ -106,7 +106,6 @@ private slots:
             auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
             QCOMPARE(list.size(), 1);
             const auto mail = list.first();
-            QVERIFY(!mail.getMimeMessagePath().isEmpty());
             QCOMPARE(mail.getSubject(), subject);
             QCOMPARE(mail.getMimeMessage(), mimeMessage);
         }
@@ -153,7 +152,6 @@ private slots:
             auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
             QCOMPARE(list.size(), 1);
             const auto mail = list.first();
-            QVERIFY(!mail.getMimeMessagePath().isEmpty());
             QCOMPARE(mail.getSubject(), subject);
             QCOMPARE(mail.getMimeMessage(), mimeMessage);
         }
@@ -164,7 +162,6 @@ private slots:
             auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
             QCOMPARE(list.size(), 1);
             const auto mail = list.first();
-            QVERIFY(!mail.getMimeMessagePath().isEmpty());
             QCOMPARE(mail.getSubject(), subject);
             QCOMPARE(mail.getMimeMessage(), mimeMessage);
         }

@@ -31,7 +31,7 @@ MaildirResourceMailFacade::MaildirResourceMailFacade(const Sink::ResourceContext
         Sink::Log::Context ctx{"maildirfacade"};
         if (value.hasProperty(Sink::ApplicationDomain::Mail::MimeMessage::name)) {
             auto mail = Sink::ApplicationDomain::Mail{value};
-            const auto mimeMessage = mail.getMimeMessagePath();
+            const auto mimeMessage = mail.getMimeMessage();
             //Transform the mime message property into the actual path on disk.
             auto parts = mimeMessage.split('/');
             auto key = parts.takeLast();
@@ -45,7 +45,10 @@ MaildirResourceMailFacade::MaildirResourceMailFacade(const Sink::ResourceContext
                 SinkErrorCtx(ctx) << "Failed to find message. Directory: " << path << "Key: " << key << "Number of matching files: " << list.size();
                 mail.setProperty(Sink::ApplicationDomain::Mail::MimeMessage::name, QVariant());
             } else {
-                mail.setMimeMessagePath(list.at(0).filePath());
+                QFile file{list.at(0).filePath()};
+                if (file.open(QIODevice::ReadOnly)) {
+                    mail.setMimeMessage(file.readAll());
+                }
             }
         }
         value.setChangedProperties(QSet<QByteArray>());

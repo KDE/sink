@@ -439,7 +439,8 @@ struct SINK_EXPORT Mail : public Entity {
     SINK_PROPERTY(bool, Unread, unread);
     SINK_PROPERTY(bool, Important, important);
     SINK_REFERENCE_PROPERTY(Folder, Folder, folder);
-    SINK_BLOB_PROPERTY(MimeMessage, mimeMessage);
+    // SINK_BLOB_PROPERTY(MimeMessage, mimeMessage);
+    SINK_PROPERTY(QByteArray, MimeMessage, mimeMessage);
     SINK_EXTRACTED_PROPERTY(bool, FullPayloadAvailable, fullPayloadAvailable);
     SINK_PROPERTY(bool, Draft, draft);
     SINK_PROPERTY(bool, Trash, trash);

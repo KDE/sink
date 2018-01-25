@@ -164,7 +164,6 @@ void MailTest::testCreateModifyDeleteMail()
                 auto mail = *mails.first();
                 QCOMPARE(mail.getSubject(), subject);
                 QCOMPARE(mail.getFolder(), folder.identifier());
-                QVERIFY(QFile(mail.getMimeMessagePath()).exists());
                 KMime::Message m;
                 m.setContent(KMime::CRLFtoLF(mail.getMimeMessage()));
                 m.parse();
@@ -193,7 +192,6 @@ void MailTest::testCreateModifyDeleteMail()
                 auto mail = *mails.first();
                 QCOMPARE(mail.getSubject(), subject2);
                 QCOMPARE(mail.getFolder(), folder.identifier());
-                QVERIFY(QFile(mail.getMimeMessagePath()).exists());
                 KMime::Message m;
                 m.setContent(KMime::CRLFtoLF(mail.getMimeMessage()));
                 m.parse();
@@ -251,8 +249,7 @@ void MailTest::testMoveMail()
                 auto mail = *mails.first();
                 modifiedMail = mail;
                 QCOMPARE(mail.getFolder(), folder.identifier());
-                SinkWarning() << "path: " << mail.getMimeMessagePath();
-                QVERIFY(QFile(mail.getMimeMessagePath()).exists());
+                QVERIFY(!mail.getMimeMessage().isEmpty());
             });
         VERIFYEXEC(job);
     }
@@ -269,8 +266,7 @@ void MailTest::testMoveMail()
                 QCOMPARE(mails.size(), 1);
                 auto mail = *mails.first();
                 QCOMPARE(mail.getFolder(), folder1.identifier());
-                QVERIFY(QFile(mail.getMimeMessagePath()).exists());
-                SinkTrace() << "Mime message path: " << mail.getMimeMessagePath();
+                QVERIFY(!mail.getMimeMessage().isEmpty());
             });
         VERIFYEXEC(job);
     }
@@ -324,7 +320,7 @@ void MailTest::testMarkMailAsRead()
             auto mail = mails.first();
             ASYNCVERIFY(!mail->getSubject().isEmpty());
             ASYNCCOMPARE(mail->getUnread(), false);
-            ASYNCVERIFY(QFileInfo(mail->getMimeMessagePath()).exists());
+            ASYNCVERIFY(!mail->getMimeMessage().isEmpty());
             return KAsync::null<void>();
         });
     VERIFYEXEC(job2);

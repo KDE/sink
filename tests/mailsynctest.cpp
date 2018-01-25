@@ -318,7 +318,7 @@ void MailSyncTest::testResyncMails()
         ASYNCCOMPARE(mails.size(), 1);
         auto mail = mails.first();
         ASYNCVERIFY(!mail->getSubject().isEmpty());
-        ASYNCVERIFY(!mail->getMimeMessagePath().isEmpty());
+        ASYNCVERIFY(!mail->getMimeMessage().isEmpty());
         return KAsync::null();
     });
     VERIFYEXEC(job);
