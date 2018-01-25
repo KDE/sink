@@ -156,8 +156,11 @@ static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, KMime:
 
 void MailPropertyExtractor::newEntity(Sink::ApplicationDomain::Mail &mail)
 {
-    MimeMessageReader mimeMessageReader(getFilePathFromMimeMessagePath(mail.getMimeMessagePath()));
-    auto msg = mimeMessageReader.mimeMessage();
+    // MimeMessageReader mimeMessageReader(getFilePathFromMimeMessagePath(mail.getMimeMessagePath()));
+    // auto msg = mimeMessageReader.mimeMessage();
+    auto msg = KMime::Message::Ptr(new KMime::Message);
+    msg->setHead(KMime::CRLFtoLF(mail.getMimeMessage()));
+    msg->parse();
     if (msg) {
         updatedIndexedProperties(mail, msg);
     }
@@ -165,8 +168,11 @@ void MailPropertyExtractor::newEntity(Sink::ApplicationDomain::Mail &mail)
 
 void MailPropertyExtractor::modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail)
 {
-    MimeMessageReader mimeMessageReader(getFilePathFromMimeMessagePath(newMail.getMimeMessagePath()));
-    auto msg = mimeMessageReader.mimeMessage();
+    // MimeMessageReader mimeMessageReader(getFilePathFromMimeMessagePath(newMail.getMimeMessagePath()));
+    // auto msg = mimeMessageReader.mimeMessage();
+    auto msg = KMime::Message::Ptr(new KMime::Message);
+    msg->setHead(KMime::CRLFtoLF(newMail.getMimeMessage()));
+    msg->parse();
     if (msg) {
         updatedIndexedProperties(newMail, msg);
     }

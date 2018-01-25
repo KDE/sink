@@ -3,7 +3,7 @@ add_subdirectory(dummyresource)
 
 if (BUILD_MAILDIR)
     # a maildir resource implementation
-    add_subdirectory(maildirresource)
+    #add_subdirectory(maildirresource)
     # an imap resource implementation
     add_subdirectory(imapresource)
 endif()
