@@ -69,6 +69,7 @@ void statResources(const QStringList &resources, const State &state)
             dataSize += e.size();
         }
         state.printLine(QObject::tr("Total BLOB size [kb]: %1").arg(dataSize / 1024), 1);
+        state.printLine();
     }
 
 }
