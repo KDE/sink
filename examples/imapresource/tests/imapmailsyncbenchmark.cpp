@@ -27,6 +27,7 @@
 #include "common/domain/applicationdomaintype.h"
 #include "common/store.h"
 #include "common/resourcecontrol.h"
+#include "common/secretstore.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -56,9 +57,9 @@ class ImapMailSyncBenchmark : public QObject
     {
         auto resource = ApplicationDomain::ImapResource::create("account1");
         resource.setProperty("server", "localhost");
-        resource.setProperty("port", 993);
+        resource.setProperty("port", 143);
         resource.setProperty("username", "doe");
-        resource.setProperty("password", "doe");
+        Sink::SecretStore::instance().insert(resource.identifier(), "doe");
         return resource;
     }
 
