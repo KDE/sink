@@ -31,12 +31,14 @@
 
 #include "contactpreprocessor.h"
 
+#include <QNetworkReply>
 #include <KDAV2/DavCollection>
 #include <KDAV2/DavCollectionsFetchJob>
 #include <KDAV2/DavItem>
 #include <KDAV2/DavItemsListJob>
 #include <KDAV2/DavItemFetchJob>
 #include <KDAV2/EtagCache>
+#include <KDAV2/DavJobBase>
 
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_CONTACT "contact"
@@ -44,14 +46,29 @@
 
 using namespace Sink;
 
+static int translateDavError(KJob *job)
+{
+    const int error = job->error();
+    const int responseCode = static_cast<KDAV2::DavJobBase*>(job)->latestResponseCode();
+
+    switch (responseCode) {
+        case QNetworkReply::HostNotFoundError:
+            return ApplicationDomain::NoServerError;
+        //Since we don't login we will just not have the necessary permissions ot view the object
+        case QNetworkReply::OperationCanceledError:
+            return ApplicationDomain::LoginError;
+    }
+    return ApplicationDomain::UnknownError;
+}
+
 static KAsync::Job<void> runJob(KJob *job)
 {
     return KAsync::start<void>([job](KAsync::Future<void> &future) {
         QObject::connect(job, &KJob::result, [&future](KJob *job) {
             SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
-                SinkWarning() << "Job failed: " << job->errorString();
-                future.setError(job->error(), job->errorString());
+                SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className() << job->error() << static_cast<KDAV2::DavJobBase*>(job)->latestResponseCode();
+                future.setError(translateDavError(job), job->errorString());
             } else {
                 future.setFinished();
             }
