@@ -45,6 +45,7 @@ QStringList debugareaCompleter(const QStringList &, const QString &fragment, Sta
 QMap<QString, QString> keyValueMapFromArgs(const QStringList &args);
 bool applyFilter(Sink::Query &query, const QStringList &args);
 bool applyFilter(Sink::Query &query, const SyntaxTree::Options &args);
+QByteArray parseUid(const QByteArray &);
 
 /**
  * A small abstraction layer to use the sink store with the type available as string.

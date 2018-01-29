@@ -49,7 +49,7 @@ bool sync(const QStringList &args, State &state)
     Sink::Query query;
     if (!options.positionalArguments.isEmpty() && !SinkshUtils::isValidStoreType(options.positionalArguments.first())) {
         //We have only specified a resource
-        query.resourceFilter(options.positionalArguments.first().toLatin1());
+        query.resourceFilter(SinkshUtils::parseUid(options.positionalArguments.first().toLatin1()));
     } else {
         //We have specified a full filter
         if (!SinkshUtils::applyFilter(query, options.positionalArguments)) {

@@ -164,7 +164,7 @@ bool applyFilter(Sink::Query &query, const QStringList &args_)
         if (resource.contains('/')) {
             //The resource isn't an id but a path
             auto list = resource.split('/');
-            const auto resourceId = list.takeFirst();
+            const auto resourceId = parseUid(list.takeFirst());
             query.resourceFilter(resourceId);
             if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Mail>() && !list.isEmpty()) {
                 auto value = list.takeFirst();
@@ -188,7 +188,7 @@ bool applyFilter(Sink::Query &query, const QStringList &args_)
                 }
             }
         } else {
-            query.resourceFilter(resource);
+            query.resourceFilter(parseUid(resource));
         }
     }
     return true;
@@ -199,22 +199,31 @@ bool applyFilter(Sink::Query &query, const SyntaxTree::Options &options)
     bool ret = applyFilter(query, options.positionalArguments);
     if (options.options.contains("resource")) {
         for (const auto &f : options.options.value("resource")) {
-            query.resourceFilter(f.toLatin1());
+            query.resourceFilter(parseUid(f.toLatin1()));
         }
     }
     if (options.options.contains("filter")) {
         for (const auto &f : options.options.value("filter")) {
             auto filter = f.split("=");
             const auto property = filter.value(0).toLatin1();
-            query.filter(property, Sink::PropertyParser::parse(query.type(), property, filter.value(1)));
+            const auto value = filter.value(1);
+            query.filter(property, Sink::PropertyParser::parse(query.type(), property, QString::fromUtf8(parseUid(value.toUtf8()))));
         }
     }
     if (options.options.contains("id")) {
         for (const auto &f : options.options.value("id")) {
-            query.filter(f.toUtf8());
+            query.filter(parseUid(f.toUtf8()));
         }
     }
     return ret;
+}
+
+QByteArray parseUid(const QByteArray &uid)
+{
+    if (uid.size() == 36 && uid.contains('-') && !uid.startsWith('{')) {
+        return '{' + uid + '}';
+    }
+    return uid;
 }
 
 }

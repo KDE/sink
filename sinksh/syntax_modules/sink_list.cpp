@@ -42,6 +42,9 @@ namespace SinkList
 static QByteArray compressId(bool compress, const QByteArray &id)
 {
     if (!compress) {
+        if (id.startsWith('{')) {
+            return id.mid(1, id.length() - 2);
+        }
         return id;
     }
     auto compactId = id.mid(1, id.length() - 2).split('-');
