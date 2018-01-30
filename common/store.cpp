@@ -22,7 +22,6 @@
 
 #include <QTime>
 #include <QAbstractItemModel>
-#include <QUuid>
 #include <functional>
 #include <memory>
 
@@ -35,6 +34,7 @@
 #include "modelresult.h"
 #include "storage.h"
 #include "log.h"
+#include "utils.h"
 
 #define ASSERT_ENUMS_MATCH(A, B) Q_STATIC_ASSERT_X(static_cast<int>(A) == static_cast<int>(B), "The enum values must match");
 
@@ -73,7 +73,7 @@ QString Store::storageLocation()
 
 QString Store::getTemporaryFilePath()
 {
-    return Sink::temporaryFileLocation() + "/" + QUuid::createUuid().toString();
+    return Sink::temporaryFileLocation() + "/" + createUuid();
 }
 
 

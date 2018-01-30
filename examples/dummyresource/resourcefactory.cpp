@@ -35,7 +35,6 @@
 #include "mailpreprocessor.h"
 #include "specialpurposepreprocessor.h"
 #include <QDate>
-#include <QUuid>
 
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_EVENT "event"

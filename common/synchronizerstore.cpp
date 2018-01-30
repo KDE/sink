@@ -19,7 +19,6 @@
  */
 #include "synchronizerstore.h"
 
-#include <QUuid>
 #include "index.h"
 #include "log.h"
 

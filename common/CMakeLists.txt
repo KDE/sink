@@ -79,6 +79,7 @@ set(command_SRCS
     commandprocessor.cpp
     inspector.cpp
     propertyparser.cpp
+    utils.cpp
     ${storage_SRCS})
 
 add_library(${PROJECT_NAME} SHARED ${command_SRCS})

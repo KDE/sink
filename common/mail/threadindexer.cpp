@@ -20,6 +20,7 @@
 
 #include "typeindex.h"
 #include "log.h"
+#include "utils.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -76,7 +77,7 @@ void ThreadIndexer::updateThreadingIndex(const QByteArray &identifier, const App
         SinkTrace() << "Found parent: " << thread;
     }
     if (thread.isEmpty()) {
-        thread << QUuid::createUuid().toByteArray();
+        thread << Sink::createUuid();
         SinkTrace() << "Created a new thread: " << thread;
     }
 

@@ -21,7 +21,6 @@
 #include "resourcecontrol.h"
 
 #include <QTime>
-#include <QUuid>
 #include <functional>
 
 #include "resourceaccess.h"
@@ -29,6 +28,7 @@
 #include "commands.h"
 #include "log.h"
 #include "notifier.h"
+#include "utils.h"
 
 namespace Sink {
 
@@ -96,7 +96,7 @@ KAsync::Job<void> ResourceControl::flush(Flush::FlushType type, const QByteArray
 {
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(resourceIdentifier, ResourceConfig::getResourceType(resourceIdentifier));
     auto notifier = QSharedPointer<Sink::Notifier>::create(resourceAccess);
-    auto id = QUuid::createUuid().toByteArray();
+    auto id = createUuid();
     return KAsync::start<void>([=](KAsync::Future<void> &future) {
             SinkTrace() << "Waiting for flush completion notification " << id;
             notifier->registerHandler([&future, id](const Notification &notification) {
@@ -140,7 +140,7 @@ KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
     auto resourceIdentifier = inspectionCommand.resourceIdentifier;
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(resourceIdentifier, ResourceConfig::getResourceType(resourceIdentifier));
     auto notifier = QSharedPointer<Sink::Notifier>::create(resourceAccess);
-    auto id = QUuid::createUuid().toByteArray();
+    auto id = createUuid();
     return KAsync::start<void>([=](KAsync::Future<void> &future) {
             notifier->registerHandler([&future, id](const Notification &notification) {
                 if (notification.id == id) {

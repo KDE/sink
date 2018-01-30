@@ -29,6 +29,7 @@
 #include "deleteentity_generated.h"
 #include "flush_generated.h"
 #include "notification_generated.h"
+#include "utils.h"
 
 using namespace Sink;
 
@@ -382,7 +383,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             modifiedRequest.options = SyncRequest::NoOptions;
             //Normally we won't have a requestId here
             if (modifiedRequest.requestId.isEmpty()) {
-                modifiedRequest.requestId = QUuid::createUuid().toByteArray();
+                modifiedRequest.requestId = createUuid();
             }
             SinkTraceCtx(mLogCtx) << "Enqueuing flush request " << modifiedRequest.requestId;
 

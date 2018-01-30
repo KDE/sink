@@ -22,7 +22,7 @@
 #include "storage.h"
 
 #include "log.h"
-#include <QUuid>
+#include "utils.h"
 
 QDebug& operator<<(QDebug &dbg, const Sink::Storage::DataStore::Error &error)
 {
@@ -212,7 +212,7 @@ qint64 DataStore::revisionFromKey(const QByteArray &key)
 
 QByteArray DataStore::generateUid()
 {
-    return QUuid::createUuid().toByteArray();
+    return createUuid();
 }
 
 DataStore::NamedDatabase DataStore::mainDatabase(const DataStore::Transaction &t, const QByteArray &type)

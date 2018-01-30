@@ -25,7 +25,6 @@
 #include <QByteArray>
 #include <QDateTime>
 #include <QDebug>
-#include <QUuid>
 #include "bufferadaptor.h"
 
 #define SINK_ENTITY(TYPE, LOWERCASENAME) \

@@ -23,6 +23,7 @@
 #include "definitions.h"
 #include "propertyregistry.h"
 #include "storage.h" //for generateUid()
+#include "utils.h" //for generateUid()
 #include <QFile>
 
 QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::Mail::Contact &c)
@@ -145,7 +146,7 @@ void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::Applicatio
         const auto value = buffer.getProperty(property);
         if (copyBlobs && value.canConvert<BLOB>()) {
             const auto oldPath = value.value<BLOB>().value;
-            const auto newPath = Sink::temporaryFileLocation() + "/" + QUuid::createUuid().toString();
+            const auto newPath = Sink::temporaryFileLocation() + "/" + createUuid();
             if (!QFile::copy(oldPath, newPath)) {
                 SinkWarning() << "Failed to copy file from: " << oldPath << "to: " << newPath;
             }
@@ -257,7 +258,7 @@ QByteArray ApplicationDomainType::getBlobProperty(const QByteArray &key) const
 
 void ApplicationDomainType::setBlobProperty(const QByteArray &key, const QByteArray &value)
 {
-    const auto path = Sink::temporaryFileLocation() + "/" + QUuid::createUuid().toString();
+    const auto path = Sink::temporaryFileLocation() + "/" + createUuid();
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
         SinkError() << "Failed to open the file for writing: " << file.errorString() << path << " For property " << key;
