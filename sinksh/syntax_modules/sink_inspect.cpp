@@ -43,7 +43,7 @@ bool inspect(const QStringList &args, State &state)
         state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] [--showinternal] | [--validaterids $type])"));
     }
     auto options = SyntaxTree::parseOptions(args);
-    auto resource = options.options.value("resource").value(0);
+    auto resource = SinkshUtils::parseUid(options.options.value("resource").value(0).toUtf8());
 
     Sink::Storage::DataStore storage(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
     auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);

@@ -77,7 +77,7 @@ bool statAllResources(State &state)
 {
     Sink::Query query;
     for (const auto &r : SinkshUtils::getStore("resource").read(query)) {
-        statResource(r.identifier(), state);
+        statResource(SinkshUtils::parseUid(r.identifier()), state);
     }
     return false;
 }
@@ -89,7 +89,7 @@ bool stat(const QStringList &args, State &state)
     }
 
     for (const auto &r : args) {
-        statResource(r, state);
+        statResource(SinkshUtils::parseUid(r.toUtf8()), state);
     }
     return false;
 }
