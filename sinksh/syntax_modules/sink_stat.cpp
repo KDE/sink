@@ -38,6 +38,7 @@ namespace SinkStat
 
 void statResource(const QString &resource, const State &state)
 {
+    state.printLine("Resource " + resource + ":");
     qint64 total = 0;
     Sink::Storage::DataStore storage(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
     auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
@@ -51,14 +52,18 @@ void statResource(const QString &resource, const State &state)
     }
     state.printLine();
     state.printLine(QObject::tr("Calculated named database sizes total of main database: %1 [kb]").arg(total), 1);
+
+    auto stat = transaction.stat(false);
+    state.printLine(QObject::tr("Total calculated free size [kb]: %1").arg(stat.freePages * stat.pageSize / 1024), 1);
     state.printLine(QObject::tr("Write amplification of main database: %1").arg(float(storage.diskUsage() / 1024)/float(total)), 1);
     int diskUsage = 0;
 
+    state.printLine();
     QDir dir(Sink::storageLocation());
     for (const auto &folder : dir.entryList(QStringList() << resource + "*")) {
         auto size = Sink::Storage::DataStore(Sink::storageLocation(), folder, Sink::Storage::DataStore::ReadOnly).diskUsage();
         diskUsage += size;
-        state.printLine(QObject::tr("...Accumulating %1: %2 [kb]").arg(folder).arg(size / 1024), 1);
+        state.printLine(QObject::tr("... accumulating %1: %2 [kb]").arg(folder).arg(size / 1024), 1);
     }
     auto size = diskUsage / 1024;
     state.printLine(QObject::tr("Actual database file sizes total: %1 [kb]").arg(size), 1);
