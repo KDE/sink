@@ -148,7 +148,7 @@ bool inspect(const QStringList &args, State &state)
     if (showInternal) {
         //Print internal keys
         db.scan("__internal", [&] (const QByteArray &key, const QByteArray &data) {
-                state.printLine("Internal: " + key + " Value: " + QString::fromUtf8(data));
+                state.printLine("Internal: " + key + "\tValue: " + QString::fromUtf8(data));
                 return true;
             },
             [&](const Sink::Storage::DataStore::Error &e) {
@@ -182,7 +182,7 @@ bool inspect(const QStringList &args, State &state)
                                           );
                         }
                     } else {
-                        state.printLine("Key: " + key + " Value: " + QString::fromUtf8(data));
+                        state.printLine("Key: " + key + "\tValue: " + QString::fromUtf8(data));
                     }
                     return true;
                 },
