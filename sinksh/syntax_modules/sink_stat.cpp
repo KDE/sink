@@ -36,52 +36,49 @@
 namespace SinkStat
 {
 
-void statResources(const QStringList &resources, const State &state)
+void statResource(const QString &resource, const State &state)
 {
-    for (const auto &resource : resources) {
-        qint64 total = 0;
-        Sink::Storage::DataStore storage(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
-        auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
+    qint64 total = 0;
+    Sink::Storage::DataStore storage(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
+    auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
 
-        QList<QByteArray> databases = transaction.getDatabaseNames();
-        for (const auto &databaseName : databases) {
-            state.printLine(QObject::tr("Database: %1").arg(QString(databaseName)), 1);
-            auto db = transaction.openDatabase(databaseName);
-            qint64 size = db.getSize() / 1024;
-            state.printLine(QObject::tr("Size [kb]: %1").arg(size), 1);
-            total += size;
-        }
-        state.printLine(QObject::tr("Resource total in database [kb]: %1").arg(total), 1);
-        int diskUsage = 0;
-
-        QDir dir(Sink::storageLocation());
-        for (const auto &folder : dir.entryList(QStringList() << resource + "*")) {
-            state.printLine(QObject::tr("Accumulating %1").arg(folder), 1);
-            diskUsage += Sink::Storage::DataStore(Sink::storageLocation(), folder, Sink::Storage::DataStore::ReadOnly).diskUsage();
-        }
-        auto size = diskUsage / 1024;
-        state.printLine(QObject::tr("Actual database file sizes [kb]: %1").arg(size), 1);
-
-        QDir dataDir{Sink::resourceStorageLocation(resource.toLatin1()) + "/blob/"};
-        Q_ASSERT(dataDir.exists());
-        qint64 dataSize = 0;
-        for (const auto &e : dataDir.entryInfoList(QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot)) {
-            dataSize += e.size();
-        }
-        state.printLine(QObject::tr("Total BLOB size [kb]: %1").arg(dataSize / 1024), 1);
-        state.printLine();
+    QList<QByteArray> databases = transaction.getDatabaseNames();
+    for (const auto &databaseName : databases) {
+        auto db = transaction.openDatabase(databaseName);
+        qint64 size = db.getSize() / 1024;
+        state.printLine(QObject::tr("%1:\t%2 [kb]").arg(QString(databaseName)).arg(size), 1);
+        total += size;
     }
+    state.printLine();
+    state.printLine(QObject::tr("Calculated named database sizes total of main database: %1 [kb]").arg(total), 1);
+    state.printLine(QObject::tr("Write amplification of main database: %1").arg(float(storage.diskUsage() / 1024)/float(total)), 1);
+    int diskUsage = 0;
 
+    QDir dir(Sink::storageLocation());
+    for (const auto &folder : dir.entryList(QStringList() << resource + "*")) {
+        auto size = Sink::Storage::DataStore(Sink::storageLocation(), folder, Sink::Storage::DataStore::ReadOnly).diskUsage();
+        diskUsage += size;
+        state.printLine(QObject::tr("...Accumulating %1: %2 [kb]").arg(folder).arg(size / 1024), 1);
+    }
+    auto size = diskUsage / 1024;
+    state.printLine(QObject::tr("Actual database file sizes total: %1 [kb]").arg(size), 1);
+
+    QDir dataDir{Sink::resourceStorageLocation(resource.toLatin1()) + "/blob/"};
+    Q_ASSERT(dataDir.exists());
+    qint64 dataSize = 0;
+    for (const auto &e : dataDir.entryInfoList(QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot)) {
+        dataSize += e.size();
+    }
+    state.printLine(QObject::tr("Total BLOB size [kb]: %1").arg(dataSize / 1024), 1);
+    state.printLine();
 }
 
 bool statAllResources(State &state)
 {
     Sink::Query query;
-    QStringList resources;
     for (const auto &r : SinkshUtils::getStore("resource").read(query)) {
-        resources << r.identifier();
+        statResource(r.identifier(), state);
     }
-    statResources(resources, state);
     return false;
 }
 
@@ -91,7 +88,9 @@ bool stat(const QStringList &args, State &state)
         return statAllResources(state);
     }
 
-    statResources(args, state);
+    for (const auto &r : args) {
+        statResource(r, state);
+    }
     return false;
 }
 
