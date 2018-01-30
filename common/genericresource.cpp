@@ -56,6 +56,33 @@ void GenericResource::setSecret(const QString &s)
     }
 }
 
+bool GenericResource::checkForUpgrade()
+{
+    const auto currentDatabaseVersion = [&] {
+        auto store = Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadOnly);
+        return Storage::DataStore::databaseVersion(store.createTransaction(Storage::DataStore::ReadOnly));
+    }();
+    if (currentDatabaseVersion < Sink::latestDatabaseVersion()) {
+        SinkLog() << "Starting database upgrade from " << currentDatabaseVersion << " to " << Sink::latestDatabaseVersion();
+
+        //Right now upgrading just means removing all local storage so we will resync
+        Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadWrite).removeFromDisk();
+        Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".userqueue", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
+        Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronizerqueue", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
+        Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".changereplay", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
+        Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
+
+        {
+            auto store = Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadWrite);
+            auto t = store.createTransaction(Storage::DataStore::ReadWrite);
+            Storage::DataStore::setDatabaseVersion(t, Sink::latestDatabaseVersion());
+        }
+        SinkLog() << "Finished database upgrade to " << Sink::latestDatabaseVersion();
+        return true;
+    }
+    return false;
+}
+
 void GenericResource::setupPreprocessors(const QByteArray &type, const QVector<Sink::Preprocessor *> &preprocessors)
 {
     mPipeline->setPreprocessors(type, preprocessors);

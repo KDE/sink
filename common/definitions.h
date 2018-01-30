@@ -30,6 +30,7 @@ QString SINK_EXPORT dataLocation();
 QString SINK_EXPORT configLocation();
 QString SINK_EXPORT temporaryFileLocation();
 QString SINK_EXPORT resourceStorageLocation(const QByteArray &resourceInstanceIdentifier);
+qint64 SINK_EXPORT latestDatabaseVersion();
 
 /**
  * Clear the location cache and lookup locations again.

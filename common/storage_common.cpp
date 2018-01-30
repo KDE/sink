@@ -233,9 +233,31 @@ bool DataStore::NamedDatabase::contains(const QByteArray &uid)
             found = true;
             return false;
         },
-        [this](const DataStore::Error &error) {}, true);
+        [](const DataStore::Error &error) {}, true);
     return found;
 }
+
+void DataStore::setDatabaseVersion(DataStore::Transaction &transaction, qint64 revision)
+{
+    transaction.openDatabase().write("__internal_databaseVersion", QByteArray::number(revision));
+}
+
+qint64 DataStore::databaseVersion(const DataStore::Transaction &transaction)
+{
+    qint64 r = 0;
+    transaction.openDatabase().scan("__internal_databaseVersion",
+        [&](const QByteArray &, const QByteArray &revision) -> bool {
+            r = revision.toLongLong();
+            return false;
+        },
+        [](const Error &error) {
+            if (error.code != DataStore::NotFound) {
+                SinkWarning() << "Couldn't find the database version: " << error;
+            }
+        });
+    return r;
+}
+
 
 }
 } // namespace Sink

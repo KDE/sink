@@ -235,6 +235,9 @@ public:
 
     static QByteArray generateUid();
 
+    static qint64 databaseVersion(const Transaction &);
+    static void setDatabaseVersion(Transaction &, qint64 revision);
+
 private:
     std::function<void(const DataStore::Error &error)> mErrorHandler;
 

@@ -87,6 +87,14 @@ Listener::~Listener()
     closeAllConnections();
 }
 
+void Listener::checkForUpgrade()
+{
+    if (loadResource().checkForUpgrade()) {
+        //Close the resource to ensure no transactions are open
+        m_resource.reset(nullptr);
+    }
+}
+
 void Listener::emergencyAbortAllConnections()
 {
     Sink::Notification n;
@@ -289,6 +297,9 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
             }
             m_exiting = true;
         } break;
+        case Sink::Commands::UpgradeCommand:
+            //Because we synchronously run the update directly on resource start, we know that the upgrade is complete once this message completes.
+            break;
         default:
             if (commandId > Sink::Commands::CustomCommand) {
                 SinkLog() << QString("Received custom command from %1: ").arg(client.name) << commandId;

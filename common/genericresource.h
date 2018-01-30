@@ -48,6 +48,7 @@ public:
     static qint64 diskUsage(const QByteArray &instanceIdentifier);
 
     virtual void setSecret(const QString &s) Q_DECL_OVERRIDE;
+    virtual bool checkForUpgrade() Q_DECL_OVERRIDE;
 
     //TODO Remove this API, it's only used in tests
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query);

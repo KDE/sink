@@ -56,6 +56,11 @@ void Resource::setSecret(const QString &s)
     Q_UNUSED(s)
 }
 
+bool Resource::checkForUpgrade()
+{
+    return false;
+}
+
 
 class ResourceFactory::Private
 {

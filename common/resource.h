@@ -48,6 +48,7 @@ public:
     virtual void setLowerBoundRevision(qint64 revision);
 
     virtual void setSecret(const QString &s);
+    virtual bool checkForUpgrade();
 
 signals:
     void revisionUpdated(qint64);

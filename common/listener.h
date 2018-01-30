@@ -59,6 +59,8 @@ public:
     Listener(const QByteArray &resourceName, const QByteArray &resourceType, QObject *parent = 0);
     ~Listener();
 
+    void checkForUpgrade();
+
 signals:
     void noClients();
 

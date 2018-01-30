@@ -216,6 +216,7 @@ int main(int argc, char *argv[])
     }
 
     listener = new Listener(instanceIdentifier, resourceType, &app);
+    listener->checkForUpgrade();
 
     QObject::connect(&app, &QCoreApplication::aboutToQuit, listener, &Listener::closeAllConnections);
     QObject::connect(listener, &Listener::noClients, &app, &QCoreApplication::quit);

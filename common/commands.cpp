@@ -63,6 +63,10 @@ QByteArray name(int commandId)
             return "RemoveFromDisk";
         case FlushCommand:
             return "Flush";
+        case SecretCommand:
+            return "Secret";
+        case UpgradeCommand:
+            return "Upgrade";
         case CustomCommand:
             return "Custom";
     };

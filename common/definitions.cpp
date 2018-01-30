@@ -86,3 +86,9 @@ QString Sink::resourceStorageLocation(const QByteArray &resourceInstanceIdentifi
 {
     return storageLocation() + "/" + resourceInstanceIdentifier + "/data";
 }
+
+
+qint64 Sink::latestDatabaseVersion()
+{
+    return 0;
+}

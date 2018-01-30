@@ -302,13 +302,33 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
         });
 }
 
+static KAsync::Job<void> upgrade(const QByteArray &resource)
+{
+    SinkLog() << "Upgrading " << resource;
+    auto store = Sink::Storage::DataStore(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
+    if (Storage::DataStore::databaseVersion(store.createTransaction(Storage::DataStore::ReadOnly)) >= Sink::latestDatabaseVersion()) {
+        return KAsync::null();
+    }
+
+    auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
+    return resourceAccess->sendCommand(Sink::Commands::UpgradeCommand)
+        .addToContext(resourceAccess)
+        .then([=](const KAsync::Error &error) {
+            if (error) {
+                SinkWarning() << "Error during upgrade.";
+                return KAsync::error(error);
+            }
+            SinkTrace() << "Upgrade of resource " << resource << " complete.";
+            return KAsync::null();
+        });
+}
+
 KAsync::Job<void> Store::upgrade()
 {
     SinkLog() << "Upgrading...";
     return fetchAll<ApplicationDomain::SinkResource>({})
         .template each([](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {
-            SinkLog() << "Removing caches for " << resource->identifier();
-            return removeDataFromDisk(resource->identifier());
+                return Sink::upgrade(resource->identifier());
         })
         .then([] {
             SinkLog() << "Upgrade complete.";
