@@ -167,7 +167,7 @@ public:
             NamedDatabase::Stat mainDbStat;
             NamedDatabase::Stat freeDbStat;
         };
-        Stat stat();
+        Stat stat(bool printDetails = true);
 
     private:
         Transaction(Transaction &other);

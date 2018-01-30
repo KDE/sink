@@ -732,7 +732,7 @@ QList<QByteArray> DataStore::Transaction::getDatabaseNames() const
 }
 
 
-DataStore::Transaction::Stat DataStore::Transaction::stat()
+DataStore::Transaction::Stat DataStore::Transaction::stat(bool printDetails)
 {
     const int freeDbi = 0;
     const int mainDbi = 1;
@@ -779,14 +779,16 @@ DataStore::Transaction::Stat DataStore::Transaction::stat()
             pg += span;
             for (; i >= span && iptr[i-span] == pg; span++, pg++) ;
         }
-        std::cout << "    Transaction " << *(size_t *)key.mv_data << ", "<< j << " pages, maxspan " << span << (bad ? " [bad sequence]" : "") << std::endl;
-        for (--j; j >= 0; ) {
-            pg = iptr[j];
-            for (span=1; --j >= 0 && iptr[j] == pg+span; span++);
-            if (span > 1) {
-                std::cout << "     " << pg << "[" << span << "]\n";
-            } else {
-                std::cout << "     " << pg << std::endl;
+        if (printDetails) {
+            std::cout << "    Transaction " << *(size_t *)key.mv_data << ", "<< j << " pages, maxspan " << span << (bad ? " [bad sequence]" : "") << std::endl;
+            for (--j; j >= 0; ) {
+                pg = iptr[j];
+                for (span=1; --j >= 0 && iptr[j] == pg+span; span++);
+                if (span > 1) {
+                    std::cout << "     " << pg << "[" << span << "]\n";
+                } else {
+                    std::cout << "     " << pg << std::endl;
+                }
             }
         }
     }
