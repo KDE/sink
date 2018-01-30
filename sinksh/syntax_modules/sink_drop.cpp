@@ -44,8 +44,7 @@ bool drop(const QStringList &args, State &state)
 
     auto argList = args;
     auto resource = argList.takeFirst();
-
-    QDirIterator it(Sink::storageLocation(), QStringList() << resource + "*", QDir::Dirs);
+    QDirIterator it(Sink::storageLocation(), QStringList() << SinkshUtils::parseUid(resource.toLatin1()) + "*", QDir::Dirs);
     while (it.hasNext()) {
         auto path = it.next();
         QDir dir(path);

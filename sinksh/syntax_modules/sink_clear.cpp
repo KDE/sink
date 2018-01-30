@@ -43,7 +43,7 @@ bool clear(const QStringList &args, State &state)
     }
     for (const auto &resource : args) {
         state.print(QObject::tr("Removing local cache for '%1' ...").arg(resource));
-        Sink::Store::removeDataFromDisk(resource.toLatin1()).exec().waitForFinished();
+        Sink::Store::removeDataFromDisk(SinkshUtils::parseUid(resource.toLatin1())).exec().waitForFinished();
         state.printLine(QObject::tr("done"));
     }
 

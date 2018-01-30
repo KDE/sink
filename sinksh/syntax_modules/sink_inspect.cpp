@@ -192,8 +192,8 @@ bool inspect(const QStringList &args, State &state)
                 findSubstringKeys);
 
         state.printLine("Found " + QString::number(count) + " entries");
-        state.printLine("Keys take up " + QString::number(keySizeTotal) + " bytes");
-        state.printLine("Values take up " + QString::number(valueSizeTotal) + " bytes");
+        state.printLine("Keys take up " + QString::number(keySizeTotal) + " bytes => " + QString::number(keySizeTotal/1024) + " kb");
+        state.printLine("Values take up " + QString::number(valueSizeTotal) + " bytes => " + QString::number(valueSizeTotal/1024) + " kb");
     }
     return false;
 }
