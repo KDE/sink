@@ -76,9 +76,9 @@ QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o,
             } else if (value.canConvert<Sink::ApplicationDomain::BLOB>()) {
                 line << value.value<Sink::ApplicationDomain::BLOB>().value;
             } else if (value.canConvert<QString>()) {
-                line << value.toString();
+                line << value.toString().mid(0, 75);
             } else if (value.canConvert<QByteArray>()) {
-                line << value.toByteArray();
+                line << value.toByteArray().mid(0, 75);
             } else if (value.canConvert<QByteArrayList>()) {
                 line << value.value<QByteArrayList>().join(", ");
             } else {
