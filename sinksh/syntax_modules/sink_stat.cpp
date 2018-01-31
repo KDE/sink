@@ -55,7 +55,7 @@ void statResource(const QString &resource, const State &state)
 
     auto stat = transaction.stat(false);
     state.printLine(QObject::tr("Total calculated free size [kb]: %1").arg(stat.freePages * stat.pageSize / 1024), 1);
-    state.printLine(QObject::tr("Write amplification of main database: %1").arg(float(storage.diskUsage() / 1024)/float(total)), 1);
+    state.printLine(QObject::tr("Write amplification of main database: %1").arg(double(storage.diskUsage() / 1024)/double(total)), 1);
     int diskUsage = 0;
 
     state.printLine();
