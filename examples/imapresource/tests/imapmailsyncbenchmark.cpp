@@ -19,15 +19,18 @@
 #include <QtTest>
 #include <QTcpSocket>
 
-#include <tests/mailsynctest.h>
 #include "../imapresource.h"
 #include "../imapserverproxy.h"
+#include "tests/testutils.h"
 
 #include "common/test.h"
 #include "common/domain/applicationdomaintype.h"
 #include "common/store.h"
 #include "common/resourcecontrol.h"
 #include "common/secretstore.h"
+
+#include <tests/hawd/dataset.h>
+#include <tests/hawd/formatter.h>
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -70,6 +73,7 @@ class ImapMailSyncBenchmark : public QObject
 
     QByteArray mResourceInstanceIdentifier;
     QByteArrayList mCapabilities;
+    HAWD::State mHawdState;
 
 private slots:
 
@@ -102,25 +106,37 @@ private slots:
     {
         Sink::Query query;
         query.resourceFilter(mResourceInstanceIdentifier);
-        query.request<Folder::Name>().request<Folder::SpecialPurpose>();
 
         QTime time;
         time.start();
 
         // Ensure all local data is processed
         VERIFYEXEC(Store::synchronize(query));
-        SinkLog() << "Sync took: " << Sink::Log::TraceTime(time.elapsed());
+        auto sync = time.elapsed();
+        SinkLog() << "Sync took: " << Sink::Log::TraceTime(sync);
 
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
-        SinkLog() << "Total took: " << Sink::Log::TraceTime(time.elapsed());
+        auto total = time.elapsed();
+        SinkLog() << "Total took: " << Sink::Log::TraceTime(total);
 
         time.start();
 
         VERIFYEXEC(Store::synchronize(query));
-        SinkLog() << "ReSync took: " << Sink::Log::TraceTime(time.elapsed());
+        auto resync = time.elapsed();
+        SinkLog() << "ReSync took: " << Sink::Log::TraceTime(resync);
 
         VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
-        SinkLog() << "Total resync took: " << Sink::Log::TraceTime(time.elapsed());
+        auto resynctotal = time.elapsed();
+        SinkLog() << "Total resync took: " << Sink::Log::TraceTime(resynctotal);
+
+        HAWD::Dataset dataset("imap_mail_sync", mHawdState);
+        HAWD::Dataset::Row row = dataset.row();
+        row.setValue("sync", sync);
+        row.setValue("total", total);
+        row.setValue("resync", resync);
+        row.setValue("resynctotal", resynctotal);
+        dataset.insertRow(row);
+        HAWD::Formatter::print(dataset);
     }
 };
 

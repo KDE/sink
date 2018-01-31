@@ -1,0 +1,10 @@
+{
+    "name": "IMAP mail sycn",
+    "description": "Measures performance of the imap mail sync",
+    "columns": [
+        { "name": "sync", "type": "float", "unit": "ms" },
+        { "name": "total", "type": "float", "unit": "ms" },
+        { "name": "resync", "type": "float", "unit": "ms" },
+        { "name": "resynctotal", "type": "float", "unit": "ms" }
+    ]
+}

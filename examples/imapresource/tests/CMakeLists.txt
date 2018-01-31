@@ -1,6 +1,8 @@
 set(CMAKE_AUTOMOC ON)
 include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../tests/hawd
+    ${CMAKE_CURRENT_BINARY_DIR}/../../../tests/hawd
 )
 
 include(SinkTest)
