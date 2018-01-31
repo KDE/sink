@@ -48,7 +48,6 @@ using namespace Sink;
 
 static int translateDavError(KJob *job)
 {
-    const int error = job->error();
     const int responseCode = static_cast<KDAV2::DavJobBase*>(job)->latestResponseCode();
 
     switch (responseCode) {
