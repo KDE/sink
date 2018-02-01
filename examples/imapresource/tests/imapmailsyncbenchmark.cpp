@@ -47,7 +47,7 @@ class ImapMailSyncBenchmark : public QObject
     bool isBackendAvailable()
     {
         QTcpSocket socket;
-        socket.connectToHost("localhost", 993);
+        socket.connectToHost("localhost", 143);
         return socket.waitForConnected(200);
     }
 
