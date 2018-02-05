@@ -158,6 +158,58 @@ void qtMessageHandler(QtMsgType type, const QMessageLogContext &context, const Q
     }
 }
 
+QString read(const QString &filename)
+{
+    QFile file{filename};
+    file.open(QIODevice::ReadOnly);
+    return file.readAll();
+}
+
+void printStats()
+{
+
+#if defined(Q_OS_LINUX)
+    /*
+     * See 'man proc' for details
+     */
+    {
+        auto statm = read("/proc/self/statm").split(' ');
+        SinkLog() << "Program size:" << statm.value(0).toInt() << "pages";
+        SinkLog() << "RSS:"<< statm.value(1).toInt() << "pages";
+        SinkLog() << "Resident Shared:" << statm.value(2).toInt() << "pages";
+        SinkLog() << "Text (code):" << statm.value(3).toInt() << "pages";
+        SinkLog() << "Data (data + stack):" << statm.value(5).toInt() << "pages";
+    }
+
+    {
+        auto stat = read("/proc/self/stat").split(' ');
+        SinkLog() << "Minor page faults: " << stat.value(10).toInt();
+        SinkLog() << "Children minor page faults: " << stat.value(11).toInt();
+        SinkLog() << "Major page faults: " << stat.value(12).toInt();
+        SinkLog() << "Children major page faults: " << stat.value(13).toInt();
+    }
+
+    //Dump the complete memory map for the process
+    // std::cout << "smaps: " << read("/proc/self/smaps").toStdString();
+    //Dump all sorts of stats for the process
+    // std::cout << read("/proc/self/status").toStdString();
+
+    {
+        auto io = read("/proc/self/io").split('\n');
+        QHash<QString, QString> hash;
+        for (const auto &s : io) {
+            const auto parts = s.split(": ");
+            hash.insert(parts.value(0), parts.value(1));
+        }
+        SinkLog() << "Read syscalls: " << hash.value("syscr").toInt();
+        SinkLog() << "Write syscalls: " << hash.value("syscw").toInt();
+        SinkLog() << "Read from disk: " << hash.value("read_bytes").toInt() / 1024 << "kb";
+        SinkLog() << "Written to disk: " << hash.value("write_bytes").toInt() / 1024 << "kb";
+        SinkLog() << "Cancelled write bytes: " << hash.value("cancelled_write_bytes").toInt();
+    }
+
+#endif
+}
 
 int main(int argc, char *argv[])
 {
@@ -223,5 +275,6 @@ int main(int argc, char *argv[])
 
     auto ret = app.exec();
     SinkLog() << "Exiting: " << instanceIdentifier;
+    printStats();
     return ret;
 }
