@@ -58,12 +58,6 @@ QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDom
     return d;
 }
 
-QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::BLOB &blob)
-{
-    d << blob.value << "external:" << blob.isExternal ;
-    return d;
-}
-
 template <typename DomainType, typename Property>
 int registerProperty() {
     Sink::Private::PropertyRegistry::instance().registerProperty<Property>(Sink::ApplicationDomain::getTypeName<DomainType>());
@@ -130,13 +124,12 @@ static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();
     QMetaType::registerDebugStreamOperator<Reference>();
     QMetaType::registerConverter<Reference, QByteArray>();
-    QMetaType::registerDebugStreamOperator<BLOB>();
     QMetaType::registerDebugStreamOperator<Mail::Contact>();
     qRegisterMetaTypeStreamOperators<Sink::ApplicationDomain::Reference>();
     return 0;
 }();
 
-void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties, bool copyBlobs, bool pruneReferences)
+void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties, bool pruneReferences)
 {
     auto propertiesToCopy = properties;
     if (properties.isEmpty()) {
@@ -144,14 +137,7 @@ void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::Applicatio
     }
     for (const auto &property : propertiesToCopy) {
         const auto value = buffer.getProperty(property);
-        if (copyBlobs && value.canConvert<BLOB>()) {
-            const auto oldPath = value.value<BLOB>().value;
-            const auto newPath = Sink::temporaryFileLocation() + "/" + createUuid();
-            if (!QFile::copy(oldPath, newPath)) {
-                SinkWarning() << "Failed to copy file from: " << oldPath << "to: " << newPath;
-            }
-            memoryAdaptor.setProperty(property, QVariant::fromValue(BLOB{newPath}));
-        } else if (pruneReferences && value.canConvert<Reference>()) {
+        if (pruneReferences && value.canConvert<Reference>()) {
             continue;
         } else {
             memoryAdaptor.setProperty(property, value);
@@ -243,33 +229,6 @@ void ApplicationDomainType::setProperty(const QByteArray &key, const Application
 {
     Q_ASSERT(!value.identifier().isEmpty());
     setProperty(key, QVariant::fromValue(Reference{value.identifier()}));
-}
-
-QByteArray ApplicationDomainType::getBlobProperty(const QByteArray &key) const
-{
-    const auto path = getProperty(key).value<BLOB>().value;
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) {
-        SinkError() << "Failed to open the file for reading: " << file.errorString() << "Path:" << path << " For property:" << key;
-        return QByteArray();
-    }
-    return file.readAll();
-}
-
-void ApplicationDomainType::setBlobProperty(const QByteArray &key, const QByteArray &value)
-{
-    const auto path = Sink::temporaryFileLocation() + "/" + createUuid();
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly)) {
-        SinkError() << "Failed to open the file for writing: " << file.errorString() << path << " For property " << key;
-        return;
-    }
-    if (file.write(value) < 0) {
-        SinkError() << "Failed to write to file: " << file.errorString() << path << " For property " << key;
-    }
-    //Ensure that the file is written to disk immediately
-    file.close();
-    setProperty(key, QVariant::fromValue(BLOB{path}));
 }
 
 void ApplicationDomainType::setChangedProperties(const QSet<QByteArray> &changeset)

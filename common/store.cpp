@@ -71,11 +71,6 @@ QString Store::storageLocation()
     return Sink::storageLocation();
 }
 
-QString Store::getTemporaryFilePath()
-{
-    return Sink::temporaryFileLocation() + "/" + createUuid();
-}
-
 
 template <class DomainType>
 KAsync::Job<void> queryResource(const QByteArray resourceType, const QByteArray &resourceInstanceIdentifier, const Query &query, typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr aggregatingEmitter, const Sink::Log::Context &ctx_)

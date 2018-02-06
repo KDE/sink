@@ -35,17 +35,6 @@ flatbuffers::uoffset_t variantToProperty<QString>(const QVariant &property, flat
 }
 
 template <>
-flatbuffers::uoffset_t variantToProperty<Sink::ApplicationDomain::BLOB>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
-{
-    if (property.isValid()) {
-        const auto blob = property.value<Sink::ApplicationDomain::BLOB>();
-        auto s = blob.value + (blob.isExternal ? ":ext" : ":int");
-        return fbb.CreateString(s.toStdString()).o;
-    }
-    return 0;
-}
-
-template <>
 flatbuffers::uoffset_t variantToProperty<Sink::ApplicationDomain::Reference>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
 {
     if (property.isValid()) {
@@ -148,22 +137,6 @@ QVariant propertyToVariant<QString>(const flatbuffers::String *property)
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
         return QString::fromStdString(property->str());
-    }
-    return QVariant();
-}
-
-template <>
-QVariant propertyToVariant<Sink::ApplicationDomain::BLOB>(const flatbuffers::String *property)
-{
-    if (property) {
-        // We have to copy the memory, otherwise it would become eventually invalid
-        auto s = QString::fromStdString(property->str());
-        auto ext = s.endsWith(":ext");
-        s.chop(4);
-
-        auto blob = Sink::ApplicationDomain::BLOB{s};
-        blob.isExternal = ext;
-        return QVariant::fromValue(blob);
     }
     return QVariant();
 }

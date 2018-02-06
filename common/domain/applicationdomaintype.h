@@ -62,16 +62,6 @@
     void setStatus##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
     TYPE get##NAME() const { return getProperty(NAME::name).value<TYPE>(); } \
 
-#define SINK_BLOB_PROPERTY(NAME, LOWERCASENAME) \
-    struct NAME { \
-        static constexpr const char *name = #LOWERCASENAME; \
-        typedef BLOB Type; \
-    }; \
-    void set##NAME(const QByteArray &value) { setBlobProperty(NAME::name, value); } \
-    void set##NAME##Path(const QString &path) { setProperty(NAME::name, QVariant::fromValue(BLOB{path})); } \
-    QByteArray get##NAME() const { return getBlobProperty(NAME::name); } \
-    QString get##NAME##Path() const { return getProperty(NAME::name).value<BLOB>().value; } \
-
 #define SINK_REFERENCE_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
         static constexpr const char *name = #LOWERCASENAME; \
@@ -145,23 +135,6 @@ struct SINK_EXPORT Progress {
 /**
  * Internal type.
  *
- * Represents a BLOB property.
- */
-struct BLOB {
-    BLOB() = default;
-    BLOB(const BLOB &) = default;
-    BLOB(const QString &id) : value(id) {};
-    ~BLOB() = default;
-    bool operator==(const BLOB &other) const {
-        return value == other.value && isExternal == other.isExternal;
-    }
-    QString value;
-    bool isExternal = true;
-};
-
-/**
- * Internal type.
- *
  * Represents a reference to another entity in the same resource.
  */
 struct Reference {
@@ -179,7 +152,7 @@ struct Reference {
     QByteArray value;
 };
 
-void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties = QList<QByteArray>(), bool copyBlobs = false, bool pruneReferences = false);
+void copyBuffer(Sink::ApplicationDomain::BufferAdaptor &buffer, Sink::ApplicationDomain::BufferAdaptor &memoryAdaptor, const QList<QByteArray> &properties = QList<QByteArray>(), bool pruneReferences = false);
 
 /**
  * The domain type interface has two purposes:
@@ -223,7 +196,7 @@ public:
     static typename DomainType::Ptr getInMemoryRepresentation(const ApplicationDomainType &domainType, const QList<QByteArray> properties = QList<QByteArray>())
     {
         auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create();
-        copyBuffer(*(domainType.mAdaptor), *memoryAdaptor, properties, false, false);
+        copyBuffer(*(domainType.mAdaptor), *memoryAdaptor, properties, false);
         //mIdentifier internally still refers to the memory-mapped memory, we need to copy the memory or it will become invalid
         return QSharedPointer<DomainType>::create(domainType.mResourceInstanceIdentifier, QByteArray(domainType.mIdentifier.constData(), domainType.mIdentifier.size()), domainType.mRevision, memoryAdaptor);
     }
@@ -236,7 +209,7 @@ public:
     {
         auto memoryAdaptor = QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create();
         Q_ASSERT(domainType.mAdaptor);
-        copyBuffer(*(domainType.mAdaptor), *memoryAdaptor, properties, true, true);
+        copyBuffer(*(domainType.mAdaptor), *memoryAdaptor, properties, true);
         return QSharedPointer<DomainType>::create(QByteArray{}, QByteArray{}, 0, memoryAdaptor);
     }
 
@@ -287,9 +260,6 @@ public:
      */
     void setProperty(const QByteArray &key, const ApplicationDomainType &value);
 
-    QByteArray getBlobProperty(const QByteArray &key) const;
-    void setBlobProperty(const QByteArray &key, const QByteArray &value);
-
     void setChangedProperties(const QSet<QByteArray> &changeset);
     QByteArrayList changedProperties() const;
     QByteArrayList availableProperties() const;
@@ -321,7 +291,6 @@ inline bool operator==(const ApplicationDomainType& lhs, const ApplicationDomain
 
 SINK_EXPORT QDebug operator<< (QDebug d, const ApplicationDomainType &type);
 SINK_EXPORT QDebug operator<< (QDebug d, const Reference &ref);
-SINK_EXPORT QDebug operator<< (QDebug d, const BLOB &blob);
 
 
 struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
@@ -439,7 +408,6 @@ struct SINK_EXPORT Mail : public Entity {
     SINK_PROPERTY(bool, Unread, unread);
     SINK_PROPERTY(bool, Important, important);
     SINK_REFERENCE_PROPERTY(Folder, Folder, folder);
-    // SINK_BLOB_PROPERTY(MimeMessage, mimeMessage);
     SINK_PROPERTY(QByteArray, MimeMessage, mimeMessage);
     SINK_EXTRACTED_PROPERTY(bool, FullPayloadAvailable, fullPayloadAvailable);
     SINK_PROPERTY(bool, Draft, draft);
@@ -542,7 +510,6 @@ class SINK_EXPORT TypeImplementation;
 #undef SINK_ENTITY
 #undef SINK_PROPERTY
 #undef SINK_EXTRACTED_PROPERTY
-#undef SINK_BLOB_PROPERTY
 #undef SINK_REFERENCE_PROPERTY
 #undef SINK_INDEX_PROPERTY
 
@@ -576,5 +543,4 @@ Q_DECLARE_METATYPE(Sink::ApplicationDomain::Mail::Contact)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Contact::Email)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Error)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Progress)
-Q_DECLARE_METATYPE(Sink::ApplicationDomain::BLOB)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Reference)

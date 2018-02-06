@@ -43,11 +43,6 @@ namespace Store {
 
 QString SINK_EXPORT storageLocation();
 
-/**
- * Returns a unique path for a writable file that can be used to write BLOB properties.
- */
-QString SINK_EXPORT getTemporaryFilePath();
-
 // Must be the same as in ModelResult
 enum Roles
 {

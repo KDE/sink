@@ -73,8 +73,6 @@ QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o,
         if (value.isValid()) {
             if (value.canConvert<Sink::ApplicationDomain::Reference>()) {
                 line << compressId(compact, value.toByteArray());
-            } else if (value.canConvert<Sink::ApplicationDomain::BLOB>()) {
-                line << value.value<Sink::ApplicationDomain::BLOB>().value;
             } else if (value.canConvert<QString>()) {
                 line << value.toString().mid(0, 75);
             } else if (value.canConvert<QByteArray>()) {

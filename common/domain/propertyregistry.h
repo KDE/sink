@@ -43,9 +43,6 @@ template <>
 QVariant parseString<Sink::ApplicationDomain::Reference>(const QString &s);
 
 template <>
-QVariant parseString<Sink::ApplicationDomain::BLOB>(const QString &s);
-
-template <>
 QVariant parseString<bool>(const QString &s);
 
 template <>

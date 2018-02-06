@@ -46,15 +46,6 @@ QVariant parseString<Sink::ApplicationDomain::Reference>(const QString &s)
 }
 
 template <>
-QVariant parseString<Sink::ApplicationDomain::BLOB>(const QString &s)
-{
-    //TODO copy path
-    // return QVariant::fromValue(Sink::ApplicationDomain::BLOB{s.toLatin1()});
-    Q_ASSERT(false);
-    return QVariant{};
-}
-
-template <>
 QVariant parseString<bool>(const QString &s)
 {
     if (s == "true") {
