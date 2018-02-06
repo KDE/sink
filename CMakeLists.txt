@@ -91,6 +91,7 @@ function(generate_flatbuffers _target)
 
         )
         target_sources(${_target} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${fbs}_generated.h)
+        set_property(SOURCE ${fbs}_generated.h PROPERTY SKIP_AUTOMOC ON)
     endforeach(fbs)
 endfunction(generate_flatbuffers)
 
