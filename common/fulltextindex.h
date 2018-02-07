@@ -10,6 +10,7 @@
 #include "log.h"
 
 namespace Xapian {
+    class Database;
     class WritableDatabase;
 };
 
@@ -37,7 +38,8 @@ public:
 
     /* FulltextIndex(const QString &storageRoot, const QString &name, Sink::Storage::AccessMode mode = Sink::Storage::ReadOnly); */
     /* FulltextIndex(const QByteArray &name); */
-    FulltextIndex(const QByteArray &resourceInstanceIdentifier, const QByteArray &name);
+    FulltextIndex(const QByteArray &resourceInstanceIdentifier, const QByteArray &name, Sink::Storage::DataStore::AccessMode mode = Sink::Storage::DataStore::ReadOnly);
+    ~FulltextIndex();
 
     void add(const QByteArray &key, const QString &value);
     void remove(const QByteArray &key);
@@ -45,11 +47,11 @@ public:
     /* void startTransaction(); */
     /* void commit(qint64 revision); */
 
-    QByteArrayList lookup(const QString &key);
+    QVector<QByteArray> lookup(const QString &key);
 
 private:
     Q_DISABLE_COPY(FulltextIndex);
-    std::shared_ptr<Xapian::WritableDatabase> mDb;
+    Xapian::Database *mDb;
     QString mName;
-    SINK_DEBUG_COMPONENT(mName.toLatin1())
+    QString mDbPath;
 };

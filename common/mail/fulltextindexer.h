@@ -16,16 +16,24 @@
  *   Free Software Foundation, Inc.,
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-#include "sink_export.h"
+#pragma once
 
-#include "pipeline.h"
+#include "indexer.h"
 
-class SINK_EXPORT MailPropertyExtractor : public Sink::EntityPreprocessor<Sink::ApplicationDomain::Mail>
+class FulltextIndex;
+namespace Sink {
+
+class FulltextIndexer : public Indexer
 {
 public:
-    virtual ~MailPropertyExtractor(){}
-    virtual void newEntity(Sink::ApplicationDomain::Mail &mail) Q_DECL_OVERRIDE;
-    virtual void modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail) Q_DECL_OVERRIDE;
-protected:
-    static void updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, const QByteArray &data);
+    typedef QSharedPointer<FulltextIndexer> Ptr;
+    virtual void add(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
+    virtual void modify(const ApplicationDomain::ApplicationDomainType &old, const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
+    virtual void remove(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
+    static QMap<QByteArray, int> databases();
+private:
+    void updateThreadingIndex(const QByteArray &identifier, const ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction);
+    QSharedPointer<FulltextIndex> index;
 };
+
+}

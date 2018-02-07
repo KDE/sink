@@ -5,22 +5,43 @@
 #include "log.h"
 #include "definitions.h"
 #include <QFile>
+#include <QDir>
 
 SINK_DEBUG_AREA("fulltextIndex")
 
-FulltextIndex::FulltextIndex(const QByteArray &resourceInstanceIdentifier, const QByteArray &name)
-    : mName(name)
+FulltextIndex::FulltextIndex(const QByteArray &resourceInstanceIdentifier, const QByteArray &name, Sink::Storage::DataStore::AccessMode accessMode)
+    : mDb{nullptr},
+    mName(name),
+    mDbPath{QFile::encodeName(Sink::resourceStorageLocation(resourceInstanceIdentifier) + '/' + name)}
 {
-    const auto dbPath = QFile::encodeName(Sink::resourceStorageLocation(resourceInstanceIdentifier) + '/' + name);
     try {
-        mDb.reset(new Xapian::WritableDatabase(dbPath.toStdString(), Xapian::DB_CREATE_OR_OPEN));
+        if (QDir{}.mkpath(mDbPath)) {
+            if (accessMode == Sink::Storage::DataStore::ReadWrite) {
+                mDb = new Xapian::WritableDatabase(mDbPath.toStdString(), Xapian::DB_CREATE_OR_OPEN);
+            } else {
+                mDb = new Xapian::Database(mDbPath.toStdString(), Xapian::DB_OPEN);
+            }
+        } else {
+            SinkError() << "Failed to open database" << mDbPath;
+        }
     } catch (const Xapian::DatabaseError& e) {
-        SinkError() << "Failed to open database" << dbPath << ":" << QString::fromStdString(e.get_msg());
+        SinkError() << "Failed to open database" << mDbPath << ":" << QString::fromStdString(e.get_msg());
     }
+}
+
+FulltextIndex::~FulltextIndex()
+{
+    delete mDb;
+}
+
+static std::string idTerm(const QByteArray &key)
+{
+    return "Q" + key.toStdString();
 }
 
 void FulltextIndex::add(const QByteArray &key, const QString &value)
 {
+    Q_ASSERT(mDb);
     Xapian::TermGenerator generator;
     /* generator.set_stemmer(Xapian::Stem("en")); */
 
@@ -30,45 +51,32 @@ void FulltextIndex::add(const QByteArray &key, const QString &value)
     generator.index_text(value.toStdString());
     /* generator.increase_termpos(1); */
 
-    const auto idterm = "Q" + key.toStdString();
-    document.add_boolean_term(idterm);
-    mDb->replace_document(idterm, document);
+    document.add_value(0, key.toStdString());
+
+    const auto idterm = idTerm(key);
+    document.add_boolean_term(idTerm(key));
+
+    auto db = static_cast<Xapian::WritableDatabase*>(mDb);
+    db->begin_transaction();
+    db->replace_document(idterm, document);
+    db->commit_transaction();
 }
 
 void FulltextIndex::remove(const QByteArray &key)
 {
-    const auto idterm = "Q" + key.toStdString();
-    mDb->delete_document(idterm);
+    Q_ASSERT(mDb);
+    auto db = static_cast<Xapian::WritableDatabase*>(mDb);
+    db->delete_document(idTerm(key));
 }
 
-/* void FulltextIndex::lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler, const std::function<void(const Error &error)> &errorHandler, bool matchSubStringKeys) */
-/* { */
-    /* mDb.scan(key, */
-    /*     [this, resultHandler](const QByteArray &key, const QByteArray &value) -> bool { */
-    /*         resultHandler(value); */
-    /*         return true; */
-    /*     }, */
-    /*     [this, errorHandler](const Sink::Storage::Error &error) { */
-    /*         SinkWarning() << "Error while retrieving value" << error.message; */
-    /*         errorHandler(Error(error.store, error.code, error.message)); */
-    /*     }, */
-    /*     matchSubStringKeys); */
-/* } */
-
-QByteArrayList FulltextIndex::lookup(const QString &searchTerm)
+QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
 {
-    QByteArrayList results;
+    Q_ASSERT(mDb);
+    QVector<QByteArray> results;
 
-    /* Xapian::Database db; */
-    /* try { */
-    /*     db = Xapian::Database(QFile::encodeName(dbPath).constData()); */
-    /* } catch (const Xapian::DatabaseError& e) { */
-    /*     SinkError() << "Failed to open database" << dbPath << ":" << QString::fromStdString(e.get_msg()); */
-    /* } */
     try {
-        /* const std::string term = QString::fromLatin1("C%1").arg(collectionId).toStdString(); */
         Xapian::QueryParser parser;
-        auto query = parser.parse_query(searchTerm.toStdString());
+        auto query = parser.parse_query(searchTerm.toStdString(), Xapian::QueryParser::FLAG_WILDCARD|Xapian::QueryParser::FLAG_PHRASE|Xapian::QueryParser::FLAG_BOOLEAN|Xapian::QueryParser::FLAG_LOVEHATE);
         Xapian::Enquire enquire(*mDb);
         enquire.set_query(query);
 
@@ -77,15 +85,11 @@ QByteArrayList FulltextIndex::lookup(const QString &searchTerm)
         Xapian::MSetIterator it = mset.begin();
         for (;it != mset.end(); it++) {
             auto doc = it.get_document();
-            const auto data = doc.get_data();
-            QString id = QString::fromUtf8(data.c_str(), data.length());
-            if (id.isEmpty()) {
-
-            }
-            results << id.toUtf8();
+            const auto data = doc.get_value(0);
+            results << QByteArray{data.c_str(), int(data.length())};
         }
     }
-    catch (const Xapian::Error&) {
+    catch (const Xapian::Error &error) {
         // Nothing to do, move along
     }
     return results;

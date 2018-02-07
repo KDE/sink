@@ -20,6 +20,7 @@
 
 #include "log.h"
 #include "index.h"
+#include "fulltextindex.h"
 #include <QDateTime>
 #include <QDataStream>
 
@@ -213,11 +214,20 @@ static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filte
 
 QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction)
 {
-    QVector<QByteArray> keys;
+    const auto baseFilters = query.getBaseFilters();
+    for (auto it = baseFilters.constBegin(); it != baseFilters.constEnd(); it++) {
+        if (it.key() == "subject" && it.value().comparator == QueryBase::Comparator::Fulltext) {
+            FulltextIndex fulltextIndex{"sink.dummy.instance1", "subject"};
+            const auto keys = fulltextIndex.lookup(it.value().value.toString());
+            appliedFilters << it.key();
+            return keys;
+        }
+    }
+
     for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
         if (query.hasFilter(it.key()) && query.sortProperty() == it.value()) {
             Index index(indexName(it.key(), it.value()), transaction);
-            keys << indexLookup(index, query.getFilter(it.key()));
+            const auto keys = indexLookup(index, query.getFilter(it.key()));
             appliedFilters << it.key();
             appliedSorting = it.value();
             SinkTraceCtx(mLogCtx) << "Index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
@@ -227,14 +237,14 @@ QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
     for (const auto &property : mProperties) {
         if (query.hasFilter(property)) {
             Index index(indexName(property), transaction);
-            keys << indexLookup(index, query.getFilter(property));
+            const auto keys = indexLookup(index, query.getFilter(property));
             appliedFilters << property;
             SinkTraceCtx(mLogCtx) << "Index lookup on " << property << " found " << keys.size() << " keys.";
             return keys;
         }
     }
     SinkTraceCtx(mLogCtx) << "No matching index";
-    return keys;
+    return {};
 }
 
 QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)

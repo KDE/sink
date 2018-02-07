@@ -115,33 +115,3 @@ void MailPropertyExtractor::modifiedEntity(const Sink::ApplicationDomain::Mail &
 {
     updatedIndexedProperties(newMail, newMail.getMimeMessage());
 }
-
-
-SubjectIndexer::SubjectIndexer() : Sink::EntityPreprocessor<ApplicationDomain::Mail>()
-{
-}
-
-void SubjectIndexer::startBatch()
-{
-    /* index.reset(new FulltextIndex); */
-}
-
-// void SubjectIndexer::finalize()
-// {
-//     /* index->commit(0); */
-// }
-
-void SubjectIndexer::newEntity(Sink::ApplicationDomain::Mail &mail)
-{
-    /* index->add(mail.getSubject(), mail.identifier()); */
-}
-
-void SubjectIndexer::modifiedEntity(const Sink::ApplicationDomain::Mail &oldMail, Sink::ApplicationDomain::Mail &newMail)
-{
-    //The subject never changes
-}
-
-void SubjectIndexer::deletedEntity(const Sink::ApplicationDomain::Mail &mail)
-{
-    index->remove(mail.identifier());
-}
