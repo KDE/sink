@@ -28,11 +28,9 @@ class FulltextIndexer : public Indexer
 public:
     typedef QSharedPointer<FulltextIndexer> Ptr;
     virtual void add(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
-    virtual void modify(const ApplicationDomain::ApplicationDomainType &old, const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
     virtual void remove(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
     static QMap<QByteArray, int> databases();
 private:
-    void updateThreadingIndex(const QByteArray &identifier, const ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction);
     QSharedPointer<FulltextIndex> index;
 };
 

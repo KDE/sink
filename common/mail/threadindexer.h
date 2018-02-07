@@ -27,7 +27,6 @@ class ThreadIndexer : public Indexer
 public:
     typedef QSharedPointer<ThreadIndexer> Ptr;
     virtual void add(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
-    virtual void modify(const ApplicationDomain::ApplicationDomainType &old, const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
     virtual void remove(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
     static QMap<QByteArray, int> databases();
 private:

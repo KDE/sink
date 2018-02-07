@@ -195,7 +195,7 @@ bool EntityStore::add(const QByteArray &type, ApplicationDomain::ApplicationDoma
 
     SinkTraceCtx(d->logCtx) << "New entity " << entity;
 
-    d->typeIndex(type).add(entity.identifier(), entity, d->transaction);
+    d->typeIndex(type).add(entity.identifier(), entity, d->transaction, d->resourceContext.instanceId());
 
     //The maxRevision may have changed meanwhile if the entity created sub-entities
     const qint64 newRevision = maxRevision() + 1;
@@ -262,8 +262,8 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
 {
     SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
 
-    d->typeIndex(type).remove(current.identifier(), current, d->transaction);
-    d->typeIndex(type).add(newEntity.identifier(), newEntity, d->transaction);
+    d->typeIndex(type).remove(current.identifier(), current, d->transaction, d->resourceContext.instanceId());
+    d->typeIndex(type).add(newEntity.identifier(), newEntity, d->transaction, d->resourceContext.instanceId());
 
     const qint64 newRevision = DataStore::maxRevision(d->transaction) + 1;
 
@@ -304,7 +304,7 @@ bool EntityStore::remove(const QByteArray &type, const Sink::ApplicationDomain::
         return false;
     }
 
-    d->typeIndex(type).remove(current.identifier(), current, d->transaction);
+    d->typeIndex(type).remove(current.identifier(), current, d->transaction, d->resourceContext.instanceId());
 
     SinkTraceCtx(d->logCtx) << "Removed entity " << current;
 

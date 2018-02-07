@@ -159,7 +159,7 @@ void TypeIndex::addPropertyWithSorting<ApplicationDomain::Reference, QDateTime>(
     addPropertyWithSorting<QByteArray, QDateTime>(property, sortProperty);
 }
 
-void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
+void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
     for (const auto &property : mProperties) {
         const auto value = entity.getProperty(property);
@@ -173,7 +173,7 @@ void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::
         indexer(add, identifier, value, sortValue, transaction);
     }
     for (const auto &indexer : mCustomIndexer) {
-        indexer->setup(this, &transaction);
+        indexer->setup(this, &transaction, resourceInstanceId);
         if (add) {
             indexer->add(entity);
         } else {
@@ -183,14 +183,14 @@ void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::
 
 }
 
-void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
+void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
-    updateIndex(true, identifier, entity, transaction);
+    updateIndex(true, identifier, entity, transaction, resourceInstanceId);
 }
 
-void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
+void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
-    updateIndex(false, identifier, entity, transaction);
+    updateIndex(false, identifier, entity, transaction, resourceInstanceId);
 }
 
 static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filter)
