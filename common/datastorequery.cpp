@@ -302,7 +302,7 @@ public:
                     auto selectionResult = reduceOnValue(reductionValue, aggregateValues);
 
                     mSelectedValues.insert(reductionValueBa, selectionResult);
-                    readEntity(selectionResult, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+                    readEntity(selectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                         callback({entity, operation, aggregateValues});
                         foundValue = true;
                     });
@@ -320,18 +320,18 @@ public:
                         auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
                         if (oldSelectionResult == selectionResult) {
                             mSelectedValues.insert(reductionValueBa, selectionResult);
-                            readEntity(selectionResult, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
+                            readEntity(selectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
                                 callback({entity, Sink::Operation_Modification, aggregateValues});
                             });
                         } else {
                             //remove old result
-                            readEntity(oldSelectionResult, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
+                            readEntity(oldSelectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
                                 callback({entity, Sink::Operation_Removal});
                             });
 
                             //add new result
                             mSelectedValues.insert(reductionValueBa, selectionResult);
-                            readEntity(selectionResult, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
+                            readEntity(selectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
                                 callback({entity, Sink::Operation_Creation, aggregateValues});
                             });
                         }

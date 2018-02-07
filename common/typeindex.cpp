@@ -245,7 +245,7 @@ QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant
         Index index(indexName(property), transaction);
         const auto lookupKey = getByteArray(value);
         index.lookup(
-            lookupKey, [&, this](const QByteArray &value) { keys << value; }, [property, this](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
+            lookupKey, [&](const QByteArray &value) { keys << value; }, [property](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
         SinkTraceCtx(mLogCtx) << "Index lookup on " << property << " found " << keys.size() << " keys.";
         return keys;
     } else if (mSecondaryProperties.contains(property)) {
@@ -257,7 +257,7 @@ QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant
         Index index(indexName(property + resultProperty), transaction);
         const auto lookupKey = getByteArray(value);
         index.lookup(
-            lookupKey, [&, this](const QByteArray &value) { secondaryKeys << value; }, [property, this](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
+            lookupKey, [&](const QByteArray &value) { secondaryKeys << value; }, [property](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
         SinkTraceCtx(mLogCtx) << "Looked up secondary keys: " << secondaryKeys;
         for (const auto &secondary : secondaryKeys) {
             keys += lookup(resultProperty, secondary, transaction);
