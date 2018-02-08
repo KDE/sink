@@ -162,23 +162,27 @@ void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMo
 {
     SinkTraceCtx(d->logCtx) << "Starting transaction: " << accessMode;
     Q_ASSERT(!d->transaction);
-    Sink::Storage::DataStore store(Sink::storageLocation(), dbLayout(d->resourceContext.instanceId()), accessMode);
-    d->transaction = store.createTransaction(accessMode);
+    d->transaction = Sink::Storage::DataStore(Sink::storageLocation(), dbLayout(d->resourceContext.instanceId()), accessMode).createTransaction(accessMode);
 }
 
 void EntityStore::commitTransaction()
 {
     SinkTraceCtx(d->logCtx) << "Committing transaction";
+
+    for (const auto &type : d->indexByType.keys()) {
+        d->typeIndex(type).commitTransaction();
+    }
+
     Q_ASSERT(d->transaction);
     d->transaction.commit();
-    d->transaction = Storage::DataStore::Transaction();
+    d->transaction = {};
 }
 
 void EntityStore::abortTransaction()
 {
     SinkTraceCtx(d->logCtx) << "Aborting transaction";
     d->transaction.abort();
-    d->transaction = Storage::DataStore::Transaction();
+    d->transaction = {};
 }
 
 bool EntityStore::hasTransaction() const

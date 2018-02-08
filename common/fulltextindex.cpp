@@ -10,8 +10,7 @@
 SINK_DEBUG_AREA("fulltextIndex")
 
 FulltextIndex::FulltextIndex(const QByteArray &resourceInstanceIdentifier, const QByteArray &name, Sink::Storage::DataStore::AccessMode accessMode)
-    : mDb{nullptr},
-    mName(name),
+    : mName(name),
     mDbPath{QFile::encodeName(Sink::resourceStorageLocation(resourceInstanceIdentifier) + '/' + name)}
 {
     try {
@@ -57,15 +56,41 @@ void FulltextIndex::add(const QByteArray &key, const QString &value)
     document.add_boolean_term(idTerm(key));
 
     auto db = static_cast<Xapian::WritableDatabase*>(mDb);
-    db->begin_transaction();
+    if (!mHasTransactionOpen) {
+        db->begin_transaction();
+        mHasTransactionOpen = true;
+    }
     db->replace_document(idterm, document);
-    db->commit_transaction();
+}
+
+void FulltextIndex::commitTransaction()
+{
+    if (mHasTransactionOpen) {
+        Q_ASSERT(mDb);
+        mHasTransactionOpen = false;
+        auto db = static_cast<Xapian::WritableDatabase*>(mDb);
+        db->commit_transaction();
+    }
+}
+
+void FulltextIndex::abortTransaction()
+{
+    if (mHasTransactionOpen) {
+        Q_ASSERT(mDb);
+        mHasTransactionOpen = false;
+        auto db = static_cast<Xapian::WritableDatabase*>(mDb);
+        db->cancel_transaction();
+    }
 }
 
 void FulltextIndex::remove(const QByteArray &key)
 {
     Q_ASSERT(mDb);
     auto db = static_cast<Xapian::WritableDatabase*>(mDb);
+    if (!mHasTransactionOpen) {
+        db->begin_transaction();
+        mHasTransactionOpen = true;
+    }
     db->delete_document(idTerm(key));
 }
 

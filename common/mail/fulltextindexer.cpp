@@ -40,6 +40,20 @@ void FulltextIndexer::remove(const ApplicationDomain::ApplicationDomainType &ent
     index->remove(entity.identifier());
 }
 
+void FulltextIndexer::commitTransaction()
+{
+    if (index) {
+        index->commitTransaction();
+    }
+}
+
+void FulltextIndexer::abortTransaction()
+{
+    if (index) {
+        index->abortTransaction();
+    }
+}
+
 QMap<QByteArray, int> FulltextIndexer::databases()
 {
     return {};

@@ -34,6 +34,8 @@ public:
     typedef QSharedPointer<Indexer> Ptr;
     virtual void add(const ApplicationDomain::ApplicationDomainType &entity) = 0;
     virtual void remove(const ApplicationDomain::ApplicationDomainType &entity) = 0;
+    virtual void commitTransaction() {};
+    virtual void abortTransaction() {};
 
 protected:
     Storage::DataStore::Transaction &transaction();

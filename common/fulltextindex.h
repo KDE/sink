@@ -46,12 +46,15 @@ public:
 
     /* void startTransaction(); */
     /* void commit(qint64 revision); */
+    void commitTransaction();
+    void abortTransaction();
 
     QVector<QByteArray> lookup(const QString &key);
 
 private:
     Q_DISABLE_COPY(FulltextIndex);
-    Xapian::Database *mDb;
+    Xapian::Database *mDb{nullptr};
     QString mName;
     QString mDbPath;
+    bool mHasTransactionOpen{false};
 };

@@ -183,6 +183,20 @@ void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::
 
 }
 
+void TypeIndex::commitTransaction()
+{
+    for (const auto &indexer : mCustomIndexer) {
+        indexer->commitTransaction();
+    }
+}
+
+void TypeIndex::abortTransaction()
+{
+    for (const auto &indexer : mCustomIndexer) {
+        indexer->abortTransaction();
+    }
+}
+
 void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
     updateIndex(true, identifier, entity, transaction, resourceInstanceId);

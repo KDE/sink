@@ -29,6 +29,8 @@ public:
     typedef QSharedPointer<FulltextIndexer> Ptr;
     virtual void add(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
     virtual void remove(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
+    virtual void commitTransaction() Q_DECL_OVERRIDE;
+    virtual void abortTransaction() Q_DECL_OVERRIDE;
     static QMap<QByteArray, int> databases();
 private:
     QSharedPointer<FulltextIndex> index;

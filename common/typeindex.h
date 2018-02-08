@@ -104,6 +104,9 @@ public:
     template <typename LeftType, typename RightType>
     void unindex(const QByteArray &leftName, const QByteArray &rightName, const QVariant &leftValue, const QVariant &rightValue, Sink::Storage::DataStore::Transaction &transaction);
 
+    void commitTransaction();
+    void abortTransaction();
+
 
 private:
     friend class Sink::Storage::EntityStore;
