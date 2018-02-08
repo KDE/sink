@@ -20,6 +20,7 @@
 #include "hawd/formatter.h"
 
 #include "event_generated.h"
+#include "mail_generated.h"
 #include "entity_generated.h"
 #include "metadata_generated.h"
 #include "createentity_generated.h"
@@ -27,38 +28,36 @@
 #include "getrssusage.h"
 #include "utils.h"
 
+#include <KMime/Message>
+
 static QByteArray createEntityBuffer(size_t attachmentSize, int &bufferSize)
 {
-    uint8_t rawData[attachmentSize];
     flatbuffers::FlatBufferBuilder eventFbb;
     eventFbb.Clear();
     {
-        uint8_t *rawDataPtr = Q_NULLPTR;
-        auto data = eventFbb.CreateUninitializedVector<uint8_t>(attachmentSize, &rawDataPtr);
-        auto summary = eventFbb.CreateString("summary");
-        Sink::ApplicationDomain::Buffer::EventBuilder eventBuilder(eventFbb);
-        eventBuilder.add_summary(summary);
-        eventBuilder.add_attachment(data);
-        auto eventLocation = eventBuilder.Finish();
-        Sink::ApplicationDomain::Buffer::FinishEventBuffer(eventFbb, eventLocation);
-        memcpy((void *)rawDataPtr, rawData, attachmentSize);
-    }
 
-    flatbuffers::FlatBufferBuilder localFbb;
-    {
-        auto uid = localFbb.CreateString("testuid");
-        auto localBuilder = Sink::ApplicationDomain::Buffer::EventBuilder(localFbb);
-        localBuilder.add_uid(uid);
-        auto location = localBuilder.Finish();
-        Sink::ApplicationDomain::Buffer::FinishEventBuffer(localFbb, location);
+        auto msg = KMime::Message::Ptr::create();
+        msg->subject()->from7BitString("Some subject");
+        msg->setBody("This is the body now.");
+        msg->assemble();
+
+        const auto data = msg->encodedContent();
+
+        auto summary = eventFbb.CreateString("summary");
+        auto mimeMessage = eventFbb.CreateString(data.constData(), data.length());
+        Sink::ApplicationDomain::Buffer::MailBuilder eventBuilder(eventFbb);
+        eventBuilder.add_subject(summary);
+        eventBuilder.add_messageId(summary);
+        eventBuilder.add_mimeMessage(mimeMessage);
+        Sink::ApplicationDomain::Buffer::FinishMailBuffer(eventFbb, eventBuilder.Finish());
     }
 
     flatbuffers::FlatBufferBuilder entityFbb;
-    Sink::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize(), localFbb.GetBufferPointer(), localFbb.GetSize());
+    Sink::EntityBuffer::assembleEntityBuffer(entityFbb, 0, 0, 0, 0, eventFbb.GetBufferPointer(), eventFbb.GetSize());
     bufferSize = entityFbb.GetSize();
 
     flatbuffers::FlatBufferBuilder fbb;
-    auto type = fbb.CreateString(Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>().toStdString().data());
+    auto type = fbb.CreateString(Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Mail>().toStdString().data());
     auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
     Sink::Commands::CreateEntityBuilder builder(fbb);
     builder.add_domainType(type);
@@ -263,10 +262,7 @@ private slots:
 
     void runBenchmarks()
     {
-        writeInProcess(1000, mTimeStamp);
-        writeInProcess(2000, mTimeStamp);
         writeInProcess(5000, mTimeStamp);
-        writeInProcess(20000, mTimeStamp);
     }
 
     void ensureUsedMemoryRemainsStable()
