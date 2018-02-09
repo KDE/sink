@@ -37,6 +37,9 @@ void FulltextIndexer::add(const ApplicationDomain::ApplicationDomainType &entity
 
 void FulltextIndexer::remove(const ApplicationDomain::ApplicationDomainType &entity)
 {
+    if (!index) {
+        index.reset(new FulltextIndex{mResourceInstanceIdentifier, "subject", Storage::DataStore::ReadWrite});
+    }
     index->remove(entity.identifier());
 }
 

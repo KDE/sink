@@ -52,6 +52,7 @@ public:
     QVector<QByteArray> lookup(const QString &key);
 
 private:
+    Xapian::WritableDatabase* writableDatabase();
     Q_DISABLE_COPY(FulltextIndex);
     Xapian::Database *mDb{nullptr};
     QString mName;

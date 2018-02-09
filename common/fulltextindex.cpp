@@ -40,7 +40,9 @@ static std::string idTerm(const QByteArray &key)
 
 void FulltextIndex::add(const QByteArray &key, const QString &value)
 {
-    Q_ASSERT(mDb);
+    if (!mDb) {
+        return;
+    }
     Xapian::TermGenerator generator;
     /* generator.set_stemmer(Xapian::Stem("en")); */
 
@@ -55,21 +57,15 @@ void FulltextIndex::add(const QByteArray &key, const QString &value)
     const auto idterm = idTerm(key);
     document.add_boolean_term(idTerm(key));
 
-    auto db = static_cast<Xapian::WritableDatabase*>(mDb);
-    if (!mHasTransactionOpen) {
-        db->begin_transaction();
-        mHasTransactionOpen = true;
-    }
-    db->replace_document(idterm, document);
+    writableDatabase()->replace_document(idterm, document);
 }
 
 void FulltextIndex::commitTransaction()
 {
     if (mHasTransactionOpen) {
         Q_ASSERT(mDb);
+        writableDatabase()->commit_transaction();
         mHasTransactionOpen = false;
-        auto db = static_cast<Xapian::WritableDatabase*>(mDb);
-        db->commit_transaction();
     }
 }
 
@@ -77,26 +73,35 @@ void FulltextIndex::abortTransaction()
 {
     if (mHasTransactionOpen) {
         Q_ASSERT(mDb);
+        writableDatabase()->cancel_transaction();
         mHasTransactionOpen = false;
-        auto db = static_cast<Xapian::WritableDatabase*>(mDb);
-        db->cancel_transaction();
     }
 }
 
-void FulltextIndex::remove(const QByteArray &key)
+Xapian::WritableDatabase* FulltextIndex::writableDatabase()
 {
-    Q_ASSERT(mDb);
+    Q_ASSERT(dynamic_cast<Xapian::WritableDatabase*>(mDb));
     auto db = static_cast<Xapian::WritableDatabase*>(mDb);
     if (!mHasTransactionOpen) {
         db->begin_transaction();
         mHasTransactionOpen = true;
     }
-    db->delete_document(idTerm(key));
+    return db;
+}
+
+void FulltextIndex::remove(const QByteArray &key)
+{
+    if (!mDb) {
+        return;
+    }
+    writableDatabase()->delete_document(idTerm(key));
 }
 
 QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
 {
-    Q_ASSERT(mDb);
+    if (!mDb) {
+        return {};
+    }
     QVector<QByteArray> results;
 
     try {

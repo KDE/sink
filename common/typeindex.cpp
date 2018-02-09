@@ -226,12 +226,12 @@ static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filte
     return keys;
 }
 
-QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction)
+QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
     const auto baseFilters = query.getBaseFilters();
     for (auto it = baseFilters.constBegin(); it != baseFilters.constEnd(); it++) {
         if (it.key() == "subject" && it.value().comparator == QueryBase::Comparator::Fulltext) {
-            FulltextIndex fulltextIndex{"sink.dummy.instance1", "subject"};
+            FulltextIndex fulltextIndex{resourceInstanceId, "subject"};
             const auto keys = fulltextIndex.lookup(it.value().value.toString());
             appliedFilters << it.key();
             return keys;
