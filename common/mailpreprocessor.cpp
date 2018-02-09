@@ -52,7 +52,7 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
         return;
     }
     auto msg = KMime::Message::Ptr(new KMime::Message);
-    msg->setHead(KMime::CRLFtoLF(data));
+    msg->setContent(KMime::CRLFtoLF(data));
     msg->parse();
     if (!msg) {
         return;
@@ -104,6 +104,8 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     if (!parentMessageId.isEmpty()) {
         mail.setExtractedParentMessageId(parentMessageId);
     }
+    mail.setProperty("index", QVariant::fromValue(QList<QPair<QString, QString>>{{{}, {msg->subject()->asUnicodeString()}},
+                                                                                 {{}, {msg->body().simplified()}}}));
 }
 
 void MailPropertyExtractor::newEntity(Sink::ApplicationDomain::Mail &mail)

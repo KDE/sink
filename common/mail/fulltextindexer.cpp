@@ -30,15 +30,15 @@ using namespace Sink::ApplicationDomain;
 void FulltextIndexer::add(const ApplicationDomain::ApplicationDomainType &entity)
 {
     if (!index) {
-        index.reset(new FulltextIndex{mResourceInstanceIdentifier, "subject", Storage::DataStore::ReadWrite});
+        index.reset(new FulltextIndex{mResourceInstanceIdentifier, Storage::DataStore::ReadWrite});
     }
-    index->add(entity.identifier(), entity.getProperty(ApplicationDomain::Mail::Subject::name).toString());
+    index->add(entity.identifier(), entity.getProperty("index").value<QList<QPair<QString, QString>>>());
 }
 
 void FulltextIndexer::remove(const ApplicationDomain::ApplicationDomainType &entity)
 {
     if (!index) {
-        index.reset(new FulltextIndex{mResourceInstanceIdentifier, "subject", Storage::DataStore::ReadWrite});
+        index.reset(new FulltextIndex{mResourceInstanceIdentifier, Storage::DataStore::ReadWrite});
     }
     index->remove(entity.identifier());
 }

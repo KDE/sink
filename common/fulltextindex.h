@@ -38,10 +38,11 @@ public:
 
     /* FulltextIndex(const QString &storageRoot, const QString &name, Sink::Storage::AccessMode mode = Sink::Storage::ReadOnly); */
     /* FulltextIndex(const QByteArray &name); */
-    FulltextIndex(const QByteArray &resourceInstanceIdentifier, const QByteArray &name, Sink::Storage::DataStore::AccessMode mode = Sink::Storage::DataStore::ReadOnly);
+    FulltextIndex(const QByteArray &resourceInstanceIdentifier, Sink::Storage::DataStore::AccessMode mode = Sink::Storage::DataStore::ReadOnly);
     ~FulltextIndex();
 
     void add(const QByteArray &key, const QString &value);
+    void add(const QByteArray &key, const QList<QPair<QString, QString>> &values);
     void remove(const QByteArray &key);
 
     /* void startTransaction(); */

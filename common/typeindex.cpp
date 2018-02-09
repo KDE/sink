@@ -230,8 +230,8 @@ QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
 {
     const auto baseFilters = query.getBaseFilters();
     for (auto it = baseFilters.constBegin(); it != baseFilters.constEnd(); it++) {
-        if (it.key() == "subject" && it.value().comparator == QueryBase::Comparator::Fulltext) {
-            FulltextIndex fulltextIndex{resourceInstanceId, "subject"};
+        if (it.value().comparator == QueryBase::Comparator::Fulltext) {
+            FulltextIndex fulltextIndex{resourceInstanceId};
             const auto keys = fulltextIndex.lookup(it.value().value.toString());
             appliedFilters << it.key();
             return keys;

@@ -14,6 +14,8 @@
 #include "testutils.h"
 #include "applicationdomaintype.h"
 
+#include <KMime/Message>
+
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
@@ -1258,10 +1260,15 @@ private slots:
     {
         // Setup
         {
+            auto msg = KMime::Message::Ptr::create();
+            msg->subject()->from7BitString("Subject To Search");
+            msg->setBody("This is the searchable body.");
+            msg->assemble();
             {
                 Mail mail("sink.dummy.instance1");
                 mail.setExtractedMessageId("test1");
                 mail.setExtractedSubject("Subject To Search");
+                mail.setMimeMessage(msg->encodedContent());
                 VERIFYEXEC(Sink::Store::create<Mail>(mail));
             }
             {
@@ -1307,6 +1314,13 @@ private slots:
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
             query.filter<Mail::Subject>(QueryBase::Comparator(QString("sear*"), QueryBase::Comparator::Fulltext));
+            auto result = Sink::Store::read<Mail>(query);
+            QCOMPARE(result.size(), 1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::MimeMessage>(QueryBase::Comparator(QString("searchable"), QueryBase::Comparator::Fulltext));
             auto result = Sink::Store::read<Mail>(query);
             QCOMPARE(result.size(), 1);
         }

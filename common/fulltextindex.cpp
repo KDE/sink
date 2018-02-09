@@ -9,9 +9,9 @@
 
 SINK_DEBUG_AREA("fulltextIndex")
 
-FulltextIndex::FulltextIndex(const QByteArray &resourceInstanceIdentifier, const QByteArray &name, Sink::Storage::DataStore::AccessMode accessMode)
-    : mName(name),
-    mDbPath{QFile::encodeName(Sink::resourceStorageLocation(resourceInstanceIdentifier) + '/' + name)}
+FulltextIndex::FulltextIndex(const QByteArray &resourceInstanceIdentifier, Sink::Storage::DataStore::AccessMode accessMode)
+    : mName("fulltext"),
+    mDbPath{QFile::encodeName(Sink::resourceStorageLocation(resourceInstanceIdentifier) + '/' + "fulltext")}
 {
     try {
         if (QDir{}.mkpath(mDbPath)) {
@@ -40,6 +40,11 @@ static std::string idTerm(const QByteArray &key)
 
 void FulltextIndex::add(const QByteArray &key, const QString &value)
 {
+    add(key, {{{}, value}});
+}
+
+void FulltextIndex::add(const QByteArray &key, const QList<QPair<QString, QString>> &values)
+{
     if (!mDb) {
         return;
     }
@@ -49,7 +54,10 @@ void FulltextIndex::add(const QByteArray &key, const QString &value)
     Xapian::Document document;
     generator.set_document(document);
 
-    generator.index_text(value.toStdString());
+    for (const auto &entry : values) {
+        qWarning() << "Indexing " << entry.second;
+        generator.index_text(entry.second.toStdString());
+    }
     /* generator.increase_termpos(1); */
 
     document.add_value(0, key.toStdString());
