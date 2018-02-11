@@ -62,7 +62,7 @@ bool GenericResource::checkForUpgrade()
         auto store = Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadOnly);
         return Storage::DataStore::databaseVersion(store.createTransaction(Storage::DataStore::ReadOnly));
     }();
-    if (currentDatabaseVersion < Sink::latestDatabaseVersion()) {
+    if (currentDatabaseVersion != Sink::latestDatabaseVersion()) {
         SinkLog() << "Starting database upgrade from " << currentDatabaseVersion << " to " << Sink::latestDatabaseVersion();
 
         //Right now upgrading just means removing all local storage so we will resync
