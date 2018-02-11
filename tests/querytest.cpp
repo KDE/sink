@@ -1268,12 +1268,14 @@ private slots:
                 Mail mail("sink.dummy.instance1");
                 mail.setExtractedMessageId("test1");
                 mail.setExtractedSubject("Subject To Search");
+                mail.setFolder("folder1");
                 mail.setMimeMessage(msg->encodedContent());
                 VERIFYEXEC(Sink::Store::create<Mail>(mail));
             }
             {
                 Mail mail("sink.dummy.instance1");
                 mail.setExtractedMessageId("test2");
+                mail.setFolder("folder2");
                 mail.setExtractedSubject("Stuff");
                 VERIFYEXEC(Sink::Store::create<Mail>(mail));
             }
@@ -1323,6 +1325,22 @@ private slots:
             query.filter<Mail::MimeMessage>(QueryBase::Comparator(QString("searchable"), QueryBase::Comparator::Fulltext));
             auto result = Sink::Store::read<Mail>(query);
             QCOMPARE(result.size(), 1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("Subject"), QueryBase::Comparator::Fulltext));
+            query.filter<Mail::Folder>("folder1");
+            auto result = Sink::Store::read<Mail>(query);
+            QCOMPARE(result.size(), 1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("Subject"), QueryBase::Comparator::Fulltext));
+            query.filter<Mail::Folder>("folder2");
+            auto result = Sink::Store::read<Mail>(query);
+            QCOMPARE(result.size(), 0);
         }
     }
 

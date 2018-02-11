@@ -49,21 +49,18 @@ void FulltextIndex::add(const QByteArray &key, const QList<QPair<QString, QStrin
         return;
     }
     Xapian::TermGenerator generator;
-    /* generator.set_stemmer(Xapian::Stem("en")); */
-
     Xapian::Document document;
     generator.set_document(document);
 
     for (const auto &entry : values) {
-        qWarning() << "Indexing " << entry.second;
-        generator.index_text(entry.second.toStdString());
+        if (!entry.second.isEmpty()) {
+            generator.index_text(entry.second.toStdString());
+        }
     }
-    /* generator.increase_termpos(1); */
-
     document.add_value(0, key.toStdString());
 
     const auto idterm = idTerm(key);
-    document.add_boolean_term(idTerm(key));
+    document.add_boolean_term(idterm);
 
     writableDatabase()->replace_document(idterm, document);
 }

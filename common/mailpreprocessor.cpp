@@ -21,6 +21,7 @@
 
 #include <QFile>
 #include <QDir>
+#include <QTextDocument>
 #include <KMime/KMime/KMimeMessage>
 
 #include "pipeline.h"
@@ -44,6 +45,27 @@ static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime:
         list << Sink::ApplicationDomain::Mail::Contact{mb.name(), mb.address()};
     }
     return list;
+}
+
+static QList<QPair<QString, QString>> processPart(KMime::Content* content)
+{
+    if (KMime::Headers::ContentType* type = content->contentType(false)) {
+        if (type->isMultipart() && !type->isSubtype("encrypted")) {
+            QList<QPair<QString, QString>> list;
+            for (const auto c : content->contents()) {
+                list << processPart(c);
+            }
+            return list;
+        } else if (type->isHTMLText()) {
+            // Only get HTML content, if no plain text content
+            QTextDocument doc;
+            doc.setHtml(content->decodedText());
+            return {{{}, {doc.toPlainText()}}};
+        } else if (type->isEmpty()) {
+            return {{{}, {content->decodedText()}}};
+        }
+    }
+    return {};
 }
 
 void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, const QByteArray &data)
@@ -104,8 +126,20 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     if (!parentMessageId.isEmpty()) {
         mail.setExtractedParentMessageId(parentMessageId);
     }
-    mail.setProperty("index", QVariant::fromValue(QList<QPair<QString, QString>>{{{}, {msg->subject()->asUnicodeString()}},
-                                                                                 {{}, {msg->body().simplified()}}}));
+    QList<QPair<QString, QString>> contentToIndex;
+    contentToIndex.append({{}, msg->subject()->asUnicodeString()});
+    if (KMime::Content* mainBody = msg->mainBodyPart("text/plain")) {
+        contentToIndex.append({{}, mainBody->decodedText()});
+    } else {
+        contentToIndex << processPart(msg.data());
+    }
+    contentToIndex.append({{}, msg->from(true)->asUnicodeString()});
+    contentToIndex.append({{}, msg->to(true)->asUnicodeString()});
+    contentToIndex.append({{}, msg->cc(true)->asUnicodeString()});
+    contentToIndex.append({{}, msg->bcc(true)->asUnicodeString()});
+
+    //Prepare content for indexing;
+    mail.setProperty("index", QVariant::fromValue(contentToIndex));
 }
 
 void MailPropertyExtractor::newEntity(Sink::ApplicationDomain::Mail &mail)
