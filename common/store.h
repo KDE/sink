@@ -120,6 +120,10 @@ KAsync::Job<void> SINK_EXPORT synchronize(const Sink::SyncScope &query);
  */
 KAsync::Job<void> SINK_EXPORT removeDataFromDisk(const QByteArray &resourceIdentifier);
 
+struct UpgradeResult {
+    bool upgradeExecuted;
+};
+
 /**
  * Run upgrade jobs.
  *
@@ -130,7 +134,7 @@ KAsync::Job<void> SINK_EXPORT removeDataFromDisk(const QByteArray &resourceIdent
  *
  * Note: The initial implementation simply calls removeDataFromDisk for all resources.
  */
-KAsync::Job<void> SINK_EXPORT upgrade();
+KAsync::Job<UpgradeResult> SINK_EXPORT upgrade();
 
 template <class DomainType>
 KAsync::Job<DomainType> SINK_EXPORT fetchOne(const Sink::Query &query);

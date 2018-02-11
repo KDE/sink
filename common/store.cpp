@@ -297,13 +297,13 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
         });
 }
 
-static KAsync::Job<void> upgrade(const QByteArray &resource)
+static KAsync::Job<Store::UpgradeResult> upgrade(const QByteArray &resource)
 {
-    SinkLog() << "Upgrading " << resource;
     auto store = Sink::Storage::DataStore(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
-    if (Storage::DataStore::databaseVersion(store.createTransaction(Storage::DataStore::ReadOnly)) >= Sink::latestDatabaseVersion()) {
-        return KAsync::null();
+    if (Storage::DataStore::databaseVersion(store.createTransaction(Storage::DataStore::ReadOnly)) == Sink::latestDatabaseVersion()) {
+        return KAsync::value(Store::UpgradeResult{false});
     }
+    SinkLog() << "Upgrading " << resource;
 
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
     return resourceAccess->sendCommand(Sink::Commands::UpgradeCommand)
@@ -315,18 +315,29 @@ static KAsync::Job<void> upgrade(const QByteArray &resource)
             }
             SinkTrace() << "Upgrade of resource " << resource << " complete.";
             return KAsync::null();
-        });
+        })
+        .then(KAsync::value(Store::UpgradeResult{true}));
 }
 
-KAsync::Job<void> Store::upgrade()
+KAsync::Job<Store::UpgradeResult> Store::upgrade()
 {
     SinkLog() << "Upgrading...";
+    auto ret = QSharedPointer<bool>::create(false);
     return fetchAll<ApplicationDomain::SinkResource>({})
-        .template each([](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {
-                return Sink::upgrade(resource->identifier());
+        .template each([ret](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {
+            return Sink::upgrade(resource->identifier())
+                .then([ret](UpgradeResult returnValue) {
+                    if (returnValue.upgradeExecuted) {
+                        SinkLog() << "Upgrade executed.";
+                        *ret = true;
+                    }
+                });
         })
-        .then([] {
-            SinkLog() << "Upgrade complete.";
+        .then([ret] {
+            if (*ret) {
+                SinkLog() << "Upgrade complete.";
+            }
+            return Store::UpgradeResult{*ret};
         });
 }
 
