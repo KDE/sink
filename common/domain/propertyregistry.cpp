@@ -77,7 +77,7 @@ QVariant parseString<QList<QByteArray>>(const QString &s)
 template <>
 QVariant parseString<QDateTime>(const QString &s)
 {
-    return QVariant::fromValue(QDateTime::fromString(s));
+    return QVariant::fromValue(QDateTime::fromString(s, Qt::ISODate));
 }
 
 template <>
