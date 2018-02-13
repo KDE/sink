@@ -234,6 +234,7 @@ QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
             FulltextIndex fulltextIndex{resourceInstanceId};
             const auto keys = fulltextIndex.lookup(it.value().value.toString());
             appliedFilters << it.key();
+            SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << keys.size() << " keys.";
             return keys;
         }
     }
@@ -244,7 +245,7 @@ QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
             const auto keys = indexLookup(index, query.getFilter(it.key()));
             appliedFilters << it.key();
             appliedSorting = it.value();
-            SinkTraceCtx(mLogCtx) << "Index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
+            SinkTraceCtx(mLogCtx) << "Sorted index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
             return keys;
         }
     }
