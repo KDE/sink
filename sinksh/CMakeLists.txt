@@ -29,6 +29,6 @@ set(sink_cli_SRCS
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(${PROJECT_NAME} ${sink_cli_SRCS})
-target_link_libraries(${PROJECT_NAME} Qt5::Core ${Readline_LIBRARY} sink)
+target_link_libraries(${PROJECT_NAME} Qt5::Core ${Readline_LIBRARY} sink ${XAPIAN_LIBRARIES})
 install(TARGETS ${PROJECT_NAME} ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 

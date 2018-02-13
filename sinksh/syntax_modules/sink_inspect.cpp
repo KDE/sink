@@ -17,8 +17,12 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
+//xapian.h needs to be included first to build
+#include <xapian.h>
+
 #include <QDebug>
 #include <QObject> // tr()
+#include <QFile>
 
 #include "common/resource.h"
 #include "common/storage.h"
@@ -40,7 +44,7 @@ namespace SinkInspect
 bool inspect(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] [--showinternal] | [--validaterids $type])"));
+        state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] [--showinternal] | [--validaterids $type] | [--fulltext [$id]])"));
     }
     auto options = SyntaxTree::parseOptions(args);
     auto resource = SinkshUtils::parseUid(options.options.value("resource").value(0).toUtf8());
@@ -48,8 +52,7 @@ bool inspect(const QStringList &args, State &state)
     Sink::Storage::DataStore storage(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
     auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
 
-    bool validateRids = options.options.contains("validaterids");
-    if (validateRids) {
+    if (options.options.contains("validaterids")) {
         if (options.options.value("validaterids").isEmpty()) {
             state.printError(QObject::tr("Specify a type to validate."));
             return false;
@@ -112,6 +115,35 @@ bool inspect(const QStringList &args, State &state)
             qWarning() << "Have rids left: " << hash.size();
         } else if (!missing) {
             qWarning() << "Everything is in order.";
+        }
+
+        return false;
+    }
+    if (options.options.contains("fulltext")) {
+        try {
+            Xapian::Database db(QFile::encodeName(Sink::resourceStorageLocation(resource) + '/' + "fulltext").toStdString(), Xapian::DB_OPEN);
+            if (options.options.value("fulltext").isEmpty()) {
+                state.printLine(QString("Total document count: ") + QString::number(db.get_doccount()));
+            } else {
+                auto entityId = SinkshUtils::parseUid(options.options.value("fulltext").first().toUtf8());
+                auto id = "Q" + entityId.toStdString();
+                Xapian::PostingIterator p = db.postlist_begin(id);
+                if (p == db.postlist_end(id)) {
+                    state.printLine(QString("Failed to find the document with the id: ") + QString::fromStdString(id));
+                } else {
+                    state.printLine(QString("Found the document: "));
+                    auto document = db.get_document(*p);
+
+                    QStringList terms;
+                    for (auto it = document.termlist_begin(); it != document.termlist_end(); it++) {
+                        terms << QString::fromStdString(*it);
+                    }
+                    state.printLine(QString("Terms: ") + terms.join(", "), 1);
+                }
+
+            }
+        } catch (const Xapian::Error &error) {
+            // Nothing to do, move along
         }
 
         return false;
