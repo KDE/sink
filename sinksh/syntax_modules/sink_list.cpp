@@ -106,6 +106,14 @@ bool list(const QStringList &args_, State &state)
         return false;
     }
 
+    if (options.options.contains("limit")) {
+        query.limit(options.options.value("limit").first().toInt());
+    }
+
+    if (options.options.contains("sort")) {
+        query.setSortProperty(options.options.value("sort").first().toUtf8());
+    }
+
     auto compact = options.options.contains("compact");
     if (!options.options.contains("showall")) {
         if (options.options.contains("show")) {
