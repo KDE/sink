@@ -210,6 +210,11 @@ bool applyFilter(Sink::Query &query, const SyntaxTree::Options &options)
             query.filter(property, Sink::PropertyParser::parse(query.type(), property, QString::fromUtf8(parseUid(value.toUtf8()))));
         }
     }
+    if (options.options.contains("fulltext")) {
+        for (const auto &f : options.options.value("fulltext")) {
+            query.filter({}, Sink::QueryBase::Comparator(f, Sink::QueryBase::Comparator::Fulltext));
+        }
+    }
     if (options.options.contains("id")) {
         for (const auto &f : options.options.value("id")) {
             query.filter(parseUid(f.toUtf8()));
