@@ -46,28 +46,94 @@ bool selfTest(const QStringList &args_, State &state)
         return false;
     }
 
+    using namespace Sink::ApplicationDomain;
     auto options = SyntaxTree::parseOptions(args_);
     if (options.positionalArguments.contains("stresstest")) {
         auto resource = SinkshUtils::parseUid(options.options.value("resource").first().toUtf8());
         qWarning() << "Stresstest on resource: " << resource;
-        Sink::Query query;
-        query.resourceFilter(resource);
-        query.limit(100);
-
         auto models = QSharedPointer<QList<QSharedPointer<QAbstractItemModel>>>::create();
-        for (int i = 0; i < 50; i++) {
+
+        //Simulate the maillist, where we scroll down and trigger lots of fetchMore calls
+        {
+            Sink::Query query;
+            query.resourceFilter(resource);
+            query.limit(100);
+            query.request<Mail::Subject>();
+            query.request<Mail::Sender>();
+            query.request<Mail::To>();
+            query.request<Mail::Cc>();
+            query.request<Mail::Bcc>();
+            query.request<Mail::Date>();
+            query.request<Mail::Unread>();
+            query.request<Mail::Important>();
+            query.request<Mail::Draft>();
+            query.request<Mail::Sent>();
+            query.request<Mail::Trash>();
+            query.request<Mail::Folder>();
+            query.sort<Mail::Date>();
+            query.reduce<Mail::ThreadId>(Sink::Query::Reduce::Selector::max<Mail::Date>())
+                .count("count")
+                .collect<Mail::Unread>("unreadCollected")
+                .collect<Mail::Important>("importantCollected");
+
             auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
-            *models << model;
+            models->append(model);
             QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [models, model, &state](const QModelIndex &start, const QModelIndex &end, const QVector<int> &roles) {
                 if (roles.contains(Sink::Store::ChildrenFetchedRole)) {
-                    models->removeAll(model);
-                    qWarning() << "Model complete: " << models->count();
+                    if (!model->canFetchMore({})) {
+                        qWarning() << "Model complete: " << models->count();
+                        models->removeAll(model);
+                    } else {
+                        qWarning() << "Fetching more";
+                        //Simulate superfluous fetchMore calls
+                        for (int i = 0; i < 10; i++) {
+                            model->fetchMore({});
+                        }
+                        return;
+                    }
                     if (models->isEmpty()) {
                         state.commandFinished();
                     }
                 }
-                    });
+            });
+
         }
+
+        //Simluate lot's of mailviewers doing a bunch of queries
+        {
+            Sink::Query query;
+            query.resourceFilter(resource);
+            query.limit(10);
+            query.request<Mail::Subject>();
+            query.request<Mail::Sender>();
+            query.request<Mail::To>();
+            query.request<Mail::Cc>();
+            query.request<Mail::Bcc>();
+            query.request<Mail::Date>();
+            query.request<Mail::Unread>();
+            query.request<Mail::Important>();
+            query.request<Mail::Draft>();
+            query.request<Mail::Sent>();
+            query.request<Mail::Trash>();
+            query.request<Mail::Folder>();
+            query.sort<Sink::ApplicationDomain::Mail::Date>();
+            query.bloom<Sink::ApplicationDomain::Mail::ThreadId>();
+
+            for (int i = 0; i < 50; i++) {
+                auto model = Sink::Store::loadModel<Sink::ApplicationDomain::Mail>(query);
+                *models << model;
+                QObject::connect(model.data(), &QAbstractItemModel::dataChanged, [models, model, &state](const QModelIndex &start, const QModelIndex &end, const QVector<int> &roles) {
+                    if (roles.contains(Sink::Store::ChildrenFetchedRole)) {
+                        models->removeAll(model);
+                        qWarning() << "Model complete: " << models->count();
+                        if (models->isEmpty()) {
+                            state.commandFinished();
+                        }
+                    }
+                        });
+            }
+        }
+
         return true;
     }
     return false;

@@ -69,79 +69,14 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
     if (query.limit() && query.sortProperty().isEmpty()) {
         SinkWarningCtx(mLogCtx) << "A limited query without sorting is typically a bad idea, because there is no telling what you're going to get.";
     }
-    auto guardPtr = QPointer<QObject>(&guard);
-    auto fetcher = [=]() {
-        SinkTraceCtx(mLogCtx) << "Running fetcher. Batchsize: " << mBatchSize;
-        auto resultProvider = mResultProvider;
-        auto resultTransformation = mResultTransformation;
-        auto batchSize = mBatchSize;
-        auto resourceContext = mResourceContext;
-        auto logCtx = mLogCtx;
-        auto state = mQueryState;
-        const bool runAsync = !query.synchronousQuery();
-        //The lambda will be executed in a separate thread, so copy all arguments
-        async::run<ReplayResult>([=]() {
-            QueryWorker<DomainType> worker(query, resourceContext, bufferType, resultTransformation, logCtx);
-            return worker.executeInitialQuery(query, *resultProvider, batchSize, state);
-        }, runAsync)
-            .then([this, query, resultProvider, guardPtr](const ReplayResult &result) {
-                if (!guardPtr) {
-                    //Not an error, the query can vanish at any time.
-                    return;
-                }
-                mInitialQueryComplete = true;
-                mQueryState = result.queryState;
-                // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
-                if (query.liveQuery()) {
-                    mResourceAccess->sendRevisionReplayedCommand(result.newRevision);
-                }
-                resultProvider->setRevision(result.newRevision);
-                resultProvider->initialResultSetComplete(result.replayedAll);
-            })
-            .exec();
-    };
-
     // We delegate loading of initial data to the result provider, so it can decide for itself what it needs to load.
-    mResultProvider->setFetcher(fetcher);
+    mResultProvider->setFetcher([this, query, bufferType] { fetch(query, bufferType); });
 
     // In case of a live query we keep the runner for as long alive as the result provider exists
     if (query.liveQuery()) {
         Q_ASSERT(!query.synchronousQuery());
         // Incremental updates are always loaded directly, leaving it up to the result to discard the changes if they are not interesting
-        setQuery([=]() -> KAsync::Job<void> {
-            auto resultProvider = mResultProvider;
-            auto resourceContext = mResourceContext;
-            auto logCtx = mLogCtx;
-            auto state = mQueryState;
-            auto resultTransformation = mResultTransformation;
-            if (!mInitialQueryComplete) {
-                SinkWarningCtx(mLogCtx) << "Can't start the incremental query before the initial query is complete";
-                fetcher();
-                return KAsync::null();
-            }
-            if (mQueryInProgress) {
-                //Can happen if the revision come in quicker than we process them.
-                return KAsync::null();
-            }
-            Q_ASSERT(!mQueryInProgress);
-            return KAsync::start([&] {
-                    mQueryInProgress = true;
-                })
-                .then(async::run<ReplayResult>([=]() {
-                       QueryWorker<DomainType> worker(query, resourceContext, bufferType, resultTransformation, logCtx);
-                       return worker.executeIncrementalQuery(query, *resultProvider, state);
-                   }))
-                .then([query, this, resultProvider, guardPtr](const ReplayResult &newRevisionAndReplayedEntities) {
-                    if (!guardPtr) {
-                        //Not an error, the query can vanish at any time.
-                        return;
-                    }
-                    mQueryInProgress = false;
-                    // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
-                    mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.newRevision);
-                    resultProvider->setRevision(newRevisionAndReplayedEntities.newRevision);
-                });
-        });
+        setQuery([=]() { return incrementalFetch(query, bufferType); });
         // Ensure the connection is open, if it wasn't already opened
         // TODO If we are not connected already, we have to check for the latest revision once connected, otherwise we could miss some updates
         mResourceAccess->open();
@@ -156,6 +91,90 @@ template <class DomainType>
 QueryRunner<DomainType>::~QueryRunner()
 {
     SinkTraceCtx(mLogCtx) << "Stopped query";
+}
+
+//This function triggers the initial fetch, and then subsequent calls will simply fetch more data of mBatchSize.
+template <class DomainType>
+void QueryRunner<DomainType>::fetch(const Sink::Query &query, const QByteArray &bufferType)
+{
+    auto guardPtr = QPointer<QObject>(&guard);
+    SinkTraceCtx(mLogCtx) << "Running fetcher. Batchsize: " << mBatchSize;
+    if (mQueryInProgress) {
+        SinkTraceCtx(mLogCtx) << "Query is already in progress, postponing: " << mBatchSize;
+        mRequestFetchMore = true;
+        return;
+    }
+    mQueryInProgress = true;
+    auto resultProvider = mResultProvider;
+    auto resultTransformation = mResultTransformation;
+    auto batchSize = mBatchSize;
+    auto resourceContext = mResourceContext;
+    auto logCtx = mLogCtx;
+    auto state = mQueryState;
+    const bool runAsync = !query.synchronousQuery();
+    //The lambda will be executed in a separate thread, so copy all arguments
+    async::run<ReplayResult>([=]() {
+        QueryWorker<DomainType> worker(query, resourceContext, bufferType, resultTransformation, logCtx);
+        return worker.executeInitialQuery(query, *resultProvider, batchSize, state);
+    }, runAsync)
+        .then([=](const ReplayResult &result) {
+            if (!guardPtr) {
+                //Not an error, the query can vanish at any time.
+                return;
+            }
+            mInitialQueryComplete = true;
+            mQueryInProgress = false;
+            mQueryState = result.queryState;
+            // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
+            if (query.liveQuery()) {
+                mResourceAccess->sendRevisionReplayedCommand(result.newRevision);
+            }
+            resultProvider->setRevision(result.newRevision);
+            resultProvider->initialResultSetComplete(result.replayedAll);
+            if (mRequestFetchMore) {
+                mRequestFetchMore = false;
+                fetch(query, bufferType);
+            }
+        })
+        .exec();
+}
+
+template <class DomainType>
+KAsync::Job<void> QueryRunner<DomainType>::incrementalFetch(const Sink::Query &query, const QByteArray &bufferType)
+{
+    if (!mInitialQueryComplete) {
+        SinkWarningCtx(mLogCtx) << "Can't start the incremental query before the initial query is complete";
+        fetch(query, bufferType);
+        return KAsync::null();
+    }
+    if (mQueryInProgress) {
+        //Can happen if the revision come in quicker than we process them.
+        return KAsync::null();
+    }
+    auto resultProvider = mResultProvider;
+    auto resourceContext = mResourceContext;
+    auto logCtx = mLogCtx;
+    auto state = mQueryState;
+    auto resultTransformation = mResultTransformation;
+    Q_ASSERT(!mQueryInProgress);
+    auto guardPtr = QPointer<QObject>(&guard);
+    return KAsync::start([&] {
+            mQueryInProgress = true;
+        })
+        .then(async::run<ReplayResult>([=]() {
+                QueryWorker<DomainType> worker(query, resourceContext, bufferType, resultTransformation, logCtx);
+                return worker.executeIncrementalQuery(query, *resultProvider, state);
+            }))
+        .then([query, this, resultProvider, guardPtr](const ReplayResult &newRevisionAndReplayedEntities) {
+            if (!guardPtr) {
+                //Not an error, the query can vanish at any time.
+                return;
+            }
+            mQueryInProgress = false;
+            // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
+            mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.newRevision);
+            resultProvider->setRevision(newRevisionAndReplayedEntities.newRevision);
+        });
 }
 
 template <class DomainType>

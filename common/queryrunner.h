@@ -92,6 +92,9 @@ public:
     typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
 
 private:
+    void fetch(const Sink::Query &query, const QByteArray &bufferType);
+    KAsync::Job<void> incrementalFetch(const Sink::Query &query, const QByteArray &bufferType);
+
     Sink::ResourceContext mResourceContext;
     QSharedPointer<Sink::ResourceAccessInterface> mResourceAccess;
     QSharedPointer<Sink::ResultProvider<typename DomainType::Ptr>> mResultProvider;
@@ -102,4 +105,5 @@ private:
     Sink::Log::Context mLogCtx;
     bool mInitialQueryComplete = false;
     bool mQueryInProgress = false;
+    bool mRequestFetchMore = false;
 };

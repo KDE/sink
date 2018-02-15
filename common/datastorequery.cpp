@@ -643,6 +643,7 @@ ResultSet DataStoreQuery::execute()
 {
     SinkTraceCtx(mLogCtx) << "Executing query";
 
+    Q_ASSERT(mCollector);
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
         if (mCollector->next([this, callback](const ResultSet::Result &result) {
                 if (result.operation != Sink::Operation_Removal) {

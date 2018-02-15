@@ -459,6 +459,7 @@ void EntityStore::indexLookup(const QByteArray &type, const QByteArray &property
 
 void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback)
 {
+    Q_ASSERT(d);
     auto db = DataStore::mainDatabase(d->getTransaction(), type);
     db.findLatest(uid,
         [=](const QByteArray &key, const QByteArray &value) {

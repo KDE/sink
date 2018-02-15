@@ -37,6 +37,7 @@ class SINK_EXPORT EntityStore
 public:
     typedef QSharedPointer<EntityStore> Ptr;
     EntityStore(const ResourceContext &resourceContext, const Sink::Log::Context &);
+    ~EntityStore() = default;
 
     //Only the pipeline may call the following functions outside of tests
     bool add(const QByteArray &type, ApplicationDomain::ApplicationDomainType newEntity, bool replayToSource);

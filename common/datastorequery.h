@@ -115,7 +115,7 @@ public:
     virtual void updateComplete() { }
 
     FilterBase::Ptr mSource;
-    DataStoreQuery *mDatastore;
+    DataStoreQuery *mDatastore{nullptr};
     bool mIncremental = false;
 };
 
