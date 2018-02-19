@@ -41,11 +41,6 @@ namespace SinkSelfTest
 
 bool selfTest(const QStringList &args_, State &state)
 {
-    if (args_.isEmpty()) {
-        state.printError(QObject::tr("Options: $type [--resource $resource] stresstest"));
-        return false;
-    }
-
     using namespace Sink::ApplicationDomain;
     auto options = SyntaxTree::parseOptions(args_);
     if (options.positionalArguments.contains("stresstest")) {
@@ -136,6 +131,14 @@ bool selfTest(const QStringList &args_, State &state)
 
         return true;
     }
+
+    state.printLine("Looking for resource plugins:");
+    if (!Sink::ResourceFactory::load("sink.imap")) {
+        state.printLine("Error: Failed to load the imap resource", 1);
+    } else {
+        state.printLine("Success: Managed to load the imap resource", 1);
+    }
+
     return false;
 }
 
