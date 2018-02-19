@@ -1,6 +1,6 @@
 
 Name:           sink
-Version:        0.4.0
+Version:        0.6
 Release:        0%{?dist}
 Summary:        sink
 
@@ -24,6 +24,7 @@ BuildRequires:  libgit2-devel
 BuildRequires:  lmdb-devel
 BuildRequires:  qt5-qtbase-devel
 BuildRequires:  readline-devel
+BuildRequires:  xapian-core-devel >= 1.4
 
 %description
 sink
