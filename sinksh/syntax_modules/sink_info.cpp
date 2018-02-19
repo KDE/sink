@@ -19,6 +19,7 @@
 
 #include <QDebug>
 #include <QObject> // tr()
+#include <QCoreApplication>
 
 #include "common/definitions.h"
 
@@ -38,6 +39,7 @@ bool info(const QStringList &args, State &state)
     state.printLine(QString("Config location: %1").arg(Sink::configLocation()));
     state.printLine(QString("Temporary file location: %1").arg(Sink::temporaryFileLocation()));
     state.printLine(QString("Resource storage location: %1").arg(Sink::resourceStorageLocation("$RESOURCE")));
+    state.printLine(QString("Resource lookup directories: %1").arg(QCoreApplication::instance()->libraryPaths().join(", ")));
     return false;
 }
 
