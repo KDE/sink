@@ -247,6 +247,8 @@ public:
     {
         DomainType object(original);
         object.mIdentifier = identifier;
+        //This shouldn't be necessary but is to avoid corrupt id's from Store::modify calls.
+        object.mIdentifier.detach();
         return object;
     }
 
