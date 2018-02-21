@@ -65,29 +65,43 @@ void FulltextIndex::add(const QByteArray &key, const QList<QPair<QString, QStrin
     if (!mDb) {
         return;
     }
-    Xapian::TermGenerator generator;
-    Xapian::Document document;
-    generator.set_document(document);
+    try {
+        Xapian::TermGenerator generator;
+        Xapian::Document document;
+        generator.set_document(document);
 
-    for (const auto &entry : values) {
-        if (!entry.second.isEmpty()) {
-            generator.index_text(entry.second.toStdString());
+        for (const auto &entry : values) {
+            if (!entry.second.isEmpty()) {
+                generator.index_text(entry.second.toStdString());
+            }
         }
+        document.add_value(0, key.toStdString());
+
+        const auto idterm = idTerm(key);
+        document.add_boolean_term(idterm);
+
+        writableDatabase()->replace_document(idterm, document);
     }
-    document.add_value(0, key.toStdString());
-
-    const auto idterm = idTerm(key);
-    document.add_boolean_term(idterm);
-
-    writableDatabase()->replace_document(idterm, document);
+    catch (const Xapian::Error &error) {
+        SinkError() << "Exception during Xapian commit_transaction:" << error.get_msg().c_str();
+        //FIXME we should somehow retry the transaction...
+        Q_ASSERT(false);
+    }
 }
 
 void FulltextIndex::commitTransaction()
 {
     if (mHasTransactionOpen) {
         Q_ASSERT(mDb);
-        writableDatabase()->commit_transaction();
-        mHasTransactionOpen = false;
+        try {
+            writableDatabase()->commit_transaction();
+            mHasTransactionOpen = false;
+        }
+        catch (const Xapian::Error &error) {
+            SinkError() << "Exception during Xapian commit_transaction:" << error.get_msg().c_str();
+            //FIXME we should somehow retry the transaction...
+            Q_ASSERT(false);
+        }
     }
 }
 
@@ -95,8 +109,15 @@ void FulltextIndex::abortTransaction()
 {
     if (mHasTransactionOpen) {
         Q_ASSERT(mDb);
-        writableDatabase()->cancel_transaction();
-        mHasTransactionOpen = false;
+        try {
+            writableDatabase()->cancel_transaction();
+            mHasTransactionOpen = false;
+        }
+        catch (const Xapian::Error &error) {
+            SinkError() << "Exception during Xapian cancel_transaction:" << error.get_msg().c_str();
+            //FIXME we should somehow retry the transaction...
+            Q_ASSERT(false);
+        }
     }
 }
 
@@ -105,8 +126,15 @@ Xapian::WritableDatabase* FulltextIndex::writableDatabase()
     Q_ASSERT(dynamic_cast<Xapian::WritableDatabase*>(mDb));
     auto db = static_cast<Xapian::WritableDatabase*>(mDb);
     if (!mHasTransactionOpen) {
-        db->begin_transaction();
-        mHasTransactionOpen = true;
+        try {
+            db->begin_transaction();
+            mHasTransactionOpen = true;
+        }
+        catch (const Xapian::Error &error) {
+            SinkError() << "Exception during Xapian begin_transaction:" << error.get_msg().c_str();
+            //FIXME we should somehow retry the transaction...
+            Q_ASSERT(false);
+        }
     }
     return db;
 }
@@ -116,7 +144,14 @@ void FulltextIndex::remove(const QByteArray &key)
     if (!mDb) {
         return;
     }
-    writableDatabase()->delete_document(idTerm(key));
+    try {
+        writableDatabase()->delete_document(idTerm(key));
+    }
+    catch (const Xapian::Error &error) {
+        SinkError() << "Exception during Xapian delete_document:" << error.get_msg().c_str();
+        //FIXME we should somehow retry the transaction...
+        Q_ASSERT(false);
+    }
 }
 
 QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
