@@ -268,6 +268,10 @@ public:
     void setResource(const QByteArray &identifier);
     QByteArray identifier() const;
 
+    bool isAggregate() const;
+    QVector<QByteArray> aggregatedIds() const;
+    QVector<QByteArray> &aggregatedIds();
+
 private:
     friend QDebug operator<<(QDebug, const ApplicationDomainType &);
     QSharedPointer<BufferAdaptor> mAdaptor;
@@ -278,6 +282,8 @@ private:
     QByteArray mResourceInstanceIdentifier;
     QByteArray mIdentifier;
     qint64 mRevision;
+
+    QVector<QByteArray> mAggreatedIds;
 };
 
 /*

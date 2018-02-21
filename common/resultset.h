@@ -35,10 +35,11 @@ class ResultSet
 {
 public:
     struct Result {
-        Result(const Sink::ApplicationDomain::ApplicationDomainType &e, Sink::Operation op, const QMap<QByteArray, QVariant> &v = QMap<QByteArray, QVariant>{}) : entity(e), operation(op), aggregateValues(v) {}
+        Result(const Sink::ApplicationDomain::ApplicationDomainType &e, Sink::Operation op, const QMap<QByteArray, QVariant> &v = {}, const QVector<QByteArray> &a = {}) : entity(e), operation(op), aggregateValues(v), aggregateIds(a) {}
         Sink::ApplicationDomain::ApplicationDomainType entity;
         Sink::Operation operation;
         QMap<QByteArray, QVariant> aggregateValues;
+        QVector<QByteArray> aggregateIds;
     };
     typedef std::function<void(const Result &)> Callback;
     typedef std::function<bool(Callback)> ValueGenerator;

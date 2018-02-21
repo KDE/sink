@@ -184,6 +184,7 @@ ApplicationDomainType& ApplicationDomainType::operator=(const ApplicationDomainT
     mResourceInstanceIdentifier = other.mResourceInstanceIdentifier;
     mIdentifier = other.mIdentifier;
     mRevision = other.mRevision;
+    mAggreatedIds = other.mAggreatedIds;
     return *this;
 }
 
@@ -260,6 +261,21 @@ QByteArray ApplicationDomainType::resourceInstanceIdentifier() const
 QByteArray ApplicationDomainType::identifier() const
 {
     return mIdentifier;
+}
+
+bool ApplicationDomainType::isAggregate() const
+{
+    return !mAggreatedIds.isEmpty();
+}
+
+QVector<QByteArray> ApplicationDomainType::aggregatedIds() const
+{
+    return mAggreatedIds;
+}
+
+QVector<QByteArray> &ApplicationDomainType::aggregatedIds()
+{
+    return mAggreatedIds;
 }
 
 SinkResource::SinkResource(const QByteArray &identifier)

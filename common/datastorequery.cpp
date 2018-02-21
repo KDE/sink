@@ -252,11 +252,18 @@ public:
         return false;
     }
 
-    QByteArray reduceOnValue(const QVariant &reductionValue, QMap<QByteArray, QVariant> &aggregateValues)
+    struct ReductionResult {
+        QByteArray selection;
+        QVector<QByteArray> aggregateIds;
+        QMap<QByteArray, QVariant> aggregateValues;
+    };
+
+    ReductionResult reduceOnValue(const QVariant &reductionValue)
     {
+        QMap<QByteArray, QVariant> aggregateValues;
         QVariant selectionResultValue;
         QByteArray selectionResult;
-        auto results = indexLookup(mReductionProperty, reductionValue);
+        const auto results = indexLookup(mReductionProperty, reductionValue);
         for (auto &aggregator : mAggregators) {
             aggregator.reset();
         }
@@ -287,7 +294,7 @@ public:
         for (auto &aggregator : mAggregators) {
             aggregateValues.insert(aggregator.resultProperty, aggregator.result());
         }
-        return selectionResult;
+        return {selectionResult, results, aggregateValues};
     }
 
     bool next(const std::function<void(const ResultSet::Result &)> &callback) Q_DECL_OVERRIDE {
@@ -302,12 +309,11 @@ public:
                 if (!mReducedValues.contains(reductionValueBa)) {
                     //Only reduce every value once.
                     mReducedValues.insert(reductionValueBa);
-                    QMap<QByteArray, QVariant> aggregateValues;
-                    auto selectionResult = reduceOnValue(reductionValue, aggregateValues);
+                    auto reductionResult = reduceOnValue(reductionValue);
 
-                    mSelectedValues.insert(reductionValueBa, selectionResult);
-                    readEntity(selectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
-                        callback({entity, operation, aggregateValues});
+                    mSelectedValues.insert(reductionValueBa, reductionResult.selection);
+                    readEntity(reductionResult.selection, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+                        callback({entity, operation, reductionResult.aggregateValues, reductionResult.aggregateIds});
                         foundValue = true;
                     });
                 } else {
@@ -317,15 +323,14 @@ public:
                     if (mIncremental && !mIncrementallyReducedValues.contains(reductionValueBa)) {
                         mIncrementallyReducedValues.insert(reductionValueBa);
                         //Redo the reduction to find new aggregated values
-                        QMap<QByteArray, QVariant> aggregateValues;
-                        auto selectionResult = reduceOnValue(reductionValue, aggregateValues);
+                        auto selectionResult = reduceOnValue(reductionValue);
 
                         //TODO if old and new are the same a modification would be enough
                         auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
-                        if (oldSelectionResult == selectionResult) {
-                            mSelectedValues.insert(reductionValueBa, selectionResult);
-                            readEntity(selectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
-                                callback({entity, Sink::Operation_Modification, aggregateValues});
+                        if (oldSelectionResult == selectionResult.selection) {
+                            mSelectedValues.insert(reductionValueBa, selectionResult.selection);
+                            readEntity(selectionResult.selection, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
+                                callback({entity, Sink::Operation_Modification, selectionResult.aggregateValues, selectionResult.aggregateIds});
                             });
                         } else {
                             //remove old result
@@ -334,9 +339,9 @@ public:
                             });
 
                             //add new result
-                            mSelectedValues.insert(reductionValueBa, selectionResult);
-                            readEntity(selectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
-                                callback({entity, Sink::Operation_Creation, aggregateValues});
+                            mSelectedValues.insert(reductionValueBa, selectionResult.selection);
+                            readEntity(selectionResult.selection, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
+                                callback({entity, Sink::Operation_Creation, selectionResult.aggregateValues, selectionResult.aggregateIds});
                             });
                         }
                     }
@@ -648,7 +653,7 @@ ResultSet DataStoreQuery::execute()
         if (mCollector->next([this, callback](const ResultSet::Result &result) {
                 if (result.operation != Sink::Operation_Removal) {
                     SinkTraceCtx(mLogCtx) << "Got initial result: " << result.entity.identifier() << result.operation;
-                    callback(ResultSet::Result{result.entity, Sink::Operation_Creation, result.aggregateValues});
+                    callback(ResultSet::Result{result.entity, Sink::Operation_Creation, result.aggregateValues, result.aggregateIds});
                 }
             }))
         {

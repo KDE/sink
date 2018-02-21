@@ -45,7 +45,6 @@ struct ReplayResult {
 template <typename DomainType>
 class QueryWorker : public QObject
 {
-    typedef std::function<bool(const typename DomainType::Ptr &domainObject, Sink::Operation operation, const QMap<QByteArray, QVariant> &aggregateValues)> ResultCallback;
 public:
     QueryWorker(const Sink::Query &query, const ResourceContext &context, const QByteArray &bufferType, const QueryRunnerBase::ResultTransformation &transformation, const Sink::Log::Context &logCtx);
     virtual ~QueryWorker();
@@ -210,6 +209,7 @@ void QueryWorker<DomainType>::resultProviderCallback(const Sink::Query &query, S
     for (auto it = result.aggregateValues.constBegin(); it != result.aggregateValues.constEnd(); it++) {
         valueCopy->setProperty(it.key(), it.value());
     }
+    valueCopy->aggregatedIds() = result.aggregateIds;
     if (mResultTransformation) {
         mResultTransformation(*valueCopy);
     }
