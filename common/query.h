@@ -247,12 +247,17 @@ public:
         //Potentially pass-in an identifier under which the result will be available in the result set.
     };
 
+    Reduce &reduce(const QByteArray &name, const Reduce::Selector &s)
+    {
+        auto reduction = QSharedPointer<Reduce>::create(name, s);
+        mFilterStages << reduction;
+        return *reduction;
+    }
+
     template <typename T>
     Reduce &reduce(const Reduce::Selector &s)
     {
-        auto reduction = QSharedPointer<Reduce>::create(T::name, s);
-        mFilterStages << reduction;
-        return *reduction;
+        return reduce(T::name, s);
     }
 
     /**

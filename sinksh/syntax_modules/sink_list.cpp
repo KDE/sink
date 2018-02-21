@@ -92,7 +92,7 @@ QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o,
 bool list(const QStringList &args_, State &state)
 {
     if (args_.isEmpty()) {
-        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--id $id] [--showall|--show $property]"));
+        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--id $id] [--showall|--show $property] [--reduce $reduceProperty:$selectorProperty] [--sort $sortProperty] [--limit $count]"));
         return false;
     }
 
@@ -112,6 +112,11 @@ bool list(const QStringList &args_, State &state)
 
     if (options.options.contains("sort")) {
         query.setSortProperty(options.options.value("sort").first().toUtf8());
+    }
+
+    if (options.options.contains("reduce")) {
+        auto value = options.options.value("reduce").first().toUtf8();
+        query.reduce(value.split(':').value(0), Sink::Query::Reduce::Selector(value.split(':').value(1), Sink::Query::Reduce::Selector::Max));
     }
 
     auto compact = options.options.contains("compact");
