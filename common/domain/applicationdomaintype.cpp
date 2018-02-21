@@ -44,6 +44,9 @@ QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDom
     }();
     std::sort(properties.begin(), properties.end());
     d << " " << "Id: " << "\t" << type.identifier() << "\n";
+    if (type.isAggregate()) {
+        d << " " << "AggregateIds: " << "\t" << type.aggregatedIds() << "\n";
+    }
     d << " " << "Resource: " << "\t" << type.resourceInstanceIdentifier() << "\n";
     for (const auto &property : properties) {
         d << " " << property << "\t" << type.getProperty(property) << "\n";
