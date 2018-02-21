@@ -195,9 +195,8 @@ template <class DomainType>
 KAsync::Job<void> Store::create(const DomainType &domainObject)
 {
     SinkLog() << "Create: " << domainObject;
-    // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->create(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to create"; });
+    return facade->create(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to create " << error; });
 }
 
 template <class DomainType>
@@ -208,8 +207,15 @@ KAsync::Job<void> Store::modify(const DomainType &domainObject)
         return KAsync::null();
     }
     SinkLog() << "Modify: " << domainObject;
-    // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
+    if (domainObject.isAggregate()) {
+        return KAsync::value(domainObject.aggregatedIds())
+            .addToContext(std::shared_ptr<void>(facade))
+            .each([=] (const QByteArray &id) {
+                auto object = Sink::ApplicationDomain::ApplicationDomainType::createCopy(id, domainObject);
+                return facade->modify(object).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to modify " << error; });
+        });
+    }
     return facade->modify(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to modify"; });
 }
 
@@ -235,27 +241,48 @@ template <class DomainType>
 KAsync::Job<void> Store::move(const DomainType &domainObject, const QByteArray &newResource)
 {
     SinkLog() << "Move: " << domainObject << newResource;
-    // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->move(domainObject, newResource).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to move"; });
+    if (domainObject.isAggregate()) {
+        return KAsync::value(domainObject.aggregatedIds())
+            .addToContext(std::shared_ptr<void>(facade))
+            .each([=] (const QByteArray &id) {
+                auto object = Sink::ApplicationDomain::ApplicationDomainType::createCopy(id, domainObject);
+                return facade->move(object, newResource).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to move " << error; });
+        });
+    }
+    return facade->move(domainObject, newResource).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to move " << error; });
 }
 
 template <class DomainType>
 KAsync::Job<void> Store::copy(const DomainType &domainObject, const QByteArray &newResource)
 {
     SinkLog() << "Copy: " << domainObject << newResource;
-    // Potentially copy to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->copy(domainObject, newResource).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to copy"; });
+    if (domainObject.isAggregate()) {
+        return KAsync::value(domainObject.aggregatedIds())
+            .addToContext(std::shared_ptr<void>(facade))
+            .each([=] (const QByteArray &id) {
+                auto object = Sink::ApplicationDomain::ApplicationDomainType::createCopy(id, domainObject);
+                return facade->copy(object, newResource).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to copy " << error; });
+        });
+    }
+    return facade->copy(domainObject, newResource).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to copy " << error; });
 }
 
 template <class DomainType>
 KAsync::Job<void> Store::remove(const DomainType &domainObject)
 {
     SinkLog() << "Remove: " << domainObject;
-    // Potentially move to separate thread as well
     auto facade = getFacade<DomainType>(domainObject.resourceInstanceIdentifier());
-    return facade->remove(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to remove"; });
+    if (domainObject.isAggregate()) {
+        return KAsync::value(domainObject.aggregatedIds())
+            .addToContext(std::shared_ptr<void>(facade))
+            .each([=] (const QByteArray &id) {
+                auto object = Sink::ApplicationDomain::ApplicationDomainType::createCopy(id, domainObject);
+                return facade->remove(object).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to remove " << error; });
+        });
+    }
+    return facade->remove(domainObject).addToContext(std::shared_ptr<void>(facade)).onError([](const KAsync::Error &error) { SinkWarning() << "Failed to remove " << error; });
 }
 
 template <class DomainType>

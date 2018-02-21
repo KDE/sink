@@ -78,6 +78,7 @@ void MailThreadTest::testListThreadLeader()
     QVERIFY(mails.first().getSubject().startsWith(QString("ThreadLeader")));
     auto threadSize = mails.first().getProperty("count").toInt();
     QCOMPARE(threadSize, 2);
+    QCOMPARE(mails.first().aggregatedIds().size(), 2);
 }
 
 /*

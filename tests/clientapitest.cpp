@@ -412,6 +412,26 @@ private slots:
         }
     }
 
+    void testAggregateModify()
+    {
+        auto facade = setupFacade<Sink::ApplicationDomain::Event>("dummyresource.instance1");
+        facade->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("dummyresource.instance1", "id1", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        facade->results << QSharedPointer<Sink::ApplicationDomain::Event>::create("dummyresource.instance1", "id2", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+
+        Sink::ApplicationDomain::Event modification("dummyresource.instance1", "id1", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
+        modification.aggregatedIds() << "id1" << "id2";
+        modification.setUid("modifiedUid2");
+
+        Sink::Store::modify(modification).exec().waitForFinished();
+        QCOMPARE(facade->modifications.size(), 2);
+        for (const auto &m : facade->modifications) {
+            QCOMPARE(m.getUid(), {"modifiedUid2"});
+        }
+
+        Sink::Store::remove(modification).exec().waitForFinished();
+        QCOMPARE(facade->removals.size(), 2);
+    }
+
     void testModelStress()
     {
         auto facade = setupFacade<Sink::ApplicationDomain::Folder>("dummyresource.instance1");

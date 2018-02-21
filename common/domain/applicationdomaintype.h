@@ -242,6 +242,14 @@ public:
         return object;
     }
 
+    template <class DomainType>
+    static DomainType createCopy(const QByteArray &identifier, const DomainType &original)
+    {
+        DomainType object(original);
+        object.mIdentifier = identifier;
+        return object;
+    }
+
     virtual ~ApplicationDomainType();
 
     bool hasProperty(const QByteArray &key) const;
