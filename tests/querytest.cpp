@@ -1211,7 +1211,7 @@ private slots:
         Query query;
         query.setId("testLivequeryThreadleaderChange");
         query.setFlags(Query::LiveQuery);
-        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Folder>("folders");
+        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>()).count().collect<Mail::Folder>();
         query.sort<Mail::Date>();
         query.request<Mail::MessageId>();
         query.filter<Mail::Important>(false);
@@ -1224,8 +1224,8 @@ private slots:
         {
             auto mail = model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>();
             QCOMPARE(mail->getMessageId(), QByteArray{"mail1"});
-            QCOMPARE(mail->getProperty("count").toInt(), 2);
-            QCOMPARE(mail->getProperty("folders").toList().size(), 2);
+            QCOMPARE(mail->count(), 2);
+            QCOMPARE(mail->getCollectedProperty<Mail::Folder>().size(), 2);
         }
     }
 

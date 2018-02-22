@@ -267,14 +267,14 @@ public:
         for (auto &aggregator : mAggregators) {
             aggregator.reset();
         }
-
+        QVector<QByteArray> reducedAndFilteredResults;
         for (const auto &r : results) {
             readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                 //We need to apply all property filters that we have until the reduction, because the index lookup was unfiltered.
                 if (!matchesFilter(entity)) {
                     return;
                 }
-
+                reducedAndFilteredResults << r;
                 Q_ASSERT(operation != Sink::Operation_Removal);
                 for (auto &aggregator : mAggregators) {
                     if (!aggregator.property.isEmpty()) {
@@ -294,14 +294,18 @@ public:
         for (auto &aggregator : mAggregators) {
             aggregateValues.insert(aggregator.resultProperty, aggregator.result());
         }
-        return {selectionResult, results, aggregateValues};
+        return {selectionResult, reducedAndFilteredResults, aggregateValues};
     }
 
     bool next(const std::function<void(const ResultSet::Result &)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                 const auto reductionValue = [&] {
-                    if (result.operation == Sink::Operation_Removal) {
+                    const auto v = result.entity.getProperty(mReductionProperty);
+                    //Because we also get Operation_Removal for filtered entities. We use the fact that actually removed entites
+                    //won't have the property to reduce on.
+                    //TODO: Perhaps find a cleaner solutoin than abusing Operation::Removed for filtered properties.
+                    if (v.isNull() && result.operation == Sink::Operation_Removal) {
                         //For removals we have to read the last revision to get a value, and thus be able to find the correct thread.
                         QVariant reductionValue;
                         readPrevious(result.entity.identifier(), [&] (const ApplicationDomain::ApplicationDomainType &prev) {
@@ -309,10 +313,15 @@ public:
                         });
                         return reductionValue;
                     } else {
-                        return result.entity.getProperty(mReductionProperty);
+                        return v;
                     }
                 }();
-                const auto &reductionValueBa = getByteArray(reductionValue);
+                if (reductionValue.isNull()) {
+                    //We failed to find a value to reduce on, so ignore this entity.
+                    //Can happen if the entity was already removed and we have no previous revision.
+                    return;
+                }
+                const auto reductionValueBa = getByteArray(reductionValue);
                 if (!mReducedValues.contains(reductionValueBa)) {
                     //Only reduce every value once.
                     mReducedValues.insert(reductionValueBa);
@@ -356,7 +365,6 @@ public:
                         }
                     }
                 }
-                return false;
             }))
         {}
         return foundValue;
