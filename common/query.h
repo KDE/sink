@@ -234,6 +234,13 @@ public:
             return *this;
         }
 
+        template <typename T>
+        Reduce &collect()
+        {
+            aggregators << Aggregator(QByteArray{T::name} + QByteArray{"Collected"}, Aggregator::Collect, T::name);
+            return *this;
+        }
+
         //Reduce on property
         QByteArray property;
         Selector selector;

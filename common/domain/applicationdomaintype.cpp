@@ -212,6 +212,12 @@ QVariant ApplicationDomainType::getProperty(const QByteArray &key) const
     return mAdaptor->getProperty(key);
 }
 
+QVariantList ApplicationDomainType::getCollectedProperty(const QByteArray &key) const
+{
+    Q_ASSERT(mAdaptor);
+    return mAdaptor->getProperty(key + "Collected").toList();
+}
+
 void ApplicationDomainType::setProperty(const QByteArray &key, const QVariant &value)
 {
     Q_ASSERT(mAdaptor);
@@ -281,6 +287,11 @@ QVector<QByteArray> ApplicationDomainType::aggregatedIds() const
 QVector<QByteArray> &ApplicationDomainType::aggregatedIds()
 {
     return mAggreatedIds;
+}
+
+int ApplicationDomainType::count() const
+{
+    return qMax(mAggreatedIds.size(), 1);
 }
 
 SinkResource::SinkResource(const QByteArray &identifier)

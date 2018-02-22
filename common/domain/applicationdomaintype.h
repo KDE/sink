@@ -257,6 +257,13 @@ public:
     bool hasProperty(const QByteArray &key) const;
 
     QVariant getProperty(const QByteArray &key) const;
+    QVariantList getCollectedProperty(const QByteArray &key) const;
+
+    template <typename Property>
+    QVariantList getCollectedProperty() const
+    {
+        return getCollectedProperty(Property::name);
+    }
 
     /**
      * Set a property and record a changed property
@@ -281,6 +288,7 @@ public:
     bool isAggregate() const;
     QVector<QByteArray> aggregatedIds() const;
     QVector<QByteArray> &aggregatedIds();
+    int count() const;
 
 private:
     friend QDebug operator<<(QDebug, const ApplicationDomainType &);
