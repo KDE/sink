@@ -176,7 +176,7 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
             results << QByteArray{data.c_str(), int(data.length())};
         }
     }
-    catch (const Xapian::Error &error) {
+    catch (const Xapian::Error &) {
         // Nothing to do, move along
     }
     return results;
