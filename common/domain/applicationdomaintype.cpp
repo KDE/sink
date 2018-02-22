@@ -215,13 +215,15 @@ QVariant ApplicationDomainType::getProperty(const QByteArray &key) const
 void ApplicationDomainType::setProperty(const QByteArray &key, const QVariant &value)
 {
     Q_ASSERT(mAdaptor);
-    auto existing = mAdaptor->getProperty(key);
-    if (existing.isValid() && existing == value) {
-        SinkTrace() << "Tried to set property that is still the same: " << key << value;
-    } else {
-        mChangeSet->insert(key);
-        mAdaptor->setProperty(key, value);
+    if (!isAggregate()) {
+        auto existing = mAdaptor->getProperty(key);
+        if (existing.isValid() && existing == value ) {
+            SinkTrace() << "Tried to set property that is still the same: " << key << value;
+            return;
+        }
     }
+    mChangeSet->insert(key);
+    mAdaptor->setProperty(key, value);
 }
 
 void ApplicationDomainType::setResource(const QByteArray &identifier)
