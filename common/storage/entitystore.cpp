@@ -563,7 +563,7 @@ void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qi
             return true;
         },
         [&](const Sink::Storage::DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read current value from storage: " << error.message; }, true);
-    return readEntity(type, Sink::Storage::DataStore::assembleKey(uid, latestRevision), callback);
+    readEntity(type, Sink::Storage::DataStore::assembleKey(uid, latestRevision), callback);
 }
 
 void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const ApplicationDomain::ApplicationDomainType &)> callback)

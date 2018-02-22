@@ -300,11 +300,18 @@ public:
     bool next(const std::function<void(const ResultSet::Result &)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
-                if (result.operation == Sink::Operation_Removal) {
-                    callback(result);
-                    return false;
-                }
-                auto reductionValue = result.entity.getProperty(mReductionProperty);
+                const auto reductionValue = [&] {
+                    if (result.operation == Sink::Operation_Removal) {
+                        //For removals we have to read the last revision to get a value, and thus be able to find the correct thread.
+                        QVariant reductionValue;
+                        readPrevious(result.entity.identifier(), [&] (const ApplicationDomain::ApplicationDomainType &prev) {
+                            reductionValue = prev.getProperty(mReductionProperty);
+                        });
+                        return reductionValue;
+                    } else {
+                        return result.entity.getProperty(mReductionProperty);
+                    }
+                }();
                 const auto &reductionValueBa = getByteArray(reductionValue);
                 if (!mReducedValues.contains(reductionValueBa)) {
                     //Only reduce every value once.
@@ -437,6 +444,11 @@ DataStoreQuery::State::Ptr DataStoreQuery::getState()
 void DataStoreQuery::readEntity(const QByteArray &key, const BufferCallback &resultCallback)
 {
     mStore.readLatest(mType, key, resultCallback);
+}
+
+void DataStoreQuery::readPrevious(const QByteArray &key, const std::function<void (const ApplicationDomain::ApplicationDomainType &)> &callback)
+{
+    mStore.readPrevious(mType, key, mStore.maxRevision(), callback);
 }
 
 QVector<QByteArray> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value)

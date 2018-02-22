@@ -62,6 +62,7 @@ private:
     QVector<QByteArray> indexLookup(const QByteArray &property, const QVariant &value);
 
     void readEntity(const QByteArray &key, const BufferCallback &resultCallback);
+    void readPrevious(const QByteArray &key, const std::function<void (const Sink::ApplicationDomain::ApplicationDomainType &)> &callback);
 
     ResultSet createFilteredSet(ResultSet &resultSet, const FilterFunction &);
     QVector<QByteArray> loadIncrementalResultSet(qint64 baseRevision);
@@ -105,6 +106,12 @@ public:
     {
         Q_ASSERT(mDatastore);
         return mDatastore->indexLookup(property, value);
+    }
+
+    void readPrevious(const QByteArray &key, const std::function<void (const Sink::ApplicationDomain::ApplicationDomainType &)> &callback)
+    {
+        Q_ASSERT(mDatastore);
+        mDatastore->readPrevious(key, callback);
     }
 
     virtual void skip() { mSource->skip(); }

@@ -760,6 +760,50 @@ private slots:
         QTRY_COMPARE(model->rowCount(), 0);
     }
 
+    void testLivequeryRemoveOneInThread()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail1.setExtractedMessageId("mail1");
+        mail1.setFolder(folder1);
+        VERIFYEXEC(Sink::Store::create(mail1));
+        auto mail2 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail2.setExtractedMessageId("mail2");
+        mail2.setFolder(folder1);
+        VERIFYEXEC(Sink::Store::create(mail2));
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        //Setup two folders with a mail each, ensure we only get the mail from the folder that matches the folder filter.
+        Query query;
+        query.setId("testLivequeryUnmatch");
+        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Sender>("senders");
+        query.sort<Mail::Date>();
+        query.setFlags(Query::LiveQuery);
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+        QCOMPARE(model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>()->getProperty("count").toInt(), 2);
+
+        //After the removal, the thread size should be reduced by one
+        {
+
+            VERIFYEXEC(Sink::Store::remove(mail1));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 1);
+        QTRY_COMPARE(model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>()->getProperty("count").toInt(), 1);
+
+        //After the second removal, the thread should be gone
+        {
+            VERIFYEXEC(Sink::Store::remove(mail2));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 0);
+    }
+
     void testDontUpdateNonLiveQuery()
     {
         // Setup
