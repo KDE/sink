@@ -345,11 +345,14 @@ public:
                                 callback({entity, Sink::Operation_Removal});
                             });
 
-                            //add new result
-                            mSelectedValues.insert(reductionValueBa, selectionResult.selection);
-                            readEntity(selectionResult.selection, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
-                                callback({entity, Sink::Operation_Creation, selectionResult.aggregateValues, selectionResult.aggregateIds});
-                            });
+                            //If the last item has been removed, then there's nothing to add
+                            if (!selectionResult.selection.isEmpty()) {
+                                //add new result
+                                mSelectedValues.insert(reductionValueBa, selectionResult.selection);
+                                readEntity(selectionResult.selection, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
+                                    callback({entity, Sink::Operation_Creation, selectionResult.aggregateValues, selectionResult.aggregateIds});
+                                });
+                            }
                         }
                     }
                 }
