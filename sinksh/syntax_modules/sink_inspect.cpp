@@ -142,7 +142,7 @@ bool inspect(const QStringList &args, State &state)
                 }
 
             }
-        } catch (const Xapian::Error &error) {
+        } catch (const Xapian::Error &) {
             // Nothing to do, move along
         }
 
