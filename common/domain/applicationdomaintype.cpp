@@ -268,7 +268,7 @@ QByteArray ApplicationDomainType::identifier() const
 
 bool ApplicationDomainType::isAggregate() const
 {
-    return !mAggreatedIds.isEmpty();
+    return mAggreatedIds.size() > 1;
 }
 
 QVector<QByteArray> ApplicationDomainType::aggregatedIds() const
