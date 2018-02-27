@@ -48,6 +48,7 @@ protected:
         QDir dir(targetPath);
         dir.removeRecursively();
         copyRecursively(TESTDATAPATH "/maildir1", targetPath);
+        QDir{}.mkpath(targetPath + "/test/cur");
     }
 
     Sink::ApplicationDomain::SinkResource createResource() Q_DECL_OVERRIDE
