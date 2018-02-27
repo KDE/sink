@@ -123,6 +123,7 @@ protected:
 
     virtual KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) = 0;
 
+public:
     struct SyncRequest {
         enum RequestType {
             Synchronization,
@@ -172,6 +173,7 @@ protected:
         QByteArrayList applicableEntities;
     };
 
+protected:
     /**
      * This allows the synchronizer to turn a single query into multiple synchronization requests.
      *
@@ -203,7 +205,6 @@ protected:
      */
     virtual void reportProgress(int progress, int total, const QByteArrayList &entities = {}) Q_DECL_OVERRIDE;
 
-protected:
     Sink::Log::Context mLogCtx;
 
 private:
