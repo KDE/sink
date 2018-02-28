@@ -327,8 +327,7 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
 static KAsync::Job<Store::UpgradeResult> upgrade(const QByteArray &resource)
 {
     auto store = Sink::Storage::DataStore(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
-    const auto version = Storage::DataStore::databaseVersion(store.createTransaction(Storage::DataStore::ReadOnly));
-    if (version == Sink::latestDatabaseVersion() || version == 0) {
+    if (!store.exists() || Storage::DataStore::databaseVersion(store.createTransaction(Storage::DataStore::ReadOnly)) == Sink::latestDatabaseVersion()) {
         return KAsync::value(Store::UpgradeResult{false});
     }
     SinkLog() << "Upgrading " << resource;
