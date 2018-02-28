@@ -145,19 +145,23 @@ public:
         return remoteId;
     }
 
+    static bool contains(const QVector<Folder> &folderList, const QByteArray &remoteId)
+    {
+        for (const auto &folder : folderList) {
+            if (folderRid(folder) == remoteId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void synchronizeFolders(const QVector<Folder> &folderList)
     {
         SinkTraceCtx(mLogCtx) << "Found folders " << folderList.size();
 
         scanForRemovals(ENTITY_TYPE_FOLDER,
             [&folderList](const QByteArray &remoteId) -> bool {
-                // folderList.contains(remoteId)
-                for (const auto &folder : folderList) {
-                    if (folderRid(folder) == remoteId) {
-                        return true;
-                    }
-                }
-                return false;
+                return contains(folderList, remoteId);
             }
         );
 
@@ -949,7 +953,7 @@ protected:
                         *folderByPath << f.path();
                         *folderByName << f.name();
                     }))
-                    .then([this, folderByName, folderByPath, folder, remoteId, imap] {
+                    .then([folderByName, folderByPath, folder, remoteId, imap] {
                         if (!folderByName->contains(folder.getName())) {
                             SinkWarning() << "Existing folders are: " << *folderByPath;
                             SinkWarning() << "We're looking for: " << folder.getName();
