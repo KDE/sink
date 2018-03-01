@@ -511,6 +511,7 @@ public:
             auto localIds = resolveFilter(folderFilter);
             auto folderRemoteIds = syncStore().resolveLocalIds(ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), localIds);
             for (const auto &r : folderRemoteIds) {
+                Q_ASSERT(!r.isEmpty());
                 folders << Folder{r};
             }
             return KAsync::value(folders);

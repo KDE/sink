@@ -86,7 +86,10 @@ QByteArrayList SynchronizerStore::resolveLocalIds(const QByteArray &bufferType, 
 {
     QByteArrayList result;
     for (const auto &l : localIds) {
-        result << resolveLocalId(bufferType, l);
+        const auto id = resolveLocalId(bufferType, l);
+        if (!id.isEmpty()) {
+            result << id;
+        }
     }
     return result;
 }
