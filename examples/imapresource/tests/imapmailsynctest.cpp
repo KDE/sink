@@ -26,6 +26,9 @@
 #include "common/test.h"
 #include "common/domain/applicationdomaintype.h"
 #include "common/secretstore.h"
+#include "common/store.h"
+#include "common/resourcecontrol.h"
+#include "common/notifier.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -114,6 +117,64 @@ protected:
         VERIFYEXEC(imap.login("doe", "doe"));
         VERIFYEXEC(imap.select("INBOX." + folderPath.join('.')));
         VERIFYEXEC(imap.addFlags(KIMAP2::ImapSet::fromImapSequenceSet(messageIdentifier), QByteArrayList() << Imap::Flags::Flagged));
+    }
+
+    static QByteArray newMessage(const QString &subject)
+    {
+        auto msg = KMime::Message::Ptr::create();
+        msg->subject(true)->fromUnicodeString(subject, "utf8");
+        msg->date(true)->setDateTime(QDateTime::currentDateTimeUtc());
+        msg->assemble();
+        return msg->encodedContent(true);
+    }
+
+private slots:
+    void testNewMailNotification()
+    {
+        const auto syncFolders = Sink::SyncScope{ApplicationDomain::getTypeName<Folder>()}.resourceFilter(mResourceInstanceIdentifier);
+        //Fetch folders initially
+        VERIFYEXEC(Store::synchronize(syncFolders));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        auto folder = Store::readOne<Folder>(Sink::Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>("test"));
+        Q_ASSERT(!folder.identifier().isEmpty());
+
+        const auto syncTestMails = Sink::SyncScope{ApplicationDomain::getTypeName<Mail>()}.resourceFilter(mResourceInstanceIdentifier).filter<Mail::Folder>(QVariant::fromValue(folder.identifier()));
+
+        bool notificationReceived = false;
+        auto notifier = QSharedPointer<Sink::Notifier>::create(mResourceInstanceIdentifier);
+        notifier->registerHandler([&](const Notification &notification) {
+            if (notification.type == Sink::Notification::Info && notification.code == ApplicationDomain::NewContentAvailable && notification.entities.contains(folder.identifier())) {
+                notificationReceived = true;
+            }
+        });
+
+        //Should result in a change notification for test
+        VERIFYEXEC(Store::synchronize(syncFolders));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        QTRY_VERIFY(notificationReceived);
+
+        notificationReceived = false;
+
+        //Fetch test mails to skip change notification
+        VERIFYEXEC(Store::synchronize(syncTestMails));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        //Should no longer result in change notifications for test
+        VERIFYEXEC(Store::synchronize(syncFolders));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        QVERIFY(!notificationReceived);
+
+        //Create message and retry
+        createMessage(QStringList() << "test", newMessage("This is a Subject."));
+
+        //Should result in change notification
+        VERIFYEXEC(Store::synchronize(syncFolders));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        QTRY_VERIFY(notificationReceived);
     }
 };
 

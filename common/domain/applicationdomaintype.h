@@ -103,7 +103,8 @@ enum SINK_EXPORT SyncStatus {
     NoSyncStatus,
     SyncInProgress,
     SyncError,
-    SyncSuccess
+    SyncSuccess,
+    NewContentAvailable
 };
 
 /**

@@ -287,6 +287,7 @@ public:
                 .then([=](const SelectResult &selectResult) {
                     SinkLogCtx(mLogCtx) << "Flags updated. New changedsince value: " << selectResult.highestModSequence;
                     syncStore().writeValue(folderRemoteId, "changedsince", QByteArray::number(selectResult.highestModSequence));
+                    return selectResult.uidNext;
                 });
             } else {
                 //We hit this path on initial sync and simply record the current changedsince value
@@ -294,13 +295,14 @@ public:
                 .then([=](const SelectResult &selectResult) {
                     SinkLogCtx(mLogCtx) << "No flags to update. New changedsince value: " << selectResult.highestModSequence;
                     syncStore().writeValue(folderRemoteId, "changedsince", QByteArray::number(selectResult.highestModSequence));
+                    return selectResult.uidNext;
                 });
             }
         })
         //Next we synchronize the full set that is given by the date limit.
         //We fetch all data for this set.
         //This will also pull in any new messages in subsequent runs.
-        .then([=] {
+        .then([=] (qint64 serverUidNext){
             auto job = [&] {
                 if (dateFilter.isValid()) {
                     SinkLogCtx(mLogCtx) << "Fetching messages since: " << dateFilter;
@@ -349,6 +351,11 @@ public:
                     SinkLogCtx(mLogCtx) << "UIDMAX: " << *maxUid << folder.path();
                     if (*maxUid > 0) {
                         syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(*maxUid));
+                    } else {
+                        if (serverUidNext) {
+                            //If we don't receive a mail we should still record the updated uidnext value.
+                            syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(serverUidNext));
+                        }
                     }
                     syncStore().writeValue(folderRemoteId, "fullsetLowerbound", QByteArray::number(lowerBoundUid));
                     commit();
@@ -555,8 +562,21 @@ public:
                 return  imap->fetchFolders([folderList](const Folder &folder) {
                     *folderList << folder;
                 })
-                .then([this, folderList]() {
+                .then([=]() {
                     synchronizeFolders(*folderList);
+                    return *folderList;
+                })
+                .each([=](const Imap::Folder &folder) {
+                    //TODO examine instead
+                    return imap->select(folder)
+                        .then([=](const SelectResult &result) {
+                            const auto folderRemoteId = folderRid(folder);
+                            auto localUidNext = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
+                            if (result.uidNext > localUidNext) {
+                                const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
+                                emitNotification(Notification::Info, ApplicationDomain::NewContentAvailable, {}, {}, {{folderLocalId}});
+                            }
+                        });
                 });
             })
             .then([=] (const KAsync::Error &error) {
