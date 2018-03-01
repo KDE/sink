@@ -244,13 +244,18 @@ QByteArrayList Synchronizer::resolveFilter(const QueryBase::Comparator &filter)
 {
     QByteArrayList result;
     if (filter.value.canConvert<QByteArray>()) {
-        result << filter.value.value<QByteArray>();
+        const auto value = filter.value.value<QByteArray>();
+        if (value.isEmpty()) {
+            SinkErrorCtx(mLogCtx) << "Tried to filter for an empty value: " << filter;
+        } else {
+            result << filter.value.value<QByteArray>();
+        }
     } else if (filter.value.canConvert<QueryBase>()) {
         auto query = filter.value.value<QueryBase>();
         Storage::EntityStore store{mResourceContext, mLogCtx};
         DataStoreQuery dataStoreQuery{query, query.type(), store};
         auto resultSet = dataStoreQuery.execute();
-        resultSet.replaySet(0, 0, [this, &result](const ResultSet::Result &r) {
+        resultSet.replaySet(0, 0, [&result](const ResultSet::Result &r) {
             result << r.entity.identifier();
         });
     } else {

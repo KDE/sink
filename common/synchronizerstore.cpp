@@ -68,6 +68,11 @@ QByteArray SynchronizerStore::resolveRemoteId(const QByteArray &bufferType, cons
 
 QByteArray SynchronizerStore::resolveLocalId(const QByteArray &bufferType, const QByteArray &localId)
 {
+    if (localId.isEmpty()) {
+        SinkError() << "Tried to resolve an empty local id";
+        Q_ASSERT(false);
+        return {};
+    }
     QByteArray remoteId = Index("localid.mapping." + bufferType, mTransaction).lookup(localId);
     if (remoteId.isEmpty()) {
         //This can happen if we didn't store the remote id in the first place
