@@ -262,6 +262,8 @@ public:
     KAsync::Job<void> logout();
     KAsync::Job<SelectResult> select(const QString &mailbox);
     KAsync::Job<SelectResult> select(const Folder &mailbox);
+    KAsync::Job<SelectResult> examine(const QString &mailbox);
+    KAsync::Job<SelectResult> examine(const Folder &mailbox);
     KAsync::Job<qint64> append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags = QList<QByteArray>(), const QDateTime &internalDate = QDateTime());
     KAsync::Job<void> store(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags);
     KAsync::Job<void> storeFlags(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags);

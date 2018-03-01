@@ -249,6 +249,24 @@ KAsync::Job<SelectResult> ImapServerProxy::select(const Folder &folder)
     return select(mailboxFromFolder(folder));
 }
 
+KAsync::Job<SelectResult> ImapServerProxy::examine(const QString &mailbox)
+{
+    auto select = new KIMAP2::SelectJob(mSession);
+    select->setOpenReadOnly(true);
+    select->setMailBox(mailbox);
+    select->setCondstoreEnabled(mCapabilities.contains(Capabilities::Condstore));
+    return runJob<SelectResult>(select, [select](KJob* job) -> SelectResult {
+        return {select->uidValidity(), select->nextUid(), select->highestModSequence()};
+    }).onError([=] (const KAsync::Error &error) {
+        SinkWarning() << "Examine failed: " << mailbox;
+    });
+}
+
+KAsync::Job<SelectResult> ImapServerProxy::examine(const Folder &folder)
+{
+    return examine(mailboxFromFolder(folder));
+}
+
 KAsync::Job<qint64> ImapServerProxy::append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags, const QDateTime &internalDate)
 {
     auto append = new KIMAP2::AppendJob(mSession);
