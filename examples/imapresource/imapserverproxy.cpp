@@ -32,6 +32,7 @@
 #include <KIMAP2/CapabilitiesJob>
 #include <KIMAP2/SearchJob>
 #include <KIMAP2/GetMetaDataJob>
+#include <KIMAP2/SubscribeJob>
 
 #include <KCoreAddons/KJob>
 
@@ -319,6 +320,13 @@ KAsync::Job<void> ImapServerProxy::create(const QString &mailbox)
     auto create = new KIMAP2::CreateJob(mSession);
     create->setMailBox(mailbox);
     return runJob(create);
+}
+
+KAsync::Job<void> ImapServerProxy::subscribe(const QString &mailbox)
+{
+    auto job = new KIMAP2::SubscribeJob(mSession);
+    job->setMailBox(mailbox);
+    return runJob(job);
 }
 
 KAsync::Job<void> ImapServerProxy::rename(const QString &mailbox, const QString &newMailbox)

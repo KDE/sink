@@ -87,6 +87,7 @@ protected:
         Imap::ImapServerProxy imap("localhost", 143, Imap::NoEncryption);
         VERIFYEXEC(imap.login("doe", "doe"));
         VERIFYEXEC(imap.create("INBOX." + folderPath.join('.')));
+        VERIFYEXEC(imap.subscribe("INBOX." + folderPath.join('.')));
     }
 
     void removeFolder(const QStringList &folderPath) Q_DECL_OVERRIDE

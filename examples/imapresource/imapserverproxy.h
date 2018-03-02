@@ -272,6 +272,7 @@ public:
     KAsync::Job<void> create(const QString &mailbox);
     KAsync::Job<void> rename(const QString &mailbox, const QString &newMailbox);
     KAsync::Job<void> remove(const QString &mailbox);
+    KAsync::Job<void> subscribe(const QString &mailbox);
     KAsync::Job<void> expunge();
     KAsync::Job<void> expunge(const KIMAP2::ImapSet &set);
     KAsync::Job<void> copy(const KIMAP2::ImapSet &set, const QString &newMailbox);
