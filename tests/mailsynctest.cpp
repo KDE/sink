@@ -363,39 +363,29 @@ void MailSyncTest::testFetchNewRemovedMessages()
 
 void MailSyncTest::testFlagChange()
 {
+    Sink::Query syncScope;
+    syncScope.resourceFilter(mResourceInstanceIdentifier);
+
     Sink::Query query;
     query.resourceFilter(mResourceInstanceIdentifier);
     query.filter<Mail::Important>(true);
+    query.filter<Mail::Folder>(Sink::Query{}.filter<Folder::Name>("test"));
     query.request<Mail::Subject>().request<Mail::Important>();
 
     auto messageIdentifier = createMessage(QStringList() << "test", newMessage("Foobar"));
 
-    VERIFYEXEC(Store::synchronize(query));
-    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
+    VERIFYEXEC(Store::synchronize(syncScope));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
-    {
-        auto job = Store::fetchAll<Mail>(query).then([](const QList<Mail::Ptr> &mails) {
-            ASYNCCOMPARE(mails.size(), 0);
-            return KAsync::null();
-        });
-        VERIFYEXEC(job);
-    }
+    QCOMPARE(Store::read<Mail>(query).size(), 0);
 
     markAsImportant(QStringList() << "test", messageIdentifier);
 
     // Ensure all local data is processed
-    VERIFYEXEC(Store::synchronize(query));
-    VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
+    VERIFYEXEC(Store::synchronize(syncScope));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
-    {
-        auto job = Store::fetchAll<Mail>(query).then([](const QList<Mail::Ptr> &mails) {
-            ASYNCCOMPARE(mails.size(), 1);
-            ASYNCVERIFY(mails.first()->getImportant());
-            return KAsync::null();
-        });
-        VERIFYEXEC(job);
-    }
-
+    QCOMPARE(Store::read<Mail>(query).size(), 1);
 }
 
 void MailSyncTest::testSyncSingleFolder()
