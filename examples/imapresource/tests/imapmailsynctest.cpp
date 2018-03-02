@@ -101,8 +101,11 @@ protected:
     {
         Imap::ImapServerProxy imap("localhost", 143, Imap::NoEncryption);
         VERIFYEXEC_RET(imap.login("doe", "doe"), {});
-        VERIFYEXEC_RET(imap.append("INBOX." + folderPath.join('.'), message), {});
-        return "2:*";
+        auto appendJob = imap.append("INBOX." + folderPath.join('.'), message);
+        auto future = appendJob.exec();
+        future.waitForFinished();
+        auto result = future.value();
+        return QByteArray::number(result);
     }
 
     void removeMessage(const QStringList &folderPath, const QByteArray &messages) Q_DECL_OVERRIDE
