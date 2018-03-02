@@ -267,13 +267,13 @@ public:
         })
         // //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
         .then([=] {
-            auto uidNext = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
+            auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
             bool ok = false;
             const auto changedsince = syncStore().readValue(folderRemoteId, "changedsince").toLongLong(&ok);
             SinkLogCtx(mLogCtx) << "About to update flags" << folder.path() << "changedsince: " << changedsince;
             //If we have any mails so far we start off by updating any changed flags using changedsince
             if (ok) {
-                return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(uidNext, qint64(1))), changedsince, [=](const Message &message) {
+                return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(lastSeenUid, qint64(1))), changedsince, [=](const Message &message) {
                     const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                     const auto remoteId = assembleMailRid(folderLocalId, message.uid);
 
@@ -315,12 +315,12 @@ public:
             return job.then([=](const QVector<qint64> &uidsToFetch) {
                 SinkTraceCtx(mLogCtx) << "Received result set " << uidsToFetch;
                 SinkTraceCtx(mLogCtx) << "About to fetch mail" << folder.path();
-                const auto uidNext = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
+                const auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
 
-                //Make sure the uids are sorted in reverse order and drop everything below uidNext (so we don't refetch what we already have
+                //Make sure the uids are sorted in reverse order and drop everything below lastSeenUid (so we don't refetch what we already have
                 QVector<qint64> filteredAndSorted = uidsToFetch;
                 qSort(filteredAndSorted.begin(), filteredAndSorted.end(), qGreater<qint64>());
-                auto lowerBound = qLowerBound(filteredAndSorted.begin(), filteredAndSorted.end(), uidNext, qGreater<qint64>());
+                auto lowerBound = qLowerBound(filteredAndSorted.begin(), filteredAndSorted.end(), lastSeenUid, qGreater<qint64>());
                 if (lowerBound != filteredAndSorted.end()) {
                     filteredAndSorted.erase(lowerBound, filteredAndSorted.end());
                 }
@@ -348,13 +348,14 @@ public:
                     }
                 })
                 .then([=] {
-                    SinkLogCtx(mLogCtx) << "UIDMAX: " << *maxUid << folder.path();
+                    SinkLogCtx(mLogCtx) << "Highest found uid: " << *maxUid << folder.path();
                     if (*maxUid > 0) {
                         syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(*maxUid));
                     } else {
                         if (serverUidNext) {
+                            SinkLogCtx(mLogCtx) << "Storing the server side uidnext: " << serverUidNext << folder.path();
                             //If we don't receive a mail we should still record the updated uidnext value.
-                            syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(serverUidNext));
+                            syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(serverUidNext - 1));
                         }
                     }
                     syncStore().writeValue(folderRemoteId, "fullsetLowerbound", QByteArray::number(lowerBoundUid));
@@ -567,17 +568,26 @@ public:
                     synchronizeFolders(*folderList);
                     return *folderList;
                 })
+                //The rest is only to check for new messages.
                 .each([=](const Imap::Folder &folder) {
-                    //TODO examine instead
-                    return imap->select(folder)
-                        .then([=](const SelectResult &result) {
-                            const auto folderRemoteId = folderRid(folder);
-                            auto localUidNext = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
-                            if (result.uidNext > localUidNext) {
-                                const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
-                                emitNotification(Notification::Info, ApplicationDomain::NewContentAvailable, {}, {}, {{folderLocalId}});
-                            }
-                        });
+                    if (!folder.noselect && folder.subscribed) {
+                        return imap->examine(folder)
+                            .then([=](const SelectResult &result) {
+                                const auto folderRemoteId = folderRid(folder);
+                                auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
+                                SinkTraceCtx(mLogCtx) << "Checking for new messages." << folderRemoteId << " Last seen uid: " << lastSeenUid << " Uidnext: " << result.uidNext;
+                                if (result.uidNext > (lastSeenUid + 1)) {
+                                    const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
+                                    emitNotification(Notification::Info, ApplicationDomain::NewContentAvailable, {}, {}, {{folderLocalId}});
+                                }
+                            }).then([=] (const KAsync::Error &error) {
+                                if (error) {
+                                    //Ignore the error because we don't want to fail the synchronization here
+                                    SinkWarningCtx(mLogCtx) << "Examine failed: " << error.errorMessage;
+                                }
+                            });
+                    }
+                    return KAsync::null();
                 });
             })
             .then([=] (const KAsync::Error &error) {

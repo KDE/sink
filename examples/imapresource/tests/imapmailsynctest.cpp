@@ -135,12 +135,15 @@ protected:
 private slots:
     void testNewMailNotification()
     {
+        createFolder(QStringList() << "testNewMailNotification");
+        createMessage(QStringList() << "testNewMailNotification", newMessage("Foobar"));
+
         const auto syncFolders = Sink::SyncScope{ApplicationDomain::getTypeName<Folder>()}.resourceFilter(mResourceInstanceIdentifier);
         //Fetch folders initially
         VERIFYEXEC(Store::synchronize(syncFolders));
         VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
-        auto folder = Store::readOne<Folder>(Sink::Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>("test"));
+        auto folder = Store::readOne<Folder>(Sink::Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>("testNewMailNotification"));
         Q_ASSERT(!folder.identifier().isEmpty());
 
         const auto syncTestMails = Sink::SyncScope{ApplicationDomain::getTypeName<Mail>()}.resourceFilter(mResourceInstanceIdentifier).filter<Mail::Folder>(QVariant::fromValue(folder.identifier()));
@@ -172,13 +175,31 @@ private slots:
         QVERIFY(!notificationReceived);
 
         //Create message and retry
-        createMessage(QStringList() << "test", newMessage("This is a Subject."));
+        createMessage(QStringList() << "testNewMailNotification", newMessage("This is a Subject."));
 
         //Should result in change notification
         VERIFYEXEC(Store::synchronize(syncFolders));
         VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
         QTRY_VERIFY(notificationReceived);
+    }
+
+    void testSyncFolderBeforeFetchingNewMessages()
+    {
+        const auto syncScope = Sink::Query{}.resourceFilter(mResourceInstanceIdentifier);
+
+        createFolder(QStringList() << "test3");
+
+        VERIFYEXEC(Store::synchronize(syncScope));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        createMessage(QStringList() << "test3", newMessage("Foobar"));
+
+        VERIFYEXEC(Store::synchronize(syncScope));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        auto mailQuery = Sink::Query{}.resourceFilter(mResourceInstanceIdentifier).request<Mail::Subject>().filter<Mail::Folder>(Sink::Query{}.filter<Folder::Name>("test3"));
+        QCOMPARE(Store::read<Mail>(mailQuery).size(), 1);
     }
 };
 
