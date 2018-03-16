@@ -25,6 +25,13 @@ include(GenerateExportHeader)
 include(CMakePackageConfigHelpers)
 include(ECMSetupVersion)
 include(KDEInstallDirs)
+#Avoid building appstreamtest
+set(KDE_SKIP_TEST_SETTINGS true)
+#Pick up rpath settings
+include(KDECMakeSettings NO_POLICY_SCOPE)
+#We only have console applications here
+set(CMAKE_OSX_BUNDLE OFF)
+set(CMAKE_WIN32_EXECUTABLE OFF)
 
 ecm_setup_version(PROJECT
                   SOVERSION sink_VERSION_MAJOR
