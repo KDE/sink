@@ -89,36 +89,35 @@ ResourceFactory *ResourceFactory::load(const QByteArray &resourceName)
     }
 
     for (auto const &path : QCoreApplication::instance()->libraryPaths()) {
-        if (path.endsWith(QLatin1String("plugins"))) {
-            QDir pluginDir(path);
-            // TODO: centralize this so that it is easy to change centrally
-            //      also ref'd in cmake as ${SINK_RESOURCE_PLUGINS_PATH}
-            pluginDir.cd(QStringLiteral("sink"));
-            pluginDir.cd(QStringLiteral("resources"));
+        QDir pluginDir(path);
+        // TODO: centralize this so that it is easy to change centrally
+        //      also ref'd in cmake as ${SINK_RESOURCE_PLUGINS_PATH}
+        if (!pluginDir.cd(QStringLiteral("sink")) || !pluginDir.cd(QStringLiteral("resources"))) {
+            continue;
+        }
 
-            for (const QString &fileName : pluginDir.entryList(QDir::Files)) {
-                const QString path = pluginDir.absoluteFilePath(fileName);
-                QPluginLoader loader(path);
+        for (const QString &fileName : pluginDir.entryList(QDir::Files)) {
+            const QString path = pluginDir.absoluteFilePath(fileName);
+            QPluginLoader loader(path);
 
-                const QString id = loader.metaData()[QStringLiteral("IID")].toString();
-                if (id == resourceName) {
-                    QObject *object = loader.instance();
-                    if (object) {
-                        factory = qobject_cast<ResourceFactory *>(object);
-                        if (factory) {
-                            s_loadedFactories->insert(resourceName, factory);
-                            //TODO: Instead of always loading both facades and adaptorfactories into the respective singletons, we could also leave this up to the caller. (ResourceFactory::loadFacades(...))
-                            factory->registerFacades(resourceName, FacadeFactory::instance());
-                            factory->registerAdaptorFactories(resourceName, AdaptorFactoryRegistry::instance());
-                            // TODO: if we need more data on it const QJsonObject json = loader.metaData()[QStringLiteral("MetaData")].toObject();
-                            return factory;
-                        } else {
-                            qWarning() << "Plugin for" << resourceName << "from plugin" << loader.fileName() << "produced the wrong object type:" << object;
-                            delete object;
-                        }
+            const QString id = loader.metaData()[QStringLiteral("IID")].toString();
+            if (id == resourceName) {
+                QObject *object = loader.instance();
+                if (object) {
+                    factory = qobject_cast<ResourceFactory *>(object);
+                    if (factory) {
+                        s_loadedFactories->insert(resourceName, factory);
+                        //TODO: Instead of always loading both facades and adaptorfactories into the respective singletons, we could also leave this up to the caller. (ResourceFactory::loadFacades(...))
+                        factory->registerFacades(resourceName, FacadeFactory::instance());
+                        factory->registerAdaptorFactories(resourceName, AdaptorFactoryRegistry::instance());
+                        // TODO: if we need more data on it const QJsonObject json = loader.metaData()[QStringLiteral("MetaData")].toObject();
+                        return factory;
                     } else {
-                        qWarning() << "Could not load factory for" << resourceName << "from plugin" << loader.fileName() << "due to the following error:" << loader.errorString();
+                        qWarning() << "Plugin for" << resourceName << "from plugin" << loader.fileName() << "produced the wrong object type:" << object;
+                        delete object;
                     }
+                } else {
+                    qWarning() << "Could not load factory for" << resourceName << "from plugin" << loader.fileName() << "due to the following error:" << loader.errorString();
                 }
             }
         }
