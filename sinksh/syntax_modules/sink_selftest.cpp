@@ -31,6 +31,8 @@
 #include "common/definitions.h"
 #include "common/store.h"
 #include "common/propertyparser.h"
+#include "common/resourceaccess.h"
+#include "common/commands.h"
 
 #include "sinksh_utils.h"
 #include "state.h"
@@ -134,9 +136,19 @@ bool selfTest(const QStringList &args_, State &state)
 
     state.printLine("Looking for resource plugins:");
     if (!Sink::ResourceFactory::load("sink.imap")) {
-        state.printLine("Error: Failed to load the imap resource", 1);
+        state.printLine("Failure: Failed to load the imap resource", 1);
     } else {
         state.printLine("Success: Managed to load the imap resource", 1);
+        state.printLine("Trying to start and connect to a resource.", 1);
+        auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess("imap.selftest.resource", "sink.imap");
+        resourceAccess->open();
+        resourceAccess->sendCommand(Sink::Commands::PingCommand).addToContext(resourceAccess).then([&](const KAsync::Error &error) {
+            if (error) {
+                state.printLine("Failure: Failed to start/connect to the resource.", 1);
+            } else {
+                state.printLine("Success: Managed to start and connect to the resource.", 1);
+            }
+        }).exec().waitForFinished();
     }
 
     return false;
@@ -144,7 +156,7 @@ bool selfTest(const QStringList &args_, State &state)
 
 Syntax::List syntax()
 {
-    Syntax syntax("selftest", QObject::tr("Selftext."), &SinkSelfTest::selfTest, Syntax::EventDriven);
+    Syntax syntax("selftest", QObject::tr("A selftest module."), &SinkSelfTest::selfTest, Syntax::EventDriven);
     return Syntax::List() << syntax;
 }
 
