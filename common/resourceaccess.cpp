@@ -46,6 +46,7 @@
 #include <QDataStream>
 #include <QBuffer>
 #include <QTime>
+#include <QStandardPaths>
 
 static void queuedInvoke(const std::function<void()> &f, QObject *context = 0)
 {
@@ -217,17 +218,8 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                         args << resourceInstanceIdentifier << resourceName;
 
                         //Prefer a binary next to this binary, otherwise fall-back to PATH. Necessary for MacOS bundles because the bundle is not in the PATH.
-                        const QString synchronizerBinaryName = "sink_synchronizer";
-                        QString synchronizerBinary = [&]() {
-                            const auto path = QCoreApplication::applicationDirPath() + QDir::separator() + synchronizerBinaryName;
-                            if (QFileInfo{path}.isExecutable()) {
-                                return path;
-                            } else {
-                                return synchronizerBinaryName;
-                            }
-                        }();
                         qint64 pid = 0;
-                        if (QProcess::startDetached(synchronizerBinary, args, QDir::homePath(), &pid)) {
+                        if (QProcess::startDetached(QStandardPaths::findExecutable("sink_synchronizer", {QCoreApplication::applicationDirPath()}), args, QDir::homePath(), &pid)) {
                             SinkTrace() << "Started resource " << pid;
                             return tryToConnect()
                                 .onError([this, args](const KAsync::Error &error) {
