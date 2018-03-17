@@ -55,16 +55,16 @@ bool remove(const QStringList &args, State &state)
     }
 
     auto type = args[0];
-    auto resourceId = args[1];
-    auto identifier = args[2];
+    const auto resourceId = SinkshUtils::parseUid(args.at(1).toUtf8());
+    const auto identifier = SinkshUtils::parseUid(args.at(2).toUtf8());
 
     auto &store = SinkshUtils::getStore(type);
-    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject(resourceId.toUtf8(), identifier.toUtf8());
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject(resourceId, identifier);
 
     auto result = store.remove(*object).exec();
     result.waitForFinished();
     if (result.errorCode()) {
-        state.printError(QObject::tr("An error occurred while removing %1 from %1: %2").arg(identifier).arg(resourceId).arg(result.errorMessage()),
+        state.printError(QObject::tr("An error occurred while removing %1 from %1: %2").arg(QString{identifier}).arg(QString{resourceId}).arg(result.errorMessage()),
                          "akonaid_remove_e" + QString::number(result.errorCode()));
     }
 
@@ -75,17 +75,18 @@ bool resource(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
         state.printError(QObject::tr("A resource can not be removed without an id"), "sink_remove/01");
+        return false;
     }
 
     auto &store = SinkshUtils::getStore("resource");
 
-    auto resourceId = args.at(0);
-    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", resourceId.toLatin1());
+    const auto resourceId = SinkshUtils::parseUid(args.at(0).toUtf8());
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", resourceId);
 
     auto result = store.remove(*object).exec();
     result.waitForFinished();
     if (result.errorCode()) {
-        state.printError(QObject::tr("An error occurred while removing the resource %1: %2").arg(resourceId).arg(result.errorMessage()),
+        state.printError(QObject::tr("An error occurred while removing the resource %1: %2").arg(QString{resourceId}).arg(result.errorMessage()),
                          "akonaid_remove_e" + QString::number(result.errorCode()));
     }
 
@@ -96,17 +97,18 @@ bool account(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
         state.printError(QObject::tr("An account can not be removed without an id"), "sink_remove/01");
+        return false;
     }
 
     auto &store = SinkshUtils::getStore("account");
 
-    auto id = args.at(0);
-    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", id.toLatin1());
+    const auto id = SinkshUtils::parseUid(args.at(0).toUtf8());
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", id);
 
     auto result = store.remove(*object).exec();
     result.waitForFinished();
     if (result.errorCode()) {
-        state.printError(QObject::tr("An error occurred while removing the account %1: %2").arg(id).arg(result.errorMessage()),
+        state.printError(QObject::tr("An error occurred while removing the account %1: %2").arg(QString{id}).arg(result.errorMessage()),
                          "akonaid_remove_e" + QString::number(result.errorCode()));
     }
 
@@ -117,6 +119,7 @@ bool identity(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
         state.printError(QObject::tr("An identity can not be removed without an id"), "sink_remove/01");
+        return false;
     }
 
     auto &store = SinkshUtils::getStore("identity");
