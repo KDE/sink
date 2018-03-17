@@ -215,16 +215,27 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                             return KAsync::error();
                         }
                         args << resourceInstanceIdentifier << resourceName;
+
+                        //Prefer a binary next to this binary, otherwise fall-back to PATH. Necessary for MacOS bundles because the bundle is not in the PATH.
+                        const QString synchronizerBinaryName = "sink_synchronizer";
+                        QString synchronizerBinary = [&]() {
+                            const auto path = QCoreApplication::applicationDirPath() + QDir::separator() + synchronizerBinaryName;
+                            if (QFileInfo{path}.isExecutable()) {
+                                return path;
+                            } else {
+                                return synchronizerBinaryName;
+                            }
+                        }();
                         qint64 pid = 0;
-                        if (QProcess::startDetached("sink_synchronizer", args, QDir::homePath(), &pid)) {
+                        if (QProcess::startDetached(synchronizerBinary, args, QDir::homePath(), &pid)) {
                             SinkTrace() << "Started resource " << pid;
                             return tryToConnect()
                                 .onError([this, args](const KAsync::Error &error) {
                                     SinkWarning() << "Failed to connect to started resource: sink_synchronizer " << args;
                                 });
                         } else {
-                            SinkWarning() << "Failed to start resource";
-                            return KAsync::error(-1, "Failed to start resource");
+                            SinkError() << "Failed to start resource";
+                            return KAsync::error(-1, "Failed to start resource.");
                         }
                     } else {
                         SinkTrace() << "Connected to resource, without having to start it.";
