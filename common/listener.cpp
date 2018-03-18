@@ -65,14 +65,15 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
 
     m_checkConnectionsTimer = std::unique_ptr<QTimer>(new QTimer);
     m_checkConnectionsTimer->setSingleShot(true);
-    m_checkConnectionsTimer->setInterval(1000);
+    m_checkConnectionsTimer->setInterval(std::chrono::milliseconds{1000});
     connect(m_checkConnectionsTimer.get(), &QTimer::timeout, [this]() {
         if (m_connections.isEmpty()) {
             SinkTrace() << QString("No connections, shutting down.");
             quit();
         }
     });
-    m_checkConnectionsTimer->start();
+    //Give plenty of time during the first start.
+    m_checkConnectionsTimer->start(std::chrono::milliseconds{60000});
 
     // TODO: experiment with different timeouts
     //      or even just drop down to invoking the method queued? => invoke queued unless we need throttling
