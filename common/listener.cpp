@@ -65,7 +65,6 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
 
     m_checkConnectionsTimer = std::unique_ptr<QTimer>(new QTimer);
     m_checkConnectionsTimer->setSingleShot(true);
-    m_checkConnectionsTimer->setInterval(std::chrono::milliseconds{1000});
     connect(m_checkConnectionsTimer.get(), &QTimer::timeout, [this]() {
         if (m_connections.isEmpty()) {
             SinkTrace() << QString("No connections, shutting down.");
@@ -189,7 +188,7 @@ void Listener::checkConnections()
     if (m_connections.isEmpty()) {
         loadResource().setLowerBoundRevision(std::numeric_limits<qint64>::max());
     }
-    m_checkConnectionsTimer->start();
+    m_checkConnectionsTimer->start(std::chrono::milliseconds{1000});
 }
 
 void Listener::onDataAvailable()
