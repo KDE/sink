@@ -27,7 +27,7 @@ set(sink_cli_SRCS
     state.cpp
     utils.cpp)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${Readline_INCLUDE_DIR})
 
 add_executable(${PROJECT_NAME} ${sink_cli_SRCS})
 target_link_libraries(${PROJECT_NAME} Qt5::Core ${Readline_LIBRARY} sink ${XAPIAN_LIBRARIES})
