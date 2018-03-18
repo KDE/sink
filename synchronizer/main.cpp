@@ -17,7 +17,7 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include <QGuiApplication>
+#include <QCoreApplication>
 #include <QLockFile>
 #include <QDir>
 
@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
 
     qInstallMessageHandler(qtMessageHandler);
 
-    QGuiApplication app(argc, argv);
+    QCoreApplication app(argc, argv);
     app.setQuitLockEnabled(false);
 
     QByteArrayList arguments;
