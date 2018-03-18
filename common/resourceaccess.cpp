@@ -151,7 +151,6 @@ KAsync::Job<QSharedPointer<QLocalSocket>> ResourceAccess::connectToServer(const 
 {
     auto s = QSharedPointer<QLocalSocket>{new QLocalSocket, &QObject::deleteLater};
     return KAsync::start<QSharedPointer<QLocalSocket>>([identifier, s](KAsync::Future<QSharedPointer<QLocalSocket>> &future) {
-        s->setServerName(identifier);
         auto context = new QObject;
         QObject::connect(s.data(), &QLocalSocket::connected, context, [&future, &s, context]() {
             Q_ASSERT(s);
@@ -163,7 +162,7 @@ KAsync::Job<QSharedPointer<QLocalSocket>> ResourceAccess::connectToServer(const 
             delete context;
             future.setError(-1, "Failed to connect to server.");
         });
-        s->open();
+        s->connectToServer(identifier);
     });
 }
 
