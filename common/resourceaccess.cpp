@@ -158,9 +158,10 @@ KAsync::Job<QSharedPointer<QLocalSocket>> ResourceAccess::connectToServer(const 
             future.setValue(s);
             future.setFinished();
         });
-        QObject::connect(s.data(), static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error), context, [&future, context](QLocalSocket::LocalSocketError) {
+        QObject::connect(s.data(), static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error), context, [&future, &s, context](QLocalSocket::LocalSocketError localSocketError) {
+            const auto errorString = s->errorString();
             delete context;
-            future.setError(-1, "Failed to connect to server.");
+            future.setError(localSocketError, "Failed to connect to socket: " + errorString);
         });
         s->connectToServer(identifier);
     });
@@ -182,7 +183,7 @@ KAsync::Job<void> ResourceAccess::Private::tryToConnect()
                             static int maxRetries = timeout / waitTime;
                             if (*counter > maxRetries) {
                                 SinkTrace() << "Giving up after " << *counter << "tries";
-                                return KAsync::error<KAsync::ControlFlowFlag>("Failed to connect to socket");
+                                return KAsync::error<KAsync::ControlFlowFlag>(error);
                             } else {
                                 *counter = *counter + 1;
                                 return KAsync::wait(waitTime).then(KAsync::value(KAsync::Continue));
@@ -226,7 +227,7 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                                 });
                         } else {
                             SinkError() << "Failed to start resource";
-                            return KAsync::error(-1, "Failed to start resource.");
+                            return KAsync::error("Failed to start resource.");
                         }
                     } else {
                         SinkTrace() << "Connected to resource, without having to start it.";
@@ -429,7 +430,7 @@ void ResourceAccess::open()
             [this, time](const KAsync::Error &error) {
                 d->openingSocket = false;
                 if (error) {
-                    SinkError() << "Failed to initialize socket " << error.errorMessage;
+                    SinkError() << "Failed to initialize socket " << error;
                     d->abortPendingOperations();
                 } else {
                     SinkTrace() << "Socket is initialized." << Log::TraceTime(time->elapsed());
