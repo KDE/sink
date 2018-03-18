@@ -31,17 +31,17 @@ find_library(Readline_LIBRARY
    HINTS ${Readline_ROOT_DIR}/lib
    )
 
-if(Readline_INCLUDE_DIR AND Readline_LIBRARY AND Ncurses_LIBRARY)
-   set(READLINE_FOUND TRUE)
-else(Readline_INCLUDE_DIR AND Readline_LIBRARY AND Ncurses_LIBRARY)
-   FIND_LIBRARY(Readline_LIBRARY NAMES readline)
-   include(FindPackageHandleStandardArgs)
-   FIND_PACKAGE_HANDLE_STANDARD_ARGS(Readline DEFAULT_MSG Readline_INCLUDE_DIR Readline_LIBRARY )
-   MARK_AS_ADVANCED(Readline_INCLUDE_DIR Readline_LIBRARY)
-endif(Readline_INCLUDE_DIR AND Readline_LIBRARY AND Ncurses_LIBRARY)
+set(Readline_VERSION Readline_VERSION-NOTFOUND)
+if (Readline_INCLUDE_DIR)
+  if(EXISTS "${Readline_INCLUDE_DIR}/readline/readline.h")
+    file(STRINGS "${Readline_INCLUDE_DIR}/readline/readline.h" _Readline_HEADER_CONTENTS REGEX "#define RL_VERSION_[A-Z]+")
+    string(REGEX REPLACE ".*#define RL_VERSION_MAJOR[ \t]+([0-9]+).*" "\\1" Readline_VERSION_MAJOR "${_Readline_HEADER_CONTENTS}")
+    string(REGEX REPLACE ".*#define RL_VERSION_MINOR[ \t]+([0-9]+).*" "\\1" Readline_VERSION_MINOR "${_Readline_HEADER_CONTENTS}")
+    set(Readline_VERSION ${Readline_VERSION_MAJOR}.${Readline_VERSION_MINOR})
+    unset(_Readline_HEADER_CONTENTS)
+  endif()
+endif()
 
-mark_as_advanced(
-   Readline_ROOT_DIR
-   Readline_INCLUDE_DIR
-   Readline_LIBRARY
-   )
+find_package_handle_standard_args(Readline FOUND_VAR Readline_FOUND
+    REQUIRED_VARS Readline_LIBRARY Readline_INCLUDE_DIR Readline_ROOT_DIR
+    VERSION_VAR Readline_VERSION)
