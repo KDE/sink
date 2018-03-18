@@ -160,8 +160,9 @@ KAsync::Job<QSharedPointer<QLocalSocket>> ResourceAccess::connectToServer(const 
         });
         QObject::connect(s.data(), static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error), context, [&future, &s, context](QLocalSocket::LocalSocketError localSocketError) {
             const auto errorString = s->errorString();
+            const auto name = s->fullServerName();
             delete context;
-            future.setError(localSocketError, "Failed to connect to socket: " + errorString);
+            future.setError(localSocketError, QString("Failed to connect to socket %1: %2").arg(name).arg(errorString));
         });
         s->connectToServer(identifier);
     });
@@ -181,7 +182,7 @@ KAsync::Job<void> ResourceAccess::Private::tryToConnect()
                             static int waitTime = 10;
                             static int timeout = 20000;
                             static int maxRetries = timeout / waitTime;
-                            if (*counter > maxRetries) {
+                            if (*counter >= maxRetries) {
                                 SinkTrace() << "Giving up after " << *counter << "tries";
                                 return KAsync::error<KAsync::ControlFlowFlag>(error);
                             } else {
