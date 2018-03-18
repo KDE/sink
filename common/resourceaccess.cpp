@@ -181,7 +181,7 @@ KAsync::Job<void> ResourceAccess::Private::tryToConnect()
                             static int timeout = 20000;
                             static int maxRetries = timeout / waitTime;
                             if (*counter > maxRetries) {
-                                SinkTrace() << "Giving up";
+                                SinkTrace() << "Giving up after " << *counter << "tries";
                                 return KAsync::error<KAsync::ControlFlowFlag>("Failed to connect to socket");
                             } else {
                                 *counter = *counter + 1;
@@ -222,7 +222,7 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                             SinkTrace() << "Started resource " << pid;
                             return tryToConnect()
                                 .onError([this, args](const KAsync::Error &error) {
-                                    SinkWarning() << "Failed to connect to started resource: sink_synchronizer " << args;
+                                    SinkError() << "Failed to connect to started resource: sink_synchronizer " << args;
                                 });
                         } else {
                             SinkError() << "Failed to start resource";
@@ -429,10 +429,11 @@ void ResourceAccess::open()
             [this, time](const KAsync::Error &error) {
                 d->openingSocket = false;
                 if (error) {
-                    SinkWarning() << "Failed to initialize socket " << error.errorMessage;
+                    SinkError() << "Failed to initialize socket " << error.errorMessage;
                     d->abortPendingOperations();
                 } else {
                     SinkTrace() << "Socket is initialized." << Log::TraceTime(time->elapsed());
+                    Q_ASSERT(d->socket);
                     QObject::connect(d->socket.data(), &QLocalSocket::disconnected, this, &ResourceAccess::disconnected);
                     QObject::connect(d->socket.data(), SIGNAL(error(QLocalSocket::LocalSocketError)), this, SLOT(connectionError(QLocalSocket::LocalSocketError)));
                     QObject::connect(d->socket.data(), &QIODevice::readyRead, this, &ResourceAccess::readResourceMessage);
