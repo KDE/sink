@@ -219,8 +219,16 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                         args << resourceInstanceIdentifier << resourceName;
 
                         //Prefer a binary next to this binary, otherwise fall-back to PATH. Necessary for MacOS bundles because the bundle is not in the PATH.
+                        auto executable = QStandardPaths::findExecutable("sink_synchronizer", {QCoreApplication::applicationDirPath()});
+                        if (executable.isEmpty()) {
+                            executable = QStandardPaths::findExecutable("sink_synchronizer");
+                        }
+                        if (executable.isEmpty()) {
+                            SinkError() << "Failed to find the sink_synchronizer binary in the paths: " << QCoreApplication::applicationDirPath();
+                            return KAsync::error("Failed to find the sink_synchronizer binary.");
+                        }
                         qint64 pid = 0;
-                        if (QProcess::startDetached(QStandardPaths::findExecutable("sink_synchronizer", {QCoreApplication::applicationDirPath()}), args, QDir::homePath(), &pid)) {
+                        if (QProcess::startDetached(executable, args, QDir::homePath(), &pid)) {
                             SinkTrace() << "Started resource " << pid;
                             return tryToConnect()
                                 .onError([this, args](const KAsync::Error &error) {
