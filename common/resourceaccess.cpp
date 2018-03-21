@@ -163,6 +163,7 @@ KAsync::Job<QSharedPointer<QLocalSocket>> ResourceAccess::connectToServer(const 
             const auto name = s->fullServerName();
             delete context;
             future.setError(localSocketError, QString("Failed to connect to socket %1: %2").arg(name).arg(errorString));
+            future.setError({1, QString("Failed to connect to socket %1: %2 %3").arg(name).arg(localSocketError).arg(errorString)});
         });
         s->connectToServer(identifier);
     });
