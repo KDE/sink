@@ -38,6 +38,7 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QTimer>
+#include <chrono>
 
 Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType, QObject *parent)
     : QObject(parent),
