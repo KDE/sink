@@ -48,7 +48,7 @@
 #include <QTime>
 #include <QStandardPaths>
 
-static void queuedInvoke(const std::function<void()> &f, QObject *context = 0)
+static void queuedInvoke(const std::function<void()> &f, QObject *context = nullptr)
 {
     auto timer = QSharedPointer<QTimer>::create();
     timer->setSingleShot(true);
@@ -605,8 +605,8 @@ bool ResourceAccess::processMessageBuffer()
     }
 
     // const uint messageId = *(int*)(d->partialMessageBuffer.constData());
-    const int commandId = *(int *)(d->partialMessageBuffer.constData() + sizeof(uint));
-    const uint size = *(int *)(d->partialMessageBuffer.constData() + sizeof(int) + sizeof(uint));
+    const int commandId = *(const int *)(d->partialMessageBuffer.constData() + sizeof(uint));
+    const uint size = *(const int *)(d->partialMessageBuffer.constData() + sizeof(int) + sizeof(uint));
 
     if (size > (uint)(d->partialMessageBuffer.size() - headerSize)) {
         SinkWarning() << "command too small";
@@ -690,7 +690,7 @@ ResourceAccessFactory::ResourceAccessFactory()
 
 ResourceAccessFactory &ResourceAccessFactory::instance()
 {
-    static ResourceAccessFactory *instance = 0;
+    static ResourceAccessFactory *instance = nullptr;
     if (!instance) {
         instance = new ResourceAccessFactory;
     }

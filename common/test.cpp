@@ -113,7 +113,7 @@ public:
         });
         return facade;
     }
-    ~TestFacade(){};
+    ~TestFacade() Q_DECL_OVERRIDE {};
     KAsync::Job<void> create(const T &domainObject) Q_DECL_OVERRIDE
     {
         mTestAccount->addEntity<T>(T::Ptr::create(domainObject));
@@ -158,8 +158,7 @@ public:
             }
             resultProvider->initialResultSetComplete(true);
         });
-        auto job = KAsync::start([query, resultProvider]() {});
-        return qMakePair(job, emitter);
+        return qMakePair(KAsync::null(), emitter);
     }
 
     Test::TestAccount *mTestAccount;

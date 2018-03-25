@@ -48,6 +48,6 @@ QByteArray Index::lookup(const QByteArray &key)
 {
     QByteArray result;
     //We have to create a deep copy, otherwise the returned data may become invalid when the transaction ends.
-    lookup(key, [&](const QByteArray &value) { result = QByteArray(value.constData(), value.size()); }, [this](const Index::Error &) { });
+    lookup(key, [&](const QByteArray &value) { result = QByteArray(value.constData(), value.size()); }, [](const Index::Error &) { });
     return result;
 }

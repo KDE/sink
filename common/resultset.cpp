@@ -103,7 +103,7 @@ ResultSet::ReplayResult ResultSet::replaySet(int offset, int batchSize, const Ca
     skip(offset);
     int counter = 0;
     while (!batchSize || (counter < batchSize)) {
-        const bool ret = next([this, &counter, callback](const ResultSet::Result &result) {
+        const bool ret = next([&counter, callback](const ResultSet::Result &result) {
                 counter++;
                 callback(result);
             });

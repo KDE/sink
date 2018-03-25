@@ -198,7 +198,7 @@ private slots:
             QList<QFuture<void>> futures;
             const int concurrencyLevel = 20;
             for (int num = 0; num < concurrencyLevel; num++) {
-                futures << QtConcurrent::run([this, count, &error]() {
+                futures << QtConcurrent::run([this, &error]() {
                     Sink::Storage::DataStore storage(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly);
                     Sink::Storage::DataStore storage2(testDataPath, dbName + "2", Sink::Storage::DataStore::ReadOnly);
                     for (int i = 0; i < count; i++) {

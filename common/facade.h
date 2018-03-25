@@ -57,7 +57,7 @@ public:
      * @param adaptorFactory is the adaptor factory used to generate the mappings from domain to resource types and vice versa
      */
     GenericFacade(const ResourceContext &context);
-    virtual ~GenericFacade();
+    virtual ~GenericFacade() Q_DECL_OVERRIDE;
 
     static QByteArray bufferTypeForDomainType();
     KAsync::Job<void> create(const DomainType &domainObject) Q_DECL_OVERRIDE;

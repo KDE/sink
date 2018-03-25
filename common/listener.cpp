@@ -109,10 +109,10 @@ void Listener::emergencyAbortAllConnections()
             SinkWarning() << "Sending panic";
             client.socket->write("PANIC");
             client.socket->waitForBytesWritten();
-            disconnect(client.socket, 0, this, 0);
+            disconnect(client.socket, nullptr, this, nullptr);
             client.socket->abort();
             delete client.socket;
-            client.socket = 0;
+            client.socket = nullptr;
         }
     }
 
@@ -123,10 +123,10 @@ void Listener::closeAllConnections()
 {
     for (Client &client : m_connections) {
         if (client.socket) {
-            disconnect(client.socket, 0, this, 0);
+            disconnect(client.socket, nullptr, this, nullptr);
             client.socket->close();
             delete client.socket;
-            client.socket = 0;
+            client.socket = nullptr;
         }
     }
 
@@ -363,9 +363,9 @@ bool Listener::processClientBuffer(Client &client)
         return false;
     }
 
-    const uint messageId = *(uint *)client.commandBuffer.constData();
-    const int commandId = *(int *)(client.commandBuffer.constData() + sizeof(uint));
-    const uint size = *(uint *)(client.commandBuffer.constData() + sizeof(int) + sizeof(uint));
+    const uint messageId = *(const uint *)client.commandBuffer.constData();
+    const int commandId = *(const int *)(client.commandBuffer.constData() + sizeof(uint));
+    const uint size = *(const uint *)(client.commandBuffer.constData() + sizeof(int) + sizeof(uint));
     SinkTrace() << "Received message. Id:" << messageId << " CommandId: " << commandId << " Size: " << size;
 
     // TODO: reject messages above a certain size?

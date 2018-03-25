@@ -343,7 +343,7 @@ class AggregatingResultEmitter : public ResultEmitter<DomainType>
 public:
     typedef QSharedPointer<AggregatingResultEmitter<DomainType>> Ptr;
 
-    ~AggregatingResultEmitter()
+    ~AggregatingResultEmitter() Q_DECL_OVERRIDE
     {
     }
 

@@ -35,7 +35,7 @@ FacadeFactory::FacadeFactory()
 FacadeFactory &FacadeFactory::instance()
 {
     QMutexLocker locker(&sMutex);
-    static FacadeFactory *instance = 0;
+    static FacadeFactory *instance = nullptr;
     if (!instance) {
         instance = new FacadeFactory;
     }

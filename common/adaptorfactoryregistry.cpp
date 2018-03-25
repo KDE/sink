@@ -34,7 +34,7 @@ using namespace Sink;
 AdaptorFactoryRegistry &AdaptorFactoryRegistry::instance()
 {
     // QMutexLocker locker(&sMutex);
-    static AdaptorFactoryRegistry *instance = 0;
+    static AdaptorFactoryRegistry *instance = nullptr;
     if (!instance) {
         instance = new AdaptorFactoryRegistry;
     }

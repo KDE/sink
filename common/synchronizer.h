@@ -42,7 +42,7 @@ class SINK_EXPORT Synchronizer : public ChangeReplay
     Q_OBJECT
 public:
     Synchronizer(const Sink::ResourceContext &resourceContext);
-    virtual ~Synchronizer();
+    virtual ~Synchronizer() Q_DECL_OVERRIDE;
 
     void setup(const std::function<void(int commandId, const QByteArray &data)> &enqueueCommandCallback, MessageQueue &messageQueue);
     void synchronize(const Sink::QueryBase &query);

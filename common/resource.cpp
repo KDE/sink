@@ -30,7 +30,7 @@
 
 namespace Sink {
 
-Resource::Resource() : QObject(), d(0)
+Resource::Resource() : QObject(), d(nullptr)
 {
     Q_UNUSED(d);
 }

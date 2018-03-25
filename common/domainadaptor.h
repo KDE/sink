@@ -201,7 +201,7 @@ public:
         return true;
     }
 
-    virtual bool createBuffer(const QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> &bufferAdaptor, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = 0, size_t metadataSize = 0) Q_DECL_OVERRIDE
+    virtual bool createBuffer(const QSharedPointer<Sink::ApplicationDomain::BufferAdaptor> &bufferAdaptor, flatbuffers::FlatBufferBuilder &fbb, void const *metadataData = nullptr, size_t metadataSize = 0) Q_DECL_OVERRIDE
     {
         //TODO rewrite the unterlying functions so we don't have to wrap the bufferAdaptor
         auto  newObject = Sink::ApplicationDomain::ApplicationDomainType("", "", 0, bufferAdaptor);

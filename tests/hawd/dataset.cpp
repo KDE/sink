@@ -297,7 +297,7 @@ void Dataset::eachRow(const std::function<void(const Row &row)> &resultHandler)
                        }
 
                        row.fromBinary(value);
-                       row.m_key = *(qint64 *)key.data();
+                       row.m_key = *(const qint64 *)key.data();
                        resultHandler(row);
                        return true;
                    },

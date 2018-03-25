@@ -110,7 +110,7 @@ LocalStorageQueryRunner<DomainType>::LocalStorageQueryRunner(const Query &query,
     };
 
     QObject *guard = new QObject;
-    mResultProvider->setFetcher([this, query, guard, &configNotifier, matchesTypeAndIds]() {
+    mResultProvider->setFetcher([this, query, matchesTypeAndIds]() {
         const auto entries = mConfigStore.getEntries();
         for (const auto &res : entries.keys()) {
             const auto type = entries.value(res);
@@ -371,7 +371,7 @@ QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename ApplicationDomain
             monitoredResources->insert(resource.identifier());
         }
     };
-    runner->setStatusUpdater([this, runner, monitoredResources, ctx, monitorResource](ApplicationDomain::SinkAccount &account) {
+    runner->setStatusUpdater([runner, monitoredResources, ctx, monitorResource](ApplicationDomain::SinkAccount &account) {
         Query query{Query::LiveQuery};
         query.filter<ApplicationDomain::SinkResource::Account>(account.identifier());
         query.request<ApplicationDomain::SinkResource::Account>()

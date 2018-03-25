@@ -80,7 +80,7 @@ int headerSize()
 
 void write(QLocalSocket *device, int messageId, int commandId)
 {
-    write(device, messageId, commandId, 0, 0);
+    write(device, messageId, commandId, nullptr, 0);
 }
 
 static void write(QLocalSocket *device, const char *buffer, uint size)
