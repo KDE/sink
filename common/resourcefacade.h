@@ -81,7 +81,7 @@ class LocalStorageFacade : public Sink::StoreFacade<DomainType>
 {
 public:
     LocalStorageFacade(const QByteArray &instanceIdentifier, const QByteArray &typeName);
-    virtual ~LocalStorageFacade();
+    virtual ~LocalStorageFacade() Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> create(const DomainType &resource) Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> modify(const DomainType &resource) Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> move(const DomainType &resource, const QByteArray &) Q_DECL_OVERRIDE;
@@ -99,7 +99,7 @@ class ResourceFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkRe
 {
 public:
     ResourceFacade();
-    virtual ~ResourceFacade();
+    virtual ~ResourceFacade() Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkResource &resource) Q_DECL_OVERRIDE;
     virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename Sink::ApplicationDomain::SinkResource::Ptr>::Ptr> load(const Sink::Query &query, const Sink::Log::Context &) Q_DECL_OVERRIDE;
 };
@@ -108,7 +108,7 @@ class AccountFacade : public LocalStorageFacade<Sink::ApplicationDomain::SinkAcc
 {
 public:
     AccountFacade();
-    virtual ~AccountFacade();
+    virtual ~AccountFacade() Q_DECL_OVERRIDE;
     virtual KAsync::Job<void> remove(const Sink::ApplicationDomain::SinkAccount &resource) Q_DECL_OVERRIDE;
     virtual QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename Sink::ApplicationDomain::SinkAccount::Ptr>::Ptr> load(const Sink::Query &query, const Sink::Log::Context &) Q_DECL_OVERRIDE;
 };
@@ -117,6 +117,6 @@ class IdentityFacade : public LocalStorageFacade<Sink::ApplicationDomain::Identi
 {
 public:
     IdentityFacade();
-    virtual ~IdentityFacade();
+    virtual ~IdentityFacade() Q_DECL_OVERRIDE;
 };
 

@@ -72,7 +72,7 @@ QByteArrayList SINK_EXPORT debugOutputFilter(FilterType type);
 void SINK_EXPORT setDebugOutputFields(const QByteArrayList &filter);
 QByteArrayList SINK_EXPORT debugOutputFields();
 
-QDebug SINK_EXPORT debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea = 0, const char *debugComponent = 0);
+QDebug SINK_EXPORT debugStream(DebugLevel debugLevel, int line, const char *file, const char *function, const char *debugArea = nullptr, const char *debugComponent = nullptr);
 
 struct SINK_EXPORT TraceTime
 {

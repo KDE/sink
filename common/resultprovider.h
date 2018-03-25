@@ -76,7 +76,7 @@ class ResultProvider : public ResultProviderInterface<T>
 public:
     typedef QSharedPointer<ResultProvider<T>> Ptr;
 
-    virtual ~ResultProvider()
+    virtual ~ResultProvider() Q_DECL_OVERRIDE
     {
     }
 

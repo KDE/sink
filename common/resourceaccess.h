@@ -111,7 +111,7 @@ public:
     typedef QSharedPointer<ResourceAccess> Ptr;
 
     ResourceAccess(const QByteArray &resourceInstanceIdentifier, const QByteArray &resourceType);
-    virtual ~ResourceAccess();
+    virtual ~ResourceAccess() Q_DECL_OVERRIDE;
 
     QByteArray resourceName() const;
     bool isReady() const;
