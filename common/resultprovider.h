@@ -81,28 +81,28 @@ public:
     }
 
     // Called from worker thread
-    void add(const T &value)
+    void add(const T &value) Q_DECL_OVERRIDE
     {
         if (auto strongRef = mResultEmitter.toStrongRef()) {
             strongRef->add(value);
         }
     }
 
-    void modify(const T &value)
+    void modify(const T &value) Q_DECL_OVERRIDE
     {
         if (auto strongRef = mResultEmitter.toStrongRef()) {
             strongRef->modify(value);
         }
     }
 
-    void remove(const T &value)
+    void remove(const T &value) Q_DECL_OVERRIDE
     {
         if (auto strongRef = mResultEmitter.toStrongRef()) {
             strongRef->remove(value);
         }
     }
 
-    void initialResultSetComplete(bool replayedAll)
+    void initialResultSetComplete(bool replayedAll) Q_DECL_OVERRIDE
     {
         if (auto strongRef = mResultEmitter.toStrongRef()) {
             strongRef->initialResultSetComplete(replayedAll);
@@ -110,14 +110,14 @@ public:
     }
 
     // Called from worker thread
-    void complete()
+    void complete() Q_DECL_OVERRIDE
     {
         if (auto strongRef = mResultEmitter.toStrongRef()) {
             strongRef->complete();
         }
     }
 
-    void clear()
+    void clear() Q_DECL_OVERRIDE
     {
         if (auto strongRef = mResultEmitter.toStrongRef()) {
             strongRef->clear();
@@ -155,7 +155,7 @@ public:
         return mResultEmitter.toStrongRef().isNull();
     }
 
-    void setFetcher(const std::function<void()> &fetcher)
+    void setFetcher(const std::function<void()> &fetcher) Q_DECL_OVERRIDE
     {
         mFetcher = fetcher;
     }
