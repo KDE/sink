@@ -63,9 +63,7 @@ public:
 Pipeline::Pipeline(const ResourceContext &context, const Sink::Log::Context &ctx) : QObject(nullptr), d(new Private(context, ctx))
 {
     //Create main store immediately on first start
-    auto store = Sink::Storage::DataStore(Sink::storageLocation(), context.instanceId(), Sink::Storage::DataStore::ReadWrite);
-    auto t = store.createTransaction(Storage::DataStore::ReadWrite);
-    Storage::DataStore::setDatabaseVersion(t, Sink::latestDatabaseVersion());
+    d->entityStore.createIfMissing();
 }
 
 Pipeline::~Pipeline()

@@ -158,6 +158,15 @@ EntityStore::EntityStore(const ResourceContext &context, const Log::Context &ctx
 
 }
 
+void EntityStore::createIfMissing()
+{
+    if (!d->exists()) {
+        startTransaction(Sink::Storage::DataStore::ReadWrite);
+        Storage::DataStore::setDatabaseVersion(d->transaction, Sink::latestDatabaseVersion());
+        commitTransaction();
+    }
+}
+
 void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMode)
 {
     SinkTraceCtx(d->logCtx) << "Starting transaction: " << accessMode;

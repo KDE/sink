@@ -918,7 +918,8 @@ DataStore::~DataStore()
 
 bool DataStore::exists() const
 {
-    return (d->env != 0);
+    QFileInfo info(d->storageRoot + '/' + d->name + "/data.mdb");
+    return (d->env != 0) && info.exists();
 }
 
 DataStore::Transaction DataStore::createTransaction(AccessMode type, const std::function<void(const DataStore::Error &error)> &errorHandlerArg)
