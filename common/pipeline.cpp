@@ -63,7 +63,7 @@ public:
 Pipeline::Pipeline(const ResourceContext &context, const Sink::Log::Context &ctx) : QObject(nullptr), d(new Private(context, ctx))
 {
     //Create main store immediately on first start
-    d->entityStore.createIfMissing();
+    d->entityStore.initialize();
 }
 
 Pipeline::~Pipeline()

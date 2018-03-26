@@ -244,7 +244,7 @@ private slots:
         event.setProperty("uid", "testuid");
         QCOMPARE(event.getProperty("uid").toByteArray(), QByteArray("testuid"));
         event.setProperty("summary", "summaryValue");
-        Sink::Store::create<Event>(event).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::create<Event>(event));
 
         // Test create
         Event event2;

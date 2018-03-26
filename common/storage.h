@@ -222,6 +222,7 @@ public:
     static void getUids(const QByteArray &type, const Transaction &, const std::function<void(const QByteArray &uid)> &);
 
     bool exists() const;
+    static bool exists(const QString &storageRoot, const QString &name);
 
     static bool isInternalKey(const char *key);
     static bool isInternalKey(void *key, int keySize);

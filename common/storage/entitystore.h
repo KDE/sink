@@ -39,7 +39,7 @@ public:
     EntityStore(const ResourceContext &resourceContext, const Sink::Log::Context &);
     ~EntityStore() = default;
 
-    void createIfMissing();
+    void initialize();
 
     //Only the pipeline may call the following functions outside of tests
     bool add(const QByteArray &type, ApplicationDomain::ApplicationDomainType newEntity, bool replayToSource);

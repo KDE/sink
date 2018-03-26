@@ -158,13 +158,23 @@ EntityStore::EntityStore(const ResourceContext &context, const Log::Context &ctx
 
 }
 
-void EntityStore::createIfMissing()
+void EntityStore::initialize()
 {
-    if (!d->exists()) {
+    //This function is only called in the resource code where we want to be able to write to the databse.
+
+    //Check for the existience of the db without creating it or the envrionment.
+    //This is required to be able to set the database version only in the case where we create a new database.
+    if (!Storage::DataStore::exists(Sink::storageLocation(), d->resourceContext.instanceId())) {
+        //The first time we open the environment we always want it to be read/write. Otherwise subsequent tries to open a write transaction will fail.
         startTransaction(Sink::Storage::DataStore::ReadWrite);
+        //Create the database with the correct version if it wasn't existing before
+        SinkLogCtx(d->logCtx) << "Creating resource database.";
         Storage::DataStore::setDatabaseVersion(d->transaction, Sink::latestDatabaseVersion());
-        commitTransaction();
+    } else {
+        //The first time we open the environment we always want it to be read/write. Otherwise subsequent tries to open a write transaction will fail.
+        startTransaction(Sink::Storage::DataStore::ReadWrite);
     }
+    commitTransaction();
 }
 
 void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMode)
@@ -383,9 +393,11 @@ void EntityStore::cleanupEntityRevisionsUntil(qint64 revision)
 
 bool EntityStore::cleanupRevisions(qint64 revision)
 {
+    Q_ASSERT(d->exists());
     bool implicitTransaction = false;
     if (!d->transaction) {
         startTransaction(Sink::Storage::DataStore::ReadWrite);
+        Q_ASSERT(d->transaction);
         implicitTransaction = true;
     }
     const auto lastCleanRevision = DataStore::cleanedUpRevision(d->transaction);

@@ -566,6 +566,11 @@ public:
         const int rc = mdb_txn_begin(env, NULL, requestedRead ? MDB_RDONLY : 0, &transaction);
         // Trace_area("storage." + name.toLatin1()) << "Started transaction " << mdb_txn_id(transaction) << transaction;
         if (rc) {
+            unsigned int flags;
+            mdb_env_get_flags(env, &flags);
+            if (flags & MDB_RDONLY && !requestedRead) {
+                SinkError() << "Tried to open a write transation in a read-only enironment";
+            }
             defaultErrorHandler(Error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening transaction: " + QByteArray(mdb_strerror(rc))));
         }
     }
@@ -916,10 +921,14 @@ DataStore::~DataStore()
     delete d;
 }
 
+bool DataStore::exists(const QString &storageRoot, const QString &name)
+{
+    return QFileInfo(storageRoot + '/' + name + "/data.mdb").exists();
+}
+
 bool DataStore::exists() const
 {
-    QFileInfo info(d->storageRoot + '/' + d->name + "/data.mdb");
-    return (d->env != 0) && info.exists();
+    return (d->env != 0) && DataStore::exists(d->storageRoot, d->name);
 }
 
 DataStore::Transaction DataStore::createTransaction(AccessMode type, const std::function<void(const DataStore::Error &error)> &errorHandlerArg)
