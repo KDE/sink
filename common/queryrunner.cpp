@@ -80,7 +80,11 @@ QueryRunner<DomainType>::QueryRunner(const Sink::Query &query, const Sink::Resou
         mResourceAccess->open();
         QObject::connect(mResourceAccess.data(), &Sink::ResourceAccess::revisionChanged, this, &QueryRunner::revisionChanged);
         // open is not synchronous, so from the time when the initial query is started until we have started and connected to the resource, it's possible to miss updates. We therefore unconditionally try to fetch new entities once we are connected.
-        QObject::connect(mResourceAccess.data(), &Sink::ResourceAccess::ready, this, &QueryRunner::revisionChanged);
+        QObject::connect(mResourceAccess.data(), &Sink::ResourceAccess::ready, this, [this] (bool ready) {
+            if (ready) {
+                revisionChanged();
+            }
+        });
     }
     mResultProvider->onDone([this]() {
         delete this;

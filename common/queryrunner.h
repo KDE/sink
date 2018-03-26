@@ -50,7 +50,7 @@ protected slots:
     /**
      * Rerun query with new revision
      */
-    void revisionChanged(qint64 newRevision)
+    void revisionChanged()
     {
         run().exec();
     }
@@ -59,7 +59,7 @@ private:
     /**
      * Starts query
      */
-    KAsync::Job<void> run(qint64 newRevision = 0)
+    KAsync::Job<void> run()
     {
         return queryFunction();
     }
