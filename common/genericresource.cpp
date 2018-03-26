@@ -58,10 +58,10 @@ void GenericResource::setSecret(const QString &s)
 
 bool GenericResource::checkForUpgrade()
 {
-    const auto currentDatabaseVersion = [&] {
-        auto store = Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadOnly);
-        return Storage::DataStore::databaseVersion(store.createTransaction(Storage::DataStore::ReadOnly));
-    }();
+    auto store = Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadOnly);
+    //We rely on the store already having been created in the pipeline constructor before this get's called.
+    Q_ASSERT(store.exists());
+    const auto currentDatabaseVersion = Storage::DataStore::databaseVersion(store.createTransaction(Storage::DataStore::ReadOnly));
     if (currentDatabaseVersion != Sink::latestDatabaseVersion()) {
         SinkLog() << "Starting database upgrade from " << currentDatabaseVersion << " to " << Sink::latestDatabaseVersion();
 
