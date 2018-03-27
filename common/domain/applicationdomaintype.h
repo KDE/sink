@@ -389,20 +389,22 @@ struct SINK_EXPORT Contact : public Entity {
     SINK_REFERENCE_PROPERTY(Addressbook, Addressbook, addressbook);
 };
 
+struct SINK_EXPORT Calendar : public Entity {
+    SINK_ENTITY(Calendar, calendar);
+    SINK_PROPERTY(QString, Name, name);
+};
+
 struct SINK_EXPORT Event : public Entity {
     SINK_ENTITY(Event, event);
     SINK_PROPERTY(QString, Uid, uid);
     SINK_PROPERTY(QString, Summary, summary);
     SINK_PROPERTY(QString, Description, description);
-    SINK_PROPERTY(QByteArray, Attachment, attachment);
+    SINK_PROPERTY(QDateTime, StartTime, startTime);
+    SINK_REFERENCE_PROPERTY(Calendar, Calendar, calendar);
 };
 
 struct SINK_EXPORT Todo : public Entity {
     SINK_ENTITY(Todo, todo);
-};
-
-struct SINK_EXPORT Calendar : public Entity {
-    SINK_ENTITY(Calendar, calendar);
 };
 
 struct SINK_EXPORT Folder : public Entity {
@@ -477,6 +479,10 @@ struct SINK_EXPORT CardDavResource {
     static SinkResource create(const QByteArray &account);
 };
 
+struct SINK_EXPORT CalDavResource {
+    static SinkResource create(const QByteArray &account);
+};
+
 namespace ResourceCapabilities {
 namespace Mail {
     static constexpr const char *mail = "mail";
@@ -492,6 +498,11 @@ namespace Contact {
     static constexpr const char *contact = "contact";
     static constexpr const char *addressbook = "addressbook";
     static constexpr const char *storage = "contact.storage";
+};
+namespace Event {
+    static constexpr const char *event = "event";
+    static constexpr const char *calendar = "calendar";
+    static constexpr const char *storage = "event.storage";
 };
 };
 
@@ -522,7 +533,7 @@ bool SINK_EXPORT isGlobalType(const QByteArray &type);
 
 /**
  * Type implementation.
- * 
+ *
  * Needs to be implemented for every application domain type.
  * Contains all non-resource specific, but type-specific code.
  */
@@ -545,6 +556,7 @@ class SINK_EXPORT TypeImplementation;
     REGISTER_TYPE(Sink::ApplicationDomain::Contact) \
     REGISTER_TYPE(Sink::ApplicationDomain::Addressbook) \
     REGISTER_TYPE(Sink::ApplicationDomain::Event) \
+    REGISTER_TYPE(Sink::ApplicationDomain::Calendar) \
     REGISTER_TYPE(Sink::ApplicationDomain::Mail) \
     REGISTER_TYPE(Sink::ApplicationDomain::Folder) \
     REGISTER_TYPE(Sink::ApplicationDomain::SinkResource) \

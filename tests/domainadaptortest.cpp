@@ -76,12 +76,10 @@ private slots:
         auto summary = m_fbb.CreateString("summary1");
         auto description = m_fbb.CreateString("description");
         static uint8_t rawData[100];
-        auto attachment = m_fbb.CreateVector(rawData, 100);
 
         auto builder = Sink::ApplicationDomain::Buffer::EventBuilder(m_fbb);
         builder.add_summary(summary);
         builder.add_description(description);
-        builder.add_attachment(attachment);
         auto buffer = builder.Finish();
         Sink::ApplicationDomain::Buffer::FinishEventBuffer(m_fbb, buffer);
 

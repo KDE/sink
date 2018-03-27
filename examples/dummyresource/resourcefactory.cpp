@@ -54,12 +54,10 @@ class DummySynchronizer : public Sink::Synchronizer {
 
     Sink::ApplicationDomain::Event::Ptr createEvent(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data)
     {
-        static uint8_t rawData[100];
         auto event = Sink::ApplicationDomain::Event::Ptr::create();
         event->setSummary(data.value("summary").toString());
         event->setProperty("remoteId", ridBuffer);
         event->setDescription(data.value("description").toString());
-        event->setAttachment(QByteArray::fromRawData(reinterpret_cast<const char*>(rawData), 100));
         return event;
     }
 

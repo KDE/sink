@@ -1,0 +1,8 @@
+namespace Sink.ApplicationDomain.Buffer;
+
+table Calendar {
+  name:string;
+}
+
+root_type Calendar;
+file_identifier "AKFB";

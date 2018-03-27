@@ -1,6 +1,6 @@
 #include <QtTest>
 
-#include "calendar_generated.h"
+#include "event_generated.h"
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
@@ -13,7 +13,7 @@
 #include <QString>
 #include <QTime>
 
-using namespace Calendar;
+using namespace Sink::ApplicationDomain::Buffer;
 using namespace flatbuffers;
 
 static QByteArray createEvent()
@@ -25,13 +25,10 @@ static QByteArray createEvent()
     {
         uint8_t *rawDataPtr = Q_NULLPTR;
         auto summary = fbb.CreateString("summary");
-        auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize, &rawDataPtr);
-        // auto data = fbb.CreateVector(rawData, attachmentSize);
-        Calendar::EventBuilder eventBuilder(fbb);
+        EventBuilder eventBuilder(fbb);
         eventBuilder.add_summary(summary);
-        eventBuilder.add_attachment(data);
         auto eventLocation = eventBuilder.Finish();
-        Calendar::FinishEventBuffer(fbb, eventLocation);
+        FinishEventBuffer(fbb, eventLocation);
         memcpy((void *)rawDataPtr, rawData, attachmentSize);
     }
 

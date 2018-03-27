@@ -23,6 +23,7 @@
 #include "mail_generated.h"
 #include "folder_generated.h"
 #include "event_generated.h"
+#include "calendar_generated.h"
 #include "contact_generated.h"
 #include "addressbook_generated.h"
 
@@ -88,6 +89,17 @@ class TypeImplementation<Sink::ApplicationDomain::Event> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Event Buffer;
     typedef Sink::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
+    static void configure(TypeIndex &);
+    static void configure(PropertyMapper &);
+    static void configure(IndexPropertyMapper &indexPropertyMapper);
+    static QMap<QByteArray, int> typeDatabases();
+};
+
+template<>
+class TypeImplementation<Sink::ApplicationDomain::Calendar> {
+public:
+    typedef Sink::ApplicationDomain::Buffer::Calendar Buffer;
+    typedef Sink::ApplicationDomain::Buffer::CalendarBuilder BufferBuilder;
     static void configure(TypeIndex &);
     static void configure(PropertyMapper &);
     static void configure(IndexPropertyMapper &indexPropertyMapper);

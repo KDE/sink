@@ -395,7 +395,15 @@ SinkResource ImapResource::create(const QByteArray &account)
 SinkResource CardDavResource::create(const QByteArray &account)
 {
     auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
-    resource.setResourceType("sink.dav");
+    resource.setResourceType("sink.carddav");
+    resource.setAccount(account);
+    return resource;
+}
+
+SinkResource CalDavResource::create(const QByteArray &account)
+{
+    auto &&resource = ApplicationDomainType::createEntity<SinkResource>();
+    resource.setResourceType("sink.caldav");
     resource.setAccount(account);
     return resource;
 }

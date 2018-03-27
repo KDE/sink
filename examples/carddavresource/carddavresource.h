@@ -30,30 +30,30 @@ class ContactAdaptorFactory;
 class AddressbookAdaptorFactory;
 
 /**
- * A DAV resource.
- * 
+ * A CardDAV resource.
+ *
  * Implementation details:
  * The remoteid's have the following formats:
  * files: full file path
  * directories: full directory path
- * 
+ *
  * The resource moves all messages from new to cur during sync and thus expectes all messages that are in the store to always reside in cur.
  * The tmp directory is never directly used
  */
-class DavResource : public Sink::GenericResource
+class CardDavResource : public Sink::GenericResource
 {
 public:
-    DavResource(const Sink::ResourceContext &resourceContext);
+    CardDavResource(const Sink::ResourceContext &resourceContext);
 };
 
-class DavResourceFactory : public Sink::ResourceFactory
+class CardDavResourceFactory : public Sink::ResourceFactory
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "sink.dav")
+    Q_PLUGIN_METADATA(IID "sink.carddav")
     Q_INTERFACES(Sink::ResourceFactory)
 
 public:
-    DavResourceFactory(QObject *parent = 0);
+    CardDavResourceFactory(QObject *parent = 0);
 
     Sink::Resource *createResource(const Sink::ResourceContext &context) Q_DECL_OVERRIDE;
     void registerFacades(const QByteArray &resourceName, Sink::FacadeFactory &factory) Q_DECL_OVERRIDE;

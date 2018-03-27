@@ -4,7 +4,8 @@ table Event {
   uid:string;
   summary:string;
   description:string;
-  attachment:[ubyte];
+  startTime:string;
+  calendar:string;
 }
 
 root_type Event;

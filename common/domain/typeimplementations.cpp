@@ -67,6 +67,11 @@ typedef IndexConfig<Event,
         ValueIndex<Event::Uid>
     > EventIndexConfig;
 
+typedef IndexConfig<Calendar,
+        ValueIndex<Calendar::Name>
+    > CalendarIndexConfig;
+
+
 
 void TypeImplementation<Mail>::configure(TypeIndex &index)
 {
@@ -201,7 +206,8 @@ void TypeImplementation<Event>::configure(PropertyMapper &propertyMapper)
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, Summary, summary);
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, Description, description);
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, Uid, uid);
-    SINK_REGISTER_SERIALIZER(propertyMapper, Event, Attachment, attachment);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Event, StartTime, startTime);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Event, Calendar, calendar);
 }
 
 void TypeImplementation<Event>::configure(IndexPropertyMapper &)
@@ -209,3 +215,20 @@ void TypeImplementation<Event>::configure(IndexPropertyMapper &)
 
 }
 
+
+void TypeImplementation<Calendar>::configure(TypeIndex &index)
+{
+    CalendarIndexConfig::configure(index);
+}
+
+QMap<QByteArray, int> TypeImplementation<Calendar>::typeDatabases()
+{
+    return merge(QMap<QByteArray, int>{{QByteArray{Calendar::name} + ".main", 0}}, CalendarIndexConfig::databases());
+}
+
+void TypeImplementation<Calendar>::configure(PropertyMapper &propertyMapper)
+{
+    SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Name, name);
+}
+
+void TypeImplementation<Calendar>::configure(IndexPropertyMapper &) {}

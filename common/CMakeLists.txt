@@ -104,6 +104,7 @@ generate_flatbuffers(
     domain/contact
     domain/addressbook
     domain/event
+    domain/calendar
     domain/mail
     domain/folder
     domain/dummy
