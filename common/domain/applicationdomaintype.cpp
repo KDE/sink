@@ -123,6 +123,16 @@ SINK_REGISTER_PROPERTY(Addressbook, Name);
 SINK_REGISTER_PROPERTY(Addressbook, Parent);
 SINK_REGISTER_PROPERTY(Addressbook, LastUpdated);
 
+SINK_REGISTER_ENTITY(Event);
+SINK_REGISTER_PROPERTY(Event, Uid);
+SINK_REGISTER_PROPERTY(Event, Summary);
+SINK_REGISTER_PROPERTY(Event, Description);
+SINK_REGISTER_PROPERTY(Event, StartTime);
+SINK_REGISTER_PROPERTY(Event, Calendar);
+
+SINK_REGISTER_ENTITY(Calendar);
+SINK_REGISTER_PROPERTY(Calendar, Name);
+
 static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();
     QMetaType::registerDebugStreamOperator<Reference>();
