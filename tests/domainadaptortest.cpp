@@ -75,7 +75,6 @@ private slots:
         flatbuffers::FlatBufferBuilder m_fbb;
         auto summary = m_fbb.CreateString("summary1");
         auto description = m_fbb.CreateString("description");
-        static uint8_t rawData[100];
 
         auto builder = Sink::ApplicationDomain::Buffer::EventBuilder(m_fbb);
         builder.add_summary(summary);
