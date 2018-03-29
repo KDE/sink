@@ -122,10 +122,6 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
         // for collections to be removed.
         auto collectionResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
 
-        // Same but for items.
-        // Quirk: may contain a collection Id (see below)
-        auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
-
         return job
             .serialEach([=](const KDAV2::DavCollection &collection) {
                 auto collectionResourceID = resourceID(collection);
@@ -135,25 +131,21 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                 if (unchanged(collection)) {
                     SinkTrace() << "Collection unchanged:" << collectionResourceID;
 
-                    // It seems that doing this prevent the items in the
-                    // collection to be removed when doing scanForRemovals
-                    // below (since the collection is unchanged, we do not go
-                    // through all of its items).
-                    // Behaviour copied from the previous code.
-                    itemsResourceIDs->insert(collectionResourceID);
-
                     return KAsync::null<void>();
                 }
 
                 SinkTrace() << "Syncing collection:" << collectionResourceID;
-                return synchronizeCollection(collection, progress, total, itemsResourceIDs);
+                auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
+                return synchronizeCollection(collection, progress, total, itemsResourceIDs)
+                .then([=] {
+                    scanForRemovals(itemName, [&itemsResourceIDs](const QByteArray &remoteId) {
+                        return itemsResourceIDs->contains(remoteId);
+                    });
+                });
             })
             .then([=]() {
                 scanForRemovals(collectionName, [&collectionResourceIDs](const QByteArray &remoteId) {
                     return collectionResourceIDs->contains(remoteId);
-                });
-                scanForRemovals(itemName, [&itemsResourceIDs](const QByteArray &remoteId) {
-                    return itemsResourceIDs->contains(remoteId);
                 });
             });
     } else {
