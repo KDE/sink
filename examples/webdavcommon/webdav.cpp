@@ -127,8 +127,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
         auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
 
         return job
-            .serialEach([this, progress(std::move(progress)), total(std::move(total)), collectionResourceIDs,
-                            itemsResourceIDs](const KDAV2::DavCollection &collection) {
+            .serialEach([=](const KDAV2::DavCollection &collection) {
                 auto collectionResourceID = resourceID(collection);
 
                 collectionResourceIDs->insert(collectionResourceID);
@@ -149,8 +148,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                 SinkTrace() << "Syncing collection:" << collectionResourceID;
                 return synchronizeCollection(collection, progress, total, itemsResourceIDs);
             })
-            .then([this, collectionResourceIDs(std::move(collectionResourceIDs)),
-                      itemsResourceIDs(std::move(itemsResourceIDs))]() {
+            .then([=]() {
                 scanForRemovals(collectionName, [&collectionResourceIDs](const QByteArray &remoteId) {
                     return collectionResourceIDs->contains(remoteId);
                 });
