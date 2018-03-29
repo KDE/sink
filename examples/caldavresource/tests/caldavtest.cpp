@@ -29,7 +29,6 @@ class CalDavTest : public QObject
 
 
     QByteArray mResourceInstanceIdentifier;
-    QByteArray mStorageResource;
 
 private slots:
 
@@ -40,17 +39,11 @@ private slots:
         QVERIFY(!resource.identifier().isEmpty());
         VERIFYEXEC(Sink::Store::create(resource));
         mResourceInstanceIdentifier = resource.identifier();
-
-        auto dummyResource = DummyResource::create("account1");
-        VERIFYEXEC(Sink::Store::create(dummyResource));
-        mStorageResource = dummyResource.identifier();
-        QVERIFY(!mStorageResource.isEmpty());
     }
 
     void cleanup()
     {
         VERIFYEXEC(Sink::Store::removeDataFromDisk(mResourceInstanceIdentifier));
-        VERIFYEXEC(Sink::Store::removeDataFromDisk(mStorageResource));
     }
 
     void init()
@@ -58,34 +51,34 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::start(mResourceInstanceIdentifier));
     }
 
-    void testSyncCal()
-    {
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
-        // Check in the logs that it doesn't synchronize events again because same CTag
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
-    }
+    // void testSyncCal()
+    // {
+    //     VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+    //     // Check in the logs that it doesn't synchronize events again because same CTag
+    //     VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+    // }
 
-    void testSyncCalEmpty()
-    {
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+    // void testSyncCalEmpty()
+    // {
+    //     VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
 
-        auto eventJob =
-            Sink::Store::fetchAll<Event>(Sink::Query().request<Event::Uid>()).then([](const QList<Event::Ptr> &events) {
-                QCOMPARE(events.size(), 14);
-            });
-        VERIFYEXEC(eventJob);
+    //     auto eventJob =
+    //         Sink::Store::fetchAll<Event>(Sink::Query().request<Event::Uid>()).then([](const QList<Event::Ptr> &events) {
+    //             QCOMPARE(events.size(), 14);
+    //         });
+    //     VERIFYEXEC(eventJob);
 
-        auto calendarJob =
-            Sink::Store::fetchAll<Calendar>(Sink::Query().request<Calendar::Name>()).then([](const QList<Calendar::Ptr> &calendars) {
-                QCOMPARE(calendars.size(), 2);
-                for (const auto &calendar : calendars) {
-                    QVERIFY(calendar->getName() == "Calendar" || calendar->getName() == "Tasks");
-                }
-            });
-        VERIFYEXEC(calendarJob);
+    //     auto calendarJob =
+    //         Sink::Store::fetchAll<Calendar>(Sink::Query().request<Calendar::Name>()).then([](const QList<Calendar::Ptr> &calendars) {
+    //             QCOMPARE(calendars.size(), 2);
+    //             for (const auto &calendar : calendars) {
+    //                 QVERIFY(calendar->getName() == "Calendar" || calendar->getName() == "Tasks");
+    //             }
+    //         });
+    //     VERIFYEXEC(calendarJob);
 
-        SinkLog() << "Finished";
-    }
+    //     SinkLog() << "Finished";
+    // }
 };
 
 QTEST_MAIN(CalDavTest)
