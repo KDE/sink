@@ -49,6 +49,16 @@ void ResourceConfig::addResource(const QByteArray &identifier, const QByteArray 
     settings->sync();
 }
 
+void ResourceConfig::setResourceType(const QByteArray &identifier, const QByteArray &type)
+{
+    auto settings = getConfig("resources");
+    settings->beginGroup(QString::fromLatin1(identifier));
+    settings->setValue(Sink::ApplicationDomain::SinkResource::ResourceType::name, type);
+    settings->endGroup();
+    settings->sync();
+}
+
+
 void ResourceConfig::removeResource(const QByteArray &identifier)
 {
     auto settings = getConfig("resources");

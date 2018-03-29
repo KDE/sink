@@ -332,7 +332,8 @@ static KAsync::Job<Store::UpgradeResult> upgrade(const QByteArray &resource)
     }
     SinkLog() << "Upgrading " << resource;
 
-    auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource, ResourceConfig::getResourceType(resource));
+    //We're not using the factory to avoid getting a cached resourceaccess with the wrong resourceType
+    auto resourceAccess = Sink::ResourceAccess::Ptr{new Sink::ResourceAccess(resource, ResourceConfig::getResourceType(resource)), &QObject::deleteLater};
     return resourceAccess->sendCommand(Sink::Commands::UpgradeCommand)
         .addToContext(resourceAccess)
         .then([=](const KAsync::Error &error) {
@@ -349,6 +350,15 @@ static KAsync::Job<Store::UpgradeResult> upgrade(const QByteArray &resource)
 KAsync::Job<Store::UpgradeResult> Store::upgrade()
 {
     SinkLog() << "Upgrading...";
+
+    //Migrate from sink.dav to sink.carddav
+    const auto resources = ResourceConfig::getResources();
+    for (auto it = resources.constBegin(); it != resources.constEnd(); it++) {
+        if (it.value() == "sink.dav") {
+            ResourceConfig::setResourceType(it.key(), "sink.carddav");
+        }
+    }
+
     auto ret = QSharedPointer<bool>::create(false);
     return fetchAll<ApplicationDomain::SinkResource>({})
         .template each([ret](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {

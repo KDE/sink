@@ -32,6 +32,7 @@ public:
     static QByteArray getResourceType(const QByteArray &identifier);
     static QByteArray newIdentifier(const QByteArray &type);
     static void addResource(const QByteArray &identifier, const QByteArray &type);
+    static void setResourceType(const QByteArray &identifier, const QByteArray &type);
     static void removeResource(const QByteArray &identifier);
     static void clear();
     static void configureResource(const QByteArray &identifier, const QMap<QByteArray, QVariant> &configuration);
