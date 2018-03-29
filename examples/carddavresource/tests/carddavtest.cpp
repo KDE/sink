@@ -55,7 +55,7 @@ class CardDavTest : public QObject
         }();
 
 
-        QUrl url{collectionUrl.toString() + "xxx.vcf"};
+        QUrl url{collectionUrl.toString() + firstname + lastname + ".vcf"};
         url.setUserInfo(mainUrl.userInfo());
         KDAV2::DavUrl testItemUrl(url, KDAV2::CardDav);
         QByteArray data = QString("BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Kolab//iRony DAV Server 0.3.1//Sabre//Sabre VObject 2.1.7//EN\r\nUID:12345678-1234-1234-%1-%2\r\nFN:%1 %2\r\nN:%2;%1;;;\r\nEMAIL;TYPE=INTERNET;TYPE=HOME:%1.%2@example.com\r\nREV;VALUE=DATE-TIME:20161221T145611Z\r\nEND:VCARD\r\n").arg(firstname).arg(lastname).toUtf8();
