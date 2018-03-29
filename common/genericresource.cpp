@@ -65,18 +65,24 @@ bool GenericResource::checkForUpgrade()
     if (currentDatabaseVersion != Sink::latestDatabaseVersion()) {
         SinkLog() << "Starting database upgrade from " << currentDatabaseVersion << " to " << Sink::latestDatabaseVersion();
 
-        //Right now upgrading just means removing all local storage so we will resync
-        Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadWrite).removeFromDisk();
-        Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".userqueue", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
-        Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronizerqueue", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
-        Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".changereplay", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
-        Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
-
-        {
-            auto store = Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadWrite);
-            auto t = store.createTransaction(Storage::DataStore::ReadWrite);
-            Storage::DataStore::setDatabaseVersion(t, Sink::latestDatabaseVersion());
+        bool nukeDatabases = false;
+        //Only apply the necessary updates.
+        for (int i = currentDatabaseVersion; i < Sink::latestDatabaseVersion(); i++) {
+            //TODO implement specific upgrade paths where applicable, and only nuke otherwise
+            nukeDatabases = true;
         }
+        if (nukeDatabases) {
+            SinkLog() << "Wiping all databases during upgrade, you will have to resync.";
+            //Right now upgrading just means removing all local storage so we will resync
+            Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadWrite).removeFromDisk();
+            Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".userqueue", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
+            Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronizerqueue", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
+            Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".changereplay", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
+            Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
+        }
+        auto store = Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadWrite);
+        auto t = store.createTransaction(Storage::DataStore::ReadWrite);
+        Storage::DataStore::setDatabaseVersion(t, Sink::latestDatabaseVersion());
         SinkLog() << "Finished database upgrade to " << Sink::latestDatabaseVersion();
         return true;
     }
