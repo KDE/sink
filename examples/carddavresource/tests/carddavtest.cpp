@@ -48,8 +48,8 @@ class CardDavTest : public QObject
         job->exec();
 
         const auto collectionUrl = [&] {
-            for(const auto collection : job->collections()) {
-                return collection.url().url();
+            if (!job->collections().isEmpty()) {
+                return job->collections().first().url().url();
             }
             return QUrl{};
         }();
