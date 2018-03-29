@@ -45,27 +45,15 @@ static int translateDavError(KJob *job)
     return ErrorCode::UnknownError;
 }
 
-static KAsync::Job<void> runJob(QSharedPointer<KJob> job)
+static KAsync::Job<void> runJob(KJob *job)
 {
-    return KAsync::start<void>([job(std::move(job))] {
-        if (job->exec()) {
-            SinkTrace() << "Job exec success";
-        } else {
-            SinkTrace() << "Job exec failure";
-        }
-    });
-
-    // For some reason, this code doesn't work
-
-    /*
     return KAsync::start<void>([job](KAsync::Future<void> &future) {
         QObject::connect(job, &KJob::result, [&future](KJob *job) {
             SinkTrace() << "Job done: " << job->metaObject()->className();
             if (job->error()) {
-                SinkWarning()
-                    << "Job failed: " << job->errorString() << job->metaObject()->className()
-                    << job->error() << static_cast<KDAV2::DavJobBase *>(job)->latestResponseCode();
-                future.setError(translateDavError(job), job->errorString());
+                SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className() << job->error();
+                auto proxyError = translateDavError(job);
+                future.setError(proxyError, job->errorString());
             } else {
                 future.setFinished();
             }
@@ -73,7 +61,6 @@ static KAsync::Job<void> runJob(QSharedPointer<KJob> job)
         SinkTrace() << "Starting job: " << job->metaObject()->className();
         job->start();
     });
-    */
 }
 
 WebDavSynchronizer::WebDavSynchronizer(const Sink::ResourceContext &context,
@@ -113,11 +100,10 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
 
     SinkLog() << "Synchronizing" << query.type() << "through WebDAV at:" << serverUrl().url();
 
-    auto collectionsFetchJob = QSharedPointer<KDAV2::DavCollectionsFetchJob>::create(serverUrl());
-
+    auto collectionsFetchJob = new KDAV2::DavCollectionsFetchJob{serverUrl()};
     auto job = runJob(collectionsFetchJob).then([this, collectionsFetchJob](const KAsync::Error &error) {
         if (error) {
-            SinkWarning() << "Failed to synchronize collections:" << collectionsFetchJob->errorString();
+            SinkWarning() << "Failed to synchronize collections:" << error;
         } else {
             updateLocalCollections(collectionsFetchJob->collections());
         }
@@ -189,7 +175,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
 
     // The ETag cache is useless here, since `sinkStore()` IS the cache.
     auto cache = std::make_shared<KDAV2::EtagCache>();
-    auto davItemsListJob = QSharedPointer<KDAV2::DavItemsListJob>::create(collection.url(), std::move(cache));
+    auto davItemsListJob = new KDAV2::DavItemsListJob(collection.url(), std::move(cache));
 
     return runJob(davItemsListJob)
         .then([this, davItemsListJob, total] {
@@ -222,7 +208,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeItem(const KDAV2::DavItem &item
 {
     auto etag = item.etag().toLatin1();
 
-    auto itemFetchJob = QSharedPointer<KDAV2::DavItemFetchJob>::create(item);
+    auto itemFetchJob = new KDAV2::DavItemFetchJob(item);
     return runJob(itemFetchJob)
         .then([this, itemFetchJob(std::move(itemFetchJob)), collectionLocalRid] {
             auto item = itemFetchJob->item();
