@@ -110,7 +110,6 @@ void QueryRunner<DomainType>::delayNextQuery()
 template <class DomainType>
 void QueryRunner<DomainType>::fetch(const Sink::Query &query, const QByteArray &bufferType)
 {
-    auto guardPtr = QPointer<QObject>(&guard);
     SinkTraceCtx(mLogCtx) << "Running fetcher. Batchsize: " << mBatchSize;
     if (mQueryInProgress) {
         SinkTraceCtx(mLogCtx) << "Query is already in progress, postponing: " << mBatchSize;
@@ -118,17 +117,19 @@ void QueryRunner<DomainType>::fetch(const Sink::Query &query, const QByteArray &
         return;
     }
     mQueryInProgress = true;
-    auto resultProvider = mResultProvider;
-    auto resultTransformation = mResultTransformation;
-    auto batchSize = mBatchSize;
-    auto resourceContext = mResourceContext;
-    auto logCtx = mLogCtx;
-    auto state = mQueryState;
     bool addDelay = mDelayNextQuery;
     mDelayNextQuery = false;
     const bool runAsync = !query.synchronousQuery();
     //The lambda will be executed in a separate thread, so copy all arguments
-    async::run<ReplayResult>([=]() {
+    async::run<ReplayResult>([query,
+                              bufferType,
+                              resultProvider = mResultProvider,
+                              resourceContext = mResourceContext,
+                              logCtx = mLogCtx,
+                              state = mQueryState,
+                              resultTransformation = mResultTransformation,
+                              batchSize = mBatchSize,
+                              addDelay]() {
         QueryWorker<DomainType> worker(query, resourceContext, bufferType, resultTransformation, logCtx);
         const auto result =  worker.executeInitialQuery(query, *resultProvider, batchSize, state);
 
@@ -139,7 +140,7 @@ void QueryRunner<DomainType>::fetch(const Sink::Query &query, const QByteArray &
 
         return result;
     }, runAsync)
-        .then([=](const ReplayResult &result) {
+        .then([this, query, bufferType, guardPtr = QPointer<QObject>(&guard)](const ReplayResult &result) {
             if (!guardPtr) {
                 //Not an error, the query can vanish at any time.
                 return;
@@ -151,8 +152,8 @@ void QueryRunner<DomainType>::fetch(const Sink::Query &query, const QByteArray &
             if (query.liveQuery()) {
                 mResourceAccess->sendRevisionReplayedCommand(result.newRevision);
             }
-            resultProvider->setRevision(result.newRevision);
-            resultProvider->initialResultSetComplete(result.replayedAll);
+            mResultProvider->setRevision(result.newRevision);
+            mResultProvider->initialResultSetComplete(result.replayedAll);
             if (mRequestFetchMore) {
                 mRequestFetchMore = false;
                 //This code exists for incemental fetches, so we don't skip loading another set.
@@ -180,19 +181,21 @@ KAsync::Job<void> QueryRunner<DomainType>::incrementalFetch(const Sink::Query &q
         return KAsync::null();
     }
     mRevisionChangedMeanwhile = false;
-    auto resultProvider = mResultProvider;
-    auto resourceContext = mResourceContext;
-    auto logCtx = mLogCtx;
-    auto state = mQueryState;
-    auto resultTransformation = mResultTransformation;
     Q_ASSERT(!mQueryInProgress);
-    auto guardPtr = QPointer<QObject>(&guard);
     bool addDelay = mDelayNextQuery;
     mDelayNextQuery = false;
     return KAsync::start([&] {
             mQueryInProgress = true;
         })
-        .then(async::run<ReplayResult>([=]() {
+        //The lambda will be executed in a separate thread, so copy all arguments
+        .then(async::run<ReplayResult>([query,
+                                        bufferType,
+                                        resultProvider = mResultProvider,
+                                        resourceContext = mResourceContext,
+                                        logCtx = mLogCtx,
+                                        state = mQueryState,
+                                        resultTransformation = mResultTransformation,
+                                        addDelay]() {
                 QueryWorker<DomainType> worker(query, resourceContext, bufferType, resultTransformation, logCtx);
                 const auto result = worker.executeIncrementalQuery(query, *resultProvider, state);
                 ////For testing only
@@ -203,14 +206,14 @@ KAsync::Job<void> QueryRunner<DomainType>::incrementalFetch(const Sink::Query &q
 
                 return result;
             }))
-        .then([query, this, resultProvider, guardPtr, bufferType](const ReplayResult &newRevisionAndReplayedEntities) {
+        .then([this, query, bufferType, guardPtr = QPointer<QObject>(&guard)](const ReplayResult &newRevisionAndReplayedEntities) {
             if (!guardPtr) {
                 //Not an error, the query can vanish at any time.
                 return KAsync::null();
             }
             mQueryInProgress = false;
             mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.newRevision);
-            resultProvider->setRevision(newRevisionAndReplayedEntities.newRevision);
+            mResultProvider->setRevision(newRevisionAndReplayedEntities.newRevision);
             if (mRevisionChangedMeanwhile) {
                 return incrementalFetch(query, bufferType);
             }
