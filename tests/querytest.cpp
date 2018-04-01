@@ -13,6 +13,8 @@
 #include "test.h"
 #include "testutils.h"
 #include "applicationdomaintype.h"
+#include "queryrunner.h"
+#include "adaptorfactoryregistry.h"
 
 #include <KMime/Message>
 
@@ -1227,6 +1229,55 @@ private slots:
             QCOMPARE(mail->count(), 2);
             QCOMPARE(mail->getCollectedProperty<Mail::Folder>().size(), 2);
         }
+    }
+
+    void testQueryRunnerDontMissUpdates()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        QDateTime now{QDate{2017, 2, 3}, QTime{10, 0, 0}};
+
+        auto createMail = [] (const QByteArray &messageid, const Folder &folder, const QDateTime &date, bool important) {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setExtractedMessageId(messageid);
+            mail.setFolder(folder);
+            mail.setExtractedDate(date);
+            mail.setImportant(important);
+            return mail;
+        };
+
+        VERIFYEXEC(Sink::Store::create(createMail("mail1", folder1, now, false)));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        query.setFlags(Query::LiveQuery);
+
+        Sink::ResourceContext resourceContext{"sink.dummy.instance1", "sink.dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("sink.dummy")};
+        Sink::Log::Context logCtx;
+        auto runner = new QueryRunner<Mail>(query, resourceContext, ApplicationDomain::getTypeName<Mail>(), logCtx);
+        runner->delayNextQuery();
+
+        auto emitter = runner->emitter();
+        QList<Mail::Ptr> added;
+        emitter->onAdded([&](Mail::Ptr mail) {
+            added << mail;
+        });
+
+        emitter->fetch();
+        VERIFYEXEC(Sink::Store::create(createMail("mail2", folder1, now, false)));
+        QTRY_COMPARE(added.size(), 2);
+
+        runner->delayNextQuery();
+        VERIFYEXEC(Sink::Store::create(createMail("mail3", folder1, now, false)));
+        //The second revision update is supposed to come in while the initial revision update is still in the query.
+        //So wait a bit to make sure the query is currently runnning.
+        QTest::qWait(500);
+        VERIFYEXEC(Sink::Store::create(createMail("mail4", folder1, now, false)));
+        QTRY_COMPARE(added.size(), 4);
     }
 
     /*

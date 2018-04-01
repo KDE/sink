@@ -77,7 +77,7 @@ private:
  * QueryRunner has to keep ResourceAccess alive in order to keep getting updates.
  */
 template <typename DomainType>
-class QueryRunner : public QueryRunnerBase
+class SINK_EXPORT QueryRunner : public QueryRunnerBase
 {
 public:
     QueryRunner(const Sink::Query &query, const Sink::ResourceContext &context, const QByteArray &bufferType, const Sink::Log::Context &logCtx);
@@ -90,6 +90,11 @@ public:
     void setResultTransformation(const ResultTransformation &transformation);
 
     typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr emitter();
+
+    /**
+     * For testing only.
+     */
+    void delayNextQuery();
 
 private:
     void fetch(const Sink::Query &query, const QByteArray &bufferType);
@@ -106,4 +111,6 @@ private:
     bool mInitialQueryComplete = false;
     bool mQueryInProgress = false;
     bool mRequestFetchMore = false;
+    bool mDelayNextQuery = false;
+    bool mRevisionChangedMeanwhile = false;
 };
