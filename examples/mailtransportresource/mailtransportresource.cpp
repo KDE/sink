@@ -130,14 +130,15 @@ public:
                     options |= MailTransport::UseTls;
                 }
 
-                SinkLog() << "Sending message " << settings.server << settings.username << "CaCert: " << settings.cacert;
+                SinkLog() << "Sending message " << settings.server << settings.username << "CaCert: " << settings.cacert << "Using tls: " << bool(options & MailTransport::UseTls);
                 SinkTrace() << "Sending message " << msg;
                 auto result = MailTransport::sendMessage(msg, settings.server.toUtf8(), settings.username.toUtf8(), secret().toUtf8(), settings.cacert.toUtf8(), options);
                 if (!result.error) {
                     SinkWarning() << "Failed to send message: " << mail << "\n" << result.errorMessage;
-                    emitNotification(Notification::Warning, ApplicationDomain::SyncError, "Failed to send message.", {}, {mail.identifier()});
-                    emitNotification(Notification::Warning, ApplicationDomain::TransmissionError, "Failed to send message.", {}, {mail.identifier()});
-                    return KAsync::error("Failed to send the message.");
+                    const auto errorMessage = QString("Failed to send the message: %1").arg(result.errorMessage);
+                    emitNotification(Notification::Warning, ApplicationDomain::SyncError, errorMessage, {}, {mail.identifier()});
+                    emitNotification(Notification::Warning, ApplicationDomain::TransmissionError, errorMessage, {}, {mail.identifier()});
+                    return KAsync::error(errorMessage.toUtf8().constData());
                 } else {
                     emitNotification(Notification::Info, ApplicationDomain::SyncSuccess, "Message successfully sent.", {}, {mail.identifier()});
                     emitNotification(Notification::Info, ApplicationDomain::TransmissionSuccess, "Message successfully sent.", {}, {mail.identifier()});
