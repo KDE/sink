@@ -38,6 +38,9 @@
 #include "log.h"
 #include "test.h"
 #include "definitions.h"
+#ifdef Q_OS_OSX
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 
 static Listener *listener = nullptr;
 
@@ -225,6 +228,20 @@ int main(int argc, char *argv[])
     }
 
     qInstallMessageHandler(qtMessageHandler);
+
+#ifdef Q_OS_OSX
+    if (CFBundleRef mainBundle = CFBundleGetMainBundle()) {
+        // get the application's Info Dictionary. For app bundles this would live in the bundle's Info.plist,
+        // for regular executables it is obtained in another way.
+        CFMutableDictionaryRef infoDict = (CFMutableDictionaryRef) CFBundleGetInfoDictionary(mainBundle);
+        if (infoDict) {
+            // Add or set the "LSUIElement" key with/to value "1". This can simply be a CFString.
+            CFDictionarySetValue(infoDict, CFSTR("LSUIElement"), CFSTR("1"));
+            // That's it. We're now considered as an "agent" by the window server, and thus will have
+            // neither menubar nor presence in the Dock or App Switcher.
+        }
+    }
+#endif
 
     //Necessary to hide this QGuiApplication from the dock and application switcher on mac os.
     qputenv("QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM", "true");

@@ -15,4 +15,7 @@ target_link_libraries(${PROJECT_NAME}
     KAsync
     ${CMAKE_DL_LIBS}
 )
+if(APPLE)
+    target_link_libraries(${PROJECT_NAME} "-framework CoreFoundation")
+endif()
 install(TARGETS ${PROJECT_NAME} ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
