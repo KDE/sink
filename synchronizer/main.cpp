@@ -227,7 +227,8 @@ int main(int argc, char *argv[])
     qInstallMessageHandler(qtMessageHandler);
 
     //Necessary to hide this QGuiApplication from the dock and application switcher on mac os.
-    qputenv("QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM", "1");
+    qputenv("QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM", "true");
+    QGuiApplication::setAttribute(Qt::AA_PluginApplication);
 
     QGuiApplication app(argc, argv);
     app.setQuitLockEnabled(false);
