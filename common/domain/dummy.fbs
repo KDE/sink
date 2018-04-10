@@ -1,6 +1,10 @@
 namespace Sink.ApplicationDomain.Buffer;
 
 table Dummy {
+  uid:string;
+  summary:string;
+  description:string;
+  attachment:[ubyte];
 }
 
 root_type Dummy;

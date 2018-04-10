@@ -1,6 +1,6 @@
 #include <QtTest>
 
-#include "event_generated.h"
+#include "dummy_generated.h"
 
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
@@ -16,7 +16,7 @@
 using namespace Sink::ApplicationDomain::Buffer;
 using namespace flatbuffers;
 
-static QByteArray createEvent()
+static QByteArray createEntity()
 {
     static const size_t attachmentSize = 1024 * 2; // 2KB
     static uint8_t rawData[attachmentSize];
@@ -25,10 +25,11 @@ static QByteArray createEvent()
     {
         uint8_t *rawDataPtr = Q_NULLPTR;
         auto summary = fbb.CreateString("summary");
-        EventBuilder eventBuilder(fbb);
-        eventBuilder.add_summary(summary);
-        auto eventLocation = eventBuilder.Finish();
-        FinishEventBuffer(fbb, eventLocation);
+        auto data = fbb.CreateUninitializedVector<uint8_t>(attachmentSize, &rawDataPtr);
+        DummyBuilder builder(fbb);
+        builder.add_summary(summary);
+        builder.add_attachment(data);
+        FinishDummyBuffer(fbb, builder.Finish());
         memcpy((void *)rawDataPtr, rawData, attachmentSize);
     }
 
@@ -65,7 +66,7 @@ private slots:
 
     void testWriteRead()
     {
-        auto event = createEvent();
+        auto entity = createEntity();
 
         QScopedPointer<Sink::Storage::DataStore> store(new Sink::Storage::DataStore(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite));
 
@@ -77,7 +78,7 @@ private slots:
         {
             auto transaction = store->createTransaction(Sink::Storage::DataStore::ReadWrite);
             for (int i = 0; i < count; i++) {
-                transaction.openDatabase().write(keyPrefix + QByteArray::number(i), event);
+                transaction.openDatabase().write(keyPrefix + QByteArray::number(i), entity);
                 if ((i % 10000) == 0) {
                     transaction.commit();
                     transaction = store->createTransaction(Sink::Storage::DataStore::ReadWrite);
@@ -93,7 +94,7 @@ private slots:
             std::ofstream myfile;
             myfile.open(filePath.toStdString());
             for (int i = 0; i < count; i++) {
-                myfile << event.toStdString();
+                myfile << entity.toStdString();
             }
             myfile.close();
         }
@@ -194,7 +195,8 @@ private slots:
         time.start();
 
         for (int i = 0; i < count; i++) {
-            auto event = createEvent();
+            auto entity = createEntity();
+            Q_UNUSED(entity);
         }
 
         qreal bufferDuration = time.restart();
