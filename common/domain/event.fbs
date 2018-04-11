@@ -5,6 +5,8 @@ table Event {
   summary:string;
   description:string;
   startTime:string;
+  endTime:string;
+  ical:string;
   calendar:string;
 }
 

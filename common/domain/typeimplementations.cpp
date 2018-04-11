@@ -207,6 +207,8 @@ void TypeImplementation<Event>::configure(PropertyMapper &propertyMapper)
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, Description, description);
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, Uid, uid);
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, StartTime, startTime);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Event, EndTime, endTime);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Event, Ical, ical);
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, Calendar, calendar);
 }
 

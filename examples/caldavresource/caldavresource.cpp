@@ -66,7 +66,8 @@ protected:
     {
         const auto &rid = resourceID(remoteItem);
 
-        auto incidence = KCalCore::ICalFormat().fromString(remoteItem.data());
+        auto ical = remoteItem.data();
+        auto incidence = KCalCore::ICalFormat().fromString(ical);
 
         using Type = KCalCore::IncidenceBase::IncidenceType;
 
@@ -79,6 +80,8 @@ protected:
                 localEvent.setSummary(remoteEvent.summary());
                 localEvent.setDescription(remoteEvent.description());
                 localEvent.setStartTime(remoteEvent.dtStart());
+                localEvent.setEndTime(remoteEvent.dtEnd());
+                localEvent.setIcal(ical);
                 localEvent.setCalendar(calendarLocalId);
 
                 SinkTrace() << "Found an event:" << localEvent.getSummary() << "with id:" << rid;

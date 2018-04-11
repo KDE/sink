@@ -400,6 +400,8 @@ struct SINK_EXPORT Event : public Entity {
     SINK_PROPERTY(QString, Summary, summary);
     SINK_PROPERTY(QString, Description, description);
     SINK_PROPERTY(QDateTime, StartTime, startTime);
+    SINK_PROPERTY(QDateTime, EndTime, endTime);
+    SINK_PROPERTY(QByteArray, Ical, ical);
     SINK_REFERENCE_PROPERTY(Calendar, Calendar, calendar);
 };
 
