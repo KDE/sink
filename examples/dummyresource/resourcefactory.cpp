@@ -55,9 +55,12 @@ class DummySynchronizer : public Sink::Synchronizer {
     Sink::ApplicationDomain::Event::Ptr createEvent(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data)
     {
         auto event = Sink::ApplicationDomain::Event::Ptr::create();
-        event->setSummary(data.value("summary").toString());
+        event->setExtractedUid(data.value("uid").toString());
+        event->setExtractedSummary(data.value("summary").toString());
+        event->setExtractedDescription(data.value("description").toString());
+        event->setExtractedStartTime(data.value("starttime").toDateTime());
+        event->setExtractedEndTime(data.value("endtime").toDateTime());
         event->setProperty("remoteId", ridBuffer);
-        event->setDescription(data.value("description").toString());
         return event;
     }
 

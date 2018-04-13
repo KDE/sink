@@ -396,11 +396,11 @@ struct SINK_EXPORT Calendar : public Entity {
 
 struct SINK_EXPORT Event : public Entity {
     SINK_ENTITY(Event, event);
-    SINK_PROPERTY(QString, Uid, uid);
-    SINK_PROPERTY(QString, Summary, summary);
-    SINK_PROPERTY(QString, Description, description);
-    SINK_PROPERTY(QDateTime, StartTime, startTime);
-    SINK_PROPERTY(QDateTime, EndTime, endTime);
+    SINK_EXTRACTED_PROPERTY(QString, Uid, uid);
+    SINK_EXTRACTED_PROPERTY(QString, Summary, summary);
+    SINK_EXTRACTED_PROPERTY(QString, Description, description);
+    SINK_EXTRACTED_PROPERTY(QDateTime, StartTime, startTime);
+    SINK_EXTRACTED_PROPERTY(QDateTime, EndTime, endTime);
     SINK_PROPERTY(QByteArray, Ical, ical);
     SINK_REFERENCE_PROPERTY(Calendar, Calendar, calendar);
 };

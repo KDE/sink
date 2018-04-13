@@ -387,7 +387,7 @@ private slots:
         Sink::Store::create(event).exec().waitForFinished();
         QCOMPARE(facade->creations.size(), 1);
         //Modify something so the mdofication won't be dropped
-        event.setSummary("foobar");
+        event.setExtractedSummary("foobar");
         Sink::Store::modify(event).exec().waitForFinished();
         QCOMPARE(facade->modifications.size(), 1);
         Sink::Store::remove(event).exec().waitForFinished();
@@ -404,7 +404,7 @@ private slots:
         query.resourceFilter("dummyresource.instance1");
 
         auto event = Sink::ApplicationDomain::Event::createEntity<Sink::ApplicationDomain::Event>("dummyresource.instance1");
-        event.setUid("modifiedUid");
+        event.setExtractedUid("modifiedUid");
         Sink::Store::modify(query, event).exec().waitForFinished();
         QCOMPARE(facade->modifications.size(), 2);
         for (const auto &m : facade->modifications) {
@@ -420,7 +420,7 @@ private slots:
 
         Sink::ApplicationDomain::Event modification("dummyresource.instance1", "id1", 0, QSharedPointer<Sink::ApplicationDomain::MemoryBufferAdaptor>::create());
         modification.aggregatedIds() << "id1" << "id2";
-        modification.setUid("modifiedUid2");
+        modification.setExtractedUid("modifiedUid2");
 
         Sink::Store::modify(modification).exec().waitForFinished();
         QCOMPARE(facade->modifications.size(), 2);

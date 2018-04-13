@@ -70,6 +70,7 @@ set(command_SRCS
     synchronizerstore.cpp
     contactpreprocessor.cpp
     mailpreprocessor.cpp
+    eventpreprocessor.cpp
     specialpurposepreprocessor.cpp
     datastorequery.cpp
     storage/entitystore.cpp
@@ -130,6 +131,7 @@ PRIVATE
     Qt5::Gui
     KF5::Mime
     KF5::Contacts
+    KF5::CalendarCore
     ${XAPIAN_LIBRARIES}
 )
 install(TARGETS ${PROJECT_NAME}

@@ -24,6 +24,7 @@
 #include "adaptorfactoryregistry.h"
 #include "applicationdomaintype.h"
 #include "domainadaptor.h"
+#include "eventpreprocessor.h"
 #include "facade.h"
 #include "facadefactory.h"
 
@@ -76,11 +77,6 @@ protected:
                 auto remoteEvent = dynamic_cast<const KCalCore::Event &>(*incidence);
 
                 Event localEvent;
-                localEvent.setUid(remoteEvent.uid());
-                localEvent.setSummary(remoteEvent.summary());
-                localEvent.setDescription(remoteEvent.description());
-                localEvent.setStartTime(remoteEvent.dtStart());
-                localEvent.setEndTime(remoteEvent.dtEnd());
                 localEvent.setIcal(ical);
                 localEvent.setCalendar(calendarLocalId);
 
@@ -119,7 +115,7 @@ CalDavResource::CalDavResource(const Sink::ResourceContext &context)
     auto synchronizer = QSharedPointer<EventSynchronizer>::create(context);
     setupSynchronizer(synchronizer);
 
-    // setupPreprocessors(ENTITY_TYPE_EVENT, QVector<Sink::Preprocessor*>() << new EventPropertyExtractor);
+    setupPreprocessors(ENTITY_TYPE_EVENT, QVector<Sink::Preprocessor*>() << new EventPropertyExtractor);
 }
 
 CalDavResourceFactory::CalDavResourceFactory(QObject *parent)
