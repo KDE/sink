@@ -63,6 +63,26 @@ static KAsync::Job<void> runJob(KJob *job)
     });
 }
 
+template <typename T>
+static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob *)> &func)
+{
+    return KAsync::start<T>([job, func](KAsync::Future<T> &future) {
+        QObject::connect(job, &KJob::result, [&future, func](KJob *job) {
+            SinkTrace() << "Job done: " << job->metaObject()->className();
+            if (job->error()) {
+                SinkWarning() << "Job failed: " << job->errorString() << job->metaObject()->className() << job->error();
+                auto proxyError = translateDavError(job);
+                future.setError(proxyError, job->errorString());
+            } else {
+                future.setValue(func(job));
+                future.setFinished();
+            }
+        });
+        SinkTrace() << "Starting job: " << job->metaObject()->className();
+        job->start();
+    });
+}
+
 WebDavSynchronizer::WebDavSynchronizer(const Sink::ResourceContext &context,
     KDAV2::Protocol protocol, QByteArray collectionName, QByteArray itemName)
     : Sink::Synchronizer(context),
@@ -100,16 +120,13 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
 
     SinkLog() << "Synchronizing" << query.type() << "through WebDAV at:" << serverUrl().url();
 
-    auto collectionsFetchJob = new KDAV2::DavCollectionsFetchJob{serverUrl()};
-    auto job = runJob(collectionsFetchJob).then([this, collectionsFetchJob](const KAsync::Error &error) {
-        if (error) {
-            SinkWarning() << "Failed to synchronize collections:" << error;
-        } else {
-            updateLocalCollections(collectionsFetchJob->collections());
-        }
-
-        return collectionsFetchJob->collections();
-    });
+    auto collectionsFetchJob = new KDAV2::DavCollectionsFetchJob{ serverUrl() };
+    auto job = runJob<KDAV2::DavCollection::List>(collectionsFetchJob,
+        [](KJob *job) { return static_cast<KDAV2::DavCollectionsFetchJob *>(job)->collections(); })
+                   .then([this](const KDAV2::DavCollection::List &collections) {
+                       updateLocalCollections(collections);
+                       return collections;
+                   });
 
     if (query.type() == collectionName) {
         // Do nothing more
@@ -167,11 +184,11 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
     auto cache = std::make_shared<KDAV2::EtagCache>();
     auto davItemsListJob = new KDAV2::DavItemsListJob(collection.url(), std::move(cache));
 
-    return runJob(davItemsListJob)
-        .then([this, davItemsListJob, total] {
-            auto items = davItemsListJob->items();
+    return runJob<KDAV2::DavItem::List>(davItemsListJob,
+        [](KJob *job) { return static_cast<KDAV2::DavItemsListJob *>(job)->items(); })
+        .then([this, total](const KDAV2::DavItem::List &items) {
             *total += items.size();
-            return KAsync::value(items);
+            return items;
         })
         .serialEach([this, collectionRid, localRid, progress(std::move(progress)), total(std::move(total)),
                         itemsResourceIDs(std::move(itemsResourceIDs))](const KDAV2::DavItem &item) {
@@ -199,9 +216,9 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeItem(const KDAV2::DavItem &item
     auto etag = item.etag().toLatin1();
 
     auto itemFetchJob = new KDAV2::DavItemFetchJob(item);
-    return runJob(itemFetchJob)
-        .then([this, itemFetchJob(std::move(itemFetchJob)), collectionLocalRid] {
-            auto item = itemFetchJob->item();
+    return runJob<KDAV2::DavItem>(
+        itemFetchJob, [](KJob *job) { return static_cast<KDAV2::DavItemFetchJob *>(job)->item(); })
+        .then([this, collectionLocalRid](const KDAV2::DavItem &item) {
             updateLocalItem(item, collectionLocalRid);
             return item;
         })
