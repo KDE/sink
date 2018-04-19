@@ -19,7 +19,6 @@
 
 #include "replStates.h"
 
-#include <unistd.h>
 #include <iostream>
 
 #include <readline/readline.h>

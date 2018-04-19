@@ -17,7 +17,11 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
+#ifdef Q_OS_WIN
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 #include <QCoreApplication>
 #include <QDebug>

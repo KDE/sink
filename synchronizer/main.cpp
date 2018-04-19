@@ -34,7 +34,12 @@
 #include <sstream>
 #include <thread>
 #include <chrono>
+#ifndef Q_OS_WIN
 #include <unistd.h>
+#else
+#include <io.h>
+#include <process.h>
+#endif
 
 #include "listener.h"
 #include "log.h"

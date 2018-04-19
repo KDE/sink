@@ -30,7 +30,6 @@
 Q_LOGGING_CATEGORY(log, "maildir");
 
 #include <time.h>
-#include <unistd.h>
 
 bool removeDirAndContentsRecursively(const QString & path)
 {
