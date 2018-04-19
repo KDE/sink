@@ -28,14 +28,14 @@
 #include <csignal>
 #include <iostream>
 #include <cstdlib>
-#include <cxxabi.h>
-#include <dlfcn.h>
 #include <ostream>
 #include <sstream>
 #include <thread>
 #include <chrono>
 #ifndef Q_OS_WIN
 #include <unistd.h>
+#include <cxxabi.h>
+#include <dlfcn.h>
 #else
 #include <io.h>
 #include <process.h>
