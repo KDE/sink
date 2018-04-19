@@ -8,6 +8,6 @@ find_package(KPimKDAV2 REQUIRED)
 add_library(${PROJECT_NAME} SHARED carddavresource.cpp)
 target_link_libraries(${PROJECT_NAME} sink_webdav_common sink Qt5::Core Qt5::Network KPim::KDAV2)
 
-install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
+install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH} RUNTIME DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
 
 add_subdirectory(tests)

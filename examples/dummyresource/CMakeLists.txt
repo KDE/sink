@@ -8,4 +8,4 @@ add_library(${PROJECT_NAME} SHARED resourcefactory.cpp domainadaptor.cpp dummyst
 generate_flatbuffers(${PROJECT_NAME} dummycalendar)
 target_link_libraries(${PROJECT_NAME} sink Qt5::Core Qt5::Network)
 
-install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
+install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH} RUNTIME DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
