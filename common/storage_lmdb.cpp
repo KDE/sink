@@ -32,6 +32,11 @@
 #include <lmdb.h>
 #include "log.h"
 
+#ifdef Q_OS_WIN
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
+
 namespace Sink {
 namespace Storage {
 

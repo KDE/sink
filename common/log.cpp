@@ -9,7 +9,12 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <iostream>
+#ifdef Q_OS_WIN
+#include <io.h>
+#include <process.h>
+#else
 #include <unistd.h>
+#endif
 #include <atomic>
 #include <definitions.h>
 #include <QThreadStorage>

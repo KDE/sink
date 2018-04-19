@@ -22,7 +22,9 @@
 #include <QDir>
 
 #include <signal.h>
+#ifndef Q_OS_WIN
 #include <execinfo.h>
+#endif
 #include <csignal>
 #include <iostream>
 #include <cstdlib>
@@ -47,6 +49,7 @@ static Listener *listener = nullptr;
 //Print a demangled stacktrace
 void printStacktrace()
 {
+#ifndef Q_OS_WIN
     int skip = 1;
 	void *callstack[128];
 	const int nMaxFrames = sizeof(callstack) / sizeof(callstack[0]);
@@ -81,6 +84,7 @@ void printStacktrace()
 		trace_buf << "[truncated]\n";
     }
     std::cerr << trace_buf.str();
+#endif
 }
 
 static int sCounter = 0;
