@@ -1,6 +1,6 @@
 project(sinksh)
 
-find_package(Readline 6.0 REQUIRED)
+find_package(Readline 5.0 REQUIRED)
 
 set(sink_cli_SRCS
     main.cpp
