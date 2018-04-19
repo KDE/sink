@@ -17,7 +17,7 @@ target_link_libraries(${PROJECT_NAME}
     KF5::Mime
     ${CURL_LIBRARIES}
 )
-install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
+install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH} RUNTIME DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
 
 add_executable(sink_smtp_test smtptest.cpp mailtransport.cpp)
 target_link_libraries(sink_smtp_test
