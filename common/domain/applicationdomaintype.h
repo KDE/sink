@@ -523,7 +523,7 @@ namespace Mail {
  * Do not store these types to disk, they may change over time.
  */
 template<class DomainType>
-QByteArray SINK_EXPORT getTypeName()
+QByteArray getTypeName()
 {
     return DomainType::name;
 }
