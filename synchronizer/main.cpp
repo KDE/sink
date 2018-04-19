@@ -225,10 +225,11 @@ void printStats()
 
 int main(int argc, char *argv[])
 {
-    const bool gdbDebugMode = qEnvironmentVariableIsSet("SINK_GDB_DEBUG");
-    if (gdbDebugMode) {
+    if (qEnvironmentVariableIsSet("SINK_GDB_DEBUG")) {
+#ifndef Q_OS_WIN
         SinkWarning() << "Running resource in debug mode and waiting for gdb to attach: gdb attach " << getpid();
         raise(SIGSTOP);
+#endif
     } else {
         // For crashes
         std::signal(SIGSEGV, crashHandler);
