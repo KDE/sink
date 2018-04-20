@@ -289,8 +289,7 @@ public:
     template <typename T>
     void bloom()
     {
-        auto bloom = QSharedPointer<Bloom>::create(T::name);
-        mFilterStages << bloom;
+        mFilterStages << QSharedPointer<Bloom>::create(T::name);
     }
 
 private:
