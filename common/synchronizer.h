@@ -110,13 +110,13 @@ protected:
      */
     void createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
     template <typename DomainType>
-    void createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const DomainType &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria);
+    void SINK_EXPORT createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const DomainType &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria);
     void modify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
 
     // template <typename DomainType>
     // void create(const DomainType &entity);
     template <typename DomainType>
-    void modify(const DomainType &entity, const QByteArray &newResource = QByteArray(), bool remove = false);
+    void SINK_EXPORT modify(const DomainType &entity, const QByteArray &newResource = QByteArray(), bool remove = false);
     // template <typename DomainType>
     // void remove(const DomainType &entity);
     QByteArrayList resolveFilter(const QueryBase::Comparator &filter);

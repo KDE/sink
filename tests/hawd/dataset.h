@@ -36,7 +36,7 @@ namespace HAWD
 class HAWD_EXPORT Dataset
 {
 public:
-    class Row
+    class HAWD_EXPORT Row
     {
         public:
             enum StandardCols {
