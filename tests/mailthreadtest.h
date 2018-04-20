@@ -18,6 +18,7 @@
  */
 #pragma once
 
+#include "sinktest_export.h"
 #include <QObject>
 #include <QByteArray>
 
@@ -29,7 +30,7 @@ namespace Sink {
 /**
  * Tests if the resource can thread emails.
  */
-class MailThreadTest : public QObject
+class SINKTEST_EXPORT MailThreadTest : public QObject
 {
     Q_OBJECT
 

@@ -13,6 +13,7 @@ add_definitions(-DTHREADTESTDATAPATH="${CMAKE_CURRENT_SOURCE_DIR}/threaddata")
 
 find_package(KF5 COMPONENTS REQUIRED Mime)
 
+generate_export_header(${PROJECT_NAME} BASE_NAME SinkTest EXPORT_FILE_NAME sinktest_export.h)
 add_library(sink_test SHARED testimplementations.cpp getrssusage.cpp mailtest.cpp mailsynctest.cpp mailthreadtest.cpp utils.cpp)
 target_link_libraries(sink_test
     sink

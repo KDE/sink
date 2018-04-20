@@ -18,6 +18,7 @@
  */
 #pragma once
 
+#include "sinktest_export.h"
 #include <QObject>
 #include <QByteArray>
 
@@ -33,7 +34,7 @@ namespace Sink {
  * * INBOX
  * * INBOX.test
  */
-class MailSyncTest : public QObject
+class SINKTEST_EXPORT MailSyncTest : public QObject
 {
     Q_OBJECT
 
