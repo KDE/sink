@@ -18,6 +18,7 @@
  */
 #pragma once
 
+#include "sink_export.h"
 #include <QSharedPointer>
 
 class TypeIndex;
@@ -33,7 +34,7 @@ namespace flatbuffers {
 class FlatBufferBuilder;
 }
 
-class DomainTypeAdaptorFactoryInterface
+class SINK_EXPORT DomainTypeAdaptorFactoryInterface
 {
 public:
     typedef QSharedPointer<DomainTypeAdaptorFactoryInterface> Ptr;

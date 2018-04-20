@@ -82,7 +82,7 @@
 namespace Sink {
 namespace ApplicationDomain {
 
-enum SINK_EXPORT ErrorCode {
+enum ErrorCode {
     NoError = 0,
     UnknownError,
     NoServerError,
@@ -95,11 +95,11 @@ enum SINK_EXPORT ErrorCode {
     ResourceCrashedError
 };
 
-enum SINK_EXPORT SuccessCode {
+enum SuccessCode {
     TransmissionSuccess
 };
 
-enum SINK_EXPORT SyncStatus {
+enum SyncStatus {
     NoSyncStatus,
     SyncInProgress,
     SyncError,
@@ -117,7 +117,7 @@ enum SINK_EXPORT SyncStatus {
  * * If an error occurred that keeps the resource from operating (so non transient), the resource enters the error state.
  * * If a long running operation is started the resource goes to the busy state (and return to the previous state after that).
  */
-enum SINK_EXPORT Status {
+enum Status {
     NoStatus,
     OfflineStatus,
     ConnectedStatus,

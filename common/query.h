@@ -30,7 +30,7 @@ namespace Sink {
 class SINK_EXPORT QueryBase
 {
 public:
-    struct Comparator {
+    struct SINK_EXPORT Comparator {
         enum Comparators {
             Invalid,
             Equals,
@@ -49,7 +49,7 @@ public:
         Comparators comparator;
     };
 
-    class Filter {
+    class SINK_EXPORT Filter {
     public:
         QByteArrayList ids;
         QHash<QByteArray, Comparator> propertyFilter;

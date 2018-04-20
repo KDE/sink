@@ -68,7 +68,7 @@ public:
     };
 
     class Transaction;
-    class NamedDatabase
+    class SINK_EXPORT NamedDatabase
     {
     public:
         NamedDatabase();
@@ -142,7 +142,7 @@ public:
         Private *d;
     };
 
-    class Transaction
+    class SINK_EXPORT Transaction
     {
     public:
         Transaction();

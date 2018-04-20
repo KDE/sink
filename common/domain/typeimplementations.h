@@ -18,6 +18,7 @@
  */
 #pragma once
 
+#include "sink_export.h"
 #include "applicationdomaintype.h"
 
 #include "mail_generated.h"
@@ -41,7 +42,7 @@ namespace Sink {
 namespace ApplicationDomain {
 
 template<>
-class TypeImplementation<Sink::ApplicationDomain::Mail> {
+class SINK_EXPORT TypeImplementation<Sink::ApplicationDomain::Mail> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Mail Buffer;
     typedef Sink::ApplicationDomain::Buffer::MailBuilder BufferBuilder;
@@ -52,7 +53,7 @@ public:
 };
 
 template<>
-class TypeImplementation<Sink::ApplicationDomain::Folder> {
+class SINK_EXPORT TypeImplementation<Sink::ApplicationDomain::Folder> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Folder Buffer;
     typedef Sink::ApplicationDomain::Buffer::FolderBuilder BufferBuilder;
@@ -63,7 +64,7 @@ public:
 };
 
 template<>
-class TypeImplementation<Sink::ApplicationDomain::Contact> {
+class SINK_EXPORT TypeImplementation<Sink::ApplicationDomain::Contact> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Contact Buffer;
     typedef Sink::ApplicationDomain::Buffer::ContactBuilder BufferBuilder;
@@ -74,7 +75,7 @@ public:
 };
 
 template<>
-class TypeImplementation<Sink::ApplicationDomain::Addressbook> {
+class SINK_EXPORT TypeImplementation<Sink::ApplicationDomain::Addressbook> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Addressbook Buffer;
     typedef Sink::ApplicationDomain::Buffer::AddressbookBuilder BufferBuilder;
@@ -85,7 +86,7 @@ public:
 };
 
 template<>
-class TypeImplementation<Sink::ApplicationDomain::Event> {
+class SINK_EXPORT TypeImplementation<Sink::ApplicationDomain::Event> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Event Buffer;
     typedef Sink::ApplicationDomain::Buffer::EventBuilder BufferBuilder;
@@ -96,7 +97,7 @@ public:
 };
 
 template<>
-class TypeImplementation<Sink::ApplicationDomain::Calendar> {
+class SINK_EXPORT TypeImplementation<Sink::ApplicationDomain::Calendar> {
 public:
     typedef Sink::ApplicationDomain::Buffer::Calendar Buffer;
     typedef Sink::ApplicationDomain::Buffer::CalendarBuilder BufferBuilder;
