@@ -28,7 +28,7 @@
 #include "bufferadaptor.h"
 
 #define SINK_ENTITY(TYPE, LOWERCASENAME) \
-    static constexpr const char *name = #LOWERCASENAME; \
+    SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
     typedef QSharedPointer<TYPE> Ptr; \
     using Entity::Entity; \
     TYPE() = default; \
@@ -39,7 +39,7 @@
 
 #define SINK_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
-        static constexpr const char *name = #LOWERCASENAME; \
+        SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
         typedef TYPE Type; \
     }; \
     void set##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
@@ -48,7 +48,7 @@
 
 #define SINK_EXTRACTED_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
-        static constexpr const char *name = #LOWERCASENAME; \
+        SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
         typedef TYPE Type; \
     }; \
     void setExtracted##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
@@ -56,7 +56,7 @@
 
 #define SINK_STATUS_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
-        static constexpr const char *name = #LOWERCASENAME; \
+        SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
         typedef TYPE Type; \
     }; \
     void setStatus##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
@@ -64,7 +64,7 @@
 
 #define SINK_REFERENCE_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
-        static constexpr const char *name = #LOWERCASENAME; \
+        SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
         typedef Reference Type; \
         typedef ApplicationDomain::TYPE ReferenceType; \
     }; \
@@ -74,7 +74,7 @@
 
 #define SINK_INDEX_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
-        static constexpr const char *name = #LOWERCASENAME; \
+        SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
         typedef TYPE Type; \
     }; \
 
