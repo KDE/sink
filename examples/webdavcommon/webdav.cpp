@@ -22,8 +22,13 @@
 #include "applicationdomaintype.h"
 #include "resourceconfig.h"
 
+#include <KDAV2/DavCollectionDeleteJob>
+#include <KDAV2/DavCollectionModifyJob>
 #include <KDAV2/DavCollectionsFetchJob>
+#include <KDAV2/DavItemCreateJob>
+#include <KDAV2/DavItemDeleteJob>
 #include <KDAV2/DavItemFetchJob>
+#include <KDAV2/DavItemModifyJob>
 #include <KDAV2/DavItemsListJob>
 #include <KDAV2/EtagCache>
 
@@ -180,7 +185,6 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
 
     auto localRid = collectionLocalResourceID(collection);
 
-    // The ETag cache is useless here, since `sinkStore()` IS the cache.
     auto cache = std::make_shared<KDAV2::EtagCache>();
     auto davItemsListJob = new KDAV2::DavItemsListJob(collection.url(), std::move(cache));
 
@@ -234,14 +238,71 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeItem(const KDAV2::DavItem &item
         });
 }
 
+KAsync::Job<void> WebDavSynchronizer::createItem(const KDAV2::DavItem &item)
+{
+    auto job = new KDAV2::DavItemCreateJob(item);
+    return runJob(job).then([] { SinkTrace() << "Done creating item"; });
+}
+
+KAsync::Job<void> WebDavSynchronizer::removeItem(const KDAV2::DavItem &item)
+{
+    auto job = new KDAV2::DavItemDeleteJob(item);
+    return runJob(job).then([] { SinkTrace() << "Done removing item"; });
+}
+
+KAsync::Job<void> WebDavSynchronizer::modifyItem(const KDAV2::DavItem &item)
+{
+    auto job = new KDAV2::DavItemModifyJob(item);
+    return runJob(job).then([] { SinkTrace() << "Done modifying item"; });
+}
+
+// There is no "DavCollectionCreateJob"
+/*
+KAsync::Job<void> WebDavSynchronizer::createCollection(const KDAV2::DavCollection &collection)
+{
+    auto job = new KDAV2::DavCollectionCreateJob(collection);
+    return runJob(job);
+}
+*/
+
+KAsync::Job<void> WebDavSynchronizer::removeCollection(const KDAV2::DavUrl &url)
+{
+    auto job = new KDAV2::DavCollectionDeleteJob(url);
+    return runJob(job).then([] { SinkLog() << "Done removing collection"; });
+}
+
+// Useless without using the `setProperty` method of DavCollectionModifyJob
+/*
+KAsync::Job<void> WebDavSynchronizer::modifyCollection(const KDAV2::DavUrl &url)
+{
+    auto job = new KDAV2::DavCollectionModifyJob(url);
+    return runJob(job).then([] { SinkLog() << "Done modifying collection"; });
+}
+*/
+
 QByteArray WebDavSynchronizer::resourceID(const KDAV2::DavCollection &collection)
 {
-    return collection.url().toDisplayString().toUtf8();
+    return collection.url().url().path().toUtf8();
 }
 
 QByteArray WebDavSynchronizer::resourceID(const KDAV2::DavItem &item)
 {
-    return item.url().toDisplayString().toUtf8();
+    return item.url().url().path().toUtf8();
+}
+
+KDAV2::DavUrl WebDavSynchronizer::urlOf(const QByteArray &remoteId)
+{
+    auto davurl = serverUrl();
+    auto url = davurl.url();
+    url.setPath(remoteId);
+    SinkLog() << "Returning URL:" << url.toEncoded();
+    davurl.setUrl(url);
+    return davurl;
+}
+
+KDAV2::DavUrl WebDavSynchronizer::urlOf(const QByteArray &collectionRemoteId, const QString &itemPath)
+{
+    return urlOf(collectionRemoteId + "/" + itemPath.toUtf8());
 }
 
 bool WebDavSynchronizer::unchanged(const KDAV2::DavCollection &collection)

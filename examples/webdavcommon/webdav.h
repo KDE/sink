@@ -35,6 +35,32 @@ public:
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE;
 
 protected:
+
+    /**
+     * Called in a child synchronizer, when replaying a creation of an item.
+     */
+    KAsync::Job<void> createItem(const KDAV2::DavItem &);
+
+    /**
+     * Called in a child synchronizer, when replaying a removal of an item.
+     */
+    KAsync::Job<void> removeItem(const KDAV2::DavItem &);
+
+    /**
+     * Called in a child synchronizer, when replaying a modification of an item.
+     *
+     * The item to modify is chosen according to the given item's URL.
+     * The job will fail if the ETag does not match.
+     */
+    KAsync::Job<void> modifyItem(const KDAV2::DavItem &);
+
+    /**
+     * See comments of the *Item version above
+     */
+    KAsync::Job<void> createCollection(const KDAV2::DavUrl &);
+    KAsync::Job<void> removeCollection(const KDAV2::DavUrl &);
+    KAsync::Job<void> modifyCollection(const KDAV2::DavUrl &);
+
     /**
      * Called with the list of discovered collections. It's purpose should be
      * adding the said collections to the store.
@@ -62,6 +88,19 @@ protected:
 
     static QByteArray resourceID(const KDAV2::DavCollection &);
     static QByteArray resourceID(const KDAV2::DavItem &);
+
+    /**
+     * Used to get the url of an item / collection with the given remote ID
+     */
+    KDAV2::DavUrl urlOf(const QByteArray &remoteId);
+
+    /**
+     * Used to get the url of an item / collection with the given remote ID,
+     * and append `itemPath` to the path of the URI.
+     *
+     * Useful when adding a new item to a collection
+     */
+    KDAV2::DavUrl urlOf(const QByteArray &collectionRemoteId, const QString &itemPath);
 
     bool unchanged(const KDAV2::DavCollection &);
     bool unchanged(const KDAV2::DavItem &);

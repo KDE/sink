@@ -107,6 +107,74 @@ protected:
     {
         return syncStore().resolveRemoteId(ENTITY_TYPE_CALENDAR, resourceID(calendar));
     }
+
+    KAsync::Job<QByteArray> replay(const Event &event, Sink::Operation operation,
+        const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
+    {
+        SinkLog() << "Replaying event";
+
+        KDAV2::DavItem item;
+
+        switch (operation) {
+            case Sink::Operation_Creation: {
+                auto rawIcal = event.getIcal();
+                if(rawIcal == "") {
+                    return KAsync::error<QByteArray>("No ICal in event for creation replay");
+                }
+
+                auto collectionId = syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, event.getCalendar());
+
+                item.setData(rawIcal);
+                item.setContentType("text/calendar");
+                item.setUrl(urlOf(collectionId, event.getUid()));
+
+                SinkLog() << "Creating event:" << event.getSummary();
+                return createItem(item).then([item] { return resourceID(item); });
+            }
+            case Sink::Operation_Removal: {
+                // We only need the URL in the DAV item for removal
+                item.setUrl(urlOf(oldRemoteId));
+
+                SinkLog() << "Removing event:" << oldRemoteId;
+                return removeItem(item).then([] { return QByteArray{}; });
+            }
+            case Sink::Operation_Modification:
+                auto rawIcal = event.getIcal();
+                if(rawIcal == "") {
+                    return KAsync::error<QByteArray>("No ICal in event for modification replay");
+                }
+
+                item.setData(rawIcal);
+                item.setContentType("text/calendar");
+                item.setUrl(urlOf(oldRemoteId));
+
+                SinkLog() << "Modifying event:" << event.getSummary();
+
+                // It would be nice to check that the URL of the item hasn't
+                // changed and move he item if it did, but since the URL is
+                // pretty much arbitrary, whoe does that anyway?
+                return modifyItem(item).then([oldRemoteId] { return oldRemoteId; });
+        }
+    }
+
+    KAsync::Job<QByteArray> replay(const Calendar &calendar, Sink::Operation operation,
+        const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
+    {
+        switch (operation) {
+            case Sink::Operation_Creation:
+                SinkWarning() << "Unimplemented replay of calendar creation";
+                break;
+            case Sink::Operation_Removal:
+                SinkLog() << "Replaying calendar removal";
+                removeCollection(urlOf(oldRemoteId));
+                break;
+            case Sink::Operation_Modification:
+                SinkWarning() << "Unimplemented replay of calendar modification";
+                break;
+        }
+
+        return KAsync::null<QByteArray>();
+    }
 };
 
 CalDavResource::CalDavResource(const Sink::ResourceContext &context)
