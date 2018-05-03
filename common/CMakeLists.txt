@@ -24,7 +24,7 @@ install(FILES
     COMPONENT Devel
 )
 
-add_definitions("-fvisibility=hidden")
+set(CMAKE_CXX_VISIBILITY_PRESET default)
 
 install(EXPORT SinkTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE SinkTargets.cmake)
 
