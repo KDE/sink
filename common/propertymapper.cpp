@@ -82,6 +82,21 @@ flatbuffers::uoffset_t variantToProperty<QByteArrayList>(const QVariant &propert
 }
 
 template <>
+flatbuffers::uoffset_t variantToProperty<QStringList>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
+{
+    if (property.isValid()) {
+        const auto list = property.value<QStringList>();
+        std::vector<flatbuffers::Offset<flatbuffers::String>> vector;
+        for (const auto &value : list) {
+            auto offset = fbb.CreateString(value.toStdString());
+            vector.push_back(offset);
+        }
+        return fbb.CreateVector(vector).o;
+    }
+    return 0;
+}
+
+template <>
 flatbuffers::uoffset_t variantToProperty<Sink::ApplicationDomain::Mail::Contact>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
 {
     if (property.isValid()) {
@@ -187,6 +202,21 @@ QVariant propertyToVariant<QByteArrayList>(const flatbuffers::Vector<flatbuffers
 }
 
 template <>
+QVariant propertyToVariant<QStringList>(const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> *property)
+{
+    if (property) {
+        QStringList list;
+        for (auto it = property->begin(); it != property->end();) {
+            // We have to copy the memory, otherwise it would become eventually invalid
+            list << QString::fromStdString((*it)->str());
+            it.operator++();
+        }
+        return QVariant::fromValue(list);
+    }
+    return QVariant();
+}
+
+template <>
 QVariant propertyToVariant<Sink::ApplicationDomain::Mail::Contact>(const Sink::ApplicationDomain::Buffer::MailContact *property)
 {
     if (property) {
@@ -229,6 +259,12 @@ template <>
 QVariant propertyToVariant<bool>(uint8_t property)
 {
     return static_cast<bool>(property);
+}
+
+template <>
+QVariant propertyToVariant<int>(uint8_t property)
+{
+    return static_cast<int>(property);
 }
 
 template <>

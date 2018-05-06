@@ -38,6 +38,8 @@ struct TypeHelper {
             return Func<Sink::ApplicationDomain::Mail>{}(std::forward<Args...>(args...));
         } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>()) {
             return Func<Sink::ApplicationDomain::Event>{}(std::forward<Args...>(args...));
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Todo>()) {
+            return Func<Sink::ApplicationDomain::Todo>{}(std::forward<Args...>(args...));
         } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Calendar>()) {
             return Func<Sink::ApplicationDomain::Calendar>{}(std::forward<Args...>(args...));
         } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Contact>()) {

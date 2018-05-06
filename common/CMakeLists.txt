@@ -71,6 +71,7 @@ set(command_SRCS
     contactpreprocessor.cpp
     mailpreprocessor.cpp
     eventpreprocessor.cpp
+    todopreprocessor.cpp
     specialpurposepreprocessor.cpp
     datastorequery.cpp
     storage/entitystore.cpp
@@ -105,6 +106,7 @@ generate_flatbuffers(
     domain/contact
     domain/addressbook
     domain/event
+    domain/todo
     domain/calendar
     domain/mail
     domain/folder

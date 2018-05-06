@@ -131,6 +131,14 @@ private:
     }
 
     template <typename T, typename BufferBuilder>
+    void addWriteMapping(void (BufferBuilder::*f)(int))
+    {
+        addWriteMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(void *builder)> {
+            return [value, f](void *builder) { (static_cast<BufferBuilder*>(builder)->*f)(value.value<typename T::Type>()); };
+        });
+    }
+
+    template <typename T, typename BufferBuilder>
     void addWriteMapping(void (BufferBuilder::*f)(bool))
     {
         addWriteMapping(T::name, [f](const QVariant &value, flatbuffers::FlatBufferBuilder &fbb) -> std::function<void(void *builder)> {

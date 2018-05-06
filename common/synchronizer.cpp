@@ -634,6 +634,8 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         job = replay(store().readEntity<ApplicationDomain::Addressbook>(key), operation, oldRemoteId, modifiedProperties);
     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Event>()) {
         job = replay(store().readEntity<ApplicationDomain::Event>(key), operation, oldRemoteId, modifiedProperties);
+    } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Todo>()) {
+        job = replay(store().readEntity<ApplicationDomain::Todo>(key), operation, oldRemoteId, modifiedProperties);
     } else if (type == ApplicationDomain::getTypeName<ApplicationDomain::Calendar>()) {
         job = replay(store().readEntity<ApplicationDomain::Calendar>(key), operation, oldRemoteId, modifiedProperties);
     } else {
@@ -693,6 +695,11 @@ KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Folder &, 
 }
 
 KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Event &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)
+{
+    return KAsync::null<QByteArray>();
+}
+
+KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Todo &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)
 {
     return KAsync::null<QByteArray>();
 }

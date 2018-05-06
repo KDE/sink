@@ -1,0 +1,18 @@
+namespace Sink.ApplicationDomain.Buffer;
+
+table Todo {
+  uid:string;
+  summary:string;
+  description:string;
+  completedDate:string;
+  dueDate:string;
+  startDate:string;
+  status:string;
+  priority:int;
+  categories:[string];
+  ical:string;
+  calendar:string;
+}
+
+root_type Todo;
+file_identifier "AKFB";

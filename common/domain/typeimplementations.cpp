@@ -67,6 +67,10 @@ typedef IndexConfig<Event,
         ValueIndex<Event::Uid>
     > EventIndexConfig;
 
+typedef IndexConfig<Todo,
+        ValueIndex<Todo::Uid>
+    > TodoIndexConfig;
+
 typedef IndexConfig<Calendar,
         ValueIndex<Calendar::Name>
     > CalendarIndexConfig;
@@ -213,6 +217,37 @@ void TypeImplementation<Event>::configure(PropertyMapper &propertyMapper)
 }
 
 void TypeImplementation<Event>::configure(IndexPropertyMapper &)
+{
+
+}
+
+
+void TypeImplementation<Todo>::configure(TypeIndex &index)
+{
+    TodoIndexConfig::configure(index);
+}
+
+QMap<QByteArray, int> TypeImplementation<Todo>::typeDatabases()
+{
+    return merge(QMap<QByteArray, int>{{QByteArray{Todo::name} + ".main", 0}}, TodoIndexConfig::databases());
+}
+
+void TypeImplementation<Todo>::configure(PropertyMapper &propertyMapper)
+{
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, Uid, uid);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, Summary, summary);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, Description, description);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, CompletedDate, completedDate);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, DueDate, dueDate);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, StartDate, startDate);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, Status, status);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, Priority, priority);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, Categories, categories);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, Ical, ical);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Todo, Calendar, calendar);
+}
+
+void TypeImplementation<Todo>::configure(IndexPropertyMapper &)
 {
 
 }

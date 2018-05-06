@@ -407,6 +407,17 @@ struct SINK_EXPORT Event : public Entity {
 
 struct SINK_EXPORT Todo : public Entity {
     SINK_ENTITY(Todo, todo);
+    SINK_EXTRACTED_PROPERTY(QString, Uid, uid);
+    SINK_EXTRACTED_PROPERTY(QString, Summary, summary);
+    SINK_EXTRACTED_PROPERTY(QString, Description, description);
+    SINK_EXTRACTED_PROPERTY(QDateTime, CompletedDate, completedDate);
+    SINK_EXTRACTED_PROPERTY(QDateTime, DueDate, dueDate);
+    SINK_EXTRACTED_PROPERTY(QDateTime, StartDate, startDate);
+    SINK_EXTRACTED_PROPERTY(QString, Status, status);
+    SINK_EXTRACTED_PROPERTY(int, Priority, priority);
+    SINK_EXTRACTED_PROPERTY(QStringList, Categories, categories);
+    SINK_PROPERTY(QByteArray, Ical, ical);
+    SINK_REFERENCE_PROPERTY(Calendar, Calendar, calendar);
 };
 
 struct SINK_EXPORT Folder : public Entity {
@@ -506,6 +517,11 @@ namespace Event {
     static constexpr const char *calendar = "calendar";
     static constexpr const char *storage = "event.storage";
 };
+namespace Todo {
+    static constexpr const char *todo = "todo";
+    static constexpr const char *calendar = "calendar";
+    static constexpr const char *storage = "todo.storage";
+};
 };
 
 namespace SpecialPurpose {
@@ -558,6 +574,7 @@ class SINK_EXPORT TypeImplementation;
     REGISTER_TYPE(Sink::ApplicationDomain::Contact) \
     REGISTER_TYPE(Sink::ApplicationDomain::Addressbook) \
     REGISTER_TYPE(Sink::ApplicationDomain::Event) \
+    REGISTER_TYPE(Sink::ApplicationDomain::Todo) \
     REGISTER_TYPE(Sink::ApplicationDomain::Calendar) \
     REGISTER_TYPE(Sink::ApplicationDomain::Mail) \
     REGISTER_TYPE(Sink::ApplicationDomain::Folder) \

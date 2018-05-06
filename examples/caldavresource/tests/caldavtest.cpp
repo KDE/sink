@@ -22,13 +22,15 @@
 using Sink::ApplicationDomain::Calendar;
 using Sink::ApplicationDomain::DummyResource;
 using Sink::ApplicationDomain::Event;
+using Sink::ApplicationDomain::Todo;
 using Sink::ApplicationDomain::SinkResource;
 
 class CalDavTest : public QObject
 {
     Q_OBJECT
 
-    // This test assumes a calendar MyCalendar with one event in it.
+    // This test assumes a calendar MyCalendar with one event and one todo in
+    // it.
 
     const QString baseUrl = "http://localhost/dav/calendars/users/doe";
     const QString username = "doe";
@@ -47,6 +49,7 @@ class CalDavTest : public QObject
     QByteArray mResourceInstanceIdentifier;
 
     QString addedEventUid;
+    QString addedTodoUid;
 
 private slots:
 
@@ -74,6 +77,7 @@ private slots:
         VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
         // Check in the logs that it doesn't synchronize events again because same CTag
         VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
     }
 
     void testSyncCalEmpty()
@@ -83,7 +87,11 @@ private slots:
 
         auto eventJob = Sink::Store::fetchAll<Event>(Sink::Query().request<Event::Uid>())
                             .then([](const QList<Event::Ptr> &events) { QCOMPARE(events.size(), 1); });
+        auto todoJob = Sink::Store::fetchAll<Todo>(Sink::Query().request<Todo::Uid>())
+                            .then([](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 1); });
+
         VERIFYEXEC(eventJob);
+        VERIFYEXEC(todoJob);
 
         auto calendarJob = Sink::Store::fetchAll<Calendar>(Sink::Query().request<Calendar::Name>())
                                .then([](const QList<Calendar::Ptr> &calendars) {
@@ -136,6 +144,44 @@ private slots:
         VERIFYEXEC(verifyEventJob);
     }
 
+    void testAddTodo()
+    {
+        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        auto job = Sink::Store::fetchOne<Calendar>({}).exec();
+        job.waitForFinished();
+        QVERIFY2(!job.errorCode(), "Fetching Calendar failed");
+        auto calendar = job.value();
+
+        auto todo = QSharedPointer<KCalCore::Todo>::create();
+        todo->setSummary("Hello");
+        todo->setDtStart(QDateTime::currentDateTime());
+        todo->setCreated(QDateTime::currentDateTime());
+        addedTodoUid = QUuid::createUuid().toString();
+        todo->setUid(addedTodoUid);
+
+        auto ical = KCalCore::ICalFormat().toICalString(todo);
+        Todo sinkTodo(mResourceInstanceIdentifier);
+        sinkTodo.setIcal(ical.toUtf8());
+        sinkTodo.setCalendar(calendar);
+
+        SinkLog() << "Adding todo";
+        VERIFYEXEC(Sink::Store::create(sinkTodo));
+        VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
+
+        auto verifyTodoCountJob =
+            Sink::Store::fetchAll<Todo>(Sink::Query().request<Todo::Uid>()).then([](const QList<Todo::Ptr> &todos) {
+                QCOMPARE(todos.size(), 2);
+            });
+        VERIFYEXEC(verifyTodoCountJob);
+
+        auto verifyTodoJob =
+            Sink::Store::fetchOne<Todo>(Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)))
+                .then([](const Todo &todo) { QCOMPARE(todo.getSummary(), {"Hello"}); });
+        VERIFYEXEC(verifyTodoJob);
+    }
+
     void testModifyEvent()
     {
         VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
@@ -173,6 +219,43 @@ private slots:
         VERIFYEXEC(verifyEventJob);
     }
 
+    void testModifyTodo()
+    {
+        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        auto job = Sink::Store::fetchOne<Todo>(
+            Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)))
+                       .exec();
+        job.waitForFinished();
+        QVERIFY2(!job.errorCode(), "Fetching Todo failed");
+        auto todo = job.value();
+
+        auto incidence = KCalCore::ICalFormat().readIncidence(todo.getIcal());
+        auto caltodo = incidence.dynamicCast<KCalCore::Todo>();
+        QVERIFY2(caltodo, "Cannot convert to KCalCore todo");
+
+        caltodo->setSummary("Hello World!");
+        auto dummy = QSharedPointer<KCalCore::Todo>(caltodo);
+        auto newical = KCalCore::ICalFormat().toICalString(dummy);
+
+        todo.setIcal(newical.toUtf8());
+
+        VERIFYEXEC(Sink::Store::modify(todo));
+
+        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        auto verifyTodoCountJob = Sink::Store::fetchAll<Todo>({}).then(
+            [](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 2); });
+        VERIFYEXEC(verifyTodoCountJob);
+
+        auto verifyTodoJob =
+            Sink::Store::fetchOne<Todo>(Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)))
+                .then([](const Todo &todo) { QCOMPARE(todo.getSummary(), {"Hello World!"}); });
+        VERIFYEXEC(verifyTodoJob);
+    }
+
     void testSneakyModifyEvent()
     {
         VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
@@ -180,7 +263,6 @@ private slots:
 
         // Change the item without sink's knowledge
         {
-            qWarning() << 1;
             auto collection = ([this]() -> KDAV2::DavCollection {
                 QUrl url(baseUrl);
                 url.setUserName(username);
@@ -212,22 +294,17 @@ private slots:
                 return itemFetchJob.item();
             })();
 
-            qWarning() << 3;
             auto incidence = KCalCore::ICalFormat().readIncidence(davitem.data());
             auto calevent = incidence.dynamicCast<KCalCore::Event>();
             QVERIFY2(calevent, "Cannot convert to KCalCore event");
 
-            qWarning() << 4;
             calevent->setSummary("Manual Hello World!");
             auto newical = KCalCore::ICalFormat().toICalString(calevent);
 
-            qWarning() << 5;
             davitem.setData(newical.toUtf8());
             KDAV2::DavItemModifyJob itemModifyJob(davitem);
             itemModifyJob.exec();
             QVERIFY2(itemModifyJob.error() == 0, "Cannot modify item");
-
-            qWarning() << 6;
         }
 
         // Try to change the item with sink
@@ -273,6 +350,26 @@ private slots:
         auto verifyEventCountJob = Sink::Store::fetchAll<Event>({}).then(
             [](const QList<Event::Ptr> &events) { QCOMPARE(events.size(), 1); });
         VERIFYEXEC(verifyEventCountJob);
+    }
+
+    void testRemoveTodo()
+    {
+        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        auto job = Sink::Store::fetchOne<Todo>(
+            Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)))
+                       .exec();
+        job.waitForFinished();
+        QVERIFY2(!job.errorCode(), "Fetching Todo failed");
+        auto todo = job.value();
+
+        VERIFYEXEC(Sink::Store::remove(todo));
+        VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
+
+        auto verifyTodoCountJob = Sink::Store::fetchAll<Todo>({}).then(
+            [](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 1); });
+        VERIFYEXEC(verifyTodoCountJob);
     }
 };
 
