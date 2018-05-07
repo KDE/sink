@@ -268,18 +268,18 @@ private slots:
                 url.setUserName(username);
                 url.setPassword(password);
                 KDAV2::DavUrl davurl(url, KDAV2::CalDav);
-                KDAV2::DavCollectionsFetchJob collectionsJob(davurl);
-                collectionsJob.exec();
-                Q_ASSERT(collectionsJob.error() == 0);
-                return collectionsJob.collections()[0];
+                auto collectionsJob = new KDAV2::DavCollectionsFetchJob(davurl);
+                collectionsJob->exec();
+                Q_ASSERT(collectionsJob->error() == 0);
+                return collectionsJob->collections()[0];
             })();
 
             auto itemList = ([&collection]() -> KDAV2::DavItem::List {
                 auto cache = std::make_shared<KDAV2::EtagCache>();
-                KDAV2::DavItemsListJob itemsListJob(collection.url(), cache);
-                itemsListJob.exec();
-                Q_ASSERT(itemsListJob.error() == 0);
-                return itemsListJob.items();
+                auto itemsListJob = new KDAV2::DavItemsListJob(collection.url(), cache);
+                itemsListJob->exec();
+                Q_ASSERT(itemsListJob->error() == 0);
+                return itemsListJob->items();
             })();
             auto hollowDavItemIt =
                 std::find_if(itemList.begin(), itemList.end(), [this](const KDAV2::DavItem &item) {
@@ -288,10 +288,10 @@ private slots:
 
             auto davitem = ([this, &collection, &hollowDavItemIt]() -> KDAV2::DavItem {
                 QString itemUrl = collection.url().url().toEncoded() + addedEventUid;
-                KDAV2::DavItemFetchJob itemFetchJob(*hollowDavItemIt);
-                itemFetchJob.exec();
-                Q_ASSERT(itemFetchJob.error() == 0);
-                return itemFetchJob.item();
+                auto itemFetchJob = new KDAV2::DavItemFetchJob (*hollowDavItemIt);
+                itemFetchJob->exec();
+                Q_ASSERT(itemFetchJob->error() == 0);
+                return itemFetchJob->item();
             })();
 
             auto incidence = KCalCore::ICalFormat().readIncidence(davitem.data());
@@ -302,9 +302,9 @@ private slots:
             auto newical = KCalCore::ICalFormat().toICalString(calevent);
 
             davitem.setData(newical.toUtf8());
-            KDAV2::DavItemModifyJob itemModifyJob(davitem);
-            itemModifyJob.exec();
-            QVERIFY2(itemModifyJob.error() == 0, "Cannot modify item");
+            auto itemModifyJob = new KDAV2::DavItemModifyJob(davitem);
+            itemModifyJob->exec();
+            QVERIFY2(itemModifyJob->error() == 0, "Cannot modify item");
         }
 
         // Try to change the item with sink
