@@ -32,7 +32,7 @@ class CalDavTest : public QObject
     // This test assumes a calendar MyCalendar with one event and one todo in
     // it.
 
-    const QString baseUrl = "http://localhost/dav/calendars/users/doe";
+    const QString baseUrl = "http://localhost/dav/calendars/user/doe";
     const QString username = "doe";
     const QString password = "doe";
 
