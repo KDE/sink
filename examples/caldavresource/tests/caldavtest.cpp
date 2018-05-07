@@ -285,6 +285,7 @@ private slots:
                 std::find_if(itemList.begin(), itemList.end(), [this](const KDAV2::DavItem &item) {
                     return item.url().url().path().endsWith(addedEventUid);
                 });
+            QVERIFY(hollowDavItemIt != itemList.end());
 
             auto davitem = ([this, &collection, &hollowDavItemIt]() -> KDAV2::DavItem {
                 QString itemUrl = collection.url().url().toEncoded() + addedEventUid;
