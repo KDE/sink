@@ -78,6 +78,7 @@ private slots:
         // Check in the logs that it doesn't synchronize events again because same CTag
         VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        //FIXME this is not a test.
     }
 
     void testSyncCalEmpty()
