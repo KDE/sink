@@ -133,10 +133,21 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     } else {
         contentToIndex << processPart(msg.data());
     }
-    contentToIndex.append({{}, msg->from(true)->asUnicodeString()});
-    contentToIndex.append({{}, msg->to(true)->asUnicodeString()});
-    contentToIndex.append({{}, msg->cc(true)->asUnicodeString()});
-    contentToIndex.append({{}, msg->bcc(true)->asUnicodeString()});
+    const auto sender = mail.getSender();
+    contentToIndex.append({{}, sender.name});
+    contentToIndex.append({{}, sender.emailAddress});
+    for (const auto &c : mail.getTo()) {
+        contentToIndex.append({{}, c.name});
+        contentToIndex.append({{}, c.emailAddress});
+    }
+    for (const auto &c : mail.getCc()) {
+        contentToIndex.append({{}, c.name});
+        contentToIndex.append({{}, c.emailAddress});
+    }
+    for (const auto &c : mail.getBcc()) {
+        contentToIndex.append({{}, c.name});
+        contentToIndex.append({{}, c.emailAddress});
+    }
 
     //Prepare content for indexing;
     mail.setProperty("index", QVariant::fromValue(contentToIndex));
