@@ -986,6 +986,7 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
 
         Query query;
+        query.resourceFilter("sink.dummy.instance1");
         query.setId("testFilterCreationInThread");
         query.filter(mail1.identifier());
         query.bloom<Mail::Folder>();
@@ -1015,6 +1016,7 @@ private slots:
 
         Query query;
         query.setId("testFilterCreationInThread");
+        query.resourceFilter("sink.dummy.instance1");
         query.filter(mail1.identifier());
         query.bloom<Mail::Folder>();
         query.sort<Mail::Date>();
