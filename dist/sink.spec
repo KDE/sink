@@ -17,6 +17,7 @@ BuildRequires:  kasync-devel
 BuildRequires:  kf5-kcoreaddons-devel
 BuildRequires:  kf5-kcontacts-devel
 BuildRequires:  kf5-kmime-devel
+BuildRequires:  kf5-kcalendarcore-devel
 BuildRequires:  kimap2-devel >= 0.2
 BuildRequires:  kdav2-devel
 BuildRequires:  libcurl-devel
