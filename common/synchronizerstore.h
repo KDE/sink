@@ -46,7 +46,7 @@ public:
      *
      * The new local id is recorded in the local to remote id mapping.
      */
-    QByteArray resolveRemoteId(const QByteArray &type, const QByteArray &remoteId);
+    QByteArray resolveRemoteId(const QByteArray &type, const QByteArray &remoteId, bool insertIfMissing = true);
 
     /**
      * Tries to find a remote id for a local id.

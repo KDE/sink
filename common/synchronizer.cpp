@@ -184,7 +184,11 @@ void Synchronizer::modifyIfChanged(Storage::EntityStore &store, const QByteArray
 
 void Synchronizer::modify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
-    const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
+    const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId, false);
+    if (sinkId.isEmpty()) {
+        SinkWarningCtx(mLogCtx) << "Can't modify entity that is not locally existing " << remoteId;
+        return;
+    }
     Storage::EntityStore store(mResourceContext, mLogCtx);
     modifyIfChanged(store, bufferType, sinkId, entity);
 }
