@@ -295,14 +295,13 @@ KDAV2::DavUrl WebDavSynchronizer::urlOf(const QByteArray &remoteId)
     auto davurl = serverUrl();
     auto url = davurl.url();
     url.setPath(remoteId);
-    SinkLog() << "Returning URL:" << url.toEncoded();
     davurl.setUrl(url);
     return davurl;
 }
 
 KDAV2::DavUrl WebDavSynchronizer::urlOf(const QByteArray &collectionRemoteId, const QString &itemPath)
 {
-    return urlOf(collectionRemoteId + "/" + itemPath.toUtf8());
+    return urlOf(collectionRemoteId + itemPath.toUtf8());
 }
 
 bool WebDavSynchronizer::unchanged(const KDAV2::DavCollection &collection)

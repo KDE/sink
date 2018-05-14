@@ -29,8 +29,7 @@ class CalDavTest : public QObject
 {
     Q_OBJECT
 
-    // This test assumes a calendar MyCalendar with one event and one todo in
-    // it.
+    // This test assumes a calendar "personal".
 
     const QString baseUrl = "http://localhost/dav/calendars/user/doe";
     const QString username = "doe";
@@ -72,24 +71,15 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::start(mResourceInstanceIdentifier));
     }
 
-    void testSyncCal()
-    {
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
-        // Check in the logs that it doesn't synchronize events again because same CTag
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
-        //FIXME this is not a test.
-    }
-
     void testSyncCalEmpty()
     {
         VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
         auto eventJob = Sink::Store::fetchAll<Event>(Sink::Query().request<Event::Uid>())
-                            .then([](const QList<Event::Ptr> &events) { QCOMPARE(events.size(), 1); });
+                            .then([](const QList<Event::Ptr> &events) { QCOMPARE(events.size(), 0); });
         auto todoJob = Sink::Store::fetchAll<Todo>(Sink::Query().request<Todo::Uid>())
-                            .then([](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 1); });
+                            .then([](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 0); });
 
         VERIFYEXEC(eventJob);
         VERIFYEXEC(todoJob);
@@ -98,7 +88,7 @@ private slots:
                                .then([](const QList<Calendar::Ptr> &calendars) {
                                    QCOMPARE(calendars.size(), 1);
                                    for (const auto &calendar : calendars) {
-                                       QVERIFY(calendar->getName() == "MyCalendar");
+                                       QVERIFY(calendar->getName() == "personal");
                                    }
                                });
         VERIFYEXEC(calendarJob);
@@ -135,7 +125,7 @@ private slots:
 
         auto verifyEventCountJob =
             Sink::Store::fetchAll<Event>(Sink::Query().request<Event::Uid>()).then([](const QList<Event::Ptr> &events) {
-                QCOMPARE(events.size(), 2);
+                QCOMPARE(events.size(), 1);
             });
         VERIFYEXEC(verifyEventCountJob);
 
@@ -173,7 +163,7 @@ private slots:
 
         auto verifyTodoCountJob =
             Sink::Store::fetchAll<Todo>(Sink::Query().request<Todo::Uid>()).then([](const QList<Todo::Ptr> &todos) {
-                QCOMPARE(todos.size(), 2);
+                QCOMPARE(todos.size(), 1);
             });
         VERIFYEXEC(verifyTodoCountJob);
 
@@ -211,7 +201,7 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
         auto verifyEventCountJob = Sink::Store::fetchAll<Event>({}).then(
-            [](const QList<Event::Ptr> &events) { QCOMPARE(events.size(), 2); });
+            [](const QList<Event::Ptr> &events) { QCOMPARE(events.size(), 1); });
         VERIFYEXEC(verifyEventCountJob);
 
         auto verifyEventJob =
@@ -248,7 +238,7 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
         auto verifyTodoCountJob = Sink::Store::fetchAll<Todo>({}).then(
-            [](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 2); });
+            [](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 1); });
         VERIFYEXEC(verifyTodoCountJob);
 
         auto verifyTodoJob =
@@ -350,7 +340,7 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
 
         auto verifyEventCountJob = Sink::Store::fetchAll<Event>({}).then(
-            [](const QList<Event::Ptr> &events) { QCOMPARE(events.size(), 1); });
+            [](const QList<Event::Ptr> &events) { QCOMPARE(events.size(), 0); });
         VERIFYEXEC(verifyEventCountJob);
     }
 
@@ -370,7 +360,7 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
 
         auto verifyTodoCountJob = Sink::Store::fetchAll<Todo>({}).then(
-            [](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 1); });
+            [](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 0); });
         VERIFYEXEC(verifyTodoCountJob);
     }
 };

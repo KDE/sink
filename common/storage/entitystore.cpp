@@ -85,7 +85,9 @@ static Sink::Storage::DbLayout dbLayout(const QByteArray &instanceId)
         mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Folder>::typeDatabases());
         mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Contact>::typeDatabases());
         mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Addressbook>::typeDatabases());
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Calendar>::typeDatabases());
         mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::typeDatabases());
+        mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Todo>::typeDatabases());
         return merge(baseDbs(), map);
     }();
     return {instanceId, databases};
