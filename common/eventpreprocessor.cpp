@@ -47,6 +47,7 @@ void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteA
     event.setExtractedDescription(icalEvent->description());
     event.setExtractedStartTime(icalEvent->dtStart());
     event.setExtractedEndTime(icalEvent->dtEnd());
+    event.setExtractedAllDay(icalEvent->allDay());
 }
 
 void EventPropertyExtractor::newEntity(Event &event)

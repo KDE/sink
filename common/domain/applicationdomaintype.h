@@ -401,6 +401,7 @@ struct SINK_EXPORT Event : public Entity {
     SINK_EXTRACTED_PROPERTY(QString, Description, description);
     SINK_EXTRACTED_PROPERTY(QDateTime, StartTime, startTime);
     SINK_EXTRACTED_PROPERTY(QDateTime, EndTime, endTime);
+    SINK_EXTRACTED_PROPERTY(bool, AllDay, allDay);
     SINK_PROPERTY(QByteArray, Ical, ical);
     SINK_REFERENCE_PROPERTY(Calendar, Calendar, calendar);
 };

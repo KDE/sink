@@ -6,6 +6,7 @@ table Event {
   description:string;
   startTime:string;
   endTime:string;
+  allDay:bool;
   ical:string;
   calendar:string;
 }
