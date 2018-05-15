@@ -124,6 +124,7 @@ ResourceFactory *ResourceFactory::load(const QByteArray &resourceName)
     }
 
     qWarning() << "Failed to find factory for resource:" << resourceName;
+    qWarning() << "Looked into the following directories: " << QCoreApplication::instance()->libraryPaths();
     return nullptr;
 }
 
