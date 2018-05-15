@@ -48,6 +48,8 @@ QVariant SINK_EXPORT propertyToVariant(const flatbuffers::String *);
 template <typename T>
 QVariant SINK_EXPORT propertyToVariant(uint8_t);
 template <typename T>
+QVariant SINK_EXPORT propertyToVariant(int);
+template <typename T>
 QVariant SINK_EXPORT propertyToVariant(const flatbuffers::Vector<uint8_t> *);
 template <typename T>
 QVariant SINK_EXPORT propertyToVariant(const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> *);

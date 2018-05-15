@@ -258,13 +258,25 @@ QVariant propertyToVariant<QList<Sink::ApplicationDomain::Contact::Email>>(const
 template <>
 QVariant propertyToVariant<bool>(uint8_t property)
 {
-    return static_cast<bool>(property);
+    return bool(property);
 }
 
 template <>
 QVariant propertyToVariant<int>(uint8_t property)
 {
     return static_cast<int>(property);
+}
+
+template <>
+QVariant propertyToVariant<int>(int property)
+{
+    return property;
+}
+
+template <>
+QVariant propertyToVariant<bool>(int property)
+{
+    return bool(property);
 }
 
 template <>
