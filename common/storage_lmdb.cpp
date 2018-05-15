@@ -838,6 +838,14 @@ public:
                 } else {
                     //Limit large enough to accomodate all our named dbs. This only starts to matter if the number gets large, otherwise it's just a bunch of extra entries in the main table.
                     mdb_env_set_maxdbs(env, 50);
+                    if (RUNNING_ON_VALGRIND) {
+                        // In order to run valgrind this size must be smaller than half your available RAM
+                        // https://github.com/BVLC/caffe/issues/2404
+                        mdb_env_set_mapsize(env, (size_t)10485760 * (size_t)1000); // 1MB * 1000
+                    } else {
+                        //This is the maximum size of the db (but will not be used directly), so we make it large enough that we hopefully never run into the limit.
+                        mdb_env_set_mapsize(env, (size_t)10485760 * (size_t)100000); // 1MB * 1000
+                    }
                     const bool readOnly = (mode == ReadOnly);
                     unsigned int flags = MDB_NOTLS;
                     if (readOnly) {
@@ -852,14 +860,6 @@ public:
                         mdb_env_close(env);
                         env = 0;
                     } else {
-                        if (RUNNING_ON_VALGRIND) {
-                            // In order to run valgrind this size must be smaller than half your available RAM
-                            // https://github.com/BVLC/caffe/issues/2404
-                            mdb_env_set_mapsize(env, (size_t)10485760 * (size_t)1000); // 1MB * 1000
-                        } else {
-                            //This is the maximum size of the db (but will not be used directly), so we make it large enough that we hopefully never run into the limit.
-                            mdb_env_set_mapsize(env, (size_t)10485760 * (size_t)100000); // 1MB * 1000
-                        }
                         Q_ASSERT(env);
                         sEnvironments.insert(fullPath, env);
                         //Open all available dbi's
