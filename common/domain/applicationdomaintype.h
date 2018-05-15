@@ -28,7 +28,7 @@
 #include "bufferadaptor.h"
 
 #define SINK_ENTITY(TYPE, LOWERCASENAME) \
-    SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
+    static constexpr const char *name = #LOWERCASENAME; \
     typedef QSharedPointer<TYPE> Ptr; \
     using Entity::Entity; \
     TYPE() = default; \
