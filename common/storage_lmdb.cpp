@@ -562,6 +562,7 @@ public:
     {
         Q_ASSERT(!transaction);
         Q_ASSERT(sEnvironments.values().contains(env));
+        Q_ASSERT(env);
         // auto f = [](const char *msg, void *ctx) -> int {
         //     qDebug() << msg;
         //     return 0;
@@ -816,7 +817,7 @@ public:
     QString storageRoot;
     QString name;
 
-    MDB_env *env;
+    MDB_env *env = nullptr;
     AccessMode mode;
     Sink::Log::Context logCtx;
 
@@ -833,6 +834,7 @@ public:
                 if ((rc = mdb_env_create(&env))) {
                     SinkWarningCtx(logCtx) << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
                     qCritical() << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
+                    env = nullptr;
                 } else {
                     //Limit large enough to accomodate all our named dbs. This only starts to matter if the number gets large, otherwise it's just a bunch of extra entries in the main table.
                     mdb_env_set_maxdbs(env, 50);
