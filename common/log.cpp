@@ -400,7 +400,11 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     bool showLocation = debugOutput.isEmpty() ? false : caseInsensitiveContains("location", debugOutput);
     bool showFunction = debugOutput.isEmpty() ? false : caseInsensitiveContains("function", debugOutput);
     bool showProgram = debugOutput.isEmpty() ? false : caseInsensitiveContains("application", debugOutput);
+#ifdef Q_OS_WIN
     bool useColor = true;
+#else
+    bool useColor = false;
+#endif
     bool multiline = false;
 
     const QString resetColor = colorCommand(ANSI_Colors::Reset);
@@ -437,10 +441,15 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     }
     output += ":";
 
+#ifdef Q_OS_WIN
+    //If we print to std::cout we won't see the messages in DebugView
+    QDebug debug(QtDebugMsg);
+#else
     if (sDebugStream.isDestroyed()) {
         return QDebug{QtDebugMsg};
     }
     QDebug debug(sDebugStream);
+#endif
 
     debug.noquote().nospace() << output;
 
