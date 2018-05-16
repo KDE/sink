@@ -600,7 +600,8 @@ bool ResourceAccess::processMessageBuffer()
 {
     static const int headerSize = Commands::headerSize();
     if (d->partialMessageBuffer.size() < headerSize) {
-        SinkWarning() << "command too small";
+        //This is not an error
+        SinkTrace() << "command too small, smaller than headerSize: " << d->partialMessageBuffer.size() << headerSize;
         return false;
     }
 
@@ -608,8 +609,10 @@ bool ResourceAccess::processMessageBuffer()
     const int commandId = *(const int *)(d->partialMessageBuffer.constData() + sizeof(uint));
     const uint size = *(const int *)(d->partialMessageBuffer.constData() + sizeof(int) + sizeof(uint));
 
-    if (size > (uint)(d->partialMessageBuffer.size() - headerSize)) {
-        SinkWarning() << "command too small";
+    const uint availableMessageSize = d->partialMessageBuffer.size() - headerSize;
+    if (size > availableMessageSize) {
+        //This is not an error
+        SinkTrace() << "command too small, message smaller than advertised: " << availableMessageSize << headerSize;
         return false;
     }
 
