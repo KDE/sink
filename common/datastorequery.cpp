@@ -327,6 +327,10 @@ public:
                     mReducedValues.insert(reductionValueBa);
                     auto reductionResult = reduceOnValue(reductionValue);
 
+                    //This can happen if we get a removal message from a filtered entity and all entites of the reduction are filtered.
+                    if (reductionResult.selection.isEmpty()) {
+                        return;
+                    }
                     mSelectedValues.insert(reductionValueBa, reductionResult.selection);
                     readEntity(reductionResult.selection, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                         callback({entity, operation, reductionResult.aggregateValues, reductionResult.aggregateIds});
@@ -345,11 +349,13 @@ public:
                         auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
                         if (oldSelectionResult == selectionResult.selection) {
                             mSelectedValues.insert(reductionValueBa, selectionResult.selection);
+                            Q_ASSERT(!selectionResult.selection.isEmpty());
                             readEntity(selectionResult.selection, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
                                 callback({entity, Sink::Operation_Modification, selectionResult.aggregateValues, selectionResult.aggregateIds});
                             });
                         } else {
                             //remove old result
+                            Q_ASSERT(!oldSelectionResult.isEmpty());
                             readEntity(oldSelectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
                                 callback({entity, Sink::Operation_Removal});
                             });
@@ -358,6 +364,7 @@ public:
                             if (!selectionResult.selection.isEmpty()) {
                                 //add new result
                                 mSelectedValues.insert(reductionValueBa, selectionResult.selection);
+                                Q_ASSERT(!selectionResult.selection.isEmpty());
                                 readEntity(selectionResult.selection, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
                                     callback({entity, Sink::Operation_Creation, selectionResult.aggregateValues, selectionResult.aggregateIds});
                                 });

@@ -954,6 +954,60 @@ private slots:
         QCOMPARE(resetSpy.size(), 0);
     }
 
+    void testFilteredReductionUpdate()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto folder2 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        query.setId("testFilteredReductionUpdate");
+        query.setFlags(Query::LiveQuery);
+        query.filter<Mail::Folder>(folder1);
+        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Folder>("folders");
+        query.sort<Mail::Date>();
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 0);
+
+        QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
+        QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
+        QSignalSpy changedSpy(model.data(), &QAbstractItemModel::dataChanged);
+        QSignalSpy layoutChangedSpy(model.data(), &QAbstractItemModel::layoutChanged);
+        QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
+
+        //Ensure we don't end up with a mail in the thread that was filtered
+        //This tests the case of an otherwise emtpy thread on purpose.
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setExtractedMessageId("filtered");
+            mail.setFolder(folder2);
+            mail.setExtractedDate(QDateTime{QDate{2017, 2, 3}, QTime{11, 0, 0}});
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QCOMPARE(model->rowCount(), 0);
+
+        //Ensure the non-filtered still get through.
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setExtractedMessageId("not-filtered");
+            mail.setFolder(folder1);
+            mail.setExtractedDate(QDateTime{QDate{2017, 2, 3}, QTime{11, 0, 0}});
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 1);
+    }
+
     void testBloom()
     {
         // Setup
