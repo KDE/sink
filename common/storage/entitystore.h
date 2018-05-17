@@ -44,12 +44,12 @@ public:
     void initialize();
 
     //Only the pipeline may call the following functions outside of tests
-    bool add(const QByteArray &type, ApplicationDomain::ApplicationDomainType newEntity, bool replayToSource);
-    bool modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions, bool replayToSource);
-    bool modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType newEntity, bool replayToSource);
-    bool remove(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, bool replayToSource);
+    bool add(const QByteArray &type, ApplicationDomainType newEntity, bool replayToSource);
+    bool modify(const QByteArray &type, const ApplicationDomainType &diff, const QByteArrayList &deletions, bool replayToSource);
+    bool modify(const QByteArray &type, const ApplicationDomainType &current, ApplicationDomainType newEntity, bool replayToSource);
+    bool remove(const QByteArray &type, const ApplicationDomainType &current, bool replayToSource);
     bool cleanupRevisions(qint64 revision);
-    ApplicationDomain::ApplicationDomainType applyDiff(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions) const;
+    ApplicationDomainType applyDiff(const QByteArray &type, const ApplicationDomainType &current, const ApplicationDomainType &diff, const QByteArrayList &deletions) const;
 
     void startTransaction(Sink::Storage::DataStore::AccessMode);
     void commitTransaction();
@@ -68,12 +68,12 @@ public:
     ///Returns the uid and buffer. Note that the memory only remains valid until the next operation or transaction end.
     void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback);
     ///Returns an entity. Note that the memory only remains valid until the next operation or transaction end.
-    void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity)> callback);
+    void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &entity)> callback);
     ///Returns an entity and operation. Note that the memory only remains valid until the next operation or transaction end.
-    void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> callback);
+    void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &entity, Sink::Operation)> callback);
 
     ///Returns a copy
-    ApplicationDomain::ApplicationDomainType readLatest(const QByteArray &type, const QByteArray &uid);
+    ApplicationDomainType readLatest(const QByteArray &type, const QByteArray &uid);
 
     template<typename T>
     T readLatest(const QByteArray &uid) {
@@ -83,9 +83,9 @@ public:
     ///Returns the uid and buffer. Note that the memory only remains valid until the next operation or transaction end.
     void readEntity(const QByteArray &type, const QByteArray &uid, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback);
     ///Returns an entity. Note that the memory only remains valid until the next operation or transaction end.
-    void readEntity(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity)> callback);
+    void readEntity(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &entity)> callback);
     ///Returns a copy
-    ApplicationDomain::ApplicationDomainType readEntity(const QByteArray &type, const QByteArray &key);
+    ApplicationDomainType readEntity(const QByteArray &type, const QByteArray &key);
 
     template<typename T>
     T readEntity(const QByteArray &key) {
@@ -94,9 +94,9 @@ public:
 
 
     void readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback);
-    void readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity)> callback);
+    void readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const ApplicationDomainType &entity)> callback);
     ///Returns a copy
-    ApplicationDomain::ApplicationDomainType readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision);
+    ApplicationDomainType readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision);
 
     template<typename T>
     T readPrevious(const QByteArray &uid, qint64 revision) {
@@ -105,11 +105,11 @@ public:
 
     void readAllUids(const QByteArray &type, const std::function<void(const QByteArray &uid)> callback);
 
-    void readAll(const QByteArray &type, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity)> &callback);
+    void readAll(const QByteArray &type, const std::function<void(const ApplicationDomainType &entity)> &callback);
 
     template<typename T>
     void readAll(const std::function<void(const T &entity)> &callback) {
-        return readAll(ApplicationDomain::getTypeName<T>(), [&](const ApplicationDomain::ApplicationDomainType &entity) {
+        return readAll(ApplicationDomain::getTypeName<T>(), [&](const ApplicationDomainType &entity) {
             callback(T(entity));
         });
     }
@@ -131,7 +131,7 @@ private:
      * Remove any old revisions of the same entity up until @param revision
      */
     void cleanupEntityRevisionsUntil(qint64 revision);
-    void copyBlobs(ApplicationDomain::ApplicationDomainType &entity, qint64 newRevision);
+    void copyBlobs(ApplicationDomainType &entity, qint64 newRevision);
     class Private;
     const QSharedPointer<Private> d;
 };

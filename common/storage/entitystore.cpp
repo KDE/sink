@@ -107,7 +107,7 @@ public:
 
     bool exists()
     {
-        return Sink::Storage::DataStore(Sink::storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly).exists();
+        return DataStore(Sink::storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly).exists();
     }
 
     DataStore::Transaction &getTransaction()
@@ -116,7 +116,7 @@ public:
             return transaction;
         }
 
-        Sink::Storage::DataStore store(Sink::storageLocation(), dbLayout(resourceContext.instanceId()), DataStore::ReadOnly);
+        DataStore store(Sink::storageLocation(), dbLayout(resourceContext.instanceId()), DataStore::ReadOnly);
         transaction = store.createTransaction(DataStore::ReadOnly);
         return transaction;
     }
@@ -147,10 +147,10 @@ public:
         return index;
     }
 
-    ApplicationDomain::ApplicationDomainType createApplicationDomainType(const QByteArray &type, const QByteArray &uid, qint64 revision, const EntityBuffer &buffer)
+    ApplicationDomainType createApplicationDomainType(const QByteArray &type, const QByteArray &uid, qint64 revision, const EntityBuffer &buffer)
     {
         auto adaptor = resourceContext.adaptorFactory(type).createAdaptor(buffer.entity(), &typeIndex(type));
-        return ApplicationDomain::ApplicationDomainType{resourceContext.instanceId(), uid, revision, adaptor};
+        return ApplicationDomainType{resourceContext.instanceId(), uid, revision, adaptor};
     }
 };
 
@@ -168,22 +168,22 @@ void EntityStore::initialize()
     //This is required to be able to set the database version only in the case where we create a new database.
     if (!Storage::DataStore::exists(Sink::storageLocation(), d->resourceContext.instanceId())) {
         //The first time we open the environment we always want it to be read/write. Otherwise subsequent tries to open a write transaction will fail.
-        startTransaction(Sink::Storage::DataStore::ReadWrite);
+        startTransaction(DataStore::ReadWrite);
         //Create the database with the correct version if it wasn't existing before
         SinkLogCtx(d->logCtx) << "Creating resource database.";
         Storage::DataStore::setDatabaseVersion(d->transaction, Sink::latestDatabaseVersion());
     } else {
         //The first time we open the environment we always want it to be read/write. Otherwise subsequent tries to open a write transaction will fail.
-        startTransaction(Sink::Storage::DataStore::ReadWrite);
+        startTransaction(DataStore::ReadWrite);
     }
     commitTransaction();
 }
 
-void EntityStore::startTransaction(Sink::Storage::DataStore::AccessMode accessMode)
+void EntityStore::startTransaction(DataStore::AccessMode accessMode)
 {
     SinkTraceCtx(d->logCtx) << "Starting transaction: " << accessMode;
     Q_ASSERT(!d->transaction);
-    d->transaction = Sink::Storage::DataStore(Sink::storageLocation(), dbLayout(d->resourceContext.instanceId()), accessMode).createTransaction(accessMode);
+    d->transaction = DataStore(Sink::storageLocation(), dbLayout(d->resourceContext.instanceId()), accessMode).createTransaction(accessMode);
 }
 
 void EntityStore::commitTransaction()
@@ -211,7 +211,7 @@ bool EntityStore::hasTransaction() const
     return d->transaction;
 }
 
-bool EntityStore::add(const QByteArray &type, ApplicationDomain::ApplicationDomainType entity, bool replayToSource)
+bool EntityStore::add(const QByteArray &type, ApplicationDomainType entity, bool replayToSource)
 {
     if (entity.identifier().isEmpty()) {
         SinkWarningCtx(d->logCtx) << "Can't write entity with an empty identifier";
@@ -247,7 +247,7 @@ bool EntityStore::add(const QByteArray &type, ApplicationDomain::ApplicationDoma
     return true;
 }
 
-ApplicationDomain::ApplicationDomainType EntityStore::applyDiff(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions) const
+ApplicationDomain::ApplicationDomainType EntityStore::applyDiff(const QByteArray &type, const ApplicationDomainType &current, const ApplicationDomainType &diff, const QByteArrayList &deletions) const
 {
     auto newEntity = *ApplicationDomainType::getInMemoryRepresentation<ApplicationDomainType>(current, current.availableProperties());
 
@@ -271,7 +271,7 @@ ApplicationDomain::ApplicationDomainType EntityStore::applyDiff(const QByteArray
     return newEntity;
 }
 
-bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions, bool replayToSource)
+bool EntityStore::modify(const QByteArray &type, const ApplicationDomainType &diff, const QByteArrayList &deletions, bool replayToSource)
 {
     const auto current = readLatest(type, diff.identifier());
     if (current.identifier().isEmpty()) {
@@ -283,7 +283,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
     return modify(type, current, newEntity, replayToSource);
 }
 
-bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, ApplicationDomain::ApplicationDomainType newEntity, bool replayToSource)
+bool EntityStore::modify(const QByteArray &type, const ApplicationDomainType &current, ApplicationDomainType newEntity, bool replayToSource)
 {
     SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
 
@@ -321,7 +321,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomain::Applic
     return true;
 }
 
-bool EntityStore::remove(const QByteArray &type, const Sink::ApplicationDomain::ApplicationDomainType &current, bool replayToSource)
+bool EntityStore::remove(const QByteArray &type, const ApplicationDomainType &current, bool replayToSource)
 {
     const auto uid = current.identifier();
     if (!exists(type, uid)) {
@@ -398,7 +398,7 @@ bool EntityStore::cleanupRevisions(qint64 revision)
     Q_ASSERT(d->exists());
     bool implicitTransaction = false;
     if (!d->transaction) {
-        startTransaction(Sink::Storage::DataStore::ReadWrite);
+        startTransaction(DataStore::ReadWrite);
         Q_ASSERT(d->transaction);
         implicitTransaction = true;
     }
@@ -492,7 +492,7 @@ void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, cons
         [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.message << uid; });
 }
 
-void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &)> callback)
+void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &)> callback)
 {
     readLatest(type, uid, [&](const QByteArray &uid, const EntityBuffer &buffer) {
         //TODO cache max revision for the duration of the transaction.
@@ -500,7 +500,7 @@ void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, cons
     });
 }
 
-void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &, Sink::Operation)> callback)
+void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &, Sink::Operation)> callback)
 {
     readLatest(type, uid, [&](const QByteArray &uid, const EntityBuffer &buffer) {
         //TODO cache max revision for the duration of the transaction.
@@ -510,8 +510,8 @@ void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, cons
 
 ApplicationDomain::ApplicationDomainType EntityStore::readLatest(const QByteArray &type, const QByteArray &uid)
 {
-    ApplicationDomain::ApplicationDomainType dt;
-    readLatest(type, uid, [&](const ApplicationDomain::ApplicationDomainType &entity) {
+    ApplicationDomainType dt;
+    readLatest(type, uid, [&](const ApplicationDomainType &entity) {
         dt = *ApplicationDomainType::getInMemoryRepresentation<ApplicationDomainType>(entity, entity.availableProperties());
     });
     return dt;
@@ -528,7 +528,7 @@ void EntityStore::readEntity(const QByteArray &type, const QByteArray &key, cons
         [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.message << key; });
 }
 
-void EntityStore::readEntity(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &)> callback)
+void EntityStore::readEntity(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &)> callback)
 {
     readEntity(type, uid, [&](const QByteArray &uid, const EntityBuffer &buffer) {
         callback(d->createApplicationDomainType(type, uid, DataStore::maxRevision(d->getTransaction()), buffer));
@@ -537,15 +537,15 @@ void EntityStore::readEntity(const QByteArray &type, const QByteArray &uid, cons
 
 ApplicationDomain::ApplicationDomainType EntityStore::readEntity(const QByteArray &type, const QByteArray &uid)
 {
-    ApplicationDomain::ApplicationDomainType dt;
-    readEntity(type, uid, [&](const ApplicationDomain::ApplicationDomainType &entity) {
+    ApplicationDomainType dt;
+    readEntity(type, uid, [&](const ApplicationDomainType &entity) {
         dt = *ApplicationDomainType::getInMemoryRepresentation<ApplicationDomainType>(entity, entity.availableProperties());
     });
     return dt;
 }
 
 
-void EntityStore::readAll(const QByteArray &type, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity)> &callback)
+void EntityStore::readAll(const QByteArray &type, const std::function<void(const ApplicationDomainType &entity)> &callback)
 {
     readAllUids(type, [&] (const QByteArray &uid) {
         readLatest(type, uid, callback);
@@ -580,17 +580,17 @@ void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qi
     qint64 latestRevision = 0;
     db.scan(uid,
         [&latestRevision, revision](const QByteArray &key, const QByteArray &) -> bool {
-            const auto foundRevision = Sink::Storage::DataStore::revisionFromKey(key);
+            const auto foundRevision = DataStore::revisionFromKey(key);
             if (foundRevision < revision && foundRevision > latestRevision) {
                 latestRevision = foundRevision;
             }
             return true;
         },
-        [&](const Sink::Storage::DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read current value from storage: " << error.message; }, true);
-    readEntity(type, Sink::Storage::DataStore::assembleKey(uid, latestRevision), callback);
+        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read current value from storage: " << error.message; }, true);
+    readEntity(type, DataStore::assembleKey(uid, latestRevision), callback);
 }
 
-void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const ApplicationDomain::ApplicationDomainType &)> callback)
+void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const ApplicationDomainType &)> callback)
 {
     readPrevious(type, uid, revision, [&](const QByteArray &uid, const EntityBuffer &buffer) {
         callback(d->createApplicationDomainType(type, uid, DataStore::maxRevision(d->getTransaction()), buffer));
@@ -599,8 +599,8 @@ void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qi
 
 ApplicationDomain::ApplicationDomainType EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision)
 {
-    ApplicationDomain::ApplicationDomainType dt;
-    readPrevious(type, uid, revision, [&](const ApplicationDomain::ApplicationDomainType &entity) {
+    ApplicationDomainType dt;
+    readPrevious(type, uid, revision, [&](const ApplicationDomainType &entity) {
         dt = *ApplicationDomainType::getInMemoryRepresentation<ApplicationDomainType>(entity, entity.availableProperties());
     });
     return dt;
