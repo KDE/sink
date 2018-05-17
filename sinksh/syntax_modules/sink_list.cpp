@@ -63,7 +63,7 @@ QByteArray baIfAvailable(const QStringList &list)
     return list.first().toUtf8();
 }
 
-QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o, bool compact, const QByteArrayList &toPrint)
+QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o, bool compact, const QByteArrayList &toPrint, bool limitPropertySize)
 {
     QStringList line;
     line << compressId(compact, o.resourceInstanceIdentifier());
@@ -74,9 +74,17 @@ QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o,
             if (value.canConvert<Sink::ApplicationDomain::Reference>()) {
                 line << compressId(compact, value.toByteArray());
             } else if (value.canConvert<QString>()) {
-                line << value.toString().mid(0, 75);
+                if (limitPropertySize) {
+                    line << value.toString().mid(0, 75);
+                } else {
+                    line << value.toString();
+                }
             } else if (value.canConvert<QByteArray>()) {
-                line << value.toByteArray().mid(0, 75);
+                if (limitPropertySize) {
+                    line << value.toByteArray().mid(0, 75);
+                } else {
+                    line << value.toByteArray();
+                }
             } else if (value.canConvert<QByteArrayList>()) {
                 line << value.value<QByteArrayList>().join(", ");
             } else {
@@ -120,10 +128,13 @@ bool list(const QStringList &args_, State &state)
     }
 
     auto compact = options.options.contains("compact");
+    bool limitPropertySize = true;
     if (!options.options.contains("showall")) {
         if (options.options.contains("show")) {
             auto list = options.options.value("show");
             std::transform(list.constBegin(), list.constEnd(), std::back_inserter(query.requestedProperties), [] (const QString &s) { return s.toLatin1(); });
+            //Print the full property if we explicitly list properties
+            limitPropertySize = false;
         } else {
             query.requestedProperties = SinkshUtils::requestedProperties(query.type());
         }
@@ -151,10 +162,10 @@ bool list(const QStringList &args_, State &state)
             }
         }
         if (asLine) {
-            state.stageTableLine(printToList(o, compact, toPrint));
+            state.stageTableLine(printToList(o, compact, toPrint, limitPropertySize));
         } else {
             state.stageTableLine(QStringList());
-            auto list = printToList(o, compact, toPrint);
+            auto list = printToList(o, compact, toPrint, limitPropertySize);
             state.stageTableLine(QStringList() << "Resource: " << list.value(0));
             state.stageTableLine(QStringList() << "Identifier: " << list.value(1));
             for (int i = 0; i < (list.size() - 2); i++) {
