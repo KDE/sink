@@ -49,8 +49,16 @@ QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDom
     }
     d << " " << "Resource: " << "\t" << type.resourceInstanceIdentifier() << "\n";
     for (const auto &property : properties) {
-        //We limit the maximum length of the property for large blob properties.
-        d << " " << property << "\t" << type.getProperty(property).mid(0, 75) << "\n";
+        const auto value = type.getProperty(property);
+        if (value.canConvert<QString>()) {
+            //We limit the maximum length of the property for large blob properties.
+            d << " " << property << "\t" << value.toString().mid(0, 75) << "\n";
+        } else if (value.canConvert<QByteArray>()) {
+            //We limit the maximum length of the property for large blob properties.
+            d << " " << property << "\t" << value.toByteArray().mid(0, 75) << "\n";
+        } else {
+            d << " " << property << "\t" << value << "\n";
+        }
     }
     d << ")";
     return d;
