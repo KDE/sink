@@ -249,7 +249,7 @@ bool EntityStore::add(const QByteArray &type, ApplicationDomain::ApplicationDoma
 
 ApplicationDomain::ApplicationDomainType EntityStore::applyDiff(const QByteArray &type, const ApplicationDomain::ApplicationDomainType &current, const ApplicationDomain::ApplicationDomainType &diff, const QByteArrayList &deletions) const
 {
-    auto newEntity = *ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<ApplicationDomain::ApplicationDomainType>(current, current.availableProperties());
+    auto newEntity = *ApplicationDomainType::getInMemoryRepresentation<ApplicationDomainType>(current, current.availableProperties());
 
     SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
 
@@ -512,7 +512,7 @@ ApplicationDomain::ApplicationDomainType EntityStore::readLatest(const QByteArra
 {
     ApplicationDomain::ApplicationDomainType dt;
     readLatest(type, uid, [&](const ApplicationDomain::ApplicationDomainType &entity) {
-        dt = entity;
+        dt = *ApplicationDomainType::getInMemoryRepresentation<ApplicationDomainType>(entity, entity.availableProperties());
     });
     return dt;
 }
@@ -539,7 +539,7 @@ ApplicationDomain::ApplicationDomainType EntityStore::readEntity(const QByteArra
 {
     ApplicationDomain::ApplicationDomainType dt;
     readEntity(type, uid, [&](const ApplicationDomain::ApplicationDomainType &entity) {
-        dt = entity;
+        dt = *ApplicationDomainType::getInMemoryRepresentation<ApplicationDomainType>(entity, entity.availableProperties());
     });
     return dt;
 }
@@ -601,7 +601,7 @@ ApplicationDomain::ApplicationDomainType EntityStore::readPrevious(const QByteAr
 {
     ApplicationDomain::ApplicationDomainType dt;
     readPrevious(type, uid, revision, [&](const ApplicationDomain::ApplicationDomainType &entity) {
-        dt = entity;
+        dt = *ApplicationDomainType::getInMemoryRepresentation<ApplicationDomainType>(entity, entity.availableProperties());
     });
     return dt;
 }

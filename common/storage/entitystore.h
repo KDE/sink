@@ -39,6 +39,8 @@ public:
     EntityStore(const ResourceContext &resourceContext, const Sink::Log::Context &);
     ~EntityStore() = default;
 
+    using ApplicationDomainType = ApplicationDomain::ApplicationDomainType;
+
     void initialize();
 
     //Only the pipeline may call the following functions outside of tests
@@ -63,10 +65,14 @@ public:
         return indexLookup(ApplicationDomain::getTypeName<EntityType>(), PropertyType::name, value, callback);
     }
 
+    ///Returns the uid and buffer. Note that the memory only remains valid until the next operation or transaction end.
     void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback);
+    ///Returns an entity. Note that the memory only remains valid until the next operation or transaction end.
     void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity)> callback);
+    ///Returns an entity and operation. Note that the memory only remains valid until the next operation or transaction end.
     void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> callback);
 
+    ///Returns a copy
     ApplicationDomain::ApplicationDomainType readLatest(const QByteArray &type, const QByteArray &uid);
 
     template<typename T>
@@ -74,8 +80,11 @@ public:
         return T(readLatest(ApplicationDomain::getTypeName<T>(), uid));
     }
 
+    ///Returns the uid and buffer. Note that the memory only remains valid until the next operation or transaction end.
     void readEntity(const QByteArray &type, const QByteArray &uid, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback);
+    ///Returns an entity. Note that the memory only remains valid until the next operation or transaction end.
     void readEntity(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity)> callback);
+    ///Returns a copy
     ApplicationDomain::ApplicationDomainType readEntity(const QByteArray &type, const QByteArray &key);
 
     template<typename T>
@@ -86,6 +95,7 @@ public:
 
     void readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback);
     void readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const ApplicationDomain::ApplicationDomainType &entity)> callback);
+    ///Returns a copy
     ApplicationDomain::ApplicationDomainType readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision);
 
     template<typename T>
