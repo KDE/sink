@@ -345,8 +345,11 @@ public:
                         //Redo the reduction to find new aggregated values
                         auto selectionResult = reduceOnValue(reductionValue);
 
-                        //TODO if old and new are the same a modification would be enough
                         auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
+                        //If mSelectedValues did not containthe value, oldSelectionResult will be empty.(Happens if entites have been filtered)
+                        if (oldSelectionResult.isEmpty()) {
+                            return;
+                        }
                         if (oldSelectionResult == selectionResult.selection) {
                             mSelectedValues.insert(reductionValueBa, selectionResult.selection);
                             Q_ASSERT(!selectionResult.selection.isEmpty());
