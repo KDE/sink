@@ -675,6 +675,18 @@ public:
         }
     }
 
+    static bool validateContent(const QByteArray &data) {
+        if (data.isEmpty()) {
+            SinkError() << "No data available.";
+            return false;
+        }
+        if (data.contains('\0')) {
+            SinkError() << "Data contains NUL, this will fail with IMAP.";
+            return false;
+        }
+        return true;
+    }
+
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Mail &mail, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
         if (operation != Sink::Operation_Creation) {
@@ -692,6 +704,9 @@ public:
         if (operation == Sink::Operation_Creation) {
             const QString mailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
             const auto content = ensureCRLF(mail.getMimeMessage());
+            if (!validateContent(content)) {
+                SinkError() << "Validation failed during creation replay " << mail.identifier() << "\n  Content:" << content;
+            }
             const auto flags = getFlags(mail);
             const QDateTime internalDate = mail.getDate();
             job = login.then(imap->append(mailbox, content, flags, internalDate))
@@ -727,6 +742,9 @@ public:
                 const auto folderId = folderIdFromMailRid(oldRemoteId);
                 const QString oldMailbox = syncStore().resolveLocalId(ENTITY_TYPE_FOLDER, folderId);
                 const auto content = ensureCRLF(mail.getMimeMessage());
+                if (!validateContent(content)) {
+                    SinkError() << "Validation failed during modification replay " << mail.identifier() << "\n  Content:" << content;
+                }
                 const QDateTime internalDate = mail.getDate();
                 SinkTrace() << "Replacing message. Old mailbox: " << oldMailbox << "New mailbox: " << mailbox << "Flags: " << flags << "Content: " << content;
                 KIMAP2::ImapSet set;
