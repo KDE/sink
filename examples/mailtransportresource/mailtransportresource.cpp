@@ -108,7 +108,7 @@ public:
             emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, "Sending message.", {}, {mail.identifier()});
             const auto data = mail.getMimeMessage();
             auto msg = KMime::Message::Ptr::create();
-            msg->setHead(KMime::CRLFtoLF(data));
+            msg->setContent(KMime::CRLFtoLF(data));
             msg->parse();
             if (settings.testMode) {
                 auto subject = msg->subject(true)->asUnicodeString();
