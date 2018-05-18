@@ -229,6 +229,7 @@ KAsync::Job<void> ResourceAccess::Private::initializeSocket()
                             return KAsync::error("Failed to find the sink_synchronizer binary.");
                         }
                         qint64 pid = 0;
+                        SinkLog() << "Starting resource " << executable << args.join(" ") << "Home path: " << QDir::homePath();
                         if (QProcess::startDetached(executable, args, QDir::homePath(), &pid)) {
                             SinkTrace() << "Started resource " << pid;
                             return tryToConnect()
