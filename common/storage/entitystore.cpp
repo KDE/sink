@@ -437,7 +437,7 @@ QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)
                 keys << uid;
                 return true;
             },
-            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.message; });
+            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during fullScan query: " << error.message; });
 
     SinkTraceCtx(d->logCtx) << "Full scan retrieved " << keys.size() << " results.";
     return keys.toList().toVector();
@@ -489,7 +489,7 @@ void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, cons
         [=](const QByteArray &key, const QByteArray &value) {
             callback(DataStore::uidFromKey(key), Sink::EntityBuffer(value.data(), value.size()));
         },
-        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.message << uid; });
+        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during readLatest query: " << error.message << uid; });
 }
 
 void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &)> callback)
@@ -525,7 +525,7 @@ void EntityStore::readEntity(const QByteArray &type, const QByteArray &key, cons
             callback(DataStore::uidFromKey(key), Sink::EntityBuffer(value.data(), value.size()));
             return false;
         },
-        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during query: " << error.message << key; });
+        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during readEntity query: " << error.message << key; });
 }
 
 void EntityStore::readEntity(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &)> callback)
