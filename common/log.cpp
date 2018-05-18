@@ -447,17 +447,10 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     }
     output += ":";
 
-#ifdef Q_OS_WIN
-    //If we print to std::cout we won't see the messages in DebugView
-    QDebug debug(QtDebugMsg);
-#else
     if (sDebugStream.isDestroyed()) {
         return QDebug{QtDebugMsg};
     }
     QDebug debug(sDebugStream);
-#endif
-
     debug.noquote().nospace() << output;
-
     return debug.space().quote();
 }
