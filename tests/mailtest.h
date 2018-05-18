@@ -53,7 +53,6 @@ private slots:
     void testModifyMailToDraft();
 
     void testModifyMailToTrash();
-    void testBogusMessageAppend();
 };
 
 }
