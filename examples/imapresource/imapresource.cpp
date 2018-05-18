@@ -691,10 +691,9 @@ public:
     {
         if (operation != Sink::Operation_Creation) {
             if(oldRemoteId.isEmpty()) {
-                // return KAsync::error<QByteArray>("Tried to replay modification without old remoteId.");
-                qWarning() << "Tried to replay modification without old remoteId.";
+                SinkWarning() << "Tried to replay modification without old remoteId.";
                 // Since we can't recover from the situation we just skip over the revision.
-                // FIXME figure out how we can ever end up in this situation
+                // This can for instance happen if creation failed, and we then process a removal or modification.
                 return KAsync::null<QByteArray>();
             }
         }

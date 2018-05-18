@@ -626,6 +626,19 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     }
     SinkLogCtx(mLogCtx) << "Replaying: " << key << "Type: " << type << "Uid: " << uid << "Rid: " << oldRemoteId << "Revision: " << metadataBuffer->revision();
 
+    //If the entity has been removed already and this is not the removal, skip over.
+    //This is important so we can unblock changereplay by removing entities.
+    bool skipOver = false;
+    store().readLatest(type, uid, [&](const ApplicationDomain::ApplicationDomainType &, Sink::Operation latestOperation) {
+        if (latestOperation == Sink::Operation_Removal && operation != Sink::Operation_Removal) {
+            skipOver = true;
+        }
+    });
+    if (skipOver) {
+        SinkLogCtx(mLogCtx) << "Skipping over already removed entity";
+        return KAsync::null();
+    }
+
     KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
     //TODO This requires supporting every domain type here as well. Can we solve this better so we can do the dispatch somewhere centrally?
     if (type == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
