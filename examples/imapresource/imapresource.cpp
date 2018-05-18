@@ -897,6 +897,10 @@ protected:
             const auto folderRemoteId = syncStore->resolveLocalId(ENTITY_TYPE_FOLDER, mail.getFolder());
             const auto mailRemoteId = syncStore->resolveLocalId(ENTITY_TYPE_MAIL, mail.identifier());
             if (mailRemoteId.isEmpty() || folderRemoteId.isEmpty()) {
+                //There is no remote id to find if we expect the message to not exist
+                if (inspectionType == Sink::ResourceControl::Inspection::ExistenceInspectionType && !expectedValue.toBool()) {
+                    return KAsync::null<void>();
+                }
                 SinkWarning() << "Missing remote id for folder or mail. " << mailRemoteId << folderRemoteId;
                 return KAsync::error<void>();
             }
