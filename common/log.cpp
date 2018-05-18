@@ -407,9 +407,9 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
     bool showFunction = debugOutput.isEmpty() ? false : caseInsensitiveContains("function", debugOutput);
     bool showProgram = debugOutput.isEmpty() ? false : caseInsensitiveContains("application", debugOutput);
 #ifdef Q_OS_WIN
-    bool useColor = true;
-#else
     bool useColor = false;
+#else
+    bool useColor = true;
 #endif
     bool multiline = false;
 
