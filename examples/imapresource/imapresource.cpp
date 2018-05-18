@@ -1063,6 +1063,17 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
         encryption = Imap::Starttls;
     }
 
+    if (!QSslSocket::supportsSsl()) {
+        SinkWarning() << "Qt doesn't support ssl. This is likely a distribution/packaging problem.";
+        //On windows this means that the required ssl dll's are missing
+        SinkWarning() << "Ssl Library Build Version Number: " << QSslSocket::sslLibraryBuildVersionString();
+        SinkWarning() << "Ssl Library Runtime Version Number: " << QSslSocket::sslLibraryVersionString();
+    } else {
+        SinkTrace() << "Ssl support available";
+        SinkTrace() << "Ssl Library Build Version Number: " << QSslSocket::sslLibraryBuildVersionString();
+        SinkTrace() << "Ssl Library Runtime Version Number: " << QSslSocket::sslLibraryVersionString();
+    }
+
     auto synchronizer = QSharedPointer<ImapSynchronizer>::create(resourceContext);
     synchronizer->mServer = server;
     synchronizer->mPort = port;
