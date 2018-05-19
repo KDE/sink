@@ -19,6 +19,7 @@
  */
 #pragma once
 
+#include "sinktest_export.h"
 #include <KAsync/Async>
 
 #include <common/domainadaptor.h>
@@ -33,7 +34,7 @@
 #include "mail_generated.h"
 #include "createentity_generated.h"
 
-class TestEventAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event>
+class SINKTEST_EXPORT TestEventAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event>
 {
 public:
     TestEventAdaptorFactory() : DomainTypeAdaptorFactory()
@@ -43,7 +44,7 @@ public:
     virtual ~TestEventAdaptorFactory(){};
 };
 
-class TestMailAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail>
+class SINKTEST_EXPORT TestMailAdaptorFactory : public DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail>
 {
 public:
     TestMailAdaptorFactory() : DomainTypeAdaptorFactory()
@@ -53,7 +54,7 @@ public:
     virtual ~TestMailAdaptorFactory(){};
 };
 
-class TestResourceAccess : public Sink::ResourceAccessInterface
+class SINKTEST_EXPORT TestResourceAccess : public Sink::ResourceAccessInterface
 {
     Q_OBJECT
 public:
@@ -85,7 +86,7 @@ public slots:
     }
 };
 
-class TestResourceFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Event>
+class SINKTEST_EXPORT TestResourceFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Event>
 {
 public:
     TestResourceFacade(const Sink::ResourceContext &resourceContext)
@@ -97,7 +98,7 @@ public:
     }
 };
 
-class TestMailResourceFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Mail>
+class SINKTEST_EXPORT TestMailResourceFacade : public Sink::GenericFacade<Sink::ApplicationDomain::Mail>
 {
 public:
     TestMailResourceFacade(const Sink::ResourceContext &resourceContext)
@@ -109,7 +110,7 @@ public:
     }
 };
 
-class TestResource : public Sink::GenericResource
+class SINKTEST_EXPORT TestResource : public Sink::GenericResource
 {
 public:
     TestResource(const Sink::ResourceContext &resourceContext, QSharedPointer<Sink::Pipeline> pipeline) : Sink::GenericResource(resourceContext, pipeline)

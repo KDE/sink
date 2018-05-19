@@ -43,13 +43,13 @@ public:
     static TestAccount registerAccount();
 
     template<typename DomainType>
-    void addEntity(const ApplicationDomain::ApplicationDomainType::Ptr &domainObject);
+    void SINK_EXPORT addEntity(const ApplicationDomain::ApplicationDomainType::Ptr &domainObject);
 
     template<typename DomainType>
-    typename DomainType::Ptr createEntity();
+    typename DomainType::Ptr SINK_EXPORT createEntity();
 
     template<typename DomainType>
-    QList<ApplicationDomain::ApplicationDomainType::Ptr> entities() const;
+    QList<ApplicationDomain::ApplicationDomainType::Ptr> SINK_EXPORT entities() const;
 
 private:
     TestAccount(){};

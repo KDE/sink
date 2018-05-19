@@ -10,6 +10,7 @@
  */
 
 #pragma once
+#include "sinktest_export.h"
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -35,5 +36,5 @@
 #error "Cannot define getPeakRSS( ) or getCurrentRSS( ) for an unknown OS."
 #endif
 
-size_t getCurrentRSS();
-size_t getPeakRSS();
+size_t SINKTEST_EXPORT getCurrentRSS();
+size_t SINKTEST_EXPORT getPeakRSS();
