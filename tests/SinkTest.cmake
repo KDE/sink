@@ -14,7 +14,7 @@ endfunction(add_memcheck_test)
 macro(auto_tests)
     foreach(_testname ${ARGN})
         add_executable(${_testname} ${_testname}.cpp)
-        add_test(${_testname} ${_testname})
+        add_test(NAME ${_testname} COMMAND $<TARGET_FILE:${_testname}>)
         add_memcheck_test(${_testname} ${_testname})
         target_link_libraries(${_testname}
             sink libhawd
