@@ -66,8 +66,8 @@ public:
     qint64 writeData(const char *data, qint64 len)
     {
 #ifdef Q_OS_WIN
-        const auto string = QString::fromUtf8(data, leng)
-        OutputDebugString(reinterpret_cast<const wchar_t*>(string.utf16()));
+        const auto string = QString::fromUtf8(data, len);
+        OutputDebugStringW(reinterpret_cast<const wchar_t*>(string.utf16()));
 #else
         std::cout << data << std::endl;
 #endif
