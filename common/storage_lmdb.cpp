@@ -974,13 +974,12 @@ void DataStore::removeFromDisk() const
     QWriteLocker dbiLocker(&sDbisLock);
     QWriteLocker envLocker(&sEnvironmentsLock);
     SinkTrace() << "Removing database from disk: " << fullPath;
-    sEnvironments.take(fullPath);
+    auto env = sEnvironments.take(fullPath);
     for (const auto &key : sDbis.keys()) {
         if (key.startsWith(d->name)) {
             sDbis.remove(key);
         }
     }
-    auto env = sEnvironments.take(fullPath);
     mdb_env_close(env);
     QDir dir(fullPath);
     if (!dir.removeRecursively()) {
