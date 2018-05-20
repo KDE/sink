@@ -22,6 +22,7 @@
 #include <QFile>
 #include <QDir>
 #include <QTextDocument>
+#include <QGuiApplication>
 #include <KMime/KMime/KMimeMessage>
 
 #include "pipeline.h"
@@ -57,6 +58,9 @@ static QList<QPair<QString, QString>> processPart(KMime::Content* content)
             }
             return list;
         } else if (type->isHTMLText()) {
+            //QTextDocument has an implicit runtime dependency on QGuiApplication via the color palette.
+            //If the QGuiApplication is not available we will crash (if the html contains colors).
+            Q_ASSERT(QGuiApplication::instance());
             // Only get HTML content, if no plain text content
             QTextDocument doc;
             doc.setHtml(content->decodedText());
