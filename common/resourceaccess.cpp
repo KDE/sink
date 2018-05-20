@@ -534,6 +534,9 @@ void ResourceAccess::connected()
 void ResourceAccess::disconnected()
 {
     SinkLog() << QString("Disconnected from %1").arg(d->socket->fullServerName());
+    //Ensure we read all remaining data before closing the socket.
+    //This is required on windows at least.
+    readResourceMessage();
     d->socket->close();
     emit ready(false);
 }
@@ -566,15 +569,17 @@ void ResourceAccess::connectionError(QLocalSocket::LocalSocketError error)
 
 void ResourceAccess::readResourceMessage()
 {
-    if (!d->socket || !d->socket->isValid()) {
+    if (!d->socket) {
         SinkWarning() << "No socket available";
         return;
     }
 
-    d->partialMessageBuffer += d->socket->readAll();
+    if (d->socket->bytesAvailable()) {
+        d->partialMessageBuffer += d->socket->readAll();
 
-    // should be scheduled rather than processed all at once
-    while (processMessageBuffer()) {
+        // should be scheduled rather than processed all at once
+        while (processMessageBuffer()) {
+        }
     }
 }
 
