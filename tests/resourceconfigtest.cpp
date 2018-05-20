@@ -38,7 +38,7 @@ private slots:
         res.setProperty("identifier", "dummyresource.identifier1");
         res.setProperty(SinkResource::ResourceType::name, "dummyresource");
 
-        Sink::Store::create(res).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::create(res));
         {
             Sink::Query query;
             query.filter<SinkResource::ResourceType>("dummyresource");
@@ -46,7 +46,7 @@ private slots:
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         }
 
-        Sink::Store::remove(res).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::remove(res));
         {
             Sink::Query query;
             query.filter<SinkResource::ResourceType>("dummyresource");
@@ -66,7 +66,7 @@ private slots:
         res.setResourceType("dummyresource");
         res.setCapabilities(QByteArrayList() << "foo");
 
-        Sink::Store::create(res).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::create(res));
         {
             Sink::Query query;
             query.filter<SinkResource::ResourceType>("dummyresource");
@@ -74,7 +74,7 @@ private slots:
             QTRY_COMPARE(model->rowCount(QModelIndex()), 1);
         }
 
-        Sink::Store::remove(res).exec().waitForFinished();
+        VERIFYEXEC(Sink::Store::remove(res));
     }
 
     void testLoadResourceStatus()
