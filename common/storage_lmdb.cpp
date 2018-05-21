@@ -26,6 +26,8 @@
 #include <QDebug>
 #include <QDir>
 #include <QReadWriteLock>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QString>
 #include <QTime>
 #include <valgrind.h>
@@ -99,6 +101,103 @@ static QList<QByteArray> getDatabaseNames(MDB_txn *transaction)
 
 }
 
+/*
+ * To create a dbi we always need a write transaction,
+ * and we always need to commit the transaction ASAP
+ * We can only ever enter from one point per process.
+ */
+
+QMutex sCreateDbiLock;
+
+static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly, bool allowDuplicates, MDB_dbi &dbi)
+{
+    Q_ASSERT(transaction);
+    QMutexLocker locker{&sCreateDbiLock};
+
+    unsigned int flags = 0;
+    if (allowDuplicates) {
+        flags |= MDB_DUPSORT;
+    }
+
+    MDB_dbi flagtableDbi;
+    if (const int rc = mdb_dbi_open(transaction, "__flagtable", readOnly ? 0 : MDB_CREATE, &flagtableDbi)) {
+        if (!readOnly) {
+            SinkWarning() << "Failed to to open flagdb: " << QByteArray(mdb_strerror(rc));
+        }
+    } else {
+        MDB_val key, value;
+        key.mv_data = const_cast<void*>(static_cast<const void*>(db.constData()));
+        key.mv_size = db.size();
+        if (const auto rc = mdb_get(transaction, flagtableDbi, &key, &value)) {
+            //We expect this to fail for new databases
+            if (rc != MDB_NOTFOUND) {
+                SinkWarning() << "Failed to read flags from flag db: " << QByteArray(mdb_strerror(rc));
+            }
+        } else {
+            //Found the flags
+            const auto ba = QByteArray::fromRawData((char *)value.mv_data, value.mv_size);
+            flags = ba.toInt();
+        }
+    }
+
+    if (const int rc = mdb_dbi_open(transaction, db.constData(), flags, &dbi)) {
+        //Create the db if it is not existing already
+        if (rc == MDB_NOTFOUND && !readOnly) {
+            //Sanity check db name
+            {
+                auto parts = db.split('.');
+                for (const auto &p : parts) {
+                    auto containsSpecialCharacter = [] (const QByteArray &p) {
+                        for (int i = 0; i < p.size(); i++) {
+                            const auto c = p.at(i);
+                            //Between 0 and z in the ascii table. Essentially ensures that the name is printable and doesn't contain special chars
+                            if (c < 0x30 || c > 0x7A) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+                    if (p.isEmpty() || containsSpecialCharacter(p)) {
+                        SinkError() << "Tried to create a db with an invalid name. Hex:" << db.toHex() << " ASCII:" << db;
+                        Q_ASSERT(false);
+                        throw std::runtime_error("Fatal error while creating db.");
+                    }
+                }
+            }
+            if (const int rc = mdb_dbi_open(transaction, db.constData(), flags | MDB_CREATE, &dbi)) {
+                SinkWarning() << "Failed to create db " << QByteArray(mdb_strerror(rc));
+                // Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while creating database: " + QByteArray(mdb_strerror(rc)));
+                // errorHandler ? errorHandler(error) : defaultErrorHandler(error);
+                return false;
+            }
+            //Record the db flags
+            MDB_val key, value;
+            key.mv_data = const_cast<void*>(static_cast<const void*>(db.constData()));
+            key.mv_size = db.size();
+            //Store the flags without the create option
+            const auto ba = QByteArray::number(flags);
+            value.mv_data = const_cast<void*>(static_cast<const void*>(db.constData()));
+            value.mv_size = db.size();
+            if (const int rc = mdb_put(transaction, flagtableDbi, &key, &value, MDB_NOOVERWRITE)) {
+                //We expect this to fail if we're only creating the dbi but not the db
+                if (rc != MDB_KEYEXIST) {
+                    SinkWarning() << "Failed to write flags to flag db: " << QByteArray(mdb_strerror(rc));
+                }
+            }
+        } else {
+            dbi = 0;
+            transaction = 0;
+            //It's not an error if we only want to read
+            if (!readOnly) {
+                SinkWarning() << "Failed to open db " << QByteArray(mdb_strerror(rc));
+                // Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening database: " + QByteArray(mdb_strerror(rc)));
+                // errorHandler ? errorHandler(error) : defaultErrorHandler(error);
+            }
+            return false;
+        }
+    }
+    return true;
+}
 
 class DataStore::NamedDatabase::Private
 {
@@ -123,11 +222,6 @@ public:
 
     bool openDatabase(bool readOnly, std::function<void(const DataStore::Error &error)> errorHandler, bool noLock = false)
     {
-        unsigned int flags = 0;
-        if (allowDuplicates) {
-            flags |= MDB_DUPSORT;
-        }
-
         const auto dbiName = name + db;
         if (sDbis.contains(dbiName)) {
             dbi = sDbis.value(dbiName);
@@ -150,87 +244,10 @@ public:
                 Q_ASSERT(false);
                 abort();
             }
-            MDB_dbi flagtableDbi;
-            if (const int rc = mdb_dbi_open(transaction, "__flagtable", readOnly ? 0 : MDB_CREATE, &flagtableDbi)) {
-                if (!readOnly) {
-                    SinkWarning() << "Failed to to open flagdb: " << QByteArray(mdb_strerror(rc));
-                }
-            } else {
-                MDB_val key, value;
-                key.mv_data = const_cast<void*>(static_cast<const void*>(db.constData()));
-                key.mv_size = db.size();
-                if (const auto rc = mdb_get(transaction, flagtableDbi, &key, &value)) {
-                    //We expect this to fail for new databases
-                    if (rc != MDB_NOTFOUND) {
-                        SinkWarning() << "Failed to read flags from flag db: " << QByteArray(mdb_strerror(rc));
-                    }
-                } else {
-                    //Found the flags
-                    const auto ba = QByteArray::fromRawData((char *)value.mv_data, value.mv_size);
-                    flags = ba.toInt();
-                }
+            if (createDbi(transaction, db, readOnly, allowDuplicates, dbi)) {
+                createdNewDbi = true;
+                createdDbName = dbiName;
             }
-
-            Q_ASSERT(transaction);
-            if (const int rc = mdb_dbi_open(transaction, db.constData(), flags, &dbi)) {
-                //Create the db if it is not existing already
-                if (rc == MDB_NOTFOUND && !readOnly) {
-                    //Sanity check db name
-                    {
-                        auto parts = db.split('.');
-                        for (const auto &p : parts) {
-                            auto containsSpecialCharacter = [] (const QByteArray &p) {
-                                for (int i = 0; i < p.size(); i++) {
-                                    const auto c = p.at(i);
-                                    //Between 0 and z in the ascii table. Essentially ensures that the name is printable and doesn't contain special chars
-                                    if (c < 0x30 || c > 0x7A) {
-                                        return true;
-                                    }
-                                }
-                                return false;
-                            };
-                            if (p.isEmpty() || containsSpecialCharacter(p)) {
-                                SinkError() << "Tried to create a db with an invalid name. Hex:" << db.toHex() << " ASCII:" << db;
-                                Q_ASSERT(false);
-                                throw std::runtime_error("Fatal error while creating db.");
-                            }
-                        }
-                    }
-                    if (const int rc = mdb_dbi_open(transaction, db.constData(), flags | MDB_CREATE, &dbi)) {
-                        SinkWarning() << "Failed to create db " << QByteArray(mdb_strerror(rc));
-                        Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while creating database: " + QByteArray(mdb_strerror(rc)));
-                        errorHandler ? errorHandler(error) : defaultErrorHandler(error);
-                        return false;
-                    }
-                    //Record the db flags
-                    MDB_val key, value;
-                    key.mv_data = const_cast<void*>(static_cast<const void*>(db.constData()));
-                    key.mv_size = db.size();
-                    //Store the flags without the create option
-                    const auto ba = QByteArray::number(flags);
-                    value.mv_data = const_cast<void*>(static_cast<const void*>(db.constData()));
-                    value.mv_size = db.size();
-                    if (const int rc = mdb_put(transaction, flagtableDbi, &key, &value, MDB_NOOVERWRITE)) {
-                        //We expect this to fail if we're only creating the dbi but not the db
-                        if (rc != MDB_KEYEXIST) {
-                            SinkWarning() << "Failed to write flags to flag db: " << QByteArray(mdb_strerror(rc));
-                        }
-                    }
-                } else {
-                    dbi = 0;
-                    transaction = 0;
-                    //It's not an error if we only want to read
-                    if (!readOnly) {
-                        SinkWarning() << "Failed to open db " << QByteArray(mdb_strerror(rc));
-                        Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening database: " + QByteArray(mdb_strerror(rc)));
-                        errorHandler ? errorHandler(error) : defaultErrorHandler(error);
-                    }
-                    return false;
-                }
-            }
-
-            createdNewDbi = true;
-            createdDbName = dbiName;
         }
         return true;
     }
@@ -713,18 +730,12 @@ DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &
     // We don't now if anything changed
     d->implicitCommit = true;
     auto p = new DataStore::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
-    if (!d->noLock) {
-        sDbisLock.lockForRead();
-    }
-    if (!p->openDatabase(d->requestedRead, errorHandler, d->noLock)) {
-        if (!d->noLock) {
-            sDbisLock.unlock();
-        }
+    if (!d->noLock) { sDbisLock.lockForRead(); }
+    auto ret = p->openDatabase(d->requestedRead, errorHandler, d->noLock);
+    if (!d->noLock) { sDbisLock.unlock(); }
+    if (!ret) {
         delete p;
         return DataStore::NamedDatabase();
-    }
-    if (!d->noLock) {
-        sDbisLock.unlock();
     }
     if (p->createdNewDbi) {
         d->createdDbs.insert(p->createdDbName, p->dbi);
