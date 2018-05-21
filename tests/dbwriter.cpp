@@ -18,7 +18,11 @@ int main(int argc, char *argv[])
     }
 
     qWarning() << "Creating db: " << testDataPath << dbName << count;
-    Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+    QMap<QByteArray, int> dbs = {{"a", 0}, {"b", 0}, {"c", 0}, {"p", 0}, {"q", 0}, {"db", 0}};
+    for (int d = 0; d < 40; d++) {
+        dbs.insert("db" + QByteArray::number(d), 0);
+    }
+    Sink::Storage::DataStore store(testDataPath, {dbName, dbs}, Sink::Storage::DataStore::ReadWrite);
     auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
     for (int i = 0; i < count; i++) {
         if (!transaction) {
