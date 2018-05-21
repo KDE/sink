@@ -16,12 +16,12 @@ class StorageTest : public QObject
     Q_OBJECT
 private:
     QString testDataPath;
-    QString dbName;
+    QByteArray dbName;
     const char *keyPrefix = "key";
 
     void populate(int count)
     {
-        Sink::Storage::DataStore storage(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore storage(testDataPath, {dbName, {{"default", 0}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadWrite);
         for (int i = 0; i < count; i++) {
             // This should perhaps become an implementation detail of the db?
@@ -63,20 +63,20 @@ private slots:
     {
         testDataPath = "./testdb";
         dbName = "test";
-        Sink::Storage::DataStore storage(testDataPath, dbName);
+        Sink::Storage::DataStore storage(testDataPath, {dbName, {{"default", 0}}});
         storage.removeFromDisk();
     }
 
     void cleanup()
     {
-        Sink::Storage::DataStore storage(testDataPath, dbName);
+        Sink::Storage::DataStore storage(testDataPath, {dbName, {{"default", 0}}});
         storage.removeFromDisk();
     }
 
     void testCleanup()
     {
         populate(1);
-        Sink::Storage::DataStore storage(testDataPath, dbName);
+        Sink::Storage::DataStore storage(testDataPath, {dbName, {{"default", 0}}});
         storage.removeFromDisk();
         QFileInfo info(testDataPath + "/" + dbName);
         QVERIFY(!info.exists());
@@ -163,7 +163,7 @@ private slots:
     {
         bool gotResult = false;
         bool gotError = false;
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"default", 0}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
         auto db = transaction.openDatabase("default", [&](const Sink::Storage::DataStore::Error &error) {
             qDebug() << error.message;
@@ -227,7 +227,7 @@ private slots:
     {
         bool gotResult = false;
         bool gotError = false;
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"default", 0}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto db = transaction.openDatabase("default", nullptr, false);
         db.write("key", "value");
@@ -252,7 +252,7 @@ private slots:
     {
         bool gotResult = false;
         bool gotError = false;
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"default", 0x04}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto db = transaction.openDatabase("default", nullptr, true);
         db.write("key", "value1");
@@ -295,7 +295,7 @@ private slots:
     void testWriteToNamedDb()
     {
         bool gotError = false;
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
         store.createTransaction(Sink::Storage::DataStore::ReadWrite)
             .openDatabase("test")
             .write("key1", "value1", [&](const Sink::Storage::DataStore::Error &error) {
@@ -308,7 +308,8 @@ private slots:
     void testWriteDuplicatesToNamedDb()
     {
         bool gotError = false;
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
         store.createTransaction(Sink::Storage::DataStore::ReadWrite)
             .openDatabase("test", nullptr, true)
             .write("key1", "value1", [&](const Sink::Storage::DataStore::Error &error) {
@@ -321,7 +322,7 @@ private slots:
     // By default we want only exact matches
     void testSubstringKeys()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0x04}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, true);
         db.write("sub", "value1");
@@ -333,7 +334,7 @@ private slots:
 
     void testFindSubstringKeys()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
         db.write("sub", "value1");
@@ -346,7 +347,7 @@ private slots:
 
     void testFindSubstringKeysWithDuplicatesEnabled()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, true);
         db.write("sub", "value1");
@@ -359,7 +360,7 @@ private slots:
 
     void testKeySorting()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
         db.write("sub_2", "value2");
@@ -380,7 +381,7 @@ private slots:
     // Ensure we don't retrieve a key that is greater than the current key. We only want equal keys.
     void testKeyRange()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, true);
         db.write("sub1", "value1");
@@ -391,7 +392,7 @@ private slots:
 
     void testFindLatest()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
         db.write("sub1", "value1");
@@ -406,7 +407,7 @@ private slots:
 
     void testFindLatestInSingle()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
         db.write("sub2", "value2");
@@ -418,7 +419,7 @@ private slots:
 
     void testFindLast()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto db = transaction.openDatabase("test", nullptr, false);
         db.write("sub2", "value2");
@@ -429,9 +430,18 @@ private slots:
         QCOMPARE(result, QByteArray("value3"));
     }
 
+    static QMap<QByteArray, int> baseDbs()
+    {
+        return {{"revisionType", 0},
+                {"revisions", 0},
+                {"uids", 0},
+                {"default", 0},
+                {"__flagtable", 0}};
+    }
+
     void testRecordRevision()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, baseDbs()}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         Sink::Storage::DataStore::recordRevision(transaction, 1, "uid", "type");
         QCOMPARE(Sink::Storage::DataStore::getTypeFromRevision(transaction, 1), QByteArray("type"));
@@ -440,7 +450,7 @@ private slots:
 
     void testRecordRevisionSorting()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         QByteArray result;
         auto db = transaction.openDatabase("test", nullptr, false);
@@ -463,7 +473,7 @@ private slots:
             return result;
         };
         {
-            Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+            Sink::Storage::DataStore store(testDataPath, {dbName, {{"testTransactionVisibility", 0}}}, Sink::Storage::DataStore::ReadWrite);
             auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
 
             auto db = transaction.openDatabase("testTransactionVisibility", nullptr, false);
@@ -489,7 +499,7 @@ private slots:
 
     void testCopyTransaction()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"a", 0}, {"b", 0}, {"c", 0}}}, Sink::Storage::DataStore::ReadWrite);
         {
             auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
             transaction.openDatabase("a", nullptr, false);
@@ -516,7 +526,6 @@ private slots:
      */
     void testReadDuringExternalProcessWrite()
     {
-        QSKIP("Not running multiprocess test");
 
         QList<QFuture<void>> futures;
         for (int i = 0; i < 5; i++) {
@@ -545,7 +554,17 @@ private slots:
 
     void testRecordUid()
     {
-        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+
+        QMap<QByteArray, int> dbs = {{"revisionType", 0},
+                {"revisions", 0},
+                {"uids", 0},
+                {"default", 0},
+                {"__flagtable", 0},
+                {"typeuids", 0},
+                {"type2uids", 0}
+            };
+
+        Sink::Storage::DataStore store(testDataPath, {dbName, dbs}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         Sink::Storage::DataStore::recordUid(transaction, "uid1", "type");
         Sink::Storage::DataStore::recordUid(transaction, "uid2", "type");

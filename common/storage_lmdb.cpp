@@ -121,7 +121,7 @@ public:
     bool createdNewDbi = false;
     QString createdDbName;
 
-    bool openDatabase(bool readOnly, std::function<void(const DataStore::Error &error)> errorHandler)
+    bool openDatabase(bool readOnly, std::function<void(const DataStore::Error &error)> errorHandler, bool noLock = false)
     {
         unsigned int flags = 0;
         if (allowDuplicates) {
@@ -144,6 +144,12 @@ public:
                 return false;
             }
         } else {
+            //Only go in here from initEnvironment
+            if (!noLock) {
+                SinkError() << "Tried to create db " << dbiName;
+                Q_ASSERT(false);
+                abort();
+            }
             MDB_dbi flagtableDbi;
             if (const int rc = mdb_dbi_open(transaction, "__flagtable", readOnly ? 0 : MDB_CREATE, &flagtableDbi)) {
                 if (!readOnly) {
@@ -710,7 +716,7 @@ DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &
     if (!d->noLock) {
         sDbisLock.lockForRead();
     }
-    if (!p->openDatabase(d->requestedRead, errorHandler)) {
+    if (!p->openDatabase(d->requestedRead, errorHandler, d->noLock)) {
         if (!d->noLock) {
             sDbisLock.unlock();
         }
