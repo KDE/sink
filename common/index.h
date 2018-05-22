@@ -30,6 +30,7 @@ public:
     };
 
     Index(const QString &storageRoot, const QString &name, Sink::Storage::DataStore::AccessMode mode = Sink::Storage::DataStore::ReadOnly);
+    Index(const QString &storageRoot, const Sink::Storage::DbLayout &layout, Sink::Storage::DataStore::AccessMode mode = Sink::Storage::DataStore::ReadOnly);
     Index(const QByteArray &name, Sink::Storage::DataStore::Transaction &);
 
     void add(const QByteArray &key, const QByteArray &value);
