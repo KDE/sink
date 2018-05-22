@@ -85,7 +85,7 @@ private slots:
 
         Mail createdmail;
         // Ensure all local data is processed
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "instance1"));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("instance1"));
         {
             auto query = Query().resourceFilter("instance1") ;
             auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
@@ -98,9 +98,9 @@ private slots:
         //FIXME we can't guarantee that that the create command arrives at instance2 before the flush command, so we'll just wait for a little bit.
         QTest::qWait(1000);
         //Ensure the move has been processed
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "instance1"));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("instance1"));
         //Ensure the create in the target resource has been processed
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "instance2"));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("instance2"));
         {
             auto query = Query().resourceFilter("instance2") ;
             auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
@@ -110,7 +110,7 @@ private slots:
             QCOMPARE(mail.getMimeMessage(), mimeMessage);
         }
 
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(QByteArrayList() << "instance1"));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("instance1"));
         {
             auto query = Query().resourceFilter("instance1") ;
             auto list = Sink::Store::read<Mail>(query.filter<Mail::MessageId>(testuid));
