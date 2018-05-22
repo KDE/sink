@@ -111,8 +111,6 @@ QMutex sCreateDbiLock;
 
 static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly, bool allowDuplicates, MDB_dbi &dbi)
 {
-    Q_ASSERT(transaction);
-    QMutexLocker locker{&sCreateDbiLock};
 
     unsigned int flags = 0;
     if (allowDuplicates) {
@@ -166,8 +164,6 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
             }
             if (const int rc = mdb_dbi_open(transaction, db.constData(), flags | MDB_CREATE, &dbi)) {
                 SinkWarning() << "Failed to create db " << QByteArray(mdb_strerror(rc));
-                // Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while creating database: " + QByteArray(mdb_strerror(rc)));
-                // errorHandler ? errorHandler(error) : defaultErrorHandler(error);
                 return false;
             }
             //Record the db flags
@@ -185,13 +181,9 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
                 }
             }
         } else {
-            dbi = 0;
-            transaction = 0;
             //It's not an error if we only want to read
             if (!readOnly) {
                 SinkWarning() << "Failed to open db " << QByteArray(mdb_strerror(rc));
-                // Error error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening database: " + QByteArray(mdb_strerror(rc)));
-                // errorHandler ? errorHandler(error) : defaultErrorHandler(error);
             }
             return false;
         }
@@ -217,12 +209,11 @@ public:
     bool allowDuplicates;
     std::function<void(const DataStore::Error &error)> defaultErrorHandler;
     QString name;
-    bool createdNewDbi = false;
-    QString createdDbName;
 
-    bool openDatabase(bool readOnly, std::function<void(const DataStore::Error &error)> errorHandler, bool noLock = false)
+    bool openDatabase(bool readOnly, std::function<void(const DataStore::Error &error)> errorHandler)
     {
         const auto dbiName = name + db;
+        QReadLocker dbiLocker{&sDbisLock};
         if (sDbis.contains(dbiName)) {
             dbi = sDbis.value(dbiName);
             //sDbis can contain dbi's that are not available to this transaction.
@@ -238,15 +229,30 @@ public:
                 return false;
             }
         } else {
-            //Only go in here from initEnvironment
-            if (!noLock) {
-                SinkError() << "Tried to create db " << dbiName;
-                Q_ASSERT(false);
-                abort();
+            /*
+             * Dynamic creation of databases.
+             * If all databases were defined via the database layout we wouldn't ever end up in here.
+             * However, we rely on this codepath for indexes and the synchronization databases.
+             */
+            SinkTrace() << "Creating database dynamically: " << dbiName;
+            MDB_txn *dbiTransaction;
+            MDB_env *env = mdb_txn_env(transaction);
+            Q_ASSERT(env);
+            if (const int rc = mdb_txn_begin(env, readOnly ? nullptr : transaction, readOnly ? MDB_RDONLY : 0, &dbiTransaction)) {
+                SinkWarning() << "Failed to to open transaction: " << QByteArray(mdb_strerror(rc)) << readOnly << transaction;
+                return false;
             }
-            if (createDbi(transaction, db, readOnly, allowDuplicates, dbi)) {
-                createdNewDbi = true;
-                createdDbName = dbiName;
+            QMutexLocker createDbiLocker(&sCreateDbiLock);
+            if (createDbi(dbiTransaction, db, readOnly, allowDuplicates, dbi)) {
+                mdb_txn_commit(dbiTransaction);
+                dbiLocker.unlock();
+                QWriteLocker dbiWriteLocker(&sDbisLock);
+                sDbis.insert(dbiName, dbi);
+            } else {
+                mdb_txn_abort(dbiTransaction);
+                dbi = 0;
+                transaction = 0;
+                return false;
             }
         }
         return true;
@@ -561,8 +567,8 @@ bool DataStore::NamedDatabase::allowsDuplicates() const
 class DataStore::Transaction::Private
 {
 public:
-    Private(bool _requestRead, const std::function<void(const DataStore::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env, bool _noLock = false)
-        : env(_env), transaction(nullptr), requestedRead(_requestRead), defaultErrorHandler(_defaultErrorHandler), name(_name), implicitCommit(false), error(false), modificationCounter(0), noLock(_noLock)
+    Private(bool _requestRead, const std::function<void(const DataStore::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
+        : env(_env), transaction(nullptr), requestedRead(_requestRead), defaultErrorHandler(_defaultErrorHandler), name(_name), implicitCommit(false), error(false), modificationCounter(0)
     {
     }
     ~Private()
@@ -577,9 +583,6 @@ public:
     bool implicitCommit;
     bool error;
     int modificationCounter;
-    bool noLock;
-
-    QMap<QString, MDB_dbi> createdDbs;
 
     void startTransaction()
     {
@@ -665,22 +668,6 @@ bool DataStore::Transaction::commit(const std::function<void(const DataStore::Er
         throw std::runtime_error("Fatal error while committing transaction.");
     }
     d->transaction = nullptr;
-
-    //Add the created dbis to the shared environment
-    if (!d->createdDbs.isEmpty()) {
-        if (!d->noLock) {
-            sDbisLock.lockForWrite();
-        }
-        for (auto it = d->createdDbs.constBegin(); it != d->createdDbs.constEnd(); it++) {
-            Q_ASSERT(!sDbis.contains(it.key()));
-            sDbis.insert(it.key(), it.value());
-        }
-        d->createdDbs.clear();
-        if (!d->noLock) {
-            sDbisLock.unlock();
-        }
-    }
-
     return !rc;
 }
 
@@ -690,7 +677,6 @@ void DataStore::Transaction::abort()
         return;
     }
 
-    d->createdDbs.clear();
     // Trace_area("storage." + d->name.toLatin1()) << "Aborting transaction" << mdb_txn_id(d->transaction) << d->transaction;
     Q_ASSERT(sEnvironments.values().contains(d->env));
     mdb_txn_abort(d->transaction);
@@ -730,15 +716,10 @@ DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &
     // We don't now if anything changed
     d->implicitCommit = true;
     auto p = new DataStore::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
-    if (!d->noLock) { sDbisLock.lockForRead(); }
-    auto ret = p->openDatabase(d->requestedRead, errorHandler, d->noLock);
-    if (!d->noLock) { sDbisLock.unlock(); }
+    auto ret = p->openDatabase(d->requestedRead, errorHandler);
     if (!ret) {
         delete p;
         return DataStore::NamedDatabase();
-    }
-    if (p->createdNewDbi) {
-        d->createdDbs.insert(p->createdDbName, p->dbi);
     }
     auto database = DataStore::NamedDatabase(p);
     if (!ensureCorrectDb(database, db, d->requestedRead)) {
@@ -880,28 +861,41 @@ public:
                         Q_ASSERT(env);
                         sEnvironments.insert(fullPath, env);
                         //Open all available dbi's
-                        bool noLock = true;
-                        auto t = Transaction(new Transaction::Private(readOnly, nullptr, name, env, noLock));
+                        MDB_txn *transaction;
+                        if (const int rc = mdb_txn_begin(env, nullptr, readOnly ? MDB_RDONLY : 0, &transaction)) {
+                            SinkWarning() << "Failed to to open transaction: " << QByteArray(mdb_strerror(rc)) << readOnly << transaction;
+                            return;
+                        }
                         if (!layout.tables.isEmpty()) {
 
                             //TODO upgrade db if the layout has changed:
                             //* read existing layout
                             //* if layout is not the same create new layout
-                        //If the db is read only, abort if the db is not yet existing.
-                        //If the db is not read-only but is not existing, ensure we have a layout and create all tables.
 
+                            //Create dbis from the given layout.
                             for (auto it = layout.tables.constBegin(); it != layout.tables.constEnd(); it++) {
-                                bool allowDuplicates = it.value();
-                                t.openDatabase(it.key(), {}, allowDuplicates);
+                                const bool allowDuplicates = it.value();
+                                MDB_dbi dbi = 0;
+                                const auto db = it.key();
+                                const auto dbiName = name + db;
+                                if (createDbi(transaction, db, readOnly, allowDuplicates, dbi)) {
+                                    sDbis.insert(dbiName, dbi);
+                                }
                             }
                         } else {
-                            for (const auto &db : t.getDatabaseNames()) {
-                                //Get dbi to store for future use.
-                                t.openDatabase(db);
+                            //Open all available databases
+                            for (const auto &db : getDatabaseNames(transaction)) {
+                                MDB_dbi dbi = 0;
+                                const auto dbiName = name + db;
+                                //We're going to load the flags anyways.
+                                bool allowDuplicates = false;
+                                if (createDbi(transaction, db, readOnly, allowDuplicates, dbi)) {
+                                    sDbis.insert(dbiName, dbi);
+                                }
                             }
                         }
                         //To persist the dbis (this is also necessary for read-only transactions)
-                        t.commit();
+                        mdb_txn_commit(transaction);
                     }
                 }
             }
@@ -1007,8 +1001,18 @@ void DataStore::removeFromDisk() const
 
 void DataStore::clearEnv()
 {
+    SinkTrace() << "Clearing environment";
     QWriteLocker locker(&sEnvironmentsLock);
-    for (auto env : sEnvironments) {
+    QWriteLocker dbiLocker(&sDbisLock);
+    for (const auto &envName : sEnvironments.keys()) {
+        auto env = sEnvironments.value(envName);
+        mdb_env_sync(env, true);
+        for (const auto &k : sDbis.keys()) {
+            if (k.startsWith(envName)) {
+                auto dbi = sDbis.value(k);
+                mdb_dbi_close(env, dbi);
+            }
+        }
         mdb_env_close(env);
     }
     sDbis.clear();
