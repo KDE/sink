@@ -210,20 +210,27 @@ public:
     std::function<void(const DataStore::Error &error)> defaultErrorHandler;
     QString name;
 
+    bool dbiValidForTransaction(MDB_dbi dbi, MDB_txn *transaction)
+    {
+        //sDbis can contain dbi's that are not available to this transaction.
+        //We use mdb_dbi_flags to check if the dbi is valid for this transaction.
+        uint f;
+        if (mdb_dbi_flags(transaction, dbi, &f) == EINVAL) {
+            return false;
+        }
+        return true;
+    }
+
     bool openDatabase(bool readOnly, std::function<void(const DataStore::Error &error)> errorHandler)
     {
         const auto dbiName = name + db;
         QReadLocker dbiLocker{&sDbisLock};
         if (sDbis.contains(dbiName)) {
             dbi = sDbis.value(dbiName);
-            //sDbis can contain dbi's that are not available to this transaction.
-            //We use mdb_dbi_flags to check if the dbi is valid for this transaction.
-            uint f;
-            if (mdb_dbi_flags(transaction, dbi, &f) == EINVAL) {
+            if (!dbiValidForTransaction(dbi, transaction)) {
+                SinkWarning() << "Tried to create database in second transaction: " << dbiName;
+                Q_ASSERT(false);
                 //In readonly mode we can just ignore this. In read-write we would have tried to concurrently create a db.
-                if (!readOnly) {
-                    SinkWarning() << "Tried to create database in second transaction: " << dbiName;
-                }
                 dbi = 0;
                 transaction = 0;
                 return false;
@@ -245,6 +252,8 @@ public:
             QMutexLocker createDbiLocker(&sCreateDbiLock);
             if (createDbi(dbiTransaction, db, readOnly, allowDuplicates, dbi)) {
                 mdb_txn_commit(dbiTransaction);
+                //Ensure the dbi is valid for the parent transaction
+                Q_ASSERT(dbiValidForTransaction(dbi, transaction));
                 dbiLocker.unlock();
                 QWriteLocker dbiWriteLocker(&sDbisLock);
                 sDbis.insert(dbiName, dbi);
