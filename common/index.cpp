@@ -10,6 +10,14 @@ Index::Index(const QString &storageRoot, const QString &name, Sink::Storage::Dat
 {
 }
 
+Index::Index(const QString &storageRoot, const Sink::Storage::DbLayout &layout, Sink::Storage::DataStore::AccessMode mode)
+    : mTransaction(Sink::Storage::DataStore(storageRoot, layout, mode).createTransaction(mode)),
+      mDb(mTransaction.openDatabase(layout.name, std::function<void(const Sink::Storage::DataStore::Error &)>(), true)),
+      mName(layout.name),
+      mLogCtx("index." + layout.name)
+{
+}
+
 Index::Index(const QByteArray &name, Sink::Storage::DataStore::Transaction &transaction)
     : mDb(transaction.openDatabase(name, std::function<void(const Sink::Storage::DataStore::Error &)>(), true)), mName(name),
       mLogCtx("index." + name)
