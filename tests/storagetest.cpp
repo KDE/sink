@@ -590,6 +590,46 @@ private slots:
             QCOMPARE(uids, expected);
         }
     }
+
+    void testDbiVisibility()
+    {
+        auto readValue = [](const Sink::Storage::DataStore::NamedDatabase &db, const QByteArray) {
+            QByteArray result;
+            db.scan("key1", [&](const QByteArray &, const QByteArray &value) {
+                result = value;
+                return true;
+            });
+            return result;
+        };
+        {
+            Sink::Storage::DataStore store(testDataPath, {dbName, {{"testTransactionVisibility", 0}}}, Sink::Storage::DataStore::ReadWrite);
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+
+            auto db = transaction.openDatabase("testTransactionVisibility", nullptr, false);
+            db.write("key1", "foo");
+            QCOMPARE(readValue(db, "key1"), QByteArray("foo"));
+            transaction.commit();
+        }
+        Sink::Storage::DataStore::clearEnv();
+
+        //Try to read-only dynamic opening of the db.
+        //This is the case if we don't have all databases available upon initializatoin and we don't (e.g. because the db hasn't been created yet) 
+        {
+            // Trick the db into not loading all dbs by passing in a bogus layout.
+            Sink::Storage::DataStore store(testDataPath, {dbName, {{"bogus", 0}}}, Sink::Storage::DataStore::ReadOnly);
+
+            //This transaction should open the dbi
+            auto transaction2 = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+            auto db2 = transaction2.openDatabase("testTransactionVisibility", nullptr, false);
+            QCOMPARE(readValue(db2, "key1"), QByteArray("foo"));
+
+            //This transaction should have the dbi available
+            auto transaction3 = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+            auto db3 = transaction3.openDatabase("testTransactionVisibility", nullptr, false);
+            QCOMPARE(readValue(db3, "key1"), QByteArray("foo"));
+        }
+
+    }
 };
 
 QTEST_MAIN(StorageTest)
