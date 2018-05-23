@@ -44,12 +44,14 @@ namespace Storage {
 
 extern QReadWriteLock sDbisLock;
 extern QReadWriteLock sEnvironmentsLock;
+extern QMutex sCreateDbiLock;
 extern QHash<QString, MDB_env *> sEnvironments;
 extern QHash<QString, MDB_dbi> sDbis;
 
 
 QReadWriteLock sDbisLock;
 QReadWriteLock sEnvironmentsLock;
+QMutex sCreateDbiLock;
 QHash<QString, MDB_env *> sEnvironments;
 QHash<QString, MDB_dbi> sDbis;
 
@@ -106,9 +108,6 @@ static QList<QByteArray> getDatabaseNames(MDB_txn *transaction)
  * and we always need to commit the transaction ASAP
  * We can only ever enter from one point per process.
  */
-
-QMutex sCreateDbiLock;
-
 static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly, bool allowDuplicates, MDB_dbi &dbi)
 {
 
