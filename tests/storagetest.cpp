@@ -629,6 +629,28 @@ private slots:
             QCOMPARE(readValue(db3, "key1"), QByteArray("foo"));
         }
 
+        Sink::Storage::DataStore::clearEnv();
+        //Try to read-write dynamic opening of the db.
+        //This is the case if we don't have all databases available upon initializatoin and we don't (e.g. because the db hasn't been created yet) 
+        {
+            // Trick the db into not loading all dbs by passing in a bogus layout.
+            Sink::Storage::DataStore store(testDataPath, {dbName, {{"bogus", 0}}}, Sink::Storage::DataStore::ReadWrite);
+
+            //This transaction should open the dbi
+            auto transaction2 = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+            auto db2 = transaction2.openDatabase("testTransactionVisibility", nullptr, false);
+            QCOMPARE(readValue(db2, "key1"), QByteArray("foo"));
+
+            //This transaction should have the dbi available (creating two write transactions obviously doesn't work)
+            //NOTE: we don't support this scenario. A write transaction must commit or abort before a read transaction opens the same database.
+            // auto transaction3 = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+            // auto db3 = transaction3.openDatabase("testTransactionVisibility", nullptr, false);
+            // QCOMPARE(readValue(db3, "key1"), QByteArray("foo"));
+
+            //Ensure we can still open further dbis in the write transaction
+            auto db4 = transaction2.openDatabase("anotherDb", nullptr, false);
+        }
+
     }
 };
 

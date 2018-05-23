@@ -184,6 +184,7 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
             //It's not an error if we only want to read
             if (!readOnly) {
                 SinkWarning() << "Failed to open db " << QByteArray(mdb_strerror(rc));
+                return true;
             }
             return false;
         }
@@ -209,6 +210,8 @@ public:
     bool allowDuplicates;
     std::function<void(const DataStore::Error &error)> defaultErrorHandler;
     QString name;
+    bool createdNewDbi = false;
+    QString createdNewDbiName;
 
     bool dbiValidForTransaction(MDB_dbi dbi, MDB_txn *transaction)
     {
@@ -227,38 +230,68 @@ public:
         QReadLocker dbiLocker{&sDbisLock};
         if (sDbis.contains(dbiName)) {
             dbi = sDbis.value(dbiName);
-            if (!dbiValidForTransaction(dbi, transaction)) {
-                SinkWarning() << "Tried to create database in second transaction: " << dbiName;
-                Q_ASSERT(false);
-                //In readonly mode we can just ignore this. In read-write we would have tried to concurrently create a db.
-                dbi = 0;
-                transaction = 0;
-                return false;
-            }
+            Q_ASSERT(dbiValidForTransaction(dbi, transaction));
         } else {
             /*
              * Dynamic creation of databases.
              * If all databases were defined via the database layout we wouldn't ever end up in here.
-             * However, we rely on this codepath for indexes and the synchronization databases.
+             * However, we rely on this codepath for indexes, synchronization databases and in race-conditions
+             * where the database is not yet fully created when the client initializes it for reading.
+             *
+             * There are a few things to consider:
+             * * dbi's (DataBase Identifier) should be opened once (ideally), and then be persisted in the environment.
+             * * To open a dbi we need a transaction and must commit the transaction. From then on any open transaction will have access to the dbi.
+             * * Already running transactions will not have access to the dbi.
+             * * There *must* only ever be one active transaction opening dbi's (using mdb_dbi_open), and that transaction *must*
+             * commit or abort before any other transaction opens a dbi.
+             *
+             * We solve this the following way:
+             * * For read-only transactions we abort the transaction, open the dbi and persist it in the environment, and reopen the transaction (so the dbi is available). This may result in the db content changing unexpectedly and referenced memory becoming unavailable, but isn't a problem as long as we don't rely on memory remaining valid for the duration of the transaction (which is anyways not given since any operation would invalidate the memory region)..
+             * * For write transactions we open the dbi for future use, and then open it as well in the current transaction.
              */
-            SinkTrace() << "Creating database dynamically: " << dbiName;
-            MDB_txn *dbiTransaction;
-            MDB_env *env = mdb_txn_env(transaction);
-            Q_ASSERT(env);
-            if (const int rc = mdb_txn_begin(env, readOnly ? nullptr : transaction, readOnly ? MDB_RDONLY : 0, &dbiTransaction)) {
-                SinkWarning() << "Failed to to open transaction: " << QByteArray(mdb_strerror(rc)) << readOnly << transaction;
-                return false;
-            }
+            SinkTrace() << "Creating database dynamically: " << dbiName << readOnly;
+            //Only one transaction may ever create dbis at a time.
             QMutexLocker createDbiLocker(&sCreateDbiLock);
+            //Double checked locking
+            if (sDbis.contains(dbiName)) {
+                dbi = sDbis.value(dbiName);
+                Q_ASSERT(dbiValidForTransaction(dbi, transaction));
+                return true;
+            }
+
+            //Create a transaction to open the dbi
+            MDB_txn *dbiTransaction;
+            if (readOnly) {
+                MDB_env *env = mdb_txn_env(transaction);
+                Q_ASSERT(env);
+                mdb_txn_reset(transaction);
+                if (const int rc = mdb_txn_begin(env, nullptr, MDB_RDONLY, &dbiTransaction)) {
+                    SinkError() << "Failed to open transaction: " << QByteArray(mdb_strerror(rc)) << readOnly << transaction;
+                    return false;
+                }
+            } else {
+                dbiTransaction = transaction;
+            }
             if (createDbi(dbiTransaction, db, readOnly, allowDuplicates, dbi)) {
-                mdb_txn_commit(dbiTransaction);
+                if (readOnly) {
+                    mdb_txn_commit(dbiTransaction);
+                    dbiLocker.unlock();
+                    QWriteLocker dbiWriteLocker(&sDbisLock);
+                    sDbis.insert(dbiName, dbi);
+                    //We reopen the read-only transaction so the dbi becomes available in it.
+                    mdb_txn_renew(transaction);
+                } else {
+                    createdNewDbi = true;
+                    createdNewDbiName = dbiName;
+                }
                 //Ensure the dbi is valid for the parent transaction
                 Q_ASSERT(dbiValidForTransaction(dbi, transaction));
-                dbiLocker.unlock();
-                QWriteLocker dbiWriteLocker(&sDbisLock);
-                sDbis.insert(dbiName, dbi);
             } else {
-                mdb_txn_abort(dbiTransaction);
+                if (readOnly) {
+                    mdb_txn_abort(dbiTransaction);
+                    mdb_txn_renew(transaction);
+                }
+                SinkWarning() << "Failed to create the dbi: " << dbiName;
                 dbi = 0;
                 transaction = 0;
                 return false;
@@ -577,7 +610,7 @@ class DataStore::Transaction::Private
 {
 public:
     Private(bool _requestRead, const std::function<void(const DataStore::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_env *_env)
-        : env(_env), transaction(nullptr), requestedRead(_requestRead), defaultErrorHandler(_defaultErrorHandler), name(_name), implicitCommit(false), error(false), modificationCounter(0)
+        : env(_env), transaction(nullptr), requestedRead(_requestRead), defaultErrorHandler(_defaultErrorHandler), name(_name), implicitCommit(false), error(false)
     {
     }
     ~Private()
@@ -591,7 +624,7 @@ public:
     QString name;
     bool implicitCommit;
     bool error;
-    int modificationCounter;
+    QMap<QString, MDB_dbi> createdDbs;
 
     void startTransaction()
     {
@@ -676,6 +709,21 @@ bool DataStore::Transaction::commit(const std::function<void(const DataStore::Er
         //If transactions start failing we're in an unrecoverable situation (i.e. out of diskspace). So throw an exception that will terminate the application.
         throw std::runtime_error("Fatal error while committing transaction.");
     }
+
+    //Add the created dbis to the shared environment
+    if (!d->createdDbs.isEmpty()) {
+        sDbisLock.lockForWrite();
+        for (auto it = d->createdDbs.constBegin(); it != d->createdDbs.constEnd(); it++) {
+            //This means we opened the dbi again in a read-only transaction while the write transaction was ongoing.
+            Q_ASSERT(!sDbis.contains(it.key()));
+            if (!sDbis.contains(it.key())) {
+                sDbis.insert(it.key(), it.value());
+            }
+        }
+        d->createdDbs.clear();
+        sDbisLock.unlock();
+    }
+
     d->transaction = nullptr;
     return !rc;
 }
@@ -689,6 +737,7 @@ void DataStore::Transaction::abort()
     // Trace_area("storage." + d->name.toLatin1()) << "Aborting transaction" << mdb_txn_id(d->transaction) << d->transaction;
     Q_ASSERT(sEnvironments.values().contains(d->env));
     mdb_txn_abort(d->transaction);
+    d->createdDbs.clear();
     d->transaction = nullptr;
 }
 
@@ -730,6 +779,11 @@ DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &
         delete p;
         return DataStore::NamedDatabase();
     }
+
+    if (p->createdNewDbi) {
+        d->createdDbs.insert(p->createdNewDbiName, p->dbi);
+    }
+
     auto database = DataStore::NamedDatabase(p);
     if (!ensureCorrectDb(database, db, d->requestedRead)) {
         SinkWarning() << "Failed to open the database correctly" << db;
