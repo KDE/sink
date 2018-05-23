@@ -21,46 +21,54 @@
 
 #include <iostream>
 
-#include <readline/readline.h>
-#include <readline/history.h>
-
 #include <QDebug>
 #include <QEvent>
 #include <QStateMachine>
+#include "linenoise.hpp"
 
 #include "syntaxtree.h"
-
-static char *sink_cli_next_tab_complete_match(const char *text, int state);
-static char ** sink_cli_tab_completion(const char *text, int start, int end);
 
 ReadState::ReadState(QState *parent)
     : QState(parent)
 {
-    rl_completion_entry_function = sink_cli_next_tab_complete_match;
-    rl_attempted_completion_function = sink_cli_tab_completion;
+    linenoise::SetCompletionCallback([](const char* editBuffer, std::vector<std::string>& completions) {
+        QStringList words = QString(editBuffer).split(" ", QString::SkipEmptyParts);
+        const QString fragment = words.takeLast();
+        Syntax::List nearest = SyntaxTree::self()->nearestSyntax(words, fragment);
+        if (nearest.isEmpty()) {
+            SyntaxTree::Command command = SyntaxTree::self()->match(words);
+            if (command.first && command.first->completer) {
+                QStringList commandCompletions = command.first->completer(words, fragment, SyntaxTree::self()->state());
+                for (const auto &c : commandCompletions) {
+                    completions.push_back(c.toStdString());
+                }
+            }
+        } else {
+            for (const auto &n : nearest) {
+                completions.push_back(n.keyword.toStdString());
+            }
+        }
+    });
 }
 
 void ReadState::onEntry(QEvent *event)
 {
     Q_UNUSED(event)
-    char *line = readline(prompt());
 
-    if (!line) {
+    std::string line;
+    if (linenoise::Readline(prompt(), line)) {
         std::cout << std::endl;
         emit exitRequested();
         return;
     }
 
     // we have actual data, so let's wait for a full line of text
-    QByteArray input(line);
-    const QString text = QString(line).simplified();
-    //qDebug() << "Line is ... " << text;
+    const QString text = QString::fromStdString(line).simplified();
 
     if (text.length() > 0) {
-        add_history(line);
+        linenoise::AddHistory(line.c_str());
     }
 
-    free(line);
     emit command(text);
 }
 
@@ -136,36 +144,6 @@ void PrintState::onEntry(QEvent *event)
     emit completed();
 }
 
-static QStringList tab_completion_full_state;
-static bool tab_completion_at_root = false;
-
-static char **sink_cli_tab_completion(const char *text, int start, int end)
-{
-    tab_completion_at_root = start == 0;
-    tab_completion_full_state = QString(rl_line_buffer).remove(start, end - start).split(" ", QString::SkipEmptyParts);
-    return NULL;
-}
-
-static char *sink_cli_next_tab_complete_match(const char *text, int state)
-{
-    const QString fragment(text);
-    Syntax::List nearest = SyntaxTree::self()->nearestSyntax(tab_completion_full_state, fragment);
-    //for (auto syntax: nearest) { qDebug() << "Nearest: " << syntax.keyword; }
-
-    if (nearest.isEmpty()) {
-        SyntaxTree::Command command = SyntaxTree::self()->match(tab_completion_full_state);
-        if (command.first && command.first->completer) {
-            QStringList commandCompletions = command.first->completer(tab_completion_full_state, fragment, SyntaxTree::self()->state());
-            if (commandCompletions.size() > state) {
-                return qstrdup(commandCompletions[state].toUtf8());
-            }
-        }
-    } else if (nearest.size() > state) {
-        return qstrdup(nearest[state].keyword.toUtf8());
-    }
-
-    return rl_filename_completion_function(text, state);
-}
 
 //Ignore warning I don't know how to fix in a moc file
 #pragma clang diagnostic push

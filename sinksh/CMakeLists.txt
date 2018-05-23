@@ -1,7 +1,5 @@
 project(sinksh)
 
-find_package(Readline 5.0 REQUIRED)
-
 set(sink_cli_SRCS
     main.cpp
     syntaxtree.cpp
@@ -27,9 +25,9 @@ set(sink_cli_SRCS
     state.cpp
     utils.cpp)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${Readline_INCLUDE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(${PROJECT_NAME} ${sink_cli_SRCS})
-target_link_libraries(${PROJECT_NAME} Qt5::Core ${Readline_LIBRARY} sink ${XAPIAN_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} Qt5::Core sink ${XAPIAN_LIBRARIES})
 install(TARGETS ${PROJECT_NAME} ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 

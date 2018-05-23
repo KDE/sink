@@ -19,8 +19,6 @@
 
 #include "repl.h"
 
-#include <readline/history.h>
-
 #include <QDir>
 #include <QFile>
 #include <QFinalState>
@@ -29,13 +27,12 @@
 
 #include "replStates.h"
 #include "syntaxtree.h"
+#include "linenoise.hpp"
 
 Repl::Repl(QObject *parent)
     : QStateMachine(parent)
 {
-    // readline history setup
-    using_history();
-    read_history(commandHistoryPath().toLocal8Bit());
+    linenoise::LoadHistory(commandHistoryPath().toLocal8Bit());
 
     // create all states
     ReadState *read = new ReadState(this);
@@ -64,8 +61,7 @@ Repl::Repl(QObject *parent)
 
 Repl::~Repl()
 {
-    // readline history writing
-    write_history(commandHistoryPath().toLocal8Bit());
+    linenoise::SaveHistory(commandHistoryPath().toLocal8Bit());
 }
 
 void Repl::printWelcomeBanner()
