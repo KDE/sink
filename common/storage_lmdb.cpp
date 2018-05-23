@@ -282,8 +282,9 @@ public:
                 if (readOnly) {
                     mdb_txn_abort(dbiTransaction);
                     mdb_txn_renew(transaction);
+                } else {
+                    SinkWarning() << "Failed to create the dbi: " << dbiName;
                 }
-                SinkWarning() << "Failed to create the dbi: " << dbiName;
                 dbi = 0;
                 transaction = 0;
                 return false;
