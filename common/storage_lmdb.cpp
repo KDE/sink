@@ -42,18 +42,11 @@ typedef SSIZE_T ssize_t;
 namespace Sink {
 namespace Storage {
 
-extern QReadWriteLock sDbisLock;
-extern QReadWriteLock sEnvironmentsLock;
-extern QMutex sCreateDbiLock;
-extern QHash<QString, MDB_env *> sEnvironments;
-extern QHash<QString, MDB_dbi> sDbis;
-
-
-QReadWriteLock sDbisLock;
-QReadWriteLock sEnvironmentsLock;
-QMutex sCreateDbiLock;
-QHash<QString, MDB_env *> sEnvironments;
-QHash<QString, MDB_dbi> sDbis;
+static QReadWriteLock sDbisLock;
+static QReadWriteLock sEnvironmentsLock;
+static QMutex sCreateDbiLock;
+static QHash<QString, MDB_env *> sEnvironments;
+static QHash<QString, MDB_dbi> sDbis;
 
 int getErrorCode(int e)
 {
