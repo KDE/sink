@@ -705,6 +705,8 @@ public:
             const auto content = ensureCRLF(mail.getMimeMessage());
             if (!validateContent(content)) {
                 SinkError() << "Validation failed during creation replay " << mail.identifier() << "\n  Content:" << content;
+                //We can't recover from this other than deleting the mail, so we skip it.
+                return KAsync::null<QByteArray>();
             }
             const auto flags = getFlags(mail);
             const QDateTime internalDate = mail.getDate();
@@ -743,6 +745,8 @@ public:
                 const auto content = ensureCRLF(mail.getMimeMessage());
                 if (!validateContent(content)) {
                     SinkError() << "Validation failed during modification replay " << mail.identifier() << "\n  Content:" << content;
+                    //We can't recover from this other than deleting the mail, so we skip it.
+                    return KAsync::null<QByteArray>();
                 }
                 const QDateTime internalDate = mail.getDate();
                 SinkTrace() << "Replacing message. Old mailbox: " << oldMailbox << "New mailbox: " << mailbox << "Flags: " << flags << "Content: " << content;
