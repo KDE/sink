@@ -595,14 +595,17 @@ int DataStore::NamedDatabase::findAllInRange(const QByteArray &lowerBound, const
         return 0;
     }
 
+    int count = 0;
     do {
         const auto currentBAKey = QByteArray::fromRawData((char *)currentKey.mv_data, currentKey.mv_size);
         const auto currentBAValue = QByteArray::fromRawData((char *)data.mv_data, data.mv_size);
         resultHandler(currentBAKey, currentBAValue);
+        count++;
     } while (mdb_cursor_get(cursor, &currentKey, &data, MDB_NEXT) == MDB_SUCCESS &&
              mdb_cmp(d->transaction, d->dbi, &currentKey, &idealLastKey) <= 0);
 
     mdb_cursor_close(cursor);
+    return count;
 }
 
 qint64 DataStore::NamedDatabase::getSize()
