@@ -551,6 +551,60 @@ void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::functi
     return;
 }
 
+int DataStore::NamedDatabase::findAllInRange(const QByteArray &lowerBound, const QByteArray &upperBound,
+    const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const DataStore::Error &error)> &errorHandler) const
+{
+    if (!d || !d->transaction) {
+        // Not an error. We rely on this to read nothing from non-existing databases.
+        return 0;
+    }
+
+    MDB_cursor *cursor;
+    if (int rc = mdb_cursor_open(d->transaction, d->dbi, &cursor)) {
+        // Invalid arguments can mean that the transaction doesn't contain the db dbi
+        Error error(d->name.toLatin1() + d->db, getErrorCode(rc),
+            QByteArray("Error during mdb_cursor_open: ") + QByteArray(mdb_strerror(rc)) +
+                ". Lower bound: " + lowerBound + " Upper bound: " + upperBound);
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        return 0;
+    }
+
+    int numberOfRetrievedValues = 0;
+
+    MDB_val firstKey = { .mv_size = (size_t)lowerBound.size(), .mv_data = (void *)lowerBound.constData() };
+    MDB_val idealLastKey = { .mv_size = (size_t)upperBound.size(), .mv_data = (void *)upperBound.constData() };
+    MDB_val lastKey = idealLastKey;
+    MDB_val currentKey;
+    MDB_val data;
+
+    // Find the first key in the range
+    int rc = mdb_cursor_get(cursor, &firstKey, &data, MDB_SET_RANGE);
+
+    if (rc != MDB_SUCCESS) {
+        // Nothing is greater or equal than the lower bound, meaning no result
+        mdb_cursor_close(cursor);
+        return 0;
+    }
+
+    currentKey = firstKey;
+
+    // If already bigger than the upper bound
+    if (mdb_cmp(d->transaction, d->dbi, &currentKey, &idealLastKey) > 0) {
+        mdb_cursor_close(cursor);
+        return 0;
+    }
+
+    do {
+        const auto currentBAKey = QByteArray::fromRawData((char *)currentKey.mv_data, currentKey.mv_size);
+        const auto currentBAValue = QByteArray::fromRawData((char *)data.mv_data, data.mv_size);
+        resultHandler(currentBAKey, currentBAValue);
+    } while (mdb_cursor_get(cursor, &currentKey, &data, MDB_NEXT) == MDB_SUCCESS &&
+             mdb_cmp(d->transaction, d->dbi, &currentKey, &idealLastKey) <= 0);
+
+    mdb_cursor_close(cursor);
+}
+
 qint64 DataStore::NamedDatabase::getSize()
 {
     if (!d || !d->transaction) {

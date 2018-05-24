@@ -462,6 +462,82 @@ private slots:
         QCOMPARE(result, QByteArray("value2"));
     }
 
+    void setupTestFindRange(Sink::Storage::DataStore::NamedDatabase &db)
+    {
+        db.write("0002", "value1");
+        db.write("0003", "value2");
+        db.write("0004", "value3");
+        db.write("0005", "value4");
+    }
+
+    void testFindRangeOptimistic()
+    {
+        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+        auto db = transaction.openDatabase("test", nullptr, false);
+        setupTestFindRange(db);
+        QByteArrayList results;
+        db.findAllInRange("0002", "0004", [&](const QByteArray &key, const QByteArray &value) { results << value; });
+
+        QCOMPARE(results, (QByteArrayList{"value1", "value2", "value3"}));
+    }
+
+    void testFindRangeNothing()
+    {
+        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+        auto db = transaction.openDatabase("test", nullptr, false);
+        setupTestFindRange(db);
+
+        QByteArrayList results1;
+        db.findAllInRange("0000", "0001", [&](const QByteArray &key, const QByteArray &value) { results1 << value; });
+        QCOMPARE(results1, QByteArrayList{});
+
+        QByteArrayList results2;
+        db.findAllInRange("0000", "0000", [&](const QByteArray &key, const QByteArray &value) { results2 << value; });
+        QCOMPARE(results2, QByteArrayList{});
+
+        QByteArrayList results3;
+        db.findAllInRange("0006", "0010", [&](const QByteArray &key, const QByteArray &value) { results3 << value; });
+        QCOMPARE(results3, QByteArrayList{});
+
+        QByteArrayList results4;
+        db.findAllInRange("0010", "0010", [&](const QByteArray &key, const QByteArray &value) { results4 << value; });
+        QCOMPARE(results4, QByteArrayList{});
+    }
+
+    void testFindRangeSingle()
+    {
+        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+        auto db = transaction.openDatabase("test", nullptr, false);
+        setupTestFindRange(db);
+
+        QByteArrayList results1;
+        db.findAllInRange("0004", "0004", [&](const QByteArray &key, const QByteArray &value) { results1 << value; });
+        QCOMPARE(results1, QByteArrayList{"value3"});
+    }
+
+    void testFindRangeOutofBounds()
+    {
+        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+        auto db = transaction.openDatabase("test", nullptr, false);
+        setupTestFindRange(db);
+
+        QByteArrayList results1;
+        db.findAllInRange("0000", "0010", [&](const QByteArray &key, const QByteArray &value) { results1 << value; });
+        QCOMPARE(results1, (QByteArrayList{"value1", "value2", "value3", "value4"}));
+
+        QByteArrayList results2;
+        db.findAllInRange("0003", "0010", [&](const QByteArray &key, const QByteArray &value) { results2 << value; });
+        QCOMPARE(results2, (QByteArrayList{"value2", "value3", "value4"}));
+
+        QByteArrayList results3;
+        db.findAllInRange("0000", "0003", [&](const QByteArray &key, const QByteArray &value) { results3 << value; });
+        QCOMPARE(results3, (QByteArrayList{"value1", "value2"}));
+    }
+
     void testTransactionVisibility()
     {
         auto readValue = [](const Sink::Storage::DataStore::NamedDatabase &db, const QByteArray) {
