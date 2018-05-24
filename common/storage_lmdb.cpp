@@ -955,14 +955,16 @@ public:
             if (!(env = sEnvironments.value(fullPath))) {
                 int rc = 0;
                 if ((rc = mdb_env_create(&env))) {
-                    SinkWarningCtx(logCtx) << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
-                    qCritical() << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
+                    SinkErrorCtx(logCtx) << "mdb_env_create: " << rc << " " << mdb_strerror(rc);
                     env = nullptr;
+                    throw std::runtime_error("Fatal error while creating db.");
                 } else {
                     //Limit large enough to accomodate all our named dbs. This only starts to matter if the number gets large, otherwise it's just a bunch of extra entries in the main table.
                     mdb_env_set_maxdbs(env, 50);
                     if (const int rc = mdb_env_set_mapsize(env, mapsize())) {
-                        SinkWarningCtx(logCtx) << "mdb_env_set_mapsize: " << rc << ":" << mdb_strerror(rc);
+                        SinkErrorCtx(logCtx) << "mdb_env_set_mapsize: " << rc << ":" << mdb_strerror(rc);
+                        Q_ASSERT(false);
+                        throw std::runtime_error("Fatal error while creating db.");
                     }
                     const bool readOnly = (mode == ReadOnly);
                     unsigned int flags = MDB_NOTLS;
@@ -973,7 +975,9 @@ public:
                         if (readOnly) {
                             SinkLogCtx(logCtx) << "Tried to open non-existing db: " << fullPath;
                         } else {
-                            SinkWarningCtx(logCtx) << "mdb_env_open: " << rc << ":" << mdb_strerror(rc);
+                            SinkErrorCtx(logCtx) << "mdb_env_open: " << rc << ":" << mdb_strerror(rc);
+                            Q_ASSERT(false);
+                            throw std::runtime_error("Fatal error while creating db.");
                         }
                         mdb_env_close(env);
                         env = 0;
