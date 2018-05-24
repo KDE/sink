@@ -915,6 +915,21 @@ DataStore::Transaction::Stat DataStore::Transaction::stat(bool printDetails)
     return {mei.me_last_pgno + 1, freePages, mst.ms_psize, mainStat, freeStat};
 }
 
+static size_t mapsize()
+{
+    if (RUNNING_ON_VALGRIND) {
+        // In order to run valgrind this size must be smaller than half your available RAM
+        // https://github.com/BVLC/caffe/issues/2404
+        return (size_t)1048576 * (size_t)1000; // 1MB * 1000
+    }
+#ifdef Q_OS_WIN
+    //Windows home 10 has a virtual address space limit of 128GB(https://msdn.microsoft.com/en-us/library/windows/desktop/aa366778(v=vs.85).aspx#physical_memory_limits_windows_10)
+    return (size_t)1048576 * (size_t)100000; // 1MB * 100'000
+#else
+    //This is the maximum size of the db (but will not be used directly), so we make it large enough that we hopefully never run into the limit.
+    return (size_t)1048576 * (size_t)100000; // 1MB * 100'000
+#endif
+}
 
 class DataStore::Private
 {
@@ -946,18 +961,8 @@ public:
                 } else {
                     //Limit large enough to accomodate all our named dbs. This only starts to matter if the number gets large, otherwise it's just a bunch of extra entries in the main table.
                     mdb_env_set_maxdbs(env, 50);
-                    if (RUNNING_ON_VALGRIND) {
-                        // In order to run valgrind this size must be smaller than half your available RAM
-                        // https://github.com/BVLC/caffe/issues/2404
-                        mdb_env_set_mapsize(env, (size_t)1048576 * (size_t)1000); // 1MB * 1000
-                    } else {
-                        //This is the maximum size of the db (but will not be used directly), so we make it large enough that we hopefully never run into the limit.
-#ifdef Q_OS_WIN
-                        //Windows home 10 has a virtual address space limit of 128GB(https://msdn.microsoft.com/en-us/library/windows/desktop/aa366778(v=vs.85).aspx#physical_memory_limits_windows_10)
-                        mdb_env_set_mapsize(env, (size_t)1048576 * (size_t)100000); // 1MB * 100'000
-#else
-                        mdb_env_set_mapsize(env, (size_t)1048576 * (size_t)100000); // 1MB * 100'000
-#endif
+                    if (const int rc = mdb_env_set_mapsize(env, mapsize())) {
+                        SinkWarningCtx(logCtx) << "mdb_env_set_mapsize: " << rc << ":" << mdb_strerror(rc);
                     }
                     const bool readOnly = (mode == ReadOnly);
                     unsigned int flags = MDB_NOTLS;
