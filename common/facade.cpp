@@ -115,5 +115,3 @@ QPair<KAsync::Job<void>, typename ResultEmitter<typename DomainType::Ptr>::Ptr> 
     template class Sink::GenericFacade<T>; \
 
 SINK_REGISTER_TYPES()
-
-#include "facade.moc"

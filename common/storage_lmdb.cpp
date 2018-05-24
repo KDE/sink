@@ -570,11 +570,8 @@ int DataStore::NamedDatabase::findAllInRange(const QByteArray &lowerBound, const
         return 0;
     }
 
-    int numberOfRetrievedValues = 0;
-
-    MDB_val firstKey = { .mv_size = (size_t)lowerBound.size(), .mv_data = (void *)lowerBound.constData() };
-    MDB_val idealLastKey = { .mv_size = (size_t)upperBound.size(), .mv_data = (void *)upperBound.constData() };
-    MDB_val lastKey = idealLastKey;
+    MDB_val firstKey = {(size_t)lowerBound.size(), (void *)lowerBound.constData()};
+    MDB_val idealLastKey = {(size_t)upperBound.size(), (void *)upperBound.constData()};
     MDB_val currentKey;
     MDB_val data;
 
