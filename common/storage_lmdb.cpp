@@ -895,10 +895,15 @@ public:
                     if (RUNNING_ON_VALGRIND) {
                         // In order to run valgrind this size must be smaller than half your available RAM
                         // https://github.com/BVLC/caffe/issues/2404
-                        mdb_env_set_mapsize(env, (size_t)10485760 * (size_t)1000); // 1MB * 1000
+                        mdb_env_set_mapsize(env, (size_t)1048576 * (size_t)1000); // 1MB * 1000
                     } else {
                         //This is the maximum size of the db (but will not be used directly), so we make it large enough that we hopefully never run into the limit.
-                        mdb_env_set_mapsize(env, (size_t)10485760 * (size_t)100000); // 1MB * 1000
+#ifdef Q_OS_WIN
+                        //Windows home 10 has a virtual address space limit of 128GB(https://msdn.microsoft.com/en-us/library/windows/desktop/aa366778(v=vs.85).aspx#physical_memory_limits_windows_10)
+                        mdb_env_set_mapsize(env, (size_t)1048576 * (size_t)100000); // 1MB * 100'000
+#else
+                        mdb_env_set_mapsize(env, (size_t)1048576 * (size_t)100000); // 1MB * 100'000
+#endif
                     }
                     const bool readOnly = (mode == ReadOnly);
                     unsigned int flags = MDB_NOTLS;
