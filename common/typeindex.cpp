@@ -325,7 +325,7 @@ QVector<QByteArray> TypeIndex::secondaryLookup<QByteArray>(const QByteArray &lef
     Index index(indexName(leftName + rightName), *mTransaction);
     const auto lookupKey = getByteArray(value);
     index.lookup(
-        lookupKey, [&](const QByteArray &value) { keys << value; }, [=](const Index::Error &error) { SinkWarning() << "Lookup error in secondary index: " << error.message << value << lookupKey; });
+        lookupKey, [&](const QByteArray &value) { keys << QByteArray{value.constData(), value.size()}; }, [=](const Index::Error &error) { SinkWarning() << "Lookup error in secondary index: " << error.message << value << lookupKey; });
 
     return keys;
 }
@@ -337,7 +337,7 @@ QVector<QByteArray> TypeIndex::secondaryLookup<QString>(const QByteArray &leftNa
     Index index(indexName(leftName + rightName), *mTransaction);
     const auto lookupKey = getByteArray(value);
     index.lookup(
-        lookupKey, [&](const QByteArray &value) { keys << value; }, [=](const Index::Error &error) { SinkWarning() << "Lookup error in secondary index: " << error.message << value << lookupKey; });
+        lookupKey, [&](const QByteArray &value) { keys << QByteArray{value.constData(), value.size()}; }, [=](const Index::Error &error) { SinkWarning() << "Lookup error in secondary index: " << error.message << value << lookupKey; });
 
     return keys;
 }
