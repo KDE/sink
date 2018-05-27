@@ -27,12 +27,12 @@
 
 #include "replStates.h"
 #include "syntaxtree.h"
-#include "linenoise.hpp"
+#include "commandline.h"
 
 Repl::Repl(QObject *parent)
     : QStateMachine(parent)
 {
-    linenoise::LoadHistory(commandHistoryPath().toLocal8Bit());
+    Commandline::loadHistory(commandHistoryPath());
 
     // create all states
     ReadState *read = new ReadState(this);
@@ -61,7 +61,7 @@ Repl::Repl(QObject *parent)
 
 Repl::~Repl()
 {
-    linenoise::SaveHistory(commandHistoryPath().toLocal8Bit());
+    Commandline::saveHistory(commandHistoryPath());
 }
 
 void Repl::printWelcomeBanner()

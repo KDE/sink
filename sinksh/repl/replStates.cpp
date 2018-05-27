@@ -24,14 +24,14 @@
 #include <QDebug>
 #include <QEvent>
 #include <QStateMachine>
-#include "linenoise.hpp"
 
+#include "commandline.h"
 #include "syntaxtree.h"
 
 ReadState::ReadState(QState *parent)
     : QState(parent)
 {
-    linenoise::SetCompletionCallback([](const char* editBuffer, std::vector<std::string>& completions) {
+    Commandline::setCompletionCallback([](const char* editBuffer, std::vector<std::string>& completions) {
         QStringList words = QString(editBuffer).split(" ", QString::SkipEmptyParts);
         const QString fragment = words.takeLast();
         Syntax::List nearest = SyntaxTree::self()->nearestSyntax(words, fragment);
@@ -56,7 +56,7 @@ void ReadState::onEntry(QEvent *event)
     Q_UNUSED(event)
 
     std::string line;
-    if (linenoise::Readline(prompt(), line)) {
+    if (Commandline::readline(prompt(), line)) {
         std::cout << std::endl;
         emit exitRequested();
         return;
@@ -66,7 +66,7 @@ void ReadState::onEntry(QEvent *event)
     const QString text = QString::fromStdString(line).simplified();
 
     if (text.length() > 0) {
-        linenoise::AddHistory(line.c_str());
+        Commandline::addHistory(line);
     }
 
     emit command(text);

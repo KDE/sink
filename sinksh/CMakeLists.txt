@@ -22,6 +22,7 @@ set(sink_cli_SRCS
     sinksh_utils.cpp
     repl/repl.cpp
     repl/replStates.cpp
+    repl/commandline.cpp
     state.cpp
     utils.cpp)
 
