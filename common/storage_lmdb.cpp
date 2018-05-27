@@ -240,6 +240,9 @@ public:
              * We solve this the following way:
              * * For read-only transactions we abort the transaction, open the dbi and persist it in the environment, and reopen the transaction (so the dbi is available). This may result in the db content changing unexpectedly and referenced memory becoming unavailable, but isn't a problem as long as we don't rely on memory remaining valid for the duration of the transaction (which is anyways not given since any operation would invalidate the memory region)..
              * * For write transactions we open the dbi for future use, and then open it as well in the current transaction.
+             * * Write transactions that open the named database multiple times will call this codepath multiple times,
+             * this is ok though because the same dbi will be returned by mdb_dbi_open (We could also start to do a lookup in
+             * Transaction::Private::createdDbs first).
              */
             SinkTrace() << "Creating database dynamically: " << dbiName << readOnly;
             //Only one transaction may ever create dbis at a time.
