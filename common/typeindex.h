@@ -38,6 +38,8 @@ public:
 
     template <typename T>
     void addProperty(const QByteArray &property);
+    template <typename T>
+    void addSortedProperty(const QByteArray &property);
     template <typename T, typename S>
     void addPropertyWithSorting(const QByteArray &property, const QByteArray &sortProperty);
 
@@ -54,9 +56,9 @@ public:
     }
 
     template <typename T>
-    void addPropertyWithSorting()
+    void addSortedProperty()
     {
-        addPropertyWithSorting<typename T::Type>(T::name);
+        addSortedProperty<typename T::Type>(T::name);
     }
 
     template <typename Left, typename Right>
@@ -112,14 +114,17 @@ private:
     friend class Sink::Storage::EntityStore;
     void updateIndex(bool add, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
     QByteArray indexName(const QByteArray &property, const QByteArray &sortProperty = QByteArray()) const;
+    QByteArray sortedIndexName(const QByteArray &property) const;
     Sink::Log::Context mLogCtx;
     QByteArray mType;
     QByteArrayList mProperties;
-    QMap<QByteArray, QByteArray> mSortedProperties;
+    QByteArrayList mSortedProperties;
+    QMap<QByteArray, QByteArray> mGroupedSortedProperties;
     //<Property, ResultProperty>
     QMap<QByteArray, QByteArray> mSecondaryProperties;
     QList<Sink::Indexer::Ptr> mCustomIndexer;
     Sink::Storage::DataStore::Transaction *mTransaction;
     QHash<QByteArray, std::function<void(bool, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mIndexer;
-    QHash<QByteArray, std::function<void(bool, const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction)>> mSortIndexer;
+    QHash<QByteArray, std::function<void(bool, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mSortIndexer;
+    QHash<QByteArray, std::function<void(bool, const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction)>> mGroupedSortIndexer;
 };

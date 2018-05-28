@@ -21,8 +21,11 @@
 #include "log.h"
 #include "index.h"
 #include "fulltextindex.h"
+
 #include <QDateTime>
 #include <QDataStream>
+
+#include <cmath>
 
 using namespace Sink;
 
@@ -50,15 +53,34 @@ static QByteArray getByteArray(const QVariant &value)
     return "toplevel";
 }
 
-static QByteArray toSortableByteArray(const QDateTime &date)
+
+static QByteArray toSortableByteArrayImpl(const QDateTime &date)
 {
     // Sort invalid last
     if (!date.isValid()) {
         return QByteArray::number(std::numeric_limits<unsigned int>::max());
     }
-    return QByteArray::number(std::numeric_limits<unsigned int>::max() - date.toTime_t());
+    static unsigned int uint_num_digits = std::log10(std::numeric_limits<unsigned int>::max()) + 1;
+    return QByteArray::number(std::numeric_limits<unsigned int>::max() - date.toTime_t()).rightJustified(uint_num_digits, '0');
 }
 
+static QByteArray toSortableByteArray(const QVariant &value)
+{
+    if (!value.isValid()) {
+        // FIXME: we don't know the type, so we don't know what to return
+        // This mean we're fixing every sorted index keys to use unsigned int
+        return QByteArray::number(std::numeric_limits<unsigned int>::max());
+    }
+
+    switch (value.type()) {
+        case QMetaType::QDateTime:
+            return toSortableByteArrayImpl(value.toDateTime());
+        default:
+            SinkWarning() << "Not knowing how to convert a" << value.typeName()
+                          << "to a sortable key, falling back to default conversion";
+            return getByteArray(value);
+    }
+}
 
 TypeIndex::TypeIndex(const QByteArray &type, const Sink::Log::Context &ctx) : mLogCtx(ctx), mType(type)
 {
@@ -70,6 +92,11 @@ QByteArray TypeIndex::indexName(const QByteArray &property, const QByteArray &so
         return mType + ".index." + property;
     }
     return mType + ".index." + property + ".sort." + sortProperty;
+}
+
+QByteArray TypeIndex::sortedIndexName(const QByteArray &property) const
+{
+    return mType + ".index." + property + ".sorted";
 }
 
 template <>
@@ -138,6 +165,22 @@ void TypeIndex::addProperty<ApplicationDomain::Reference>(const QByteArray &prop
 }
 
 template <>
+void TypeIndex::addSortedProperty<QDateTime>(const QByteArray &property)
+{
+    auto indexer = [this, property](bool add, const QByteArray &identifier, const QVariant &value,
+                       Sink::Storage::DataStore::Transaction &transaction) {
+        const auto sortableDate = toSortableByteArray(value);
+        if (add) {
+            Index(sortedIndexName(property), transaction).add(sortableDate, identifier);
+        } else {
+            Index(sortedIndexName(property), transaction).remove(sortableDate, identifier);
+        }
+    };
+    mSortIndexer.insert(property, indexer);
+    mSortedProperties << property;
+}
+
+template <>
 void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &property, const QByteArray &sortProperty)
 {
     auto indexer = [=](bool add, const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction) {
@@ -149,8 +192,8 @@ void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &
             Index(indexName(property, sortProperty), transaction).remove(propertyValue + toSortableByteArray(date), identifier);
         }
     };
-    mSortIndexer.insert(property + sortProperty, indexer);
-    mSortedProperties.insert(property, sortProperty);
+    mGroupedSortIndexer.insert(property + sortProperty, indexer);
+    mGroupedSortedProperties.insert(property, sortProperty);
 }
 
 template <>
@@ -166,10 +209,15 @@ void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::
         auto indexer = mIndexer.value(property);
         indexer(add, identifier, value, transaction);
     }
-    for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
+    for (const auto &property : mSortedProperties) {
+        const auto value = entity.getProperty(property);
+        auto indexer = mSortIndexer.value(property);
+        indexer(add, identifier, value, transaction);
+    }
+    for (auto it = mGroupedSortedProperties.constBegin(); it != mGroupedSortedProperties.constEnd(); it++) {
         const auto value = entity.getProperty(it.key());
         const auto sortValue = entity.getProperty(it.value());
-        auto indexer = mSortIndexer.value(it.key() + it.value());
+        auto indexer = mGroupedSortIndexer.value(it.key() + it.value());
         indexer(add, identifier, value, sortValue, transaction);
     }
     for (const auto &indexer : mCustomIndexer) {
@@ -207,22 +255,60 @@ void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDoma
     updateIndex(false, identifier, entity, transaction, resourceInstanceId);
 }
 
-static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filter)
+static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filter,
+    std::function<QByteArray(const QVariant &)> valueToKey = getByteArray)
 {
     QVector<QByteArray> keys;
     QByteArrayList lookupKeys;
     if (filter.comparator == Query::Comparator::Equals) {
-        lookupKeys << getByteArray(filter.value);
+        lookupKeys << valueToKey(filter.value);
     } else if (filter.comparator == Query::Comparator::In) {
-        lookupKeys = filter.value.value<QByteArrayList>();
+        for(const QVariant &value : filter.value.value<QVariantList>()) {
+            lookupKeys << valueToKey(value);
+        }
     } else {
         Q_ASSERT(false);
     }
 
     for (const auto &lookupKey : lookupKeys) {
         index.lookup(lookupKey, [&](const QByteArray &value) { keys << value; },
-            [lookupKey](const Index::Error &error) { SinkWarning() << "Lookup error in index: " << error.message << lookupKey; }, true);
+            [lookupKey](const Index::Error &error) {
+                SinkWarning() << "Lookup error in index: " << error.message << lookupKey;
+            },
+            true);
     }
+    return keys;
+}
+
+static QVector<QByteArray> sortedIndexLookup(Index &index, QueryBase::Comparator filter)
+{
+    if (filter.comparator == Query::Comparator::In || filter.comparator == Query::Comparator::Contains) {
+        SinkWarning() << "In and Contains comparison not supported on sorted indexes";
+    }
+
+    if (filter.comparator != Query::Comparator::Within) {
+        return indexLookup(index, filter, toSortableByteArray);
+    }
+
+    QVector<QByteArray> keys;
+
+    QByteArray lowerBound, upperBound;
+    auto bounds = filter.value.value<QVariantList>();
+    if (bounds[0].canConvert<QDateTime>()) {
+        // Inverse the bounds because dates are stored newest first
+        upperBound = toSortableByteArray(bounds[0].toDateTime());
+        lowerBound = toSortableByteArray(bounds[1].toDateTime());
+    } else {
+        lowerBound = bounds[0].toByteArray();
+        upperBound = bounds[1].toByteArray();
+    }
+
+    index.rangeLookup(lowerBound, upperBound, [&](const QByteArray &value) { keys << value; },
+        [bounds](const Index::Error &error) {
+            SinkWarning() << "Lookup error in index:" << error.message
+                          << "with bounds:" << bounds[0] << bounds[1];
+        });
+
     return keys;
 }
 
@@ -239,16 +325,27 @@ QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
         }
     }
 
-    for (auto it = mSortedProperties.constBegin(); it != mSortedProperties.constEnd(); it++) {
+    for (auto it = mGroupedSortedProperties.constBegin(); it != mGroupedSortedProperties.constEnd(); it++) {
         if (query.hasFilter(it.key()) && query.sortProperty() == it.value()) {
             Index index(indexName(it.key(), it.value()), transaction);
             const auto keys = indexLookup(index, query.getFilter(it.key()));
             appliedFilters << it.key();
             appliedSorting = it.value();
-            SinkTraceCtx(mLogCtx) << "Sorted index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
+            SinkTraceCtx(mLogCtx) << "Grouped sorted index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
             return keys;
         }
     }
+
+    for (const auto &property : mSortedProperties) {
+        if (query.hasFilter(property)) {
+            Index index(sortedIndexName(property), transaction);
+            const auto keys = sortedIndexLookup(index, query.getFilter(property));
+            appliedFilters << property;
+            SinkTraceCtx(mLogCtx) << "Sorted index lookup on " << property << " found " << keys.size() << " keys.";
+            return keys;
+        }
+    }
+
     for (const auto &property : mProperties) {
         if (query.hasFilter(property)) {
             Index index(indexName(property), transaction);

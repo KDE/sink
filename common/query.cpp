@@ -132,8 +132,8 @@ bool QueryBase::Filter::operator==(const QueryBase::Filter &other) const
 
 bool QueryBase::operator==(const QueryBase &other) const
 {
-    auto ret = mType == other.mType 
-        && mSortProperty == other.mSortProperty 
+    auto ret = mType == other.mType
+        && mSortProperty == other.mSortProperty
         && mBaseFilterStage == other.mBaseFilterStage;
     return ret;
 }
@@ -171,6 +171,14 @@ bool QueryBase::Comparator::matches(const QVariant &v) const
                 return false;
             }
             return value.value<QByteArrayList>().contains(v.toByteArray());
+        case Within: {
+            auto range = value.value<QList<QVariant>>();
+            if (range.size() < 2) {
+                return false;
+            }
+
+            return range[0] <= v && v <= range[1];
+        }
         case Fulltext:
         case Invalid:
         default:

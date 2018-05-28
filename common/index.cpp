@@ -59,3 +59,17 @@ QByteArray Index::lookup(const QByteArray &key)
     lookup(key, [&](const QByteArray &value) { result = QByteArray(value.constData(), value.size()); }, [](const Index::Error &) { });
     return result;
 }
+
+void Index::rangeLookup(const QByteArray &lowerBound, const QByteArray &upperBound,
+        const std::function<void(const QByteArray &value)> &resultHandler,
+        const std::function<void(const Error &error)> &errorHandler)
+{
+    mDb.findAllInRange(lowerBound, upperBound,
+            [&](const QByteArray &key, const QByteArray &value) {
+                resultHandler(value);
+            },
+            [&](const Sink::Storage::DataStore::Error &error) {
+                SinkWarningCtx(mLogCtx) << "Error while retrieving value:" << error << mName;
+                errorHandler(Error(error.store, error.code, error.message));
+            });
+}

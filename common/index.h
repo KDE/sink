@@ -40,6 +40,10 @@ public:
         bool matchSubStringKeys = false);
     QByteArray lookup(const QByteArray &key);
 
+    void rangeLookup(const QByteArray &lowerBound, const QByteArray &upperBound,
+        const std::function<void(const QByteArray &value)> &resultHandler,
+        const std::function<void(const Error &error)> &errorHandler);
+
 private:
     Q_DISABLE_COPY(Index);
     Sink::Storage::DataStore::Transaction mTransaction;

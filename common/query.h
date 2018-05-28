@@ -36,6 +36,7 @@ public:
             Equals,
             Contains,
             In,
+            Within,
             Fulltext
         };
 

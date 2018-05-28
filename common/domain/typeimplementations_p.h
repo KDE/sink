@@ -62,7 +62,7 @@ public:
 };
 
 
-template <typename Property, typename SortProperty>
+template <typename Property, typename SortProperty = void>
 class SortedIndex
 {
 public:
@@ -75,6 +75,22 @@ public:
     static QMap<QByteArray, int> databases()
     {
         return {{QByteArray{EntityType::name} +".index." + Property::name + ".sort." + SortProperty::name, 1}};
+    }
+};
+
+template <typename SortProperty>
+class SortedIndex<SortProperty, void>
+{
+public:
+    static void configure(TypeIndex &index)
+    {
+        index.addSortedProperty<SortProperty>();
+    }
+
+    template <typename EntityType>
+    static QMap<QByteArray, int> databases()
+    {
+        return {{QByteArray{EntityType::name} +".index." + SortProperty::name + ".sorted", 1}};
     }
 };
 

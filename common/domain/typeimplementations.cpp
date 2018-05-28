@@ -38,7 +38,7 @@ using namespace Sink::ApplicationDomain;
     MAPPER.addMapping<ENTITYTYPE::PROPERTY, Sink::ApplicationDomain::Buffer::ENTITYTYPE, Sink::ApplicationDomain::Buffer::ENTITYTYPE##Builder>(&Sink::ApplicationDomain::Buffer::ENTITYTYPE::LOWERCASEPROPERTY, &Sink::ApplicationDomain::Buffer::ENTITYTYPE##Builder::add_##LOWERCASEPROPERTY);
 
 typedef IndexConfig<Mail,
-        ValueIndex<Mail::Date>,
+        SortedIndex<Mail::Date>,
         ValueIndex<Mail::Folder>,
         ValueIndex<Mail::ParentMessageId>,
         ValueIndex<Mail::MessageId>,
@@ -64,7 +64,8 @@ typedef IndexConfig<Addressbook,
     > AddressbookIndexConfig;
 
 typedef IndexConfig<Event,
-        ValueIndex<Event::Uid>
+        ValueIndex<Event::Uid>,
+        SortedIndex<Event::StartTime>
     > EventIndexConfig;
 
 typedef IndexConfig<Todo,

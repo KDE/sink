@@ -1510,6 +1510,113 @@ private slots:
         }
     }
 
+    void mailsWithDates()
+    {
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setExtractedDate(QDateTime::fromString("2018-05-23T13:49:41Z", Qt::ISODate));
+            mail.setExtractedMessageId("message1");
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
+        }
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setExtractedDate(QDateTime::fromString("2018-05-23T13:50:00Z", Qt::ISODate));
+            mail.setExtractedMessageId("message2");
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
+        }
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setExtractedDate(QDateTime::fromString("2018-05-27T13:50:00Z", Qt::ISODate));
+            mail.setExtractedMessageId("message3");
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
+        }
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setExtractedMessageId("message4");
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
+        }
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setExtractedDate(QDateTime::fromString("2078-05-23T13:49:41Z", Qt::ISODate));
+            mail.setExtractedMessageId("message5");
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+    }
+
+    void testMailDate()
+    {
+        mailsWithDates();
+
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Date>(QDateTime::fromString("2018-05-23T13:49:41Z", Qt::ISODate));
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Date>(QDateTime::fromString("2018-05-27T13:49:41Z", Qt::ISODate));
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 0);
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Date>(QDateTime::fromString("2018-05-27T13:50:00Z", Qt::ISODate));
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+        }
+
+    }
+
+    void testMailRange()
+    {
+        mailsWithDates();
+
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Date>(QueryBase::Comparator(QVariantList{QDateTime::fromString("2018-05-23T13:49:41Z", Qt::ISODate), QDateTime::fromString("2018-05-23T13:49:41Z", Qt::ISODate)}, QueryBase::Comparator::Within));
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Date>(QueryBase::Comparator(QVariantList{QDateTime::fromString("2018-05-22T13:49:41Z", Qt::ISODate), QDateTime::fromString("2018-05-25T13:49:41Z", Qt::ISODate)}, QueryBase::Comparator::Within));
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 2);
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Date>(QueryBase::Comparator(QVariantList{QDateTime::fromString("2018-05-22T13:49:41Z", Qt::ISODate), QDateTime::fromString("2018-05-30T13:49:41Z", Qt::ISODate)}, QueryBase::Comparator::Within));
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 3);
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Date>(QueryBase::Comparator(QVariantList{QDateTime::fromString("2018-05-22T13:49:41Z", Qt::ISODate), QDateTime::fromString("2118-05-30T13:49:41Z", Qt::ISODate)}, QueryBase::Comparator::Within));
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 4);
+        }
+    }
 };
 
 QTEST_MAIN(QueryTest)
