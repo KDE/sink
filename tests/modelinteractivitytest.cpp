@@ -3,7 +3,6 @@
 #include <QString>
 #include <iostream>
 
-#include "dummyresource/resourcefactory.h"
 #include "store.h"
 #include "resourcecontrol.h"
 #include "commands.h"

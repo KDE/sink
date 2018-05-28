@@ -2,10 +2,10 @@
 
 #include <QString>
 
-#include "dummyresource/resourcefactory.h"
 #include "store.h"
 #include "resourcecontrol.h"
 #include "resourceconfig.h"
+#include "resource.h"
 #include "log.h"
 #include "testutils.h"
 

@@ -62,7 +62,4 @@ auto_tests (
 target_link_libraries(dummyresourcetest sink_resource_dummy)
 target_link_libraries(dummyresourcebenchmark sink_resource_dummy)
 target_link_libraries(dummyresourcewritebenchmark sink_resource_dummy)
-target_link_libraries(querytest sink_resource_dummy)
-target_link_libraries(modelinteractivitytest sink_resource_dummy)
-target_link_libraries(inspectiontest sink_resource_dummy)
-target_link_libraries(notificationtest sink_resource_dummy)
+
