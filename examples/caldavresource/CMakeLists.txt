@@ -11,4 +11,8 @@ target_link_libraries(${PROJECT_NAME} sink_webdav_common sink Qt5::Core Qt5::Net
 
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH} RUNTIME DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
 
-add_subdirectory(tests)
+if (WIN32)
+    message("Not building caldavresource resource tests on windows")
+else()
+    add_subdirectory(tests)
+endif()

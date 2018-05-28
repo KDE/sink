@@ -31,10 +31,8 @@ include(SinkTest)
 
 manual_tests (
     storagebenchmark
-    dummyresourcebenchmark
     mailquerybenchmark
     pipelinebenchmark
-    dummyresourcewritebenchmark
     databasepopulationandfacadequerybenchmark
 )
 
@@ -42,7 +40,6 @@ auto_tests (
     clientapitest
     resourceconfigtest
     storagetest
-    dummyresourcetest
     domainadaptortest
     messagequeuetest
     indextest
@@ -59,7 +56,19 @@ auto_tests (
     entitystoretest
     upgradetest
 )
-target_link_libraries(dummyresourcetest sink_resource_dummy)
-target_link_libraries(dummyresourcebenchmark sink_resource_dummy)
-target_link_libraries(dummyresourcewritebenchmark sink_resource_dummy)
+
+if (WIN32)
+    message("Not building dumm resource tests on windows")
+else()
+    manual_tests (
+        dummyresourcebenchmark
+        dummyresourcewritebenchmark
+    )
+    auto_tests (
+        dummyresourcetest
+    )
+    target_link_libraries(dummyresourcetest sink_resource_dummy)
+    target_link_libraries(dummyresourcebenchmark sink_resource_dummy)
+    target_link_libraries(dummyresourcewritebenchmark sink_resource_dummy)
+endif()
 

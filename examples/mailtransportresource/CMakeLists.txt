@@ -28,4 +28,8 @@ target_link_libraries(sink_smtp_test
 )
 install(TARGETS sink_smtp_test ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
-add_subdirectory(tests)
+if (WIN32)
+    message("Not building mailtransport resource tests on windows")
+else()
+    add_subdirectory(tests)
+endif()

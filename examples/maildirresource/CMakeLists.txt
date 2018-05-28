@@ -9,6 +9,8 @@ target_link_libraries(${PROJECT_NAME} sink Qt5::Core Qt5::Network KF5::Mime)
 
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${SINK_RESOURCE_PLUGINS_PATH} RUNTIME DESTINATION ${SINK_RESOURCE_PLUGINS_PATH})
 
-add_definitions(-DTESTDATAPATH="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
-
-add_subdirectory(tests)
+if (WIN32)
+    message("Not building maildir resource tests on windows")
+else()
+    add_subdirectory(tests)
+endif()

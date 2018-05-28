@@ -2,6 +2,7 @@ set(CMAKE_AUTOMOC ON)
 include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}
 )
+add_definitions(-DTESTDATAPATH="${CMAKE_CURRENT_SOURCE_DIR}/data")
 
 include(SinkTest)
 
