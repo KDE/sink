@@ -60,7 +60,7 @@ static QByteArray toSortableByteArrayImpl(const QDateTime &date)
     if (!date.isValid()) {
         return QByteArray::number(std::numeric_limits<unsigned int>::max());
     }
-    static unsigned int uint_num_digits = std::log10(std::numeric_limits<unsigned int>::max()) + 1;
+    static unsigned int uint_num_digits = (unsigned int)std::log10(std::numeric_limits<unsigned int>::max()) + 1;
     return QByteArray::number(std::numeric_limits<unsigned int>::max() - date.toTime_t()).rightJustified(uint_num_digits, '0');
 }
 
