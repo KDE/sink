@@ -928,8 +928,8 @@ static size_t mapsize()
         return (size_t)1048576 * (size_t)1000; // 1MB * 1000
     }
 #ifdef Q_OS_WIN
-    //Windows home 10 has a virtual address space limit of 128GB(https://msdn.microsoft.com/en-us/library/windows/desktop/aa366778(v=vs.85).aspx#physical_memory_limits_windows_10)
-    return (size_t)1048576 * (size_t)100000; // 1MB * 100'000
+    //Windows home 10 has a virtual address space limit of 128GB(https://msdn.microsoft.com/en-us/library/windows/desktop/aa366778(v=vs.85).aspx#physical_memory_limits_windows_10). I seems like the 128GB need to accomodate all databases we open in the process.
+    return (size_t)1048576 * (size_t)10000; // 1MB * 10'000
 #else
     //This is the maximum size of the db (but will not be used directly), so we make it large enough that we hopefully never run into the limit.
     return (size_t)1048576 * (size_t)100000; // 1MB * 100'000
