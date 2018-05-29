@@ -3,6 +3,7 @@
 #include "resourceaccess.h"
 #include "listener.h"
 #include "commands.h"
+#include "testutils.h"
 #include "handshake_generated.h"
 
 /**
@@ -34,9 +35,7 @@ private slots:
         auto name = fbb.CreateString("test");
         auto command = Sink::Commands::CreateHandshake(fbb, name);
         Sink::Commands::FinishHandshakeBuffer(fbb, command);
-        auto result = resourceAccess.sendCommand(Sink::Commands::HandshakeCommand, fbb).exec();
-        result.waitForFinished();
-        QVERIFY(!result.errorCode());
+        VERIFYEXEC(resourceAccess.sendCommand(Sink::Commands::HandshakeCommand, fbb));
     }
 
     void testCommandLoop()
@@ -76,7 +75,7 @@ private slots:
         int complete = 0;
         int errors = 0;
         for (int i = 0; i < count; i++) {
-            resourceAccess.sendCommand(Sink::Commands::PingCommand)
+            VERIFYEXEC(resourceAccess.sendCommand(Sink::Commands::PingCommand)
                 .then([&resourceAccess, &errors, &complete](const KAsync::Error &error) {
                     complete++;
                     if (error) {
@@ -85,9 +84,7 @@ private slots:
                     }
                     resourceAccess.close();
                     resourceAccess.open();
-                })
-                .exec()
-                .waitForFinished();
+                }));
         }
         QTRY_COMPARE(complete, count);
         QVERIFY(!errors);
