@@ -28,9 +28,7 @@ set(CMAKE_CXX_VISIBILITY_PRESET default)
 
 install(EXPORT SinkTargets DESTINATION "${CMAKECONFIG_INSTALL_DIR}" FILE SinkTargets.cmake)
 
-set(storage_SRCS storage_lmdb.cpp)
-
-set(command_SRCS
+add_library(${PROJECT_NAME} SHARED
     store.cpp
     secretstore.cpp
     notifier.cpp
@@ -84,9 +82,8 @@ set(command_SRCS
     propertyparser.cpp
     utils.cpp
     fulltextindex.cpp
-    ${storage_SRCS})
+    storage_lmdb.cpp)
 
-add_library(${PROJECT_NAME} SHARED ${command_SRCS})
 
 generate_flatbuffers(
     ${PROJECT_NAME}
