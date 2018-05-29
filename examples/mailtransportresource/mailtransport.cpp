@@ -20,7 +20,9 @@
 
 #include <QByteArray>
 #include <QList>
-#include <QDebug>
+#include <QLoggingCategory>
+
+Q_LOGGING_CATEGORY(mailtransportCategory, "mailtransport")
 
 extern "C" {
 
@@ -48,7 +50,6 @@ static size_t payload_source(void *ptr, size_t size, size_t nmemb, void *userp)
         if (len > size * nmemb) {
             len = size * nmemb;
         }
-        fprintf(stdout, "read n bytes: %d\n", int(len));
         memcpy(ptr, data, len);
         upload_ctx->offset += len;
         return len;
@@ -57,26 +58,17 @@ static size_t payload_source(void *ptr, size_t size, size_t nmemb, void *userp)
     return 0;
 }
 
-static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
-{
-    if (ultotal > 0) {
-        auto progress =  ulnow * 100.0/ ultotal;
-        fprintf(stdout, "Upload progress: %d \n", int(progress));
-    }
-    return 0;
-}
-
-static int debug_callback(CURL *handle,
-                   curl_infotype type,
-                   char *data,
-                   size_t size,
-                   void *userptr)
-{
-    fprintf(stdout, "CURL_DEBUG: %s", data);
-    return 0;
-}
-
-bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs, const char *msg, bool useTls, const char* from, const char *username, const char *password, const char *server, bool verifyPeer, const QByteArray &cacert, QByteArray &errorMessage)
+bool sendMessageCurl(const char *to[], int numTos,
+        const char *cc[], int numCcs,
+        const char *msg,
+        bool useTls,
+        const char* from,
+        const char *username, const char *password,
+        const char *server, bool verifyPeer, const QByteArray &cacert, QByteArray &errorMessage,
+        bool enableDebugOutput,
+        int (*debug_callback)(CURL *handle, curl_infotype type, char *data, size_t size, void *userptr),
+        int (*progress_callback)(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
+        )
 {
     CURL *curl;
     CURLcode res = CURLE_OK;
@@ -127,10 +119,11 @@ bool sendMessageCurl(const char *to[], int numTos, const char *cc[], int numCcs,
         /* Since the traffic will be encrypted, it is very useful to turn on debug
         * information within libcurl to see what is happening during the transfer.
         */
-        // curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+        if (enableDebugOutput) {
+            curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+        }
         curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, debug_callback);
 
-        // curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
         //Connection timeout of 40s
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 40L);
 
@@ -190,7 +183,27 @@ MailTransport::SendResult MailTransport::sendMessage(const KMime::Message::Ptr &
     auto serverAddress = server;
     serverAddress.replace("smtps://", "smtp://");
 
+    bool enableDebugOutput = QLoggingCategory{"mailtransport"}.isEnabled(QtDebugMsg);
     QByteArray errorMessage;
-    auto ret = sendMessageCurl(to, numTos, cc, numCcs, message->encodedContent(), useTls, from.isEmpty() ? nullptr : from, username, password, serverAddress, verifyPeer, cacert, errorMessage);
+    auto ret = sendMessageCurl(to, numTos, cc, numCcs,
+            message->encodedContent(),
+            useTls,
+            from.isEmpty() ? nullptr : from,
+            username, password,
+            serverAddress, verifyPeer, cacert,
+            errorMessage,
+            enableDebugOutput,
+            [] (CURL *handle, curl_infotype type, char *data, size_t size, void *) -> int {
+                //FIXME all a callback passed to sendMessage using the provided user pointer,
+                //because lambdas with captures cannot be converted to function pointers.
+                qCDebug(mailtransportCategory) << QString::fromUtf8(data, size);
+                return 0;
+            },
+            [] (void *, curl_off_t, curl_off_t, curl_off_t ultotal, curl_off_t ulnow) -> int {
+                if (ultotal > 0) {
+                    qCDebug(mailtransportCategory) << "Upload progress " << ulnow << " out of " << ultotal;
+                }
+                return 0;
+            });
     return {ret, errorMessage};
 }
