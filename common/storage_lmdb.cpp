@@ -531,8 +531,10 @@ void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::functi
                 prefOp = MDB_LAST;
             }
             rc = mdb_cursor_get(cursor, &key, &data, prefOp);
-            foundValue = true;
-            resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size));
+            if (!rc) {
+                foundValue = true;
+                resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size));
+            }
         }
     }
 
