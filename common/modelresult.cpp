@@ -340,6 +340,9 @@ template <class T, class Ptr>
 void ModelResult<T, Ptr>::remove(const Ptr &value)
 {
     auto childId = qHash(*value);
+    if (!mEntities.contains(childId)) {
+        return;
+    }
     //The removed entity will have no properties, but we at least need the parent property.
     auto actualEntity = mEntities.value(childId);
     auto id = parentId(actualEntity);
