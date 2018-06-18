@@ -232,6 +232,7 @@ public:
 
     void updateComplete() Q_DECL_OVERRIDE
     {
+        SinkTraceCtx(mDatastore->mLogCtx) << "Reduction update is complete.";
         mIncrementallyReducedValues.clear();
     }
 
@@ -317,6 +318,7 @@ public:
                     }
                 }();
                 if (reductionValue.isNull()) {
+                    SinkTraceCtx(mDatastore->mLogCtx) << "No reduction value: " << result.entity.identifier();
                     //We failed to find a value to reduce on, so ignore this entity.
                     //Can happen if the entity was already removed and we have no previous revision.
                     return;
@@ -325,6 +327,7 @@ public:
                 if (!mReducedValues.contains(reductionValueBa)) {
                     //Only reduce every value once.
                     mReducedValues.insert(reductionValueBa);
+                    SinkTraceCtx(mDatastore->mLogCtx) << "Reducing new value: " << result.entity.identifier() << reductionValueBa;
                     auto reductionResult = reduceOnValue(reductionValue);
 
                     //This can happen if we get a removal message from a filtered entity and all entites of the reduction are filtered.
@@ -341,11 +344,13 @@ public:
                     //During updates adjust the reduction according to the modification/addition or removal
                     //We have to redo the reduction for every element, because of the aggregation values.
                     if (mIncremental && !mIncrementallyReducedValues.contains(reductionValueBa)) {
+                        SinkTraceCtx(mDatastore->mLogCtx) << "Incremental reduction update: " << result.entity.identifier() << reductionValueBa;
                         mIncrementallyReducedValues.insert(reductionValueBa);
                         //Redo the reduction to find new aggregated values
                         auto selectionResult = reduceOnValue(reductionValue);
 
                         auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
+                        SinkTraceCtx(mDatastore->mLogCtx) << "Old selection result: " << oldSelectionResult << " New selection result: " << selectionResult.selection;
                         //If mSelectedValues did not containthe value, oldSelectionResult will be empty.(Happens if entites have been filtered)
                         if (oldSelectionResult.isEmpty()) {
                             return;

@@ -380,7 +380,7 @@ QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant
         const auto lookupKey = getByteArray(value);
         index.lookup(
             lookupKey, [&](const QByteArray &value) { secondaryKeys << value; }, [property](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
-        SinkTraceCtx(mLogCtx) << "Looked up secondary keys: " << secondaryKeys;
+        SinkTraceCtx(mLogCtx) << "Looked up secondary keys for the following lookup key: " << lookupKey << " => " << secondaryKeys;
         for (const auto &secondary : secondaryKeys) {
             keys += lookup(resultProperty, secondary, transaction);
         }
