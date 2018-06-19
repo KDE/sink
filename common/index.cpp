@@ -26,6 +26,7 @@ Index::Index(const QByteArray &name, Sink::Storage::DataStore::Transaction &tran
 
 void Index::add(const QByteArray &key, const QByteArray &value)
 {
+    Q_ASSERT(!key.isEmpty());
     mDb.write(key, value, [&] (const Sink::Storage::DataStore::Error &error) {
         SinkWarningCtx(mLogCtx) << "Error while writing value" << error;
     });

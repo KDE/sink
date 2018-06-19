@@ -113,7 +113,7 @@ public:
         if (!maildir.isValid(true)) {
             SinkWarning() << "Maildir is not existing: " << path;
         }
-        SinkWarning() << "Storing message: " << data;
+        SinkTrace() << "Storing message: " << data;
         auto identifier = maildir.addEntry(data);
         return path + "/" + identifier;
     }

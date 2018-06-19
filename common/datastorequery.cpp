@@ -319,6 +319,7 @@ public:
                         //For removals we have to read the last revision to get a value, and thus be able to find the correct thread.
                         QVariant reductionValue;
                         readPrevious(result.entity.identifier(), [&] (const ApplicationDomain::ApplicationDomainType &prev) {
+                            Q_ASSERT(result.entity.identifier() == prev.identifier());
                             reductionValue = prev.getProperty(mReductionProperty);
                         });
                         return reductionValue;

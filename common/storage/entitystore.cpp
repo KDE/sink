@@ -249,23 +249,19 @@ bool EntityStore::add(const QByteArray &type, ApplicationDomainType entity, bool
 
 ApplicationDomain::ApplicationDomainType EntityStore::applyDiff(const QByteArray &type, const ApplicationDomainType &current, const ApplicationDomainType &diff, const QByteArrayList &deletions) const
 {
+    SinkTraceCtx(d->logCtx) << "Applying diff: " << current.availableProperties() << "Deletions: " << deletions << "Changeset: " << diff.changedProperties();
     auto newEntity = *ApplicationDomainType::getInMemoryRepresentation<ApplicationDomainType>(current, current.availableProperties());
 
-    SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
-
     // Apply diff
-    //SinkTrace() << "Applying changed properties: " << changeset;
     for (const auto &property : diff.changedProperties()) {
         const auto value = diff.getProperty(property);
         if (value.isValid()) {
-            //SinkTrace() << "Setting property: " << property;
             newEntity.setProperty(property, value);
         }
     }
 
     // Remove deletions
     for (const auto &property : deletions) {
-        //SinkTrace() << "Removing property: " << property;
         newEntity.setProperty(property, QVariant());
     }
     return newEntity;

@@ -91,24 +91,24 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     mail.setExtractedBcc(getContactList(msg->bcc(true)));
     mail.setExtractedDate(msg->date(true)->dateTime());
 
-    //Ensure the mssageId is unique.
-    //If there already is one with the same id we'd have to assign a new message id, which probably doesn't make any sense.
+    const auto parentMessageId = [&] {
+        //The last is the parent
+        auto references = msg->references(true)->identifiers();
 
-    //The last is the parent
-    auto references = msg->references(true)->identifiers();
+        //The first is the parent
+        auto inReplyTo = msg->inReplyTo(true)->identifiers();
 
-    //The first is the parent
-    auto inReplyTo = msg->inReplyTo(true)->identifiers();
-    QByteArray parentMessageId;
-    if (!references.isEmpty()) {
-        parentMessageId = references.last();
-        //TODO we could use the rest of the references header to complete the ancestry in case we have missing parents.
-    } else {
-        if (!inReplyTo.isEmpty()) {
-            //According to RFC5256 we should ignore all but the first
-            parentMessageId = inReplyTo.first();
+        if (!references.isEmpty()) {
+            return references.last();
+            //TODO we could use the rest of the references header to complete the ancestry in case we have missing parents.
+        } else {
+            if (!inReplyTo.isEmpty()) {
+                //According to RFC5256 we should ignore all but the first
+                return inReplyTo.first();
+            }
         }
-    }
+        return QByteArray{};
+    }();
 
     //The rest should never change, unless we didn't have the headers available initially.
     auto messageId = msg->messageID(true)->identifier();
