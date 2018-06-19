@@ -29,6 +29,7 @@ public:
         int code;
     };
 
+    Index(const QString &storageRoot, const QString &dbName, const QString &indexName, Sink::Storage::DataStore::AccessMode mode = Sink::Storage::DataStore::ReadOnly);
     Index(const QString &storageRoot, const QString &name, Sink::Storage::DataStore::AccessMode mode = Sink::Storage::DataStore::ReadOnly);
     Index(const QString &storageRoot, const Sink::Storage::DbLayout &layout, Sink::Storage::DataStore::AccessMode mode = Sink::Storage::DataStore::ReadOnly);
     Index(const QByteArray &name, Sink::Storage::DataStore::Transaction &);

@@ -283,8 +283,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomainType &cu
 {
     SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
 
-    d->typeIndex(type).remove(current.identifier(), current, d->transaction, d->resourceContext.instanceId());
-    d->typeIndex(type).add(newEntity.identifier(), newEntity, d->transaction, d->resourceContext.instanceId());
+    d->typeIndex(type).modify(newEntity.identifier(), current, newEntity, d->transaction, d->resourceContext.instanceId());
 
     const qint64 newRevision = DataStore::maxRevision(d->transaction) + 1;
 

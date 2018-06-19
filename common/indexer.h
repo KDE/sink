@@ -33,6 +33,11 @@ public:
     virtual ~Indexer() = default;
     typedef QSharedPointer<Indexer> Ptr;
     virtual void add(const ApplicationDomain::ApplicationDomainType &entity) = 0;
+    virtual void modify(const ApplicationDomain::ApplicationDomainType &oldEntity, const ApplicationDomain::ApplicationDomainType &newEntity)
+    {
+        remove(oldEntity);
+        add(newEntity);
+    }
     virtual void remove(const ApplicationDomain::ApplicationDomainType &entity) = 0;
     virtual void commitTransaction() {};
     virtual void abortTransaction() {};

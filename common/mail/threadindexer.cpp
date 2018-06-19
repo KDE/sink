@@ -25,24 +25,25 @@
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
 
-void ThreadIndexer::updateThreadingIndex(const QByteArray &identifier, const ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
+void ThreadIndexer::updateThreadingIndex(const ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
 {
     auto messageId = entity.getProperty(Mail::MessageId::name);
     auto parentMessageId = entity.getProperty(Mail::ParentMessageId::name);
     if (messageId.toByteArray().isEmpty()) {
-        SinkWarning() << "Found an email without messageId. This is illegal and threading will break. Entity id: " << identifier;
+        SinkWarning() << "Found an email without messageId. This is illegal and threading will break. Entity id: " << entity.identifier();
     }
 
-    QVector<QByteArray> thread;
+    SinkTrace() << "Indexing thread. Entity: " << entity.identifier() << "Messageid: " << messageId << "ParentMessageId: " << parentMessageId;
 
     //check if a child already registered our thread.
-    thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
+    QVector<QByteArray> thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
 
-    if (!thread.isEmpty()) {
+    if (!thread.isEmpty() && parentMessageId.isValid()) {
         //A child already registered our thread so we merge the childs thread
         //* check if we have a parent thread, if not just continue as usual
         //* get all messages that have the same threadid as the child
         //* switch all to the parents thread
+        Q_ASSERT(!parentMessageId.toByteArray().isEmpty());
         auto parentThread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId);
         if (!parentThread.isEmpty()) {
             auto childThreadId = thread.first();
@@ -95,13 +96,22 @@ void ThreadIndexer::updateThreadingIndex(const QByteArray &identifier, const App
 
 void ThreadIndexer::add(const ApplicationDomain::ApplicationDomainType &entity)
 {
-    updateThreadingIndex(entity.identifier(), entity, transaction());
+    updateThreadingIndex(entity, transaction());
+}
+
+void ThreadIndexer::modify(const ApplicationDomain::ApplicationDomainType &oldEntity, const ApplicationDomain::ApplicationDomainType &newEntity)
+{
+    //FIXME Implement to support thread changes.
+    //Emails are immutable (for everything threading relevant), so we don't care about it so far.
 }
 
 void ThreadIndexer::remove(const ApplicationDomain::ApplicationDomainType &entity)
 {
     auto messageId = entity.getProperty(Mail::MessageId::name);
     auto thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
+    if (thread.isEmpty()) {
+        SinkWarning() << "Failed to find the threadId for the entity " << entity.identifier() << messageId;
+    }
     index().unindex<Mail::MessageId, Mail::ThreadId>(messageId.toByteArray(), thread.first(), transaction());
     index().unindex<Mail::ThreadId, Mail::MessageId>(thread.first(), messageId.toByteArray(), transaction());
 }

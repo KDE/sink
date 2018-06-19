@@ -29,6 +29,8 @@
 #include "log.h"
 #include "test.h"
 #include "standardqueries.h"
+#include "index.h"
+#include "definitions.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -248,4 +250,80 @@ void MailThreadTest::testRealWorldThread()
         auto mails = Store::read<Mail>(query);
         QCOMPARE(mails.size(), 8);
     }
+}
+
+//Avoid accidentally merging or changing threads
+void MailThreadTest::testNoParentsWithModifications()
+{
+    auto folder = Folder::create(mResourceInstanceIdentifier);
+    folder.setName("folder2");
+    VERIFYEXEC(Store::create(folder));
+
+    auto createMail = [&] (const QString &subject) {
+        auto message1 = KMime::Message::Ptr::create();
+        message1->subject(true)->fromUnicodeString(subject, "utf8");
+        message1->messageID(true)->fromUnicodeString("<" + subject + "@foobar.com" + ">", "utf8");
+        message1->date(true)->setDateTime(QDateTime::currentDateTimeUtc());
+        message1->assemble();
+
+        auto mail = Mail::create(mResourceInstanceIdentifier);
+        mail.setMimeMessage(message1->encodedContent(true));
+        mail.setFolder(folder);
+        return mail;
+    };
+
+    auto mail1 = createMail("1");
+    VERIFYEXEC(Store::create(mail1));
+    auto mail2 = createMail("2");
+    VERIFYEXEC(Store::create(mail2));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+    auto query = Sink::StandardQueries::threadLeaders(folder);
+    query.resourceFilter(mResourceInstanceIdentifier);
+    query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>().request<Mail::ThreadId>();
+
+    QSet<QByteArray> threadIds;
+    {
+        auto mails = Store::read<Mail>(query);
+        QCOMPARE(mails.size(), 2);
+        for (const auto &m : mails) {
+            threadIds << m.getProperty(Mail::ThreadId::name).toByteArray();
+        }
+    }
+
+    auto readIndex = [&] (const QString &indexName, const QByteArray &lookupKey) {
+        Index index(Sink::storageLocation(), mResourceInstanceIdentifier, indexName, Sink::Storage::DataStore::ReadOnly);
+        QByteArrayList keys;
+        index.lookup(lookupKey,
+            [&](const QByteArray &value) { keys << QByteArray{value.constData(), value.size()}; },
+            [=](const Index::Error &error) { SinkWarning() << "Lookup error in secondary index: " << error.message; },
+            false);
+        return keys;
+    };
+    QCOMPARE(readIndex("mail.index.messageIdthreadId", "1@foobar.com").size(), 1);
+    QCOMPARE(readIndex("mail.index.messageIdthreadId", "2@foobar.com").size(), 1);
+
+    //We try to modify both mails on purpose
+    auto checkMail = [&] (Mail mail1) {
+        Mail modification = mail1;
+        modification.setChangedProperties({});
+        modification.setImportant(true);
+        VERIFYEXEC(Store::modify(modification));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        QCOMPARE(readIndex("mail.index.messageIdthreadId", "1@foobar.com").size(), 1);
+        QCOMPARE(readIndex("mail.index.messageIdthreadId", "2@foobar.com").size(), 1);
+
+        {
+            auto mails = Store::read<Mail>(query);
+            QCOMPARE(mails.size(), 2);
+            QSet<QByteArray> newThreadIds;
+            for (const auto &m : mails) {
+                newThreadIds << m.getProperty(Mail::ThreadId::name).toByteArray();
+            }
+            QCOMPARE(threadIds, newThreadIds);
+        }
+    };
+    checkMail(mail1);
+    checkMail(mail2);
 }

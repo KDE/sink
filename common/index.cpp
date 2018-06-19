@@ -2,6 +2,14 @@
 
 #include "log.h"
 
+Index::Index(const QString &storageRoot, const QString &dbName, const QString &indexName, Sink::Storage::DataStore::AccessMode mode)
+    : mTransaction(Sink::Storage::DataStore(storageRoot, dbName, mode).createTransaction(mode)),
+      mDb(mTransaction.openDatabase(indexName.toLatin1(), std::function<void(const Sink::Storage::DataStore::Error &)>(), true)),
+      mName(indexName),
+      mLogCtx("index." + indexName.toLatin1())
+{
+}
+
 Index::Index(const QString &storageRoot, const QString &name, Sink::Storage::DataStore::AccessMode mode)
     : mTransaction(Sink::Storage::DataStore(storageRoot, name, mode).createTransaction(mode)),
       mDb(mTransaction.openDatabase(name.toLatin1(), std::function<void(const Sink::Storage::DataStore::Error &)>(), true)),

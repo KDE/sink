@@ -36,8 +36,15 @@ class TypeIndex
 public:
     TypeIndex(const QByteArray &type, const Sink::Log::Context &);
 
-    template <typename T>
     void addProperty(const QByteArray &property);
+
+    //FIXME We currently simply serialize based on the QVariant we get and ignore the index type
+    template <typename T>
+    void addProperty(const QByteArray &property)
+    {
+        addProperty(property);
+    }
+
     template <typename T>
     void addSortedProperty(const QByteArray &property);
     template <typename T, typename S>
@@ -83,6 +90,7 @@ public:
     }
 
     void add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
+    void modify(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, const Sink::ApplicationDomain::ApplicationDomainType &newEntity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
     void remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
 
     QVector<QByteArray> query(const Sink::QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
@@ -118,10 +126,14 @@ public:
     void commitTransaction();
     void abortTransaction();
 
+    enum Action {
+        Add,
+        Remove
+    };
 
 private:
     friend class Sink::Storage::EntityStore;
-    void updateIndex(bool add, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
+    void updateIndex(Action action, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
     QByteArray indexName(const QByteArray &property, const QByteArray &sortProperty = QByteArray()) const;
     QByteArray sortedIndexName(const QByteArray &property) const;
     QByteArray sampledPeriodIndexName(const QByteArray &rangeBeginProperty, const QByteArray &rangeEndProperty) const;
@@ -135,8 +147,8 @@ private:
     QSet<QPair<QByteArray, QByteArray>> mSampledPeriodProperties;
     QList<Sink::Indexer::Ptr> mCustomIndexer;
     Sink::Storage::DataStore::Transaction *mTransaction;
-    QHash<QByteArray, std::function<void(bool, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mIndexer;
-    QHash<QByteArray, std::function<void(bool, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mSortIndexer;
-    QHash<QByteArray, std::function<void(bool, const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction)>> mGroupedSortIndexer;
-    QHash<QPair<QByteArray, QByteArray>, std::function<void(bool, const QByteArray &identifier, const QVariant &begin, const QVariant &end, Sink::Storage::DataStore::Transaction &transaction)>> mSampledPeriodIndexer;
+    QHash<QByteArray, std::function<void(Action, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mIndexer;
+    QHash<QByteArray, std::function<void(Action, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mSortIndexer;
+    QHash<QByteArray, std::function<void(Action, const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction)>> mGroupedSortIndexer;
+    QHash<QPair<QByteArray, QByteArray>, std::function<void(Action, const QByteArray &identifier, const QVariant &begin, const QVariant &end, Sink::Storage::DataStore::Transaction &transaction)>> mSampledPeriodIndexer;
 };

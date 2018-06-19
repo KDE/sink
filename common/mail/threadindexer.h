@@ -27,10 +27,11 @@ class ThreadIndexer : public Indexer
 public:
     typedef QSharedPointer<ThreadIndexer> Ptr;
     virtual void add(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
+    virtual void modify(const ApplicationDomain::ApplicationDomainType &oldEntity, const ApplicationDomain::ApplicationDomainType &newEntity) Q_DECL_OVERRIDE;
     virtual void remove(const ApplicationDomain::ApplicationDomainType &entity) Q_DECL_OVERRIDE;
     static QMap<QByteArray, int> databases();
 private:
-    void updateThreadingIndex(const QByteArray &identifier, const ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction);
+    void updateThreadingIndex(const ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction);
 };
 
 }
