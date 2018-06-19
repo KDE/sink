@@ -80,13 +80,13 @@ typename ApplicationDomain::SinkResource::Ptr readFromConfig<ApplicationDomain::
     return object;
 }
 
-static bool matchesFilter(const QHash<QByteArray, Query::Comparator> &filter, const ApplicationDomain::ApplicationDomainType &entity)
+static bool matchesFilter(const QHash<QByteArrayList, Query::Comparator> &filter, const ApplicationDomain::ApplicationDomainType &entity)
 {
     for (const auto &filterProperty : filter.keys()) {
-        if (filterProperty == ApplicationDomain::SinkResource::ResourceType::name) {
+        if (filterProperty[0] == ApplicationDomain::SinkResource::ResourceType::name) {
             continue;
         }
-        if (!filter.value(filterProperty).matches(entity.getProperty(filterProperty))) {
+        if (!filter.value(filterProperty).matches(entity.getProperty(filterProperty[0]))) {
             return false;
         }
     }
@@ -432,7 +432,7 @@ KAsync::Job<void> AccountFacade::remove(const Sink::ApplicationDomain::SinkAccou
     //Remove all identities
     job = job.then(Store::fetch<Identity>(Sink::Query{}.filter<Identity::Account>(account)))
         .each([] (const Identity::Ptr &identity) { return Store::remove(*identity); });
- 
+
     return job.then(LocalStorageFacade<Sink::ApplicationDomain::SinkAccount>::remove(account));
 }
 

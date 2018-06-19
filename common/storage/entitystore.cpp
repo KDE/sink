@@ -443,7 +443,7 @@ QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)
     return keys.toList().toVector();
 }
 
-QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting)
+QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting)
 {
     if (!d->exists()) {
         SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;

@@ -73,10 +73,19 @@ public:
         mCustomIndexer << CustomIndexer::Ptr::create();
     }
 
+    template <typename Begin, typename End>
+    void addSampledPeriodIndex(const QByteArray &beginProperty, const QByteArray &endProperty);
+
+    template <typename Begin, typename End>
+    void addSampledPeriodIndex()
+    {
+        addSampledPeriodIndex<typename Begin::Type, typename End::Type>(Begin::name, End::name);
+    }
+
     void add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
     void remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
 
-    QVector<QByteArray> query(const Sink::QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
+    QVector<QByteArray> query(const Sink::QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
     QVector<QByteArray> lookup(const QByteArray &property, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction);
 
     template <typename Left, typename Right>
@@ -115,6 +124,7 @@ private:
     void updateIndex(bool add, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
     QByteArray indexName(const QByteArray &property, const QByteArray &sortProperty = QByteArray()) const;
     QByteArray sortedIndexName(const QByteArray &property) const;
+    QByteArray sampledPeriodIndexName(const QByteArray &rangeBeginProperty, const QByteArray &rangeEndProperty) const;
     Sink::Log::Context mLogCtx;
     QByteArray mType;
     QByteArrayList mProperties;
@@ -122,9 +132,11 @@ private:
     QMap<QByteArray, QByteArray> mGroupedSortedProperties;
     //<Property, ResultProperty>
     QMap<QByteArray, QByteArray> mSecondaryProperties;
+    QSet<QPair<QByteArray, QByteArray>> mSampledPeriodProperties;
     QList<Sink::Indexer::Ptr> mCustomIndexer;
     Sink::Storage::DataStore::Transaction *mTransaction;
     QHash<QByteArray, std::function<void(bool, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mIndexer;
     QHash<QByteArray, std::function<void(bool, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mSortIndexer;
     QHash<QByteArray, std::function<void(bool, const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction)>> mGroupedSortIndexer;
+    QHash<QPair<QByteArray, QByteArray>, std::function<void(bool, const QByteArray &identifier, const QVariant &begin, const QVariant &end, Sink::Storage::DataStore::Transaction &transaction)>> mSampledPeriodIndexer;
 };

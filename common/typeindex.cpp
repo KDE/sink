@@ -53,6 +53,12 @@ static QByteArray getByteArray(const QVariant &value)
     return "toplevel";
 }
 
+template <typename T>
+static QByteArray padNumber(T number)
+{
+    static T uint_num_digits = (T)std::log10(std::numeric_limits<T>::max()) + 1;
+    return QByteArray::number(number).rightJustified(uint_num_digits, '0');
+}
 
 static QByteArray toSortableByteArrayImpl(const QDateTime &date)
 {
@@ -60,8 +66,7 @@ static QByteArray toSortableByteArrayImpl(const QDateTime &date)
     if (!date.isValid()) {
         return QByteArray::number(std::numeric_limits<unsigned int>::max());
     }
-    static unsigned int uint_num_digits = (unsigned int)std::log10(std::numeric_limits<unsigned int>::max()) + 1;
-    return QByteArray::number(std::numeric_limits<unsigned int>::max() - date.toTime_t()).rightJustified(uint_num_digits, '0');
+    return padNumber(std::numeric_limits<unsigned int>::max() - date.toTime_t());
 }
 
 static QByteArray toSortableByteArray(const QVariant &value)
@@ -97,6 +102,22 @@ QByteArray TypeIndex::indexName(const QByteArray &property, const QByteArray &so
 QByteArray TypeIndex::sortedIndexName(const QByteArray &property) const
 {
     return mType + ".index." + property + ".sorted";
+}
+
+QByteArray TypeIndex::sampledPeriodIndexName(const QByteArray &rangeBeginProperty, const QByteArray &rangeEndProperty) const
+{
+    return mType + ".index." + rangeBeginProperty + ".range." + rangeEndProperty;
+}
+
+static unsigned int bucketOf(const QVariant &value)
+{
+    switch (value.type()) {
+        case QMetaType::QDateTime:
+            return value.value<QDateTime>().date().toJulianDay() / 7;
+        default:
+            SinkError() << "Not knowing how to get the bucket of a" << value.typeName();
+            return {};
+    }
 }
 
 template <>
@@ -202,12 +223,53 @@ void TypeIndex::addPropertyWithSorting<ApplicationDomain::Reference, QDateTime>(
     addPropertyWithSorting<QByteArray, QDateTime>(property, sortProperty);
 }
 
+template <>
+void TypeIndex::addSampledPeriodIndex<QDateTime, QDateTime>(
+    const QByteArray &beginProperty, const QByteArray &endProperty)
+{
+    auto indexer = [=](bool add, const QByteArray &identifier, const QVariant &begin,
+                       const QVariant &end, Sink::Storage::DataStore::Transaction &transaction) {
+        SinkTraceCtx(mLogCtx) << "Adding entity to sampled period index";
+        const auto beginDate = begin.toDateTime();
+        const auto endDate = end.toDateTime();
+
+        auto beginBucket = bucketOf(beginDate);
+        auto endBucket   = bucketOf(endDate);
+
+        if (beginBucket > endBucket) {
+            SinkError() << "End bucket greater than begin bucket";
+            return;
+        }
+
+        Index index(sampledPeriodIndexName(beginProperty, endProperty), transaction);
+        for (auto bucket = beginBucket; bucket <= endBucket; ++bucket) {
+            QByteArray bucketKey = padNumber(bucket);
+            if (add) {
+                SinkTraceCtx(mLogCtx) << "Adding entity to bucket:" << bucketKey;
+                index.add(bucketKey, identifier);
+            } else {
+                SinkTraceCtx(mLogCtx) << "Removing entity from bucket:" << bucketKey;
+                index.remove(bucketKey, identifier);
+            }
+        }
+    };
+
+    mSampledPeriodProperties.insert({ beginProperty, endProperty });
+    mSampledPeriodIndexer.insert({ beginProperty, endProperty }, indexer);
+}
+
 void TypeIndex::updateIndex(bool add, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
     for (const auto &property : mProperties) {
         const auto value = entity.getProperty(property);
         auto indexer = mIndexer.value(property);
         indexer(add, identifier, value, transaction);
+    }
+    for (const auto &properties : mSampledPeriodProperties) {
+        const auto beginValue = entity.getProperty(properties.first);
+        const auto endValue   = entity.getProperty(properties.second);
+        auto indexer = mSampledPeriodIndexer.value(properties);
+        indexer(add, identifier, beginValue, endValue, transaction);
     }
     for (const auto &property : mSortedProperties) {
         const auto value = entity.getProperty(property);
@@ -312,7 +374,38 @@ static QVector<QByteArray> sortedIndexLookup(Index &index, QueryBase::Comparator
     return keys;
 }
 
-QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArray> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
+static QVector<QByteArray> sampledIndexLookup(Index &index, QueryBase::Comparator filter)
+{
+    if (filter.comparator != Query::Comparator::Overlap) {
+        SinkWarning() << "Comparisons other than Overlap not supported on sampled period indexes";
+        return {};
+    }
+
+    QVector<QByteArray> keys;
+
+    auto bounds = filter.value.value<QVariantList>();
+
+    QByteArray lowerBound = toSortableByteArray(bounds[0]);
+    QByteArray upperBound = toSortableByteArray(bounds[1]);
+
+    QByteArray lowerBucket = padNumber(bucketOf(bounds[0]));
+    QByteArray upperBucket = padNumber(bucketOf(bounds[1]));
+
+    SinkTrace() << "Looking up from bucket:" << lowerBucket << "to:" << upperBucket;
+
+    index.rangeLookup(lowerBucket, upperBucket,
+        [&](const QByteArray &value) {
+            keys << value.data();
+        },
+        [bounds](const Index::Error &error) {
+            SinkWarning() << "Lookup error in index:" << error.message
+                          << "with bounds:" << bounds[0] << bounds[1];
+        });
+
+    return keys;
+}
+
+QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
     const auto baseFilters = query.getBaseFilters();
     for (auto it = baseFilters.constBegin(); it != baseFilters.constEnd(); it++) {
@@ -325,11 +418,28 @@ QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
         }
     }
 
+    for (auto it = baseFilters.constBegin(); it != baseFilters.constEnd(); it++) {
+        if (it.value().comparator == QueryBase::Comparator::Overlap) {
+            if (mSampledPeriodProperties.contains({it.key()[0], it.key()[1]})) {
+                Index index(sampledPeriodIndexName(it.key()[0], it.key()[1]), transaction);
+                const auto keys = sampledIndexLookup(index, query.getFilter(it.key()));
+                // The filter is not completely applied, we need post-filtering
+                // in the case the overlap period is not completely aligned
+                // with a week starting on monday
+                //appliedFilters << it.key();
+                SinkTraceCtx(mLogCtx) << "Sampled period index lookup on" << it.key() << "found" << keys.size() << "keys.";
+                return keys;
+            } else {
+                SinkWarning() << "Overlap search without sampled period index";
+            }
+        }
+    }
+
     for (auto it = mGroupedSortedProperties.constBegin(); it != mGroupedSortedProperties.constEnd(); it++) {
         if (query.hasFilter(it.key()) && query.sortProperty() == it.value()) {
             Index index(indexName(it.key(), it.value()), transaction);
             const auto keys = indexLookup(index, query.getFilter(it.key()));
-            appliedFilters << it.key();
+            appliedFilters.insert({it.key()});
             appliedSorting = it.value();
             SinkTraceCtx(mLogCtx) << "Grouped sorted index lookup on " << it.key() << it.value() << " found " << keys.size() << " keys.";
             return keys;
@@ -340,7 +450,7 @@ QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
         if (query.hasFilter(property)) {
             Index index(sortedIndexName(property), transaction);
             const auto keys = sortedIndexLookup(index, query.getFilter(property));
-            appliedFilters << property;
+            appliedFilters.insert({property});
             SinkTraceCtx(mLogCtx) << "Sorted index lookup on " << property << " found " << keys.size() << " keys.";
             return keys;
         }
@@ -350,7 +460,7 @@ QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
         if (query.hasFilter(property)) {
             Index index(indexName(property), transaction);
             const auto keys = indexLookup(index, query.getFilter(property));
-            appliedFilters << property;
+            appliedFilters.insert({property});
             SinkTraceCtx(mLogCtx) << "Index lookup on " << property << " found " << keys.size() << " keys.";
             return keys;
         }

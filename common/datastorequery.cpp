@@ -119,7 +119,7 @@ class Filter : public FilterBase {
 public:
     typedef QSharedPointer<Filter> Ptr;
 
-    QHash<QByteArray, Sink::QueryBase::Comparator> propertyFilter;
+    QHash<QByteArrayList, Sink::QueryBase::Comparator> propertyFilter;
 
     Filter(FilterBase::Ptr source, DataStoreQuery *store)
         : FilterBase(source, store)
@@ -158,7 +158,16 @@ public:
 
     bool matchesFilter(const ApplicationDomain::ApplicationDomainType &entity) {
         for (const auto &filterProperty : propertyFilter.keys()) {
-            const auto property = entity.getProperty(filterProperty);
+            QVariant property;
+            if (filterProperty.size() == 1) {
+                property = entity.getProperty(filterProperty[0]);
+            } else {
+                QVariantList propList;
+                for (const auto &propName : filterProperty) {
+                    propList.push_back(entity.getProperty(propName));
+                }
+                property = propList;
+            }
             const auto comparator = propertyFilter.value(filterProperty);
             //We can't deal with a fulltext filter
             if (comparator.comparator == QueryBase::Comparator::Fulltext) {
@@ -420,7 +429,7 @@ public:
                 }))
             {}
             mBloomed = true;
-            propertyFilter.insert(mBloomProperty, mBloomValue);
+            propertyFilter.insert({mBloomProperty}, mBloomValue);
             return foundValue;
         } else {
             //Filter on bloom value
@@ -598,7 +607,7 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
             //We have a set of ids as a starting point
             return Source::Ptr::create(query.ids().toVector(), this);
         } else {
-            QSet<QByteArray> appliedFilters;
+            QSet<QByteArrayList> appliedFilters;
             auto resultSet = mStore.indexLookup(mType, query, appliedFilters, appliedSorting);
             if (!appliedFilters.isEmpty()) {
                 //We have an index lookup as starting point

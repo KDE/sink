@@ -37,6 +37,7 @@ public:
             Contains,
             In,
             Within,
+            Overlap,
             Fulltext
         };
 
@@ -53,7 +54,7 @@ public:
     class SINK_EXPORT Filter {
     public:
         QByteArrayList ids;
-        QHash<QByteArray, Comparator> propertyFilter;
+        QHash<QByteArrayList, Comparator> propertyFilter;
         bool operator==(const Filter &other) const;
     };
 
@@ -64,7 +65,12 @@ public:
 
     Comparator getFilter(const QByteArray &property) const
     {
-        return mBaseFilterStage.propertyFilter.value(property);
+        return mBaseFilterStage.propertyFilter.value({property});
+    }
+
+    Comparator getFilter(const QByteArrayList &properties) const
+    {
+        return mBaseFilterStage.propertyFilter.value(properties);
     }
 
     template <class T>
@@ -73,9 +79,15 @@ public:
         return getFilter(T::name);
     }
 
+    template <class T1, class T2, class... Rest>
+    Comparator getFilter() const
+    {
+        return getFilter({T1::name, T2::name, Rest::name...});
+    }
+
     bool hasFilter(const QByteArray &property) const
     {
-        return mBaseFilterStage.propertyFilter.contains(property);
+        return mBaseFilterStage.propertyFilter.contains({property});
     }
 
     template <class T>
@@ -94,7 +106,7 @@ public:
         return mId;
     }
 
-    void setBaseFilters(const QHash<QByteArray, Comparator> &filter)
+    void setBaseFilters(const QHash<QByteArrayList, Comparator> &filter)
     {
         mBaseFilterStage.propertyFilter = filter;
     }
@@ -104,7 +116,7 @@ public:
         mBaseFilterStage = filter;
     }
 
-    QHash<QByteArray, Comparator> getBaseFilters() const
+    QHash<QByteArrayList, Comparator> getBaseFilters() const
     {
         return mBaseFilterStage.propertyFilter;
     }
@@ -131,7 +143,12 @@ public:
 
     void filter(const QByteArray &property, const QueryBase::Comparator &comparator)
     {
-        mBaseFilterStage.propertyFilter.insert(property, comparator);
+        mBaseFilterStage.propertyFilter.insert({property}, comparator);
+    }
+
+    void filter(const QByteArrayList &properties, const QueryBase::Comparator &comparator)
+    {
+        mBaseFilterStage.propertyFilter.insert(properties, comparator);
     }
 
     void setType(const QByteArray &type)
@@ -373,6 +390,13 @@ public:
         return *this;
     }
 
+    template <typename T1, typename T2, typename... Rest>
+    Query &filter(const QueryBase::Comparator &comparator)
+    {
+        QueryBase::filter({T1::name, T2::name, Rest::name...}, comparator);
+        return *this;
+    }
+
     Query &filter(const QByteArray &id)
     {
         QueryBase::filter(id);
@@ -465,13 +489,13 @@ public:
     template <typename T>
     Query &resourceFilter(const ApplicationDomain::ApplicationDomainType &entity)
     {
-        mResourceFilter.propertyFilter.insert(T::name, Comparator(entity.identifier()));
+        mResourceFilter.propertyFilter.insert({T::name}, Comparator(entity.identifier()));
         return *this;
     }
 
     Query &resourceFilter(const QByteArray &name, const Comparator &comparator)
     {
-        mResourceFilter.propertyFilter.insert(name, comparator);
+        mResourceFilter.propertyFilter.insert({name}, comparator);
         return *this;
     }
 
@@ -531,13 +555,13 @@ public:
     template <typename T>
     SyncScope &resourceFilter(const ApplicationDomain::ApplicationDomainType &entity)
     {
-        mResourceFilter.propertyFilter.insert(T::name, Comparator(entity.identifier()));
+        mResourceFilter.propertyFilter.insert({T::name}, Comparator(entity.identifier()));
         return *this;
     }
 
     SyncScope &resourceFilter(const QByteArray &name, const Comparator &comparator)
     {
-        mResourceFilter.propertyFilter.insert(name, comparator);
+        mResourceFilter.propertyFilter.insert({name}, comparator);
         return *this;
     }
 

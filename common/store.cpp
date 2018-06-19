@@ -117,11 +117,13 @@ QPair<typename AggregatingResultEmitter<typename DomainType::Ptr>::Ptr,  typenam
 
         //Filter resources by available content types (unless the query already specifies a capability filter)
         auto resourceFilter = query.getResourceFilter();
-        if (!resourceFilter.propertyFilter.contains(ApplicationDomain::SinkResource::Capabilities::name)) {
-            resourceFilter.propertyFilter.insert(ApplicationDomain::SinkResource::Capabilities::name, Query::Comparator{ApplicationDomain::getTypeName<DomainType>(), Query::Comparator::Contains});
+        if (!resourceFilter.propertyFilter.contains({ApplicationDomain::SinkResource::Capabilities::name})) {
+            resourceFilter.propertyFilter.insert({ApplicationDomain::SinkResource::Capabilities::name}, Query::Comparator{ApplicationDomain::getTypeName<DomainType>(), Query::Comparator::Contains});
         }
         resourceQuery.setFilter(resourceFilter);
-        resourceQuery.requestedProperties << resourceFilter.propertyFilter.keys();
+        for (auto const &properties :  resourceFilter.propertyFilter.keys()) {
+            resourceQuery.requestedProperties << properties;
+        }
 
         auto result = facade->load(resourceQuery, resourceCtx);
         auto emitter = result.second;
@@ -403,8 +405,8 @@ KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
 {
     auto resourceFilter = scope.getResourceFilter();
     //Filter resources by type by default
-    if (!resourceFilter.propertyFilter.contains(ApplicationDomain::SinkResource::Capabilities::name) && !scope.type().isEmpty()) {
-        resourceFilter.propertyFilter.insert(ApplicationDomain::SinkResource::Capabilities::name, Query::Comparator{scope.type(), Query::Comparator::Contains});
+    if (!resourceFilter.propertyFilter.contains({ApplicationDomain::SinkResource::Capabilities::name}) && !scope.type().isEmpty()) {
+        resourceFilter.propertyFilter.insert({ApplicationDomain::SinkResource::Capabilities::name}, Query::Comparator{scope.type(), Query::Comparator::Contains});
     }
     Sink::Query query;
     query.setFilter(resourceFilter);

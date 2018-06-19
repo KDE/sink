@@ -65,7 +65,8 @@ typedef IndexConfig<Addressbook,
 
 typedef IndexConfig<Event,
         ValueIndex<Event::Uid>,
-        SortedIndex<Event::StartTime>
+        SortedIndex<Event::StartTime>,
+        SampledPeriodIndex<Event::StartTime, Event::EndTime>
     > EventIndexConfig;
 
 typedef IndexConfig<Todo,

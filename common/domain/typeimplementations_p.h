@@ -126,6 +126,26 @@ public:
     }
 };
 
+template <typename RangeBeginProperty, typename RangeEndProperty>
+class SampledPeriodIndex
+{
+    static_assert(std::is_same<typename RangeBeginProperty::Type, QDateTime>::value &&
+                      std::is_same<typename RangeEndProperty::Type, QDateTime>::value,
+        "Date range index is not supported for types other than 'QDateTime's");
+
+public:
+    static void configure(TypeIndex &index)
+    {
+        index.addSampledPeriodIndex<RangeBeginProperty, RangeEndProperty>();
+    }
+
+    template <typename EntityType>
+    static QMap<QByteArray, int> databases()
+    {
+        return {{QByteArray{EntityType::name} +".index." + RangeBeginProperty::name + ".range." + RangeEndProperty::name, 1}};
+    }
+};
+
 template <typename EntityType, typename ... Indexes>
 class IndexConfig
 {

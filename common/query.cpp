@@ -179,6 +179,19 @@ bool QueryBase::Comparator::matches(const QVariant &v) const
 
             return range[0] <= v && v <= range[1];
         }
+        case Overlap: {
+            auto bounds = value.value<QList<QVariant>>();
+            if (bounds.size() < 2) {
+                return false;
+            }
+
+            auto range = v.value<QList<QVariant>>();
+            if (range.size() < 2) {
+                return false;
+            }
+
+            return range[0] <= bounds[1] && bounds[0] <= range[1];
+        }
         case Fulltext:
         case Invalid:
         default:
