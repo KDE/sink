@@ -665,7 +665,7 @@ QVector<QByteArray> DataStoreQuery::loadIncrementalResultSet(qint64 baseRevision
 
 ResultSet DataStoreQuery::update(qint64 baseRevision)
 {
-    SinkTraceCtx(mLogCtx) << "Executing query update from revision " << baseRevision;
+    SinkTraceCtx(mLogCtx) << "Executing query update from revision " << baseRevision << " to revision " << mStore.maxRevision();
     auto incrementalResultSet = loadIncrementalResultSet(baseRevision);
     SinkTraceCtx(mLogCtx) << "Incremental changes: " << incrementalResultSet;
     mSource->add(incrementalResultSet);

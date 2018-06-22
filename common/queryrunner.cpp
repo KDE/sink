@@ -295,9 +295,10 @@ ReplayResult QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query 
     time.start();
 
     const qint64 baseRevision = resultProvider.revision() + 1;
-    SinkTraceCtx(mLogCtx) << "Running query update from revision: " << baseRevision;
 
     auto entityStore = EntityStore{mResourceContext, mLogCtx};
+    const qint64 topRevision = entityStore.maxRevision();
+    SinkTraceCtx(mLogCtx) << "Running query update from revision: " << baseRevision << " to revision " << topRevision;
     if (!state) {
         SinkWarningCtx(mLogCtx) << "No previous query state.";
         return {0, 0, false, DataStoreQuery::State::Ptr{}};
@@ -309,10 +310,10 @@ ReplayResult QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query 
         resultProviderCallback(query, resultProvider, result);
     });
     preparedQuery.updateComplete();
-    SinkTraceCtx(mLogCtx) << "Replayed " << replayResult.replayedEntities << " results.\n"
+    SinkTraceCtx(mLogCtx) << "Replayed " << replayResult.replayedEntities << " results until revision: " << topRevision << "\n"
         << (replayResult.replayedAll ? "Replayed all available results.\n" : "")
         << "Incremental query took: " << Log::TraceTime(time.elapsed());
-    return {entityStore.maxRevision(), replayResult.replayedEntities, false, preparedQuery.getState()};
+    return {topRevision, replayResult.replayedEntities, false, preparedQuery.getState()};
 }
 
 template <class DomainType>
@@ -323,6 +324,8 @@ ReplayResult QueryWorker<DomainType>::executeInitialQuery(
     time.start();
 
     auto entityStore = EntityStore{mResourceContext, mLogCtx};
+    const qint64 topRevision = entityStore.maxRevision();
+    SinkTraceCtx(mLogCtx) << "Running query from revision: " << topRevision;
     auto preparedQuery = [&] {
         if (state) {
             return DataStoreQuery{*state, ApplicationDomain::getTypeName<DomainType>(), entityStore, false};
@@ -341,7 +344,7 @@ ReplayResult QueryWorker<DomainType>::executeInitialQuery(
         << (replayResult.replayedAll ? "Replayed all available results.\n" : "")
         << "Initial query took: " << Log::TraceTime(time.elapsed());
 
-    return {entityStore.maxRevision(), replayResult.replayedEntities, replayResult.replayedAll, preparedQuery.getState()};
+    return {topRevision, replayResult.replayedEntities, replayResult.replayedAll, preparedQuery.getState()};
 }
 
 #define REGISTER_TYPE(T) \
