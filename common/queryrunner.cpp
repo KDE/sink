@@ -247,6 +247,19 @@ QueryWorker<DomainType>::~QueryWorker()
     SinkTraceCtx(mLogCtx) << "Stopped query worker";
 }
 
+static QString operationName(Sink::Operation operation)
+{
+    switch (operation) {
+        case Sink::Operation_Creation:
+            return "Creation";
+        case Sink::Operation_Modification:
+            return "Modification";
+        case Sink::Operation_Removal:
+            return "Removal";
+    }
+    return "Unknown Operation";
+}
+
 template <class DomainType>
 void QueryWorker<DomainType>::resultProviderCallback(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, const ResultSet::Result &result)
 {
@@ -258,6 +271,7 @@ void QueryWorker<DomainType>::resultProviderCallback(const Sink::Query &query, S
     if (mResultTransformation) {
         mResultTransformation(*valueCopy);
     }
+    SinkTraceCtx(mLogCtx) << "Replaying: " << operationName(result.operation) << "\n" <<*valueCopy;
     switch (result.operation) {
         case Sink::Operation_Creation:
             //SinkTraceCtx(mLogCtx) << "Got creation: " << valueCopy->identifier();
