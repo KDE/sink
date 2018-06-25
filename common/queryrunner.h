@@ -35,6 +35,16 @@ class QueryRunnerBase : public QObject
 public:
     typedef std::function<void(Sink::ApplicationDomain::ApplicationDomainType &domainObject)> ResultTransformation;
 
+    /// Disable query updates on revision change. Used for testing only.
+    void ignoreRevisionChanges(bool ignore) {
+        mIgnoreRevisionChanges = ignore;
+    }
+
+    /// Manually triger a revision change. Used for testing only.
+    void triggerRevisionChange() {
+        revisionChanged();
+    }
+
 protected:
     typedef std::function<KAsync::Job<void>()> QueryFunction;
 
@@ -52,7 +62,9 @@ protected slots:
      */
     void revisionChanged()
     {
-        run().exec();
+        if (!mIgnoreRevisionChanges) {
+            run().exec();
+        }
     }
 
 private:
@@ -65,6 +77,7 @@ private:
     }
 
     QueryFunction queryFunction;
+    bool mIgnoreRevisionChanges{false};
 };
 
 /**

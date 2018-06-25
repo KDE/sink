@@ -152,7 +152,11 @@ void QueryRunner<DomainType>::fetch(const Sink::Query &query, const QByteArray &
             if (query.liveQuery()) {
                 mResourceAccess->sendRevisionReplayedCommand(result.newRevision);
             }
-            mResultProvider->setRevision(result.newRevision);
+            //Initial queries do not fetch updates, so avoid updating the revision when fetching more content.
+            //Otherwise we end up breaking incremental updates.
+            if (!mResultProvider->revision()) {
+                mResultProvider->setRevision(result.newRevision);
+            }
             mResultProvider->initialResultSetComplete(result.replayedAll);
             if (mRequestFetchMore) {
                 mRequestFetchMore = false;

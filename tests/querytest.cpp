@@ -1337,6 +1337,55 @@ private slots:
     }
 
     /*
+     * This test excercises the scenario where a fetchMore is triggered after
+     * the revision is already updated in storage, but the incremental query was not run yet.
+     * This resulted in lost modification updates.
+     */
+    void testQueryRunnerDontMissUpdatesWithFetchMore()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        folder1.setName("name1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        query.setFlags(Query::LiveQuery);
+
+        Sink::ResourceContext resourceContext{"sink.dummy.instance1", "sink.dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("sink.dummy")};
+        Sink::Log::Context logCtx;
+        auto runner = new QueryRunner<Folder>(query, resourceContext, ApplicationDomain::getTypeName<Folder>(), logCtx);
+
+        auto emitter = runner->emitter();
+        QList<Folder::Ptr> added;
+        emitter->onAdded([&](Folder::Ptr folder) {
+            added << folder;
+        });
+        QList<Folder::Ptr> modified;
+        emitter->onModified([&](Folder::Ptr folder) {
+            modified << folder;
+        });
+
+        emitter->fetch();
+        QTRY_COMPARE(added.size(), 1);
+        QCOMPARE(modified.size(), 0);
+
+        runner->ignoreRevisionChanges(true);
+
+        folder1.setName("name2");
+        VERIFYEXEC(Sink::Store::modify<Folder>(folder1));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        emitter->fetch();
+
+        runner->ignoreRevisionChanges(false);
+        runner->triggerRevisionChange();
+
+        QTRY_COMPARE(added.size(), 1);
+        QTRY_COMPARE(modified.size(), 1);
+    }
+
+    /*
      * This test is here to ensure we don't crash if we call removeFromDisk with a running query.
      */
     void testRemoveFromDiskWithRunningQuery()
