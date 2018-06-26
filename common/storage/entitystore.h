@@ -49,7 +49,7 @@ public:
     bool modify(const QByteArray &type, const ApplicationDomainType &current, ApplicationDomainType newEntity, bool replayToSource);
     bool remove(const QByteArray &type, const ApplicationDomainType &current, bool replayToSource);
     bool cleanupRevisions(qint64 revision);
-    ApplicationDomainType applyDiff(const QByteArray &type, const ApplicationDomainType &current, const ApplicationDomainType &diff, const QByteArrayList &deletions) const;
+    ApplicationDomainType applyDiff(const QByteArray &type, const ApplicationDomainType &current, const ApplicationDomainType &diff, const QByteArrayList &deletions, const QSet<QByteArray> &excludeProperties = {}) const;
 
     void startTransaction(Sink::Storage::DataStore::AccessMode);
     void commitTransaction();
@@ -121,6 +121,8 @@ public:
 
     ///Db contains entity and entity is not yet removed
     bool exists(const QByteArray &type, const QByteArray &uid);
+
+    void readRevisions(const QByteArray &type, const QByteArray &uid, qint64 baseRevision, const std::function<void(const QByteArray &uid, qint64 revision, const EntityBuffer &entity)> callback);
 
     qint64 maxRevision();
 

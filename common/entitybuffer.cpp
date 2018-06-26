@@ -32,7 +32,7 @@ const Sink::Entity &EntityBuffer::entity() const
     return *mEntity;
 }
 
-const uint8_t *EntityBuffer::resourceBuffer()
+const uint8_t *EntityBuffer::resourceBuffer() const
 {
     if (!mEntity) {
         qDebug() << "no buffer";
@@ -41,7 +41,7 @@ const uint8_t *EntityBuffer::resourceBuffer()
     return mEntity->resource()->Data();
 }
 
-const uint8_t *EntityBuffer::metadataBuffer()
+const uint8_t *EntityBuffer::metadataBuffer() const
 {
     if (!mEntity) {
         return nullptr;
@@ -49,7 +49,7 @@ const uint8_t *EntityBuffer::metadataBuffer()
     return mEntity->metadata()->Data();
 }
 
-const uint8_t *EntityBuffer::localBuffer()
+const uint8_t *EntityBuffer::localBuffer() const
 {
     if (!mEntity) {
         return nullptr;

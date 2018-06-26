@@ -25,9 +25,9 @@ public:
      * Note that @param data will need to remain valid and the data is not copied.
      */
     EntityBuffer(const QByteArray &data);
-    const uint8_t *resourceBuffer();
-    const uint8_t *metadataBuffer();
-    const uint8_t *localBuffer();
+    const uint8_t *resourceBuffer() const;
+    const uint8_t *metadataBuffer() const;
+    const uint8_t *localBuffer() const;
     const Entity &entity() const;
     bool isValid() const;
 

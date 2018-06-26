@@ -258,7 +258,19 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         return KAsync::error<qint64>(0);
     }
 
-    auto newEntity = d->entityStore.applyDiff(bufferType, current, diff, deletions);
+    //We avoid overwriting local changes that haven't been played back yet with remote modifications
+    QSet<QByteArray> excludeProperties;
+    if (!replayToSource) { //We assume this means the change is coming from the source already
+        d->entityStore.readRevisions(bufferType, diff.identifier(), baseRevision, [&] (const QByteArray &uid, qint64 revision, const Sink::EntityBuffer &entity) {
+            if (entity.metadataBuffer()) {
+                if (auto metadata = GetMetadata(entity.metadataBuffer())) {
+                    excludeProperties += BufferUtils::fromVector(*metadata->modifiedProperties()).toSet();
+                }
+            }
+        });
+    }
+
+    auto newEntity = d->entityStore.applyDiff(bufferType, current, diff, deletions, excludeProperties);
 
     bool isMove = false;
     if (modifyEntity->targetResource()) {

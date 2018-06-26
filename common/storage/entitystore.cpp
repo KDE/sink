@@ -247,22 +247,26 @@ bool EntityStore::add(const QByteArray &type, ApplicationDomainType entity, bool
     return true;
 }
 
-ApplicationDomain::ApplicationDomainType EntityStore::applyDiff(const QByteArray &type, const ApplicationDomainType &current, const ApplicationDomainType &diff, const QByteArrayList &deletions) const
+ApplicationDomain::ApplicationDomainType EntityStore::applyDiff(const QByteArray &type, const ApplicationDomainType &current, const ApplicationDomainType &diff, const QByteArrayList &deletions, const QSet<QByteArray> &excludeProperties) const
 {
-    SinkTraceCtx(d->logCtx) << "Applying diff: " << current.availableProperties() << "Deletions: " << deletions << "Changeset: " << diff.changedProperties();
+    SinkTraceCtx(d->logCtx) << "Applying diff: " << current.availableProperties() << "Deletions: " << deletions << "Changeset: " << diff.changedProperties() << "Excluded: " << excludeProperties;
     auto newEntity = *ApplicationDomainType::getInMemoryRepresentation<ApplicationDomainType>(current, current.availableProperties());
 
     // Apply diff
     for (const auto &property : diff.changedProperties()) {
-        const auto value = diff.getProperty(property);
-        if (value.isValid()) {
-            newEntity.setProperty(property, value);
+        if (!excludeProperties.contains(property)) {
+            const auto value = diff.getProperty(property);
+            if (value.isValid()) {
+                newEntity.setProperty(property, value);
+            }
         }
     }
 
     // Remove deletions
     for (const auto &property : deletions) {
-        newEntity.setProperty(property, QVariant());
+        if (!excludeProperties.contains(property)) {
+            newEntity.setProperty(property, QVariant());
+        }
     }
     return newEntity;
 }
@@ -639,6 +643,22 @@ bool EntityStore::exists(const QByteArray &type, const QByteArray &uid)
     return true;
 }
 
+void EntityStore::readRevisions(const QByteArray &type, const QByteArray &uid, qint64 startingRevision, const std::function<void(const QByteArray &uid, qint64 revision, const EntityBuffer &entity)> callback)
+{
+    Q_ASSERT(d);
+    Q_ASSERT(!uid.isEmpty());
+    DataStore::mainDatabase(d->transaction, type)
+        .scan(uid,
+            [&](const QByteArray &key, const QByteArray &value) -> bool {
+                const auto revision = DataStore::revisionFromKey(key);
+                if (revision >= startingRevision) {
+                    callback(DataStore::uidFromKey(key), revision, Sink::EntityBuffer(value.data(), value.size()));
+                }
+                return true;
+            },
+            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error while reading: " << error.message; }, true);
+
+}
 
 qint64 EntityStore::maxRevision()
 {

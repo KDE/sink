@@ -101,23 +101,25 @@ QByteArray createEntityCommand(const flatbuffers::FlatBufferBuilder &entityFbb)
     return command;
 }
 
-QByteArray modifyEntityCommand(const flatbuffers::FlatBufferBuilder &entityFbb, const QByteArray &uid, qint64 revision)
+QByteArray modifyEntityCommand(const flatbuffers::FlatBufferBuilder &entityFbb, const QByteArray &uid, qint64 revision, QStringList modifiedProperties = {"summary"}, bool replayToSource = true)
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto type = fbb.CreateString(Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>().toStdString().data());
     auto id = fbb.CreateString(std::string(uid.constData(), uid.size()));
-    auto summaryProperty = fbb.CreateString("summary");
-    std::vector<flatbuffers::Offset<flatbuffers::String>> modified;
-    modified.push_back(summaryProperty);
+    std::vector<flatbuffers::Offset<flatbuffers::String>> modifiedVector;
+    for (const auto &modified : modifiedProperties) {
+        modifiedVector.push_back(fbb.CreateString(modified.toStdString()));
+    }
     auto delta = fbb.CreateVector<uint8_t>(entityFbb.GetBufferPointer(), entityFbb.GetSize());
-    auto modifiedProperties = fbb.CreateVector(modified);
-    // auto delta = Sink::EntityBuffer::appendAsVector(fbb, buffer.constData(), buffer.size());
+    auto modifiedPropertiesVector = fbb.CreateVector(modifiedVector);
     Sink::Commands::ModifyEntityBuilder builder(fbb);
     builder.add_domainType(type);
     builder.add_delta(delta);
     builder.add_revision(revision);
     builder.add_entityId(id);
-    builder.add_modifiedProperties(modifiedProperties);
+    builder.add_modifiedProperties(modifiedPropertiesVector);
+    builder.add_replayToSource(replayToSource);
+
     auto location = builder.Finish();
     Sink::Commands::FinishModifyEntityBuffer(fbb, location);
 
@@ -400,6 +402,55 @@ private slots:
             QCOMPARE(testProcessor->deletedUids.at(0), Sink::Storage::DataStore::uidFromKey(testProcessor->deletedUids.at(0)));
             QCOMPARE(testProcessor->deletedSummaries.at(0), QByteArray("summary2"));
         }
+    }
+
+    void testModifyWithConflict()
+    {
+        flatbuffers::FlatBufferBuilder entityFbb;
+        auto command = createEntityCommand(createEvent(entityFbb, "summary", "description"));
+
+        Sink::Pipeline pipeline(getContext(), {"test"});
+
+        auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
+
+        // Create the initial revision
+        pipeline.startTransaction();
+        pipeline.newEntity(command.constData(), command.size());
+        pipeline.commit();
+
+        // Get uid of written entity
+        auto keys = getKeys(instanceIdentifier(), "event.main");
+        QCOMPARE(keys.size(), 1);
+        const auto key = keys.first();
+        const auto uid = Sink::Storage::DataStore::uidFromKey(key);
+
+        //Simulate local modification
+        {
+            entityFbb.Clear();
+            auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summaryLocal"), uid, 1, {"summary"}, true);
+            pipeline.startTransaction();
+            pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
+            pipeline.commit();
+        }
+
+
+        //Simulate remote modification
+        //We assume the remote modification is not overly smart and always marks all properties as changed.
+        {
+            entityFbb.Clear();
+            auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summaryRemote", "descriptionRemote"), uid, 2, {"summary", "description"}, false);
+            pipeline.startTransaction();
+            pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
+            pipeline.commit();
+        }
+
+        // Ensure we've got the new revision with the modification
+        auto buffer = getEntity(instanceIdentifier(), "event.main", Sink::Storage::DataStore::assembleKey(uid, 3));
+        QVERIFY(!buffer.isEmpty());
+        Sink::EntityBuffer entityBuffer(buffer.data(), buffer.size());
+        auto adaptor = adaptorFactory->createAdaptor(entityBuffer.entity());
+        QVERIFY2(adaptor->getProperty("summary").toString() == QString("summaryLocal"), "The local modification was reverted.");
+        QVERIFY2(adaptor->getProperty("description").toString() == QString("descriptionRemote"), "The remote modification was not applied.");
     }
 };
 
