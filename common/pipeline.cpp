@@ -133,7 +133,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     QByteArray key;
     if (createEntity->entityId()) {
         key = QByteArray(reinterpret_cast<char const *>(createEntity->entityId()->Data()), createEntity->entityId()->size());
-        if (d->entityStore.contains(bufferType, key)) {
+        if (!key.isEmpty() && d->entityStore.contains(bufferType, key)) {
             SinkErrorCtx(d->logCtx) << "An entity with this id already exists: " << key;
             return KAsync::error<qint64>(0);
         }
