@@ -264,7 +264,9 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         d->entityStore.readRevisions(bufferType, diff.identifier(), baseRevision, [&] (const QByteArray &uid, qint64 revision, const Sink::EntityBuffer &entity) {
             if (entity.metadataBuffer()) {
                 if (auto metadata = GetMetadata(entity.metadataBuffer())) {
-                    excludeProperties += BufferUtils::fromVector(*metadata->modifiedProperties()).toSet();
+                    if (metadata->operation() == Operation_Modification && metadata->modifiedProperties()) {
+                        excludeProperties += BufferUtils::fromVector(*metadata->modifiedProperties()).toSet();
+                    }
                 }
             }
         });
