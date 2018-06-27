@@ -129,14 +129,18 @@ static KAsync::Job<void> runJob(KJob *job)
     });
 }
 
+static int socketTimeout()
+{
+    if (Sink::Test::testModeEnabled()) {
+        return 1;
+    }
+    return 40;
+}
+
 KIMAP2::Session *createNewSession(const QString &serverUrl, int port)
 {
     auto newSession = new KIMAP2::Session(serverUrl, qint16(port));
-    if (Sink::Test::testModeEnabled()) {
-        newSession->setTimeout(1);
-    } else {
-        newSession->setTimeout(40);
-    }
+    newSession->setTimeout(socketTimeout());
     QObject::connect(newSession, &KIMAP2::Session::sslErrors, [=](const QList<QSslError> &errors) {
         SinkLog() << "Received ssl error: " << errors;
         newSession->ignoreErrors(errors);
@@ -173,6 +177,8 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     }
     Q_ASSERT(mSession);
     if (mSession->state() == KIMAP2::Session::Authenticated || mSession->state() == KIMAP2::Session::Selected) {
+        //Prevent the socket from timing out right away, right here (otherwise it just might time out right before we were able to start the job)
+        mSession->setTimeout(socketTimeout());
         SinkLog() << "Reusing existing session.";
         return KAsync::null();
     }
