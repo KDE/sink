@@ -21,19 +21,20 @@
 #include <QByteArray>
 #include <QList>
 #include <QLoggingCategory>
-
-Q_LOGGING_CATEGORY(mailtransportCategory, "mailtransport")
-
-extern "C" {
-
 #include <stdio.h>
 #include <string.h>
 #include <curl/curl.h>
+
+
+Q_LOGGING_CATEGORY(mailtransportCategory, "mailtransport")
 
 struct upload_status {
     int offset;
     const char *data;
 };
+
+
+extern "C" {
 
 static size_t payload_source(void *ptr, size_t size, size_t nmemb, void *userp)
 {
@@ -56,6 +57,27 @@ static size_t payload_source(void *ptr, size_t size, size_t nmemb, void *userp)
     }
 
     return 0;
+}
+
+}
+
+struct CurlVersionInfo {
+    bool supportsSsl;
+    QByteArray info;
+};
+
+CurlVersionInfo getVersionInfo()
+{
+    CurlVersionInfo versionInfo;
+    curl_version_info_data *data = curl_version_info(CURLVERSION_NOW);
+    if (data->ssl_version) {
+        versionInfo.info += "SSL support available: " + QByteArray{data->ssl_version} + "\n";
+        versionInfo.supportsSsl = true;
+    } else {
+        versionInfo.info += "No SSL support available.\n";
+        versionInfo.supportsSsl = false;
+    }
+    return versionInfo;
 }
 
 bool sendMessageCurl(const char *to[], int numTos,
@@ -152,8 +174,6 @@ bool sendMessageCurl(const char *to[], int numTos,
     return false;
 }
 
-};
-
 MailTransport::SendResult MailTransport::sendMessage(const KMime::Message::Ptr &message, const QByteArray &server, const QByteArray &username, const QByteArray &password, const QByteArray &cacert, MailTransport::Options options)
 {
     QByteArray from(message->from(true)->mailboxes().isEmpty() ? QByteArray() : message->from(true)->mailboxes().first().address());
@@ -182,6 +202,11 @@ MailTransport::SendResult MailTransport::sendMessage(const KMime::Message::Ptr &
     //Because curl will fail with smtps, but it won't tell you why.
     auto serverAddress = server;
     serverAddress.replace("smtps://", "smtp://");
+
+    const auto versionInfo = getVersionInfo();
+    if (useTls && !versionInfo.supportsSsl) {
+        qCWarning(mailtransportCategory) << "libcurl built without ssl support: " << versionInfo.info;
+    }
 
     bool enableDebugOutput = QLoggingCategory{"mailtransport"}.isEnabled(QtDebugMsg);
     QByteArray errorMessage;
