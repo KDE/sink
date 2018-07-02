@@ -361,10 +361,6 @@ public:
 
                         auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
                         SinkTraceCtx(mDatastore->mLogCtx) << "Old selection result: " << oldSelectionResult << " New selection result: " << selectionResult.selection;
-                        //If mSelectedValues did not containthe value, oldSelectionResult will be empty.(Happens if entites have been filtered)
-                        if (oldSelectionResult.isEmpty()) {
-                            return;
-                        }
                         if (oldSelectionResult == selectionResult.selection) {
                             mSelectedValues.insert(reductionValueBa, selectionResult.selection);
                             Q_ASSERT(!selectionResult.selection.isEmpty());
@@ -373,10 +369,12 @@ public:
                             });
                         } else {
                             //remove old result
-                            Q_ASSERT(!oldSelectionResult.isEmpty());
-                            readEntity(oldSelectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
-                                callback({entity, Sink::Operation_Removal});
-                            });
+                            //If mSelectedValues did not containthe value, oldSelectionResult will be empty.(Happens if entites have been filtered)
+                            if (!oldSelectionResult.isEmpty()) {
+                                readEntity(oldSelectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
+                                    callback({entity, Sink::Operation_Removal});
+                                });
+                            }
 
                             //If the last item has been removed, then there's nothing to add
                             if (!selectionResult.selection.isEmpty()) {

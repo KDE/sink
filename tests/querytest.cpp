@@ -1008,6 +1008,53 @@ private slots:
         QTRY_COMPARE(model->rowCount(), 1);
     }
 
+    /*
+     * Two messages in the same thread. The first get's filtered, the second one makes it.
+     */
+    void testFilteredReductionUpdateInSameThread()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto folder2 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder2));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        query.setId("testFilteredReductionUpdate");
+        query.setFlags(Query::LiveQuery);
+        query.filter<Mail::Folder>(folder1);
+        query.reduce<Mail::MessageId>(Query::Reduce::Selector::max<Mail::Date>());
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 0);
+
+        //The first message will be filtered (but would be aggreagted together with the message that passes)
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setExtractedMessageId("aggregatedId");
+            mail.setFolder(folder2);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QCOMPARE(model->rowCount(), 0);
+
+        //Ensure the non-filtered still gets through.
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setExtractedMessageId("aggregatedId");
+            mail.setFolder(folder1);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 1);
+    }
+
     void testBloom()
     {
         // Setup
