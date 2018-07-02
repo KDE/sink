@@ -1027,7 +1027,7 @@ private slots:
         query.setId("testFilteredReductionUpdate");
         query.setFlags(Query::LiveQuery);
         query.filter<Mail::Folder>(folder1);
-        query.reduce<Mail::MessageId>(Query::Reduce::Selector::max<Mail::Date>());
+        query.reduce<Mail::MessageId>(Query::Reduce::Selector::max<Mail::Date>()).count("count");
 
         auto model = Sink::Store::loadModel<Mail>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
@@ -1053,6 +1053,17 @@ private slots:
         }
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
         QTRY_COMPARE(model->rowCount(), 1);
+        QCOMPARE(model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>()->getProperty("count").toInt(), 1);
+
+        //Ensure another entity still results in a modification
+        {
+            auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setExtractedMessageId("aggregatedId");
+            mail.setFolder(folder1);
+            VERIFYEXEC(Sink::Store::create(mail));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>()->getProperty("count").toInt(), 2);
     }
 
     void testBloom()
