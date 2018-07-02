@@ -23,6 +23,7 @@
 #include <QDir>
 #include <QTextDocument>
 #include <QGuiApplication>
+#include <QUuid>
 #include <KMime/KMime/KMimeMessage>
 
 #include "pipeline.h"
@@ -113,13 +114,13 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     //The rest should never change, unless we didn't have the headers available initially.
     auto messageId = msg->messageID(true)->identifier();
     if (messageId.isEmpty()) {
-        //reuse an existing messageis (on modification)
-        auto existing = mail.getMessageId();
+        //reuse an existing messageid (on modification)
+        const auto existing = mail.getMessageId();
         if (existing.isEmpty()) {
             auto tmp = KMime::Message::Ptr::create();
-            auto header = tmp->messageID(true);
-            header->generate("kube.kde.org");
-            messageId = header->as7BitString();
+            //Genereate a globally unique messageid that doesn't leak the local hostname
+            messageId = QString{"<" + QUuid::createUuid().toString().mid(1, 36).remove('-') + "@sink>"}.toLatin1();
+            tmp->messageID(true)->fromUnicodeString(messageId, "utf-8");
             SinkWarning() << "Message id is empty, generating one: " << messageId;
         } else {
             messageId = existing;
