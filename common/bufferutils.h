@@ -6,23 +6,28 @@
 
 namespace Sink {
 namespace BufferUtils {
+
+//Does not copy the data
 template <typename T>
 static QByteArray extractBuffer(const T *data)
 {
     return QByteArray::fromRawData(reinterpret_cast<char const *>(data->Data()), data->size());
 }
 
+//Returns a deep copy of the data
 template <typename T>
 static QByteArray extractBufferCopy(const T *data)
 {
     return QByteArray(reinterpret_cast<char const *>(data->Data()), data->size());
 }
 
+//Does not copy the data
 static QByteArray extractBuffer(const flatbuffers::FlatBufferBuilder &fbb)
 {
     return QByteArray::fromRawData(reinterpret_cast<char const *>(fbb.GetBufferPointer()), fbb.GetSize());
 }
 
+//Returns a deep copy of the data
 static QList<QByteArray> fromVector(const flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>> &vector)
 {
     QList<QByteArray> list;
