@@ -63,21 +63,18 @@ private slots:
     {
         testDataPath = "./testdb";
         dbName = "test";
-        Sink::Storage::DataStore storage(testDataPath, {dbName, {{"default", 0}}});
-        storage.removeFromDisk();
+        Sink::Storage::DataStore{testDataPath, {dbName, {{"default", 0}}}}.removeFromDisk();
     }
 
     void cleanup()
     {
-        Sink::Storage::DataStore storage(testDataPath, {dbName, {{"default", 0}}});
-        storage.removeFromDisk();
+        Sink::Storage::DataStore{testDataPath, {dbName, {{"default", 0}}}}.removeFromDisk();
     }
 
     void testCleanup()
     {
         populate(1);
-        Sink::Storage::DataStore storage(testDataPath, {dbName, {{"default", 0}}});
-        storage.removeFromDisk();
+        Sink::Storage::DataStore{testDataPath, {dbName, {{"default", 0}}}}.removeFromDisk();
         QFileInfo info(testDataPath + "/" + dbName);
         QVERIFY(!info.exists());
     }
@@ -216,10 +213,8 @@ private slots:
         }
 
         {
-            Sink::Storage::DataStore storage(testDataPath, dbName);
-            storage.removeFromDisk();
-            Sink::Storage::DataStore storage2(testDataPath, dbName + "2");
-            storage2.removeFromDisk();
+            Sink::Storage::DataStore(testDataPath, dbName).removeFromDisk();
+            Sink::Storage::DataStore(testDataPath, dbName + "2").removeFromDisk();
         }
     }
 

@@ -22,8 +22,7 @@ private slots:
 
     void cleanup()
     {
-        Sink::Storage::DataStore storage(Sink::storageLocation(), resourceInstanceIdentifier);
-        storage.removeFromDisk();
+        Sink::Storage::DataStore(Sink::storageLocation(), resourceInstanceIdentifier).removeFromDisk();
     }
 
     void testCleanup()
