@@ -222,7 +222,11 @@ public:
         QReadLocker dbiLocker{&sDbisLock};
         if (sDbis.contains(dbiName)) {
             dbi = sDbis.value(dbiName);
-            Q_ASSERT(dbiValidForTransaction(dbi, transaction));
+            //sDbis can potentially contain a dbi that is not valid for this transaction, if this transaction was created before the dbi was created.
+            if (!dbiValidForTransaction(dbi, transaction)) {
+                SinkTrace() << "Found dbi that is not available for the current transaction.";
+                return false;
+            }
         } else {
             /*
              * Dynamic creation of databases.
@@ -250,7 +254,11 @@ public:
             //Double checked locking
             if (sDbis.contains(dbiName)) {
                 dbi = sDbis.value(dbiName);
-                Q_ASSERT(dbiValidForTransaction(dbi, transaction));
+                //sDbis can potentially contain a dbi that is not valid for this transaction, if this transaction was created before the dbi was created.
+                if (!dbiValidForTransaction(dbi, transaction)) {
+                    SinkTrace() << "Found dbi that is not available for the current transaction.";
+                    return false;
+                }
                 return true;
             }
 

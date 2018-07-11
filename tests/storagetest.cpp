@@ -275,8 +275,56 @@ private slots:
     {
         bool gotResult = false;
         bool gotError = false;
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadOnly);
+        QVERIFY(!store.exists());
+        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+        Sink::Storage::DataStore::getUids("test", transaction, [&](const QByteArray &uid) {});
+        int numValues = transaction
+                            .openDatabase("test")
+                            .scan("",
+                                [&](const QByteArray &key, const QByteArray &value) -> bool {
+                                    gotResult = true;
+                                    return false;
+                                },
+                                [&](const Sink::Storage::DataStore::Error &error) {
+                                    qDebug() << error.message;
+                                    gotError = true;
+                                });
+        QCOMPARE(numValues, 0);
+        QVERIFY(!gotResult);
+        QVERIFY(!gotError);
+    }
+
+    /*
+     * This scenario tests a very specific pattern that can appear with new named databases.
+     * * A read-only transaction is opened
+     * * A write-transaction creates a new named db.
+     * * We try to access that named-db from the already open transaction.
+     */
+    void testNewDbInOpenTransaction()
+    {
+        //Create env, otherwise we don't even get a transaction
+        {
+            Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+        }
+        //Open a longlived transaction
         Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly);
-        int numValues = store.createTransaction(Sink::Storage::DataStore::ReadOnly)
+        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+
+        //Create the named database
+        {
+            Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+            transaction.openDatabase("test");
+            transaction.commit();
+        }
+
+
+        //Try to access the named database in the existing transaction. Opening should fail.
+        bool gotResult = false;
+        bool gotError = false;
+        int numValues = transaction
                             .openDatabase("test")
                             .scan("",
                                 [&](const QByteArray &key, const QByteArray &value) -> bool {
