@@ -141,7 +141,8 @@ void MailTest::testCreateModifyDeleteFolder()
 
 void MailTest::testCreateModifyDeleteMail()
 {
-    const auto subject = QString::fromLatin1("Foobar");
+    const auto subject = QString::fromUtf8("äéiöü");
+    const auto from = QString::fromUtf8("äéiöü <example@example.org>");
 
     auto folder = Folder::create(mResourceInstanceIdentifier);
     folder.setName("folder");
@@ -149,6 +150,7 @@ void MailTest::testCreateModifyDeleteMail()
 
     auto message = KMime::Message::Ptr::create();
     message->subject(true)->fromUnicodeString(subject, "utf8");
+    message->from(true)->fromUnicodeString(from, "utf8");
     message->assemble();
 
     auto mail = Mail::create(mResourceInstanceIdentifier);
@@ -158,11 +160,13 @@ void MailTest::testCreateModifyDeleteMail()
     VERIFYEXEC(Store::create(mail));
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
     {
-        auto job = Store::fetchAll<Mail>(Query().request<Mail::Folder>().request<Mail::Subject>().request<Mail::MimeMessage>())
+        auto job = Store::fetchAll<Mail>(Query().request<Mail::Folder>().request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Sender>())
             .then([=](const QList<Mail::Ptr> &mails) {
                 QCOMPARE(mails.size(), 1);
                 auto mail = *mails.first();
                 QCOMPARE(mail.getSubject(), subject);
+                QCOMPARE(mail.getSender().name, QString::fromUtf8("äéiöü"));
+                QCOMPARE(mail.getSender().emailAddress, QString::fromUtf8("example@example.org"));
                 QCOMPARE(mail.getFolder(), folder.identifier());
                 KMime::Message m;
                 m.setContent(KMime::CRLFtoLF(mail.getMimeMessage()));
