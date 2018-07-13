@@ -132,7 +132,7 @@ static KAsync::Job<void> runJob(KJob *job)
 static int socketTimeout()
 {
     if (Sink::Test::testModeEnabled()) {
-        return 1;
+        return 5;
     }
     return 40;
 }
