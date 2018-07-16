@@ -1039,6 +1039,10 @@ private slots:
             mail.setExtractedMessageId("aggregatedId");
             mail.setFolder(folder2);
             VERIFYEXEC(Sink::Store::create(mail));
+
+            //Ensure that we can deal with a modification to the filtered message
+            mail.setUnread(true);
+            VERIFYEXEC(Sink::Store::modify(mail));
         }
 
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
@@ -1050,6 +1054,10 @@ private slots:
             mail.setExtractedMessageId("aggregatedId");
             mail.setFolder(folder1);
             VERIFYEXEC(Sink::Store::create(mail));
+
+            //Ensure that we can deal with a modification to the filtered message
+            mail.setUnread(true);
+            VERIFYEXEC(Sink::Store::modify(mail));
         }
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
         QTRY_COMPARE(model->rowCount(), 1);

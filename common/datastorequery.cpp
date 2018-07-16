@@ -359,9 +359,12 @@ public:
                         //Redo the reduction to find new aggregated values
                         auto selectionResult = reduceOnValue(reductionValue);
 
+                        //If mSelectedValues did not contain the value, oldSelectionResult will be empty.(Happens if entites have been filtered)
                         auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
                         SinkTraceCtx(mDatastore->mLogCtx) << "Old selection result: " << oldSelectionResult << " New selection result: " << selectionResult.selection;
-                        if (oldSelectionResult == selectionResult.selection) {
+                        if (selectionResult.selection.isEmpty() && oldSelectionResult.isEmpty()) {
+                            //Nothing to do, the item was filtered before, and still is.
+                        } else if (oldSelectionResult == selectionResult.selection) {
                             mSelectedValues.insert(reductionValueBa, selectionResult.selection);
                             Q_ASSERT(!selectionResult.selection.isEmpty());
                             readEntity(selectionResult.selection, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
@@ -369,7 +372,6 @@ public:
                             });
                         } else {
                             //remove old result
-                            //If mSelectedValues did not containthe value, oldSelectionResult will be empty.(Happens if entites have been filtered)
                             if (!oldSelectionResult.isEmpty()) {
                                 readEntity(oldSelectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
                                     callback({entity, Sink::Operation_Removal});
