@@ -126,7 +126,7 @@ public:
         folder.setName(f.name());
         folder.setIcon("folder");
         folder.setEnabled(f.subscribed);
-        auto specialPurpose = [&] {
+        const auto specialPurpose = [&] {
             if (hasSpecialPurposeFlag(f.flags)) {
                 return getSpecialPurposeType(f.flags);
             } else if (SpecialPurpose::isSpecialPurposeFolderName(f.name()) && isToplevel) {
@@ -136,6 +136,10 @@ public:
         }();
         if (!specialPurpose.isEmpty()) {
             folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
+        }
+        //Always show the inbox
+        if (specialPurpose == ApplicationDomain::SpecialPurpose::Mail::inbox) {
+            folder.setEnabled(true);
         }
 
         if (!isToplevel) {
