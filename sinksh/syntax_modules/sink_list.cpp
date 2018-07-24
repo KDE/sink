@@ -63,6 +63,17 @@ QByteArray baIfAvailable(const QStringList &list)
     return list.first().toUtf8();
 }
 
+template <typename T>
+static QString qDebugToString(const T &c)
+{
+    QString s;
+    {
+        QDebug debug{&s};
+        debug << c;
+    }
+    return s;
+}
+
 QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o, bool compact, const QByteArrayList &toPrint, bool limitPropertySize)
 {
     QStringList line;
@@ -88,16 +99,7 @@ QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o,
             } else if (value.canConvert<QByteArrayList>()) {
                 line << value.value<QByteArrayList>().join(", ");
             } else if (value.canConvert<QList<Sink::ApplicationDomain::Mail::Contact>>()) {
-                QStringList list;
-                for (const auto &c : value.value<QList<Sink::ApplicationDomain::Mail::Contact>>()) {
-                    QString s;
-                    {
-                        QDebug debug{&s};
-                        debug << c;
-                    }
-                    list << s;
-                }
-                line << list.join(", ");
+                list << qDebugToString(value.value<QList<Sink::ApplicationDomain::Mail::Contact>>());
             } else {
                 line << QString("Unprintable type: %1").arg(value.typeName());
             }
