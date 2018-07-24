@@ -475,8 +475,8 @@ void MailSyncTest::testFailingSync()
     });
 
     VERIFYEXEC(Store::synchronize(query));
-    // Ensure sync fails if resource is misconfigured
-    QTRY_VERIFY(errorReceived);
+    // Ensure sync fails if resource is misconfigured. We have to wait longer than the timeout in imapserverproxy
+    QTRY_VERIFY_WITH_TIMEOUT(errorReceived, 10000);
 }
 
 void MailSyncTest::testSyncUidvalidity()
