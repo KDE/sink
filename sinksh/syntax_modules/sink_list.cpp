@@ -87,6 +87,17 @@ QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o,
                 }
             } else if (value.canConvert<QByteArrayList>()) {
                 line << value.value<QByteArrayList>().join(", ");
+            } else if (value.canConvert<QList<Sink::ApplicationDomain::Mail::Contact>>()) {
+                QStringList list;
+                for (const auto &c : value.value<QList<Sink::ApplicationDomain::Mail::Contact>>()) {
+                    QString s;
+                    {
+                        QDebug debug{&s};
+                        debug << c;
+                    }
+                    list << s;
+                }
+                line << list.join(", ");
             } else {
                 line << QString("Unprintable type: %1").arg(value.typeName());
             }
