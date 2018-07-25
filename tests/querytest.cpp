@@ -1877,14 +1877,12 @@ private slots:
             event2.setExtractedEndTime(QDateTime::fromString("2018-05-33T13:00:00Z", Qt::ISODate));
             VERIFYEXEC(Sink::Store::create<Event>(event2));
 
-            QTest::qWait(500);
-            QCOMPARE(model->rowCount(), 6);
+            QTRY_COMPARE(model->rowCount(), 6);
 
             VERIFYEXEC(Sink::Store::remove<Event>(event));
             VERIFYEXEC(Sink::Store::remove<Event>(event2));
 
-            QTest::qWait(500);
-            QCOMPARE(model->rowCount(), 5);
+            QTRY_COMPARE(model->rowCount(), 5);
         }
 
     }
