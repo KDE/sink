@@ -57,11 +57,14 @@ KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
                             future.setFinished();
                             return;
                         }
-                        QObject::connect(resourceAccess.data(), &ResourceAccess::ready, [&future](bool ready) {
-                                if (!ready) {
-                                    future.setFinished();
-                                }
-                            });
+                        auto guard = new QObject;
+                        QObject::connect(resourceAccess.data(), &ResourceAccess::ready, guard, [&future](bool ready) {
+                            if (!ready) {
+                                //Protect against callback getting called twice.
+                                delete guard;
+                                future.setFinished();
+                            }
+                        });
                     }).then([time] {
                         SinkTrace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
                     });
