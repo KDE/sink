@@ -58,7 +58,7 @@ KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
                             return;
                         }
                         auto guard = new QObject;
-                        QObject::connect(resourceAccess.data(), &ResourceAccess::ready, guard, [&future](bool ready) {
+                        QObject::connect(resourceAccess.data(), &ResourceAccess::ready, guard, [&future, guard](bool ready) {
                             if (!ready) {
                                 //Protect against callback getting called twice.
                                 delete guard;
