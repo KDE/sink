@@ -37,38 +37,27 @@ KAsync::Job<void> ResourceControl::shutdown(const QByteArray &identifier)
     SinkTrace() << "shutdown " << identifier;
     auto time = QSharedPointer<QTime>::create();
     time->start();
-    return ResourceAccess::connectToServer(identifier)
-        .then<void, QSharedPointer<QLocalSocket>>(
-            [identifier, time](const KAsync::Error &error, QSharedPointer<QLocalSocket> socket) {
-                if (error) {
-                    SinkTrace() << "Resource is already closed.";
-                    // Resource isn't started, nothing to shutdown
-                    return KAsync::null();
+
+    auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
+    return resourceAccess->shutdown()
+        .addToContext(resourceAccess)
+        .then<void>([resourceAccess, time](KAsync::Future<void> &future) {
+            SinkTrace() << "Shutdown command complete, waiting for shutdown." << Log::TraceTime(time->elapsed());
+            if (!resourceAccess->isReady()) {
+                future.setFinished();
+                return;
+            }
+            auto guard = new QObject;
+            QObject::connect(resourceAccess.data(), &ResourceAccess::ready, guard, [&future, guard](bool ready) {
+                if (!ready) {
+                    //Protect against callback getting called twice.
+                    delete guard;
+                    future.setFinished();
                 }
-                // We can't currently reuse the socket
-                socket->close();
-                auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
-                resourceAccess->open();
-                return resourceAccess->sendCommand(Sink::Commands::ShutdownCommand)
-                    .addToContext(resourceAccess)
-                    .then<void>([resourceAccess, time](KAsync::Future<void> &future) {
-                        SinkTrace() << "Shutdown command complete, waiting for shutdown." << Log::TraceTime(time->elapsed());
-                        if (!resourceAccess->isReady()) {
-                            future.setFinished();
-                            return;
-                        }
-                        auto guard = new QObject;
-                        QObject::connect(resourceAccess.data(), &ResourceAccess::ready, guard, [&future, guard](bool ready) {
-                            if (!ready) {
-                                //Protect against callback getting called twice.
-                                delete guard;
-                                future.setFinished();
-                            }
-                        });
-                    }).then([time] {
-                        SinkTrace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
-                    });
             });
+        }).then([time] {
+            SinkTrace() << "Shutdown complete." << Log::TraceTime(time->elapsed());
+        });
 }
 
 KAsync::Job<void> ResourceControl::start(const QByteArray &identifier)

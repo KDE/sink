@@ -55,6 +55,7 @@ auto_tests (
     notificationtest
     entitystoretest
     upgradetest
+    resourcecontroltest
 )
 
 if (WIN32)
