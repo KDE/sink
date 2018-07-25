@@ -312,8 +312,11 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
         .then<void>([resourceAccess](KAsync::Future<void> &future) {
             if (resourceAccess->isReady()) {
                 //Wait for the resource shutdown
-                QObject::connect(resourceAccess.data(), &ResourceAccess::ready, [&future](bool ready) {
+                auto guard = new QObject;
+                QObject::connect(resourceAccess.data(), &ResourceAccess::ready, guard, [&future, guard](bool ready) {
                     if (!ready) {
+                        //We don't disconnect if ResourceAccess get's recycled, so ready can fire multiple times, which can result in a crash if the future is no longer valid.
+                        delete guard;
                         future.setFinished();
                     }
                 });
