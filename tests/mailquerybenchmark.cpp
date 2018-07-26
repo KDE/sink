@@ -170,8 +170,6 @@ private slots:
 
         int liveQueryTime = 0;
         {
-            VERIFYEXEC(Sink::ResourceControl::shutdown(resourceIdentifier));
-
             auto q = query;
             q.setFlags(Sink::Query::LiveQuery);
 
@@ -183,8 +181,6 @@ private slots:
 
         int nonLiveQueryTime = 0;
         {
-            VERIFYEXEC(Sink::ResourceControl::shutdown(resourceIdentifier));
-
             auto q = query;
 
             QTime time;
