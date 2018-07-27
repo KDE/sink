@@ -505,7 +505,7 @@ private slots:
         db.write(key.toInternalByteArray(), "value1");
         key.setRevision(10);
         db.write(key.toInternalByteArray(), "value2");
-        db.findLatest(uid, [&](const QByteArray &key, const QByteArray &value) { result = value; });
+        db.findLatest(id.toInternalByteArray(), [&](const QByteArray &key, const QByteArray &value) { result = value; });
         QCOMPARE(result, QByteArray("value2"));
     }
 
