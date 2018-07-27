@@ -2,6 +2,8 @@
 
 #include "log.h"
 
+using Sink::Storage::Identifier;
+
 Index::Index(const QString &storageRoot, const QString &dbName, const QString &indexName, Sink::Storage::DataStore::AccessMode mode)
     : mTransaction(Sink::Storage::DataStore(storageRoot, dbName, mode).createTransaction(mode)),
       mDb(mTransaction.openDatabase(indexName.toLatin1(), std::function<void(const Sink::Storage::DataStore::Error &)>(), true)),
@@ -32,12 +34,22 @@ Index::Index(const QByteArray &name, Sink::Storage::DataStore::Transaction &tran
 {
 }
 
+void Index::add(const Identifier &key, const QByteArray &value)
+{
+    add(key.toInternalByteArray(), value);
+}
+
 void Index::add(const QByteArray &key, const QByteArray &value)
 {
     Q_ASSERT(!key.isEmpty());
     mDb.write(key, value, [&] (const Sink::Storage::DataStore::Error &error) {
         SinkWarningCtx(mLogCtx) << "Error while writing value" << error;
     });
+}
+
+void Index::remove(const Identifier &key, const QByteArray &value)
+{
+    remove(key.toInternalByteArray(), value);
 }
 
 void Index::remove(const QByteArray &key, const QByteArray &value)

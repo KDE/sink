@@ -220,7 +220,9 @@ bool EntityStore::add(const QByteArray &type, ApplicationDomainType entity, bool
 
     SinkTraceCtx(d->logCtx) << "New entity " << entity;
 
-    d->typeIndex(type).add(entity.identifier(), entity, d->transaction, d->resourceContext.instanceId());
+    const auto identifier = Identifier::fromDisplayByteArray(entity.identifier());
+
+    d->typeIndex(type).add(identifier, entity, d->transaction, d->resourceContext.instanceId());
 
     //The maxRevision may have changed meanwhile if the entity created sub-entities
     const qint64 newRevision = maxRevision() + 1;
@@ -237,7 +239,7 @@ bool EntityStore::add(const QByteArray &type, ApplicationDomainType entity, bool
     flatbuffers::FlatBufferBuilder fbb;
     d->resourceContext.adaptorFactory(type).createBuffer(entity, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
-    const auto key = Key(Identifier::fromDisplayByteArray(entity.identifier()), newRevision);
+    const auto key = Key(identifier, newRevision);
 
     DataStore::mainDatabase(d->transaction, type)
         .write(key.toInternalByteArray(), BufferUtils::extractBuffer(fbb),
@@ -289,7 +291,8 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomainType &cu
 {
     SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
 
-    d->typeIndex(type).modify(newEntity.identifier(), current, newEntity, d->transaction, d->resourceContext.instanceId());
+    const auto identifier = Identifier::fromDisplayByteArray(newEntity.identifier());
+    d->typeIndex(type).modify(identifier, current, newEntity, d->transaction, d->resourceContext.instanceId());
 
     const qint64 newRevision = DataStore::maxRevision(d->transaction) + 1;
 
@@ -313,7 +316,7 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomainType &cu
     flatbuffers::FlatBufferBuilder fbb;
     d->resourceContext.adaptorFactory(type).createBuffer(newEntity, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
-    const auto key = Key(Identifier::fromDisplayByteArray(newEntity.identifier()), newRevision);
+    const auto key = Key(identifier, newRevision);
 
     DataStore::mainDatabase(d->transaction, type)
         .write(key.toInternalByteArray(), BufferUtils::extractBuffer(fbb),
@@ -331,8 +334,8 @@ bool EntityStore::remove(const QByteArray &type, const ApplicationDomainType &cu
         SinkWarningCtx(d->logCtx) << "Remove: Entity is already removed " << uid;
         return false;
     }
-
-    d->typeIndex(type).remove(current.identifier(), current, d->transaction, d->resourceContext.instanceId());
+    const auto identifier = Identifier::fromDisplayByteArray(uid);
+    d->typeIndex(type).remove(identifier, current, d->transaction, d->resourceContext.instanceId());
 
     SinkTraceCtx(d->logCtx) << "Removed entity " << current;
 
@@ -350,7 +353,7 @@ bool EntityStore::remove(const QByteArray &type, const ApplicationDomainType &cu
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), 0, 0, 0, 0);
 
-    const auto key = Key(Identifier::fromDisplayByteArray(uid), newRevision);
+    const auto key = Key(identifier, newRevision);
 
     DataStore::mainDatabase(d->transaction, type)
         .write(key.toInternalByteArray(), BufferUtils::extractBuffer(fbb),

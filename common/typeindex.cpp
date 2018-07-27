@@ -27,6 +27,8 @@
 
 using namespace Sink;
 
+using Storage::Identifier;
+
 static QByteArray getByteArray(const QVariant &value)
 {
     if (value.type() == QVariant::DateTime) {
@@ -126,8 +128,8 @@ static void update(TypeIndex::Action action, const QByteArray &indexName, const 
 
 void TypeIndex::addProperty(const QByteArray &property)
 {
-    auto indexer = [=](Action action, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
-        update(action, indexName(property), getByteArray(value), identifier, transaction);
+    auto indexer = [=](Action action, const Identifier &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction) {
+        update(action, indexName(property), getByteArray(value), identifier.toInternalByteArray(), transaction);
     };
     mIndexer.insert(property, indexer);
     mProperties << property;
@@ -136,9 +138,9 @@ void TypeIndex::addProperty(const QByteArray &property)
 template <>
 void TypeIndex::addSortedProperty<QDateTime>(const QByteArray &property)
 {
-    auto indexer = [=](Action action, const QByteArray &identifier, const QVariant &value,
+    auto indexer = [=](Action action, const Identifier &identifier, const QVariant &value,
                        Sink::Storage::DataStore::Transaction &transaction) {
-        update(action, sortedIndexName(property), toSortableByteArray(value), identifier, transaction);
+        update(action, sortedIndexName(property), toSortableByteArray(value), identifier.toInternalByteArray(), transaction);
     };
     mSortIndexer.insert(property, indexer);
     mSortedProperties << property;
@@ -147,10 +149,10 @@ void TypeIndex::addSortedProperty<QDateTime>(const QByteArray &property)
 template <>
 void TypeIndex::addPropertyWithSorting<QByteArray, QDateTime>(const QByteArray &property, const QByteArray &sortProperty)
 {
-    auto indexer = [=](Action action, const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction) {
+    auto indexer = [=](Action action, const Identifier &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction) {
         const auto date = sortValue.toDateTime();
         const auto propertyValue = getByteArray(value);
-        update(action, indexName(property, sortProperty), propertyValue + toSortableByteArray(date), identifier, transaction);
+        update(action, indexName(property, sortProperty), propertyValue + toSortableByteArray(date), identifier.toInternalByteArray(), transaction);
     };
     mGroupedSortIndexer.insert(property + sortProperty, indexer);
     mGroupedSortedProperties.insert(property, sortProperty);
@@ -166,7 +168,7 @@ template <>
 void TypeIndex::addSampledPeriodIndex<QDateTime, QDateTime>(
     const QByteArray &beginProperty, const QByteArray &endProperty)
 {
-    auto indexer = [=](Action action, const QByteArray &identifier, const QVariant &begin,
+    auto indexer = [=](Action action, const Identifier &identifier, const QVariant &begin,
                        const QVariant &end, Sink::Storage::DataStore::Transaction &transaction) {
         SinkTraceCtx(mLogCtx) << "Adding entity to sampled period index";
         const auto beginDate = begin.toDateTime();
@@ -185,10 +187,10 @@ void TypeIndex::addSampledPeriodIndex<QDateTime, QDateTime>(
             QByteArray bucketKey = padNumber(bucket);
             switch (action) {
                 case TypeIndex::Add:
-                    index.add(bucketKey, identifier);
+                    index.add(bucketKey, identifier.toInternalByteArray());
                     break;
                 case TypeIndex::Remove:
-                    index.remove(bucketKey, identifier);
+                    index.remove(bucketKey, identifier.toInternalByteArray());
                     break;
             }
         }
@@ -198,7 +200,7 @@ void TypeIndex::addSampledPeriodIndex<QDateTime, QDateTime>(
     mSampledPeriodIndexer.insert({ beginProperty, endProperty }, indexer);
 }
 
-void TypeIndex::updateIndex(Action action, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
+void TypeIndex::updateIndex(Action action, const Identifier &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
     for (const auto &property : mProperties) {
         const auto value = entity.getProperty(property);
@@ -239,7 +241,7 @@ void TypeIndex::abortTransaction()
     }
 }
 
-void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
+void TypeIndex::add(const Identifier &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
     updateIndex(Add, identifier, entity, transaction, resourceInstanceId);
     for (const auto &indexer : mCustomIndexer) {
@@ -248,7 +250,7 @@ void TypeIndex::add(const QByteArray &identifier, const Sink::ApplicationDomain:
     }
 }
 
-void TypeIndex::modify(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, const Sink::ApplicationDomain::ApplicationDomainType &newEntity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
+void TypeIndex::modify(const Identifier &identifier, const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, const Sink::ApplicationDomain::ApplicationDomainType &newEntity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
     updateIndex(Remove, identifier, oldEntity, transaction, resourceInstanceId);
     updateIndex(Add, identifier, newEntity, transaction, resourceInstanceId);
@@ -258,7 +260,7 @@ void TypeIndex::modify(const QByteArray &identifier, const Sink::ApplicationDoma
     }
 }
 
-void TypeIndex::remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
+void TypeIndex::remove(const Identifier &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
     updateIndex(Remove, identifier, entity, transaction, resourceInstanceId);
     for (const auto &indexer : mCustomIndexer) {
@@ -275,7 +277,7 @@ static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filte
     if (filter.comparator == Query::Comparator::Equals) {
         lookupKeys << valueToKey(filter.value);
     } else if (filter.comparator == Query::Comparator::In) {
-        for(const QVariant &value : filter.value.value<QVariantList>()) {
+        for (const QVariant &value : filter.value.value<QVariantList>()) {
             lookupKeys << valueToKey(value);
         }
     } else {
@@ -283,7 +285,10 @@ static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filte
     }
 
     for (const auto &lookupKey : lookupKeys) {
-        index.lookup(lookupKey, [&](const QByteArray &value) { keys << value; },
+        index.lookup(lookupKey,
+            [&](const QByteArray &value) {
+                keys << Identifier::fromInternalByteArray(value).toDisplayByteArray();
+            },
             [lookupKey](const Index::Error &error) {
                 SinkWarning() << "Lookup error in index: " << error.message << lookupKey;
             },
@@ -315,7 +320,10 @@ static QVector<QByteArray> sortedIndexLookup(Index &index, QueryBase::Comparator
         upperBound = bounds[1].toByteArray();
     }
 
-    index.rangeLookup(lowerBound, upperBound, [&](const QByteArray &value) { keys << value; },
+    index.rangeLookup(lowerBound, upperBound,
+        [&](const QByteArray &value) {
+            keys << Identifier::fromInternalByteArray(value).toDisplayByteArray();
+        },
         [bounds](const Index::Error &error) {
             SinkWarning() << "Lookup error in index:" << error.message
                           << "with bounds:" << bounds[0] << bounds[1];
@@ -345,7 +353,7 @@ static QVector<QByteArray> sampledIndexLookup(Index &index, QueryBase::Comparato
 
     index.rangeLookup(lowerBucket, upperBucket,
         [&](const QByteArray &value) {
-            keys << value.data();
+            keys << Identifier::fromInternalByteArray(value).toDisplayByteArray();
         },
         [bounds](const Index::Error &error) {
             SinkWarning() << "Lookup error in index:" << error.message
@@ -419,28 +427,38 @@ QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
     return {};
 }
 
-QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)
+QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant &value,
+    Sink::Storage::DataStore::Transaction &transaction)
 {
     SinkTraceCtx(mLogCtx) << "Index lookup on property: " << property << mSecondaryProperties.keys() << mProperties;
     if (mProperties.contains(property)) {
         QVector<QByteArray> keys;
         Index index(indexName(property), transaction);
         const auto lookupKey = getByteArray(value);
-        index.lookup(
-            lookupKey, [&](const QByteArray &value) { keys << value; }, [property](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
+        index.lookup(lookupKey,
+            [&](const QByteArray &value) {
+                keys << Identifier::fromInternalByteArray(value).toDisplayByteArray();
+            },
+            [property](const Index::Error &error) {
+                SinkWarning() << "Error in index: " << error.message << property;
+            });
         SinkTraceCtx(mLogCtx) << "Index lookup on " << property << " found " << keys.size() << " keys.";
         return keys;
     } else if (mSecondaryProperties.contains(property)) {
-        //Lookups on secondary indexes first lookup the key, and then lookup the results again to resolve to entity id's
+        // Lookups on secondary indexes first lookup the key, and then lookup the results again to
+        // resolve to entity id's
         QVector<QByteArray> keys;
         auto resultProperty = mSecondaryProperties.value(property);
 
         QVector<QByteArray> secondaryKeys;
         Index index(indexName(property + resultProperty), transaction);
         const auto lookupKey = getByteArray(value);
-        index.lookup(
-            lookupKey, [&](const QByteArray &value) { secondaryKeys << value; }, [property](const Index::Error &error) { SinkWarning() << "Error in index: " << error.message << property; });
-        SinkTraceCtx(mLogCtx) << "Looked up secondary keys for the following lookup key: " << lookupKey << " => " << secondaryKeys;
+        index.lookup(lookupKey, [&](const QByteArray &value) { secondaryKeys << value; },
+            [property](const Index::Error &error) {
+                SinkWarning() << "Error in index: " << error.message << property;
+            });
+        SinkTraceCtx(mLogCtx) << "Looked up secondary keys for the following lookup key: " << lookupKey
+                              << " => " << secondaryKeys;
         for (const auto &secondary : secondaryKeys) {
             keys += lookup(resultProperty, secondary, transaction);
         }

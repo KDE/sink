@@ -90,5 +90,5 @@ QString Sink::resourceStorageLocation(const QByteArray &resourceInstanceIdentifi
 
 qint64 Sink::latestDatabaseVersion()
 {
-    return 2;
+    return 3;
 }

@@ -6,6 +6,7 @@
 #include <QString>
 #include "storage.h"
 #include "log.h"
+#include "storage/key.h"
 
 /**
  * An index for value pairs.
@@ -35,7 +36,9 @@ public:
     Index(const QByteArray &name, Sink::Storage::DataStore::Transaction &);
 
     void add(const QByteArray &key, const QByteArray &value);
+    void add(const Sink::Storage::Identifier &key, const QByteArray &value);
     void remove(const QByteArray &key, const QByteArray &value);
+    void remove(const Sink::Storage::Identifier &key, const QByteArray &value);
 
     void lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler, const std::function<void(const Error &error)> &errorHandler,
         bool matchSubStringKeys = false);
