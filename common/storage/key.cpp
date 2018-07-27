@@ -84,6 +84,27 @@ bool Identifier::isNull() const
     return uid.isNull();
 }
 
+bool Identifier::isValidInternal(const QByteArray &bytes)
+{
+    return !QUuid::fromRfc4122(bytes).isNull();
+}
+
+bool Identifier::isValidDisplay(const QByteArray &bytes)
+{
+    return !QUuid(bytes).isNull();
+}
+
+bool Identifier::isValid(const QByteArray &bytes)
+{
+    switch (bytes.size()) {
+        case Identifier::INTERNAL_REPR_SIZE:
+            return isValidInternal(bytes);
+        case Identifier::DISPLAY_REPR_SIZE:
+            return isValidDisplay(bytes);
+    }
+    return false;
+}
+
 bool Identifier::operator==(const Identifier &other) const
 {
     return uid == other.uid;
@@ -126,6 +147,27 @@ Revision Revision::fromDisplayByteArray(const QByteArray &bytes)
 qint64 Revision::toQint64() const
 {
     return rev;
+}
+
+bool Revision::isValidInternal(const QByteArray &bytes)
+{
+    if (bytes.size() != Revision::INTERNAL_REPR_SIZE) {
+        return false;
+    }
+
+    bool ok;
+    bytes.toLongLong(&ok);
+    return ok;
+}
+
+bool Revision::isValidDisplay(const QByteArray &bytes)
+{
+    isValidInternal(bytes);
+}
+
+bool Revision::isValid(const QByteArray &bytes)
+{
+    isValidInternal(bytes);
 }
 
 bool Revision::operator==(const Revision &other) const
@@ -191,6 +233,39 @@ bool Key::isNull() const
     return id.isNull();
 }
 
+bool Key::isValidInternal(const QByteArray &bytes)
+{
+    if (bytes.size() != Key::INTERNAL_REPR_SIZE) {
+        return false;
+    }
+
+    auto idBytes = bytes.mid(0, Identifier::INTERNAL_REPR_SIZE);
+    auto revBytes = bytes.mid(Identifier::INTERNAL_REPR_SIZE);
+    return Identifier::isValidInternal(idBytes) && Revision::isValidInternal(revBytes);
+}
+
+bool Key::isValidDisplay(const QByteArray &bytes)
+{
+    if (bytes.size() != Key::DISPLAY_REPR_SIZE) {
+        return false;
+    }
+
+    auto idBytes = bytes.mid(0, Identifier::DISPLAY_REPR_SIZE);
+    auto revBytes = bytes.mid(Identifier::DISPLAY_REPR_SIZE);
+    return Key::isValidDisplay(idBytes) && Revision::isValidDisplay(revBytes);
+}
+
+bool Key::isValid(const QByteArray &bytes)
+{
+    switch (bytes.size()) {
+        case Key::INTERNAL_REPR_SIZE:
+            return isValidInternal(bytes);
+        case Key::DISPLAY_REPR_SIZE:
+            return isValidDisplay(bytes);
+    }
+    return false;
+}
+
 bool Key::operator==(const Key &other) const
 {
     return (id == other.id) && (rev == other.rev);
@@ -200,4 +275,3 @@ bool Key::operator!=(const Key &other) const
 {
     return !(*this == other);
 }
-

@@ -48,6 +48,10 @@ public:
 
     bool isNull() const;
 
+    static bool isValidInternal(const QByteArray &);
+    static bool isValidDisplay(const QByteArray &);
+    static bool isValid(const QByteArray &);
+
     bool operator==(const Identifier &other) const;
     bool operator!=(const Identifier &other) const;
 
@@ -71,6 +75,10 @@ public:
     QByteArray toDisplayByteArray() const;
     static Revision fromDisplayByteArray(const QByteArray &bytes);
     qint64 toQint64() const;
+
+    static bool isValidInternal(const QByteArray &);
+    static bool isValidDisplay(const QByteArray &);
+    static bool isValid(const QByteArray &);
 
     bool operator==(const Revision &other) const;
     bool operator!=(const Revision &other) const;
@@ -99,6 +107,10 @@ public:
 
     bool isNull() const;
 
+    static bool isValidInternal(const QByteArray &);
+    static bool isValidDisplay(const QByteArray &);
+    static bool isValid(const QByteArray &);
+
     bool operator==(const Key &other) const;
     bool operator!=(const Key &other) const;
 
@@ -110,6 +122,6 @@ private:
 } // namespace Storage
 } // namespace Sink
 
-SINK_EXPORT QDebug& operator<<(QDebug &dbg, const Sink::Storage::Identifier &);
-SINK_EXPORT QDebug& operator<<(QDebug &dbg, const Sink::Storage::Revision &);
-SINK_EXPORT QDebug& operator<<(QDebug &dbg, const Sink::Storage::Key &);
+SINK_EXPORT QDebug &operator<<(QDebug &dbg, const Sink::Storage::Identifier &);
+SINK_EXPORT QDebug &operator<<(QDebug &dbg, const Sink::Storage::Revision &);
+SINK_EXPORT QDebug &operator<<(QDebug &dbg, const Sink::Storage::Key &);

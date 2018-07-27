@@ -41,6 +41,20 @@
 namespace SinkInspect
 {
 
+using Sink::Storage::Key;
+using Sink::Storage::Identifier;
+
+QString parse(const QByteArray &bytes)
+{
+    if (Key::isValidInternal(bytes)) {
+        return Key::fromInternalByteArray(bytes).toDisplayString();
+    } else if (Identifier::isValidInternal(bytes)) {
+        return Identifier::fromInternalByteArray(bytes).toDisplayString();
+    } else {
+        return QString::fromUtf8(bytes);
+    }
+}
+
 bool inspect(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
@@ -90,7 +104,7 @@ bool inspect(const QStringList &args, State &state)
 
         QSet<QByteArray> uids;
         db.scan("", [&] (const QByteArray &key, const QByteArray &data) {
-                    uids.insert(Sink::Storage::Key::fromInternalByteArray(key).identifier().toDisplayByteArray());
+                    uids.insert(Key::fromInternalByteArray(key).identifier().toDisplayByteArray());
                     return true;
                 },
                 [&](const Sink::Storage::DataStore::Error &e) {
@@ -187,13 +201,16 @@ bool inspect(const QStringList &args, State &state)
         auto count = db.scan(filter, [&] (const QByteArray &key, const QByteArray &data) {
                     keySizeTotal += key.size();
                     valueSizeTotal += data.size();
+
+                    const auto parsedKey = parse(key);
+
                     if (isMainDb) {
                         Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
                         if (!buffer.isValid()) {
-                            state.printError("Read invalid buffer from disk: " + key);
+                            state.printError("Read invalid buffer from disk: " + parsedKey);
                         } else {
                             const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
-                            state.printLine("Key: " + key
+                            state.printLine("Key: " + parsedKey
                                           + " Operation: " + QString::number(metadata->operation())
                                           + " Replay: " + (metadata->replayToSource() ? "true" : "false")
                                           + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": "")
@@ -201,7 +218,7 @@ bool inspect(const QStringList &args, State &state)
                                           );
                         }
                     } else {
-                        state.printLine("Key: " + key + "\tValue: " + QString::fromUtf8(data));
+                        state.printLine("Key: " + parsedKey + "\tValue: " + parse(data));
                     }
                     return true;
                 },
