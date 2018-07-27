@@ -35,7 +35,6 @@ namespace Storage {
 
 static const char *s_internalPrefix = "__internal";
 static const int s_internalPrefixSize = strlen(s_internalPrefix);
-static const int s_lengthOfUid = 38;
 
 DbLayout::DbLayout()
 {

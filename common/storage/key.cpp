@@ -162,12 +162,12 @@ bool Revision::isValidInternal(const QByteArray &bytes)
 
 bool Revision::isValidDisplay(const QByteArray &bytes)
 {
-    isValidInternal(bytes);
+    return isValidInternal(bytes);
 }
 
 bool Revision::isValid(const QByteArray &bytes)
 {
-    isValidInternal(bytes);
+    return isValidInternal(bytes);
 }
 
 bool Revision::operator==(const Revision &other) const
