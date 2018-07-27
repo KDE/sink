@@ -32,6 +32,8 @@
 #include "common/bufferutils.h"
 #include "common/fulltextindex.h"
 
+#include "storage/key.h"
+
 #include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
@@ -88,7 +90,7 @@ bool inspect(const QStringList &args, State &state)
 
         QSet<QByteArray> uids;
         db.scan("", [&] (const QByteArray &key, const QByteArray &data) {
-                    uids.insert(Sink::Storage::DataStore::uidFromKey(key));
+                    uids.insert(Sink::Storage::Key::fromInternalByteArray(key).identifier().toDisplayByteArray());
                     return true;
                 },
                 [&](const Sink::Storage::DataStore::Error &e) {

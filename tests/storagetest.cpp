@@ -7,6 +7,7 @@
 #include <QtConcurrent/QtConcurrentRun>
 
 #include "common/storage.h"
+#include "storage/key.h"
 
 /**
  * Test of the storage implementation to ensure it can do the low level operations as expected.
@@ -499,8 +500,11 @@ private slots:
         auto db = transaction.openDatabase("test", nullptr, false);
         const auto uid = "{c5d06a9f-1534-4c52-b8ea-415db68bdadf}";
         //Ensure we can sort 1 and 10 properly (by default string comparison 10 comes before 6)
-        db.write(Sink::Storage::DataStore::assembleKey(uid, 6), "value1");
-        db.write(Sink::Storage::DataStore::assembleKey(uid, 10), "value2");
+        const auto id = Sink::Storage::Identifier::fromDisplayByteArray(uid);
+        auto key = Sink::Storage::Key(id, 6);
+        db.write(key.toInternalByteArray(), "value1");
+        key.setRevision(10);
+        db.write(key.toInternalByteArray(), "value2");
         db.findLatest(uid, [&](const QByteArray &key, const QByteArray &value) { result = value; });
         QCOMPARE(result, QByteArray("value2"));
     }
@@ -732,7 +736,7 @@ private slots:
         Sink::Storage::DataStore::clearEnv();
 
         //Try to read-only dynamic opening of the db.
-        //This is the case if we don't have all databases available upon initializatoin and we don't (e.g. because the db hasn't been created yet) 
+        //This is the case if we don't have all databases available upon initializatoin and we don't (e.g. because the db hasn't been created yet)
         {
             // Trick the db into not loading all dbs by passing in a bogus layout.
             Sink::Storage::DataStore store(testDataPath, {dbName, {{"bogus", 0}}}, Sink::Storage::DataStore::ReadOnly);
@@ -750,7 +754,7 @@ private slots:
 
         Sink::Storage::DataStore::clearEnv();
         //Try to read-write dynamic opening of the db.
-        //This is the case if we don't have all databases available upon initializatoin and we don't (e.g. because the db hasn't been created yet) 
+        //This is the case if we don't have all databases available upon initializatoin and we don't (e.g. because the db hasn't been created yet)
         {
             // Trick the db into not loading all dbs by passing in a bogus layout.
             Sink::Storage::DataStore store(testDataPath, {dbName, {{"bogus", 0}}}, Sink::Storage::DataStore::ReadWrite);

@@ -22,8 +22,10 @@
 #pragma once
 
 #include "sink_export.h"
+#include "utils.h"
 #include <string>
 #include <functional>
+#include <QUuid>
 #include <QString>
 #include <QMap>
 
@@ -236,10 +238,6 @@ public:
     static bool isInternalKey(const char *key);
     static bool isInternalKey(void *key, int keySize);
     static bool isInternalKey(const QByteArray &key);
-
-    static QByteArray assembleKey(const QByteArray &key, qint64 revision);
-    static QByteArray uidFromKey(const QByteArray &key);
-    static qint64 revisionFromKey(const QByteArray &key);
 
     static NamedDatabase mainDatabase(const Transaction &, const QByteArray &type);
 

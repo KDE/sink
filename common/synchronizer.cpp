@@ -616,7 +616,8 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     Q_ASSERT(mEntityStore->hasTransaction());
 
     const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
-    const auto uid = Sink::Storage::DataStore::uidFromKey(key);
+    // TODO: should not use internal representations
+    const auto uid = Sink::Storage::Key::fromDisplayByteArray(key).identifier().toDisplayByteArray();
     const auto modifiedProperties = metadataBuffer->modifiedProperties() ? BufferUtils::fromVector(*metadataBuffer->modifiedProperties()) : QByteArrayList();
     QByteArray oldRemoteId;
 

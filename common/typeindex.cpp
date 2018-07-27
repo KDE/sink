@@ -25,8 +25,6 @@
 #include <QDateTime>
 #include <QDataStream>
 
-#include <cmath>
-
 using namespace Sink;
 
 static QByteArray getByteArray(const QVariant &value)
@@ -51,13 +49,6 @@ static QByteArray getByteArray(const QVariant &value)
     }
     // LMDB can't handle empty keys, so use something different
     return "toplevel";
-}
-
-template <typename T>
-static QByteArray padNumber(T number)
-{
-    static T uint_num_digits = (T)std::log10(std::numeric_limits<T>::max()) + 1;
-    return QByteArray::number(number).rightJustified(uint_num_digits, '0');
 }
 
 static QByteArray toSortableByteArrayImpl(const QDateTime &date)

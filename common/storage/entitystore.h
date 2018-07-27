@@ -25,6 +25,7 @@
 #include "domaintypeadaptorfactoryinterface.h"
 #include "query.h"
 #include "storage.h"
+#include "key.h"
 #include "resourcecontext.h"
 #include "metadata_generated.h"
 

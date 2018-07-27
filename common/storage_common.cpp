@@ -194,23 +194,6 @@ bool DataStore::isInternalKey(const QByteArray &key)
     return key.startsWith(s_internalPrefix);
 }
 
-QByteArray DataStore::assembleKey(const QByteArray &key, qint64 revision)
-{
-    Q_ASSERT(revision <= 9223372036854775807);
-    Q_ASSERT(key.size() == s_lengthOfUid);
-    return key + QByteArray::number(revision).rightJustified(19, '0', false);
-}
-
-QByteArray DataStore::uidFromKey(const QByteArray &key)
-{
-    return key.mid(0, s_lengthOfUid);
-}
-
-qint64 DataStore::revisionFromKey(const QByteArray &key)
-{
-    return key.mid(s_lengthOfUid + 1).toLongLong();
-}
-
 QByteArray DataStore::generateUid()
 {
     return createUuid();

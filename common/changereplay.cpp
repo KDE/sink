@@ -23,6 +23,7 @@
 #include "log.h"
 #include "definitions.h"
 #include "bufferutils.h"
+#include "storage/key.h"
 
 #include <QTimer>
 
@@ -113,10 +114,13 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                         if (uid.isEmpty() || type.isEmpty()) {
                             SinkErrorCtx(mLogCtx) << "Failed to read uid or type for revison: " << revision << uid << type;
                         } else {
-                            const auto key = DataStore::assembleKey(uid, revision);
+                            // TODO: should not use internal representations
+                            const auto key = Storage::Key(Storage::Identifier::fromDisplayByteArray(uid), revision);
+                            const auto internalKey = key.toInternalByteArray();
+                            const auto displayKey = key.toDisplayByteArray();
                             QByteArray entityBuffer;
                             DataStore::mainDatabase(mMainStoreTransaction, type)
-                                .scan(key,
+                                .scan(internalKey,
                                     [&entityBuffer](const QByteArray &key, const QByteArray &value) -> bool {
                                         entityBuffer = value;
                                         return false;
@@ -126,9 +130,9 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                             if (entityBuffer.isEmpty()) {
                                 SinkErrorCtx(mLogCtx) << "Failed to replay change " << key;
                             } else {
-                                if (canReplay(type, key, entityBuffer)) {
-                                    SinkTraceCtx(mLogCtx) << "Replaying " << key;
-                                    replayJob = replay(type, key, entityBuffer);
+                                if (canReplay(type, displayKey, entityBuffer)) {
+                                    SinkTraceCtx(mLogCtx) << "Replaying " << displayKey;
+                                    replayJob = replay(type, displayKey, entityBuffer);
                                     //Set the last revision we tried to replay
                                     *lastReplayedRevision = revision;
                                     //Execute replay job and commit
