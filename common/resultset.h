@@ -25,6 +25,7 @@
 #include "metadata_generated.h"
 #include "entitybuffer.h"
 #include "applicationdomaintype.h"
+#include "storage/key.h"
 
 /*
  * An iterator to a result set.
@@ -35,21 +36,25 @@ class ResultSet
 {
 public:
     struct Result {
-        Result(const Sink::ApplicationDomain::ApplicationDomainType &e, Sink::Operation op, const QMap<QByteArray, QVariant> &v = {}, const QVector<QByteArray> &a = {}) : entity(e), operation(op), aggregateValues(v), aggregateIds(a) {}
+        Result(const Sink::ApplicationDomain::ApplicationDomainType &e, Sink::Operation op,
+            const QMap<QByteArray, QVariant> &v = {}, const QVector<Sink::Storage::Identifier> &a = {})
+            : entity(e), operation(op), aggregateValues(v), aggregateIds(a)
+        {
+        }
         Sink::ApplicationDomain::ApplicationDomainType entity;
         Sink::Operation operation;
         QMap<QByteArray, QVariant> aggregateValues;
-        QVector<QByteArray> aggregateIds;
+        QVector<Sink::Storage::Identifier> aggregateIds;
     };
     typedef std::function<void(const Result &)> Callback;
     typedef std::function<bool(Callback)> ValueGenerator;
-    typedef std::function<QByteArray()> IdGenerator;
+    typedef std::function<Sink::Storage::Identifier()> IdGenerator;
     typedef std::function<void()> SkipValue;
 
     ResultSet();
     ResultSet(const ValueGenerator &generator, const SkipValue &skip);
     ResultSet(const IdGenerator &generator);
-    ResultSet(const QVector<QByteArray> &resultSet);
+    ResultSet(const QVector<Sink::Storage::Identifier> &resultSet);
     ResultSet(const ResultSet &other);
 
     bool next();
@@ -63,14 +68,14 @@ public:
     };
     ReplayResult replaySet(int offset, int batchSize, const Callback &callback);
 
-    QByteArray id();
+    Sink::Storage::Identifier id();
 
     bool isEmpty();
 
 private:
-    QVector<QByteArray> mResultSet;
-    QVector<QByteArray>::ConstIterator mIt;
-    QByteArray mCurrentValue;
+    QVector<Sink::Storage::Identifier> mResultSet;
+    QVector<Sink::Storage::Identifier>::ConstIterator mIt;
+    Sink::Storage::Identifier mCurrentValue;
     IdGenerator mGenerator;
     ValueGenerator mValueGenerator;
     SkipValue mSkip;

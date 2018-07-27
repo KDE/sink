@@ -271,7 +271,7 @@ public:
 
     struct ReductionResult {
         Identifier selection;
-        QVector<QByteArray> aggregateIds;
+        QVector<Identifier> aggregateIds;
         QMap<QByteArray, QVariant> aggregateValues;
     };
 
@@ -284,14 +284,14 @@ public:
         for (auto &aggregator : mAggregators) {
             aggregator.reset();
         }
-        QVector<QByteArray> reducedAndFilteredResults;
+        QVector<Identifier> reducedAndFilteredResults;
         for (const auto &r : results) {
             readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                 //We need to apply all property filters that we have until the reduction, because the index lookup was unfiltered.
                 if (!matchesFilter(entity)) {
                     return;
                 }
-                reducedAndFilteredResults << r.toDisplayByteArray();
+                reducedAndFilteredResults << r;
                 Q_ASSERT(operation != Sink::Operation_Removal);
                 for (auto &aggregator : mAggregators) {
                     if (!aggregator.property.isEmpty()) {
