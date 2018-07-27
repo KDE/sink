@@ -37,13 +37,19 @@ public:
     static const constexpr size_t INTERNAL_REPR_SIZE = 16;
     static const constexpr size_t DISPLAY_REPR_SIZE = 38;
 
-    Identifier() : uid(QUuid::createUuid()){};
+    Identifier() = default;
+    static Identifier createIdentifier();
 
     QByteArray toInternalByteArray() const;
     static Identifier fromInternalByteArray(const QByteArray &bytes);
     QString toDisplayString() const;
     QByteArray toDisplayByteArray() const;
     static Identifier fromDisplayByteArray(const QByteArray &bytes);
+
+    bool isNull() const;
+
+    bool operator==(const Identifier &other) const;
+    bool operator!=(const Identifier &other) const;
 
 private:
     explicit Identifier(const QUuid &uid) : uid(uid) {}
@@ -66,6 +72,9 @@ public:
     static Revision fromDisplayByteArray(const QByteArray &bytes);
     qint64 toQint64() const;
 
+    bool operator==(const Revision &other) const;
+    bool operator!=(const Revision &other) const;
+
 private:
     qint64 rev;
 };
@@ -76,6 +85,7 @@ public:
     static const constexpr size_t INTERNAL_REPR_SIZE = Identifier::INTERNAL_REPR_SIZE + Revision::INTERNAL_REPR_SIZE;
     static const constexpr size_t DISPLAY_REPR_SIZE = Identifier::DISPLAY_REPR_SIZE + Revision::DISPLAY_REPR_SIZE;
 
+    Key() : id(), rev(0) {}
     Key(const Identifier &id, const Revision &rev) : id(id), rev(rev) {}
 
     QByteArray toInternalByteArray() const;
@@ -86,6 +96,11 @@ public:
     const Identifier &identifier() const;
     const Revision &revision() const;
     void setRevision(const Revision &newRev);
+
+    bool isNull() const;
+
+    bool operator==(const Key &other) const;
+    bool operator!=(const Key &other) const;
 
 private:
     Identifier id;

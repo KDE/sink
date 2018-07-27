@@ -95,7 +95,7 @@ public:
     void remove(const Sink::Storage::Identifier &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
 
     QVector<QByteArray> query(const Sink::QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
-    QVector<QByteArray> lookup(const QByteArray &property, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction);
+    QVector<Sink::Storage::Identifier> lookup(const QByteArray &property, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction);
 
     template <typename Left, typename Right>
     QVector<QByteArray> secondaryLookup(const QVariant &value)

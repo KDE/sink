@@ -59,7 +59,7 @@ public:
 
     QVector<QByteArray> fullScan(const QByteArray &type);
     QVector<QByteArray> indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting);
-    QVector<QByteArray> indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value);
+    QVector<Sink::Storage::Identifier> indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value);
     void indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value, const std::function<void(const QByteArray &uid)> &callback);
     template<typename EntityType, typename PropertyType>
     void indexLookup(const QVariant &value, const std::function<void(const QByteArray &uid)> &callback) {
@@ -67,10 +67,13 @@ public:
     }
 
     ///Returns the uid and buffer. Note that the memory only remains valid until the next operation or transaction end.
+    void readLatest(const QByteArray &type, const Identifier &uid, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback);
     void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback);
     ///Returns an entity. Note that the memory only remains valid until the next operation or transaction end.
+    void readLatest(const QByteArray &type, const Identifier &uid, const std::function<void(const ApplicationDomainType &entity)> callback);
     void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &entity)> callback);
     ///Returns an entity and operation. Note that the memory only remains valid until the next operation or transaction end.
+    void readLatest(const QByteArray &type, const Identifier &uid, const std::function<void(const ApplicationDomainType &entity, Sink::Operation)> callback);
     void readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &entity, Sink::Operation)> callback);
 
     ///Returns a copy
@@ -94,10 +97,10 @@ public:
     }
 
 
-    void readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback);
-    void readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const ApplicationDomainType &entity)> callback);
+    void readPrevious(const QByteArray &type, const Sink::Storage::Identifier &id, qint64 revision, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback);
+    void readPrevious(const QByteArray &type, const Sink::Storage::Identifier &id, qint64 revision, const std::function<void(const ApplicationDomainType &entity)> callback);
     ///Returns a copy
-    ApplicationDomainType readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision);
+    ApplicationDomainType readPrevious(const QByteArray &type, const Sink::Storage::Identifier &id, qint64 revision);
 
     template<typename T>
     T readPrevious(const QByteArray &uid, qint64 revision) {
@@ -115,7 +118,7 @@ public:
         });
     }
 
-    void readRevisions(qint64 baseRevision, const QByteArray &type, const std::function<void(const QByteArray &key)> &callback);
+    void readRevisions(qint64 baseRevision, const QByteArray &type, const std::function<void(const Key &key)> &callback);
 
     ///Db contains entity (but may already be marked as removed
     bool contains(const QByteArray &type, const QByteArray &uid);

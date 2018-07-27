@@ -46,8 +46,14 @@ QDebug &operator<<(QDebug &dbg, const Key &key)
 
 // Identifier
 
+Identifier Identifier::createIdentifier()
+{
+    return Identifier(QUuid::createUuid());
+}
+
 QByteArray Identifier::toInternalByteArray() const
 {
+    Q_ASSERT(!uid.isNull());
     return uid.toRfc4122();
 }
 
@@ -71,6 +77,21 @@ Identifier Identifier::fromDisplayByteArray(const QByteArray &bytes)
 {
     Q_ASSERT(bytes.size() == DISPLAY_REPR_SIZE);
     return Identifier(QUuid(bytes));
+}
+
+bool Identifier::isNull() const
+{
+    return uid.isNull();
+}
+
+bool Identifier::operator==(const Identifier &other) const
+{
+    return uid == other.uid;
+}
+
+bool Identifier::operator!=(const Identifier &other) const
+{
+    return !(*this == other);
 }
 
 // Revision
@@ -105,6 +126,16 @@ Revision Revision::fromDisplayByteArray(const QByteArray &bytes)
 qint64 Revision::toQint64() const
 {
     return rev;
+}
+
+bool Revision::operator==(const Revision &other) const
+{
+    return rev == other.rev;
+}
+
+bool Revision::operator!=(const Revision &other) const
+{
+    return !(*this == other);
 }
 
 // Key
@@ -154,3 +185,19 @@ void Key::setRevision(const Revision &newRev)
 {
     rev = newRev;
 }
+
+bool Key::isNull() const
+{
+    return id.isNull();
+}
+
+bool Key::operator==(const Key &other) const
+{
+    return (id == other.id) && (rev == other.rev);
+}
+
+bool Key::operator!=(const Key &other) const
+{
+    return !(*this == other);
+}
+

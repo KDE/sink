@@ -427,17 +427,17 @@ QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
     return {};
 }
 
-QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant &value,
+QVector<Identifier> TypeIndex::lookup(const QByteArray &property, const QVariant &value,
     Sink::Storage::DataStore::Transaction &transaction)
 {
     SinkTraceCtx(mLogCtx) << "Index lookup on property: " << property << mSecondaryProperties.keys() << mProperties;
     if (mProperties.contains(property)) {
-        QVector<QByteArray> keys;
+        QVector<Identifier> keys;
         Index index(indexName(property), transaction);
         const auto lookupKey = getByteArray(value);
         index.lookup(lookupKey,
             [&](const QByteArray &value) {
-                keys << Identifier::fromInternalByteArray(value).toDisplayByteArray();
+                keys << Identifier::fromInternalByteArray(value);
             },
             [property](const Index::Error &error) {
                 SinkWarning() << "Error in index: " << error.message << property;
@@ -447,7 +447,7 @@ QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant
     } else if (mSecondaryProperties.contains(property)) {
         // Lookups on secondary indexes first lookup the key, and then lookup the results again to
         // resolve to entity id's
-        QVector<QByteArray> keys;
+        QVector<Identifier> keys;
         auto resultProperty = mSecondaryProperties.value(property);
 
         QVector<QByteArray> secondaryKeys;
@@ -466,7 +466,7 @@ QVector<QByteArray> TypeIndex::lookup(const QByteArray &property, const QVariant
     } else {
         SinkWarning() << "Tried to lookup " << property << " but couldn't find value";
     }
-    return QVector<QByteArray>();
+    return {};
 }
 
 template <>

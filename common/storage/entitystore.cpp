@@ -461,11 +461,11 @@ QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const Query
     return d->typeIndex(type).query(query, appliedFilters, appliedSorting, d->getTransaction(), d->resourceContext.instanceId());
 }
 
-QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value)
+QVector<Identifier> EntityStore::indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value)
 {
     if (!d->exists()) {
         SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
-        return QVector<QByteArray>();
+        return {};
     }
     return d->typeIndex(type).lookup(property, value, d->getTransaction());
 }
@@ -476,9 +476,9 @@ void EntityStore::indexLookup(const QByteArray &type, const QByteArray &property
         SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
         return;
     }
-    auto list =  d->typeIndex(type).lookup(property, value, d->getTransaction());
-    for (const auto &uid : list) {
-        callback(uid);
+    auto list = indexLookup(type, property, value);
+    for (const auto &id : list) {
+        callback(id.toDisplayByteArray());
     }
     /* Index index(type + ".index." + property, d->transaction); */
     /* index.lookup(value, [&](const QByteArray &sinkId) { */
@@ -489,29 +489,25 @@ void EntityStore::indexLookup(const QByteArray &type, const QByteArray &property
     /* }); */
 }
 
-void EntityStore::readLatest(const QByteArray &type, const QByteArray &key, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback)
+void EntityStore::readLatest(const QByteArray &type, const Identifier &id, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback)
 {
     Q_ASSERT(d);
-    Q_ASSERT(!key.isEmpty());
-    // TODO: we shouldn't pass whole keys to this function
-    // check the testSingle test from querytest
-    const auto internalKey = [&key]() {
-        if(key.size() == Identifier::DISPLAY_REPR_SIZE) {
-            return Identifier::fromDisplayByteArray(key).toInternalByteArray();
-        } else {
-            return Key::fromDisplayByteArray(key).toInternalByteArray();
-        }
-    }();
+    const auto internalKey = id.toInternalByteArray();
     auto db = DataStore::mainDatabase(d->getTransaction(), type);
     db.findLatest(internalKey,
         [=](const QByteArray &key, const QByteArray &value) {
             const auto uid = Sink::Storage::Key::fromInternalByteArray(key).identifier().toDisplayByteArray();
             callback(uid, Sink::EntityBuffer(value.data(), value.size()));
         },
-        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during readLatest query: " << error.message << key; });
+        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during readLatest query: " << error.message << id; });
 }
 
-void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &)> callback)
+void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback)
+{
+    readLatest(type, Identifier::fromDisplayByteArray(uid), callback);
+}
+
+void EntityStore::readLatest(const QByteArray &type, const Identifier &uid, const std::function<void(const ApplicationDomainType &)> callback)
 {
     readLatest(type, uid, [&](const QByteArray &uid, const EntityBuffer &buffer) {
         //TODO cache max revision for the duration of the transaction.
@@ -519,12 +515,22 @@ void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, cons
     });
 }
 
-void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &, Sink::Operation)> callback)
+void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &)> callback)
+{
+    readLatest(type, Identifier::fromDisplayByteArray(uid), callback);
+}
+
+void EntityStore::readLatest(const QByteArray &type, const Identifier &uid, const std::function<void(const ApplicationDomainType &, Sink::Operation)> callback)
 {
     readLatest(type, uid, [&](const QByteArray &uid, const EntityBuffer &buffer) {
         //TODO cache max revision for the duration of the transaction.
         callback(d->createApplicationDomainType(type, uid, DataStore::maxRevision(d->getTransaction()), buffer), buffer.operation());
     });
+}
+
+void EntityStore::readLatest(const QByteArray &type, const QByteArray &uid, const std::function<void(const ApplicationDomainType &, Sink::Operation)> callback)
+{
+    readLatest(type, Identifier::fromDisplayByteArray(uid), callback);
 }
 
 ApplicationDomain::ApplicationDomainType EntityStore::readLatest(const QByteArray &type, const QByteArray &uid)
@@ -573,7 +579,7 @@ void EntityStore::readAll(const QByteArray &type, const std::function<void(const
     });
 }
 
-void EntityStore::readRevisions(qint64 baseRevision, const QByteArray &expectedType, const std::function<void(const QByteArray &key)> &callback)
+void EntityStore::readRevisions(qint64 baseRevision, const QByteArray &expectedType, const std::function<void(const Key &key)> &callback)
 {
     qint64 revisionCounter = baseRevision;
     const qint64 topRevision = DataStore::maxRevision(d->getTransaction());
@@ -592,15 +598,15 @@ void EntityStore::readRevisions(qint64 baseRevision, const QByteArray &expectedT
         const auto key = Key(Identifier::fromDisplayByteArray(uid), revisionCounter);
 
         revisionCounter++;
-        callback(key.toDisplayByteArray());
+        callback(key);
     }
 }
 
-void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback)
+void EntityStore::readPrevious(const QByteArray &type, const Identifier &id, qint64 revision, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback)
 {
     auto db = DataStore::mainDatabase(d->getTransaction(), type);
     qint64 latestRevision = 0;
-    const auto internalUid = Identifier::fromDisplayByteArray(uid).toInternalByteArray();
+    const auto internalUid = id.toInternalByteArray();
     db.scan(internalUid,
         [&latestRevision, revision](const QByteArray &key, const QByteArray &) -> bool {
             const auto foundRevision = Key::fromInternalByteArray(key).revision().toQint64();
@@ -610,21 +616,21 @@ void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qi
             return true;
         },
         [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read current value from storage: " << error.message; }, true);
-    const auto key = Key(Identifier::fromDisplayByteArray(uid), latestRevision);
+    const auto key = Key(id, latestRevision);
     readEntity(type, key.toDisplayByteArray(), callback);
 }
 
-void EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision, const std::function<void(const ApplicationDomainType &)> callback)
+void EntityStore::readPrevious(const QByteArray &type, const Identifier &id, qint64 revision, const std::function<void(const ApplicationDomainType &)> callback)
 {
-    readPrevious(type, uid, revision, [&](const QByteArray &uid, const EntityBuffer &buffer) {
+    readPrevious(type, id, revision, [&](const QByteArray &uid, const EntityBuffer &buffer) {
         callback(d->createApplicationDomainType(type, uid, DataStore::maxRevision(d->getTransaction()), buffer));
     });
 }
 
-ApplicationDomain::ApplicationDomainType EntityStore::readPrevious(const QByteArray &type, const QByteArray &uid, qint64 revision)
+ApplicationDomain::ApplicationDomainType EntityStore::readPrevious(const QByteArray &type, const Identifier &id, qint64 revision)
 {
     ApplicationDomainType dt;
-    readPrevious(type, uid, revision, [&](const ApplicationDomainType &entity) {
+    readPrevious(type, id, revision, [&](const ApplicationDomainType &entity) {
         dt = *ApplicationDomainType::getInMemoryRepresentation<ApplicationDomainType>(entity, entity.availableProperties());
     });
     return dt;
