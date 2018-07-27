@@ -182,3 +182,37 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
     return results;
 }
 
+qint64 FulltextIndex::getDoccount() const
+{
+    if (!mDb) {
+        return -1;
+    }
+    try {
+        return mDb->get_doccount();
+    } catch (const Xapian::Error &) {
+        // Nothing to do, move along
+    }
+    return  -1;
+}
+
+FulltextIndex::Result FulltextIndex::getIndexContent(const QByteArray &identifier) const
+{
+    if (!mDb) {
+        {};
+    }
+    try {
+        auto id = "Q" + identifier.toStdString();
+        Xapian::PostingIterator p = mDb->postlist_begin(id);
+        if (p != mDb->postlist_end(id)) {
+            auto document = mDb->get_document(*p);
+            QStringList terms;
+            for (auto it = document.termlist_begin(); it != document.termlist_end(); it++) {
+                terms << QString::fromStdString(*it);
+            }
+            return {true, terms};
+        }
+    } catch (const Xapian::Error &) {
+        // Nothing to do, move along
+    }
+    return {};
+}

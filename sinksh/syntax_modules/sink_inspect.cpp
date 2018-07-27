@@ -17,9 +17,6 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-//xapian.h needs to be included first to build
-#include <xapian.h>
-
 #include <QDebug>
 #include <QObject> // tr()
 #include <QFile>
@@ -33,6 +30,7 @@
 #include "common/entitybuffer.h"
 #include "common/metadata_generated.h"
 #include "common/bufferutils.h"
+#include "common/fulltextindex.h"
 
 #include "sinksh_utils.h"
 #include "state.h"
@@ -120,32 +118,19 @@ bool inspect(const QStringList &args, State &state)
         return false;
     }
     if (options.options.contains("fulltext")) {
-        try {
-            Xapian::Database db(QFile::encodeName(Sink::resourceStorageLocation(resource) + '/' + "fulltext").toStdString(), Xapian::DB_OPEN);
-            if (options.options.value("fulltext").isEmpty()) {
-                state.printLine(QString("Total document count: ") + QString::number(db.get_doccount()));
+        FulltextIndex index(resource, Sink::Storage::DataStore::ReadOnly);
+        if (options.options.value("fulltext").isEmpty()) {
+            state.printLine(QString("Total document count: ") + QString::number(index.getDoccount()));
+        } else {
+            const auto entityId = SinkshUtils::parseUid(options.options.value("fulltext").first().toUtf8());
+            const auto content = index.getIndexContent(entityId);
+            if (!content.found) {
+                state.printLine(QString("Failed to find the document with the id: ") + entityId);
             } else {
-                auto entityId = SinkshUtils::parseUid(options.options.value("fulltext").first().toUtf8());
-                auto id = "Q" + entityId.toStdString();
-                Xapian::PostingIterator p = db.postlist_begin(id);
-                if (p == db.postlist_end(id)) {
-                    state.printLine(QString("Failed to find the document with the id: ") + QString::fromStdString(id));
-                } else {
-                    state.printLine(QString("Found the document: "));
-                    auto document = db.get_document(*p);
-
-                    QStringList terms;
-                    for (auto it = document.termlist_begin(); it != document.termlist_end(); it++) {
-                        terms << QString::fromStdString(*it);
-                    }
-                    state.printLine(QString("Terms: ") + terms.join(", "), 1);
-                }
-
+                state.printLine(QString("Found document with terms: ") + content.terms.join(", "), 1);
             }
-        } catch (const Xapian::Error &) {
-            // Nothing to do, move along
-        }
 
+        }
         return false;
     }
 
