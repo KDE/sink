@@ -172,7 +172,7 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
 
         const auto limit = searchTerm.size() <= 4 ? 1000 : 10000;
         Xapian::MSet mset = enquire.get_mset(0, limit);
-        SinkTrace() << "Result set: " << QString::fromStdString(mset.get_description());
+        SinkTrace() << "Found " << mset.size() << " results, limited to " << limit;
         for (Xapian::MSetIterator it = mset.begin(); it != mset.end(); it++) {
             auto doc = it.get_document();
             const auto data = doc.get_value(0);
