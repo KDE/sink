@@ -1520,12 +1520,11 @@ private slots:
             {
                 auto msg = KMime::Message::Ptr::create();
                 msg->subject()->from7BitString("Subject To Search");
-                msg->setBody("This is the searchable body bar.");
+                msg->setBody("This is the searchable body bar. unique sender2");
                 msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
                 msg->to()->from7BitString("\"Foo Bar\"<foo-bar@example.org>");
                 msg->assemble();
 
-                // Mail mail("sink.dummy.instance1");
                 auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
                 mail.setExtractedMessageId("test1");
                 mail.setFolder("folder1");

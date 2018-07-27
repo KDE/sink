@@ -166,13 +166,14 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
         parser.set_database(*mDb);
         parser.set_max_expansion(100, Xapian::Query::WILDCARD_LIMIT_MOST_FREQUENT, Xapian::QueryParser::FLAG_PARTIAL);
         auto query = parser.parse_query(searchTerm.toStdString(), Xapian::QueryParser::FLAG_PHRASE|Xapian::QueryParser::FLAG_BOOLEAN|Xapian::QueryParser::FLAG_LOVEHATE|Xapian::QueryParser::FLAG_PARTIAL);
+        SinkTrace() << "Running xapian query: " << QString::fromStdString(query.get_description());
         Xapian::Enquire enquire(*mDb);
         enquire.set_query(query);
 
-        auto limit = 1000;
+        const auto limit = searchTerm.size() <= 4 ? 1000 : 10000;
         Xapian::MSet mset = enquire.get_mset(0, limit);
-        Xapian::MSetIterator it = mset.begin();
-        for (;it != mset.end(); it++) {
+        SinkTrace() << "Result set: " << QString::fromStdString(mset.get_description());
+        for (Xapian::MSetIterator it = mset.begin(); it != mset.end(); it++) {
             auto doc = it.get_document();
             const auto data = doc.get_value(0);
             results << QByteArray{data.c_str(), int(data.length())};
