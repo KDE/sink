@@ -499,7 +499,7 @@ void Synchronizer::setBusy(bool busy, const QString &reason, const QByteArray re
 KAsync::Job<void> Synchronizer::processSyncQueue()
 {
     if (secret().isEmpty()) {
-        SinkWarningCtx(mLogCtx) << "Secret not available but required.";
+        SinkLogCtx(mLogCtx) << "Secret not available but required.";
         emitNotification(Notification::Warning, ApplicationDomain::SyncError, "Secret is not available.", {}, {});
         return KAsync::null<void>();
     }
