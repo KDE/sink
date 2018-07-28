@@ -70,14 +70,12 @@ static QByteArray toSortableByteArray(const QVariant &value)
         return QByteArray::number(std::numeric_limits<unsigned int>::max());
     }
 
-    switch (value.type()) {
-        case QMetaType::QDateTime:
-            return toSortableByteArrayImpl(value.toDateTime());
-        default:
-            SinkWarning() << "Not knowing how to convert a" << value.typeName()
-                          << "to a sortable key, falling back to default conversion";
-            return getByteArray(value);
+    if (value.canConvert<QDateTime>()) {
+        return toSortableByteArrayImpl(value.toDateTime());
     }
+    SinkWarning() << "Not knowing how to convert a" << value.typeName()
+                    << "to a sortable key, falling back to default conversion";
+    return getByteArray(value);
 }
 
 TypeIndex::TypeIndex(const QByteArray &type, const Sink::Log::Context &ctx) : mLogCtx(ctx), mType(type)
@@ -104,13 +102,11 @@ QByteArray TypeIndex::sampledPeriodIndexName(const QByteArray &rangeBeginPropert
 
 static unsigned int bucketOf(const QVariant &value)
 {
-    switch (value.type()) {
-        case QMetaType::QDateTime:
-            return value.value<QDateTime>().date().toJulianDay() / 7;
-        default:
-            SinkError() << "Not knowing how to get the bucket of a" << value.typeName();
-            return {};
+    if (value.canConvert<QDateTime>()) {
+        return value.value<QDateTime>().date().toJulianDay() / 7;
     }
+    SinkError() << "Not knowing how to get the bucket of a" << value.typeName();
+    return {};
 }
 
 static void update(TypeIndex::Action action, const QByteArray &indexName, const QByteArray &key, const QByteArray &value, Sink::Storage::DataStore::Transaction &transaction)
