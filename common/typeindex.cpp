@@ -265,10 +265,10 @@ void TypeIndex::remove(const Identifier &identifier, const Sink::ApplicationDoma
     }
 }
 
-static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filter,
+static QVector<Identifier> indexLookup(Index &index, QueryBase::Comparator filter,
     std::function<QByteArray(const QVariant &)> valueToKey = getByteArray)
 {
-    QVector<QByteArray> keys;
+    QVector<Identifier> keys;
     QByteArrayList lookupKeys;
     if (filter.comparator == Query::Comparator::Equals) {
         lookupKeys << valueToKey(filter.value);
@@ -283,7 +283,7 @@ static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filte
     for (const auto &lookupKey : lookupKeys) {
         index.lookup(lookupKey,
             [&](const QByteArray &value) {
-                keys << Identifier::fromInternalByteArray(value).toDisplayByteArray();
+                keys << Identifier::fromInternalByteArray(value);
             },
             [lookupKey](const Index::Error &error) {
                 SinkWarning() << "Lookup error in index: " << error.message << lookupKey;
@@ -293,7 +293,7 @@ static QVector<QByteArray> indexLookup(Index &index, QueryBase::Comparator filte
     return keys;
 }
 
-static QVector<QByteArray> sortedIndexLookup(Index &index, QueryBase::Comparator filter)
+static QVector<Identifier> sortedIndexLookup(Index &index, QueryBase::Comparator filter)
 {
     if (filter.comparator == Query::Comparator::In || filter.comparator == Query::Comparator::Contains) {
         SinkWarning() << "In and Contains comparison not supported on sorted indexes";
@@ -303,7 +303,7 @@ static QVector<QByteArray> sortedIndexLookup(Index &index, QueryBase::Comparator
         return indexLookup(index, filter, toSortableByteArray);
     }
 
-    QVector<QByteArray> keys;
+    QVector<Identifier> keys;
 
     QByteArray lowerBound, upperBound;
     auto bounds = filter.value.value<QVariantList>();
@@ -318,7 +318,7 @@ static QVector<QByteArray> sortedIndexLookup(Index &index, QueryBase::Comparator
 
     index.rangeLookup(lowerBound, upperBound,
         [&](const QByteArray &value) {
-            keys << Identifier::fromInternalByteArray(value).toDisplayByteArray();
+            keys << Identifier::fromInternalByteArray(value);
         },
         [bounds](const Index::Error &error) {
             SinkWarning() << "Lookup error in index:" << error.message
@@ -328,14 +328,14 @@ static QVector<QByteArray> sortedIndexLookup(Index &index, QueryBase::Comparator
     return keys;
 }
 
-static QVector<QByteArray> sampledIndexLookup(Index &index, QueryBase::Comparator filter)
+static QVector<Identifier> sampledIndexLookup(Index &index, QueryBase::Comparator filter)
 {
     if (filter.comparator != Query::Comparator::Overlap) {
         SinkWarning() << "Comparisons other than Overlap not supported on sampled period indexes";
         return {};
     }
 
-    QVector<QByteArray> keys;
+    QVector<Identifier> keys;
 
     auto bounds = filter.value.value<QVariantList>();
 
@@ -349,7 +349,7 @@ static QVector<QByteArray> sampledIndexLookup(Index &index, QueryBase::Comparato
 
     index.rangeLookup(lowerBucket, upperBucket,
         [&](const QByteArray &value) {
-            keys << Identifier::fromInternalByteArray(value).toDisplayByteArray();
+            keys << Identifier::fromInternalByteArray(value);
         },
         [bounds](const Index::Error &error) {
             SinkWarning() << "Lookup error in index:" << error.message
@@ -359,13 +359,18 @@ static QVector<QByteArray> sampledIndexLookup(Index &index, QueryBase::Comparato
     return keys;
 }
 
-QVector<QByteArray> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
+QVector<Identifier> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId)
 {
     const auto baseFilters = query.getBaseFilters();
     for (auto it = baseFilters.constBegin(); it != baseFilters.constEnd(); it++) {
         if (it.value().comparator == QueryBase::Comparator::Fulltext) {
             FulltextIndex fulltextIndex{resourceInstanceId};
-            const auto keys = fulltextIndex.lookup(it.value().value.toString());
+            QVector<Identifier> keys;
+            const auto ids = fulltextIndex.lookup(it.value().value.toString());
+            keys.reserve(ids.size());
+            for (const auto &id : ids) {
+                keys.append(Identifier::fromDisplayByteArray(id));
+            }
             appliedFilters << it.key();
             SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << keys.size() << " keys.";
             return keys;

@@ -119,6 +119,8 @@ private:
     Revision rev;
 };
 
+SINK_EXPORT uint qHash(const Sink::Storage::Identifier &);
+
 } // namespace Storage
 } // namespace Sink
 

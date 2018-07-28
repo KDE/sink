@@ -46,14 +46,10 @@ class Source : public FilterBase {
     QVector<Identifier> mIncrementalIds;
     QVector<Identifier>::ConstIterator mIncrementalIt;
 
-    Source (const QVector<QByteArray> &ids, DataStoreQuery *store)
+    Source (const QVector<Identifier> &ids, DataStoreQuery *store)
         : FilterBase(store),
-        mIds()
+        mIds(ids)
     {
-        mIds.reserve(ids.size());
-        for (const auto &id : ids) {
-            mIds.append(Identifier::fromDisplayByteArray(id));
-        }
         mIt = mIds.constBegin();
     }
 
@@ -614,7 +610,11 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
     mSource = [&]() {
         if (!query.ids().isEmpty()) {
             //We have a set of ids as a starting point
-            return Source::Ptr::create(query.ids().toVector(), this);
+            QVector<Identifier> ids;
+            for (const auto & id: query.ids()) {
+                ids.append(Identifier::fromDisplayByteArray(id));
+            }
+            return Source::Ptr::create(ids, this);
         } else {
             QSet<QByteArrayList> appliedFilters;
             auto resultSet = mStore.indexLookup(mType, query, appliedFilters, appliedSorting);

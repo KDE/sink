@@ -57,8 +57,8 @@ public:
     void abortTransaction();
     bool hasTransaction() const;
 
-    QVector<QByteArray> fullScan(const QByteArray &type);
-    QVector<QByteArray> indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting);
+    QVector<Sink::Storage::Identifier> fullScan(const QByteArray &type);
+    QVector<Sink::Storage::Identifier> indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting);
     QVector<Sink::Storage::Identifier> indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value);
     void indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value, const std::function<void(const QByteArray &uid)> &callback);
     template<typename EntityType, typename PropertyType>

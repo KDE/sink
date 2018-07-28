@@ -426,19 +426,19 @@ bool EntityStore::cleanupRevisions(qint64 revision)
     return cleanupIsNecessary;
 }
 
-QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)
+QVector<Identifier> EntityStore::fullScan(const QByteArray &type)
 {
     SinkTraceCtx(d->logCtx) << "Looking for : " << type;
     if (!d->exists()) {
         SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
-        return QVector<QByteArray>();
+        return {};
     }
     //The scan can return duplicate results if we have multiple revisions, so we use a set to deduplicate.
-    QSet<QByteArray> keys;
+    QSet<Identifier> keys;
     DataStore::mainDatabase(d->getTransaction(), type)
         .scan(QByteArray(),
             [&](const QByteArray &key, const QByteArray &value) -> bool {
-                const auto uid = Sink::Storage::Key::fromInternalByteArray(key).identifier().toDisplayByteArray();
+                const auto uid = Sink::Storage::Key::fromInternalByteArray(key).identifier();
                 if (keys.contains(uid)) {
                     //Not something that should persist if the replay works, so we keep a message for now.
                     SinkTraceCtx(d->logCtx) << "Multiple revisions for key: " << key;
@@ -452,11 +452,11 @@ QVector<QByteArray> EntityStore::fullScan(const QByteArray &type)
     return keys.toList().toVector();
 }
 
-QVector<QByteArray> EntityStore::indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting)
+QVector<Identifier> EntityStore::indexLookup(const QByteArray &type, const QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting)
 {
     if (!d->exists()) {
         SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
-        return QVector<QByteArray>();
+        return {};
     }
     return d->typeIndex(type).query(query, appliedFilters, appliedSorting, d->getTransaction(), d->resourceContext.instanceId());
 }

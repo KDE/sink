@@ -26,6 +26,12 @@ using Sink::Storage::Identifier;
 using Sink::Storage::Key;
 using Sink::Storage::Revision;
 
+
+uint Sink::Storage::qHash(const Sink::Storage::Identifier &identifier)
+{
+    return qHash(identifier.toInternalByteArray());
+}
+
 QDebug &operator<<(QDebug &dbg, const Identifier &id)
 {
     dbg << id.toDisplayString();
