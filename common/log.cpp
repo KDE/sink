@@ -363,6 +363,10 @@ static bool isFiltered(DebugLevel debugLevel, const QByteArray &fullDebugArea)
 
 bool Sink::Log::isFiltered(DebugLevel debugLevel, const char *debugArea, const char *debugComponent, const char *file)
 {
+    //Avoid assembleDebugArea if we can, because it's fairly expensive.
+    if (debugLevel < debugOutputLevel()) {
+        return true;
+    }
     return isFiltered(debugLevel, assembleDebugArea(debugArea, debugComponent, file).toLatin1());
 }
 
