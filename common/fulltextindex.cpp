@@ -170,9 +170,24 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
         Xapian::Enquire enquire(*mDb);
         enquire.set_query(query);
 
-        const auto limit = searchTerm.size() <= 4 ? 1000 : 10000;
+        const auto limit = [&] {
+            switch (searchTerm.size()) {
+                case 1:
+                case 2:
+                case 3:
+                    return 500;
+                case 4:
+                    return 5000;
+                default:
+                    return 20000;
+            }
+        }();
         Xapian::MSet mset = enquire.get_mset(0, limit);
         SinkTrace() << "Found " << mset.size() << " results, limited to " << limit;
+        //Print a hint why a query could lack some expected results.
+        if (searchTerm.size() > 4 && mset.size() >= limit) {
+            SinkLog() << "Result set exceeding limit of " << limit << QString::fromStdString(query.get_description());
+        }
         for (Xapian::MSetIterator it = mset.begin(); it != mset.end(); it++) {
             auto doc = it.get_document();
             const auto data = doc.get_value(0);
