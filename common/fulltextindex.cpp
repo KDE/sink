@@ -73,6 +73,8 @@ void FulltextIndex::add(const QByteArray &key, const QList<QPair<QString, QStrin
         for (const auto &entry : values) {
             if (!entry.second.isEmpty()) {
                 generator.index_text(entry.second.toStdString());
+                //Prevent phrase searches from spanning different indexed parts
+                generator.increase_termpos();
             }
         }
         document.add_value(0, key.toStdString());
