@@ -19,15 +19,8 @@
 
 #pragma once
 
+#include "common/resource.h"
 #include "common/genericresource.h"
-
-#include <KDAV2/DavUrl>
-#include <KAsync/Async>
-
-#include <flatbuffers/flatbuffers.h>
-
-class ContactAdaptorFactory;
-class AddressbookAdaptorFactory;
 
 /**
  * A CardDAV resource.

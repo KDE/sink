@@ -10,6 +10,7 @@
 #include "test.h"
 #include "testutils.h"
 #include "definitions.h"
+#include "storage.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;

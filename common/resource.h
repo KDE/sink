@@ -64,6 +64,7 @@ private:
  */
 class SINK_EXPORT ResourceFactory : public QObject
 {
+    Q_OBJECT
 public:
     static ResourceFactory *load(const QByteArray &resourceName);
 
@@ -83,4 +84,4 @@ private:
 
 } // namespace Sink
 
-Q_DECLARE_INTERFACE(Sink::ResourceFactory, "sink.sink.resourcefactory")
+Q_DECLARE_INTERFACE(Sink::ResourceFactory, "sink.resourcefactory")

@@ -19,12 +19,8 @@
 
 #pragma once
 
+#include "common/resource.h"
 #include "common/genericresource.h"
-#include "common/messagequeue.h"
-
-#include <KAsync/Async>
-
-#include <flatbuffers/flatbuffers.h>
 
 class DummyResource : public Sink::GenericResource
 {
