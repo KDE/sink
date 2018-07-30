@@ -645,35 +645,38 @@ private slots:
      * that mdb_open_dbi may only be used by a single thread at a time.
      * This test is meant to stress that condition.
      *
-     * However, it yields absolutely nothing.
+     * FIXME this test ends up locking up every now and then (don't know why).
+     * All reader threads get stuck on the "QMutexLocker createDbiLocker(&sCreateDbiLock);" mutex in openDatabase,
+     * and the writer probably crashed. The testfunction then times out.
+     * I can't reliably reproduce it and thus fix it, so the test remains disabled for now.
      */
-    void testReadDuringExternalProcessWrite()
-    {
+    //void testReadDuringExternalProcessWrite()
+    //{
 
-        QList<QFuture<void>> futures;
-        for (int i = 0; i < 5; i++) {
-            futures <<  QtConcurrent::run([&]() {
-                QTRY_VERIFY(Sink::Storage::DataStore(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly).exists());
-                Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly);
-                auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
-                for (int i = 0; i < 100000; i++) {
-                    transaction.openDatabase("a", nullptr, false);
-                    transaction.openDatabase("b", nullptr, false);
-                    transaction.openDatabase("c", nullptr, false);
-                    transaction.openDatabase("p", nullptr, false);
-                    transaction.openDatabase("q", nullptr, false);
-                }
-            });
-        }
+    //    QList<QFuture<void>> futures;
+    //    for (int i = 0; i < 5; i++) {
+    //        futures <<  QtConcurrent::run([&]() {
+    //            QTRY_VERIFY(Sink::Storage::DataStore(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly).exists());
+    //            Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly);
+    //            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+    //            for (int i = 0; i < 100000; i++) {
+    //                transaction.openDatabase("a", nullptr, false);
+    //                transaction.openDatabase("b", nullptr, false);
+    //                transaction.openDatabase("c", nullptr, false);
+    //                transaction.openDatabase("p", nullptr, false);
+    //                transaction.openDatabase("q", nullptr, false);
+    //            }
+    //        });
+    //    }
 
-        //Start writing to the db from a separate process
-        QVERIFY(QProcess::startDetached(QCoreApplication::applicationDirPath() + "/dbwriter", QStringList() << testDataPath << dbName << QString::number(100000)));
+    //    //Start writing to the db from a separate process
+    //    QVERIFY(QProcess::startDetached(QCoreApplication::applicationDirPath() + "/dbwriter", QStringList() << testDataPath << dbName << QString::number(100000)));
 
-        for (auto future : futures) {
-            future.waitForFinished();
-        }
+    //    for (auto future : futures) {
+    //        future.waitForFinished();
+    //    }
 
-    }
+    //}
 
     void testRecordUid()
     {
