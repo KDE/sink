@@ -172,7 +172,7 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
         Xapian::Enquire enquire(*mDb);
         enquire.set_query(query);
 
-        const auto limit = [&] {
+        const Xapian::doccount limit = [&] {
             switch (searchTerm.size()) {
                 case 1:
                 case 2:
