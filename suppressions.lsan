@@ -17,3 +17,5 @@ leak:QObject::startTimer
 #Often connections show up as tiny leaks
 leak:QMetaObject::Connection
 leak:QObjectPrivate::addConnection
+leak:ObjectPrivate::connectImpl
+leak:libKIMAP2.so
