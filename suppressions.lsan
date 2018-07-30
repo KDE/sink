@@ -18,4 +18,8 @@ leak:QObject::startTimer
 leak:QMetaObject::Connection
 leak:QObjectPrivate::addConnection
 leak:ObjectPrivate::connectImpl
+leak:QObjectPrivate::connectImpl
 leak:libKIMAP2.so
+leak:KIMAP2::Session::Session
+leak:KIMAP2::SessionPrivate::addJob
+leak:createNewSession
