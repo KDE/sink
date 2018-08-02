@@ -101,10 +101,10 @@ private slots:
         VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
-        auto job = Sink::Store::fetchOne<Calendar>({}).exec();
-        job.waitForFinished();
-        QVERIFY2(!job.errorCode(), "Fetching Calendar failed");
-        auto calendar = job.value();
+        auto future = Sink::Store::fetchOne<Calendar>({}).exec();
+        future.waitForFinished();
+        QVERIFY2(!future.errorCode(), "Fetching Calendar failed");
+        auto calendar = future.value();
 
         auto event = QSharedPointer<KCalCore::Event>::create();
         event->setSummary("Hello");
