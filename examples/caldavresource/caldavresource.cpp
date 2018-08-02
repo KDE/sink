@@ -64,8 +64,7 @@ protected:
             localCalendar.setName(remoteCalendar.displayName());
             localCalendar.setColor(remoteCalendar.color().name().toLatin1());
 
-            createOrModify(ENTITY_TYPE_CALENDAR, rid, localCalendar,
-                /* mergeCriteria = */ QHash<QByteArray, Sink::Query::Comparator>{});
+            createOrModify(ENTITY_TYPE_CALENDAR, rid, localCalendar, {});
         }
     }
 
@@ -86,8 +85,7 @@ protected:
 
                 SinkTrace() << "Found an event with id:" << rid;
 
-                createOrModify(ENTITY_TYPE_EVENT, rid, localEvent,
-                    /* mergeCriteria = */ QHash<QByteArray, Sink::Query::Comparator>{});
+                createOrModify(ENTITY_TYPE_EVENT, rid, localEvent, {});
                 break;
             }
             case Type::TypeTodo: {
@@ -97,8 +95,7 @@ protected:
 
                 SinkTrace() << "Found a Todo with id:" << rid;
 
-                createOrModify(ENTITY_TYPE_TODO, rid, localTodo,
-                    /* mergeCriteria = */ QHash<QByteArray, Sink::Query::Comparator>{});
+                createOrModify(ENTITY_TYPE_TODO, rid, localTodo, {});
                 break;
             }
             case Type::TypeJournal:

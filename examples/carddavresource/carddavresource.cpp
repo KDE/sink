@@ -54,12 +54,11 @@ public:
         const auto bufferType = ENTITY_TYPE_ADDRESSBOOK;
         Sink::ApplicationDomain::Addressbook addressbook;
         addressbook.setName(addressbookName);
-        QHash<QByteArray, Query::Comparator> mergeCriteria;
 
         if (!parentAddressbookRid.isEmpty()) {
             addressbook.setParent(syncStore().resolveRemoteId(ENTITY_TYPE_ADDRESSBOOK, parentAddressbookRid.toUtf8()));
         }
-        createOrModify(bufferType, remoteId, addressbook, mergeCriteria);
+        createOrModify(bufferType, remoteId, addressbook, {});
         return remoteId;
     }
 
@@ -83,8 +82,7 @@ protected:
         localContact.setVcard(remoteContact.data());
         localContact.setAddressbook(addressbookLocalId);
 
-        QHash<QByteArray, Query::Comparator> mergeCriteria;
-        createOrModify(ENTITY_TYPE_CONTACT, resourceID(remoteContact), localContact, mergeCriteria);
+        createOrModify(ENTITY_TYPE_CONTACT, resourceID(remoteContact), localContact, {});
     }
 
     QByteArray collectionLocalResourceID(const KDAV2::DavCollection &addressbook) Q_DECL_OVERRIDE
