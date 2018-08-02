@@ -389,6 +389,8 @@ struct SINK_EXPORT Contact : public Entity {
     SINK_REFERENCE_PROPERTY(Addressbook, Addressbook, addressbook);
 };
 
+SINK_EXPORT QDebug operator<< (QDebug d, const Contact::Email &);
+
 struct SINK_EXPORT Calendar : public Entity {
     SINK_ENTITY(Calendar, calendar);
     SINK_PROPERTY(QString, Name, name);

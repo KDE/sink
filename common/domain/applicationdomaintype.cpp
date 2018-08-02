@@ -26,6 +26,12 @@
 #include "utils.h" //for generateUid()
 #include <QFile>
 
+QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::Contact::Email &e)
+{
+    d << "Email(" << e.email << ", " << e.type << ")";
+    return d;
+}
+
 QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::Mail::Contact &c)
 {
     d << "Contact(" << c.name << ", " << c.emailAddress << ")";

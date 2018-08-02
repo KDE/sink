@@ -102,6 +102,8 @@ QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o,
                 line << qDebugToString(value.value<Sink::ApplicationDomain::Mail::Contact>());
             } else if (value.canConvert<QList<Sink::ApplicationDomain::Mail::Contact>>()) {
                 line << qDebugToString(value.value<QList<Sink::ApplicationDomain::Mail::Contact>>());
+            } else if (value.canConvert<QList<Sink::ApplicationDomain::Contact::Email>>()) {
+                line << qDebugToString(value.value<QList<Sink::ApplicationDomain::Contact::Email>>());
             } else {
                 line << QString("Unprintable type: %1").arg(value.typeName());
             }
