@@ -112,6 +112,6 @@ private:
     const QByteArray collectionName;
     const QByteArray itemName;
 
-    QUrl server;
-    QString username;
+    QUrl mServer;
+    QString mUsername;
 };

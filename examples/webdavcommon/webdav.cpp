@@ -97,8 +97,8 @@ WebDavSynchronizer::WebDavSynchronizer(const Sink::ResourceContext &context,
 {
     auto config = ResourceConfig::getConfiguration(context.instanceId());
 
-    server = QUrl::fromUserInput(config.value("server").toString());
-    username = config.value("username").toString();
+    mServer = QUrl::fromUserInput(config.value("server").toString());
+    mUsername = config.value("username").toString();
 }
 
 QList<Sink::Synchronizer::SyncRequest> WebDavSynchronizer::getSyncRequests(const Sink::QueryBase &query)
@@ -322,8 +322,8 @@ KDAV2::DavUrl WebDavSynchronizer::serverUrl() const
         return {};
     }
 
-    auto result = server;
-    result.setUserName(username);
+    auto result = mServer;
+    result.setUserName(mUsername);
     result.setPassword(secret());
 
     return KDAV2::DavUrl{ result, protocol };

@@ -130,7 +130,7 @@ protected:
         switch (operation) {
             case Sink::Operation_Creation: {
                 auto rawIcal = localItem.getIcal();
-                if (rawIcal == "") {
+                if (rawIcal.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for creation replay");
                 }
 
@@ -152,7 +152,7 @@ protected:
             }
             case Sink::Operation_Modification:
                 auto rawIcal = localItem.getIcal();
-                if (rawIcal == "") {
+                if (rawIcal.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for modification replay");
                 }
 
