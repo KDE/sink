@@ -12,10 +12,12 @@
 #include <KDAV2/DavItemCreateJob>
 #include <KDAV2/DavCollectionsFetchJob>
 #include <KDAV2/DavCollection>
+#include <KContacts/Addressee>
+#include <KContacts/VCardConverter>
 
 
-using Sink::ApplicationDomain::Calendar;
-using Sink::ApplicationDomain::Event;
+using Sink::ApplicationDomain::Addressbook;
+using Sink::ApplicationDomain::Contact;
 using Sink::ApplicationDomain::SinkResource;
 
 class CardDavTest : public QObject
@@ -108,6 +110,48 @@ private slots:
             const auto contacts = Sink::Store::read<Sink::ApplicationDomain::Contact>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
             QCOMPARE(contacts.size(), 2);
         }
+    }
+
+    void testSyncAddressbooks()
+    {
+        Sink::SyncScope scope;
+        scope.setType<Addressbook>();
+        scope.resourceFilter(mResourceInstanceIdentifier);
+
+        VERIFYEXEC(Sink::Store::synchronize(scope));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        const auto addressbooks = Sink::Store::read<Addressbook>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
+        QCOMPARE(addressbooks.size(), 1);
+    }
+
+    void testAddContact()
+    {
+        Sink::SyncScope scope;
+        scope.setType<Addressbook>();
+        scope.resourceFilter(mResourceInstanceIdentifier);
+
+        VERIFYEXEC(Sink::Store::synchronize(scope));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        auto addressbooks = Sink::Store::read<Addressbook>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
+        QVERIFY(!addressbooks.isEmpty());
+
+        KContacts::Addressee addressee;
+        addressee.setGivenName("John");
+        addressee.setFamilyName("Doe");
+        addressee.setFormattedName("John Doe");
+        KContacts::VCardConverter converter;
+        const auto vcard = converter.createVCard(addressee, KContacts::VCardConverter::v3_0);
+
+        Contact contact(mResourceInstanceIdentifier);
+        contact.setVcard(vcard);
+        contact.setAddressbook(addressbooks.first());
+
+        VERIFYEXEC(Sink::Store::create(contact));
+        VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
+
+        auto contacts = Sink::Store::read<Contact>({});
+        QVERIFY(!contacts.isEmpty());
     }
 };
 

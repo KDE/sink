@@ -94,7 +94,44 @@ protected:
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Contact &contact, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
-        return KAsync::null<QByteArray>();
+        SinkLog() << "Replaying to:" << serverUrl().url();
+        switch (operation) {
+            case Sink::Operation_Creation: {
+                const auto vcard = contact.getVcard();
+                if (vcard.isEmpty()) {
+                    return KAsync::error<QByteArray>("No vcard in item for creation replay.");
+                }
+
+                auto collectionId = syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook());
+
+                KDAV2::DavItem remoteItem;
+                remoteItem.setData(vcard);
+                remoteItem.setContentType("text/vcard");
+                remoteItem.setUrl(urlOf(collectionId, contact.getUid()));
+                SinkLog() << "Creating:" << contact.getUid() << remoteItem.url().url() << vcard;
+                return createItem(remoteItem).then([=] { return resourceID(remoteItem); });
+            }
+            case Sink::Operation_Removal: {
+                // We only need the URL in the DAV item for removal
+                KDAV2::DavItem remoteItem;
+                remoteItem.setUrl(urlOf(oldRemoteId));
+
+                SinkLog() << "Removing:" << oldRemoteId;
+                return removeItem(remoteItem).then([] { return QByteArray{}; });
+            }
+            case Sink::Operation_Modification:
+                const auto vcard = contact.getVcard();
+                if (vcard.isEmpty()) {
+                    return KAsync::error<QByteArray>("No ICal in item for modification replay");
+                }
+
+                KDAV2::DavItem remoteItem;
+                remoteItem.setData(vcard);
+                remoteItem.setContentType("text/vcard");
+                remoteItem.setUrl(urlOf(oldRemoteId));
+
+                return modifyItem(remoteItem).then([=] { return oldRemoteId; });
+        }
     }
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Addressbook &addressbook, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
