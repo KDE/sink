@@ -30,6 +30,7 @@
 #include "facadefactory.h"
 
 #include <KCalCore/ICalFormat>
+#include <QColor>
 
 #define ENTITY_TYPE_EVENT "event"
 #define ENTITY_TYPE_TODO "todo"
@@ -61,6 +62,7 @@ protected:
 
             Calendar localCalendar;
             localCalendar.setName(remoteCalendar.displayName());
+            localCalendar.setColor(remoteCalendar.color().name().toLatin1());
 
             createOrModify(ENTITY_TYPE_CALENDAR, rid, localCalendar,
                 /* mergeCriteria = */ QHash<QByteArray, Sink::Query::Comparator>{});

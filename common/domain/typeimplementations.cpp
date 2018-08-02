@@ -269,6 +269,7 @@ QMap<QByteArray, int> TypeImplementation<Calendar>::typeDatabases()
 void TypeImplementation<Calendar>::configure(PropertyMapper &propertyMapper)
 {
     SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Name, name);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Color, color);
 }
 
 void TypeImplementation<Calendar>::configure(IndexPropertyMapper &) {}

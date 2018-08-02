@@ -163,6 +163,7 @@ SINK_REGISTER_PROPERTY(Todo, Calendar);
 
 SINK_REGISTER_ENTITY(Calendar);
 SINK_REGISTER_PROPERTY(Calendar, Name);
+SINK_REGISTER_PROPERTY(Calendar, Color);
 
 static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();

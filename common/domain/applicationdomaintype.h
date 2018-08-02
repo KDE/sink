@@ -394,6 +394,7 @@ SINK_EXPORT QDebug operator<< (QDebug d, const Contact::Email &);
 struct SINK_EXPORT Calendar : public Entity {
     SINK_ENTITY(Calendar, calendar);
     SINK_PROPERTY(QString, Name, name);
+    SINK_PROPERTY(QByteArray, Color, color);
 };
 
 struct SINK_EXPORT Event : public Entity {
