@@ -57,19 +57,7 @@ bool showHelp(const QStringList &commands, State &state)
         if (!syntax->help.isEmpty()) {
             state.print(": " + syntax->help);
         }
-        state.printLine();
-
-        if (!syntax->children.isEmpty()) {
-            state.printLine("Sub-commands:", 1);
-            QSet<QString> sorted;
-            for (auto childSyntax: syntax->children) {
-                sorted.insert(childSyntax.keyword);
-            }
-
-            for (auto keyword: sorted) {
-                state.printLine(keyword, 1);
-            }
-        }
+        state.printLine(QString("\n\n") + syntax->usage());
     } else {
         state.printError("Unknown command: " + commands.join(" "));
     }

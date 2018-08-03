@@ -39,6 +39,8 @@
 namespace SinkList
 {
 
+Syntax::List syntax();
+
 static QByteArray compressId(bool compress, const QByteArray &id)
 {
     if (!compress) {
@@ -117,7 +119,7 @@ QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o,
 bool list(const QStringList &args_, State &state)
 {
     if (args_.isEmpty()) {
-        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--id $id] [--showall|--show $property] [--reduce $reduceProperty:$selectorProperty] [--sort $sortProperty] [--limit $count]"));
+        state.printError(syntax()[0].usage());
         return false;
     }
 
@@ -127,7 +129,7 @@ bool list(const QStringList &args_, State &state)
     Sink::Query query;
     query.setId("list");
     if (!SinkshUtils::applyFilter(query, options)) {
-        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--showall|--show $property]"));
+        state.printError(syntax()[0].usage());
         return false;
     }
 
@@ -198,6 +200,18 @@ bool list(const QStringList &args_, State &state)
 Syntax::List syntax()
 {
     Syntax list("list", QObject::tr("List all resources, or the contents of one or more resources."), &SinkList::list, Syntax::NotInteractive);
+
+    list.addPositionalArgument({.name = "type", .help = "The type of content to list (resource, identity, account, mail, etc.)"});
+    list.addParameter("resource", { .name = "resource", .help = "List only the content of the given resource" });
+    list.addFlag("compact", "Use a compact view (reduces the size of IDs)");
+    list.addParameter("filter", { .name = "property=$value", .help = "Filter the results" });
+    list.addParameter("id", { .name = "id", .help = "List only the content with the given ID" });
+    list.addFlag("showall", "Show all properties");
+    list.addParameter("show", { .name = "property", .help = "Only show the given property" });
+    list.addParameter("reduce", { .name = "property:$selectorProperty", .help = "Combine the result with the same $property, sorted by $selectorProperty" });
+    list.addParameter("sort", { .name = "property", .help = "Sort the results according to the given property" });
+    list.addParameter("limit", { .name = "count", .help = "Limit the results" });
+
     list.completer = &SinkshUtils::resourceOrTypeCompleter;
     return Syntax::List() << list;
 }

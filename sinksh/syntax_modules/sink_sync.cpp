@@ -83,6 +83,11 @@ bool sync(const QStringList &args, State &state)
 Syntax::List syntax()
 {
     Syntax sync("sync", QObject::tr("Synchronizes a resource."), &SinkSync::sync, Syntax::EventDriven);
+
+    sync.addPositionalArgument({ .name = "type", .help = "The type of resource to synchronize" });
+    sync.addPositionalArgument({ .name = "resourceId", .help = "The ID of the resource to synchronize" });
+    sync.addParameter("password", { .name = "password", .help = "The password of the resource", .required = true });
+
     sync.completer = &SinkshUtils::resourceCompleter;
 
     return Syntax::List() << sync;

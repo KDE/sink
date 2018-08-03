@@ -38,10 +38,12 @@
 namespace SinkLiveQuery
 {
 
+Syntax::List syntax();
+
 bool livequery(const QStringList &args_, State &state)
 {
     if (args_.isEmpty()) {
-        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--id $id] [--showall|--show $property]"));
+        state.printError(syntax()[0].usage());
         return false;
     }
 
@@ -55,7 +57,7 @@ bool livequery(const QStringList &args_, State &state)
     query.setId("livequery");
     query.setFlags(Sink::Query::LiveQuery);
     if (!SinkshUtils::applyFilter(query, options)) {
-        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--showall|--show $property]"));
+        state.printError(syntax()[0].usage());
         return false;
     }
     if (options.options.contains("resource")) {
@@ -124,6 +126,15 @@ bool livequery(const QStringList &args_, State &state)
 Syntax::List syntax()
 {
     Syntax list("livequery", QObject::tr("Run a livequery."), &SinkLiveQuery::livequery, Syntax::EventDriven);
+
+    list.addPositionalArgument({ .name = "type", .help = "The type to run the livequery on" });
+    list.addParameter("resource", { .name = "resource", .help = "Filter the livequery to the given resource" });
+    list.addFlag("compact", "Use a compact view (reduces the size of IDs)");
+    list.addParameter("filter", { .name = "property=$value", .help = "Filter the results" });
+    list.addParameter("id", { .name = "id", .help = "List only the content with the given ID" });
+    list.addFlag("showall", "Show all properties");
+    list.addParameter("show", { .name = "property", .help = "Only show the given property" });
+
     list.completer = &SinkshUtils::resourceOrTypeCompleter;
     return Syntax::List() << list;
 }

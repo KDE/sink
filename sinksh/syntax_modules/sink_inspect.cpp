@@ -55,10 +55,14 @@ QString parse(const QByteArray &bytes)
     }
 }
 
+Syntax::List syntax();
+
 bool inspect(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] [--showinternal] | [--validaterids $type] | [--fulltext [$id]])"));
+        //state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] [--showinternal] | [--validaterids $type] | [--fulltext [$id]])"));
+        state.printError(syntax()[0].usage());
+        return false;
     }
     auto options = SyntaxTree::parseOptions(args);
     auto resource = SinkshUtils::parseUid(options.options.value("resource").value(0).toUtf8());
@@ -236,7 +240,21 @@ bool inspect(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax state("inspect", QObject::tr("Inspect database for the resource requested"), &SinkInspect::inspect, Syntax::NotInteractive);
+    Syntax state("inspect", QObject::tr("Inspect database for the resource requested"),
+        &SinkInspect::inspect, Syntax::NotInteractive);
+
+    state.addParameter("resource",
+        { .name = "resource", .help = "Which resource to inspect", .required = true });
+    state.addParameter("db",
+        { .name = "database", .help = "Which database to inspect"});
+    state.addParameter("filter",
+        { .name = "id", .help = "A specific id to filter the results by (currently not working)"});
+    state.addFlag("showinternal", "Show internal fields only");
+    state.addParameter("validaterids",
+        { .name = "type", .help = "Validate remote Ids of the given type"});
+    state.addParameter("fulltext",
+        { .name = "id", .help = "If 'id' is not given, count the number of fulltext documents. Else, print the terms of the document with the given id"});
+
     state.completer = &SinkshUtils::resourceCompleter;
 
     return Syntax::List() << state;

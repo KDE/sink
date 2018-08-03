@@ -40,15 +40,12 @@ using namespace Sink;
 namespace SinkCreate
 {
 
+Syntax::List syntax();
+
 bool create(const QStringList &allArgs, State &state)
 {
-    if (allArgs.isEmpty()) {
-        state.printError(QObject::tr("A type is required"), "sinkcreate/02");
-        return false;
-    }
-
     if (allArgs.count() < 2) {
-        state.printError(QObject::tr("A resource ID is required to create items"), "sinkcreate/03");
+        state.printError(syntax()[0].usage());
         return false;
     }
 
@@ -173,15 +170,33 @@ bool identity(const QStringList &args, State &state)
     return true;
 }
 
-
 Syntax::List syntax()
 {
     Syntax::List syntax;
 
     Syntax create("create", QObject::tr("Create items in a resource"), &SinkCreate::create);
-    create.children << Syntax("resource", QObject::tr("Creates a new resource"), &SinkCreate::resource);
-    create.children << Syntax("account", QObject::tr("Creates a new account"), &SinkCreate::account);
-    create.children << Syntax("identity", QObject::tr("Creates a new identity"), &SinkCreate::identity);
+    create.addPositionalArgument({ .name = "type", .help = "The type of entity to create (mail, event, etc.)" });
+    create.addPositionalArgument({ .name = "resourceId", .help = "The ID of the resource that will contain the new entity" });
+    create.addPositionalArgument(
+        { .name = "key value", .help = "Content of the entity", .required = false, .variadic = true });
+
+    Syntax resource("resource", QObject::tr("Creates a new resource"), &SinkCreate::resource);
+    resource.addPositionalArgument({ .name = "type", .help = "The type of resource to create" });
+    resource.addPositionalArgument(
+        { .name = "key value", .help = "Content of the resource", .required = false, .variadic = true });
+
+    Syntax account("account", QObject::tr("Creates a new account"), &SinkCreate::account);
+    account.addPositionalArgument({ .name = "type", .help = "The type of account to create" });
+    account.addPositionalArgument(
+        { .name = "key value", .help = "Content of the account", .required = false, .variadic = true });
+
+    Syntax identity("identity", QObject::tr("Creates a new identity"), &SinkCreate::identity);
+    identity.addPositionalArgument(
+        { .name = "key value", .help = "Content of the identity", .required = false, .variadic = true });
+
+    create.children << resource;
+    create.children << account;
+    create.children << identity;
 
     syntax << create;
     return syntax;

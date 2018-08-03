@@ -37,12 +37,14 @@
 namespace SinkCount
 {
 
+Syntax::List syntax();
+
 bool count(const QStringList &args, State &state)
 {
     Sink::Query query;
     query.setId("count");
     if (!SinkshUtils::applyFilter(query, SyntaxTree::parseOptions(args))) {
-        state.printError(QObject::tr("Options: $type $filter"));
+        state.printError(syntax()[0].usage());
         return false;
     }
 
@@ -63,7 +65,11 @@ bool count(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax count("count", QObject::tr("Returns the number of items of a given type in a resource. Usage: count <type> <resource>"), &SinkCount::count, Syntax::EventDriven);
+    Syntax count("count", QObject::tr("Returns the number of items of a given type in a resource"), &SinkCount::count, Syntax::EventDriven);
+
+    count.addPositionalArgument({.name = "type", .help = "The entity type to count"});
+    count.addPositionalArgument({.name = "resource", .help = "A resource id where to count", .required = false});
+
     count.completer = &SinkshUtils::typeCompleter;
 
     return Syntax::List() << count;

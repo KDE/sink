@@ -35,10 +35,12 @@
 namespace SinkDrop
 {
 
+Syntax::List syntax();
+
 bool drop(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("Please provide at least one resource to drop."));
+        state.printError(syntax()[0].usage());
         return false;
     }
 
@@ -60,6 +62,8 @@ bool drop(const QStringList &args, State &state)
 Syntax::List syntax()
 {
     Syntax drop("drop", QObject::tr("Drop all caches of a resource."), &SinkDrop::drop, Syntax::NotInteractive);
+    drop.addPositionalArgument({.name = "resource", .help = "Id(s) of the resource(s) to drop", .required = true, .variadic = true});
+
     drop.completer = &SinkshUtils::resourceOrTypeCompleter;
     return Syntax::List() << drop;
 }

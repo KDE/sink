@@ -66,18 +66,17 @@ bool trace(const QStringList &args, State &state)
     return traceOn(args, state);
 }
 
-
 Syntax::List syntax()
 {
     Syntax trace("trace", QObject::tr("Control trace debug output."), &SinkTrace::trace, Syntax::NotInteractive);
-    trace.completer = &SinkshUtils::debugareaCompleter; 
+    trace.completer = &SinkshUtils::debugareaCompleter;
 
     Syntax traceOff("off", QObject::tr("Turns off trace output."), &SinkTrace::traceOff, Syntax::NotInteractive);
-    traceOff.completer = &SinkshUtils::debugareaCompleter; 
+    traceOff.completer = &SinkshUtils::debugareaCompleter;
     trace.children << traceOff;
 
     Syntax traceOn("on", QObject::tr("Turns on trace output."), &SinkTrace::traceOn, Syntax::NotInteractive);
-    traceOn.completer = &SinkshUtils::debugareaCompleter; 
+    traceOn.completer = &SinkshUtils::debugareaCompleter;
     trace.children << traceOn;
 
     return Syntax::List() << trace;

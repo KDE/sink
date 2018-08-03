@@ -38,20 +38,12 @@
 namespace SinkModify
 {
 
+Syntax::List syntax();
+
 bool modify(const QStringList &args, State &state)
 {
-    if (args.isEmpty()) {
-        state.printError(QObject::tr("A type is required"), "sink_modify/02");
-        return false;
-    }
-
-    if (args.count() < 2) {
-        state.printError(QObject::tr("A resource ID is required to remove items"), "sink_modify/03");
-        return false;
-    }
-
     if (args.count() < 3) {
-        state.printError(QObject::tr("An object ID is required to remove items"), "sink_modify/03");
+        state.printError(syntax()[0].usage());
         return false;
     }
 
@@ -81,6 +73,7 @@ bool modify(const QStringList &args, State &state)
 bool resource(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
+        // TODO: pass the syntax as parameter
         state.printError(QObject::tr("A resource can not be modified without an id"), "sink_modify/01");
     }
 
@@ -105,11 +98,21 @@ bool resource(const QStringList &args, State &state)
     return true;
 }
 
-
 Syntax::List syntax()
 {
     Syntax modify("modify", QObject::tr("Modify items in a resource"), &SinkModify::modify);
+    modify.addPositionalArgument({ .name = "type", .help = "The type of entity to modify (mail, event, etc.)" });
+    modify.addPositionalArgument({ .name = "resourceId", .help = "The ID of the resource containing the entity" });
+    modify.addPositionalArgument({ .name = "objectId", .help = "The ID of the entity" });
+    modify.addPositionalArgument(
+        { .name = "key value", .help = "Attributes and values to modify", .required = false, .variadic = true });
+
     Syntax resource("resource", QObject::tr("Modify a resource"), &SinkModify::resource);//, Syntax::EventDriven);
+
+    resource.addPositionalArgument({ .name = "id", .help = "The ID of the resource" });
+    resource.addPositionalArgument(
+        { .name = "key value", .help = "Attributes and values to modify", .required = false, .variadic = true });
+
     resource.completer = &SinkshUtils::resourceOrTypeCompleter;
     modify.children << resource;
 

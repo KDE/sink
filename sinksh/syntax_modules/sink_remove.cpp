@@ -37,20 +37,12 @@
 namespace SinkRemove
 {
 
+Syntax::List syntax();
+
 bool remove(const QStringList &args, State &state)
 {
-    if (args.isEmpty()) {
-        state.printError(QObject::tr("A type is required"), "sink_remove/02");
-        return false;
-    }
-
-    if (args.count() < 2) {
-        state.printError(QObject::tr("A resource ID is required to remove items"), "sink_remove/03");
-        return false;
-    }
-
     if (args.count() < 3) {
-        state.printError(QObject::tr("An object ID is required to remove items"), "sink_remove/03");
+        state.printError(syntax()[0].usage());
         return false;
     }
 
@@ -137,14 +129,24 @@ bool identity(const QStringList &args, State &state)
     return true;
 }
 
-
 Syntax::List syntax()
 {
     Syntax remove("remove", QObject::tr("Remove items in a resource"), &SinkRemove::remove);
+
+    remove.addPositionalArgument({ .name = "type", .help = "The type of entity to remove (mail, event, etc.)" });
+    remove.addPositionalArgument({ .name = "resourceId", .help = "The ID of the resource containing the entity" });
+    remove.addPositionalArgument({ .name = "objectId", .help = "The ID of the entity to remove" });
+
     Syntax resource("resource", QObject::tr("Removes a resource"), &SinkRemove::resource, Syntax::NotInteractive);
-    Syntax account("account", QObject::tr("Removes a account"), &SinkRemove::account, Syntax::NotInteractive);
-    Syntax identity("identity", QObject::tr("Removes an identity"), &SinkRemove::identity, Syntax::NotInteractive);
+    resource.addPositionalArgument({ .name = "id", .help = "The ID of the resource to remove" });
     resource.completer = &SinkshUtils::resourceCompleter;
+
+    Syntax account("account", QObject::tr("Removes a account"), &SinkRemove::account, Syntax::NotInteractive);
+    account.addPositionalArgument({ .name = "id", .help = "The ID of the account to remove" });
+
+    Syntax identity("identity", QObject::tr("Removes an identity"), &SinkRemove::identity, Syntax::NotInteractive);
+    identity.addPositionalArgument({ .name = "id", .help = "The ID of the account to remove" });
+
     remove.children << resource << account << identity;
 
     return Syntax::List() << remove;
