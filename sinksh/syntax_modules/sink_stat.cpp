@@ -101,17 +101,9 @@ bool stat(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax state("stat", QObject::tr("Shows database usage for the resources requested"),
-        &SinkStat::stat, Syntax::NotInteractive);
-
-    state.addPositionalArgument({ .name = "resourceId",
-        .help = "Show statistics of the given resource(s). If no resource is provided, show "
-                "statistics of all resources",
-        .required = false,
-        .variadic = true });
-
+    Syntax state("stat", QObject::tr("Shows database usage for the resources requested"), &SinkStat::stat, Syntax::NotInteractive);
+    state.addPositionalArgument({"resourceId", "Show statistics of the given resource(s). If no resource is provided, show statistics of all resources", false, true});
     state.completer = &SinkshUtils::resourceCompleter;
-
     return Syntax::List() << state;
 }
 

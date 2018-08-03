@@ -101,17 +101,15 @@ bool resource(const QStringList &args, State &state)
 Syntax::List syntax()
 {
     Syntax modify("modify", QObject::tr("Modify items in a resource"), &SinkModify::modify);
-    modify.addPositionalArgument({ .name = "type", .help = "The type of entity to modify (mail, event, etc.)" });
-    modify.addPositionalArgument({ .name = "resourceId", .help = "The ID of the resource containing the entity" });
-    modify.addPositionalArgument({ .name = "objectId", .help = "The ID of the entity" });
-    modify.addPositionalArgument(
-        { .name = "key value", .help = "Attributes and values to modify", .required = false, .variadic = true });
+    modify.addPositionalArgument({"type", "The type of entity to modify (mail, event, etc.)"});
+    modify.addPositionalArgument({"resourceId", "The ID of the resource containing the entity"});
+    modify.addPositionalArgument({"objectId", "The ID of the entity"});
+    modify.addPositionalArgument({"key value", "Attributes and values to modify", false, true });
 
     Syntax resource("resource", QObject::tr("Modify a resource"), &SinkModify::resource);//, Syntax::EventDriven);
 
-    resource.addPositionalArgument({ .name = "id", .help = "The ID of the resource" });
-    resource.addPositionalArgument(
-        { .name = "key value", .help = "Attributes and values to modify", .required = false, .variadic = true });
+    resource.addPositionalArgument({"id", "The ID of the resource" });
+    resource.addPositionalArgument({"key value", "Attributes and values to modify", false, true});
 
     resource.completer = &SinkshUtils::resourceOrTypeCompleter;
     modify.children << resource;

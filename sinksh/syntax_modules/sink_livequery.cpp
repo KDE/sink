@@ -127,13 +127,13 @@ Syntax::List syntax()
 {
     Syntax list("livequery", QObject::tr("Run a livequery."), &SinkLiveQuery::livequery, Syntax::EventDriven);
 
-    list.addPositionalArgument({ .name = "type", .help = "The type to run the livequery on" });
-    list.addParameter("resource", { .name = "resource", .help = "Filter the livequery to the given resource" });
+    list.addPositionalArgument({"type", "The type to run the livequery on" });
+    list.addParameter("resource", {"resource", "Filter the livequery to the given resource" });
     list.addFlag("compact", "Use a compact view (reduces the size of IDs)");
-    list.addParameter("filter", { .name = "property=$value", .help = "Filter the results" });
-    list.addParameter("id", { .name = "id", .help = "List only the content with the given ID" });
+    list.addParameter("filter", {"property=$value", "Filter the results" });
+    list.addParameter("id", {"id", "List only the content with the given ID" });
     list.addFlag("showall", "Show all properties");
-    list.addParameter("show", { .name = "property", .help = "Only show the given property" });
+    list.addParameter("show", {"property", "Only show the given property" });
 
     list.completer = &SinkshUtils::resourceOrTypeCompleter;
     return Syntax::List() << list;

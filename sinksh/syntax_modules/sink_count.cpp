@@ -66,12 +66,9 @@ bool count(const QStringList &args, State &state)
 Syntax::List syntax()
 {
     Syntax count("count", QObject::tr("Returns the number of items of a given type in a resource"), &SinkCount::count, Syntax::EventDriven);
-
-    count.addPositionalArgument({.name = "type", .help = "The entity type to count"});
-    count.addPositionalArgument({.name = "resource", .help = "A resource id where to count", .required = false});
-
+    count.addPositionalArgument({"type", "The entity type to count"});
+    count.addPositionalArgument({"resource", "A resource id where to count", false});
     count.completer = &SinkshUtils::typeCompleter;
-
     return Syntax::List() << count;
 }
 

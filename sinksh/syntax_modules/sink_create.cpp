@@ -175,24 +175,20 @@ Syntax::List syntax()
     Syntax::List syntax;
 
     Syntax create("create", QObject::tr("Create items in a resource"), &SinkCreate::create);
-    create.addPositionalArgument({ .name = "type", .help = "The type of entity to create (mail, event, etc.)" });
-    create.addPositionalArgument({ .name = "resourceId", .help = "The ID of the resource that will contain the new entity" });
-    create.addPositionalArgument(
-        { .name = "key value", .help = "Content of the entity", .required = false, .variadic = true });
+    create.addPositionalArgument({"type", "The type of entity to create (mail, event, etc.)"});
+    create.addPositionalArgument({"resourceId", "The ID of the resource that will contain the new entity"});
+    create.addPositionalArgument({"key value", "Content of the entity", false, true});
 
     Syntax resource("resource", QObject::tr("Creates a new resource"), &SinkCreate::resource);
-    resource.addPositionalArgument({ .name = "type", .help = "The type of resource to create" });
-    resource.addPositionalArgument(
-        { .name = "key value", .help = "Content of the resource", .required = false, .variadic = true });
+    resource.addPositionalArgument({"type", "The type of resource to create" });
+    resource.addPositionalArgument({"key value", "Content of the resource", false, true});
 
     Syntax account("account", QObject::tr("Creates a new account"), &SinkCreate::account);
-    account.addPositionalArgument({ .name = "type", .help = "The type of account to create" });
-    account.addPositionalArgument(
-        { .name = "key value", .help = "Content of the account", .required = false, .variadic = true });
+    account.addPositionalArgument({"type", "The type of account to create" });
+    account.addPositionalArgument({"key value", "Content of the account", false, true});
 
     Syntax identity("identity", QObject::tr("Creates a new identity"), &SinkCreate::identity);
-    identity.addPositionalArgument(
-        { .name = "key value", .help = "Content of the identity", .required = false, .variadic = true });
+    identity.addPositionalArgument({"key value", "Content of the identity", false, true});
 
     create.children << resource;
     create.children << account;

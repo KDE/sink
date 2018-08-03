@@ -62,7 +62,7 @@ bool drop(const QStringList &args, State &state)
 Syntax::List syntax()
 {
     Syntax drop("drop", QObject::tr("Drop all caches of a resource."), &SinkDrop::drop, Syntax::NotInteractive);
-    drop.addPositionalArgument({.name = "resource", .help = "Id(s) of the resource(s) to drop", .required = true, .variadic = true});
+    drop.addPositionalArgument({"resource", "Id(s) of the resource(s) to drop", true, true});
 
     drop.completer = &SinkshUtils::resourceOrTypeCompleter;
     return Syntax::List() << drop;

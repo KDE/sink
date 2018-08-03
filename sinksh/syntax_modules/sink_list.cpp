@@ -201,16 +201,16 @@ Syntax::List syntax()
 {
     Syntax list("list", QObject::tr("List all resources, or the contents of one or more resources."), &SinkList::list, Syntax::NotInteractive);
 
-    list.addPositionalArgument({.name = "type", .help = "The type of content to list (resource, identity, account, mail, etc.)"});
-    list.addParameter("resource", { .name = "resource", .help = "List only the content of the given resource" });
+    list.addPositionalArgument({"type", "The type of content to list (resource, identity, account, mail, etc.)"});
+    list.addParameter("resource", {"resource", "List only the content of the given resource" });
     list.addFlag("compact", "Use a compact view (reduces the size of IDs)");
-    list.addParameter("filter", { .name = "property=$value", .help = "Filter the results" });
-    list.addParameter("id", { .name = "id", .help = "List only the content with the given ID" });
+    list.addParameter("filter", {"property=$value", "Filter the results" });
+    list.addParameter("id", {"id", "List only the content with the given ID" });
     list.addFlag("showall", "Show all properties");
-    list.addParameter("show", { .name = "property", .help = "Only show the given property" });
-    list.addParameter("reduce", { .name = "property:$selectorProperty", .help = "Combine the result with the same $property, sorted by $selectorProperty" });
-    list.addParameter("sort", { .name = "property", .help = "Sort the results according to the given property" });
-    list.addParameter("limit", { .name = "count", .help = "Limit the results" });
+    list.addParameter("show", {"property", "Only show the given property" });
+    list.addParameter("reduce", {"property:$selectorProperty", "Combine the result with the same $property, sorted by $selectorProperty" });
+    list.addParameter("sort", {"property", "Sort the results according to the given property" });
+    list.addParameter("limit", {"count", "Limit the results" });
 
     list.completer = &SinkshUtils::resourceOrTypeCompleter;
     return Syntax::List() << list;

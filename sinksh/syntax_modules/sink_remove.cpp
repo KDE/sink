@@ -132,20 +132,19 @@ bool identity(const QStringList &args, State &state)
 Syntax::List syntax()
 {
     Syntax remove("remove", QObject::tr("Remove items in a resource"), &SinkRemove::remove);
-
-    remove.addPositionalArgument({ .name = "type", .help = "The type of entity to remove (mail, event, etc.)" });
-    remove.addPositionalArgument({ .name = "resourceId", .help = "The ID of the resource containing the entity" });
-    remove.addPositionalArgument({ .name = "objectId", .help = "The ID of the entity to remove" });
+    remove.addPositionalArgument({"type", "The type of entity to remove (mail, event, etc.)"});
+    remove.addPositionalArgument({"resourceId", "The ID of the resource containing the entity"});
+    remove.addPositionalArgument({"objectId", "The ID of the entity to remove"});
 
     Syntax resource("resource", QObject::tr("Removes a resource"), &SinkRemove::resource, Syntax::NotInteractive);
-    resource.addPositionalArgument({ .name = "id", .help = "The ID of the resource to remove" });
+    resource.addPositionalArgument({"id", "The ID of the resource to remove"});
     resource.completer = &SinkshUtils::resourceCompleter;
 
     Syntax account("account", QObject::tr("Removes a account"), &SinkRemove::account, Syntax::NotInteractive);
-    account.addPositionalArgument({ .name = "id", .help = "The ID of the account to remove" });
+    account.addPositionalArgument({"id", "The ID of the account to remove"});
 
     Syntax identity("identity", QObject::tr("Removes an identity"), &SinkRemove::identity, Syntax::NotInteractive);
-    identity.addPositionalArgument({ .name = "id", .help = "The ID of the account to remove" });
+    identity.addPositionalArgument({"id", "The ID of the account to remove"});
 
     remove.children << resource << account << identity;
 
