@@ -127,6 +127,7 @@ QByteArray DataStore::getUidFromRevision(const DataStore::Transaction &transacti
                 return false;
             },
             [revision](const Error &error) { SinkWarning() << "Couldn't find uid for revision: " << revision << error.message; });
+    Q_ASSERT(!uid.isEmpty());
     return uid;
 }
 
@@ -140,6 +141,7 @@ QByteArray DataStore::getTypeFromRevision(const DataStore::Transaction &transact
                 return false;
             },
             [revision](const Error &error) { SinkWarning() << "Couldn't find type for revision " << revision; });
+    Q_ASSERT(!type.isEmpty());
     return type;
 }
 
