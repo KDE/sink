@@ -30,10 +30,6 @@ ResultSet::ResultSet(const ValueGenerator &generator, const SkipValue &skip) : m
 {
 }
 
-ResultSet::ResultSet(const IdGenerator &generator) : mIt(nullptr), mGenerator(generator), mSkip([this]() { next(); })
-{
-}
-
 ResultSet::ResultSet(const QVector<Identifier> &resultSet)
     : mResultSet(resultSet),
       mIt(mResultSet.constBegin()),
@@ -51,9 +47,6 @@ ResultSet::ResultSet(const ResultSet &other) : mResultSet(other.mResultSet), mIt
     if (other.mValueGenerator) {
         mValueGenerator = other.mValueGenerator;
         mSkip = other.mSkip;
-    } else if (other.mGenerator) {
-        mGenerator = other.mGenerator;
-        mSkip = [this]() { next(); };
     } else {
         mResultSet = other.mResultSet;
         mIt = mResultSet.constBegin();
@@ -74,12 +67,6 @@ bool ResultSet::next()
         }
         mFirst = false;
         return mIt != mResultSet.constEnd();
-    } else if (mGenerator) {
-        Q_ASSERT(mGenerator);
-        mCurrentValue = mGenerator();
-        if (!mCurrentValue.isNull()) {
-            return true;
-        }
     } else {
         next([](const Result &) { return false; });
     }

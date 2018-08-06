@@ -53,7 +53,6 @@ public:
 
     ResultSet();
     ResultSet(const ValueGenerator &generator, const SkipValue &skip);
-    ResultSet(const IdGenerator &generator);
     ResultSet(const QVector<Sink::Storage::Identifier> &resultSet);
     ResultSet(const ResultSet &other);
 
@@ -76,7 +75,6 @@ private:
     QVector<Sink::Storage::Identifier> mResultSet;
     QVector<Sink::Storage::Identifier>::ConstIterator mIt;
     Sink::Storage::Identifier mCurrentValue;
-    IdGenerator mGenerator;
     ValueGenerator mValueGenerator;
     SkipValue mSkip;
     bool mFirst;
