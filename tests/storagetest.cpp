@@ -191,14 +191,16 @@ private slots:
 
         // We repeat the test a bunch of times since failing is relatively random
         for (int tries = 0; tries < 10; tries++) {
+            //clearEnv in combination with the bogus db layouts tests the dynamic named db opening as well.
+            Sink::Storage::DataStore::clearEnv();
             bool error = false;
             // Try to concurrently read
             QList<QFuture<void>> futures;
             const int concurrencyLevel = 20;
             for (int num = 0; num < concurrencyLevel; num++) {
                 futures << QtConcurrent::run([this, &error]() {
-                    Sink::Storage::DataStore storage(testDataPath, dbName, Sink::Storage::DataStore::ReadOnly);
-                    Sink::Storage::DataStore storage2(testDataPath, dbName + "2", Sink::Storage::DataStore::ReadOnly);
+                    Sink::Storage::DataStore storage(testDataPath, {dbName, {{"bogus", 0}}}, Sink::Storage::DataStore::ReadOnly);
+                    Sink::Storage::DataStore storage2(testDataPath, {dbName+ "2", {{"bogus", 0}}}, Sink::Storage::DataStore::ReadOnly);
                     for (int i = 0; i < count; i++) {
                         if (!verify(storage, i)) {
                             error = true;
@@ -757,7 +759,7 @@ private slots:
 
         Sink::Storage::DataStore::clearEnv();
         //Try to read-write dynamic opening of the db.
-        //This is the case if we don't have all databases available upon initializatoin and we don't (e.g. because the db hasn't been created yet)
+        //This is the case if we don't have all databases available upon initialization and we don't (e.g. because the db hasn't been created yet)
         {
             // Trick the db into not loading all dbs by passing in a bogus layout.
             Sink::Storage::DataStore store(testDataPath, {dbName, {{"bogus", 0}}}, Sink::Storage::DataStore::ReadWrite);

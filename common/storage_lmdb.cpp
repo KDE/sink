@@ -219,88 +219,126 @@ public:
     bool openDatabase(bool readOnly, std::function<void(const DataStore::Error &error)> errorHandler)
     {
         const auto dbiName = name + db;
+        //Never access sDbis while anything is writing to it.
         QReadLocker dbiLocker{&sDbisLock};
         if (sDbis.contains(dbiName)) {
             dbi = sDbis.value(dbiName);
             //sDbis can potentially contain a dbi that is not valid for this transaction, if this transaction was created before the dbi was created.
-            if (!dbiValidForTransaction(dbi, transaction)) {
-                SinkTrace() << "Found dbi that is not available for the current transaction.";
-                return false;
-            }
-        } else {
-            /*
-             * Dynamic creation of databases.
-             * If all databases were defined via the database layout we wouldn't ever end up in here.
-             * However, we rely on this codepath for indexes, synchronization databases and in race-conditions
-             * where the database is not yet fully created when the client initializes it for reading.
-             *
-             * There are a few things to consider:
-             * * dbi's (DataBase Identifier) should be opened once (ideally), and then be persisted in the environment.
-             * * To open a dbi we need a transaction and must commit the transaction. From then on any open transaction will have access to the dbi.
-             * * Already running transactions will not have access to the dbi.
-             * * There *must* only ever be one active transaction opening dbi's (using mdb_dbi_open), and that transaction *must*
-             * commit or abort before any other transaction opens a dbi.
-             *
-             * We solve this the following way:
-             * * For read-only transactions we abort the transaction, open the dbi and persist it in the environment, and reopen the transaction (so the dbi is available). This may result in the db content changing unexpectedly and referenced memory becoming unavailable, but isn't a problem as long as we don't rely on memory remaining valid for the duration of the transaction (which is anyways not given since any operation would invalidate the memory region)..
-             * * For write transactions we open the dbi for future use, and then open it as well in the current transaction.
-             * * Write transactions that open the named database multiple times will call this codepath multiple times,
-             * this is ok though because the same dbi will be returned by mdb_dbi_open (We could also start to do a lookup in
-             * Transaction::Private::createdDbs first).
-             */
-            SinkTrace() << "Creating database dynamically: " << dbiName << readOnly;
-            //Only one transaction may ever create dbis at a time.
-            QMutexLocker createDbiLocker(&sCreateDbiLock);
-            //Double checked locking
-            if (sDbis.contains(dbiName)) {
-                dbi = sDbis.value(dbiName);
-                //sDbis can potentially contain a dbi that is not valid for this transaction, if this transaction was created before the dbi was created.
-                if (!dbiValidForTransaction(dbi, transaction)) {
-                    SinkTrace() << "Found dbi that is not available for the current transaction.";
-                    return false;
-                }
+            if (dbiValidForTransaction(dbi, transaction)) {
                 return true;
+            } else {
+                SinkTrace() << "Found dbi that is not available for the current transaction.";
+                if (readOnly) {
+                    //Recovery for read-only transactions. Abort and renew.
+                    mdb_txn_reset(transaction);
+                    mdb_txn_renew(transaction);
+                    Q_ASSERT(dbiValidForTransaction(dbi, transaction));
+                    return true;
+                }
+                //There is no recover path for non-read-only transactions.
             }
+            //Nothing in the code deals well with non-existing databases.
+            Q_ASSERT(false);
+            return false;
+        }
 
-            //Create a transaction to open the dbi
-            MDB_txn *dbiTransaction;
-            if (readOnly) {
-                MDB_env *env = mdb_txn_env(transaction);
-                Q_ASSERT(env);
-                mdb_txn_reset(transaction);
-                if (const int rc = mdb_txn_begin(env, nullptr, MDB_RDONLY, &dbiTransaction)) {
-                    SinkError() << "Failed to open transaction: " << QByteArray(mdb_strerror(rc)) << readOnly << transaction;
-                    return false;
-                }
+
+        /*
+        * Dynamic creation of databases.
+        * If all databases were defined via the database layout we wouldn't ever end up in here.
+        * However, we rely on this codepath for indexes, synchronization databases and in race-conditions
+        * where the database is not yet fully created when the client initializes it for reading.
+        *
+        * There are a few things to consider:
+        * * dbi's (DataBase Identifier) should be opened once (ideally), and then be persisted in the environment.
+        * * To open a dbi we need a transaction and must commit the transaction. From then on any open transaction will have access to the dbi.
+        * * Already running transactions will not have access to the dbi.
+        * * There *must* only ever be one active transaction opening dbi's (using mdb_dbi_open), and that transaction *must*
+        * commit or abort before any other transaction opens a dbi.
+        *
+        * We solve this the following way:
+        * * For read-only transactions we abort the transaction, open the dbi and persist it in the environment, and reopen the transaction (so the dbi is available). This may result in the db content changing unexpectedly and referenced memory becoming unavailable, but isn't a problem as long as we don't rely on memory remaining valid for the duration of the transaction (which is anyways not given since any operation would invalidate the memory region)..
+        * * For write transactions we open the dbi for future use, and then open it as well in the current transaction.
+        * * Write transactions that open the named database multiple times will call this codepath multiple times,
+        * this is ok though because the same dbi will be returned by mdb_dbi_open (We could also start to do a lookup in
+        * Transaction::Private::createdDbs first).
+        */
+        SinkTrace() << "Creating database dynamically: " << dbiName << readOnly;
+        //Only one transaction may ever create dbis at a time.
+        while (!sCreateDbiLock.tryLock(10)) {
+            //Allow another thread that has already acquired sCreateDbiLock to continue below.
+            //Otherwise we risk a dead-lock if another thread already acquired sCreateDbiLock, but then lost the sDbisLock while upgrading it to a
+            //write lock below
+            dbiLocker.unlock();
+            dbiLocker.relock();
+        }
+        //Double checked locking
+        if (sDbis.contains(dbiName)) {
+            dbi = sDbis.value(dbiName);
+            //sDbis can potentially contain a dbi that is not valid for this transaction, if this transaction was created before the dbi was created.
+            sCreateDbiLock.unlock();
+            if (dbiValidForTransaction(dbi, transaction)) {
+                return true;
             } else {
-                dbiTransaction = transaction;
-            }
-            if (createDbi(dbiTransaction, db, readOnly, allowDuplicates, dbi)) {
+                SinkTrace() << "Found dbi that is not available for the current transaction.";
                 if (readOnly) {
-                    mdb_txn_commit(dbiTransaction);
-                    dbiLocker.unlock();
-                    QWriteLocker dbiWriteLocker(&sDbisLock);
-                    sDbis.insert(dbiName, dbi);
-                    //We reopen the read-only transaction so the dbi becomes available in it.
+                    //Recovery for read-only transactions. Abort and renew.
+                    mdb_txn_reset(transaction);
                     mdb_txn_renew(transaction);
-                } else {
-                    createdNewDbi = true;
-                    createdNewDbiName = dbiName;
+                    Q_ASSERT(dbiValidForTransaction(dbi, transaction));
+                    return true;
                 }
-                //Ensure the dbi is valid for the parent transaction
-                Q_ASSERT(dbiValidForTransaction(dbi, transaction));
-            } else {
-                if (readOnly) {
-                    mdb_txn_abort(dbiTransaction);
-                    mdb_txn_renew(transaction);
-                } else {
-                    SinkWarning() << "Failed to create the dbi: " << dbiName;
-                }
-                dbi = 0;
-                transaction = 0;
+                //There is no recover path for non-read-only transactions.
+                Q_ASSERT(false);
                 return false;
             }
         }
+
+        //Ensure nobody reads sDbis either
+        dbiLocker.unlock();
+        //We risk loosing the lock in here. That's why we tryLock above in the while loop
+        QWriteLocker dbiWriteLocker(&sDbisLock);
+
+        //Create a transaction to open the dbi
+        MDB_txn *dbiTransaction;
+        if (readOnly) {
+            MDB_env *env = mdb_txn_env(transaction);
+            Q_ASSERT(env);
+            mdb_txn_reset(transaction);
+            if (const int rc = mdb_txn_begin(env, nullptr, MDB_RDONLY, &dbiTransaction)) {
+                SinkError() << "Failed to open transaction: " << QByteArray(mdb_strerror(rc)) << readOnly << transaction;
+                sCreateDbiLock.unlock();
+                return false;
+            }
+        } else {
+            dbiTransaction = transaction;
+        }
+        if (createDbi(dbiTransaction, db, readOnly, allowDuplicates, dbi)) {
+            if (readOnly) {
+                mdb_txn_commit(dbiTransaction);
+                Q_ASSERT(!sDbis.contains(dbiName));
+                sDbis.insert(dbiName, dbi);
+                //We reopen the read-only transaction so the dbi becomes available in it.
+                mdb_txn_renew(transaction);
+            } else {
+                createdNewDbi = true;
+                createdNewDbiName = dbiName;
+            }
+            //Ensure the dbi is valid for the parent transaction
+            Q_ASSERT(dbiValidForTransaction(dbi, transaction));
+        } else {
+            if (readOnly) {
+                mdb_txn_abort(dbiTransaction);
+                mdb_txn_renew(transaction);
+            } else {
+                SinkWarning() << "Failed to create the dbi: " << dbiName;
+            }
+            dbi = 0;
+            transaction = 0;
+            sCreateDbiLock.unlock();
+            return false;
+        }
+        sCreateDbiLock.unlock();
         return true;
     }
 };
