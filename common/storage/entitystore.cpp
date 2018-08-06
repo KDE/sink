@@ -107,7 +107,7 @@ public:
 
     bool exists()
     {
-        return DataStore(Sink::storageLocation(), resourceContext.instanceId(), DataStore::ReadOnly).exists();
+        return Storage::DataStore::exists(Sink::storageLocation(), resourceContext.instanceId());
     }
 
     DataStore::Transaction &getTransaction()
