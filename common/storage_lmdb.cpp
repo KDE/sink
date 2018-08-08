@@ -164,7 +164,7 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
             key.mv_size = db.size();
             //Store the flags without the create option
             const auto ba = QByteArray::number(flags);
-            value.mv_data = const_cast<void*>(static_cast<const void*>(db.constData()));
+            value.mv_data = const_cast<void*>(static_cast<const void*>(ba.constData()));
             value.mv_size = db.size();
             if (const int rc = mdb_put(transaction, flagtableDbi, &key, &value, MDB_NOOVERWRITE)) {
                 //We expect this to fail if we're only creating the dbi but not the db
