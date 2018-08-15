@@ -83,7 +83,7 @@ CurlVersionInfo getVersionInfo()
 bool sendMessageCurl(const char *to[], int numTos,
         const char *cc[], int numCcs,
         const char *msg,
-        bool useTls,
+        bool useStarttls,
         const char* from,
         const char *username, const char *password,
         const char *server, bool verifyPeer, const QByteArray &cacert, QByteArray &errorMessage,
@@ -107,7 +107,7 @@ bool sendMessageCurl(const char *to[], int numTos,
 
         curl_easy_setopt(curl, CURLOPT_URL, server);
 
-        if (useTls) {
+        if (useStarttls) {
             curl_easy_setopt(curl, CURLOPT_USE_SSL, (long)CURLUSESSL_ALL);
         }
 
@@ -186,6 +186,7 @@ MailTransport::SendResult MailTransport::sendMessage(const KMime::Message::Ptr &
         ccList << mb.address();
     }
     const bool verifyPeer = options.testFlag(VerifyPeers);
+    const bool useStarttls = options.testFlag(UseStarttls);
     const bool useTls = options.testFlag(UseTls);
 
     const int numTos = toList.size();
@@ -199,12 +200,21 @@ MailTransport::SendResult MailTransport::sendMessage(const KMime::Message::Ptr &
     for (int i = 0; i < numCcs; i++) {
         cc[i] = ccList.at(i);
     }
-    //Because curl will fail with smtps, but it won't tell you why.
     auto serverAddress = server;
-    serverAddress.replace("smtps://", "smtp://");
+    if (serverAddress.startsWith("smtps://")) {
+        serverAddress = serverAddress.mid(8);
+    }
+    if (serverAddress.startsWith("smtp://")) {
+        serverAddress = serverAddress.mid(7);
+    }
+    if (useStarttls) {
+        serverAddress = "smtp://" + serverAddress;
+    } else if (useTls) {
+        serverAddress = "smtps://" + serverAddress;
+    }
 
     const auto versionInfo = getVersionInfo();
-    if (useTls && !versionInfo.supportsSsl) {
+    if ((useTls || useStarttls) && !versionInfo.supportsSsl) {
         qCWarning(mailtransportCategory) << "libcurl built without ssl support: " << versionInfo.info;
     }
 
@@ -212,7 +222,7 @@ MailTransport::SendResult MailTransport::sendMessage(const KMime::Message::Ptr &
     QByteArray errorMessage;
     auto ret = sendMessageCurl(to, numTos, cc, numCcs,
             message->encodedContent(),
-            useTls,
+            useStarttls,
             from.isEmpty() ? nullptr : from,
             username, password,
             serverAddress, verifyPeer, cacert,

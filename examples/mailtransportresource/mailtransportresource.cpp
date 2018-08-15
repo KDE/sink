@@ -127,7 +127,11 @@ public:
             } else {
                 MailTransport::Options options;
                 if (settings.server.contains("smtps")) {
-                    options |= MailTransport::UseTls;
+                    if (settings.server.contains("465")) {
+                        options |= MailTransport::UseTls;
+                    } else {
+                        options |= MailTransport::UseStarttls;
+                    }
                 }
 
                 SinkLog() << "Sending message " << settings.server << settings.username << "CaCert: " << settings.cacert << "Using tls: " << bool(options & MailTransport::UseTls);
