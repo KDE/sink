@@ -129,9 +129,9 @@ private slots:
 
     void testSyncContacts()
     {
-        //We want the extra collection from the previous test in this test.
         createContact("john", "doe", "personal");
         createContact("jane", "doe", "personal");
+        createContact("fred", "durst", "addressbook2");
         Sink::SyncScope scope;
         scope.setType<Sink::ApplicationDomain::Contact>();
         scope.resourceFilter(mResourceInstanceIdentifier);
@@ -139,14 +139,23 @@ private slots:
         VERIFYEXEC(Sink::Store::synchronize(scope));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
         const auto contacts = Sink::Store::read<Sink::ApplicationDomain::Contact>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
-        QCOMPARE(contacts.size(), 2);
+        QCOMPARE(contacts.size(), 3);
 
         //Ensure a resync works
         {
             VERIFYEXEC(Sink::Store::synchronize(scope));
             VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
             const auto contacts = Sink::Store::read<Sink::ApplicationDomain::Contact>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
-            QCOMPARE(contacts.size(), 2);
+            QCOMPARE(contacts.size(), 3);
+        }
+
+        //Ensure a resync after another creation works
+        createContact("alf", "alf", "addressbook2");
+        {
+            VERIFYEXEC(Sink::Store::synchronize(scope));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+            const auto contacts = Sink::Store::read<Sink::ApplicationDomain::Contact>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
+            QCOMPARE(contacts.size(), 4);
         }
     }
 
