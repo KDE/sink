@@ -253,14 +253,22 @@ class DebugAreaCollector {
 public:
     DebugAreaCollector()
     {
-        QMutexLocker locker(&mutex);
-        mDebugAreas = debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+        //This call can potentially print a log message (if we fail to remove the qsettings lockfile), which would result in a deadlock if we locked over all of it.
+        const auto areas = debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+        {
+            QMutexLocker locker(&mutex);
+            mDebugAreas = areas;
+        }
     }
 
     ~DebugAreaCollector()
     {
-        QMutexLocker locker(&mutex);
-        mDebugAreas += debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+        //This call can potentially print a log message (if we fail to remove the qsettings lockfile), which would result in a deadlock if we locked over all of it.
+        const auto areas = debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+        {
+            QMutexLocker locker(&mutex);
+            mDebugAreas += areas;
+        }
         debugAreasConfig()->setValue("areas", QVariant::fromValue(mDebugAreas.toList().join(';')));
     }
 
