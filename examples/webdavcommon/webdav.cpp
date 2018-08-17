@@ -157,13 +157,20 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                     return KAsync::null<void>();
                 }
 
-                SinkTrace() << "Syncing collection:" << collectionResourceID;
+                SinkTrace() << "Syncing collection:" << collectionResourceID << collection.displayName();
                 auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
                 return synchronizeCollection(collection, progress, total, itemsResourceIDs)
                 .then([=] {
-                    scanForRemovals(mEntityType, [&itemsResourceIDs](const QByteArray &remoteId) {
-                        return itemsResourceIDs->contains(remoteId);
-                    });
+                    const auto collectionLocalId = collectionLocalResourceID(collection);
+                    scanForRemovals(mEntityType,
+                        [&](const std::function<void(const QByteArray &)> &callback) {
+                            //FIXME: The collection type just happens to have the same name as the parent collection property
+                            const auto collectionProperty = mCollectionType;
+                            store().indexLookup(mEntityType, collectionProperty, collectionLocalId, callback);
+                        },
+                        [&itemsResourceIDs](const QByteArray &remoteId) {
+                            return itemsResourceIDs->contains(remoteId);
+                        });
                 });
             })
             .then([=]() {

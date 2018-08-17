@@ -56,7 +56,8 @@ typedef IndexConfig<Folder,
     > FolderIndexConfig;
 
 typedef IndexConfig<Contact,
-        ValueIndex<Contact::Uid>
+        ValueIndex<Contact::Uid>,
+        ValueIndex<Contact::Addressbook>
     > ContactIndexConfig;
 
 typedef IndexConfig<Addressbook,
@@ -65,12 +66,14 @@ typedef IndexConfig<Addressbook,
 
 typedef IndexConfig<Event,
         ValueIndex<Event::Uid>,
+        ValueIndex<Event::Calendar>,
         SortedIndex<Event::StartTime>,
         SampledPeriodIndex<Event::StartTime, Event::EndTime>
     > EventIndexConfig;
 
 typedef IndexConfig<Todo,
-        ValueIndex<Todo::Uid>
+        ValueIndex<Todo::Uid>,
+        ValueIndex<Todo::Calendar>
     > TodoIndexConfig;
 
 typedef IndexConfig<Calendar,
