@@ -89,11 +89,11 @@ static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob *)> &func)
 }
 
 WebDavSynchronizer::WebDavSynchronizer(const Sink::ResourceContext &context,
-    KDAV2::Protocol protocol, QByteArray collectionName, QByteArray itemName)
+    KDAV2::Protocol protocol, QByteArray mCollectionType, QByteArray mEntityType)
     : Sink::Synchronizer(context),
       protocol(protocol),
-      collectionName(std::move(collectionName)),
-      itemName(std::move(itemName))
+      mCollectionType(std::move(mCollectionType)),
+      mEntityType(std::move(mEntityType))
 {
     auto config = ResourceConfig::getConfiguration(context.instanceId());
 
@@ -111,15 +111,16 @@ QList<Sink::Synchronizer::SyncRequest> WebDavSynchronizer::getSyncRequests(const
         // We want to synchronize everything
 
         // Item synchronization does the collections anyway
-        // list << Synchronizer::SyncRequest{ Sink::QueryBase(collectionName) };
-        list << Synchronizer::SyncRequest{ Sink::QueryBase(itemName) };
+        // list << Synchronizer::SyncRequest{ Sink::QueryBase(mCollectionType) };
+        list << Synchronizer::SyncRequest{ Sink::QueryBase(mEntityType) };
     }
     return list;
 }
 
 KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBase &query)
 {
-    if (query.type() != collectionName && query.type() != itemName) {
+    if (query.type() != mCollectionType && query.type() != mEntityType) {
+        SinkWarning() << "Received synchronization reuqest with unkown type" << query;
         return KAsync::null<void>();
     }
 
@@ -133,10 +134,10 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                        return collections;
                    });
 
-    if (query.type() == collectionName) {
+    if (query.type() == mCollectionType) {
         // Do nothing more
         return job;
-    } else if (query.type() == itemName) {
+    } else if (query.type() == mEntityType) {
         auto progress = QSharedPointer<int>::create(0);
         auto total = QSharedPointer<int>::create(0);
 
@@ -160,13 +161,13 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                 auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
                 return synchronizeCollection(collection, progress, total, itemsResourceIDs)
                 .then([=] {
-                    scanForRemovals(itemName, [&itemsResourceIDs](const QByteArray &remoteId) {
+                    scanForRemovals(mEntityType, [&itemsResourceIDs](const QByteArray &remoteId) {
                         return itemsResourceIDs->contains(remoteId);
                     });
                 });
             })
             .then([=]() {
-                scanForRemovals(collectionName, [&collectionResourceIDs](const QByteArray &remoteId) {
+                scanForRemovals(mCollectionType, [&collectionResourceIDs](const QByteArray &remoteId) {
                     return collectionResourceIDs->contains(remoteId);
                 });
             });

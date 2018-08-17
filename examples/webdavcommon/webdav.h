@@ -109,8 +109,8 @@ protected:
 
 private:
     KDAV2::Protocol protocol;
-    const QByteArray collectionName;
-    const QByteArray itemName;
+    const QByteArray mCollectionType;
+    const QByteArray mEntityType;
 
     QUrl mServer;
     QString mUsername;
