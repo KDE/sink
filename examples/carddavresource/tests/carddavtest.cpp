@@ -30,7 +30,6 @@ class CardDavTest : public QObject
         resource.setProperty("server", "http://localhost/dav/addressbooks/user/doe");
         resource.setProperty("username", "doe");
         Sink::SecretStore::instance().insert(resource.identifier(), "doe");
-        resource.setProperty("testmode", true);
         return resource;
     }
 
@@ -69,11 +68,17 @@ class CardDavTest : public QObject
         }
     }
 
+    void resetTestEnvironment()
+    {
+        system("resetmailbox.sh");
+    }
+
 private slots:
 
     void initTestCase()
     {
         Sink::Test::initTest();
+        resetTestEnvironment();
         auto resource = createResource();
         QVERIFY(!resource.identifier().isEmpty());
         VERIFYEXEC(Sink::Store::create(resource));
