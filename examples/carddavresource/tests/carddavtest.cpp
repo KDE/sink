@@ -11,6 +11,7 @@
 #include <KDAV2/DavUrl>
 #include <KDAV2/DavItemCreateJob>
 #include <KDAV2/DavCollectionsFetchJob>
+#include <KDAV2/DavCollectionCreateJob>
 #include <KDAV2/DavCollection>
 #include <KContacts/Addressee>
 #include <KContacts/VCardConverter>
@@ -36,12 +37,11 @@ class CardDavTest : public QObject
 
     QByteArray mResourceInstanceIdentifier;
 
-    void createContact(const QString &firstname, const QString &lastname)
+    void createContact(const QString &firstname, const QString &lastname, const QString &collectionName)
     {
         QUrl mainUrl(QStringLiteral("http://localhost/dav/addressbooks/user/doe"));
         mainUrl.setUserName(QStringLiteral("doe"));
         mainUrl.setPassword(QStringLiteral("doe"));
-
 
         KDAV2::DavUrl davUrl(mainUrl, KDAV2::CardDav);
 
@@ -49,8 +49,10 @@ class CardDavTest : public QObject
         job->exec();
 
         const auto collectionUrl = [&] {
-            if (!job->collections().isEmpty()) {
-                return job->collections().first().url().url();
+            for (const auto &col : job->collections()) {
+                if (col.displayName() == collectionName) {
+                    return col.url().url();
+                }
             }
             return QUrl{};
         }();
@@ -62,6 +64,22 @@ class CardDavTest : public QObject
         QByteArray data = QString("BEGIN:VCARD\r\nVERSION:3.0\r\nPRODID:-//Kolab//iRony DAV Server 0.3.1//Sabre//Sabre VObject 2.1.7//EN\r\nUID:12345678-1234-1234-%1-%2\r\nFN:%1 %2\r\nN:%2;%1;;;\r\nEMAIL;TYPE=INTERNET;TYPE=HOME:%1.%2@example.com\r\nREV;VALUE=DATE-TIME:20161221T145611Z\r\nEND:VCARD\r\n").arg(firstname).arg(lastname).toUtf8();
         KDAV2::DavItem item(testItemUrl, QStringLiteral("text/vcard"), data, QString());
         auto createJob = new KDAV2::DavItemCreateJob(item);
+        createJob->exec();
+        if (createJob->error()) {
+            qWarning() << createJob->errorString();
+        }
+    }
+
+    void createCollection(const QString &name)
+    {
+        QUrl mainUrl(QStringLiteral("http://localhost/dav/addressbooks/user/doe/") + name);
+        mainUrl.setUserName(QStringLiteral("doe"));
+        mainUrl.setPassword(QStringLiteral("doe"));
+
+        KDAV2::DavUrl davUrl(mainUrl, KDAV2::CardDav);
+        KDAV2::DavCollection collection{davUrl, name, KDAV2::DavCollection::Contacts};
+
+        auto createJob = new KDAV2::DavCollectionCreateJob(collection);
         createJob->exec();
         if (createJob->error()) {
             qWarning() << createJob->errorString();
@@ -95,10 +113,25 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::start(mResourceInstanceIdentifier));
     }
 
+    void testSyncAddressbooks()
+    {
+        createCollection("addressbook2");
+
+        Sink::SyncScope scope;
+        scope.setType<Addressbook>();
+        scope.resourceFilter(mResourceInstanceIdentifier);
+
+        VERIFYEXEC(Sink::Store::synchronize(scope));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        const auto addressbooks = Sink::Store::read<Addressbook>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
+        QCOMPARE(addressbooks.size(), 2);
+    }
+
     void testSyncContacts()
     {
-        createContact("john", "doe");
-        createContact("jane", "doe");
+        //We want the extra collection from the previous test in this test.
+        createContact("john", "doe", "personal");
+        createContact("jane", "doe", "personal");
         Sink::SyncScope scope;
         scope.setType<Sink::ApplicationDomain::Contact>();
         scope.resourceFilter(mResourceInstanceIdentifier);
@@ -115,18 +148,6 @@ private slots:
             const auto contacts = Sink::Store::read<Sink::ApplicationDomain::Contact>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
             QCOMPARE(contacts.size(), 2);
         }
-    }
-
-    void testSyncAddressbooks()
-    {
-        Sink::SyncScope scope;
-        scope.setType<Addressbook>();
-        scope.resourceFilter(mResourceInstanceIdentifier);
-
-        VERIFYEXEC(Sink::Store::synchronize(scope));
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
-        const auto addressbooks = Sink::Store::read<Addressbook>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
-        QCOMPARE(addressbooks.size(), 1);
     }
 
     void testAddContact()
