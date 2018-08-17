@@ -441,7 +441,7 @@ QVector<Identifier> EntityStore::fullScan(const QByteArray &type)
                 const auto uid = Sink::Storage::Key::fromInternalByteArray(key).identifier();
                 if (keys.contains(uid)) {
                     //Not something that should persist if the replay works, so we keep a message for now.
-                    SinkTraceCtx(d->logCtx) << "Multiple revisions for key: " << key;
+                    SinkTraceCtx(d->logCtx) << "Multiple revisions for uid: " << Sink::Storage::Key::fromInternalByteArray(key) << ". This is normal if changereplay has not completed yet.";
                 }
                 keys << uid;
                 return true;
