@@ -1,8 +1,10 @@
 #include <QtTest>
 
 #include <KDAV2/DavCollectionsFetchJob>
+#include <KDAV2/DavCollectionCreateJob>
 #include <KDAV2/DavItemFetchJob>
 #include <KDAV2/DavItemModifyJob>
+#include <KDAV2/DavItemCreateJob>
 #include <KDAV2/DavItemsListJob>
 #include <KDAV2/EtagCache>
 
@@ -41,20 +43,82 @@ class CalDavTest : public QObject
         resource.setProperty("server", baseUrl);
         resource.setProperty("username", username);
         Sink::SecretStore::instance().insert(resource.identifier(), password);
-        resource.setProperty("testmode", true);
         return resource;
     }
 
     QByteArray mResourceInstanceIdentifier;
 
-    QString addedEventUid;
-    QString addedTodoUid;
+    QByteArray createEvent(const QString &subject, const QString &collectionName)
+    {
+        QUrl mainUrl{"http://localhost/dav/calendars/user/doe"};
+        mainUrl.setUserName(QStringLiteral("doe"));
+        mainUrl.setPassword(QStringLiteral("doe"));
+
+        KDAV2::DavUrl davUrl(mainUrl, KDAV2::CalDav);
+
+        auto *job = new KDAV2::DavCollectionsFetchJob(davUrl);
+        job->exec();
+
+        const auto collectionUrl = [&] {
+            for (const auto &col : job->collections()) {
+                // qWarning() << "Looking for " << collectionName << col.displayName();
+                if (col.displayName() == collectionName) {
+                    return col.url().url();
+                }
+            }
+            return QUrl{};
+        }();
+
+        QUrl url{collectionUrl.toString() + subject + ".ical"};
+        url.setUserInfo(mainUrl.userInfo());
+
+        KDAV2::DavUrl testItemUrl(url, KDAV2::CardDav);
+
+        auto event = QSharedPointer<KCalCore::Event>::create();
+        event->setSummary(subject);
+        event->setDtStart(QDateTime::currentDateTime());
+        event->setDtEnd(QDateTime::currentDateTime().addSecs(3600));
+        event->setCreated(QDateTime::currentDateTime());
+        event->setUid(subject);
+
+        auto data = KCalCore::ICalFormat().toICalString(event).toUtf8();
+
+        KDAV2::DavItem item(testItemUrl, QStringLiteral("text/calendar"), data, QString());
+        auto createJob = new KDAV2::DavItemCreateJob(item);
+        createJob->exec();
+        if (createJob->error()) {
+            qWarning() << createJob->errorString();
+        }
+        return event->uid().toUtf8();
+    }
+
+    void createCollection(const QString &name)
+    {
+        QUrl mainUrl(QStringLiteral("http://localhost/dav/calendars/user/doe/") + name);
+        mainUrl.setUserName(QStringLiteral("doe"));
+        mainUrl.setPassword(QStringLiteral("doe"));
+
+        KDAV2::DavUrl davUrl(mainUrl, KDAV2::CalDav);
+        KDAV2::DavCollection collection{davUrl, name, KDAV2::DavCollection::Events};
+
+        auto createJob = new KDAV2::DavCollectionCreateJob(collection);
+        createJob->exec();
+        if (createJob->error()) {
+            qWarning() << createJob->errorString();
+        }
+    }
+
+    void resetTestEnvironment()
+    {
+        system("resetmailbox.sh");
+    }
 
 private slots:
 
     void initTestCase()
     {
         Sink::Test::initTest();
+        resetTestEnvironment();
         auto resource = createResource();
         QVERIFY(!resource.identifier().isEmpty());
         VERIFYEXEC(Sink::Store::create(resource));
@@ -76,42 +140,73 @@ private slots:
         VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
-        auto eventJob = Sink::Store::fetchAll<Event>(Sink::Query().request<Event::Uid>())
-                            .then([](const QList<Event::Ptr> &events) { QCOMPARE(events.size(), 0); });
-        auto todoJob = Sink::Store::fetchAll<Todo>(Sink::Query().request<Todo::Uid>())
-                            .then([](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 0); });
+        QCOMPARE(Sink::Store::read<Event>({}).size(), 0);
+        QCOMPARE(Sink::Store::read<Todo>({}).size(), 0);
 
-        VERIFYEXEC(eventJob);
-        VERIFYEXEC(todoJob);
-
-        auto calendarJob = Sink::Store::fetchAll<Calendar>(Sink::Query().request<Calendar::Name>())
-                               .then([](const QList<Calendar::Ptr> &calendars) {
-                                   QCOMPARE(calendars.size(), 1);
-                                   for (const auto &calendar : calendars) {
-                                       QVERIFY(calendar->getName() == "personal");
-                                   }
-                               });
-        VERIFYEXEC(calendarJob);
-
-        SinkLog() << "Finished";
+        const auto calendars = Sink::Store::read<Calendar>(Sink::Query().request<Calendar::Name>());
+        QCOMPARE(calendars.size(), 1);
+        QCOMPARE(calendars.first().getName(), {"personal"});
     }
 
-    void testAddEvent()
+    void testSyncCalendars()
+    {
+        createCollection("calendar2");
+
+        Sink::SyncScope scope;
+        scope.setType<Calendar>();
+        scope.resourceFilter(mResourceInstanceIdentifier);
+
+        VERIFYEXEC(Sink::Store::synchronize(scope));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        const auto calendars = Sink::Store::read<Calendar>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
+        QCOMPARE(calendars.size(), 2);
+    }
+
+    void testSyncEvents()
+    {
+        createEvent("event1", "personal");
+        createEvent("event2", "personal");
+        createEvent("event3", "calendar2");
+        Sink::SyncScope scope;
+        scope.setType<Event>();
+        scope.resourceFilter(mResourceInstanceIdentifier);
+
+        VERIFYEXEC(Sink::Store::synchronize(scope));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        const auto events = Sink::Store::read<Event>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
+        QCOMPARE(events.size(), 3);
+
+        //Ensure a resync works
+        {
+            VERIFYEXEC(Sink::Store::synchronize(scope));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+            const auto events = Sink::Store::read<Event>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
+            QCOMPARE(events.size(), 3);
+        }
+
+        //Ensure a resync after another creation works
+        createEvent("event4", "calendar2");
+        {
+            VERIFYEXEC(Sink::Store::synchronize(scope));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+            const auto events = Sink::Store::read<Event>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
+            QCOMPARE(events.size(), 4);
+        }
+    }
+
+    void testCreateModifyDeleteEvent()
     {
         VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
-        auto future = Sink::Store::fetchOne<Calendar>({}).exec();
-        future.waitForFinished();
-        QVERIFY2(!future.errorCode(), "Fetching Calendar failed");
-        auto calendar = future.value();
+        auto calendar = Sink::Store::readOne<Calendar>(Sink::Query{}.filter<Calendar::Name>("personal"));
 
         auto event = QSharedPointer<KCalCore::Event>::create();
         event->setSummary("Hello");
         event->setDtStart(QDateTime::currentDateTime());
         event->setDtEnd(QDateTime::currentDateTime().addSecs(3600));
         event->setCreated(QDateTime::currentDateTime());
-        addedEventUid = QUuid::createUuid().toString();
+        auto addedEventUid = QUuid::createUuid().toString();
         event->setUid(addedEventUid);
 
         auto ical = KCalCore::ICalFormat().toICalString(event);
@@ -119,37 +214,60 @@ private slots:
         sinkEvent.setIcal(ical.toUtf8());
         sinkEvent.setCalendar(calendar);
 
-        SinkLog() << "Adding event";
         VERIFYEXEC(Sink::Store::create(sinkEvent));
         VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
 
-        auto verifyEventCountJob =
-            Sink::Store::fetchAll<Event>(Sink::Query().request<Event::Uid>()).then([](const QList<Event::Ptr> &events) {
-                QCOMPARE(events.size(), 1);
-            });
-        VERIFYEXEC(verifyEventCountJob);
+        auto events = Sink::Store::read<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)));
+        QCOMPARE(events.size(), 1);
+        QCOMPARE(events.first().getSummary(), {"Hello"});
 
-        auto verifyEventJob =
-            Sink::Store::fetchOne<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)))
-                .then([](const Event &event) { QCOMPARE(event.getSummary(), {"Hello"}); });
-        VERIFYEXEC(verifyEventJob);
+        //Modify
+        {
+            auto event = events.first();
+            auto incidence = KCalCore::ICalFormat().readIncidence(event.getIcal());
+            auto calevent = incidence.dynamicCast<KCalCore::Event>();
+            QVERIFY2(calevent, "Cannot convert to KCalCore event");
+
+            calevent->setSummary("Hello World!");
+            auto dummy = QSharedPointer<KCalCore::Event>(calevent);
+            auto newical = KCalCore::ICalFormat().toICalString(dummy);
+
+            event.setIcal(newical.toUtf8());
+
+            VERIFYEXEC(Sink::Store::modify(event));
+
+            VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+            auto events = Sink::Store::read<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)));
+            QCOMPARE(events.size(), 1);
+            QCOMPARE(events.first().getSummary(), {"Hello World!"});
+        }
+        //Delete
+        {
+            auto event = events.first();
+
+            VERIFYEXEC(Sink::Store::remove(event));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+            VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
+
+            auto events = Sink::Store::read<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)));
+            QCOMPARE(events.size(), 0);
+        }
     }
 
-    void testAddTodo()
+    void testCreateModifyDeleteTodo()
     {
         VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
-        auto job = Sink::Store::fetchOne<Calendar>({}).exec();
-        job.waitForFinished();
-        QVERIFY2(!job.errorCode(), "Fetching Calendar failed");
-        auto calendar = job.value();
+        auto calendar = Sink::Store::readOne<Calendar>(Sink::Query{}.filter<Calendar::Name>("personal"));
 
         auto todo = QSharedPointer<KCalCore::Todo>::create();
         todo->setSummary("Hello");
         todo->setDtStart(QDateTime::currentDateTime());
         todo->setCreated(QDateTime::currentDateTime());
-        addedTodoUid = QUuid::createUuid().toString();
+        auto addedTodoUid = QUuid::createUuid().toString();
         todo->setUid(addedTodoUid);
 
         auto ical = KCalCore::ICalFormat().toICalString(todo);
@@ -157,104 +275,74 @@ private slots:
         sinkTodo.setIcal(ical.toUtf8());
         sinkTodo.setCalendar(calendar);
 
-        SinkLog() << "Adding todo";
         VERIFYEXEC(Sink::Store::create(sinkTodo));
         VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
 
-        auto verifyTodoCountJob =
-            Sink::Store::fetchAll<Todo>(Sink::Query().request<Todo::Uid>()).then([](const QList<Todo::Ptr> &todos) {
-                QCOMPARE(todos.size(), 1);
-            });
-        VERIFYEXEC(verifyTodoCountJob);
+        auto todos = Sink::Store::read<Todo>(Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)));
+        QCOMPARE(todos.size(), 1);
+        QCOMPARE(todos.first().getSummary(), {"Hello"});
 
-        auto verifyTodoJob =
-            Sink::Store::fetchOne<Todo>(Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)))
-                .then([](const Todo &todo) { QCOMPARE(todo.getSummary(), {"Hello"}); });
-        VERIFYEXEC(verifyTodoJob);
+        //Modify
+        {
+            auto todo = todos.first();
+            auto incidence = KCalCore::ICalFormat().readIncidence(todo.getIcal());
+            auto caltodo = incidence.dynamicCast<KCalCore::Todo>();
+            QVERIFY2(caltodo, "Cannot convert to KCalCore todo");
+
+            caltodo->setSummary("Hello World!");
+            auto dummy = QSharedPointer<KCalCore::Todo>(caltodo);
+            auto newical = KCalCore::ICalFormat().toICalString(dummy);
+
+            todo.setIcal(newical.toUtf8());
+
+            VERIFYEXEC(Sink::Store::modify(todo));
+
+            VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+            auto todos = Sink::Store::read<Todo>(Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)));
+            QCOMPARE(todos.size(), 1);
+            QCOMPARE(todos.first().getSummary(), {"Hello World!"});
+        }
+        //Delete
+        {
+            auto todo = todos.first();
+
+            VERIFYEXEC(Sink::Store::remove(todo));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+            VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
+
+            auto todos = Sink::Store::read<Todo>(Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)));
+            QCOMPARE(todos.size(), 0);
+        }
     }
 
-    void testModifyEvent()
+    void testModificationConflict()
     {
         VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
-        auto job = Sink::Store::fetchOne<Event>(
-            Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)))
-                       .exec();
-        job.waitForFinished();
-        QVERIFY2(!job.errorCode(), "Fetching Event failed");
-        auto event = job.value();
+        auto calendar = Sink::Store::readOne<Calendar>(Sink::Query{}.filter<Calendar::Name>("personal"));
 
-        auto incidence = KCalCore::ICalFormat().readIncidence(event.getIcal());
-        auto calevent = incidence.dynamicCast<KCalCore::Event>();
-        QVERIFY2(calevent, "Cannot convert to KCalCore event");
+        auto event = QSharedPointer<KCalCore::Event>::create();
+        event->setSummary("Hello");
+        event->setDtStart(QDateTime::currentDateTime());
+        event->setDtEnd(QDateTime::currentDateTime().addSecs(3600));
+        event->setCreated(QDateTime::currentDateTime());
+        auto addedEventUid = QUuid::createUuid().toString();
+        event->setUid(addedEventUid);
 
-        calevent->setSummary("Hello World!");
-        auto dummy = QSharedPointer<KCalCore::Event>(calevent);
-        auto newical = KCalCore::ICalFormat().toICalString(dummy);
+        auto ical = KCalCore::ICalFormat().toICalString(event);
+        Event sinkEvent(mResourceInstanceIdentifier);
+        sinkEvent.setIcal(ical.toUtf8());
+        sinkEvent.setCalendar(calendar);
 
-        event.setIcal(newical.toUtf8());
-
-        VERIFYEXEC(Sink::Store::modify(event));
-
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
-
-        auto verifyEventCountJob = Sink::Store::fetchAll<Event>({}).then(
-            [](const QList<Event::Ptr> &events) { QCOMPARE(events.size(), 1); });
-        VERIFYEXEC(verifyEventCountJob);
-
-        auto verifyEventJob =
-            Sink::Store::fetchOne<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)))
-                .then([](const Event &event) { QCOMPARE(event.getSummary(), {"Hello World!"}); });
-        VERIFYEXEC(verifyEventJob);
-    }
-
-    void testModifyTodo()
-    {
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
-
-        auto job = Sink::Store::fetchOne<Todo>(
-            Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)))
-                       .exec();
-        job.waitForFinished();
-        QVERIFY2(!job.errorCode(), "Fetching Todo failed");
-        auto todo = job.value();
-
-        auto incidence = KCalCore::ICalFormat().readIncidence(todo.getIcal());
-        auto caltodo = incidence.dynamicCast<KCalCore::Todo>();
-        QVERIFY2(caltodo, "Cannot convert to KCalCore todo");
-
-        caltodo->setSummary("Hello World!");
-        auto dummy = QSharedPointer<KCalCore::Todo>(caltodo);
-        auto newical = KCalCore::ICalFormat().toICalString(dummy);
-
-        todo.setIcal(newical.toUtf8());
-
-        VERIFYEXEC(Sink::Store::modify(todo));
-
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
-
-        auto verifyTodoCountJob = Sink::Store::fetchAll<Todo>({}).then(
-            [](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 1); });
-        VERIFYEXEC(verifyTodoCountJob);
-
-        auto verifyTodoJob =
-            Sink::Store::fetchOne<Todo>(Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)))
-                .then([](const Todo &todo) { QCOMPARE(todo.getSummary(), {"Hello World!"}); });
-        VERIFYEXEC(verifyTodoJob);
-    }
-
-    void testSneakyModifyEvent()
-    {
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        VERIFYEXEC(Sink::Store::create(sinkEvent));
+        VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
 
         // Change the item without sink's knowledge
         {
-            auto collection = ([this]() -> KDAV2::DavCollection {
+            auto collection = [&]() -> KDAV2::DavCollection {
                 QUrl url(baseUrl);
                 url.setUserName(username);
                 url.setPassword(password);
@@ -262,8 +350,13 @@ private slots:
                 auto collectionsJob = new KDAV2::DavCollectionsFetchJob(davurl);
                 collectionsJob->exec();
                 Q_ASSERT(collectionsJob->error() == 0);
-                return collectionsJob->collections()[0];
-            })();
+                for (const auto &col : collectionsJob->collections()) {
+                    if (col.displayName() == "personal") {
+                        return col;
+                    }
+                }
+                return {};
+            }();
 
             auto itemList = ([&collection]() -> KDAV2::DavItem::List {
                 auto cache = std::make_shared<KDAV2::EtagCache>();
@@ -273,12 +366,12 @@ private slots:
                 return itemsListJob->items();
             })();
             auto hollowDavItemIt =
-                std::find_if(itemList.begin(), itemList.end(), [this](const KDAV2::DavItem &item) {
+                std::find_if(itemList.begin(), itemList.end(), [&](const KDAV2::DavItem &item) {
                     return item.url().url().path().endsWith(addedEventUid);
                 });
             QVERIFY(hollowDavItemIt != itemList.end());
 
-            auto davitem = ([this, &collection, &hollowDavItemIt]() -> KDAV2::DavItem {
+            auto davitem = ([&]() -> KDAV2::DavItem {
                 QString itemUrl = collection.url().url().toEncoded() + addedEventUid;
                 auto itemFetchJob = new KDAV2::DavItemFetchJob (*hollowDavItemIt);
                 itemFetchJob->exec();
@@ -299,70 +392,22 @@ private slots:
             QVERIFY2(itemModifyJob->error() == 0, "Cannot modify item");
         }
 
-        // Try to change the item with sink
+        //Change the item with sink as well
         {
-            auto job = Sink::Store::fetchOne<Event>(
-                Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)))
-                           .exec();
-            job.waitForFinished();
-            QVERIFY2(!job.errorCode(), "Fetching Event failed");
-            auto event = job.value();
-
-            auto incidence = KCalCore::ICalFormat().readIncidence(event.getIcal());
-            auto calevent = incidence.dynamicCast<KCalCore::Event>();
-            QVERIFY2(calevent, "Cannot convert to KCalCore event");
+            auto event = Sink::Store::readOne<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)));
+            auto calevent = KCalCore::ICalFormat().readIncidence(event.getIcal()).dynamicCast<KCalCore::Event>();
+            QVERIFY(calevent);
 
             calevent->setSummary("Sink Hello World!");
-            auto dummy = QSharedPointer<KCalCore::Event>(calevent);
-            auto newical = KCalCore::ICalFormat().toICalString(dummy);
+            event.setIcal(KCalCore::ICalFormat().toICalString(calevent).toUtf8());
 
-            event.setIcal(newical.toUtf8());
-
-            // TODO: make that fail
+            // TODO: this produced a conflict, but we're not dealing with it in any way
             VERIFYEXEC(Sink::Store::modify(event));
             VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
         }
     }
 
-    void testRemoveEvent()
-    {
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
-        auto job = Sink::Store::fetchOne<Event>(
-            Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)))
-                       .exec();
-        job.waitForFinished();
-        QVERIFY2(!job.errorCode(), "Fetching Event failed");
-        auto event = job.value();
-
-        VERIFYEXEC(Sink::Store::remove(event));
-        VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
-
-        auto verifyEventCountJob = Sink::Store::fetchAll<Event>({}).then(
-            [](const QList<Event::Ptr> &events) { QCOMPARE(events.size(), 0); });
-        VERIFYEXEC(verifyEventCountJob);
-    }
-
-    void testRemoveTodo()
-    {
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
-
-        auto job = Sink::Store::fetchOne<Todo>(
-            Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)))
-                       .exec();
-        job.waitForFinished();
-        QVERIFY2(!job.errorCode(), "Fetching Todo failed");
-        auto todo = job.value();
-
-        VERIFYEXEC(Sink::Store::remove(todo));
-        VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
-
-        auto verifyTodoCountJob = Sink::Store::fetchAll<Todo>({}).then(
-            [](const QList<Todo::Ptr> &todos) { QCOMPARE(todos.size(), 0); });
-        VERIFYEXEC(verifyTodoCountJob);
-    }
 };
 
 QTEST_MAIN(CalDavTest)
