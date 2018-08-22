@@ -116,16 +116,15 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                         } else {
                             // TODO: should not use internal representations
                             const auto key = Storage::Key(Storage::Identifier::fromDisplayByteArray(uid), revision);
-                            const auto internalKey = key.toInternalByteArray();
                             const auto displayKey = key.toDisplayByteArray();
                             QByteArray entityBuffer;
                             DataStore::mainDatabase(mMainStoreTransaction, type)
-                                .scan(internalKey,
-                                    [&entityBuffer](const QByteArray &key, const QByteArray &value) -> bool {
+                                .scan(revision,
+                                    [&entityBuffer](const size_t, const QByteArray &value) -> bool {
                                         entityBuffer = value;
                                         return false;
                                     },
-                                    [this, key](const DataStore::Error &) { SinkErrorCtx(mLogCtx) << "Failed to read the entity buffer " << key; });
+                                    [this, key](const DataStore::Error &e) { SinkErrorCtx(mLogCtx) << "Failed to read the entity buffer " << key << "error:" << e; });
 
                             if (entityBuffer.isEmpty()) {
                                 SinkErrorCtx(mLogCtx) << "Failed to replay change " << key;

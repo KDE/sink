@@ -67,7 +67,7 @@ public:
     static const constexpr size_t INTERNAL_REPR_SIZE = 19;
     static const constexpr size_t DISPLAY_REPR_SIZE = 19;
 
-    Revision(qint64 rev) : rev(rev) {}
+    Revision(size_t rev) : rev(rev) {}
 
     QByteArray toInternalByteArray() const;
     static Revision fromInternalByteArray(const QByteArray &bytes);
@@ -75,6 +75,7 @@ public:
     QByteArray toDisplayByteArray() const;
     static Revision fromDisplayByteArray(const QByteArray &bytes);
     qint64 toQint64() const;
+    size_t toSizeT() const;
 
     static bool isValidInternal(const QByteArray &);
     static bool isValidDisplay(const QByteArray &);
@@ -84,7 +85,7 @@ public:
     bool operator!=(const Revision &other) const;
 
 private:
-    qint64 rev;
+    size_t rev;
 };
 
 class Key

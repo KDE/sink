@@ -38,8 +38,9 @@ using namespace Sink::Storage;
 
 static QMap<QByteArray, int> baseDbs()
 {
-    return {{"revisionType", 0},
-            {"revisions", 0},
+    return {{"revisionType", Storage::IntegerKeys},
+            {"revisions", Storage::IntegerKeys},
+            {"uidsToRevisions", Storage::AllowDuplicates | Storage::IntegerValues},
             {"uids", 0},
             {"default", 0},
             {"__flagtable", 0}};
@@ -242,12 +243,13 @@ bool EntityStore::add(const QByteArray &type, ApplicationDomainType entity, bool
     const auto key = Key(identifier, newRevision);
 
     DataStore::mainDatabase(d->transaction, type)
-        .write(key.toInternalByteArray(), BufferUtils::extractBuffer(fbb),
+        .write(newRevision, BufferUtils::extractBuffer(fbb),
             [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to write entity" << entity.identifier() << newRevision; });
+
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, entity.identifier(), type);
     DataStore::recordUid(d->transaction, entity.identifier(), type);
-    SinkTraceCtx(d->logCtx) << "Wrote entity: " << entity.identifier() << type << newRevision;
+    SinkTraceCtx(d->logCtx) << "Wrote entity: " << key << "of type:" << type;
     return true;
 }
 
@@ -319,8 +321,9 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomainType &cu
     const auto key = Key(identifier, newRevision);
 
     DataStore::mainDatabase(d->transaction, type)
-        .write(key.toInternalByteArray(), BufferUtils::extractBuffer(fbb),
+        .write(newRevision, BufferUtils::extractBuffer(fbb),
             [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to write entity" << newEntity.identifier() << newRevision; });
+
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, newEntity.identifier(), type);
     SinkTraceCtx(d->logCtx) << "Wrote modified entity: " << newEntity.identifier() << type << newRevision;
@@ -356,8 +359,9 @@ bool EntityStore::remove(const QByteArray &type, const ApplicationDomainType &cu
     const auto key = Key(identifier, newRevision);
 
     DataStore::mainDatabase(d->transaction, type)
-        .write(key.toInternalByteArray(), BufferUtils::extractBuffer(fbb),
+        .write(newRevision, BufferUtils::extractBuffer(fbb),
             [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to write entity" << uid << newRevision; });
+
     DataStore::setMaxRevision(d->transaction, newRevision);
     DataStore::recordRevision(d->transaction, newRevision, uid, type);
     DataStore::removeUid(d->transaction, uid, type);
@@ -375,30 +379,33 @@ void EntityStore::cleanupEntityRevisionsUntil(qint64 revision)
     }
     SinkTraceCtx(d->logCtx) << "Cleaning up revision " << revision << uid << bufferType;
     const auto internalUid = Identifier::fromDisplayByteArray(uid).toInternalByteArray();
-    DataStore::mainDatabase(d->transaction, bufferType)
-        .scan(internalUid,
-            [&](const QByteArray &key, const QByteArray &data) -> bool {
-                EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
-                if (!buffer.isValid()) {
-                    SinkWarningCtx(d->logCtx) << "Read invalid buffer from disk";
-                } else {
-                    const auto metadata = flatbuffers::GetRoot<Metadata>(buffer.metadataBuffer());
-                    const qint64 rev = metadata->revision();
-                    const auto isRemoval = metadata->operation() == Operation_Removal;
-                    // Remove old revisions, and the current if the entity has already been removed
-                    if (rev < revision || isRemoval) {
-                        DataStore::removeRevision(d->transaction, rev);
-                        DataStore::mainDatabase(d->transaction, bufferType).remove(key);
-                    }
-                    //Don't cleanup more than specified
-                    if (rev >= revision) {
-                        return false;
-                    }
-                }
 
-                return true;
-            },
-            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error while reading: " << error.message; }, true);
+    // Remove old revisions
+    const auto revisionsToRemove = DataStore::getRevisionsUntilFromUid(d->transaction, uid, revision);
+
+    for (const auto &revisionToRemove : revisionsToRemove) {
+        DataStore::removeRevision(d->transaction, revisionToRemove);
+        DataStore::mainDatabase(d->transaction, bufferType).remove(revisionToRemove);
+    }
+
+    // And remove the specified revision only if marked for removal
+    DataStore::mainDatabase(d->transaction, bufferType).scan(revision, [&](size_t, const QByteArray &data) {
+        EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+        if (!buffer.isValid()) {
+            SinkWarningCtx(d->logCtx) << "Read invalid buffer from disk";
+            return false;
+        }
+
+        const auto metadata = flatbuffers::GetRoot<Metadata>(buffer.metadataBuffer());
+        const qint64 rev = metadata->revision();
+        if (metadata->operation() == Operation_Removal) {
+            DataStore::removeRevision(d->transaction, revision);
+            DataStore::mainDatabase(d->transaction, bufferType).remove(revision);
+        }
+
+        return false;
+    });
+
     DataStore::setCleanedUpRevision(d->transaction, revision);
 }
 
@@ -433,20 +440,12 @@ QVector<Identifier> EntityStore::fullScan(const QByteArray &type)
         SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
         return {};
     }
-    //The scan can return duplicate results if we have multiple revisions, so we use a set to deduplicate.
+
     QSet<Identifier> keys;
-    DataStore::mainDatabase(d->getTransaction(), type)
-        .scan(QByteArray(),
-            [&](const QByteArray &key, const QByteArray &value) -> bool {
-                const auto uid = Sink::Storage::Key::fromInternalByteArray(key).identifier();
-                if (keys.contains(uid)) {
-                    //Not something that should persist if the replay works, so we keep a message for now.
-                    SinkTraceCtx(d->logCtx) << "Multiple revisions for uid: " << Sink::Storage::Key::fromInternalByteArray(key) << ". This is normal if changereplay has not completed yet.";
-                }
-                keys << uid;
-                return true;
-            },
-            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during fullScan query: " << error.message; });
+
+    DataStore::getUids(type, d->getTransaction(), [&keys] (const QByteArray &uid) {
+        keys << Identifier::fromDisplayByteArray(uid);
+    });
 
     SinkTraceCtx(d->logCtx) << "Full scan retrieved " << keys.size() << " results.";
     return keys.toList().toVector();
@@ -492,12 +491,12 @@ void EntityStore::indexLookup(const QByteArray &type, const QByteArray &property
 void EntityStore::readLatest(const QByteArray &type, const Identifier &id, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback)
 {
     Q_ASSERT(d);
-    const auto internalKey = id.toInternalByteArray();
+    const size_t revision = DataStore::getLatestRevisionFromUid(d->getTransaction(), id.toDisplayByteArray());
     auto db = DataStore::mainDatabase(d->getTransaction(), type);
-    db.findLatest(internalKey,
-        [=](const QByteArray &key, const QByteArray &value) {
-            const auto uid = Sink::Storage::Key::fromInternalByteArray(key).identifier().toDisplayByteArray();
-            callback(uid, Sink::EntityBuffer(value.data(), value.size()));
+    db.scan(revision,
+        [=](size_t, const QByteArray &value) {
+            callback(id.toDisplayByteArray(), Sink::EntityBuffer(value.data(), value.size()));
+            return false;
         },
         [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error during readLatest query: " << error.message << id; });
 }
@@ -546,9 +545,9 @@ void EntityStore::readEntity(const QByteArray &type, const QByteArray &displayKe
 {
     const auto key = Key::fromDisplayByteArray(displayKey);
     auto db = DataStore::mainDatabase(d->getTransaction(), type);
-    db.scan(key.toInternalByteArray(),
-        [=](const QByteArray &key, const QByteArray &value) -> bool {
-            const auto uid = Sink::Storage::Key::fromInternalByteArray(key).identifier().toDisplayByteArray();
+    db.scan(key.revision().toSizeT(),
+        [=](size_t rev, const QByteArray &value) -> bool {
+            const auto uid = DataStore::getUidFromRevision(d->transaction, rev);
             callback(uid, Sink::EntityBuffer(value.data(), value.size()));
             return false;
         },
@@ -604,18 +603,8 @@ void EntityStore::readRevisions(qint64 baseRevision, const QByteArray &expectedT
 
 void EntityStore::readPrevious(const QByteArray &type, const Identifier &id, qint64 revision, const std::function<void(const QByteArray &uid, const EntityBuffer &entity)> callback)
 {
-    auto db = DataStore::mainDatabase(d->getTransaction(), type);
-    qint64 latestRevision = 0;
-    const auto internalUid = id.toInternalByteArray();
-    db.scan(internalUid,
-        [&latestRevision, revision](const QByteArray &key, const QByteArray &) -> bool {
-            const auto foundRevision = Key::fromInternalByteArray(key).revision().toQint64();
-            if (foundRevision < revision && foundRevision > latestRevision) {
-                latestRevision = foundRevision;
-            }
-            return true;
-        },
-        [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read current value from storage: " << error.message; }, true);
+    const auto previousRevisions = DataStore::getRevisionsUntilFromUid(d->getTransaction(), id.toDisplayByteArray(), revision);
+    const size_t latestRevision = previousRevisions[previousRevisions.size() - 1];
     const auto key = Key(id, latestRevision);
     readEntity(type, key.toDisplayByteArray(), callback);
 }
@@ -641,21 +630,20 @@ void EntityStore::readAllUids(const QByteArray &type, const std::function<void(c
     DataStore::getUids(type, d->getTransaction(), callback);
 }
 
-bool EntityStore::contains(const QByteArray &type, const QByteArray &uid)
+bool EntityStore::contains(const QByteArray & /* type */, const QByteArray &uid)
 {
     Q_ASSERT(!uid.isEmpty());
-    const auto internalUid = Identifier::fromDisplayByteArray(uid).toInternalByteArray();
-    return DataStore::mainDatabase(d->getTransaction(), type).contains(internalUid);
+    return !DataStore::getRevisionsFromUid(d->getTransaction(), uid).isEmpty();
 }
 
 bool EntityStore::exists(const QByteArray &type, const QByteArray &uid)
 {
     bool found = false;
     bool alreadyRemoved = false;
-    const auto internalUid = Identifier::fromDisplayByteArray(uid).toInternalByteArray();
+    const size_t revision = DataStore::getLatestRevisionFromUid(d->getTransaction(), uid);
     DataStore::mainDatabase(d->transaction, type)
-        .findLatest(internalUid,
-            [&found, &alreadyRemoved](const QByteArray &key, const QByteArray &data) {
+        .scan(revision,
+            [&found, &alreadyRemoved](size_t, const QByteArray &data) {
                 auto entity = GetEntity(data.data());
                 if (entity && entity->metadata()) {
                     auto metadata = GetMetadata(entity->metadata()->Data());
@@ -664,6 +652,7 @@ bool EntityStore::exists(const QByteArray &type, const QByteArray &uid)
                         alreadyRemoved = true;
                     }
                 }
+                return true;
             },
             [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to read old revision from storage: " << error.message; });
     if (!found) {
@@ -677,23 +666,32 @@ bool EntityStore::exists(const QByteArray &type, const QByteArray &uid)
     return true;
 }
 
-void EntityStore::readRevisions(const QByteArray &type, const QByteArray &uid, qint64 startingRevision, const std::function<void(const QByteArray &uid, qint64 revision, const EntityBuffer &entity)> callback)
+void EntityStore::readRevisions(const QByteArray &type, const QByteArray &uid, qint64 startingRevision,
+    const std::function<void(const QByteArray &uid, qint64 revision, const EntityBuffer &entity)> callback)
 {
     Q_ASSERT(d);
     Q_ASSERT(!uid.isEmpty());
-    const auto internalUid = Identifier::fromDisplayByteArray(uid).toInternalByteArray();
-    DataStore::mainDatabase(d->transaction, type)
-        .scan(internalUid,
-            [&](const QByteArray &key, const QByteArray &value) -> bool {
-                const auto parsedKey = Key::fromInternalByteArray(key);
-                const auto revision = parsedKey.revision().toQint64();
-                if (revision >= startingRevision) {
-                    callback(parsedKey.identifier().toDisplayByteArray(), revision, Sink::EntityBuffer(value.data(), value.size()));
-                }
-                return true;
-            },
-            [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Error while reading: " << error.message; }, true);
 
+    const auto revisions = DataStore::getRevisionsFromUid(d->transaction, uid);
+
+    const auto db = DataStore::mainDatabase(d->transaction, type);
+
+    for (const auto revision : revisions) {
+        if (revision < startingRevision) {
+            continue;
+        }
+
+        db.scan(revision,
+            [&](size_t rev, const QByteArray &value) {
+                Q_ASSERT(rev == revision);
+                callback(uid, revision, Sink::EntityBuffer(value.data(), value.size()));
+                return false;
+            },
+            [&](const DataStore::Error &error) {
+                SinkWarningCtx(d->logCtx) << "Error while reading: " << error.message;
+            },
+            true);
+    }
 }
 
 qint64 EntityStore::maxRevision()

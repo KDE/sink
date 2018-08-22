@@ -48,6 +48,10 @@ static QMutex sCreateDbiLock;
 static QHash<QString, MDB_env *> sEnvironments;
 static QHash<QString, MDB_dbi> sDbis;
 
+int AllowDuplicates = MDB_DUPSORT;
+int IntegerKeys = MDB_INTEGERKEY;
+int IntegerValues = MDB_INTEGERDUP;
+
 int getErrorCode(int e)
 {
     switch (e) {
@@ -101,14 +105,8 @@ static QList<QByteArray> getDatabaseNames(MDB_txn *transaction)
  * and we always need to commit the transaction ASAP
  * We can only ever enter from one point per process.
  */
-static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly, bool allowDuplicates, MDB_dbi &dbi)
+static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly, int flags, MDB_dbi &dbi)
 {
-
-    unsigned int flags = 0;
-    if (allowDuplicates) {
-        flags |= MDB_DUPSORT;
-    }
-
     MDB_dbi flagtableDbi;
     if (const int rc = mdb_dbi_open(transaction, "__flagtable", readOnly ? 0 : MDB_CREATE, &flagtableDbi)) {
         if (!readOnly) {
@@ -128,6 +126,10 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
             const auto ba = QByteArray::fromRawData((char *)value.mv_data, value.mv_size);
             flags = ba.toInt();
         }
+    }
+
+    if (flags & IntegerValues && !(flags & AllowDuplicates)) {
+        SinkWarning() << "Opening a database with integer values, but not duplicate keys";
     }
 
     if (const int rc = mdb_dbi_open(transaction, db.constData(), flags, &dbi)) {
@@ -165,7 +167,7 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
             //Store the flags without the create option
             const auto ba = QByteArray::number(flags);
             value.mv_data = const_cast<void*>(static_cast<const void*>(ba.constData()));
-            value.mv_size = db.size();
+            value.mv_size = ba.size();
             if (const int rc = mdb_put(transaction, flagtableDbi, &key, &value, MDB_NOOVERWRITE)) {
                 //We expect this to fail if we're only creating the dbi but not the db
                 if (rc != MDB_KEYEXIST) {
@@ -175,7 +177,7 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
         } else {
             //It's not an error if we only want to read
             if (!readOnly) {
-                SinkWarning() << "Failed to open db " << QByteArray(mdb_strerror(rc));
+                SinkWarning() << "Failed to open db " << db << "error:" << QByteArray(mdb_strerror(rc));
                 return true;
             }
             return false;
@@ -187,8 +189,14 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
 class DataStore::NamedDatabase::Private
 {
 public:
-    Private(const QByteArray &_db, bool _allowDuplicates, const std::function<void(const DataStore::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_txn *_txn)
-        : db(_db), transaction(_txn), allowDuplicates(_allowDuplicates), defaultErrorHandler(_defaultErrorHandler), name(_name)
+    Private(const QByteArray &_db, int _flags,
+        const std::function<void(const DataStore::Error &error)> &_defaultErrorHandler,
+        const QString &_name, MDB_txn *_txn)
+        : db(_db),
+          transaction(_txn),
+          flags(_flags),
+          defaultErrorHandler(_defaultErrorHandler),
+          name(_name)
     {
     }
 
@@ -199,7 +207,7 @@ public:
     QByteArray db;
     MDB_txn *transaction;
     MDB_dbi dbi;
-    bool allowDuplicates;
+    int flags;
     std::function<void(const DataStore::Error &error)> defaultErrorHandler;
     QString name;
     bool createdNewDbi = false;
@@ -313,7 +321,7 @@ public:
         } else {
             dbiTransaction = transaction;
         }
-        if (createDbi(dbiTransaction, db, readOnly, allowDuplicates, dbi)) {
+        if (createDbi(dbiTransaction, db, readOnly, flags, dbi)) {
             if (readOnly) {
                 mdb_txn_commit(dbiTransaction);
                 Q_ASSERT(!sDbis.contains(dbiName));
@@ -371,6 +379,12 @@ DataStore::NamedDatabase::~NamedDatabase()
     delete d;
 }
 
+bool DataStore::NamedDatabase::write(const size_t key, const QByteArray &value,
+    const std::function<void(const DataStore::Error &error)> &errorHandler)
+{
+    return write(sizeTToByteArray(key), value, errorHandler);
+}
+
 bool DataStore::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sValue, const std::function<void(const DataStore::Error &error)> &errorHandler)
 {
     if (!d || !d->transaction) {
@@ -407,9 +421,21 @@ bool DataStore::NamedDatabase::write(const QByteArray &sKey, const QByteArray &s
     return !rc;
 }
 
+void DataStore::NamedDatabase::remove(
+    const size_t key, const std::function<void(const DataStore::Error &error)> &errorHandler)
+{
+    return remove(sizeTToByteArray(key), errorHandler);
+}
+
 void DataStore::NamedDatabase::remove(const QByteArray &k, const std::function<void(const DataStore::Error &error)> &errorHandler)
 {
     remove(k, QByteArray(), errorHandler);
+}
+
+void DataStore::NamedDatabase::remove(const size_t key, const QByteArray &value,
+    const std::function<void(const DataStore::Error &error)> &errorHandler)
+{
+    return remove(sizeTToByteArray(key), value, errorHandler);
 }
 
 void DataStore::NamedDatabase::remove(const QByteArray &k, const QByteArray &value, const std::function<void(const DataStore::Error &error)> &errorHandler)
@@ -445,6 +471,17 @@ void DataStore::NamedDatabase::remove(const QByteArray &k, const QByteArray &val
     }
 }
 
+int DataStore::NamedDatabase::scan(const size_t key,
+    const std::function<bool(size_t key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const DataStore::Error &error)> &errorHandler, bool skipInternalKeys) const
+{
+    return scan(sizeTToByteArray(key),
+        [&resultHandler](const QByteArray &key, const QByteArray &value) {
+            return resultHandler(byteArrayToSizeT(key), value);
+        },
+        errorHandler, /* findSubstringKeys = */ false, skipInternalKeys);
+}
+
 int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
     const std::function<void(const DataStore::Error &error)> &errorHandler, bool findSubstringKeys, bool skipInternalKeys) const
 {
@@ -471,8 +508,10 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
 
     int numberOfRetrievedValues = 0;
 
-    if (k.isEmpty() || d->allowDuplicates || findSubstringKeys) {
-        MDB_cursor_op op = d->allowDuplicates ? MDB_SET : MDB_FIRST;
+    bool allowDuplicates = d->flags & AllowDuplicates;
+
+    if (k.isEmpty() || allowDuplicates || findSubstringKeys) {
+        MDB_cursor_op op = allowDuplicates ? MDB_SET : MDB_FIRST;
         if (findSubstringKeys) {
             op = MDB_SET_RANGE;
         }
@@ -490,7 +529,7 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
                         key.mv_data = (void *)k.constData();
                         key.mv_size = k.size();
                     }
-                    MDB_cursor_op nextOp = (d->allowDuplicates && !findSubstringKeys) ? MDB_NEXT_DUP : MDB_NEXT;
+                    MDB_cursor_op nextOp = (allowDuplicates && !findSubstringKeys) ? MDB_NEXT_DUP : MDB_NEXT;
                     while ((rc = mdb_cursor_get(cursor, &key, &data, nextOp)) == 0) {
                         const auto current = QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
                         // Every consequitive lookup simply iterates through the list
@@ -527,6 +566,18 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
     }
 
     return numberOfRetrievedValues;
+}
+
+
+void DataStore::NamedDatabase::findLatest(size_t key,
+    const std::function<void(size_t key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const DataStore::Error &error)> &errorHandler) const
+{
+    return findLatest(sizeTToByteArray(key),
+        [&resultHandler](const QByteArray &key, const QByteArray &value) {
+            resultHandler(byteArrayToSizeT(value), value);
+        },
+        errorHandler);
 }
 
 void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
@@ -600,6 +651,17 @@ void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::functi
     }
 
     return;
+}
+
+int DataStore::NamedDatabase::findAllInRange(const size_t lowerBound, const size_t upperBound,
+    const std::function<void(size_t key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const DataStore::Error &error)> &errorHandler) const
+{
+    return findAllInRange(sizeTToByteArray(lowerBound), sizeTToByteArray(upperBound),
+        [&resultHandler](const QByteArray &key, const QByteArray &value) {
+            resultHandler(byteArrayToSizeT(value), value);
+        },
+        errorHandler);
 }
 
 int DataStore::NamedDatabase::findAllInRange(const QByteArray &lowerBound, const QByteArray &upperBound,
@@ -839,30 +901,8 @@ void DataStore::Transaction::abort()
     d->transaction = nullptr;
 }
 
-//Ensure that we opened the correct database by comparing the expected identifier with the one
-//we write to the database on first open.
-static bool ensureCorrectDb(DataStore::NamedDatabase &database, const QByteArray &db, bool readOnly)
-{
-    bool openedTheWrongDatabase = false;
-    auto count = database.scan("__internal_dbname", [db, &openedTheWrongDatabase](const QByteArray &key, const QByteArray &value) ->bool {
-        if (value != db) {
-            SinkWarning() << "Opened the wrong database, got " << value << " instead of " << db;
-            openedTheWrongDatabase = true;
-        }
-        return false;
-    },
-    [&](const DataStore::Error &) {
-    }, false);
-    //This is the first time we open this database in a write transaction, write the db name
-    if (!count) {
-        if (!readOnly) {
-            database.write("__internal_dbname", db);
-        }
-    }
-    return !openedTheWrongDatabase;
-}
-
-DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &db, const std::function<void(const DataStore::Error &error)> &errorHandler, bool allowDuplicates) const
+DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &db,
+    const std::function<void(const DataStore::Error &error)> &errorHandler, int flags) const
 {
     if (!d) {
         SinkError() << "Tried to open database on invalid transaction: " << db;
@@ -871,7 +911,8 @@ DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &
     Q_ASSERT(d->transaction);
     // We don't now if anything changed
     d->implicitCommit = true;
-    auto p = new DataStore::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
+    auto p = new DataStore::NamedDatabase::Private(
+        db, flags, d->defaultErrorHandler, d->name, d->transaction);
     auto ret = p->openDatabase(d->requestedRead, errorHandler);
     if (!ret) {
         delete p;
@@ -883,11 +924,6 @@ DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &
     }
 
     auto database = DataStore::NamedDatabase(p);
-    if (!ensureCorrectDb(database, db, d->requestedRead)) {
-        SinkWarning() << "Failed to open the database correctly" << db;
-        Q_ASSERT(false);
-        return DataStore::NamedDatabase();
-    }
     return database;
 }
 
@@ -1049,11 +1085,11 @@ public:
 
                             //Create dbis from the given layout.
                             for (auto it = layout.tables.constBegin(); it != layout.tables.constEnd(); it++) {
-                                const bool allowDuplicates = it.value();
+                                const int flags = it.value();
                                 MDB_dbi dbi = 0;
                                 const auto db = it.key();
                                 const auto dbiName = name + db;
-                                if (createDbi(transaction, db, readOnly, allowDuplicates, dbi)) {
+                                if (createDbi(transaction, db, readOnly, flags, dbi)) {
                                     sDbis.insert(dbiName, dbi);
                                 }
                             }
@@ -1063,8 +1099,8 @@ public:
                                 MDB_dbi dbi = 0;
                                 const auto dbiName = name + db;
                                 //We're going to load the flags anyways.
-                                bool allowDuplicates = false;
-                                if (createDbi(transaction, db, readOnly, allowDuplicates, dbi)) {
+                                const int flags = 0;
+                                if (createDbi(transaction, db, readOnly, flags, dbi)) {
                                     sDbis.insert(dbiName, dbi);
                                 }
                             }

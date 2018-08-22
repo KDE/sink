@@ -117,26 +117,69 @@ qint64 DataStore::cleanedUpRevision(const DataStore::Transaction &transaction)
     return r;
 }
 
-QByteArray DataStore::getUidFromRevision(const DataStore::Transaction &transaction, qint64 revision)
+QByteArray DataStore::getUidFromRevision(const DataStore::Transaction &transaction, size_t revision)
 {
     QByteArray uid;
-    transaction.openDatabase("revisions")
-        .scan(QByteArray::number(revision),
-            [&](const QByteArray &, const QByteArray &value) -> bool {
-                uid = QByteArray{value.constData(), value.size()};
+    transaction
+        .openDatabase("revisions", /* errorHandler = */ {}, IntegerKeys)
+        .scan(revision,
+            [&](const size_t, const QByteArray &value) -> bool {
+                uid = QByteArray{ value.constData(), value.size() };
                 return false;
             },
-            [revision](const Error &error) { SinkWarning() << "Couldn't find uid for revision: " << revision << error.message; });
+            [revision](const Error &error) {
+                SinkWarning() << "Couldn't find uid for revision: " << revision << error.message;
+            });
     Q_ASSERT(!uid.isEmpty());
     return uid;
 }
 
-QByteArray DataStore::getTypeFromRevision(const DataStore::Transaction &transaction, qint64 revision)
+size_t DataStore::getLatestRevisionFromUid(DataStore::Transaction &t, const QByteArray &uid)
+{
+    size_t revision;
+    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
+        .findLatest(uid, [&revision](const QByteArray &key, const QByteArray &value) {
+            revision = byteArrayToSizeT(value);
+        });
+
+    return revision;
+}
+
+QList<size_t> DataStore::getRevisionsUntilFromUid(DataStore::Transaction &t, const QByteArray &uid, size_t lastRevision)
+{
+    QList<size_t> queriedRevisions;
+    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
+        .scan(uid, [&queriedRevisions, lastRevision](const QByteArray &, const QByteArray &value) {
+            size_t currentRevision = byteArrayToSizeT(value);
+            if (currentRevision < lastRevision) {
+                queriedRevisions << currentRevision;
+                return true;
+            }
+
+            return false;
+        });
+
+    return queriedRevisions;
+}
+
+QList<size_t> DataStore::getRevisionsFromUid(DataStore::Transaction &t, const QByteArray &uid)
+{
+    QList<size_t> queriedRevisions;
+    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
+        .scan(uid, [&queriedRevisions](const QByteArray &, const QByteArray &value) {
+            queriedRevisions << byteArrayToSizeT(value);
+            return true;
+        });
+
+    return queriedRevisions;
+}
+
+QByteArray DataStore::getTypeFromRevision(const DataStore::Transaction &transaction, size_t revision)
 {
     QByteArray type;
-    transaction.openDatabase("revisionType")
-        .scan(QByteArray::number(revision),
-            [&](const QByteArray &, const QByteArray &value) -> bool {
+    transaction.openDatabase("revisionType", /* errorHandler = */ {}, IntegerKeys)
+        .scan(revision,
+            [&](const size_t, const QByteArray &value) -> bool {
                 type = QByteArray{value.constData(), value.size()};
                 return false;
             },
@@ -145,17 +188,31 @@ QByteArray DataStore::getTypeFromRevision(const DataStore::Transaction &transact
     return type;
 }
 
-void DataStore::recordRevision(DataStore::Transaction &transaction, qint64 revision, const QByteArray &uid, const QByteArray &type)
+void DataStore::recordRevision(DataStore::Transaction &transaction, size_t revision,
+    const QByteArray &uid, const QByteArray &type)
 {
-    // TODO use integerkeys
-    transaction.openDatabase("revisions").write(QByteArray::number(revision), uid);
-    transaction.openDatabase("revisionType").write(QByteArray::number(revision), type);
+    transaction
+        .openDatabase("revisions", /* errorHandler = */ {}, IntegerKeys)
+        .write(revision, uid);
+    transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues)
+        .write(uid, sizeTToByteArray(revision));
+    transaction
+        .openDatabase("revisionType", /* errorHandler = */ {}, IntegerKeys)
+        .write(revision, type);
 }
 
-void DataStore::removeRevision(DataStore::Transaction &transaction, qint64 revision)
+void DataStore::removeRevision(DataStore::Transaction &transaction, size_t revision)
 {
-    transaction.openDatabase("revisions").remove(QByteArray::number(revision));
-    transaction.openDatabase("revisionType").remove(QByteArray::number(revision));
+    const QByteArray uid = getUidFromRevision(transaction, revision);
+
+    transaction
+        .openDatabase("revisions", /* errorHandler = */ {}, IntegerKeys)
+        .remove(revision);
+    transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues)
+        .remove(uid, sizeTToByteArray(revision));
+    transaction
+        .openDatabase("revisionType", /* errorHandler = */ {}, IntegerKeys)
+        .remove(revision);
 }
 
 void DataStore::recordUid(DataStore::Transaction &transaction, const QByteArray &uid, const QByteArray &type)
@@ -174,6 +231,18 @@ void DataStore::getUids(const QByteArray &type, const Transaction &transaction, 
         callback(key);
         return true;
     });
+}
+
+bool DataStore::hasUid(const QByteArray &type, const Transaction &transaction, const QByteArray &uid)
+{
+    bool hasTheUid = false;
+    transaction.openDatabase(type + "uids").scan(uid, [&](const QByteArray &key, const QByteArray &) {
+        Q_ASSERT(uid == key);
+        hasTheUid = true;
+        return false;
+    });
+
+    return hasTheUid;
 }
 
 bool DataStore::isInternalKey(const char *key)
@@ -207,7 +276,7 @@ DataStore::NamedDatabase DataStore::mainDatabase(const DataStore::Transaction &t
         Q_ASSERT(false);
         return {};
     }
-    return t.openDatabase(type + ".main");
+    return t.openDatabase(type + ".main", /* errorHandler= */ {}, IntegerKeys);
 }
 
 bool DataStore::NamedDatabase::contains(const QByteArray &uid)

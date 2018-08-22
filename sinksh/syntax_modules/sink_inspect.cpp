@@ -87,13 +87,13 @@ bool inspect(const QStringList &args, State &state)
                 [&] (const Sink::Storage::DataStore::Error &e) {
                     Q_ASSERT(false);
                     state.printError(e.message);
-                }, false);
+                }, Sink::Storage::IntegerKeys);
 
         auto ridMap = syncTransaction.openDatabase("localid.mapping." + type,
                 [&] (const Sink::Storage::DataStore::Error &e) {
                     Q_ASSERT(false);
                     state.printError(e.message);
-                }, false);
+                });
 
         QHash<QByteArray, QByteArray> hash;
 
@@ -108,7 +108,8 @@ bool inspect(const QStringList &args, State &state)
 
         QSet<QByteArray> uids;
         db.scan("", [&] (const QByteArray &key, const QByteArray &data) {
-                    uids.insert(Key::fromInternalByteArray(key).identifier().toDisplayByteArray());
+                    size_t revision = Sink::byteArrayToSizeT(key);
+                    uids.insert(Sink::Storage::DataStore::getUidFromRevision(transaction, revision));
                     return true;
                 },
                 [&](const Sink::Storage::DataStore::Error &e) {
@@ -180,7 +181,7 @@ bool inspect(const QStringList &args, State &state)
             [&] (const Sink::Storage::DataStore::Error &e) {
                 Q_ASSERT(false);
                 state.printError(e.message);
-            }, false);
+            });
 
     if (showInternal) {
         //Print internal keys

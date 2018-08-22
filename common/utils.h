@@ -26,6 +26,20 @@ namespace Sink {
 
 QByteArray createUuid();
 
+// No copy is done on this functions. Therefore, the caller must not use the
+// returned QByteArray after the size_t has been destroyed.
+const QByteArray sizeTToByteArray(const size_t &);
+size_t byteArrayToSizeT(const QByteArray &);
+
+template <typename T>
+static QByteArray padNumber(T number);
+
+template <>
+QByteArray padNumber<size_t>(size_t number)
+{
+    return padNumber<qint64>(number);
+}
+
 template <typename T>
 static QByteArray padNumber(T number)
 {

@@ -155,6 +155,11 @@ qint64 Revision::toQint64() const
     return rev;
 }
 
+size_t Revision::toSizeT() const
+{
+    return rev;
+}
+
 bool Revision::isValidInternal(const QByteArray &bytes)
 {
     if (bytes.size() != Revision::INTERNAL_REPR_SIZE) {
