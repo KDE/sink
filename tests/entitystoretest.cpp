@@ -39,6 +39,16 @@ private slots:
         auto mail = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::Mail>("res1");
         mail.setExtractedMessageId("messageid");
         mail.setExtractedSubject("boo");
+        /*
+         * FIXME This triggers "Error while removing value:  "f" "\n\xAE\xDC\xA8|xH\x92\x95\xCC\r\xA7\xAF\xDB}\x9E" "Error on mdb_del: -30798 MDB_NOTFOUND: No matching key/data pair found" Code:  4 Db:  "resourceIdmail.index.draft"":
+         *
+         * We don't apply the defaults as we should initially, because we don't go via the flatbuffer file that contains the defaults in the first place. This results in this particular case in the draft flag to be invalid instead of false, and thus we end up trying to modify something different in the index than what we added originally.
+         * This is true for both create and remove. In the modify case we then get the correct defaults because we load the latest revision from disk, which is based on the flatbuffers file
+         * 
+         * We now just use setDraft to initialize the entity and get rid of the message. We would of course have to do this for all indexed properties,
+         * but we really have to find a better solution than that.
+         */
+        mail.setDraft(false);
 
         auto mail2 = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::Mail>("res1");
         mail2.setExtractedMessageId("messageid2");
