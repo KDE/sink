@@ -7,6 +7,7 @@ table Event {
   startTime:string;
   endTime:string;
   allDay:bool;
+  recurring:bool;
   ical:string;
   calendar:string;
 }

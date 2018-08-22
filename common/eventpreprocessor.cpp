@@ -48,6 +48,7 @@ void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteA
     event.setExtractedStartTime(icalEvent->dtStart());
     event.setExtractedEndTime(icalEvent->dtEnd());
     event.setExtractedAllDay(icalEvent->allDay());
+    event.setExtractedRecurring(icalEvent->recurs());
 }
 
 void EventPropertyExtractor::newEntity(Event &event)
