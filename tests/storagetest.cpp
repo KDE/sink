@@ -802,8 +802,8 @@ private slots:
         });
 
         QCOMPARE(numValues, 1);
-        QCOMPARE(resultKey, 0);
-        QCOMPARE(result, "value1");
+        QCOMPARE(resultKey, {0});
+        QCOMPARE(result, QByteArray{"value1"});
 
         int numValues2 = db.scan(1, [&](size_t key, const QByteArray &value) -> bool {
             resultKey = key;
@@ -812,8 +812,8 @@ private slots:
         });
 
         QCOMPARE(numValues2, 1);
-        QCOMPARE(resultKey, 1);
-        QCOMPARE(result, "value2");
+        QCOMPARE(resultKey, {1});
+        QCOMPARE(result, QByteArray{"value2"});
     }
 
     void testDuplicateIntegerKeys()
@@ -901,8 +901,8 @@ private slots:
                 return false;
             });
 
-            QCOMPARE(resultKey, 0x100);
-            QCOMPARE(resultValue, "hello");
+            QCOMPARE(resultKey, {0x100});
+            QCOMPARE(resultValue, QByteArray{"hello"});
         }
     }
 
