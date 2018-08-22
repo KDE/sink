@@ -98,6 +98,8 @@ private slots:
         auto mail = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::Mail>("res1");
         mail.setExtractedMessageId("messageid");
         mail.setExtractedSubject("boo");
+        //FIXME see above
+        mail.setDraft(false);
 
         auto mail2 = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::Mail>("res1");
         mail2.setExtractedMessageId("messageid2");
@@ -143,6 +145,8 @@ private slots:
         auto mail = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::Mail>("res1");
         mail.setExtractedMessageId("messageid");
         mail.setExtractedSubject("boo");
+        //FIXME see above
+        mail.setDraft(false);
 
         auto mail2 = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::Mail>("res1");
         mail2.setExtractedMessageId("messageid2");
