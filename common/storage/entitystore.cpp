@@ -318,8 +318,6 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomainType &cu
     flatbuffers::FlatBufferBuilder fbb;
     d->resourceContext.adaptorFactory(type).createBuffer(newEntity, fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize());
 
-    const auto key = Key(identifier, newRevision);
-
     DataStore::mainDatabase(d->transaction, type)
         .write(newRevision, BufferUtils::extractBuffer(fbb),
             [&](const DataStore::Error &error) { SinkWarningCtx(d->logCtx) << "Failed to write entity" << newEntity.identifier() << newRevision; });
@@ -355,8 +353,6 @@ bool EntityStore::remove(const QByteArray &type, const ApplicationDomainType &cu
 
     flatbuffers::FlatBufferBuilder fbb;
     EntityBuffer::assembleEntityBuffer(fbb, metadataFbb.GetBufferPointer(), metadataFbb.GetSize(), 0, 0, 0, 0);
-
-    const auto key = Key(identifier, newRevision);
 
     DataStore::mainDatabase(d->transaction, type)
         .write(newRevision, BufferUtils::extractBuffer(fbb),
@@ -397,7 +393,6 @@ void EntityStore::cleanupEntityRevisionsUntil(qint64 revision)
         }
 
         const auto metadata = flatbuffers::GetRoot<Metadata>(buffer.metadataBuffer());
-        const qint64 rev = metadata->revision();
         if (metadata->operation() == Operation_Removal) {
             DataStore::removeRevision(d->transaction, revision);
             DataStore::mainDatabase(d->transaction, bufferType).remove(revision);
@@ -677,7 +672,7 @@ void EntityStore::readRevisions(const QByteArray &type, const QByteArray &uid, q
     const auto db = DataStore::mainDatabase(d->transaction, type);
 
     for (const auto revision : revisions) {
-        if (revision < startingRevision) {
+        if (revision < static_cast<size_t>(startingRevision)) {
             continue;
         }
 
