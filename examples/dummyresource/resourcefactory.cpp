@@ -33,6 +33,7 @@
 #include "synchronizer.h"
 #include "inspector.h"
 #include "mailpreprocessor.h"
+#include "eventpreprocessor.h"
 #include "specialpurposepreprocessor.h"
 #include <QDate>
 
@@ -161,12 +162,9 @@ DummyResource::DummyResource(const Sink::ResourceContext &resourceContext, const
 {
     setupSynchronizer(QSharedPointer<DummySynchronizer>::create(resourceContext));
     setupInspector(QSharedPointer<DummyInspector>::create(resourceContext));
-    setupPreprocessors(ENTITY_TYPE_MAIL,
-            QVector<Sink::Preprocessor*>() << new MailPropertyExtractor << new SpecialPurposeProcessor);
-    setupPreprocessors(ENTITY_TYPE_FOLDER,
-            QVector<Sink::Preprocessor*>());
-    setupPreprocessors(ENTITY_TYPE_EVENT,
-            QVector<Sink::Preprocessor*>());
+    setupPreprocessors(ENTITY_TYPE_MAIL, {new MailPropertyExtractor, new SpecialPurposeProcessor});
+    setupPreprocessors(ENTITY_TYPE_FOLDER, {});
+    setupPreprocessors(ENTITY_TYPE_EVENT, {new EventPropertyExtractor});
 }
 
 DummyResource::~DummyResource()
