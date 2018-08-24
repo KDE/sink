@@ -22,6 +22,7 @@ target_link_libraries(sink_test
     Qt5::Concurrent
     Qt5::Test
     KF5::Mime
+    KF5::CalendarCore
 )
 
 add_executable(dbwriter dbwriter.cpp)

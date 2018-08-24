@@ -21,25 +21,15 @@
 #include "eventpreprocessor.h"
 
 #include <KCalCore/ICalFormat>
+#include <QDateTime>
 
 void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteArray &rawIcal)
 {
-    auto incidence = KCalCore::ICalFormat().readIncidence(rawIcal);
-
-    if(!incidence) {
-        SinkWarning() << "Invalid ICal to process, ignoring...";
+    auto icalEvent = KCalCore::ICalFormat().readIncidence(rawIcal).dynamicCast<KCalCore::Event>();
+    if(!icalEvent) {
+        SinkWarning() << "Invalid ICal to process, ignoring: " << rawIcal;
         return;
     }
-
-    if(incidence->type() != KCalCore::IncidenceBase::IncidenceType::TypeEvent) {
-        SinkWarning() << "ICal to process is not of type `Event`, ignoring...";
-        return;
-    }
-
-    auto icalEvent = dynamic_cast<const KCalCore::Event *>(incidence.data());
-    // Should be guaranteed by the incidence->type() condition above.
-    Q_ASSERT(icalEvent);
-
     SinkTrace() << "Extracting properties for event:" << icalEvent->summary();
 
     event.setExtractedUid(icalEvent->uid());
@@ -49,6 +39,16 @@ void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteA
     event.setExtractedEndTime(icalEvent->dtEnd());
     event.setExtractedAllDay(icalEvent->allDay());
     event.setExtractedRecurring(icalEvent->recurs());
+
+    QList<QPair<QDateTime, QDateTime>> periods;
+    if (icalEvent->recurs() && icalEvent->recurrence()) {
+        const auto duration = icalEvent->hasDuration() ? icalEvent->duration().asSeconds() : 0;
+        const auto occurrences = icalEvent->recurrence()->timesInInterval(icalEvent->dtStart(), icalEvent->dtStart().addYears(20));
+        for (const auto &start : occurrences) {
+            periods.append(qMakePair(start, start.addSecs(duration)));
+        }
+    }
+    event.setProperty("indexPeriods", QVariant::fromValue(periods));
 }
 
 void EventPropertyExtractor::newEntity(Event &event)

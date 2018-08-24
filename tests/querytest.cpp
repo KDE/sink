@@ -18,6 +18,8 @@
 #include "fulltextindex.h"
 
 #include <KMime/Message>
+#include <KCalCore/Event>
+#include <KCalCore/ICalFormat>
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -1955,6 +1957,31 @@ private slots:
             QTRY_COMPARE(model->rowCount(), 5);
         }
 
+    }
+
+    void testRecurringEvents()
+    {
+        auto icalEvent = KCalCore::Event::Ptr::create();
+        icalEvent->setSummary("test");
+        icalEvent->setDtStart(QDateTime::fromString("2018-05-10T13:00:00Z", Qt::ISODate));
+        icalEvent->setDtEnd(QDateTime::fromString("2018-05-10T14:00:00Z", Qt::ISODate));
+        icalEvent->recurrence()->setWeekly(1);
+
+        Event event("sink.dummy.instance1");
+        event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+        VERIFYEXEC(Sink::Store::create(event));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Sink::Query query;
+        query.resourceFilter("sink.dummy.instance1");
+        query.setFlags(Query::LiveQuery);
+        query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
+            QVariantList{ QDateTime::fromString("2018-05-15T12:00:00Z", Qt::ISODate),
+                QDateTime::fromString("2018-05-30T13:00:00Z", Qt::ISODate) },
+            QueryBase::Comparator::Overlap));
+        auto model = Sink::Store::loadModel<Event>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
     }
 
 };

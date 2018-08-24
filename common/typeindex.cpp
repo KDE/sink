@@ -208,6 +208,10 @@ void TypeIndex::updateIndex(Action action, const Identifier &identifier, const S
         const auto endValue   = entity.getProperty(properties.second);
         auto indexer = mSampledPeriodIndexer.value(properties);
         indexer(action, identifier, beginValue, endValue, transaction);
+        const auto list = entity.getProperty("indexPeriods").value<QList<QPair<QDateTime, QDateTime>>>();
+        for (const auto &period : list) {
+            indexer(action, identifier, period.first, period.second, transaction);
+        }
     }
     for (const auto &property : mSortedProperties) {
         const auto value = entity.getProperty(property);
