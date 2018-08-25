@@ -43,7 +43,7 @@ void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteA
     QList<QPair<QDateTime, QDateTime>> periods;
     if (icalEvent->recurs() && icalEvent->recurrence()) {
         const auto duration = icalEvent->hasDuration() ? icalEvent->duration().asSeconds() : 0;
-        const auto occurrences = icalEvent->recurrence()->timesInInterval(icalEvent->dtStart(), icalEvent->dtStart().addYears(20));
+        const auto occurrences = icalEvent->recurrence()->timesInInterval(icalEvent->dtStart(), icalEvent->dtStart().addYears(10));
         for (const auto &start : occurrences) {
             periods.append(qMakePair(start, start.addSecs(duration)));
         }
