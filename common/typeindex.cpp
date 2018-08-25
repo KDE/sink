@@ -386,10 +386,7 @@ QVector<Identifier> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
             if (mSampledPeriodProperties.contains({it.key()[0], it.key()[1]})) {
                 Index index(sampledPeriodIndexName(it.key()[0], it.key()[1]), transaction);
                 const auto keys = sampledIndexLookup(index, query.getFilter(it.key()));
-                // The filter is not completely applied, we need post-filtering
-                // in the case the overlap period is not completely aligned
-                // with a week starting on monday
-                //appliedFilters << it.key();
+                appliedFilters << it.key();
                 SinkTraceCtx(mLogCtx) << "Sampled period index lookup on" << it.key() << "found" << keys.size() << "keys.";
                 return keys;
             } else {
