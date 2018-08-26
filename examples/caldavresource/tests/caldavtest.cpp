@@ -182,6 +182,10 @@ private slots:
             VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
             const auto events = Sink::Store::read<Event>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
             QCOMPARE(events.size(), 3);
+            for (const auto &event : events) {
+                const auto calendars = Sink::Store::read<Calendar>(Sink::Query().resourceFilter(mResourceInstanceIdentifier).filter(event.getCalendar()));
+                QCOMPARE(calendars.size(), 1);
+            }
         }
 
         //Ensure a resync after another creation works
@@ -220,6 +224,7 @@ private slots:
         auto events = Sink::Store::read<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)));
         QCOMPARE(events.size(), 1);
         QCOMPARE(events.first().getSummary(), {"Hello"});
+        QCOMPARE(events.first().getCalendar(), calendar.identifier());
 
         //Modify
         {
