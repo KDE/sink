@@ -1897,9 +1897,9 @@ private slots:
         icalEvent->setSummary("test");
         icalEvent->setDtStart(QDateTime::fromString("2018-05-10T13:00:00Z", Qt::ISODate));
         icalEvent->setDtEnd(QDateTime::fromString("2018-05-10T14:00:00Z", Qt::ISODate));
-        icalEvent->recurrence()->setWeekly(1);
+        icalEvent->recurrence()->setWeekly(3);
 
-        Event event("sink.dummy.instance1");
+        Event event = Event::createEntity<Event>("sink.dummy.instance1");
         event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
         VERIFYEXEC(Sink::Store::create(event));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
@@ -1914,6 +1914,9 @@ private slots:
         auto model = Sink::Store::loadModel<Event>(query);
         QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
         QCOMPARE(model->rowCount(), 1);
+
+        VERIFYEXEC(Sink::Store::remove(event));
+        QTRY_COMPARE(model->rowCount(), 0);
     }
 
 };

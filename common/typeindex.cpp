@@ -186,7 +186,7 @@ void TypeIndex::addSampledPeriodIndex<QDateTime, QDateTime>(
                     index.add(bucketKey, identifier.toInternalByteArray());
                     break;
                 case TypeIndex::Remove:
-                    index.remove(bucketKey, identifier.toInternalByteArray());
+                    index.remove(bucketKey, identifier.toInternalByteArray(), true);
                     break;
             }
         }
@@ -211,10 +211,10 @@ void TypeIndex::updateIndex(Action action, const Identifier &identifier, const S
             const auto list = indexRanges.value<QList<QPair<QDateTime, QDateTime>>>();
             for (const auto &period : list) {
                 indexer(action, identifier, period.first, period.second, transaction);
-                // SinkLog() << "Indexing " << period.first <<  period.second;
             }
         } else {
             //This is the regular case
+            //NOTE Since we don't generate the ranges for removal we just end up trying to remove all possible buckets here instead.
             const auto beginValue = entity.getProperty(properties.first);
             const auto endValue   = entity.getProperty(properties.second);
             indexer(action, identifier, beginValue, endValue, transaction);

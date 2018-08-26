@@ -47,15 +47,17 @@ void Index::add(const QByteArray &key, const QByteArray &value)
     });
 }
 
-void Index::remove(const Identifier &key, const QByteArray &value)
+void Index::remove(const Identifier &key, const QByteArray &value, bool ignoreRemovalFailure)
 {
-    remove(key.toInternalByteArray(), value);
+    remove(key.toInternalByteArray(), value, ignoreRemovalFailure);
 }
 
-void Index::remove(const QByteArray &key, const QByteArray &value)
+void Index::remove(const QByteArray &key, const QByteArray &value, bool ignoreRemovalFailure)
 {
     mDb.remove(key, value, [&] (const Sink::Storage::DataStore::Error &error) {
-        SinkWarningCtx(mLogCtx) << "Error while removing value: " << key << value << error;
+        if (!ignoreRemovalFailure || error.code != Sink::Storage::DataStore::NotFound) {
+            SinkWarningCtx(mLogCtx) << "Error while removing value: " << key << value << error;
+        }
     });
 }
 
