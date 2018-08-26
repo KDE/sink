@@ -198,29 +198,29 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
 
     return runJob<KDAV2::DavItem::List>(davItemsListJob,
         [](KJob *job) { return static_cast<KDAV2::DavItemsListJob *>(job)->items(); })
-        .then([this, total, collectionUrl(collection.url())](const KDAV2::DavItem::List &items) {
+        .then([=](const KDAV2::DavItem::List &items) {
+            if (items.isEmpty()) {
+                return KAsync::null();
+            }
             *total += items.size();
             QStringList itemsUrls;
             for (const auto &item : items) {
                 itemsUrls << item.url().url().toDisplayString();
             }
-            return runJob<KDAV2::DavItem::List>(new KDAV2::DavItemsFetchJob(collectionUrl, itemsUrls),
-                [](KJob *job) { return static_cast<KDAV2::DavItemsFetchJob *>(job)->items(); });
-        })
-        .serialEach([
-            this, collectionRid, localId, progress(std::move(progress)), total(std::move(total)),
-            itemsResourceIDs(std::move(itemsResourceIDs))
-        ](const KDAV2::DavItem &item) {
-            auto itemRid = resourceID(item);
-            itemsResourceIDs->insert(itemRid);
+            return runJob<KDAV2::DavItem::List>(new KDAV2::DavItemsFetchJob(collection.url(), itemsUrls),
+                [](KJob *job) { return static_cast<KDAV2::DavItemsFetchJob *>(job)->items(); })
+                .then([=] (const KDAV2::DavItem::List &items) {
+                    for (const auto &item : items) {
+                        auto itemRid = resourceID(item);
+                        itemsResourceIDs->insert(itemRid);
+                        if (unchanged(item)) {
+                            SinkTrace() << "Item unchanged:" << itemRid;
+                        } else {
+                            updateLocalItemWrapper(item, localId);
+                        }
+                    }
 
-            if (unchanged(item)) {
-                SinkTrace() << "Item unchanged:" << itemRid;
-                return KAsync::null<void>();
-            }
-
-            updateLocalItemWrapper(item, localId);
-            return KAsync::null<void>();
+                });
         })
         .then([this, collectionRid, ctag] {
             // Update the local CTag to be able to tell if the collection is unchanged
