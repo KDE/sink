@@ -204,13 +204,20 @@ void TypeIndex::updateIndex(Action action, const Identifier &identifier, const S
         indexer(action, identifier, value, transaction);
     }
     for (const auto &properties : mSampledPeriodProperties) {
-        const auto beginValue = entity.getProperty(properties.first);
-        const auto endValue   = entity.getProperty(properties.second);
         auto indexer = mSampledPeriodIndexer.value(properties);
-        indexer(action, identifier, beginValue, endValue, transaction);
-        const auto list = entity.getProperty("indexPeriods").value<QList<QPair<QDateTime, QDateTime>>>();
-        for (const auto &period : list) {
-            indexer(action, identifier, period.first, period.second, transaction);
+        auto indexRanges = entity.getProperty("indexRanges");
+        if (indexRanges.isValid()) {
+            //This is to override the indexed ranges from the evenpreprocessor
+            const auto list = indexRanges.value<QList<QPair<QDateTime, QDateTime>>>();
+            for (const auto &period : list) {
+                indexer(action, identifier, period.first, period.second, transaction);
+                // SinkLog() << "Indexing " << period.first <<  period.second;
+            }
+        } else {
+            //This is the regular case
+            const auto beginValue = entity.getProperty(properties.first);
+            const auto endValue   = entity.getProperty(properties.second);
+            indexer(action, identifier, beginValue, endValue, transaction);
         }
     }
     for (const auto &property : mSortedProperties) {

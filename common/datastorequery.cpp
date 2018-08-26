@@ -176,10 +176,6 @@ public:
             if (comparator.comparator == QueryBase::Comparator::Fulltext) {
                 continue;
             }
-            //We can't deal with an overlap filter
-            if (comparator.comparator == QueryBase::Comparator::Overlap) {
-                continue;
-            }
             if (!comparator.matches(property)) {
                 SinkTraceCtx(mDatastore->mLogCtx) << "Filtering entity due to property mismatch on filter: " << entity.identifier() << "Property: " << filterProperty << property << " Filter:" << comparator.value;
                 return false;

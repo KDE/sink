@@ -40,15 +40,18 @@ void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteA
     event.setExtractedAllDay(icalEvent->allDay());
     event.setExtractedRecurring(icalEvent->recurs());
 
-    QList<QPair<QDateTime, QDateTime>> periods;
     if (icalEvent->recurs() && icalEvent->recurrence()) {
+        QList<QPair<QDateTime, QDateTime>> ranges;
         const auto duration = icalEvent->hasDuration() ? icalEvent->duration().asSeconds() : 0;
         const auto occurrences = icalEvent->recurrence()->timesInInterval(icalEvent->dtStart(), icalEvent->dtStart().addYears(10));
         for (const auto &start : occurrences) {
-            periods.append(qMakePair(start, start.addSecs(duration)));
+            ranges.append(qMakePair(start, start.addSecs(duration)));
+        }
+        if (!ranges.isEmpty()) {
+            event.setExtractedEndTime(ranges.last().second);
+            event.setProperty("indexRanges", QVariant::fromValue(ranges));
         }
     }
-    event.setProperty("indexPeriods", QVariant::fromValue(periods));
 }
 
 void EventPropertyExtractor::newEntity(Event &event)
