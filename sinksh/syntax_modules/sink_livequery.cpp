@@ -51,8 +51,6 @@ bool livequery(const QStringList &args_, State &state)
 
     auto type = options.positionalArguments.isEmpty() ? QString{} : options.positionalArguments.first();
 
-    bool asLine = true;
-
     Sink::Query query;
     query.setId("livequery");
     query.setFlags(Sink::Query::LiveQuery);
@@ -85,8 +83,6 @@ bool livequery(const QStringList &args_, State &state)
         } else {
             query.requestedProperties = SinkshUtils::requestedProperties(type);
         }
-    } else {
-        asLine = false;
     }
 
     QByteArrayList toPrint;

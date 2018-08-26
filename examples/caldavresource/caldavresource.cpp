@@ -166,6 +166,7 @@ protected:
                 // pretty much arbitrary, whoe does that anyway?
                 return modifyItem(remoteItem).then([oldRemoteId] { return oldRemoteId; });
         }
+        return KAsync::null<QByteArray>();
     }
 
     KAsync::Job<QByteArray> replay(const Event &event, Sink::Operation operation,

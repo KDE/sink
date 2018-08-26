@@ -126,7 +126,7 @@ public:
     ///Db contains entity and entity is not yet removed
     bool exists(const QByteArray &type, const QByteArray &uid);
 
-    void readRevisions(const QByteArray &type, const QByteArray &uid, qint64 baseRevision, const std::function<void(const QByteArray &uid, qint64 revision, const EntityBuffer &entity)> callback);
+    void readRevisions(const QByteArray &type, const QByteArray &uid, size_t baseRevision, const std::function<void(const QByteArray &uid, qint64 revision, const EntityBuffer &entity)> callback);
 
     qint64 maxRevision();
 

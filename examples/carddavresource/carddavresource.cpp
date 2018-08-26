@@ -130,6 +130,7 @@ protected:
 
                 return modifyItem(remoteItem).then([=] { return oldRemoteId; });
         }
+        return KAsync::null<QByteArray>();
     }
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Addressbook &addressbook, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE

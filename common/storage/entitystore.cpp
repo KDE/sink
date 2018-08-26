@@ -661,7 +661,7 @@ bool EntityStore::exists(const QByteArray &type, const QByteArray &uid)
     return true;
 }
 
-void EntityStore::readRevisions(const QByteArray &type, const QByteArray &uid, qint64 startingRevision,
+void EntityStore::readRevisions(const QByteArray &type, const QByteArray &uid, size_t startingRevision,
     const std::function<void(const QByteArray &uid, qint64 revision, const EntityBuffer &entity)> callback)
 {
     Q_ASSERT(d);
