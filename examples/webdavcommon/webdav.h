@@ -71,10 +71,9 @@ protected:
      * Called when discovering a new item, or when an item has been modified.
      * It's purpose should be adding the said item to the store.
      *
-     * `collectionLocalRid` is the local resource id of the collection the item
-     * is in.
+     * `collectionLocalId` is the local collection id of the item.
      */
-    virtual void updateLocalItem(KDAV2::DavItem item, const QByteArray &collectionLocalRid) = 0;
+    virtual void updateLocalItem(KDAV2::DavItem item, const QByteArray &collectionLocalId) = 0;
 
     /**
      * Get the local resource id from a collection.
@@ -83,7 +82,7 @@ protected:
 
     KAsync::Job<void> synchronizeCollection(const KDAV2::DavCollection &,
         QSharedPointer<int> progress, QSharedPointer<int> total, QSharedPointer<QSet<QByteArray>> itemsResourceIDs);
-    KAsync::Job<void> synchronizeItem(const KDAV2::DavItem &, const QByteArray &collectionLocalRid,
+    KAsync::Job<void> synchronizeItem(const KDAV2::DavItem &, const QByteArray &collectionLocalId,
         QSharedPointer<int> progress, QSharedPointer<int> total);
 
     static QByteArray resourceID(const KDAV2::DavCollection &);
@@ -108,7 +107,7 @@ protected:
     KDAV2::DavUrl serverUrl() const;
 
 private:
-    void updateLocalItemWrapper(const KDAV2::DavItem &item, const QByteArray &collectionLocalRid);
+    void updateLocalItemWrapper(const KDAV2::DavItem &item, const QByteArray &collectionLocalId);
 
     KDAV2::Protocol protocol;
     const QByteArray mCollectionType;
