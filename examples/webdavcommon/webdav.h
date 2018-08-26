@@ -108,6 +108,8 @@ protected:
     KDAV2::DavUrl serverUrl() const;
 
 private:
+    void updateLocalItemWrapper(const KDAV2::DavItem &item, const QByteArray &collectionLocalRid);
+
     KDAV2::Protocol protocol;
     const QByteArray mCollectionType;
     const QByteArray mEntityType;

@@ -28,6 +28,7 @@
 #include <KDAV2/DavItemCreateJob>
 #include <KDAV2/DavItemDeleteJob>
 #include <KDAV2/DavItemFetchJob>
+#include <KDAV2/DavItemsFetchJob>
 #include <KDAV2/DavItemModifyJob>
 #include <KDAV2/DavItemsListJob>
 #include <KDAV2/EtagCache>
@@ -185,8 +186,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
 }
 
 KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavCollection &collection,
-    QSharedPointer<int> progress, QSharedPointer<int> total,
-    QSharedPointer<QSet<QByteArray>> itemsResourceIDs)
+    QSharedPointer<int> progress, QSharedPointer<int> total, QSharedPointer<QSet<QByteArray>> itemsResourceIDs)
 {
     auto collectionRid = resourceID(collection);
     auto ctag = collection.CTag().toLatin1();
@@ -198,14 +198,20 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
 
     return runJob<KDAV2::DavItem::List>(davItemsListJob,
         [](KJob *job) { return static_cast<KDAV2::DavItemsListJob *>(job)->items(); })
-        .then([this, total](const KDAV2::DavItem::List &items) {
+        .then([this, total, collectionUrl(collection.url())](const KDAV2::DavItem::List &items) {
             *total += items.size();
-            return items;
+            QStringList itemsUrls;
+            for (const auto &item : items) {
+                itemsUrls << item.url().url().toDisplayString();
+            }
+            return runJob<KDAV2::DavItem::List>(new KDAV2::DavItemsFetchJob(collectionUrl, itemsUrls),
+                [](KJob *job) { return static_cast<KDAV2::DavItemsFetchJob *>(job)->items(); });
         })
-        .serialEach([this, collectionRid, localRid, progress(std::move(progress)), total(std::move(total)),
-                        itemsResourceIDs(std::move(itemsResourceIDs))](const KDAV2::DavItem &item) {
+        .serialEach([
+            this, collectionRid, localRid, progress(std::move(progress)), total(std::move(total)),
+            itemsResourceIDs(std::move(itemsResourceIDs))
+        ](const KDAV2::DavItem &item) {
             auto itemRid = resourceID(item);
-
             itemsResourceIDs->insert(itemRid);
 
             if (unchanged(item)) {
@@ -213,8 +219,8 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
                 return KAsync::null<void>();
             }
 
-            SinkTrace() << "Syncing item:" << itemRid;
-            return synchronizeItem(item, localRid, progress, total);
+            updateLocalItemWrapper(item, collectionRid);
+            return KAsync::null<void>();
         })
         .then([this, collectionRid, ctag] {
             // Update the local CTag to be able to tell if the collection is unchanged
@@ -222,21 +228,26 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
         });
 }
 
+void WebDavSynchronizer::updateLocalItemWrapper(const KDAV2::DavItem &item, const QByteArray &collectionLocalRid)
+{
+    updateLocalItem(item, collectionLocalRid);
+    // Update the local ETag to be able to tell if the item is unchanged
+    syncStore().writeValue(resourceID(item) + "_etag", item.etag().toLatin1());
+}
+
 KAsync::Job<void> WebDavSynchronizer::synchronizeItem(const KDAV2::DavItem &item,
     const QByteArray &collectionLocalRid, QSharedPointer<int> progress, QSharedPointer<int> total)
 {
+    SinkTrace() << "Syncing item:" << resourceID(item);
     auto etag = item.etag().toLatin1();
 
     auto itemFetchJob = new KDAV2::DavItemFetchJob(item);
     return runJob<KDAV2::DavItem>(
         itemFetchJob, [](KJob *job) { return static_cast<KDAV2::DavItemFetchJob *>(job)->item(); })
-        .then([this, collectionLocalRid](const KDAV2::DavItem &item) {
-            updateLocalItem(item, collectionLocalRid);
-            return item;
-        })
-        .then([this, etag, progress(std::move(progress)), total(std::move(total))](const KDAV2::DavItem &item) {
-            // Update the local ETag to be able to tell if the item is unchanged
-            syncStore().writeValue(resourceID(item) + "_etag", etag);
+        .then([
+            this, collectionLocalRid, progress(std::move(progress)), total(std::move(total))
+        ](const KDAV2::DavItem &item) {
+            updateLocalItemWrapper(item, collectionLocalRid);
 
             *progress += 1;
             reportProgress(*progress, *total);
