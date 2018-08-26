@@ -219,7 +219,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
                 return KAsync::null<void>();
             }
 
-            updateLocalItemWrapper(item, collectionRid);
+            updateLocalItemWrapper(item, localId);
             return KAsync::null<void>();
         })
         .then([this, collectionRid, ctag] {
