@@ -1805,127 +1805,67 @@ private slots:
         }
     }
 
-    void eventsWithDates()
-    {
-        {
-            Event event("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-23T12:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-23T13:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-        {
-            Event event("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-23T13:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-23T14:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-        {
-            Event event("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-23T14:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-23T15:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-        {
-            Event event("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-23T12:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-23T14:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-        {
-            Event event("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-24T12:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-24T14:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-        {
-            Event event("sink.dummy.instance1");
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
-    }
-
     void testOverlap()
     {
-        eventsWithDates();
+        auto createEvent = [] (const QString &start, const QString &end) {
+            auto icalEvent = KCalCore::Event::Ptr::create();
+            icalEvent->setSummary("test");
+            icalEvent->setDtStart(QDateTime::fromString(start, Qt::ISODate));
+            icalEvent->setDtEnd(QDateTime::fromString(end, Qt::ISODate));
 
-        {
+            Event event("sink.dummy.instance1");
+            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            VERIFYEXEC(Sink::Store::create(event));
+        };
+
+        createEvent("2018-05-23T12:00:00Z", "2018-05-23T13:00:00Z");
+        createEvent("2018-05-23T13:00:00Z", "2018-05-23T14:00:00Z");
+        createEvent("2018-05-23T14:00:00Z", "2018-05-23T15:00:00Z");
+        createEvent("2018-05-24T12:00:00Z", "2018-05-24T14:00:00Z");
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        auto findInRange = [] (const QString &start, const QString &end) {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
             query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-22T12:00:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-30T13:00:00Z", Qt::ISODate) },
+                QVariantList{ QDateTime::fromString(start, Qt::ISODate),
+                    QDateTime::fromString(end, Qt::ISODate) },
                 QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 5);
-        }
+            return Sink::Store::read<Event>(query);
+        };
 
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-22T12:30:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-22T12:31:00Z", Qt::ISODate) },
-                QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 0);
-        }
-
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-24T10:00:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-24T11:00:00Z", Qt::ISODate) },
-                QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 0);
-        }
-
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-23T12:30:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-23T12:31:00Z", Qt::ISODate) },
-                QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 2);
-        }
-
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-22T12:30:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-23T12:00:00Z", Qt::ISODate) },
-                QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 2);
-        }
-
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-23T14:30:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-23T16:00:00Z", Qt::ISODate) },
-                QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 1);
-        }
-
+        //Find all
+        QCOMPARE(findInRange("2018-05-22T12:00:00Z", "2018-05-30T13:00:00Z").size(), 4);
+        //Find none on day without events
+        QCOMPARE(findInRange("2018-05-22T12:00:00Z", "2018-05-22T13:00:00Z").size(), 0);
+        //Find none on day with events
+        QCOMPARE(findInRange("2018-05-24T10:00:00Z", "2018-05-24T11:00:00Z").size(), 0);
+        //Find on same day
+        QCOMPARE(findInRange("2018-05-23T12:30:00Z", "2018-05-23T12:31:00Z").size(), 1);
+        //Find on different days
+        QCOMPARE(findInRange("2018-05-22T12:30:00Z", "2018-05-23T12:00:00Z").size(), 1);
+        QCOMPARE(findInRange("2018-05-23T14:30:00Z", "2018-05-23T16:00:00Z").size(), 1);
     }
 
     void testOverlapLive()
     {
-        eventsWithDates();
+        auto createEvent = [] (const QString &start, const QString &end) {
+            auto icalEvent = KCalCore::Event::Ptr::create();
+            icalEvent->setSummary("test");
+            icalEvent->setDtStart(QDateTime::fromString(start, Qt::ISODate));
+            icalEvent->setDtEnd(QDateTime::fromString(end, Qt::ISODate));
+
+            Event event = Event::createEntity<Event>("sink.dummy.instance1");
+            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            VERIFYEXEC_RET(Sink::Store::create(event), {});
+            return event;
+        };
+
+        createEvent("2018-05-23T12:00:00Z", "2018-05-23T13:00:00Z");
+        createEvent("2018-05-23T13:00:00Z", "2018-05-23T14:00:00Z");
+        createEvent("2018-05-23T14:00:00Z", "2018-05-23T15:00:00Z");
+        createEvent("2018-05-24T12:00:00Z", "2018-05-24T14:00:00Z");
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
 
         {
             Sink::Query query;
@@ -1937,26 +1877,18 @@ private slots:
                 QueryBase::Comparator::Overlap));
             auto model = Sink::Store::loadModel<Event>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 5);
+            QCOMPARE(model->rowCount(), 4);
 
-            Event event = Event::createEntity<Event>("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-23T12:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-23T13:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-
-            Event event2 = Event::createEntity<Event>("sink.dummy.instance1");
-            event2.setExtractedStartTime(QDateTime::fromString("2018-05-33T12:00:00Z", Qt::ISODate));
-            event2.setExtractedEndTime(QDateTime::fromString("2018-05-33T13:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event2));
-
-            QTRY_COMPARE(model->rowCount(), 6);
-
-            VERIFYEXEC(Sink::Store::remove<Event>(event));
-            VERIFYEXEC(Sink::Store::remove<Event>(event2));
+            auto event1 = createEvent("2018-05-23T12:00:00Z", "2018-05-23T13:00:00Z");
+            auto event2 = createEvent("2018-05-31T12:00:00Z", "2018-05-31T13:00:00Z");
 
             QTRY_COMPARE(model->rowCount(), 5);
-        }
 
+            VERIFYEXEC(Sink::Store::remove(event1));
+            VERIFYEXEC(Sink::Store::remove(event2));
+
+            QTRY_COMPARE(model->rowCount(), 4);
+        }
     }
 
     void testRecurringEvents()
