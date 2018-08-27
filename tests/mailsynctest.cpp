@@ -171,6 +171,30 @@ void MailSyncTest::testListRemovedFolder()
     VERIFYEXEC(job);
 }
 
+void MailSyncTest::testListRemovedFullFolder()
+{
+    createFolder({"testRemoval"});
+    createMessage({"testRemoval"}, newMessage("mailToRemove"));
+
+    Sink::Query query;
+    query.resourceFilter(mResourceInstanceIdentifier);
+    query.request<Folder::Name>();
+
+    VERIFYEXEC(Store::synchronize(query));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+    QCOMPARE(Sink::Store::read<Folder>(Sink::Query{}.filter<Folder::Name>("testRemoval")).size(), 1);
+    QCOMPARE(Sink::Store::read<Mail>(Sink::Query{}.filter<Mail::Subject>("mailToRemove")).size(), 1);
+
+    removeFolder({"testRemoval"});
+
+    // Ensure all local data is processed
+    VERIFYEXEC(Store::synchronize(query));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+    QCOMPARE(Sink::Store::read<Folder>(Sink::Query{}.filter<Folder::Name>("testRemoval")).size(), 0);
+    QCOMPARE(Sink::Store::read<Mail>(Sink::Query{}.filter<Mail::Subject>("mailToRemove")).size(), 0);
+}
+
 void MailSyncTest::testListFolderHierarchy()
 {
     if (!mCapabilities.contains(ResourceCapabilities::Mail::folderhierarchy)) {
