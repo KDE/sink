@@ -456,7 +456,7 @@ Storage::EntityStore &Preprocessor::entityStore() const
     return *d->entityStore;
 }
 
-void Preprocessor::createEntity(const Sink::ApplicationDomain::ApplicationDomainType &entity, const QByteArray &typeName)
+void Preprocessor::createEntity(const Sink::ApplicationDomain::ApplicationDomainType &entity, const QByteArray &typeName, bool replayToSource)
 {
     flatbuffers::FlatBufferBuilder entityFbb;
     auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceType, typeName);
@@ -467,19 +467,19 @@ void Preprocessor::createEntity(const Sink::ApplicationDomain::ApplicationDomain
     auto entityId = fbb.CreateString(entity.identifier().toStdString());
     auto type = fbb.CreateString(typeName.toStdString());
     auto delta = Sink::EntityBuffer::appendAsVector(fbb, entityBuffer.constData(), entityBuffer.size());
-    auto location = Sink::Commands::CreateCreateEntity(fbb, entityId, type, delta);
+    auto location = Sink::Commands::CreateCreateEntity(fbb, entityId, type, delta, replayToSource);
     Sink::Commands::FinishCreateEntityBuffer(fbb, location);
 
     const auto data = BufferUtils::extractBuffer(fbb);
     d->pipeline->newEntity(data, data.size()).exec();
 }
 
-void Preprocessor::deleteEntity(const Sink::ApplicationDomain::ApplicationDomainType &entity, const QByteArray &typeName)
+void Preprocessor::deleteEntity(const Sink::ApplicationDomain::ApplicationDomainType &entity, const QByteArray &typeName, bool replayToSource)
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto entityId = fbb.CreateString(entity.identifier().toStdString());
     auto type = fbb.CreateString(typeName.toStdString());
-    auto location = Sink::Commands::CreateDeleteEntity(fbb, entity.revision(), entityId, type, true);
+    auto location = Sink::Commands::CreateDeleteEntity(fbb, entity.revision(), entityId, type, replayToSource);
     Sink::Commands::FinishDeleteEntityBuffer(fbb, location);
     const auto data = BufferUtils::extractBuffer(fbb);
     d->pipeline->deletedEntity(data, data.size()).exec();
