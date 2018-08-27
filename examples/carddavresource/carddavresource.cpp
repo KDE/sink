@@ -139,6 +139,18 @@ protected:
     }
 };
 
+class CollectionCleanupPreprocessor : public Sink::Preprocessor
+{
+public:
+    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    {
+        //Remove all events of a collection when removing the collection.
+        const auto revision = entityStore().maxRevision();
+        entityStore().indexLookup<ApplicationDomain::Contact, ApplicationDomain::Contact::Addressbook>(oldEntity.identifier(), [&] (const QByteArray &identifier) {
+            deleteEntity(ApplicationDomain::ApplicationDomainType{{}, identifier, revision, {}}, ApplicationDomain::getTypeName<ApplicationDomain::Contact>(), false);
+        });
+    }
+};
 
 CardDavResource::CardDavResource(const Sink::ResourceContext &resourceContext)
     : Sink::GenericResource(resourceContext)
@@ -146,7 +158,8 @@ CardDavResource::CardDavResource(const Sink::ResourceContext &resourceContext)
     auto synchronizer = QSharedPointer<ContactSynchronizer>::create(resourceContext);
     setupSynchronizer(synchronizer);
 
-    setupPreprocessors(ENTITY_TYPE_CONTACT, QVector<Sink::Preprocessor*>() << new ContactPropertyExtractor);
+    setupPreprocessors(ENTITY_TYPE_CONTACT, {new ContactPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_ADDRESSBOOK, {new CollectionCleanupPreprocessor});
 }
 
 

@@ -37,6 +37,7 @@
 #define ENTITY_TYPE_CALENDAR "calendar"
 
 using Sink::ApplicationDomain::getTypeName;
+using namespace Sink;
 
 class CalDAVSynchronizer : public WebDavSynchronizer
 {
@@ -203,14 +204,28 @@ protected:
     }
 };
 
+class CollectionCleanupPreprocessor : public Sink::Preprocessor
+{
+public:
+    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    {
+        //Remove all events of a collection when removing the collection.
+        const auto revision = entityStore().maxRevision();
+        entityStore().indexLookup<ApplicationDomain::Event, ApplicationDomain::Event::Calendar>(oldEntity.identifier(), [&] (const QByteArray &identifier) {
+            deleteEntity(ApplicationDomain::ApplicationDomainType{{}, identifier, revision, {}}, ApplicationDomain::getTypeName<ApplicationDomain::Event>(), false);
+        });
+    }
+};
+
 CalDavResource::CalDavResource(const Sink::ResourceContext &context)
     : Sink::GenericResource(context)
 {
     auto synchronizer = QSharedPointer<CalDAVSynchronizer>::create(context);
     setupSynchronizer(synchronizer);
 
-    setupPreprocessors(ENTITY_TYPE_EVENT, QVector<Sink::Preprocessor *>() << new EventPropertyExtractor);
-    setupPreprocessors(ENTITY_TYPE_TODO, QVector<Sink::Preprocessor *>() << new TodoPropertyExtractor);
+    setupPreprocessors(ENTITY_TYPE_EVENT, {new EventPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_TODO, {new TodoPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_CALENDAR, {new CollectionCleanupPreprocessor});
 }
 
 CalDavResourceFactory::CalDavResourceFactory(QObject *parent)

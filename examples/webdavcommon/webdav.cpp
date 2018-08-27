@@ -137,23 +137,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                 collectionRemoteIDs.insert(resourceID(collection));
             }
             scanForRemovals(mCollectionType, [&](const QByteArray &remoteId) {
-                auto exists = collectionRemoteIDs.contains(remoteId);
-                //Remove all items for a collection that we're about to remove.
-                //FIXME This should probably go into a preprocessor instead.
-                if (!exists) {
-                    auto collectionLocalId = syncStore().resolveRemoteId(mCollectionType, remoteId);
-                    scanForRemovals(mEntityType,
-                        [&](const std::function<void(const QByteArray &)> &callback) {
-                            //FIXME: The collection type just happens to have the same name as the parent collection property
-                            const auto collectionProperty = mCollectionType;
-                            store().indexLookup(mEntityType, collectionProperty, collectionLocalId, callback);
-                        },
-                        [&](const QByteArray &) {
-                            return false;
-                        });
-
-                }
-                return exists;
+                return collectionRemoteIDs.contains(remoteId);
             });
             updateLocalCollections(collections);
 
