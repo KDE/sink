@@ -132,14 +132,29 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
         [](KJob *job) { return static_cast<KDAV2::DavCollectionsFetchJob *>(job)->collections(); })
         .then([this](const KDAV2::DavCollection::List &collections) {
 
-            QSet<QByteArray> collectionResourceIDs;
+            QSet<QByteArray> collectionRemoteIDs;
             for (const auto &collection : collections) {
-                collectionResourceIDs.insert(resourceID(collection));
+                collectionRemoteIDs.insert(resourceID(collection));
             }
             scanForRemovals(mCollectionType, [&](const QByteArray &remoteId) {
-                return collectionResourceIDs.contains(remoteId);
+                auto exists = collectionRemoteIDs.contains(remoteId);
+                //Remove all items for a collection that we're about to remove.
+                //FIXME This should probably go into a preprocessor instead.
+                if (!exists) {
+                    auto collectionLocalId = syncStore().resolveRemoteId(mCollectionType, remoteId);
+                    scanForRemovals(mEntityType,
+                        [&](const std::function<void(const QByteArray &)> &callback) {
+                            //FIXME: The collection type just happens to have the same name as the parent collection property
+                            const auto collectionProperty = mCollectionType;
+                            store().indexLookup(mEntityType, collectionProperty, collectionLocalId, callback);
+                        },
+                        [&](const QByteArray &) {
+                            return false;
+                        });
+
+                }
+                return exists;
             });
-            //FIXME remove the items as well
             updateLocalCollections(collections);
 
             return collections;
@@ -167,6 +182,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                 return synchronizeCollection(collection, progress, total, itemsResourceIDs)
                 .then([=] {
                     const auto collectionLocalId = collectionLocalResourceID(collection);
+
                     scanForRemovals(mEntityType,
                         [&](const std::function<void(const QByteArray &)> &callback) {
                             //FIXME: The collection type just happens to have the same name as the parent collection property

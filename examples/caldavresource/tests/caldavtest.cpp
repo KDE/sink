@@ -2,6 +2,7 @@
 
 #include <KDAV2/DavCollectionsFetchJob>
 #include <KDAV2/DavCollectionCreateJob>
+#include <KDAV2/DavCollectionDeleteJob>
 #include <KDAV2/DavItemFetchJob>
 #include <KDAV2/DavItemModifyJob>
 #include <KDAV2/DavItemCreateJob>
@@ -105,6 +106,34 @@ class CalDavTest : public QObject
         createJob->exec();
         if (createJob->error()) {
             qWarning() << createJob->errorString();
+        }
+    }
+
+    void removeCollection(const QString &collectionName)
+    {
+        QUrl mainUrl{"http://localhost/dav/calendars/user/doe"};
+        mainUrl.setUserName(QStringLiteral("doe"));
+        mainUrl.setPassword(QStringLiteral("doe"));
+
+        KDAV2::DavUrl davUrl(mainUrl, KDAV2::CalDav);
+
+        auto *job = new KDAV2::DavCollectionsFetchJob(davUrl);
+        job->exec();
+
+        const auto collectionUrl = [&] {
+            for (const auto &col : job->collections()) {
+                // qWarning() << "Looking for " << collectionName << col.displayName();
+                if (col.displayName() == collectionName) {
+                    return col.url();
+                }
+            }
+            return KDAV2::DavUrl{};
+        }();
+
+        auto deleteJob = new KDAV2::DavCollectionDeleteJob(collectionUrl);
+        deleteJob->exec();
+        if (deleteJob->error()) {
+            qWarning() << deleteJob->errorString();
         }
     }
 
@@ -412,6 +441,22 @@ private slots:
         }
     }
 
+
+    void testSyncRemoveFullCalendar()
+    {
+        createCollection("calendar3");
+        createEvent("eventToRemove", "calendar3");
+        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        QCOMPARE(Sink::Store::read<Calendar>(Sink::Query{}.filter<Calendar::Name>("calendar3")).size(), 1);
+        QCOMPARE(Sink::Store::read<Event>(Sink::Query{}.filter<Event::Summary>("eventToRemove")).size(), 1);
+
+        removeCollection("calendar3");
+        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        QCOMPARE(Sink::Store::read<Calendar>(Sink::Query{}.filter<Calendar::Name>("calendar3")).size(), 0);
+        QCOMPARE(Sink::Store::read<Event>(Sink::Query{}.filter<Event::Summary>("eventToRemove")).size(), 0);
+    }
 
 };
 
