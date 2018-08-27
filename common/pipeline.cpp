@@ -474,6 +474,17 @@ void Preprocessor::createEntity(const Sink::ApplicationDomain::ApplicationDomain
     d->pipeline->newEntity(data, data.size()).exec();
 }
 
+void Preprocessor::deleteEntity(const Sink::ApplicationDomain::ApplicationDomainType &entity, const QByteArray &typeName)
+{
+    flatbuffers::FlatBufferBuilder fbb;
+    auto entityId = fbb.CreateString(entity.identifier().toStdString());
+    auto type = fbb.CreateString(typeName.toStdString());
+    auto location = Sink::Commands::CreateDeleteEntity(fbb, entity.revision(), entityId, type, true);
+    Sink::Commands::FinishDeleteEntityBuffer(fbb, location);
+    const auto data = BufferUtils::extractBuffer(fbb);
+    d->pipeline->deletedEntity(data, data.size()).exec();
+}
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
 #include "moc_pipeline.cpp"

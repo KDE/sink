@@ -1036,6 +1036,18 @@ public:
     QString mUser;
 };
 
+class FolderCleanupPreprocessor : public Sink::Preprocessor
+{
+public:
+    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    {
+        //Remove all mails of a folder when removing the folder.
+        const auto revision = entityStore().maxRevision();
+        entityStore().indexLookup<ApplicationDomain::Mail, ApplicationDomain::Mail::Folder>(oldEntity.identifier(), [&] (const QByteArray &identifier) {
+            deleteEntity(ApplicationDomain::ApplicationDomainType{{}, identifier, revision, {}}, ApplicationDomain::getTypeName<ApplicationDomain::Mail>());
+        });
+    }
+};
 
 ImapResource::ImapResource(const ResourceContext &resourceContext)
     : Sink::GenericResource(resourceContext)
@@ -1097,8 +1109,8 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     inspector->mUser = user;
     setupInspector(inspector);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor << new MailPropertyExtractor);
-    setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>());
+    setupPreprocessors(ENTITY_TYPE_MAIL, {new SpecialPurposeProcessor, new MailPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_FOLDER, {new FolderCleanupPreprocessor});
 }
 
 ImapResourceFactory::ImapResourceFactory(QObject *parent)
