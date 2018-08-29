@@ -188,7 +188,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
             for (const auto &item : items) {
                 const auto itemRid = resourceID(item);
                 itemsResourceIDs->insert(itemRid);
-                if (item.etag().toLatin1() == syncStore().readValue(itemRid + "_etag")) {
+                if (item.etag().toLatin1() == syncStore().readValue(collectionRid, itemRid + "_etag")) {
                     SinkTrace() << "Item unchanged:" << itemRid;
                     continue;
                 }
@@ -199,7 +199,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
                 .then([=] (const KDAV2::DavItem::List &items) {
                     for (const auto &item : items) {
                         updateLocalItem(item, collectionLocalId);
-                        syncStore().writeValue(resourceID(item) + "_etag", item.etag().toLatin1());
+                        syncStore().writeValue(collectionRid, resourceID(item) + "_etag", item.etag().toLatin1());
                     }
 
                 });
