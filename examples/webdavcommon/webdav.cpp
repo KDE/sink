@@ -161,7 +161,6 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                     return KAsync::null<void>();
                 }
 
-                SinkLog() << "Syncing collection:" << collectionResourceID << collection.displayName();
                 auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
                 return synchronizeCollection(collection, progress, total, itemsResourceIDs)
                 .then([=] {
@@ -189,6 +188,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
 {
     auto collectionRid = resourceID(collection);
     auto ctag = collection.CTag().toLatin1();
+    SinkLog() << "Syncing collection:" << collectionRid << collection.displayName() << ctag;
 
     auto localId = collectionLocalResourceID(collection);
 
@@ -198,6 +198,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
     return runJob<KDAV2::DavItem::List>(listJob,
         [](KJob *job) { return static_cast<KDAV2::DavItemsListJob *>(job)->items(); })
         .then([=](const KDAV2::DavItem::List &items) {
+            SinkTrace() << "Found" << items.size() << "items on the server";
             if (items.isEmpty()) {
                 return KAsync::null();
             }
