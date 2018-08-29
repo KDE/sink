@@ -193,9 +193,9 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
     auto localId = collectionLocalResourceID(collection);
 
     auto cache = std::make_shared<KDAV2::EtagCache>();
-    auto davItemsListJob = new KDAV2::DavItemsListJob(collection.url(), std::move(cache));
-
-    return runJob<KDAV2::DavItem::List>(davItemsListJob,
+    auto listJob = new KDAV2::DavItemsListJob(collection.url(), std::move(cache));
+    listJob->setContentMimeTypes({{"VEVENT"}, {"VTODO"}});
+    return runJob<KDAV2::DavItem::List>(listJob,
         [](KJob *job) { return static_cast<KDAV2::DavItemsListJob *>(job)->items(); })
         .then([=](const KDAV2::DavItem::List &items) {
             if (items.isEmpty()) {
