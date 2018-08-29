@@ -166,7 +166,6 @@ void TypeIndex::addSampledPeriodIndex<QDateTime, QDateTime>(
 {
     auto indexer = [=](Action action, const Identifier &identifier, const QVariant &begin,
                        const QVariant &end, Sink::Storage::DataStore::Transaction &transaction) {
-        SinkTraceCtx(mLogCtx) << "Adding entity to sampled period index";
         const auto beginDate = begin.toDateTime();
         const auto endDate = end.toDateTime();
 
