@@ -99,9 +99,6 @@ protected:
      */
     KDAV2::DavUrl urlOf(const QByteArray &collectionRemoteId, const QString &itemPath);
 
-    bool unchanged(const KDAV2::DavCollection &);
-    bool unchanged(const KDAV2::DavItem &);
-
     KDAV2::DavUrl serverUrl() const;
 
 private:

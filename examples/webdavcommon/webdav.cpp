@@ -155,7 +155,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
             .serialEach([=](const KDAV2::DavCollection &collection) {
                 const auto collectionResourceID = resourceID(collection);
 
-                if (unchanged(collection)) {
+                if (collection.CTag().toLatin1() == syncStore().readValue(collectionResourceID + "_ctag")) {
                     SinkTrace() << "Collection unchanged:" << collectionResourceID;
 
                     return KAsync::null<void>();
@@ -213,7 +213,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
                     for (const auto &item : items) {
                         const auto itemRid = resourceID(item);
                         itemsResourceIDs->insert(itemRid);
-                        if (unchanged(item)) {
+                        if (item.etag().toLatin1() == syncStore().readValue(itemRid + "_etag")) {
                             SinkTrace() << "Item unchanged:" << itemRid;
                         } else {
                             updateLocalItem(item, collectionLocalId);
@@ -294,18 +294,6 @@ KDAV2::DavUrl WebDavSynchronizer::urlOf(const QByteArray &remoteId)
 KDAV2::DavUrl WebDavSynchronizer::urlOf(const QByteArray &collectionRemoteId, const QString &itemPath)
 {
     return urlOf(collectionRemoteId + itemPath.toUtf8());
-}
-
-bool WebDavSynchronizer::unchanged(const KDAV2::DavCollection &collection)
-{
-    auto ctag = collection.CTag().toLatin1();
-    return ctag == syncStore().readValue(resourceID(collection) + "_ctag");
-}
-
-bool WebDavSynchronizer::unchanged(const KDAV2::DavItem &item)
-{
-    auto etag = item.etag().toLatin1();
-    return etag == syncStore().readValue(resourceID(item) + "_etag");
 }
 
 KDAV2::DavUrl WebDavSynchronizer::serverUrl() const
