@@ -52,7 +52,7 @@ bool sync(const QStringList &args, State &state)
         query.resourceFilter(SinkshUtils::parseUid(options.positionalArguments.first().toLatin1()));
     } else {
         //We have specified a full filter
-        if (!SinkshUtils::applyFilter(query, options.positionalArguments)) {
+        if (!SinkshUtils::applyFilter(query, options)) {
             state.printError(QObject::tr("Options: $type $resource/$folder/$subfolder --password $password"));
             return false;
         }
