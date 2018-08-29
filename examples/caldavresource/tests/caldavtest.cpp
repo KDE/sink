@@ -196,7 +196,6 @@ private slots:
         createEvent("event2", "personal");
         createEvent("event3", "calendar2");
         Sink::SyncScope scope;
-        scope.setType<Event>();
         scope.resourceFilter(mResourceInstanceIdentifier);
 
         VERIFYEXEC(Sink::Store::synchronize(scope));

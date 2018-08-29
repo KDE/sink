@@ -106,13 +106,12 @@ QList<Sink::Synchronizer::SyncRequest> WebDavSynchronizer::getSyncRequests(const
     QList<Synchronizer::SyncRequest> list;
     if (!query.type().isEmpty()) {
         // We want to synchronize something specific
-        list << Synchronizer::SyncRequest{ query };
+        list << Synchronizer::SyncRequest{query};
     } else {
         // We want to synchronize everything
-
-        // Item synchronization does the collections anyway
-        // list << Synchronizer::SyncRequest{ Sink::QueryBase(mCollectionType) };
-        list << Synchronizer::SyncRequest{ Sink::QueryBase(mEntityType) };
+        list << Synchronizer::SyncRequest{Sink::QueryBase(mCollectionType)};
+        //This request depends on the previous one so we flush first.
+        list << Synchronizer::SyncRequest{Sink::QueryBase(mEntityType), QByteArray{}, Synchronizer::SyncRequest::RequestFlush};
     }
     return list;
 }
@@ -126,29 +125,27 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
 
     SinkLog() << "Synchronizing" << query.type() << "through WebDAV at:" << serverUrl().url();
 
-    auto collectionsFetchJob = new KDAV2::DavCollectionsFetchJob{ serverUrl() };
-    auto job = runJob<KDAV2::DavCollection::List>(collectionsFetchJob,
-        [](KJob *job) { return static_cast<KDAV2::DavCollectionsFetchJob *>(job)->collections(); })
-        .then([this](const KDAV2::DavCollection::List &collections) {
-
-            QSet<QByteArray> collectionRemoteIDs;
-            for (const auto &collection : collections) {
-                collectionRemoteIDs.insert(resourceID(collection));
-            }
-            scanForRemovals(mCollectionType, [&](const QByteArray &remoteId) {
-                return collectionRemoteIDs.contains(remoteId);
-            });
-            updateLocalCollections(collections);
-
-            return collections;
-        });
 
     if (query.type() == mCollectionType) {
-        // Do nothing more
-        return job;
+        return runJob<KDAV2::DavCollection::List>(new KDAV2::DavCollectionsFetchJob{ serverUrl() },
+            [](KJob *job) { return static_cast<KDAV2::DavCollectionsFetchJob *>(job)->collections(); })
+            .then([this](const KDAV2::DavCollection::List &collections) {
+
+                QSet<QByteArray> collectionRemoteIDs;
+                for (const auto &collection : collections) {
+                    collectionRemoteIDs.insert(resourceID(collection));
+                }
+                scanForRemovals(mCollectionType, [&](const QByteArray &remoteId) {
+                    return collectionRemoteIDs.contains(remoteId);
+                });
+                updateLocalCollections(collections);
+            });
     } else if (query.type() == mEntityType) {
-        return job.serialEach([=](const KDAV2::DavCollection &collection) {
-                return synchronizeCollection(collection);
+        //TODO query local folders and try to sync each one
+        return runJob<KDAV2::DavCollection::List>(new KDAV2::DavCollectionsFetchJob{ serverUrl() },
+            [](KJob *job) { return static_cast<KDAV2::DavCollectionsFetchJob *>(job)->collections(); })
+            .serialEach([=](const KDAV2::DavCollection &collection) {
+                return synchronizeCollection(collection.url(), resourceID(collection), collectionLocalResourceID(collection), collection.CTag().toLatin1());
             });
     } else {
         SinkWarning() << "Unknown query type";
@@ -156,19 +153,15 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
     }
 }
 
-KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavCollection &collection)
+KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl &collectionUrl, const QByteArray &collectionRid, const QByteArray &collectionLocalId, const QByteArray &ctag)
 {
     auto progress = QSharedPointer<int>::create(0);
     auto total = QSharedPointer<int>::create(0);
-    auto collectionRid = resourceID(collection);
-    auto ctag = collection.CTag().toLatin1();
     if (ctag == syncStore().readValue(collectionRid + "_ctag")) {
         SinkTrace() << "Collection unchanged:" << collectionRid;
         return KAsync::null<void>();
     }
-    SinkLog() << "Syncing collection:" << collectionRid << collection.displayName() << ctag;
-
-    auto collectionLocalId = collectionLocalResourceID(collection);
+    SinkLog() << "Syncing collection:" << collectionRid << ctag;
 
     auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
 
@@ -192,7 +185,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
                 }
                 itemsUrls << item.url().url().toDisplayString();
             }
-            return runJob<KDAV2::DavItem::List>(new KDAV2::DavItemsFetchJob(collection.url(), itemsUrls),
+            return runJob<KDAV2::DavItem::List>(new KDAV2::DavItemsFetchJob(collectionUrl, itemsUrls),
                 [](KJob *job) { return static_cast<KDAV2::DavItemsFetchJob *>(job)->items(); })
                 .then([=] (const KDAV2::DavItem::List &items) {
                     for (const auto &item : items) {
