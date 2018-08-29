@@ -148,34 +148,8 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
         // Do nothing more
         return job;
     } else if (query.type() == mEntityType) {
-        auto progress = QSharedPointer<int>::create(0);
-        auto total = QSharedPointer<int>::create(0);
-
-        return job
-            .serialEach([=](const KDAV2::DavCollection &collection) {
-                const auto collectionResourceID = resourceID(collection);
-
-                if (collection.CTag().toLatin1() == syncStore().readValue(collectionResourceID + "_ctag")) {
-                    SinkTrace() << "Collection unchanged:" << collectionResourceID;
-
-                    return KAsync::null<void>();
-                }
-
-                auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
-                return synchronizeCollection(collection, progress, total, itemsResourceIDs)
-                .then([=] {
-                    const auto collectionLocalId = collectionLocalResourceID(collection);
-
-                    scanForRemovals(mEntityType,
-                        [&](const std::function<void(const QByteArray &)> &callback) {
-                            //FIXME: The collection type just happens to have the same name as the parent collection property
-                            const auto collectionProperty = mCollectionType;
-                            store().indexLookup(mEntityType, collectionProperty, collectionLocalId, callback);
-                        },
-                        [&itemsResourceIDs](const QByteArray &remoteId) {
-                            return itemsResourceIDs->contains(remoteId);
-                        });
-                });
+        return job.serialEach([=](const KDAV2::DavCollection &collection) {
+                return synchronizeCollection(collection);
             });
     } else {
         SinkWarning() << "Unknown query type";
@@ -183,22 +157,28 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
     }
 }
 
-KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavCollection &collection,
-    QSharedPointer<int> progress, QSharedPointer<int> total, QSharedPointer<QSet<QByteArray>> itemsResourceIDs)
+KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavCollection &collection)
 {
+    auto progress = QSharedPointer<int>::create(0);
+    auto total = QSharedPointer<int>::create(0);
     auto collectionRid = resourceID(collection);
     auto ctag = collection.CTag().toLatin1();
+    if (ctag == syncStore().readValue(collectionRid + "_ctag")) {
+        SinkTrace() << "Collection unchanged:" << collectionRid;
+        return KAsync::null<void>();
+    }
     SinkLog() << "Syncing collection:" << collectionRid << collection.displayName() << ctag;
 
     auto collectionLocalId = collectionLocalResourceID(collection);
 
+    auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
     auto cache = std::make_shared<KDAV2::EtagCache>();
     auto listJob = new KDAV2::DavItemsListJob(collection.url(), std::move(cache));
     listJob->setContentMimeTypes({{"VEVENT"}, {"VTODO"}});
     return runJob<KDAV2::DavItem::List>(listJob,
         [](KJob *job) { return static_cast<KDAV2::DavItemsListJob *>(job)->items(); })
         .then([=](const KDAV2::DavItem::List &items) {
-            SinkTrace() << "Found" << items.size() << "items on the server";
+            SinkLog() << "Found" << items.size() << "items on the server";
             if (items.isEmpty()) {
                 return KAsync::null();
             }
@@ -224,9 +204,19 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
 
                 });
         })
-        .then([this, collectionRid, ctag] {
+        .then([=] {
             // Update the local CTag to be able to tell if the collection is unchanged
             syncStore().writeValue(collectionRid + "_ctag", ctag);
+
+            scanForRemovals(mEntityType,
+                [&](const std::function<void(const QByteArray &)> &callback) {
+                    //FIXME: The collection type just happens to have the same name as the parent collection property
+                    const auto collectionProperty = mCollectionType;
+                    store().indexLookup(mEntityType, collectionProperty, collectionLocalId, callback);
+                },
+                [&itemsResourceIDs](const QByteArray &remoteId) {
+                    return itemsResourceIDs->contains(remoteId);
+                });
         });
 }
 

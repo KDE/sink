@@ -80,8 +80,7 @@ protected:
      */
     virtual QByteArray collectionLocalResourceID(const KDAV2::DavCollection &collection) = 0;
 
-    KAsync::Job<void> synchronizeCollection(const KDAV2::DavCollection &,
-        QSharedPointer<int> progress, QSharedPointer<int> total, QSharedPointer<QSet<QByteArray>> itemsResourceIDs);
+    KAsync::Job<void> synchronizeCollection(const KDAV2::DavCollection &);
 
     static QByteArray resourceID(const KDAV2::DavCollection &);
     static QByteArray resourceID(const KDAV2::DavItem &);
