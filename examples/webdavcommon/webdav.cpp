@@ -172,8 +172,9 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
     auto collectionLocalId = collectionLocalResourceID(collection);
 
     auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
-    auto cache = std::make_shared<KDAV2::EtagCache>();
-    auto listJob = new KDAV2::DavItemsListJob(collection.url(), std::move(cache));
+
+    //FIXME The etag cache is useless and only here for api compatibility.
+    auto listJob = new KDAV2::DavItemsListJob(collection.url(), std::make_shared<KDAV2::EtagCache>());
     listJob->setContentMimeTypes({{"VEVENT"}, {"VTODO"}});
     return runJob<KDAV2::DavItem::List>(listJob,
         [](KJob *job) { return static_cast<KDAV2::DavItemsListJob *>(job)->items(); })
@@ -185,21 +186,20 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
             *total += items.size();
             QStringList itemsUrls;
             for (const auto &item : items) {
+                const auto itemRid = resourceID(item);
+                itemsResourceIDs->insert(itemRid);
+                if (item.etag().toLatin1() == syncStore().readValue(itemRid + "_etag")) {
+                    SinkTrace() << "Item unchanged:" << itemRid;
+                    continue;
+                }
                 itemsUrls << item.url().url().toDisplayString();
             }
             return runJob<KDAV2::DavItem::List>(new KDAV2::DavItemsFetchJob(collection.url(), itemsUrls),
                 [](KJob *job) { return static_cast<KDAV2::DavItemsFetchJob *>(job)->items(); })
                 .then([=] (const KDAV2::DavItem::List &items) {
                     for (const auto &item : items) {
-                        const auto itemRid = resourceID(item);
-                        itemsResourceIDs->insert(itemRid);
-                        if (item.etag().toLatin1() == syncStore().readValue(itemRid + "_etag")) {
-                            SinkTrace() << "Item unchanged:" << itemRid;
-                        } else {
-                            updateLocalItem(item, collectionLocalId);
-                            // Update the local ETag to be able to tell if the item is unchanged
-                            syncStore().writeValue(itemRid + "_etag", item.etag().toLatin1());
-                        }
+                        updateLocalItem(item, collectionLocalId);
+                        syncStore().writeValue(resourceID(item) + "_etag", item.etag().toLatin1());
                     }
 
                 });
