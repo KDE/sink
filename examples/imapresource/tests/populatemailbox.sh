@@ -21,16 +21,17 @@ subscribe INBOX.Trash;
 # done
 # Because this is way faster than a loop
 FOLDERPATH=/var/spool/imap/d/user/doe/test
-sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{1..1000}.
-sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{1001..2000}.
-sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{2001..3000}.
-sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{3001..4000}.
-sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{4001..5000}.
-sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{5001..6000}.
-sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{6001..7000}.
-sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{7001..8000}.
-sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{8001..9000}.
-sudo tee </src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S >/dev/null $FOLDERPATH/{9001..10000}.
+SRCMESSAGE=/src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S
+sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{1..1000}.
+sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{1001..2000}.
+sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{2001..3000}.
+sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{3001..4000}.
+sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{4001..5000}.
+sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{5001..6000}.
+sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{6001..7000}.
+sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{7001..8000}.
+sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{8001..9000}.
+sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{9001..10000}.
 
 sudo chown -R cyrus:mail $FOLDERPATH
 sudo reconstruct "user.doe.test"

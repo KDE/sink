@@ -139,7 +139,7 @@ class CalDavTest : public QObject
 
     void resetTestEnvironment()
     {
-        system("resetmailbox.sh");
+        system("resetcalendar.sh");
     }
 
 private slots:
