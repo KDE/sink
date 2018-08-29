@@ -31,7 +31,6 @@
 #include <KDAV2/DavItemsFetchJob>
 #include <KDAV2/DavItemModifyJob>
 #include <KDAV2/DavItemsListJob>
-#include <KDAV2/EtagCache>
 
 #include <QNetworkReply>
 
@@ -173,8 +172,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
 
     auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
 
-    //FIXME The etag cache is useless and only here for api compatibility.
-    auto listJob = new KDAV2::DavItemsListJob(collection.url(), std::make_shared<KDAV2::EtagCache>());
+    auto listJob = new KDAV2::DavItemsListJob(collectionUrl);
     listJob->setContentMimeTypes({{"VEVENT"}, {"VTODO"}});
     return runJob<KDAV2::DavItem::List>(listJob,
         [](KJob *job) { return static_cast<KDAV2::DavItemsListJob *>(job)->items(); })

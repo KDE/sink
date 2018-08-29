@@ -26,13 +26,11 @@
 #include <KDAV2/DavItemModifyJob>
 #include <KDAV2/DavItemCreateJob>
 #include <KDAV2/DavItemsListJob>
-#include <KDAV2/EtagCache>
 
 #include <KCalCore/Event>
 #include <KCalCore/ICalFormat>
 
 #include "../caldavresource.h"
-// #include "../imapserverproxy.h"
 #include "tests/testutils.h"
 
 #include "common/test.h"

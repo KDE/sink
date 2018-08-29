@@ -2,7 +2,7 @@ project(sink_resource_caldav)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
-find_package(KPimKDAV2 REQUIRED 0.2.0)
+find_package(KPimKDAV2 REQUIRED 0.3)
 find_package(KF5CalendarCore REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED caldavresource.cpp)

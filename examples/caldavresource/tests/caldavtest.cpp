@@ -7,7 +7,6 @@
 #include <KDAV2/DavItemModifyJob>
 #include <KDAV2/DavItemCreateJob>
 #include <KDAV2/DavItemsListJob>
-#include <KDAV2/EtagCache>
 
 #include <KCalCore/Event>
 #include <KCalCore/ICalFormat>
@@ -393,8 +392,7 @@ private slots:
             }();
 
             auto itemList = ([&collection]() -> KDAV2::DavItem::List {
-                auto cache = std::make_shared<KDAV2::EtagCache>();
-                auto itemsListJob = new KDAV2::DavItemsListJob(collection.url(), cache);
+                auto itemsListJob = new KDAV2::DavItemsListJob(collection.url());
                 itemsListJob->exec();
                 Q_ASSERT(itemsListJob->error() == 0);
                 return itemsListJob->items();
