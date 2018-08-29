@@ -82,8 +82,6 @@ protected:
 
     KAsync::Job<void> synchronizeCollection(const KDAV2::DavCollection &,
         QSharedPointer<int> progress, QSharedPointer<int> total, QSharedPointer<QSet<QByteArray>> itemsResourceIDs);
-    KAsync::Job<void> synchronizeItem(const KDAV2::DavItem &, const QByteArray &collectionLocalId,
-        QSharedPointer<int> progress, QSharedPointer<int> total);
 
     static QByteArray resourceID(const KDAV2::DavCollection &);
     static QByteArray resourceID(const KDAV2::DavItem &);
@@ -107,8 +105,6 @@ protected:
     KDAV2::DavUrl serverUrl() const;
 
 private:
-    void updateLocalItemWrapper(const KDAV2::DavItem &item, const QByteArray &collectionLocalId);
-
     KDAV2::Protocol protocol;
     const QByteArray mCollectionType;
     const QByteArray mEntityType;

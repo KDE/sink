@@ -190,7 +190,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
     auto ctag = collection.CTag().toLatin1();
     SinkLog() << "Syncing collection:" << collectionRid << collection.displayName() << ctag;
 
-    auto localId = collectionLocalResourceID(collection);
+    auto collectionLocalId = collectionLocalResourceID(collection);
 
     auto cache = std::make_shared<KDAV2::EtagCache>();
     auto listJob = new KDAV2::DavItemsListJob(collection.url(), std::move(cache));
@@ -211,12 +211,14 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
                 [](KJob *job) { return static_cast<KDAV2::DavItemsFetchJob *>(job)->items(); })
                 .then([=] (const KDAV2::DavItem::List &items) {
                     for (const auto &item : items) {
-                        auto itemRid = resourceID(item);
+                        const auto itemRid = resourceID(item);
                         itemsResourceIDs->insert(itemRid);
                         if (unchanged(item)) {
                             SinkTrace() << "Item unchanged:" << itemRid;
                         } else {
-                            updateLocalItemWrapper(item, localId);
+                            updateLocalItem(item, collectionLocalId);
+                            // Update the local ETag to be able to tell if the item is unchanged
+                            syncStore().writeValue(itemRid + "_etag", item.etag().toLatin1());
                         }
                     }
 
@@ -225,35 +227,6 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavColl
         .then([this, collectionRid, ctag] {
             // Update the local CTag to be able to tell if the collection is unchanged
             syncStore().writeValue(collectionRid + "_ctag", ctag);
-        });
-}
-
-void WebDavSynchronizer::updateLocalItemWrapper(const KDAV2::DavItem &item, const QByteArray &collectionLocalId)
-{
-    updateLocalItem(item, collectionLocalId);
-    // Update the local ETag to be able to tell if the item is unchanged
-    syncStore().writeValue(resourceID(item) + "_etag", item.etag().toLatin1());
-}
-
-KAsync::Job<void> WebDavSynchronizer::synchronizeItem(const KDAV2::DavItem &item,
-    const QByteArray &collectionLocalId, QSharedPointer<int> progress, QSharedPointer<int> total)
-{
-    SinkTrace() << "Syncing item:" << resourceID(item);
-    auto etag = item.etag().toLatin1();
-
-    auto itemFetchJob = new KDAV2::DavItemFetchJob(item);
-    return runJob<KDAV2::DavItem>(
-        itemFetchJob, [](KJob *job) { return static_cast<KDAV2::DavItemFetchJob *>(job)->item(); })
-        .then([
-            this, collectionLocalId, progress(std::move(progress)), total(std::move(total))
-        ](const KDAV2::DavItem &item) {
-            updateLocalItemWrapper(item, collectionLocalId);
-
-            *progress += 1;
-            reportProgress(*progress, *total);
-            if ((*progress % 5) == 0) {
-                commit();
-            }
         });
 }
 
