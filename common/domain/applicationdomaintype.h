@@ -366,6 +366,7 @@ struct SINK_EXPORT Addressbook : public Entity {
     SINK_REFERENCE_PROPERTY(Addressbook, Parent, parent);
     SINK_PROPERTY(QString, Name, name);
     SINK_EXTRACTED_PROPERTY(QDateTime, LastUpdated, lastUpdated);
+    SINK_PROPERTY(bool, Enabled, enabled);
 };
 
 struct SINK_EXPORT Contact : public Entity {
@@ -395,6 +396,7 @@ struct SINK_EXPORT Calendar : public Entity {
     SINK_ENTITY(Calendar, calendar);
     SINK_PROPERTY(QString, Name, name);
     SINK_PROPERTY(QByteArray, Color, color);
+    SINK_PROPERTY(bool, Enabled, enabled);
 };
 
 struct SINK_EXPORT Event : public Entity {

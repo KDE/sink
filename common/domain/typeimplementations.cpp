@@ -198,6 +198,7 @@ void TypeImplementation<Addressbook>::configure(PropertyMapper &propertyMapper)
 {
     SINK_REGISTER_SERIALIZER(propertyMapper, Addressbook, Parent, parent);
     SINK_REGISTER_SERIALIZER(propertyMapper, Addressbook, Name, name);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Addressbook, Enabled, enabled);
 }
 
 void TypeImplementation<Addressbook>::configure(IndexPropertyMapper &)
@@ -279,6 +280,7 @@ void TypeImplementation<Calendar>::configure(PropertyMapper &propertyMapper)
 {
     SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Name, name);
     SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Color, color);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Enabled, enabled);
 }
 
 void TypeImplementation<Calendar>::configure(IndexPropertyMapper &) {}

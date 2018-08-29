@@ -137,6 +137,7 @@ SINK_REGISTER_ENTITY(Addressbook);
 SINK_REGISTER_PROPERTY(Addressbook, Name);
 SINK_REGISTER_PROPERTY(Addressbook, Parent);
 SINK_REGISTER_PROPERTY(Addressbook, LastUpdated);
+SINK_REGISTER_PROPERTY(Addressbook, Enabled);
 
 SINK_REGISTER_ENTITY(Event);
 SINK_REGISTER_PROPERTY(Event, Uid);
@@ -165,6 +166,7 @@ SINK_REGISTER_PROPERTY(Todo, Calendar);
 SINK_REGISTER_ENTITY(Calendar);
 SINK_REGISTER_PROPERTY(Calendar, Name);
 SINK_REGISTER_PROPERTY(Calendar, Color);
+SINK_REGISTER_PROPERTY(Calendar, Enabled);
 
 static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();

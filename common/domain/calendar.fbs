@@ -3,6 +3,7 @@ namespace Sink.ApplicationDomain.Buffer;
 table Calendar {
   name:string;
   color:string;
+  enabled:bool = true;
 }
 
 root_type Calendar;
