@@ -113,11 +113,6 @@ protected:
         }
     }
 
-    QByteArray collectionLocalResourceID(const KDAV2::DavCollection &calendar) Q_DECL_OVERRIDE
-    {
-        return syncStore().resolveRemoteId(ENTITY_TYPE_CALENDAR, resourceID(calendar));
-    }
-
     template<typename Item>
     KAsync::Job<QByteArray> replayItem(const Item &localItem, Sink::Operation operation,
         const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties,

@@ -85,11 +85,6 @@ protected:
         createOrModify(ENTITY_TYPE_CONTACT, resourceID(remoteContact), localContact, {});
     }
 
-    QByteArray collectionLocalResourceID(const KDAV2::DavCollection &addressbook) Q_DECL_OVERRIDE
-    {
-        return syncStore().resolveRemoteId(ENTITY_TYPE_ADDRESSBOOK, resourceID(addressbook));
-    }
-
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Contact &contact, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
         SinkLog() << "Replaying to:" << serverUrl().url();
