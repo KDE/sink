@@ -65,7 +65,15 @@ protected:
             localCalendar.setName(remoteCalendar.displayName());
             localCalendar.setColor(remoteCalendar.color().name().toLatin1());
 
-            createOrModify(ENTITY_TYPE_CALENDAR, rid, localCalendar, {});
+            const auto sinkId = syncStore().resolveRemoteId(ENTITY_TYPE_CALENDAR, rid);
+            const auto found = store().contains(ENTITY_TYPE_CALENDAR, sinkId);
+
+            //Set default when creating, otherwise don't touch
+            if (!found) {
+                localCalendar.setEnabled(false);
+            }
+
+            createOrModify(ENTITY_TYPE_CALENDAR, rid, localCalendar);
         }
     }
 
