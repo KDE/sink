@@ -244,29 +244,34 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
     }
 }
 
-QByteArrayList Synchronizer::resolveFilter(const QueryBase::Comparator &filter)
+QByteArrayList Synchronizer::resolveQuery(const QueryBase &query)
 {
     QByteArrayList result;
+    Storage::EntityStore store{mResourceContext, mLogCtx};
+    DataStoreQuery dataStoreQuery{query, query.type(), store};
+    auto resultSet = dataStoreQuery.execute();
+    resultSet.replaySet(0, 0, [&](const ResultSet::Result &r) {
+        result << r.entity.identifier();
+    });
+    return result;
+}
+
+QByteArrayList Synchronizer::resolveFilter(const QueryBase::Comparator &filter)
+{
     if (filter.value.canConvert<QByteArray>()) {
         const auto value = filter.value.value<QByteArray>();
         if (value.isEmpty()) {
             SinkErrorCtx(mLogCtx) << "Tried to filter for an empty value: " << filter;
         } else {
-            result << filter.value.value<QByteArray>();
+            return {filter.value.value<QByteArray>()};
         }
     } else if (filter.value.canConvert<QueryBase>()) {
-        auto query = filter.value.value<QueryBase>();
-        Storage::EntityStore store{mResourceContext, mLogCtx};
-        DataStoreQuery dataStoreQuery{query, query.type(), store};
-        auto resultSet = dataStoreQuery.execute();
-        resultSet.replaySet(0, 0, [&result](const ResultSet::Result &r) {
-            result << r.entity.identifier();
-        });
+        return resolveQuery(filter.value.value<QueryBase>());
     } else {
         SinkWarningCtx(mLogCtx) << "unknown filter type: " << filter;
         Q_ASSERT(false);
     }
-    return result;
+    return {};
 }
 
 template<typename DomainType>

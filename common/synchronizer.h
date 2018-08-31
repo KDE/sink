@@ -122,6 +122,8 @@ protected:
     void SINK_EXPORT modify(const DomainType &entity, const QByteArray &newResource = QByteArray(), bool remove = false);
     // template <typename DomainType>
     // void remove(const DomainType &entity);
+ 
+    QByteArrayList resolveQuery(const QueryBase &query);
     QByteArrayList resolveFilter(const QueryBase::Comparator &filter);
 
     virtual KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) = 0;

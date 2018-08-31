@@ -141,18 +141,27 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                 updateLocalCollections(collections);
             });
     } else if (query.type() == mEntityType) {
-        QSet<QByteArray> collectionsToSync;
-        if (query.hasFilter(mCollectionType)) {
-            auto folderFilter = query.getFilter(mCollectionType);
-            auto localIds = resolveFilter(folderFilter);
-            collectionsToSync = localIds.toSet();
-        }
+        const QSet<QByteArray> collectionsToSync = [&] {
+            if (query.hasFilter(mCollectionType)) {
+                auto folderFilter = query.getFilter(mCollectionType);
+                auto localIds = resolveFilter(folderFilter);
+                return localIds.toSet();
+            } else {
+                //Find all enabled collections
+                Sink::Query query;
+                query.setType(mCollectionType);
+                query.filter("enabled", {true});
+                return resolveQuery(query).toSet();
+            }
+        }();
+        SinkTrace() << "Synchronizing collections: " << collectionsToSync;
+
         return runJob<KDAV2::DavCollection::List>(new KDAV2::DavCollectionsFetchJob{ serverUrl() },
             [](KJob *job) { return static_cast<KDAV2::DavCollectionsFetchJob *>(job)->collections(); })
             .serialEach([=](const KDAV2::DavCollection &collection) {
                 const auto localId = collectionLocalResourceID(collection);
                 //Filter list of folders to sync
-                if (!collectionsToSync.isEmpty() && !collectionsToSync.contains(localId)) {
+                if (!collectionsToSync.contains(localId)) {
                     return KAsync::null();
                 }
                 return synchronizeCollection(collection.url(), resourceID(collection), localId, collection.CTag().toLatin1());
