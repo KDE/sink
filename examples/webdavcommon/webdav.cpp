@@ -189,7 +189,9 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
     auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
 
     auto listJob = new KDAV2::DavItemsListJob(collectionUrl);
-    listJob->setContentMimeTypes({{"VEVENT"}, {"VTODO"}});
+    if (mCollectionType == "calendar") {
+        listJob->setContentMimeTypes({{"VEVENT"}, {"VTODO"}});
+    }
     return runJob<KDAV2::DavItem::List>(listJob,
         [](KJob *job) { return static_cast<KDAV2::DavItemsListJob *>(job)->items(); })
         .then([=](const KDAV2::DavItem::List &items) {
