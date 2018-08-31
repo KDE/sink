@@ -25,6 +25,8 @@
 using namespace Sink;
 
 static const int registerQuery = qRegisterMetaTypeStreamOperators<Sink::QueryBase>();
+static const int registerQuery2 = qRegisterMetaTypeStreamOperators<Sink::Query>();
+static const int registerQuery3 = qRegisterMetaTypeStreamOperators<Sink::SyncScope>();
 
 QDebug operator<<(QDebug dbg, const Sink::QueryBase::Comparator &c)
 {

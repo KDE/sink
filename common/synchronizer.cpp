@@ -246,6 +246,10 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
 
 QByteArrayList Synchronizer::resolveQuery(const QueryBase &query)
 {
+    if (query.type().isEmpty()) {
+        SinkWarningCtx(mLogCtx) << "Can't resolve a query without a type" << query;
+        return {};
+    }
     QByteArrayList result;
     Storage::EntityStore store{mResourceContext, mLogCtx};
     DataStoreQuery dataStoreQuery{query, query.type(), store};
@@ -267,6 +271,10 @@ QByteArrayList Synchronizer::resolveFilter(const QueryBase::Comparator &filter)
         }
     } else if (filter.value.canConvert<QueryBase>()) {
         return resolveQuery(filter.value.value<QueryBase>());
+    } else if (filter.value.canConvert<Query>()) {
+        return resolveQuery(filter.value.value<Query>());
+    } else if (filter.value.canConvert<SyncScope>()) {
+        return resolveQuery(filter.value.value<SyncScope>());
     } else {
         SinkWarningCtx(mLogCtx) << "unknown filter type: " << filter;
         Q_ASSERT(false);
@@ -292,7 +300,7 @@ void Synchronizer::mergeIntoQueue(const Synchronizer::SyncRequest &request, QLis
 
 void Synchronizer::synchronize(const Sink::QueryBase &query)
 {
-    SinkTraceCtx(mLogCtx) << "Synchronizing";
+    SinkTraceCtx(mLogCtx) << "Synchronizing" << query;
     auto newRequests = getSyncRequests(query);
     for (const auto &request: newRequests) {
         mergeIntoQueue(request, mSyncRequestQueue);

@@ -616,3 +616,4 @@ SINK_EXPORT QDataStream &operator>> (QDataStream &stream, Sink::QueryBase &query
 Q_DECLARE_OPERATORS_FOR_FLAGS(Sink::Query::Flags)
 Q_DECLARE_METATYPE(Sink::QueryBase);
 Q_DECLARE_METATYPE(Sink::Query);
+Q_DECLARE_METATYPE(Sink::SyncScope);

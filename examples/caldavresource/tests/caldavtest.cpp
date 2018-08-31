@@ -17,10 +17,12 @@
 #include "common/secretstore.h"
 #include "common/store.h"
 #include "common/test.h"
+#include "common/query.h"
 #include "tests/testutils.h"
 
 #include <algorithm>
 
+using namespace Sink;
 using Sink::ApplicationDomain::Calendar;
 using Sink::ApplicationDomain::DummyResource;
 using Sink::ApplicationDomain::Event;
@@ -195,7 +197,22 @@ private slots:
         createEvent("event1", "personal");
         createEvent("event2", "personal");
         createEvent("event3", "calendar2");
+
+        //Get the calendars first because we rely on them for the next query.
+        {
+            Sink::SyncScope scope;
+            scope.setType<Calendar>();
+            scope.resourceFilter(mResourceInstanceIdentifier);
+            VERIFYEXEC(Sink::Store::synchronize(scope));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        //We explicitly set an empty calendar filter to override the default query for enabled calendars only
         Sink::SyncScope scope;
+        scope.setType<Event>();
+        Sink::Query q;
+        q.setType<Calendar>();
+        scope.filter(ApplicationDomain::getTypeName<Calendar>(), {QVariant::fromValue(q)});
         scope.resourceFilter(mResourceInstanceIdentifier);
 
         VERIFYEXEC(Sink::Store::synchronize(scope));
@@ -443,13 +460,39 @@ private slots:
     {
         createCollection("calendar3");
         createEvent("eventToRemove", "calendar3");
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+
+        //Get the calendars first because we rely on them for the next query.
+        {
+            Sink::SyncScope scope;
+            scope.setType<Calendar>();
+            scope.resourceFilter(mResourceInstanceIdentifier);
+            VERIFYEXEC(Sink::Store::synchronize(scope));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        //We explicitly set an empty calendar filter to override the default query for enabled calendars only
+        Sink::SyncScope scope;
+        scope.setType<Event>();
+        Sink::Query q;
+        q.setType<Calendar>();
+        scope.filter(ApplicationDomain::getTypeName<Calendar>(), {QVariant::fromValue(q)});
+        scope.resourceFilter(mResourceInstanceIdentifier);
+
+
+        VERIFYEXEC(Sink::Store::synchronize(scope));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
         QCOMPARE(Sink::Store::read<Calendar>(Sink::Query{}.filter<Calendar::Name>("calendar3")).size(), 1);
         QCOMPARE(Sink::Store::read<Event>(Sink::Query{}.filter<Event::Summary>("eventToRemove")).size(), 1);
 
+
         removeCollection("calendar3");
-        VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+
+        {
+            Sink::SyncScope scope;
+            scope.setType<Calendar>();
+            scope.resourceFilter(mResourceInstanceIdentifier);
+            VERIFYEXEC(Sink::Store::synchronize(scope));
+        }
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
         QCOMPARE(Sink::Store::read<Calendar>(Sink::Query{}.filter<Calendar::Name>("calendar3")).size(), 0);
         QCOMPARE(Sink::Store::read<Event>(Sink::Query{}.filter<Event::Summary>("eventToRemove")).size(), 0);

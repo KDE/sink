@@ -154,6 +154,10 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                 return resolveQuery(query).toSet();
             }
         }();
+        if (collectionsToSync.isEmpty()) {
+            SinkWarning() << "No collections to sync:" << query;
+            return KAsync::null();
+        }
         SinkTrace() << "Synchronizing collections: " << collectionsToSync;
 
         return runJob<KDAV2::DavCollection::List>(new KDAV2::DavCollectionsFetchJob{ serverUrl() },
