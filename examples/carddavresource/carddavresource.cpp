@@ -54,6 +54,7 @@ public:
         const auto bufferType = ENTITY_TYPE_ADDRESSBOOK;
         Sink::ApplicationDomain::Addressbook addressbook;
         addressbook.setName(addressbookName);
+        addressbook.setEnabled(true);
 
         if (!parentAddressbookRid.isEmpty()) {
             addressbook.setParent(syncStore().resolveRemoteId(ENTITY_TYPE_ADDRESSBOOK, parentAddressbookRid.toUtf8()));
