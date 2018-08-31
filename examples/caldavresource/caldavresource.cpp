@@ -188,7 +188,7 @@ protected:
     KAsync::Job<QByteArray> replay(const Calendar &calendar, Sink::Operation operation,
         const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
-        SinkLog() << "Replaying calendar";
+        SinkLog() << "Replaying calendar" << changedProperties;
 
         switch (operation) {
             case Sink::Operation_Creation:
@@ -200,6 +200,13 @@ protected:
                 break;
             case Sink::Operation_Modification:
                 SinkWarning() << "Unimplemented replay of calendar modification";
+                if (calendar.getEnabled() && changedProperties.contains(Calendar::Enabled::name)) {
+                    //Trigger synchronization of that calendar
+                    Query scope;
+                    scope.setType<Event>();
+                    scope.filter<Event::Calendar>(calendar);
+                    synchronize(scope);
+                }
                 break;
         }
 
