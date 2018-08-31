@@ -133,7 +133,6 @@ private slots:
         createContact("jane", "doe", "personal");
         createContact("fred", "durst", "addressbook2");
         Sink::SyncScope scope;
-        scope.setType<Sink::ApplicationDomain::Contact>();
         scope.resourceFilter(mResourceInstanceIdentifier);
 
         VERIFYEXEC(Sink::Store::synchronize(scope));
