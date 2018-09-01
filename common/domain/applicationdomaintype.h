@@ -351,6 +351,7 @@ struct SINK_EXPORT SinkResource : public ApplicationDomainType {
     SINK_PROPERTY(QByteArray, ResourceType, type);
     SINK_PROPERTY(QByteArrayList, Capabilities, capabilities);
     SINK_STATUS_PROPERTY(int, Status, status);
+    SINK_PROPERTY(QString, Server, server);
 };
 
 struct SINK_EXPORT Entity : public ApplicationDomainType {
