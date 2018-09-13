@@ -124,8 +124,6 @@ void CommandProcessor::processSynchronizeCommand(const QByteArray &data)
     flatbuffers::Verifier verifier((const uint8_t *)data.constData(), data.size());
     if (Sink::Commands::VerifySynchronizeBuffer(verifier)) {
         auto buffer = Sink::Commands::GetSynchronize(data.constData());
-        auto timer = QSharedPointer<QTime>::create();
-        timer->start();
         Sink::QueryBase query;
         if (buffer->query()) {
             auto data = QByteArray::fromStdString(buffer->query()->str());
