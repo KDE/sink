@@ -49,7 +49,8 @@ Synchronizer::Synchronizer(const Sink::ResourceContext &context)
     mResourceContext(context),
     mEntityStore(Storage::EntityStore::Ptr::create(mResourceContext, mLogCtx)),
     mSyncStorage(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::DataStore::ReadWrite),
-    mSyncInProgress(false)
+    mSyncInProgress(false),
+    mAbort(false)
 {
     mCurrentState.push(ApplicationDomain::Status::NoStatus);
     SinkTraceCtx(mLogCtx) << "Starting synchronizer: " << mResourceContext.resourceType << mResourceContext.instanceId();
@@ -334,8 +335,9 @@ void Synchronizer::synchronize(const Sink::QueryBase &query)
 
 void Synchronizer::abort()
 {
-    SinkTraceCtx(mLogCtx) << "Aborting all running synchronization requests";
+    SinkLogCtx(mLogCtx) << "Aborting all running synchronization requests";
     mSyncRequestQueue.clear();
+    mAbort = true;
 }
 
 void Synchronizer::flush(int commandId, const QByteArray &flushId)
@@ -578,6 +580,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         mMessageQueue->commit();
         mSyncStore.clear();
         mSyncInProgress = false;
+        mAbort = false;
         if (allChangesReplayed()) {
             emit changesReplayed();
         }
@@ -588,6 +591,11 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         //In case we got more requests meanwhile.
         return processSyncQueue();
     });
+}
+
+bool Synchronizer::aborting() const
+{
+    return mAbort;
 }
 
 void Synchronizer::commit()

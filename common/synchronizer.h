@@ -215,6 +215,13 @@ protected:
 
     Sink::Log::Context mLogCtx;
 
+    /**
+     * True while aborting.
+     *
+     * Stop the synchronization as soon as possible.
+     */
+    bool aborting() const;
+
 private:
     QStack<ApplicationDomain::Status> mCurrentState;
     void setStatusFromResult(const KAsync::Error &error, const QString &s, const QByteArray &requestId);
@@ -236,6 +243,7 @@ private:
     SyncRequest mCurrentRequest;
     MessageQueue *mMessageQueue;
     bool mSyncInProgress;
+    bool mAbort;
     QMultiHash<QByteArray, SyncRequest> mPendingSyncRequests;
     QString mSecret;
 };

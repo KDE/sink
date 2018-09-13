@@ -646,6 +646,9 @@ public:
                     //FIXME If we were able to to flush in between we could just query the local store for the folder list.
                     return getFolderList(imap, query)
                         .serialEach([=](const Folder &folder) {
+                            if (aborting()) {
+                                return KAsync::null();
+                            }
                             SinkLog() << "Syncing folder " << folder.path();
                             //Emit notification that the folder is being synced.
                             //The synchronizer can't do that because it has no concept of the folder filter on a mail sync scope meaning that the folder is being synchronized.
