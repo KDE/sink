@@ -49,7 +49,7 @@ CommandProcessor::CommandProcessor(Sink::Pipeline *pipeline, const QByteArray &i
     mPipeline(pipeline), 
     mUserQueue(Sink::storageLocation(), instanceId + ".userqueue"),
     mSynchronizerQueue(Sink::storageLocation(), instanceId + ".synchronizerqueue"),
-    mCommandQueues(QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue), mProcessingLock(false), mLowerBoundRevision(0)
+    mCommandQueues({&mUserQueue, &mSynchronizerQueue}), mProcessingLock(false), mLowerBoundRevision(0)
 {
     for (auto queue : mCommandQueues) {
         const bool ret = connect(queue, &MessageQueue::messageReady, this, &CommandProcessor::process);
@@ -224,35 +224,29 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
             });
 }
 
-// Process all messages of this queue
+// Process one batch of messages from this queue
 KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
 {
     auto time = QSharedPointer<QTime>::create();
-    return KAsync::start([this]() { mPipeline->startTransaction(); })
-        .then(KAsync::doWhile(
-            [this, queue, time]() -> KAsync::Job<KAsync::ControlFlowFlag> {
+    return KAsync::start([=] { mPipeline->startTransaction(); })
+        .then([=] {
                 return queue->dequeueBatch(sBatchSize,
-                    [this, time](const QByteArray &data) -> KAsync::Job<void> {
+                    [=](const QByteArray &data) {
                         time->start();
                         return processQueuedCommand(data)
-                        .then([this, time](qint64 createdRevision) {
+                        .then([=](qint64 createdRevision) {
                             SinkTraceCtx(mLogCtx) << "Created revision " << createdRevision << ". Processing took: " << Log::TraceTime(time->elapsed());
                         });
                     })
-                    .then<KAsync::ControlFlowFlag>([queue, this](const KAsync::Error &error) {
-                            if (error) {
-                                if (error.errorCode != MessageQueue::ErrorCodes::NoMessageFound) {
-                                    SinkWarningCtx(mLogCtx) << "Error while getting message from messagequeue: " << error.errorMessage;
-                                }
+                    .then([=](const KAsync::Error &error) {
+                        if (error) {
+                            if (error.errorCode != MessageQueue::ErrorCodes::NoMessageFound) {
+                                SinkWarningCtx(mLogCtx) << "Error while getting message from messagequeue: " << error.errorMessage;
                             }
-                            if (queue->isEmpty()) {
-                                return KAsync::Break;
-                            } else {
-                                return KAsync::Continue;
-                            }
-                        });
-            }))
-        .then([this](const KAsync::Error &) { mPipeline->commit(); });
+                        }
+                    });
+            })
+        .then([=](const KAsync::Error &) { mPipeline->commit(); });
 }
 
 KAsync::Job<void> CommandProcessor::processPipeline()
@@ -266,21 +260,19 @@ KAsync::Job<void> CommandProcessor::processPipeline()
     if (mCommandQueues.isEmpty()) {
         return KAsync::null<void>();
     }
-    auto it = QSharedPointer<QListIterator<MessageQueue *>>::create(mCommandQueues);
-    return KAsync::doWhile(
-        [it, this]() {
-            auto time = QSharedPointer<QTime>::create();
-            time->start();
-
-            auto queue = it->next();
-            return processQueue(queue)
-                .then([this, time, it]() {
-                    SinkTraceCtx(mLogCtx) << "Queue processed." << Log::TraceTime(time->elapsed());
-                    if (it->hasNext()) {
-                        return KAsync::Continue;
-                    }
-                    return KAsync::Break;
-                });
+    return KAsync::doWhile([this]() {
+            for (auto queue : mCommandQueues) {
+                if (!queue->isEmpty()) {
+                    auto time = QSharedPointer<QTime>::create();
+                    time->start();
+                    return processQueue(queue)
+                        .then([=] {
+                            SinkTraceCtx(mLogCtx) << "Queue processed." << Log::TraceTime(time->elapsed());
+                            return KAsync::Continue;
+                        });
+                }
+            }
+            return KAsync::value(KAsync::Break);
         });
 }
 
