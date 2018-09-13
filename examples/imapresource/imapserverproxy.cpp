@@ -580,7 +580,7 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
                 return;
             }
         }
-        SinkLog() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect  << " sub: " << subscribed;
+        SinkTrace() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect  << " sub: " << subscribed;
         //Ignore all non-mail folders
         if (metaData->contains(mailbox.name)) {
             auto m = metaData->value(mailbox.name);
@@ -588,7 +588,7 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
             auto privateType = m.value("/private/vendor/kolab/folder-type");
             auto type = !privateType.isEmpty() ? privateType : sharedType;
             if (!type.isEmpty() && !type.contains("mail")) {
-                SinkLog() << "Skipping due to folder type: " << type;
+                SinkTrace() << "Skipping due to folder type: " << type;
                 return;
             }
         }
