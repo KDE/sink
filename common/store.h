@@ -116,7 +116,7 @@ KAsync::Job<void> SINK_EXPORT synchronize(const Sink::SyncScope &query);
 /**
  * Abort all running synchronization commands.
  */
-KAsync::Job<void> SINK_EXPORT abortSynchronization(const QByteArray &resourceIdentifier);
+KAsync::Job<void> SINK_EXPORT abortSynchronization(const Sink::SyncScope &scope);
 
 /**
  * Removes all resource data from disk.

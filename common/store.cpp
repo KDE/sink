@@ -63,6 +63,19 @@ static bool sanityCheckQuery(const Sink::Query &query)
     return true;
 }
 
+static KAsync::Job<void> forEachResource(const Sink::SyncScope &scope, std::function<KAsync::Job<void>(const Sink::ApplicationDomain::SinkResource::Ptr &resource)> callback)
+{
+    using namespace Sink;
+    auto resourceFilter = scope.getResourceFilter();
+    //Filter resources by type by default
+    if (!resourceFilter.propertyFilter.contains({ApplicationDomain::SinkResource::Capabilities::name}) && !scope.type().isEmpty()) {
+        resourceFilter.propertyFilter.insert({ApplicationDomain::SinkResource::Capabilities::name}, Query::Comparator{scope.type(), Query::Comparator::Contains});
+    }
+    Sink::Query query;
+    query.setFilter(resourceFilter);
+    return Store::fetchAll<ApplicationDomain::SinkResource>(query)
+        .template each(callback);
+}
 
 namespace Sink {
 
@@ -406,31 +419,25 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 
 KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
 {
-    auto resourceFilter = scope.getResourceFilter();
-    //Filter resources by type by default
-    if (!resourceFilter.propertyFilter.contains({ApplicationDomain::SinkResource::Capabilities::name}) && !scope.type().isEmpty()) {
-        resourceFilter.propertyFilter.insert({ApplicationDomain::SinkResource::Capabilities::name}, Query::Comparator{scope.type(), Query::Comparator::Contains});
-    }
-    Sink::Query query;
-    query.setFilter(resourceFilter);
-    SinkLog() << "Synchronizing all resource matching: " << query;
-    return fetchAll<ApplicationDomain::SinkResource>(query)
-        .template each([scope](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {
+    SinkLog() << "Synchronizing all resource matching: " << scope;
+    return forEachResource(scope, [=] (const auto &resource) {
             return synchronize(resource->identifier(), scope);
         });
 }
 
-KAsync::Job<void> Store::abortSynchronization(const QByteArray &identifier)
+KAsync::Job<void> Store::abortSynchronization(const Sink::SyncScope &scope)
 {
-    auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
-    return resourceAccess->sendCommand(Sink::Commands::AbortSynchronizationCommand)
-        .addToContext(resourceAccess)
-        .then([=](const KAsync::Error &error) {
-            if (error) {
-                SinkWarning() << "Error aborting synchronization.";
-                return KAsync::error(error);
-            }
-            return KAsync::null();
+    return forEachResource(scope, [] (const auto &resource) {
+        auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource->identifier(), ResourceConfig::getResourceType(resource->identifier()));
+        return resourceAccess->sendCommand(Sink::Commands::AbortSynchronizationCommand)
+            .addToContext(resourceAccess)
+            .then([=](const KAsync::Error &error) {
+                if (error) {
+                    SinkWarning() << "Error aborting synchronization.";
+                    return KAsync::error(error);
+                }
+                return KAsync::null();
+            });
         });
 }
 
