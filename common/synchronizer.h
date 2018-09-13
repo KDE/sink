@@ -62,6 +62,9 @@ public:
 
     void setSecret(const QString &s);
 
+    //Abort all running synchronization requests
+    void abort();
+
 signals:
     void notify(Notification);
 

@@ -268,6 +268,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         case Sink::Commands::ModifyEntityCommand:
         case Sink::Commands::CreateEntityCommand:
         case Sink::Commands::FlushCommand:
+        case Sink::Commands::AbortSynchronizationCommand:
             SinkTrace() << "Command id  " << messageId << " of type \"" << Sink::Commands::name(commandId) << "\" from " << client.name;
             loadResource().processCommand(commandId, commandBuffer);
             break;

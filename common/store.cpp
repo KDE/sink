@@ -420,6 +420,20 @@ KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
         });
 }
 
+KAsync::Job<void> Store::abortSynchronization(const QByteArray &identifier)
+{
+    auto resourceAccess = ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
+    return resourceAccess->sendCommand(Sink::Commands::AbortSynchronizationCommand)
+        .addToContext(resourceAccess)
+        .then([=](const KAsync::Error &error) {
+            if (error) {
+                SinkWarning() << "Error aborting synchronization.";
+                return KAsync::error(error);
+            }
+            return KAsync::null();
+        });
+}
+
 template <class DomainType>
 KAsync::Job<DomainType> Store::fetchOne(const Sink::Query &query)
 {

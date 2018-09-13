@@ -79,6 +79,9 @@ void CommandProcessor::processCommand(int commandId, const QByteArray &data)
         case Commands::SynchronizeCommand:
             processSynchronizeCommand(data);
             break;
+        case Commands::AbortSynchronizationCommand:
+            mSynchronizer->abort();
+            break;
         // case Commands::RevisionReplayedCommand:
         //     processRevisionReplayedCommand(data);
         //     break;

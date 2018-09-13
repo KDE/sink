@@ -332,6 +332,12 @@ void Synchronizer::synchronize(const Sink::QueryBase &query)
     processSyncQueue().exec();
 }
 
+void Synchronizer::abort()
+{
+    SinkTraceCtx(mLogCtx) << "Aborting all running synchronization requests";
+    mSyncRequestQueue.clear();
+}
+
 void Synchronizer::flush(int commandId, const QByteArray &flushId)
 {
     Q_ASSERT(!flushId.isEmpty());
