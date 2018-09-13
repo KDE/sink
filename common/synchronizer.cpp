@@ -33,6 +33,16 @@
 
 using namespace Sink;
 
+bool operator==(const Synchronizer::SyncRequest &left, const Synchronizer::SyncRequest &right)
+{
+    return left.flushType == right.flushType
+        && left.requestId == right.requestId
+        && left.requestType == right.requestType
+        && left.options == right.options
+        && left.query == right.query
+        && left.applicableEntities == right.applicableEntities;
+}
+
 Synchronizer::Synchronizer(const Sink::ResourceContext &context)
     : ChangeReplay(context, {"synchronizer"}),
     mLogCtx{"synchronizer"},
@@ -303,6 +313,20 @@ void Synchronizer::synchronize(const Sink::QueryBase &query)
     SinkTraceCtx(mLogCtx) << "Synchronizing" << query;
     auto newRequests = getSyncRequests(query);
     for (const auto &request: newRequests) {
+        auto shouldSkip = [&] {
+            for (auto &r : mSyncRequestQueue) {
+                if (r == request) {
+                    //Merge
+                    SinkTraceCtx(mLogCtx) << "Merging equal request " << request.query << "\n to" << r.query;
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if (shouldSkip()) {
+            continue;
+        }
         mergeIntoQueue(request, mSyncRequestQueue);
     }
     processSyncQueue().exec();
@@ -420,7 +444,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
         });
     } else if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
         return KAsync::start([this, request] {
-            SinkLogCtx(mLogCtx) << "Synchronizing: " << request.query;
+            SinkLogCtx(mLogCtx) << "Synchronizing:" << request.query;
             setBusy(true, "Synchronization has started.", request.requestId);
             emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, {}, {}, request.applicableEntities);
         }).then(synchronizeWithSource(request.query)).then([this] {
