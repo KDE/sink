@@ -586,9 +586,14 @@ public:
                                 }
                             }).then([=] (const KAsync::Error &error) {
                                 if (error) {
-                                    //Ignore the error because we don't want to fail the synchronization here
-                                    SinkWarningCtx(mLogCtx) << "Examine failed: " << error.errorMessage;
+                                    SinkWarningCtx(mLogCtx) << "Examine failed: " << error;
+                                    if (error.errorCode == Imap::CommandFailed) {
+                                        //Ignore the error because we don't want to fail the synchronization for all folders
+                                        return KAsync::null();
+                                    }
+                                    return KAsync::error(error);
                                 }
+                                return KAsync::null();
                             });
                     }
                     return KAsync::null();
@@ -659,8 +664,18 @@ public:
                                 SinkLog() << " with date-range " << dateFilter;
                             }
                             return synchronizeFolder(imap, folder, dateFilter, syncHeaders)
-                                .onError([=](const KAsync::Error &error) {
-                                    SinkWarning() << "Failed to sync folder: " << folder.path() << "Error: " << error.errorMessage;
+                                .then([=](const KAsync::Error &error) {
+                                    if (error) {
+                                        if (error.errorCode == Imap::CommandFailed) {
+                                            SinkWarning() << "Continuing after protocol error: " << folder.path() << "Error: " << error;
+                                            //Ignore protocol-level errors and continue
+                                            return KAsync::null();
+                                        }
+                                        SinkWarning() << "Aborting on error: " << folder.path() << "Error: " << error;
+                                        //Abort otherwise, e.g. if we disconnected
+                                        return KAsync::error(error);
+                                    }
+                                    return KAsync::null();
                                 });
                         });
                 }

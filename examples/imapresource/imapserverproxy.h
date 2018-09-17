@@ -37,7 +37,7 @@ enum ErrorCode {
     SslHandshakeError,
     ConnectionLost,
     MissingCredentialsError,
-    SelectFailed,
+    CommandFailed,
     UnknownError
 };
 

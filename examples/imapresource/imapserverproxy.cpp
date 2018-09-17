@@ -65,28 +65,19 @@ const char* Imap::Capabilities::Condstore = "CONDSTORE";
 
 static int translateImapError(KJob *job)
 {
-    const int error = job->error();
-    const bool isLoginJob = dynamic_cast<KIMAP2::LoginJob*>(job);
-    const bool isSelectJob = dynamic_cast<KIMAP2::SelectJob*>(job);
-    switch (error) {
-        case KIMAP2::LoginJob::ErrorCode::ERR_HOST_NOT_FOUND:
+    switch (job->error()) {
+        case KIMAP2::HostNotFound:
             return Imap::HostNotFoundError;
-        case KIMAP2::LoginJob::ErrorCode::ERR_COULD_NOT_CONNECT:
+        case KIMAP2::CouldNotConnect:
             return Imap::CouldNotConnectError;
-        case KIMAP2::LoginJob::ErrorCode::ERR_SSL_HANDSHAKE_FAILED:
+        case KIMAP2::SslHandshakeFailed:
             return Imap::SslHandshakeError;
-    }
-    //Hack to detect login failures
-    if (isLoginJob) {
-        return Imap::LoginFailed;
-    }
-    //Hack to detect selection errors
-    if (isSelectJob) {
-        return Imap::SelectFailed;
-    }
-    //Hack to detect connection lost
-    if (error == KJob::UserDefinedError) {
-        return Imap::ConnectionLost;
+        case KIMAP2::ConnectionLost:
+            return Imap::ConnectionLost;
+        case KIMAP2::LoginFailed:
+            return Imap::LoginFailed;
+        case KIMAP2::CommandFailed:
+            return Imap::CommandFailed;
     }
     return Imap::UnknownError;
 }
