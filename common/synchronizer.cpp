@@ -515,6 +515,10 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
 
 void Synchronizer::setStatus(ApplicationDomain::Status state, const QString &reason, const QByteArray requestId)
 {
+    //We won't be able to execute any of the coming requests, so clear them
+    if (state == ApplicationDomain::OfflineStatus || state == ApplicationDomain::ErrorStatus) {
+        mSyncRequestQueue.clear();
+    }
     if (state != mCurrentState.top()) {
         if (mCurrentState.top() == ApplicationDomain::BusyStatus) {
             mCurrentState.pop();
