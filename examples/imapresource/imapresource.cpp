@@ -247,7 +247,7 @@ public:
 
     KAsync::Job<void> synchronizeFolder(QSharedPointer<ImapServerProxy> imap, const Imap::Folder &folder, const QDate &dateFilter, bool fetchHeaderAlso = false)
     {
-        SinkLogCtx(mLogCtx) << "Synchronizing mails: " << folderRid(folder);
+        SinkLogCtx(mLogCtx) << "Synchronizing mails in folder: " << folderRid(folder);
         SinkLogCtx(mLogCtx) << " fetching headers also: " << fetchHeaderAlso;
         const auto folderRemoteId = folderRid(folder);
         if (folder.path().isEmpty() || folderRemoteId.isEmpty()) {
@@ -648,35 +648,43 @@ public:
                 } else {
                     //Otherwise we sync the folder(s)
                     bool syncHeaders = query.hasFilter<ApplicationDomain::Mail::Folder>();
+
+                    const QDate dateFilter = [&] {
+                        auto filter = query.getFilter<ApplicationDomain::Mail::Date>();
+                        if (filter.value.canConvert<QDate>()) {
+                            SinkLog() << " with date-range " << filter.value.value<QDate>();
+                            return filter.value.value<QDate>();
+                        }
+                        return QDate{};
+                    }();
+
                     //FIXME If we were able to to flush in between we could just query the local store for the folder list.
                     return getFolderList(imap, query)
-                        .serialEach([=](const Folder &folder) {
-                            if (aborting()) {
-                                return KAsync::null();
-                            }
-                            SinkLog() << "Syncing folder " << folder.path();
-                            //Emit notification that the folder is being synced.
-                            //The synchronizer can't do that because it has no concept of the folder filter on a mail sync scope meaning that the folder is being synchronized.
-                            QDate dateFilter;
-                            auto filter = query.getFilter<ApplicationDomain::Mail::Date>();
-                            if (filter.value.canConvert<QDate>()) {
-                                dateFilter = filter.value.value<QDate>();
-                                SinkLog() << " with date-range " << dateFilter;
-                            }
-                            return synchronizeFolder(imap, folder, dateFilter, syncHeaders)
-                                .then([=](const KAsync::Error &error) {
-                                    if (error) {
-                                        if (error.errorCode == Imap::CommandFailed) {
-                                            SinkWarning() << "Continuing after protocol error: " << folder.path() << "Error: " << error;
-                                            //Ignore protocol-level errors and continue
-                                            return KAsync::null();
-                                        }
-                                        SinkWarning() << "Aborting on error: " << folder.path() << "Error: " << error;
-                                        //Abort otherwise, e.g. if we disconnected
-                                        return KAsync::error(error);
+                        .then([=](const QVector<Folder> &folders) {
+                            auto job = KAsync::null<void>();
+                            for (const auto &folder : folders) {
+                                job = job.then([=] {
+                                    if (aborting()) {
+                                        return KAsync::null();
                                     }
-                                    return KAsync::null();
+                                    return synchronizeFolder(imap, folder, dateFilter, syncHeaders)
+                                        .then([=](const KAsync::Error &error) {
+                                            if (error) {
+                                                if (error.errorCode == Imap::CommandFailed) {
+                                                    SinkWarning() << "Continuing after protocol error: " << folder.path() << "Error: " << error;
+                                                    //Ignore protocol-level errors and continue
+                                                    return KAsync::null();
+                                                }
+                                                SinkWarning() << "Aborting on error: " << folder.path() << "Error: " << error;
+                                                //Abort otherwise, e.g. if we disconnected
+                                                return KAsync::error(error);
+                                            }
+                                            return KAsync::null();
+                                        });
                                 });
+
+                            }
+                            return job;
                         });
                 }
             })
