@@ -520,10 +520,18 @@ void Synchronizer::setStatus(ApplicationDomain::Status state, const QString &rea
         mSyncRequestQueue.clear();
     }
     if (state != mCurrentState.top()) {
+        //The busy state is transient and we want to override it.
         if (mCurrentState.top() == ApplicationDomain::BusyStatus) {
             mCurrentState.pop();
         }
-        mCurrentState.push(state);
+        if (state != mCurrentState.top()) {
+            mCurrentState.push(state);
+        }
+        //We should never have more than: (NoStatus, $SOMESTATUS, BusyStatus)
+        if (mCurrentState.count() > 3) {
+            qWarning() << mCurrentState;
+            Q_ASSERT(false);
+        }
         emitNotification(Notification::Status, state, reason, requestId);
     }
 }
