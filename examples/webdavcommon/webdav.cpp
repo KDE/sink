@@ -38,13 +38,16 @@ static int translateDavError(KJob *job)
 {
     using Sink::ApplicationDomain::ErrorCode;
 
-    const int responseCode = dynamic_cast<KDAV2::DavJobBase *>(job)->latestResponseCode();
+    const int responseCode = static_cast<KDAV2::DavJobBase *>(job)->latestResponseCode();
+    SinkWarning() << "Response code: " << responseCode;
 
     switch (responseCode) {
         case QNetworkReply::HostNotFoundError:
+        case QNetworkReply::ContentNotFoundError: //If we can't find the content we probably messed up the url configuration
             return ErrorCode::NoServerError;
-        // Since we don't login we will just not have the necessary permissions ot view the object
-        case QNetworkReply::OperationCanceledError:
+        case QNetworkReply::AuthenticationRequiredError:
+        case QNetworkReply::InternalServerError: //The kolab server reports a HTTP 500 instead of 401 on invalid credentials (we could introspect the error message for the 401 error code)
+        case QNetworkReply::OperationCanceledError: // Since we don't login we will just not have the necessary permissions ot view the object
             return ErrorCode::LoginError;
     }
     return ErrorCode::UnknownError;
@@ -155,7 +158,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
             }
         }();
         if (collectionsToSync.isEmpty()) {
-            SinkWarning() << "No collections to sync:" << query;
+            SinkTrace() << "No collections to sync:" << query;
             return KAsync::null();
         }
         SinkTrace() << "Synchronizing collections: " << collectionsToSync;
