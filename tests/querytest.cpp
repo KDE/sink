@@ -205,12 +205,24 @@ private slots:
         }
 
         // Test
-        Sink::Query query;
-        query.resourceFilter("sink.dummy.instance1");
-        query.filter(id);
-        auto model = Sink::Store::loadModel<Mail>(query);
-        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(model->rowCount(), 1);
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter(id);
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            //Try a non-existing id
+            query.filter("{87fcea5e-8d2e-408e-bb8d-b27b9dcf5e92}");
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 0);
+        }
     }
 
     void testFolder()
