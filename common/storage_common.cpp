@@ -51,9 +51,9 @@ DbLayout::DbLayout(const QByteArray &n, const Databases &t)
 void errorHandler(const DataStore::Error &error)
 {
     if (error.code == DataStore::TransactionError) {
-        SinkError() << "Database error in " << error.store << ", code " << error.code << ", message: " << error.message;
+        SinkError() << "Transaction error:" << error;
     } else {
-        SinkWarning() << "Database error in " << error.store << ", code " << error.code << ", message: " << error.message;
+        SinkWarning() << "Database error:" << error;
     }
 }
 
@@ -136,7 +136,7 @@ QByteArray DataStore::getUidFromRevision(const DataStore::Transaction &transacti
 
 size_t DataStore::getLatestRevisionFromUid(DataStore::Transaction &t, const QByteArray &uid)
 {
-    size_t revision;
+    size_t revision = 0;
     t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
         .findLatest(uid, [&revision](const QByteArray &key, const QByteArray &value) {
             revision = byteArrayToSizeT(value);

@@ -487,6 +487,10 @@ void EntityStore::readLatest(const QByteArray &type, const Identifier &id, const
 {
     Q_ASSERT(d);
     const size_t revision = DataStore::getLatestRevisionFromUid(d->getTransaction(), id.toDisplayByteArray());
+    if (!revision) {
+        SinkWarningCtx(d->logCtx) << "Failed to readLatest: " << type << id;
+        return;
+    }
     auto db = DataStore::mainDatabase(d->getTransaction(), type);
     db.scan(revision,
         [=](size_t, const QByteArray &value) {
