@@ -174,7 +174,8 @@ DummyResource::~DummyResource()
 
 DummyResourceFactory::DummyResourceFactory(QObject *parent)
     : Sink::ResourceFactory(parent, {Sink::ApplicationDomain::ResourceCapabilities::Mail::mail,
-            "event",
+            Sink::ApplicationDomain::ResourceCapabilities::Event::event,
+            Sink::ApplicationDomain::ResourceCapabilities::Event::calendar,
             Sink::ApplicationDomain::ResourceCapabilities::Mail::folder,
             Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,
             "-folder.rename",
@@ -192,15 +193,17 @@ Sink::Resource *DummyResourceFactory::createResource(const Sink::ResourceContext
 void DummyResourceFactory::registerFacades(const QByteArray &resourceName, Sink::FacadeFactory &factory)
 {
     factory.registerFacade<ApplicationDomain::Event, DefaultFacade<ApplicationDomain::Event>>(resourceName);
+    factory.registerFacade<ApplicationDomain::Calendar, DefaultFacade<ApplicationDomain::Calendar>>(resourceName);
     factory.registerFacade<ApplicationDomain::Mail, DefaultFacade<ApplicationDomain::Mail>>(resourceName);
     factory.registerFacade<ApplicationDomain::Folder, DefaultFacade<ApplicationDomain::Folder>>(resourceName);
 }
 
 void DummyResourceFactory::registerAdaptorFactories(const QByteArray &resourceName, Sink::AdaptorFactoryRegistry &registry)
 {
-    registry.registerFactory<Sink::ApplicationDomain::Event, DummyEventAdaptorFactory>(resourceName);
-    registry.registerFactory<Sink::ApplicationDomain::Mail, DummyMailAdaptorFactory>(resourceName);
-    registry.registerFactory<Sink::ApplicationDomain::Folder, DummyFolderAdaptorFactory>(resourceName);
+    registry.registerFactory<Sink::ApplicationDomain::Event, DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event>>(resourceName);
+    registry.registerFactory<Sink::ApplicationDomain::Calendar, DomainTypeAdaptorFactory<Sink::ApplicationDomain::Calendar>>(resourceName);
+    registry.registerFactory<Sink::ApplicationDomain::Mail, DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail>>(resourceName);
+    registry.registerFactory<Sink::ApplicationDomain::Folder, DomainTypeAdaptorFactory<Sink::ApplicationDomain::Folder>>(resourceName);
 }
 
 void DummyResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)

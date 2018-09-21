@@ -3,7 +3,6 @@
 #include <QString>
 
 #include "dummyresource/resourcefactory.h"
-#include "dummyresource/domainadaptor.h"
 #include "store.h"
 #include "notifier.h"
 #include "resourcecontrol.h"
