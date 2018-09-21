@@ -199,11 +199,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
         [](KJob *job) { return static_cast<KDAV2::DavItemsListJob *>(job)->items(); })
         .then([=](const KDAV2::DavItem::List &items) {
             SinkLog() << "Found" << items.size() << "items on the server";
-            if (items.isEmpty()) {
-                return KAsync::null();
-            }
-            *total += items.size();
-            QStringList itemsUrls;
+            QStringList itemsToFetch;
             for (const auto &item : items) {
                 const auto itemRid = resourceID(item);
                 itemsResourceIDs->insert(itemRid);
@@ -211,9 +207,13 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
                     SinkTrace() << "Item unchanged:" << itemRid;
                     continue;
                 }
-                itemsUrls << item.url().url().toDisplayString();
+                itemsToFetch << item.url().url().toDisplayString();
             }
-            return runJob<KDAV2::DavItem::List>(new KDAV2::DavItemsFetchJob(collectionUrl, itemsUrls),
+            if (itemsToFetch.isEmpty()) {
+                return KAsync::null();
+            }
+            *total += itemsToFetch.size();
+            return runJob<KDAV2::DavItem::List>(new KDAV2::DavItemsFetchJob(collectionUrl, itemsToFetch),
                 [](KJob *job) { return static_cast<KDAV2::DavItemsFetchJob *>(job)->items(); })
                 .then([=] (const KDAV2::DavItem::List &items) {
                     for (const auto &item : items) {
