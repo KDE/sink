@@ -333,10 +333,23 @@ void Synchronizer::synchronize(const Sink::QueryBase &query)
     processSyncQueue().exec();
 }
 
+void Synchronizer::clearQueue()
+{
+    //Complete all pending flushes. Without this pending flushes would get stuck indefinitely when we clear the queue on failure.
+    //TODO we should probably fail them instead
+    for (const auto &request : mSyncRequestQueue) {
+        if (request.requestType == Synchronizer::SyncRequest::Flush) {
+            SinkTraceCtx(mLogCtx) << "Emitting flush completion: " << request.requestId;
+            emitNotification(Notification::FlushCompletion, 0, "", request.requestId);
+        }
+    }
+    mSyncRequestQueue.clear();
+}
+
 void Synchronizer::abort()
 {
     SinkLogCtx(mLogCtx) << "Aborting all running synchronization requests";
-    mSyncRequestQueue.clear();
+    clearQueue();
     mAbort = true;
 }
 
@@ -517,7 +530,7 @@ void Synchronizer::setStatus(ApplicationDomain::Status state, const QString &rea
 {
     //We won't be able to execute any of the coming requests, so clear them
     if (state == ApplicationDomain::OfflineStatus || state == ApplicationDomain::ErrorStatus) {
-        mSyncRequestQueue.clear();
+        clearQueue();
     }
     if (state != mCurrentState.top()) {
         //The busy state is transient and we want to override it.

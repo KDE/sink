@@ -228,6 +228,7 @@ private:
     void setStatus(ApplicationDomain::Status busy, const QString &reason, const QByteArray requestId);
     void resetStatus(const QByteArray requestId);
     void setBusy(bool busy, const QString &reason, const QByteArray requestId);
+    void clearQueue();
 
     void modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
     KAsync::Job<void> processRequest(const SyncRequest &request);
