@@ -245,7 +245,7 @@ KAsync::Job<QByteArray> WebDavSynchronizer::createItem(const QByteArray &vcard, 
     remoteItem.setData(vcard);
     remoteItem.setContentType(contentType);
     remoteItem.setUrl(urlOf(collectionRid, uid));
-    SinkLog() << "Creating:" << uid << contentType << remoteItem.url().url() << vcard;
+    SinkLog() << "Creating:" <<  "Uid: " <<  uid << "Content-Type: " << contentType << "Url: " << remoteItem.url().url() << "Content:\n" << vcard;
 
     return runJob<KDAV2::DavItem>(new KDAV2::DavItemCreateJob(remoteItem), [](KJob *job) { return static_cast<KDAV2::DavItemCreateJob*>(job)->item(); })
         .then([=] (const KDAV2::DavItem &remoteItem) {
@@ -254,20 +254,22 @@ KAsync::Job<QByteArray> WebDavSynchronizer::createItem(const QByteArray &vcard, 
         });
 }
 
-KAsync::Job<QByteArray> WebDavSynchronizer::modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &uid, const QByteArray &collectionRid)
+KAsync::Job<QByteArray> WebDavSynchronizer::modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &collectionRid)
 {
     KDAV2::DavItem remoteItem;
     remoteItem.setData(vcard);
     remoteItem.setContentType(contentType);
     remoteItem.setUrl(urlOf(oldRemoteId));
-    auto etag = syncStore().readValue(collectionRid, oldRemoteId + "_etag");
-    remoteItem.setEtag(etag);
-    SinkLog() << "Modifying:" << uid << contentType << remoteItem.url().url() << vcard;
+    remoteItem.setEtag(syncStore().readValue(collectionRid, oldRemoteId + "_etag"));
+    SinkLog() << "Modifying:" << "Content-Type: " << contentType << "Url: " << remoteItem.url().url() << "Etag: " << remoteItem.etag() << "Content:\n" << vcard;
 
     return runJob<KDAV2::DavItem>(new KDAV2::DavItemModifyJob(remoteItem), [](KJob *job) { return static_cast<KDAV2::DavItemModifyJob*>(job)->item(); })
         .then([=] (const KDAV2::DavItem &remoteItem) {
-            syncStore().writeValue(collectionRid, resourceID(remoteItem) + "_etag", remoteItem.etag().toLatin1());
-            return resourceID(remoteItem);
+            const auto remoteId = resourceID(remoteItem);
+            //Should never change if not moved
+            Q_ASSERT(remoteId == oldRemoteId);
+            syncStore().writeValue(collectionRid, remoteId + "_etag", remoteItem.etag().toLatin1());
+            return remoteId;
         });
 }
 

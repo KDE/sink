@@ -105,7 +105,7 @@ protected:
                 if (vcard.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for modification replay");
                 }
-                return modifyItem(oldRemoteId, vcard, "text/vcard", contact.getUid().toUtf8(), syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()));
+                return modifyItem(oldRemoteId, vcard, "text/vcard", syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()));
         }
         return KAsync::null<QByteArray>();
     }

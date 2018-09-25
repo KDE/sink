@@ -146,7 +146,7 @@ protected:
                 if (rawIcal.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for modification replay");
                 }
-                return modifyItem(oldRemoteId, rawIcal, "text/calendar", localItem.getUid().toUtf8(), syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()));
+                return modifyItem(oldRemoteId, rawIcal, "text/calendar", syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()));
         }
         return KAsync::null<QByteArray>();
     }
