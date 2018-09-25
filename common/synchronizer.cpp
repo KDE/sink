@@ -526,6 +526,10 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
 
 }
 
+/*
+ * We're using a stack so we can go back to whatever we had after the temporary busy status.
+ * Whenever we do change the status we emit a status notification.
+ */
 void Synchronizer::setStatus(ApplicationDomain::Status state, const QString &reason, const QByteArray requestId)
 {
     //We won't be able to execute any of the coming requests, so clear them
@@ -538,6 +542,10 @@ void Synchronizer::setStatus(ApplicationDomain::Status state, const QString &rea
             mCurrentState.pop();
         }
         if (state != mCurrentState.top()) {
+            //Always leave the first state intact
+            if (mCurrentState.count() > 1 && state != ApplicationDomain::BusyStatus) {
+                mCurrentState.pop();
+            }
             mCurrentState.push(state);
         }
         //We should never have more than: (NoStatus, $SOMESTATUS, BusyStatus)
