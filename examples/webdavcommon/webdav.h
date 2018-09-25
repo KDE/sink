@@ -35,28 +35,10 @@ public:
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE;
 
 protected:
+    KAsync::Job<QByteArray> createItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &uid, const QByteArray &collectionRid);
+    KAsync::Job<QByteArray> modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &uid, const QByteArray &collectionRid);
+    KAsync::Job<QByteArray> removeItem(const QByteArray &oldRemoteId);
 
-    /**
-     * Called in a child synchronizer, when replaying a creation of an item.
-     */
-    KAsync::Job<void> createItem(const KDAV2::DavItem &);
-
-    /**
-     * Called in a child synchronizer, when replaying a removal of an item.
-     */
-    KAsync::Job<void> removeItem(const KDAV2::DavItem &);
-
-    /**
-     * Called in a child synchronizer, when replaying a modification of an item.
-     *
-     * The item to modify is chosen according to the given item's URL.
-     * The job will fail if the ETag does not match.
-     */
-    KAsync::Job<void> modifyItem(const KDAV2::DavItem &);
-
-    /**
-     * See comments of the *Item version above
-     */
     KAsync::Job<void> createCollection(const KDAV2::DavUrl &);
     KAsync::Job<void> removeCollection(const KDAV2::DavUrl &);
     KAsync::Job<void> modifyCollection(const KDAV2::DavUrl &);

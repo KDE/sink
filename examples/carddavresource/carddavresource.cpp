@@ -95,36 +95,17 @@ protected:
                 if (vcard.isEmpty()) {
                     return KAsync::error<QByteArray>("No vcard in item for creation replay.");
                 }
-
-                auto collectionId = syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook());
-
-                KDAV2::DavItem remoteItem;
-                remoteItem.setData(vcard);
-                remoteItem.setContentType("text/vcard");
-                remoteItem.setUrl(urlOf(collectionId, contact.getUid()));
-                SinkLog() << "Creating:" << contact.getUid() << remoteItem.url().url() << vcard;
-                return createItem(remoteItem).then([=] { return resourceID(remoteItem); });
+                return createItem(vcard, "text/vcard", contact.getUid().toUtf8(), syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()));
             }
             case Sink::Operation_Removal: {
-                // We only need the URL in the DAV item for removal
-                KDAV2::DavItem remoteItem;
-                remoteItem.setUrl(urlOf(oldRemoteId));
-
-                SinkLog() << "Removing:" << oldRemoteId;
-                return removeItem(remoteItem).then([] { return QByteArray{}; });
+                return removeItem(oldRemoteId);
             }
             case Sink::Operation_Modification:
                 const auto vcard = contact.getVcard();
                 if (vcard.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for modification replay");
                 }
-
-                KDAV2::DavItem remoteItem;
-                remoteItem.setData(vcard);
-                remoteItem.setContentType("text/vcard");
-                remoteItem.setUrl(urlOf(oldRemoteId));
-
-                return modifyItem(remoteItem).then([=] { return oldRemoteId; });
+                return modifyItem(oldRemoteId, vcard, "text/vcard", contact.getUid().toUtf8(), syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()));
         }
         return KAsync::null<QByteArray>();
     }

@@ -158,8 +158,18 @@ private slots:
         }
     }
 
-    void testAddContact()
+    void testAddModifyRemoveContact()
     {
+        auto createVCard = [] (const QString &firstname, const QString &uid) {
+            KContacts::Addressee addressee;
+            addressee.setGivenName(firstname);
+            addressee.setFamilyName("Doe");
+            addressee.setFormattedName("John Doe");
+            addressee.setUid(uid);
+            return KContacts::VCardConverter{}.createVCard(addressee, KContacts::VCardConverter::v3_0);
+        };
+
+
         Sink::SyncScope scope;
         scope.setType<Addressbook>();
         scope.resourceFilter(mResourceInstanceIdentifier);
@@ -170,22 +180,41 @@ private slots:
         auto addressbooks = Sink::Store::read<Addressbook>(Sink::Query().resourceFilter(mResourceInstanceIdentifier));
         QVERIFY(!addressbooks.isEmpty());
 
-        KContacts::Addressee addressee;
-        addressee.setGivenName("John");
-        addressee.setFamilyName("Doe");
-        addressee.setFormattedName("John Doe");
-        KContacts::VCardConverter converter;
-        const auto vcard = converter.createVCard(addressee, KContacts::VCardConverter::v3_0);
 
-        Contact contact(mResourceInstanceIdentifier);
-        contact.setVcard(vcard);
+        auto addedUid = QUuid::createUuid().toString();
+        auto contact = Sink::ApplicationDomain::ApplicationDomainType::createEntity<Sink::ApplicationDomain::Contact>(mResourceInstanceIdentifier);
+        contact.setVcard(createVCard("John", addedUid));
         contact.setAddressbook(addressbooks.first());
 
-        VERIFYEXEC(Sink::Store::create(contact));
-        VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
+        {
+            VERIFYEXEC(Sink::Store::create(contact));
+            VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
 
-        auto contacts = Sink::Store::read<Contact>({});
-        QVERIFY(!contacts.isEmpty());
+            auto contacts = Sink::Store::read<Contact>(Sink::Query().filter("uid", Sink::Query::Comparator(addedUid)));
+            QCOMPARE(contacts.size(), 1);
+            QCOMPARE(contacts.first().getFirstname(), {"John"});
+        }
+
+
+        {
+            contact.setVcard(createVCard("Jane", addedUid));
+            VERIFYEXEC(Sink::Store::modify(contact));
+            VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
+            VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+            auto contacts = Sink::Store::read<Contact>(Sink::Query().filter("uid", Sink::Query::Comparator(addedUid)));
+            QCOMPARE(contacts.size(), 1);
+            QCOMPARE(contacts.first().getFirstname(), {"Jane"});
+        }
+
+        {
+            VERIFYEXEC(Sink::Store::remove(contact));
+            VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
+            VERIFYEXEC(Sink::Store::synchronize(Sink::Query().resourceFilter(mResourceInstanceIdentifier)));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+            auto contacts = Sink::Store::read<Contact>(Sink::Query().filter("uid", Sink::Query::Comparator(addedUid)));
+            QCOMPARE(contacts.size(), 0);
+        }
     }
 };
 

@@ -239,22 +239,48 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
         });
 }
 
-KAsync::Job<void> WebDavSynchronizer::createItem(const KDAV2::DavItem &item)
+KAsync::Job<QByteArray> WebDavSynchronizer::createItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &uid, const QByteArray &collectionRid)
 {
-    return runJob(new KDAV2::DavItemCreateJob(item))
-        .then([] { SinkTrace() << "Done creating item"; });
+    KDAV2::DavItem remoteItem;
+    remoteItem.setData(vcard);
+    remoteItem.setContentType(contentType);
+    remoteItem.setUrl(urlOf(collectionRid, uid));
+    SinkLog() << "Creating:" << uid << contentType << remoteItem.url().url() << vcard;
+
+    return runJob<KDAV2::DavItem>(new KDAV2::DavItemCreateJob(remoteItem), [](KJob *job) { return static_cast<KDAV2::DavItemCreateJob*>(job)->item(); })
+        .then([=] (const KDAV2::DavItem &remoteItem) {
+            syncStore().writeValue(collectionRid, resourceID(remoteItem) + "_etag", remoteItem.etag().toLatin1());
+            return resourceID(remoteItem);
+        });
 }
 
-KAsync::Job<void> WebDavSynchronizer::removeItem(const KDAV2::DavItem &item)
+KAsync::Job<QByteArray> WebDavSynchronizer::modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &uid, const QByteArray &collectionRid)
 {
-    return runJob(new KDAV2::DavItemDeleteJob(item))
-        .then([] { SinkTrace() << "Done removing item"; });
+    KDAV2::DavItem remoteItem;
+    remoteItem.setData(vcard);
+    remoteItem.setContentType(contentType);
+    remoteItem.setUrl(urlOf(oldRemoteId));
+    auto etag = syncStore().readValue(collectionRid, oldRemoteId + "_etag");
+    remoteItem.setEtag(etag);
+    SinkLog() << "Modifying:" << uid << contentType << remoteItem.url().url() << vcard;
+
+    return runJob<KDAV2::DavItem>(new KDAV2::DavItemModifyJob(remoteItem), [](KJob *job) { return static_cast<KDAV2::DavItemModifyJob*>(job)->item(); })
+        .then([=] (const KDAV2::DavItem &remoteItem) {
+            syncStore().writeValue(collectionRid, resourceID(remoteItem) + "_etag", remoteItem.etag().toLatin1());
+            return resourceID(remoteItem);
+        });
 }
 
-KAsync::Job<void> WebDavSynchronizer::modifyItem(const KDAV2::DavItem &item)
+KAsync::Job<QByteArray> WebDavSynchronizer::removeItem(const QByteArray &oldRemoteId)
 {
-    return runJob(new KDAV2::DavItemModifyJob(item))
-        .then([] { SinkTrace() << "Done modifying item"; });
+    SinkLog() << "Removing:" << oldRemoteId;
+    // We only need the URL in the DAV item for removal
+    KDAV2::DavItem remoteItem;
+    remoteItem.setUrl(urlOf(oldRemoteId));
+    return runJob(new KDAV2::DavItemDeleteJob(remoteItem))
+        .then([] {
+            return QByteArray{};
+        });
 }
 
 // There is no "DavCollectionCreateJob"

@@ -136,39 +136,17 @@ protected:
                 if (rawIcal.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for creation replay");
                 }
-
-                auto collectionId = syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar());
-
-                remoteItem.setData(rawIcal);
-                remoteItem.setContentType("text/calendar");
-                remoteItem.setUrl(urlOf(collectionId, localItem.getUid()));
-
-                SinkLog() << "Creating" << entityType << ":" << localItem.getSummary();
-                return createItem(remoteItem).then([remoteItem] { return resourceID(remoteItem); });
+                return createItem(rawIcal, "text/calendar", localItem.getUid().toUtf8(), syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()));
             }
             case Sink::Operation_Removal: {
-                // We only need the URL in the DAV item for removal
-                remoteItem.setUrl(urlOf(oldRemoteId));
-
-                SinkLog() << "Removing" << entityType << ":" << oldRemoteId;
-                return removeItem(remoteItem).then([] { return QByteArray{}; });
+                return removeItem(oldRemoteId);
             }
             case Sink::Operation_Modification:
                 auto rawIcal = localItem.getIcal();
                 if (rawIcal.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for modification replay");
                 }
-
-                remoteItem.setData(rawIcal);
-                remoteItem.setContentType("text/calendar");
-                remoteItem.setUrl(urlOf(oldRemoteId));
-
-                SinkLog() << "Modifying" << entityType << ":" << localItem.getSummary();
-
-                // It would be nice to check that the URL of the item hasn't
-                // changed and move he item if it did, but since the URL is
-                // pretty much arbitrary, whoe does that anyway?
-                return modifyItem(remoteItem).then([oldRemoteId] { return oldRemoteId; });
+                return modifyItem(oldRemoteId, rawIcal, "text/calendar", localItem.getUid().toUtf8(), syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()));
         }
         return KAsync::null<QByteArray>();
     }
