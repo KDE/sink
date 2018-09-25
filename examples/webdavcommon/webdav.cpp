@@ -241,20 +241,20 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
 
 KAsync::Job<void> WebDavSynchronizer::createItem(const KDAV2::DavItem &item)
 {
-    auto job = new KDAV2::DavItemCreateJob(item);
-    return runJob(job).then([] { SinkTrace() << "Done creating item"; });
+    return runJob(new KDAV2::DavItemCreateJob(item))
+        .then([] { SinkTrace() << "Done creating item"; });
 }
 
 KAsync::Job<void> WebDavSynchronizer::removeItem(const KDAV2::DavItem &item)
 {
-    auto job = new KDAV2::DavItemDeleteJob(item);
-    return runJob(job).then([] { SinkTrace() << "Done removing item"; });
+    return runJob(new KDAV2::DavItemDeleteJob(item))
+        .then([] { SinkTrace() << "Done removing item"; });
 }
 
 KAsync::Job<void> WebDavSynchronizer::modifyItem(const KDAV2::DavItem &item)
 {
-    auto job = new KDAV2::DavItemModifyJob(item);
-    return runJob(job).then([] { SinkTrace() << "Done modifying item"; });
+    return runJob(new KDAV2::DavItemModifyJob(item))
+        .then([] { SinkTrace() << "Done modifying item"; });
 }
 
 // There is no "DavCollectionCreateJob"
