@@ -511,7 +511,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             .then<void>([this, request](const KAsync::Error &error) {
                 setStatusFromResult(error, "Changereplay has ended.", request.requestId);
                 if (error) {
-                    SinkWarningCtx(mLogCtx) << "Changereplay failed: " << error.errorMessage;
+                    SinkWarningCtx(mLogCtx) << "Changereplay failed: " << error;
                     return KAsync::error(error);
                 } else {
                     SinkLogCtx(mLogCtx) << "Done replaying changes";
@@ -769,7 +769,6 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         mSyncStore.clear();
         mSyncTransaction.commit();
         if (error) {
-            SinkWarningCtx(mLogCtx) << "Failed to replay change: " << error.errorMessage;
             return KAsync::error(error);
         }
         return KAsync::null();

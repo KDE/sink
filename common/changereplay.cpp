@@ -170,9 +170,6 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
         })
         .then([this](const KAsync::Error &error) {
             SinkTraceCtx(mLogCtx) << "Change replay complete.";
-            if (error) {
-                SinkWarningCtx(mLogCtx) << "Error during change replay: " << error;
-            }
             mMainStoreTransaction.abort();
             mReplayInProgress = false;
             if (ChangeReplay::allChangesReplayed()) {
