@@ -85,13 +85,13 @@ namespace ApplicationDomain {
 enum ErrorCode {
     NoError = 0,
     UnknownError,
-    NoServerError,
-    ConnectionError,
-    LoginError,
-    ConfigurationError,
-    TransmissionError,
-    ConnectionLostError,
-    MissingCredentialsError,
+    NoServerError, //Failed to find the server. E.g. due to failed hostname resolution.
+    ConnectionError, //The connection somehow failed (but the server was found)
+    LoginError, //Login failed (but we managed to connect) -> Typically wrong credentials.
+    ConfigurationError, //The configuration is broken.
+    TransmissionError, //There was an error while transmission (e.g. while uploading something)
+    ConnectionLostError, //We lost the connection to the server.
+    MissingCredentialsError, //There are no credentials available, but required.
     ResourceCrashedError
 };
 
