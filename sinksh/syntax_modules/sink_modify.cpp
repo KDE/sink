@@ -40,16 +40,16 @@ namespace SinkModify
 
 Syntax::List syntax();
 
-bool modify(const QStringList &args, State &state)
+bool modify(QStringList args, State &state)
 {
     if (args.count() < 3) {
         state.printError(syntax()[0].usage());
         return false;
     }
 
-    auto type = args[0];
-    auto resourceId = args[1];
-    auto identifier = args[2];
+    const auto type = args.takeFirst();
+    const auto resourceId = args.takeFirst();
+    const auto identifier = args.takeFirst();
 
     auto &store = SinkshUtils::getStore(type);
     Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject(resourceId.toUtf8(), identifier.toUtf8());
@@ -64,13 +64,13 @@ bool modify(const QStringList &args, State &state)
     result.waitForFinished();
     if (result.errorCode()) {
         state.printError(QObject::tr("An error occurred while removing %1 from %1: %2").arg(identifier).arg(resourceId).arg(result.errorMessage()),
-                         "akonaid__modify_e" + QString::number(result.errorCode()));
+                         "sinksh__modify_e" + QString::number(result.errorCode()));
     }
 
     return true;
 }
 
-bool resource(const QStringList &args, State &state)
+bool resource(QStringList args, State &state)
 {
     if (args.isEmpty()) {
         // TODO: pass the syntax as parameter
@@ -79,20 +79,20 @@ bool resource(const QStringList &args, State &state)
 
     auto &store = SinkshUtils::getStore("resource");
 
-    auto resourceId = args.at(0);
+    auto resourceId = args.takeFirst();
     Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", resourceId.toLatin1());
 
     auto map = SinkshUtils::keyValueMapFromArgs(args);
     for (auto i = map.begin(); i != map.end(); ++i) {
         const auto property = i.key().toLatin1();
-        object->setProperty(property, Sink::PropertyParser::parse("resource", property, i.value()));
+        object->setProperty(property, i.value());
     }
 
     auto result = store.modify(*object).exec();
     result.waitForFinished();
     if (result.errorCode()) {
         state.printError(QObject::tr("An error occurred while modifying the resource %1: %2").arg(resourceId).arg(result.errorMessage()),
-                         "akonaid_modify_e" + QString::number(result.errorCode()));
+                         "sinksh_modify_e" + QString::number(result.errorCode()));
     }
 
     return true;
