@@ -27,6 +27,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QSettings>
+#include <QUrl>
 #include <KMime/Message>
 
 #include "mailtransport.h"
@@ -172,6 +173,9 @@ public:
 
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
+        if (!QUrl{mSettings.server}.isValid()) {
+            return KAsync::error(ApplicationDomain::ConfigurationError, "Invalid server url: " + mSettings.server);
+        }
         return KAsync::start<void>([this]() {
             QList<ApplicationDomain::Mail> toSend;
             SinkLog() << "Looking for mails to send.";

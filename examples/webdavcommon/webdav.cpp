@@ -126,6 +126,10 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
         return KAsync::null<void>();
     }
 
+    if (!mServer.isValid()) {
+        return KAsync::error(Sink::ApplicationDomain::ConfigurationError, "Invalid server url: " + mServer.toString());
+    }
+
     SinkLog() << "Synchronizing" << query.type() << "through WebDAV at:" << serverUrl().url();
 
 

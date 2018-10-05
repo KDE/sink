@@ -34,6 +34,7 @@
 #include <QDate>
 #include <QDateTime>
 #include <QtAlgorithms>
+#include <QUrl>
 
 #include "facadefactory.h"
 #include "adaptorfactoryregistry.h"
@@ -560,6 +561,9 @@ public:
 
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
+        if (!QUrl{mServer}.isValid()) {
+            return KAsync::error(ApplicationDomain::ConfigurationError, "Invalid server url: " + mServer);
+        }
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, &mSessionCache);
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
             return login(imap)
