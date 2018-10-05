@@ -53,7 +53,7 @@ bool create(const QStringList &allArgs, State &state)
     auto type = args.takeFirst();
     auto &store = SinkshUtils::getStore(type);
     ApplicationDomain::ApplicationDomainType::Ptr object;
-    auto resource = args.takeFirst().toLatin1();
+    auto resource = SinkshUtils::parseUid(args.takeFirst().toLatin1());
     object = store.getObject(resource);
 
     auto map = SinkshUtils::keyValueMapFromArgs(args);
@@ -81,11 +81,11 @@ bool resource(const QStringList &args, State &state)
 
     auto &store = SinkshUtils::getStore("resource");
 
-    auto resourceType = args.at(0);
+    const auto resourceType = args.at(0);
 
     auto map = SinkshUtils::keyValueMapFromArgs(args);
 
-    auto identifier = map.take("identifier").toLatin1();
+    const auto identifier = SinkshUtils::parseUid(map.take("identifier").toLatin1());
 
     auto object = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::SinkResource>("", identifier);
     object.setResourceType(resourceType.toLatin1());
