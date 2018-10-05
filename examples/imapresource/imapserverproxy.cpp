@@ -133,7 +133,10 @@ KIMAP2::Session *createNewSession(const QString &serverUrl, int port)
     auto newSession = new KIMAP2::Session(serverUrl, qint16(port));
     newSession->setTimeout(socketTimeout());
     QObject::connect(newSession, &KIMAP2::Session::sslErrors, [=](const QList<QSslError> &errors) {
-        SinkLog() << "Received ssl error: " << errors;
+        SinkWarning() << "Received SSL errors:";
+        for (const auto &e : errors) {
+            SinkWarning() << "  " << e.error() << ":" << e.errorString() << "Certificate: " << e.certificate().toText();
+        }
         newSession->ignoreErrors(errors);
     });
     return newSession;
