@@ -130,7 +130,7 @@ QByteArray modifyEntityCommand(const flatbuffers::FlatBufferBuilder &entityFbb, 
     const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command.data()), command.size());
-        Q_ASSERT(Sink::Commands::VerifyCreateEntityBuffer(verifyer));
+        Q_ASSERT(Sink::Commands::VerifyModifyEntityBuffer(verifyer));
     }
     return command;
 }
