@@ -1548,7 +1548,7 @@ private slots:
             }
             {
                 auto msg = KMime::Message::Ptr::create();
-                msg->subject()->from7BitString("Stuff foo bar");
+                msg->subject()->from7BitString("Stuff to Search");
                 msg->setBody("Body foo bar");
                 msg->from()->from7BitString("\"Another Sender2\"<sender2@unique.com>");
                 msg->assemble();
@@ -1568,6 +1568,7 @@ private slots:
         }
 
         // Test
+        // Default search
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
@@ -1576,13 +1577,38 @@ private slots:
             QCOMPARE(list.size(), 1);
             QCOMPARE(list.first().identifier(), id1);
         }
+        // Phrase search
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
-            query.filter<Mail::Subject>(QueryBase::Comparator(QString("Stuff foo bar"), QueryBase::Comparator::Fulltext));
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("\"Subject To Search\""), QueryBase::Comparator::Fulltext));
             const auto list = Sink::Store::read<Mail>(query);
-            QCOMPARE(list.size(), 2);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
         }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("\"Stuff to Search\""), QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+        }
+        //Operators
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("subject AND search"), QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("subject OR search"), QueryBase::Comparator::Fulltext));
+            QCOMPARE(Sink::Store::read<Mail>(query).size(), 2);
+        }
+        //Case-insensitive
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
@@ -1595,16 +1621,7 @@ private slots:
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
-            query.filter<Mail::Subject>(QueryBase::Comparator(QString("Search"), QueryBase::Comparator::Fulltext));
-            const auto list = Sink::Store::read<Mail>(query);
-            QCOMPARE(list.size(), 1);
-            QCOMPARE(list.first().identifier(), id1);
-        }
-        //Case-insensitive
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Mail::Subject>(QueryBase::Comparator(QString("search"), QueryBase::Comparator::Fulltext));
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("subject"), QueryBase::Comparator::Fulltext));
             const auto list = Sink::Store::read<Mail>(query);
             QCOMPARE(list.size(), 1);
             QCOMPARE(list.first().identifier(), id1);
@@ -1613,7 +1630,7 @@ private slots:
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
-            query.filter<Mail::Subject>(QueryBase::Comparator(QString("sear"), QueryBase::Comparator::Fulltext));
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("subj"), QueryBase::Comparator::Fulltext));
             const auto list = Sink::Store::read<Mail>(query);
             QCOMPARE(list.size(), 1);
             QCOMPARE(list.first().identifier(), id1);
@@ -1676,7 +1693,7 @@ private slots:
             query.resourceFilter("sink.dummy.instance1");
             query.filter({}, Sink::QueryBase::Comparator(QString("The Sender"), Sink::QueryBase::Comparator::Fulltext));
             const auto list = Sink::Store::read<Mail>(query);
-            QCOMPARE(list.size(), 2);
+            QCOMPARE(list.size(), 1);
         }
 
         //Filter by sender

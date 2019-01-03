@@ -165,6 +165,7 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
 
     try {
         Xapian::QueryParser parser;
+        parser.set_default_op(Xapian::Query::OP_AND);
         parser.set_database(*mDb);
         parser.set_max_expansion(100, Xapian::Query::WILDCARD_LIMIT_MOST_FREQUENT, Xapian::QueryParser::FLAG_PARTIAL);
         auto query = parser.parse_query(searchTerm.toStdString(), Xapian::QueryParser::FLAG_PHRASE|Xapian::QueryParser::FLAG_BOOLEAN|Xapian::QueryParser::FLAG_LOVEHATE|Xapian::QueryParser::FLAG_PARTIAL);
