@@ -313,10 +313,8 @@ static QVector<Identifier> sortedIndexLookup(Index &index, QueryBase::Comparator
         return indexLookup(index, filter, toSortableByteArray);
     }
 
-    QVector<Identifier> keys;
-
     QByteArray lowerBound, upperBound;
-    auto bounds = filter.value.value<QVariantList>();
+    const auto bounds = filter.value.value<QVariantList>();
     if (bounds[0].canConvert<QDateTime>()) {
         // Inverse the bounds because dates are stored newest first
         upperBound = toSortableByteArray(bounds[0].toDateTime());
@@ -326,6 +324,7 @@ static QVector<Identifier> sortedIndexLookup(Index &index, QueryBase::Comparator
         upperBound = bounds[1].toByteArray();
     }
 
+    QVector<Identifier> keys;
     index.rangeLookup(lowerBound, upperBound,
         [&](const QByteArray &value) {
             const auto id = Identifier::fromInternalByteArray(value);
@@ -334,7 +333,7 @@ static QVector<Identifier> sortedIndexLookup(Index &index, QueryBase::Comparator
                 keys << id;
             }
         },
-        [bounds](const Index::Error &error) {
+        [&](const Index::Error &error) {
             SinkWarning() << "Lookup error in index:" << error.message
                           << "with bounds:" << bounds[0] << bounds[1];
         });
@@ -349,18 +348,15 @@ static QVector<Identifier> sampledIndexLookup(Index &index, QueryBase::Comparato
         return {};
     }
 
-    QVector<Identifier> keys;
 
-    auto bounds = filter.value.value<QVariantList>();
+    const auto bounds = filter.value.value<QVariantList>();
 
-    QByteArray lowerBound = toSortableByteArray(bounds[0]);
-    QByteArray upperBound = toSortableByteArray(bounds[1]);
-
-    QByteArray lowerBucket = padNumber(bucketOf(bounds[0]));
-    QByteArray upperBucket = padNumber(bucketOf(bounds[1]));
+    const auto lowerBucket = padNumber(bucketOf(bounds[0]));
+    const auto upperBucket = padNumber(bucketOf(bounds[1]));
 
     SinkTrace() << "Looking up from bucket:" << lowerBucket << "to:" << upperBucket;
 
+    QVector<Identifier> keys;
     index.rangeLookup(lowerBucket, upperBucket,
         [&](const QByteArray &value) {
             const auto id = Identifier::fromInternalByteArray(value);
@@ -369,7 +365,7 @@ static QVector<Identifier> sampledIndexLookup(Index &index, QueryBase::Comparato
                 keys << id;
             }
         },
-        [bounds](const Index::Error &error) {
+        [&](const Index::Error &error) {
             SinkWarning() << "Lookup error in index:" << error.message
                           << "with bounds:" << bounds[0] << bounds[1];
         });
