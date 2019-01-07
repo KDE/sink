@@ -1851,6 +1851,8 @@ private slots:
         createEvent("2018-05-23T13:00:00Z", "2018-05-23T14:00:00Z");
         createEvent("2018-05-23T14:00:00Z", "2018-05-23T15:00:00Z");
         createEvent("2018-05-24T12:00:00Z", "2018-05-24T14:00:00Z");
+        //Long event that spans multiple buckets
+        createEvent("2018-05-30T22:00:00",  "2019-04-25T03:00:00");
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
 
         auto findInRange = [] (const QString &start, const QString &end) {
@@ -1874,6 +1876,9 @@ private slots:
         //Find on different days
         QCOMPARE(findInRange("2018-05-22T12:30:00Z", "2018-05-23T12:00:00Z").size(), 1);
         QCOMPARE(findInRange("2018-05-23T14:30:00Z", "2018-05-23T16:00:00Z").size(), 1);
+
+        //Find long range event
+        QCOMPARE(findInRange("2018-07-23T14:30:00Z", "2018-10-23T16:00:00Z").size(), 1);
     }
 
     void testOverlapLive()

@@ -328,7 +328,11 @@ static QVector<Identifier> sortedIndexLookup(Index &index, QueryBase::Comparator
 
     index.rangeLookup(lowerBound, upperBound,
         [&](const QByteArray &value) {
-            keys << Identifier::fromInternalByteArray(value);
+            const auto id = Identifier::fromInternalByteArray(value);
+            //Deduplicate because an id could be in multiple buckets
+            if (!keys.contains(id)) {
+                keys << id;
+            }
         },
         [bounds](const Index::Error &error) {
             SinkWarning() << "Lookup error in index:" << error.message
@@ -359,7 +363,11 @@ static QVector<Identifier> sampledIndexLookup(Index &index, QueryBase::Comparato
 
     index.rangeLookup(lowerBucket, upperBucket,
         [&](const QByteArray &value) {
-            keys << Identifier::fromInternalByteArray(value);
+            const auto id = Identifier::fromInternalByteArray(value);
+            //Deduplicate because an id could be in multiple buckets
+            if (!keys.contains(id)) {
+                keys << id;
+            }
         },
         [bounds](const Index::Error &error) {
             SinkWarning() << "Lookup error in index:" << error.message
