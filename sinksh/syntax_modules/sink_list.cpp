@@ -205,6 +205,7 @@ Syntax::List syntax()
     list.addParameter("resource", {"resource", "List only the content of the given resource" });
     list.addFlag("compact", "Use a compact view (reduces the size of IDs)");
     list.addParameter("filter", {"property=$value", "Filter the results" });
+    list.addParameter("fulltext", {"query", "Filter the results" });
     list.addParameter("id", {"id", "List only the content with the given ID" });
     list.addFlag("showall", "Show all properties");
     list.addParameter("show", {"property", "Only show the given property" });
