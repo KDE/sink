@@ -91,12 +91,11 @@ static KAsync::Job<T> runJob(KJob *job, const std::function<T(KJob *)> &func)
     });
 }
 
-WebDavSynchronizer::WebDavSynchronizer(const Sink::ResourceContext &context,
-    KDAV2::Protocol protocol, QByteArray mCollectionType, QByteArray mEntityType)
+WebDavSynchronizer::WebDavSynchronizer(const Sink::ResourceContext &context, KDAV2::Protocol protocol, const QByteArray &collectionType, const QByteArrayList &entityTypes)
     : Sink::Synchronizer(context),
       protocol(protocol),
-      mCollectionType(std::move(mCollectionType)),
-      mEntityType(std::move(mEntityType))
+      mCollectionType(collectionType),
+      mEntityTypes({"event", "todo"})
 {
     auto config = ResourceConfig::getConfiguration(context.instanceId());
 
@@ -114,18 +113,16 @@ QList<Sink::Synchronizer::SyncRequest> WebDavSynchronizer::getSyncRequests(const
         // We want to synchronize everything
         list << Synchronizer::SyncRequest{Sink::QueryBase(mCollectionType)};
         //This request depends on the previous one so we flush first.
-        list << Synchronizer::SyncRequest{Sink::QueryBase(mEntityType), QByteArray{}, Synchronizer::SyncRequest::RequestFlush};
+        for (const auto &type : mEntityTypes) {
+            //TODO one flush would be enough
+            list << Synchronizer::SyncRequest{Sink::QueryBase{type}, QByteArray{}, Synchronizer::SyncRequest::RequestFlush};
+        }
     }
     return list;
 }
 
 KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBase &query)
 {
-    if (query.type() != mCollectionType && query.type() != mEntityType) {
-        SinkWarning() << "Received synchronization reuqest with unkown type" << query;
-        return KAsync::null<void>();
-    }
-
     if (!mServer.isValid()) {
         return KAsync::error(Sink::ApplicationDomain::ConfigurationError, "Invalid server url: " + mServer.toString());
     }
@@ -147,7 +144,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                 });
                 updateLocalCollections(collections);
             });
-    } else if (query.type() == mEntityType) {
+    } else if (mEntityTypes.contains(query.type())) {
         const QSet<QByteArray> collectionsToSync = [&] {
             if (query.hasFilter(mCollectionType)) {
                 auto folderFilter = query.getFilter(mCollectionType);
@@ -178,7 +175,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                 return synchronizeCollection(collection.url(), resourceID(collection), localId, collection.CTag().toLatin1());
             });
     } else {
-        SinkWarning() << "Unknown query type";
+        SinkWarning() << "Unknown query type" << query;
         return KAsync::null<void>();
     }
 }
@@ -231,15 +228,17 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
             // Update the local CTag to be able to tell if the collection is unchanged
             syncStore().writeValue(collectionRid + "_ctag", ctag);
 
-            scanForRemovals(mEntityType,
-                [&](const std::function<void(const QByteArray &)> &callback) {
-                    //FIXME: The collection type just happens to have the same name as the parent collection property
-                    const auto collectionProperty = mCollectionType;
-                    store().indexLookup(mEntityType, collectionProperty, collectionLocalId, callback);
-                },
-                [&itemsResourceIDs](const QByteArray &remoteId) {
-                    return itemsResourceIDs->contains(remoteId);
-                });
+            for (const auto &entityType : mEntityTypes) {
+                scanForRemovals(entityType,
+                    [&](const std::function<void(const QByteArray &)> &callback) {
+                        //FIXME: The collection type just happens to have the same name as the parent collection property
+                        const auto collectionProperty = mCollectionType;
+                        store().indexLookup(entityType, collectionProperty, collectionLocalId, callback);
+                    },
+                    [&itemsResourceIDs](const QByteArray &remoteId) {
+                        return itemsResourceIDs->contains(remoteId);
+                    });
+            }
         });
 }
 

@@ -47,7 +47,7 @@ class CalDAVSynchronizer : public WebDavSynchronizer
 
 public:
     explicit CalDAVSynchronizer(const Sink::ResourceContext &context)
-        : WebDavSynchronizer(context, KDAV2::CalDav, getTypeName<Calendar>(), getTypeName<Event>())
+        : WebDavSynchronizer(context, KDAV2::CalDav, getTypeName<Calendar>(), {getTypeName<Event>(), getTypeName<Todo>()})
     {
     }
 
@@ -201,6 +201,9 @@ public:
         const auto revision = entityStore().maxRevision();
         entityStore().indexLookup<ApplicationDomain::Event, ApplicationDomain::Event::Calendar>(oldEntity.identifier(), [&] (const QByteArray &identifier) {
             deleteEntity(ApplicationDomain::ApplicationDomainType{{}, identifier, revision, {}}, ApplicationDomain::getTypeName<ApplicationDomain::Event>(), false);
+        });
+        entityStore().indexLookup<ApplicationDomain::Todo, ApplicationDomain::Event::Calendar>(oldEntity.identifier(), [&] (const QByteArray &identifier) {
+            deleteEntity(ApplicationDomain::ApplicationDomainType{{}, identifier, revision, {}}, ApplicationDomain::getTypeName<ApplicationDomain::Todo>(), false);
         });
     }
 };

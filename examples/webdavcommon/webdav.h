@@ -28,8 +28,7 @@
 class WebDavSynchronizer : public Sink::Synchronizer
 {
 public:
-    WebDavSynchronizer(const Sink::ResourceContext &, KDAV2::Protocol, QByteArray collectionName,
-        QByteArray itemName);
+    WebDavSynchronizer(const Sink::ResourceContext &, KDAV2::Protocol, const QByteArray &collectionName, const QByteArrayList &itemNames);
 
     QList<Synchronizer::SyncRequest> getSyncRequests(const Sink::QueryBase &query) Q_DECL_OVERRIDE;
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE;
@@ -86,7 +85,7 @@ protected:
 private:
     KDAV2::Protocol protocol;
     const QByteArray mCollectionType;
-    const QByteArray mEntityType;
+    const QByteArrayList mEntityTypes;
 
     QUrl mServer;
     QString mUsername;
