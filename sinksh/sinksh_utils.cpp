@@ -63,6 +63,8 @@ QList<QByteArray> requestedProperties(const QString &type)
                                   << Mail::Date::name;
     } else if (type == getTypeName<Event>()) {
         return QList<QByteArray>() << Event::Summary::name;
+    } else if (type == getTypeName<Todo>()) {
+        return QList<QByteArray>() << Todo::Summary::name << Todo::Status::name;
     } else if (type == getTypeName<Contact>()) {
         return QList<QByteArray>() << Contact::Fn::name << Contact::Emails::name << Contact::Addressbook::name;
     } else if (type == getTypeName<Addressbook>()) {

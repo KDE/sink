@@ -45,7 +45,7 @@ public:
     ContactSynchronizer(const Sink::ResourceContext &resourceContext)
         : WebDavSynchronizer(resourceContext, KDAV2::CardDav,
               ApplicationDomain::getTypeName<ApplicationDomain::Addressbook>(),
-              ApplicationDomain::getTypeName<ApplicationDomain::Contact>())
+              {ApplicationDomain::getTypeName<ApplicationDomain::Contact>()})
     {}
     QByteArray createAddressbook(const QString &addressbookName, const QString &addressbookPath, const QString &parentAddressbookRid)
     {
