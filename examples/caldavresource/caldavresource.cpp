@@ -29,7 +29,6 @@
 #include "facade.h"
 #include "facadefactory.h"
 
-#include <KCalCore/ICalFormat>
 #include <QColor>
 
 #define ENTITY_TYPE_EVENT "event"
@@ -81,43 +80,26 @@ protected:
     {
         const auto &rid = resourceID(remoteItem);
 
-        auto ical = remoteItem.data();
-        auto incidence = KCalCore::ICalFormat().fromString(ical);
+        const auto ical = remoteItem.data();
 
-        using Type = KCalCore::IncidenceBase::IncidenceType;
+        if (ical.contains("BEGIN:VEVENT")) {
+            Event localEvent;
+            localEvent.setIcal(ical);
+            localEvent.setCalendar(calendarLocalId);
 
-        switch (incidence->type()) {
-            case Type::TypeEvent: {
-                Event localEvent;
-                localEvent.setIcal(ical);
-                localEvent.setCalendar(calendarLocalId);
+            SinkTrace() << "Found an event with id:" << rid;
 
-                SinkTrace() << "Found an event with id:" << rid;
+            createOrModify(ENTITY_TYPE_EVENT, rid, localEvent, {});
+        } else if (ical.contains("BEGIN:VTODO")) {
+            Todo localTodo;
+            localTodo.setIcal(ical);
+            localTodo.setCalendar(calendarLocalId);
 
-                createOrModify(ENTITY_TYPE_EVENT, rid, localEvent, {});
-                break;
-            }
-            case Type::TypeTodo: {
-                Todo localTodo;
-                localTodo.setIcal(ical);
-                localTodo.setCalendar(calendarLocalId);
+            SinkTrace() << "Found a Todo with id:" << rid;
 
-                SinkTrace() << "Found a Todo with id:" << rid;
-
-                createOrModify(ENTITY_TYPE_TODO, rid, localTodo, {});
-                break;
-            }
-            case Type::TypeJournal:
-                SinkWarning() << "Unimplemented add of a 'Journal' item in the Store";
-                break;
-            case Type::TypeFreeBusy:
-                SinkWarning() << "Unimplemented add of a 'FreeBusy' item in the Store";
-                break;
-            case Type::TypeUnknown:
+            createOrModify(ENTITY_TYPE_TODO, rid, localTodo, {});
+        } else {
                 SinkWarning() << "Trying to add a 'Unknown' item";
-                break;
-            default:
-                break;
         }
     }
 
