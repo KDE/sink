@@ -54,7 +54,7 @@ protected:
      *
      * `collectionLocalId` is the local collection id of the item.
      */
-    virtual void updateLocalItem(KDAV2::DavItem item, const QByteArray &collectionLocalId) = 0;
+    virtual void updateLocalItem(const KDAV2::DavItem &item, const QByteArray &collectionLocalId) = 0;
 
     /**
      * Get the local resource id from a collection.

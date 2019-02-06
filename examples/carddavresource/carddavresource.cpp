@@ -76,7 +76,7 @@ protected:
         }
     }
 
-    void updateLocalItem(KDAV2::DavItem remoteContact, const QByteArray &addressbookLocalId) Q_DECL_OVERRIDE
+    void updateLocalItem(const KDAV2::DavItem &remoteContact, const QByteArray &addressbookLocalId) Q_DECL_OVERRIDE
     {
         Sink::ApplicationDomain::Contact localContact;
 

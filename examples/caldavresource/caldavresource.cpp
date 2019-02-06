@@ -77,7 +77,7 @@ protected:
         }
     }
 
-    void updateLocalItem(KDAV2::DavItem remoteItem, const QByteArray &calendarLocalId) Q_DECL_OVERRIDE
+    void updateLocalItem(const KDAV2::DavItem &remoteItem, const QByteArray &calendarLocalId) Q_DECL_OVERRIDE
     {
         const auto &rid = resourceID(remoteItem);
 
