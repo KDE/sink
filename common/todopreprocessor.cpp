@@ -22,6 +22,23 @@
 
 #include <KCalCore/ICalFormat>
 
+static QString statusString(const KCalCore::Todo &incidence)
+{
+    switch(incidence.status()) {
+        case KCalCore::Incidence::StatusCompleted:
+            return "COMPLETED";
+        case KCalCore::Incidence::StatusNeedsAction:
+            return "NEEDSACTION";
+        case KCalCore::Incidence::StatusCanceled:
+            return "CANCELED";
+        case KCalCore::Incidence::StatusInProcess:
+            return "INPROCESS";
+        default:
+            break;
+    }
+    return incidence.customStatus();
+}
+
 void TodoPropertyExtractor::updatedIndexedProperties(Todo &todo, const QByteArray &rawIcal)
 {
     auto incidence = KCalCore::ICalFormat().readIncidence(rawIcal);
@@ -51,7 +68,7 @@ void TodoPropertyExtractor::updatedIndexedProperties(Todo &todo, const QByteArra
     todo.setExtractedDueDate(icalTodo->dtDue());
     todo.setExtractedStartDate(icalTodo->dtStart());
 
-    todo.setExtractedStatus(icalTodo->customStatus());
+    todo.setExtractedStatus(statusString(*icalTodo));
     todo.setExtractedPriority(icalTodo->priority());
     todo.setExtractedCategories(icalTodo->categories());
 }
