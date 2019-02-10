@@ -218,7 +218,7 @@ void MailThreadTest::testRealWorldThread()
         VERIFYEXEC(Store::create(mail));
     };
 
-    createMail(readMail("thread1"));
+    createMail(readMail("thread1_1"));
 
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
@@ -233,13 +233,13 @@ void MailThreadTest::testRealWorldThread()
         return mails.first();
     }();
 
-    createMail(readMail("thread2"));
-    createMail(readMail("thread3"));
-    createMail(readMail("thread4"));
-    createMail(readMail("thread5"));
-    createMail(readMail("thread6"));
-    createMail(readMail("thread7"));
-    createMail(readMail("thread8")); //This mail is breaking the thread
+    createMail(readMail("thread1_2"));
+    createMail(readMail("thread1_3"));
+    createMail(readMail("thread1_4"));
+    createMail(readMail("thread1_5"));
+    createMail(readMail("thread1_6"));
+    createMail(readMail("thread1_7"));
+    createMail(readMail("thread1_8")); //This mail is breaking the thread
     VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
     //Ensure the thread is complete
