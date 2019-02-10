@@ -17,11 +17,11 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include <QCoreApplication>
 #include <QDebug>
 #include <QObject> // tr()
 #include <QModelIndex>
 #include <QTime>
+#include <iostream>
 
 #include "common/resource.h"
 #include "common/storage.h"
@@ -146,7 +146,8 @@ bool list(const QStringList &args_, State &state)
         query.reduce(value.split(':').value(0), Sink::Query::Reduce::Selector(value.split(':').value(1), Sink::Query::Reduce::Selector::Max));
     }
 
-    auto compact = options.options.contains("compact");
+    const auto compact = options.options.contains("compact");
+    const auto exportProperties = options.options.contains("export");
     bool limitPropertySize = true;
     if (!options.options.contains("showall")) {
         if (options.options.contains("show")) {
@@ -161,22 +162,32 @@ bool list(const QStringList &args_, State &state)
         asLine = false;
     }
 
-    QByteArrayList toPrint;
+    QByteArrayList toPrint = query.requestedProperties;
+    std::sort(toPrint.begin(), toPrint.end());
     QStringList tableLine;
 
     for (const auto &o : SinkshUtils::getStore(query.type()).read(query)) {
+        if (exportProperties) {
+            for (const auto &prop: toPrint) {
+                const auto value = o.getProperty(prop);
+                if (value.isValid()) {
+                    if (value.canConvert<QString>()) {
+                        std::cout << value.toString().toStdString() << std::endl;
+                    } else if (value.canConvert<QByteArray>()) {
+                        std::cout << value.toByteArray().toStdString() << std::endl;
+                    }
+                }
+            }
+            continue;
+        }
         if (tableLine.isEmpty()) {
             tableLine << QObject::tr("Resource") << QObject::tr("Identifier");
-            if (query.requestedProperties.isEmpty()) {
+            if (toPrint.isEmpty()) {
                 toPrint = o.availableProperties();
-                std::sort(toPrint.begin(), toPrint.end());
-            } else {
-                toPrint = query.requestedProperties;
                 std::sort(toPrint.begin(), toPrint.end());
             }
             if (asLine) {
-                auto in = toPrint;
-                std::transform(in.constBegin(), in.constEnd(), std::back_inserter(tableLine), [] (const QByteArray &s) -> QString { return s; });
+                std::transform(toPrint.constBegin(), toPrint.constEnd(), std::back_inserter(tableLine), [] (const QByteArray &s) -> QString { return s; });
                 state.stageTableLine(tableLine);
             }
         }
