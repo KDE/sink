@@ -40,7 +40,7 @@ using namespace Sink::ApplicationDomain;
 typedef IndexConfig<Mail,
         SortedIndex<Mail::Date>,
         ValueIndex<Mail::Folder>,
-        ValueIndex<Mail::ParentMessageId>,
+        ValueIndex<Mail::ParentMessageIds>,
         ValueIndex<Mail::MessageId>,
         ValueIndex<Mail::Draft>,
         SortedIndex<Mail::Folder, Mail::Date>,
@@ -127,7 +127,7 @@ void TypeImplementation<Mail>::configure(PropertyMapper &propertyMapper)
     SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Trash, trash);
     SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Sent, sent);
     SINK_REGISTER_SERIALIZER(propertyMapper, Mail, MessageId, messageId);
-    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, ParentMessageId, parentMessageId);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, ParentMessageIds, parentMessageIds);
 }
 
 

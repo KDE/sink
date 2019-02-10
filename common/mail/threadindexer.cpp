@@ -27,67 +27,73 @@ using namespace Sink::ApplicationDomain;
 
 void ThreadIndexer::updateThreadingIndex(const ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction)
 {
-    auto messageId = entity.getProperty(Mail::MessageId::name);
-    auto parentMessageId = entity.getProperty(Mail::ParentMessageId::name);
+    const auto messageId = entity.getProperty(Mail::MessageId::name);
     if (messageId.toByteArray().isEmpty()) {
         SinkWarning() << "Found an email without messageId. This is illegal and threading will break. Entity id: " << entity.identifier();
     }
+    const auto parentMessageIds = entity.getProperty(Mail::ParentMessageIds::name).value<QByteArrayList>();
 
-    SinkTrace() << "Indexing thread. Entity: " << entity.identifier() << "Messageid: " << messageId << "ParentMessageId: " << parentMessageId;
+    SinkTrace() << "Indexing thread. Entity: " << entity.identifier() << "Messageid: " << messageId << "ParentMessageId: " << parentMessageIds;
 
     //check if a child already registered our thread.
     QVector<QByteArray> thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
 
-    if (!thread.isEmpty() && parentMessageId.isValid()) {
+    if (!thread.isEmpty() && !parentMessageIds.isEmpty()) {
         //A child already registered our thread so we merge the childs thread
         //* check if we have a parent thread, if not just continue as usual
         //* get all messages that have the same threadid as the child
         //* switch all to the parents thread
-        Q_ASSERT(!parentMessageId.toByteArray().isEmpty());
-        auto parentThread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId);
-        if (!parentThread.isEmpty()) {
-            auto childThreadId = thread.first();
-            auto parentThreadId = parentThread.first();
-            //Can happen if the message is already available locally.
-            if (childThreadId == parentThreadId) {
-                //Nothing to do
-                return;
-            }
-            SinkTrace() << "Merging child thread: " << childThreadId << " into parent thread: " << parentThreadId;
+        for (const auto &parentMessageId : parentMessageIds) {
+            auto parentThread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId);
+            if (!parentThread.isEmpty()) {
+                auto childThreadId = thread.first();
+                auto parentThreadId = parentThread.first();
+                //Can happen if the message is already available locally.
+                if (childThreadId == parentThreadId) {
+                    //Nothing to do
+                    return;
+                }
+                SinkTrace() << "Merging child thread: " << childThreadId << " into parent thread: " << parentThreadId;
 
-            //Ensure this mail ends up in the correct thread
-            index().unindex<Mail::MessageId, Mail::ThreadId>(messageId, childThreadId, transaction);
-            //We have to copy the id here, otherwise it doesn't survive the subsequent writes
-            thread = QVector<QByteArray>() << QByteArray{parentThreadId.data(), parentThreadId.size()};
+                //Ensure this mail ends up in the correct thread
+                index().unindex<Mail::MessageId, Mail::ThreadId>(messageId, childThreadId, transaction);
+                //We have to copy the id here, otherwise it doesn't survive the subsequent writes
+                thread = {QByteArray{parentThreadId.data(), parentThreadId.size()}};
 
-            //Merge all child messages into the correct thread
-            auto childThreadMessageIds = index().secondaryLookup<Mail::ThreadId, Mail::MessageId>(childThreadId);
-            for (const auto &msgId : childThreadMessageIds) {
-                SinkTrace() << "Merging child message: " << msgId;
-                index().unindex<Mail::MessageId, Mail::ThreadId>(msgId, childThreadId, transaction);
-                index().unindex<Mail::ThreadId, Mail::MessageId>(childThreadId, msgId, transaction);
-                index().index<Mail::MessageId, Mail::ThreadId>(msgId, parentThreadId, transaction);
-                index().index<Mail::ThreadId, Mail::MessageId>(parentThreadId, msgId, transaction);
+                //Merge all child messages into the correct thread
+                auto childThreadMessageIds = index().secondaryLookup<Mail::ThreadId, Mail::MessageId>(childThreadId);
+                for (const auto &msgId : childThreadMessageIds) {
+                    SinkTrace() << "Merging child message: " << msgId;
+                    index().unindex<Mail::MessageId, Mail::ThreadId>(msgId, childThreadId, transaction);
+                    index().unindex<Mail::ThreadId, Mail::MessageId>(childThreadId, msgId, transaction);
+                    index().index<Mail::MessageId, Mail::ThreadId>(msgId, parentThreadId, transaction);
+                    index().index<Mail::ThreadId, Mail::MessageId>(parentThreadId, msgId, transaction);
+                }
+                break;
             }
         }
     }
 
-    //If parent is already available, add to thread of parent
-    if (thread.isEmpty() && parentMessageId.isValid()) {
-        thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId);
+    //If parent is already available, add to thread of the first parent to match
+    if (thread.isEmpty() && !parentMessageIds.isEmpty()) {
+        for (const auto &parentMessageId : parentMessageIds) {
+            thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(parentMessageId);
+            if (!thread.isEmpty()) {
+                break;
+            }
+        }
         SinkTrace() << "Found parent: " << thread;
     }
+
+    //Create a new thread as last resort
     if (thread.isEmpty()) {
-        thread << Sink::createUuid();
+        thread = {Sink::createUuid()};
         SinkTrace() << "Created a new thread: " << thread;
     }
 
-    Q_ASSERT(!thread.isEmpty());
-
-    if (parentMessageId.isValid()) {
-        Q_ASSERT(!parentMessageId.toByteArray().isEmpty());
-        //Register parent with thread for when it becomes available
-        index().index<Mail::MessageId, Mail::ThreadId>(parentMessageId, thread.first(), transaction);
+    if (!parentMessageIds.isEmpty()) {
+        //Register the first (closest) parent with thread for when it becomes available
+        index().index<Mail::MessageId, Mail::ThreadId>(parentMessageIds.first(), thread.first(), transaction);
     }
     index().index<Mail::MessageId, Mail::ThreadId>(messageId, thread.first(), transaction);
     index().index<Mail::ThreadId, Mail::MessageId>(thread.first(), messageId, transaction);
@@ -101,14 +107,14 @@ void ThreadIndexer::add(const ApplicationDomain::ApplicationDomainType &entity)
 
 void ThreadIndexer::modify(const ApplicationDomain::ApplicationDomainType &oldEntity, const ApplicationDomain::ApplicationDomainType &newEntity)
 {
-    //FIXME Implement to support thread changes.
+    //TODO Implement to support thread changes.
     //Emails are immutable (for everything threading relevant), so we don't care about it so far.
 }
 
 void ThreadIndexer::remove(const ApplicationDomain::ApplicationDomainType &entity)
 {
-    auto messageId = entity.getProperty(Mail::MessageId::name);
-    auto thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
+    const auto messageId = entity.getProperty(Mail::MessageId::name);
+    const auto thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
     if (thread.isEmpty()) {
         SinkWarning() << "Failed to find the threadId for the entity " << entity.identifier() << messageId;
     }
