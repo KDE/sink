@@ -95,7 +95,7 @@ protected:
                 if (vcard.isEmpty()) {
                     return KAsync::error<QByteArray>("No vcard in item for creation replay.");
                 }
-                return createItem(vcard, "text/vcard", contact.getUid().toUtf8(), syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()));
+                return createItem(vcard, "text/vcard", contact.getUid().toUtf8() + ".vcf", syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()));
             }
             case Sink::Operation_Removal: {
                 return removeItem(oldRemoteId);

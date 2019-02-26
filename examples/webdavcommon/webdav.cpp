@@ -242,13 +242,13 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
         });
 }
 
-KAsync::Job<QByteArray> WebDavSynchronizer::createItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &uid, const QByteArray &collectionRid)
+KAsync::Job<QByteArray> WebDavSynchronizer::createItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &rid, const QByteArray &collectionRid)
 {
     KDAV2::DavItem remoteItem;
     remoteItem.setData(vcard);
     remoteItem.setContentType(contentType);
-    remoteItem.setUrl(urlOf(collectionRid, uid));
-    SinkLog() << "Creating:" <<  "Uid: " <<  uid << "Content-Type: " << contentType << "Url: " << remoteItem.url().url() << "Content:\n" << vcard;
+    remoteItem.setUrl(urlOf(collectionRid, rid));
+    SinkLog() << "Creating:" <<  "Rid: " <<  rid << "Content-Type: " << contentType << "Url: " << remoteItem.url().url() << "Content:\n" << vcard;
 
     return runJob<KDAV2::DavItem>(new KDAV2::DavItemCreateJob(remoteItem), [](KJob *job) { return static_cast<KDAV2::DavItemCreateJob*>(job)->item(); })
         .then([=] (const KDAV2::DavItem &remoteItem) {

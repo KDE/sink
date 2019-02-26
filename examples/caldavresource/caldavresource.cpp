@@ -78,7 +78,7 @@ protected:
 
     void updateLocalItem(const KDAV2::DavItem &remoteItem, const QByteArray &calendarLocalId) Q_DECL_OVERRIDE
     {
-        const auto &rid = resourceID(remoteItem);
+        const auto rid = resourceID(remoteItem);
 
         const auto ical = remoteItem.data();
 
@@ -118,7 +118,7 @@ protected:
                 if (rawIcal.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for creation replay");
                 }
-                return createItem(rawIcal, "text/calendar", localItem.getUid().toUtf8(), syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()));
+                return createItem(rawIcal, "text/calendar", localItem.getUid().toUtf8() + ".ics", syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()));
             }
             case Sink::Operation_Removal: {
                 return removeItem(oldRemoteId);
