@@ -167,7 +167,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
         return runJob<KDAV2::DavCollection::List>(new KDAV2::DavCollectionsFetchJob{ serverUrl() },
             [](KJob *job) { return static_cast<KDAV2::DavCollectionsFetchJob *>(job)->collections(); })
             .serialEach([=](const KDAV2::DavCollection &collection) {
-                const auto localId = collectionLocalResourceID(collection);
+                const auto localId = syncStore().resolveRemoteId(mCollectionType, resourceID(calendar));
                 //Filter list of folders to sync
                 if (!collectionsToSync.contains(localId)) {
                     return KAsync::null();
@@ -320,11 +320,6 @@ QByteArray WebDavSynchronizer::resourceID(const KDAV2::DavCollection &collection
 QByteArray WebDavSynchronizer::resourceID(const KDAV2::DavItem &item)
 {
     return item.url().url().path().toUtf8();
-}
-
-QByteArray WebDavSynchronizer::collectionLocalResourceID(const KDAV2::DavCollection &calendar)
-{
-    return syncStore().resolveRemoteId(mCollectionType, resourceID(calendar));
 }
 
 KDAV2::DavUrl WebDavSynchronizer::urlOf(const QByteArray &remoteId)

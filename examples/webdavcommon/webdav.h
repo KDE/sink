@@ -56,11 +56,6 @@ protected:
      */
     virtual void updateLocalItem(const KDAV2::DavItem &item, const QByteArray &collectionLocalId) = 0;
 
-    /**
-     * Get the local resource id from a collection.
-     */
-    QByteArray collectionLocalResourceID(const KDAV2::DavCollection &collection);
-
     KAsync::Job<void> synchronizeCollection(const KDAV2::DavUrl &collectionUrl, const QByteArray &collectionRid, const QByteArray &collectionLocalId, const QByteArray &ctag);
 
 
