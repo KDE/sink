@@ -167,12 +167,13 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
         return runJob<KDAV2::DavCollection::List>(new KDAV2::DavCollectionsFetchJob{ serverUrl() },
             [](KJob *job) { return static_cast<KDAV2::DavCollectionsFetchJob *>(job)->collections(); })
             .serialEach([=](const KDAV2::DavCollection &collection) {
-                const auto localId = syncStore().resolveRemoteId(mCollectionType, resourceID(calendar));
+                const auto collectionRid = resourceID(collection);
+                const auto localId = syncStore().resolveRemoteId(mCollectionType, collectionRid);
                 //Filter list of folders to sync
                 if (!collectionsToSync.contains(localId)) {
                     return KAsync::null();
                 }
-                return synchronizeCollection(collection.url(), resourceID(collection), localId, collection.CTag().toLatin1());
+                return synchronizeCollection(collection.url(), collectionRid, localId, collection.CTag().toLatin1());
             });
     } else {
         SinkWarning() << "Unknown query type" << query;
