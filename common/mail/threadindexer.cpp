@@ -117,6 +117,7 @@ void ThreadIndexer::remove(const ApplicationDomain::ApplicationDomainType &entit
     const auto thread = index().secondaryLookup<Mail::MessageId, Mail::ThreadId>(messageId);
     if (thread.isEmpty()) {
         SinkWarning() << "Failed to find the threadId for the entity " << entity.identifier() << messageId;
+        return;
     }
     index().unindex<Mail::MessageId, Mail::ThreadId>(messageId.toByteArray(), thread.first(), transaction());
     index().unindex<Mail::ThreadId, Mail::MessageId>(thread.first(), messageId.toByteArray(), transaction());
