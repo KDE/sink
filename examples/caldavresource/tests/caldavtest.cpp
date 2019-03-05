@@ -415,12 +415,11 @@ private slots:
             })();
             auto hollowDavItemIt =
                 std::find_if(itemList.begin(), itemList.end(), [&](const KDAV2::DavItem &item) {
-                    return item.url().url().path().endsWith(addedEventUid);
+                    return item.url().url().path().contains(addedEventUid);
                 });
             QVERIFY(hollowDavItemIt != itemList.end());
 
             auto davitem = ([&]() -> KDAV2::DavItem {
-                QString itemUrl = collection.url().url().toEncoded() + addedEventUid;
                 auto itemFetchJob = new KDAV2::DavItemFetchJob (*hollowDavItemIt);
                 itemFetchJob->exec();
                 Q_ASSERT(itemFetchJob->error() == 0);
