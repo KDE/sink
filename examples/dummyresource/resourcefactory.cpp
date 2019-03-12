@@ -178,6 +178,7 @@ DummyResourceFactory::DummyResourceFactory(QObject *parent)
             Sink::ApplicationDomain::ResourceCapabilities::Event::calendar,
             Sink::ApplicationDomain::ResourceCapabilities::Mail::folder,
             Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,
+            Sink::ApplicationDomain::ResourceCapabilities::Mail::drafts,
             "-folder.rename",
             Sink::ApplicationDomain::ResourceCapabilities::Mail::sent}
             )
