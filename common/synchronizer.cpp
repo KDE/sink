@@ -220,7 +220,8 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
         SinkTraceCtx(mLogCtx) << "Found a new entity: " << remoteId;
         createEntity(sinkId, bufferType, entity);
     } else { // modification
-        modify(bufferType, remoteId, entity);
+        Storage::EntityStore store(mResourceContext, mLogCtx);
+        modifyIfChanged(store, bufferType, sinkId, entity);
     }
 }
 
