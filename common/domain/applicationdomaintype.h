@@ -292,7 +292,7 @@ public:
     int count() const;
 
 private:
-    friend QDebug operator<<(QDebug, const ApplicationDomainType &);
+    friend SINK_EXPORT QDebug operator<<(QDebug, const ApplicationDomainType &);
     QSharedPointer<BufferAdaptor> mAdaptor;
     QSharedPointer<QSet<QByteArray>> mChangeSet;
     /*

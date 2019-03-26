@@ -30,7 +30,7 @@
 namespace Sink {
 namespace Storage {
 
-class Identifier
+class SINK_EXPORT Identifier
 {
 public:
     // RFC 4122 Section 4.1.2 says 128 bits -> 16 bytes
@@ -60,7 +60,7 @@ private:
     QUuid uid;
 };
 
-class Revision
+class SINK_EXPORT Revision
 {
 public:
     // qint64 has a 19 digit decimal representation
@@ -88,7 +88,7 @@ private:
     size_t rev;
 };
 
-class Key
+class SINK_EXPORT Key
 {
 public:
     static const constexpr size_t INTERNAL_REPR_SIZE = Identifier::INTERNAL_REPR_SIZE + Revision::INTERNAL_REPR_SIZE;

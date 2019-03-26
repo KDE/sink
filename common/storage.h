@@ -32,10 +32,10 @@
 namespace Sink {
 namespace Storage {
 
-extern int AllowDuplicates;
-extern int IntegerKeys;
+extern SINK_EXPORT int AllowDuplicates;
+extern SINK_EXPORT int IntegerKeys;
 // Only useful with AllowDuplicates
-extern int IntegerValues;
+extern SINK_EXPORT int IntegerValues;
 
 struct SINK_EXPORT DbLayout {
     typedef QMap<QByteArray, int> Databases;
@@ -63,7 +63,7 @@ public:
         NotFound
     };
 
-    class Error
+    class SINK_EXPORT Error
     {
     public:
         Error(const QByteArray &s, int c, const QByteArray &m) : store(s), message(m), code(c)

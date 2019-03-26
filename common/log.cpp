@@ -23,6 +23,8 @@
 
 using namespace Sink::Log;
 
+const char *getComponentName() { return nullptr; }
+
 static QThreadStorage<QSharedPointer<QSettings>> sSettings;
 static QSettings &config()
 {

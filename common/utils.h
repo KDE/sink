@@ -18,27 +18,30 @@
 */
 #pragma once
 
+#include "sink_export.h"
 #include <QByteArray>
 
 #include <cmath>
 
 namespace Sink {
 
-QByteArray createUuid();
+QByteArray SINK_EXPORT createUuid();
 
 // No copy is done on this functions. Therefore, the caller must not use the
 // returned QByteArray after the size_t has been destroyed.
-const QByteArray sizeTToByteArray(const size_t &);
-size_t byteArrayToSizeT(const QByteArray &);
+const QByteArray SINK_EXPORT sizeTToByteArray(const size_t &);
+size_t SINK_EXPORT byteArrayToSizeT(const QByteArray &);
 
 template <typename T>
 static QByteArray padNumber(T number);
 
+#ifndef WIN32
 template <>
 QByteArray padNumber<size_t>(size_t number)
 {
     return padNumber<qint64>(number);
 }
+#endif
 
 template <typename T>
 static QByteArray padNumber(T number)
