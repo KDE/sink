@@ -212,6 +212,10 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
 {
     SinkTraceCtx(mLogCtx) << "Create or modify" << bufferType << remoteId;
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
+    if (sinkId.isEmpty()) {
+        SinkWarningCtx(mLogCtx) << "Can't modify entity that is not locally existing " << remoteId;
+        return;
+    }
     if (!Storage::EntityStore{mResourceContext, mLogCtx}.contains(bufferType, sinkId)) {
         SinkTraceCtx(mLogCtx) << "Found a new entity: " << remoteId;
         createEntity(sinkId, bufferType, entity);
@@ -225,6 +229,10 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
 {
     SinkTraceCtx(mLogCtx) << "Create or modify" << bufferType << remoteId;
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
+    if (sinkId.isEmpty()) {
+        SinkWarningCtx(mLogCtx) << "Can't modify entity that is not locally existing " << remoteId;
+        return;
+    }
     Storage::EntityStore store(mResourceContext, mLogCtx);
     const auto found = store.contains(bufferType, sinkId);
     if (!found) {
