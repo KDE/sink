@@ -179,16 +179,20 @@ void Synchronizer::scanForRemovals(const QByteArray &bufferType, std::function<b
 void Synchronizer::modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
     store.readLatest(bufferType, sinkId, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &current) {
-        bool changed = false;
-        for (const auto &property : entity.changedProperties()) {
-            if (entity.getProperty(property) != current.getProperty(property)) {
-                SinkTraceCtx(mLogCtx) << "Property changed " << sinkId << property;
-                changed = true;
+        const bool changed = [&] {
+            for (const auto &property : entity.changedProperties()) {
+                if (entity.getProperty(property) != current.getProperty(property)) {
+                    SinkTraceCtx(mLogCtx) << "Property changed " << sinkId << property;
+                    return true;
+                }
             }
-        }
+            return false;
+        }();
         if (changed) {
             SinkTraceCtx(mLogCtx) << "Found a modified entity: " << sinkId;
             modifyEntity(sinkId, store.maxRevision(), bufferType, entity);
+        } else {
+            SinkTraceCtx(mLogCtx) << "Entity was not modified: " << sinkId;
         }
     });
 }
@@ -207,10 +211,8 @@ void Synchronizer::modify(const QByteArray &bufferType, const QByteArray &remote
 void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
     SinkTraceCtx(mLogCtx) << "Create or modify" << bufferType << remoteId;
-    Storage::EntityStore store(mResourceContext, mLogCtx);
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
-    const auto found = store.contains(bufferType, sinkId);
-    if (!found) {
+    if (!Storage::EntityStore{mResourceContext, mLogCtx}.contains(bufferType, sinkId)) {
         SinkTraceCtx(mLogCtx) << "Found a new entity: " << remoteId;
         createEntity(sinkId, bufferType, entity);
     } else { // modification
@@ -221,7 +223,6 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
 template<typename DomainType>
 void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const DomainType &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria)
 {
-
     SinkTraceCtx(mLogCtx) << "Create or modify" << bufferType << remoteId;
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
     Storage::EntityStore store(mResourceContext, mLogCtx);
