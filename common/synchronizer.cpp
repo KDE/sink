@@ -235,15 +235,13 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
         return;
     }
     Storage::EntityStore store(mResourceContext, mLogCtx);
-    const auto found = store.contains(bufferType, sinkId);
-    if (!found) {
+    if (!store.contains(bufferType, sinkId)) {
         if (!mergeCriteria.isEmpty()) {
             Sink::Query query;
             for (auto it = mergeCriteria.constBegin(); it != mergeCriteria.constEnd(); it++) {
                 query.filter(it.key(), it.value());
             }
             bool merge = false;
-            Storage::EntityStore store{mResourceContext, mLogCtx};
             DataStoreQuery dataStoreQuery{query, ApplicationDomain::getTypeName<DomainType>(), store};
             auto resultSet = dataStoreQuery.execute();
             resultSet.replaySet(0, 1, [this, &merge, bufferType, remoteId](const ResultSet::Result &r) {
