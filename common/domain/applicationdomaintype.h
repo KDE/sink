@@ -28,7 +28,7 @@
 #include "bufferadaptor.h"
 
 #define SINK_ENTITY(TYPE, LOWERCASENAME) \
-    static constexpr const char *name = #LOWERCASENAME; \
+    inline static constexpr const char *name = #LOWERCASENAME; \
     typedef QSharedPointer<TYPE> Ptr; \
     using Entity::Entity; \
     TYPE() = default; \
@@ -39,7 +39,7 @@
 
 #define SINK_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
-        SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
+        SINK_EXPORT inline static constexpr const char *name = #LOWERCASENAME; \
         typedef TYPE Type; \
     }; \
     void set##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
@@ -319,7 +319,7 @@ SINK_EXPORT QDebug operator<< (QDebug d, const Reference &ref);
 
 
 struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
-    static constexpr const char *name = "account";
+    inline static constexpr const char *name = "account";
     typedef QSharedPointer<SinkAccount> Ptr;
     explicit SinkAccount(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
     explicit SinkAccount(const QByteArray &identifier);
@@ -340,7 +340,7 @@ struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
  * and for creating and removing resource instances.
  */
 struct SINK_EXPORT SinkResource : public ApplicationDomainType {
-    static constexpr const char *name = "resource";
+    inline static constexpr const char *name = "resource";
     typedef QSharedPointer<SinkResource> Ptr;
     explicit SinkResource(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
     explicit SinkResource(const QByteArray &identifier);

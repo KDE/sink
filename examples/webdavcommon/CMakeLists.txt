@@ -1,7 +1,5 @@
 project(sink_webdav_common)
 
-set(CMAKE_CXX_STANDARD 14)
-
 find_package(KPimKDAV2 REQUIRED 0.2.0)
 
 add_library(${PROJECT_NAME} STATIC webdav.cpp)
