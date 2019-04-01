@@ -37,18 +37,18 @@
 #include "sinksh_utils.h"
 #include "state.h"
 #include "syntaxtree.h"
-#include "utils.h"
 
 namespace SinkInspect
 {
 
 using Sink::Storage::Key;
 using Sink::Storage::Identifier;
+using Sink::Storage::Revision;
 
 QString parse(const QByteArray &bytes)
 {
-    if (bytes.length() == 8) {
-        return QString::number(Sink::byteArrayToSizeT(bytes));
+    if (Revision::isValidInternal(bytes)) {
+        return Revision::fromInternalByteArray(bytes).toDisplayString();
     } else if (Key::isValidInternal(bytes)) {
         return Key::fromInternalByteArray(bytes).toDisplayString();
     } else if (Identifier::isValidInternal(bytes)) {

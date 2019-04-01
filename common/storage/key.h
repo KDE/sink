@@ -63,8 +63,8 @@ private:
 class SINK_EXPORT Revision
 {
 public:
+    static const constexpr size_t INTERNAL_REPR_SIZE = 8;
     // qint64 has a 19 digit decimal representation
-    static const constexpr size_t INTERNAL_REPR_SIZE = 19;
     static const constexpr size_t DISPLAY_REPR_SIZE = 19;
 
     Revision(size_t rev) : rev(rev) {}

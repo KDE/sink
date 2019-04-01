@@ -125,29 +125,29 @@ bool Identifier::operator!=(const Identifier &other) const
 
 QByteArray Revision::toInternalByteArray() const
 {
-    return padNumber(rev);
+    return Sink::sizeTToByteArray(rev);
 }
 
 Revision Revision::fromInternalByteArray(const QByteArray &bytes)
 {
     Q_ASSERT(bytes.size() == INTERNAL_REPR_SIZE);
-    return Revision(bytes.toLongLong());
+    return Revision(Sink::byteArrayToSizeT(bytes));
 }
 
 QString Revision::toDisplayString() const
 {
-    return QString::fromUtf8(toInternalByteArray());
+    return QString::fromUtf8(padNumber(rev));
 }
 
 QByteArray Revision::toDisplayByteArray() const
 {
-    return toInternalByteArray();
+    return padNumber(rev);
 }
 
 Revision Revision::fromDisplayByteArray(const QByteArray &bytes)
 {
     Q_ASSERT(bytes.size() == DISPLAY_REPR_SIZE);
-    return fromInternalByteArray(bytes);
+    return Revision(bytes.toLongLong());
 }
 
 qint64 Revision::toQint64() const
@@ -165,15 +165,17 @@ bool Revision::isValidInternal(const QByteArray &bytes)
     if (bytes.size() != Revision::INTERNAL_REPR_SIZE) {
         return false;
     }
-
-    bool ok;
-    bytes.toLongLong(&ok);
-    return ok;
+    return true;
 }
 
 bool Revision::isValidDisplay(const QByteArray &bytes)
 {
-    return isValidInternal(bytes);
+    if (bytes.size() != Revision::DISPLAY_REPR_SIZE) {
+        return false;
+    }
+    bool ok;
+    bytes.toLongLong(&ok);
+    return ok;
 }
 
 bool Revision::isValid(const QByteArray &bytes)
