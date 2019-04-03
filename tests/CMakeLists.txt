@@ -44,6 +44,7 @@ auto_tests (
     domainadaptortest
     messagequeuetest
     indextest
+    fulltextindextest
     resourcecommunicationtest
     pipelinetest
     querytest
