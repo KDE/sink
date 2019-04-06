@@ -46,13 +46,17 @@ using namespace Sink::Storage;
 CommandProcessor::CommandProcessor(Sink::Pipeline *pipeline, const QByteArray &instanceId, const Sink::Log::Context &ctx)
     : QObject(),
     mLogCtx(ctx.subContext("commandprocessor")),
-    mPipeline(pipeline), 
+    mPipeline(pipeline),
     mUserQueue(Sink::storageLocation(), instanceId + ".userqueue"),
     mSynchronizerQueue(Sink::storageLocation(), instanceId + ".synchronizerqueue"),
     mCommandQueues({&mUserQueue, &mSynchronizerQueue}), mProcessingLock(false), mLowerBoundRevision(0)
 {
     for (auto queue : mCommandQueues) {
-        const bool ret = connect(queue, &MessageQueue::messageReady, this, &CommandProcessor::process);
+        /*
+         * This is a queued connection because otherwise we would execute CommandProcessor::process in the middle of
+         * Synchronizer::commit, which is not what we want.
+         */
+        const bool ret = connect(queue, &MessageQueue::messageReady, this, &CommandProcessor::process, Qt::QueuedConnection);
         Q_UNUSED(ret);
     }
 
