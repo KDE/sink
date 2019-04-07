@@ -161,8 +161,10 @@ static LONG WINAPI windowsFaultHandler(struct _EXCEPTION_POINTERS *exInfo)
     char appName[MAX_PATH];
     if (!GetModuleFileNameA(NULL, appName, MAX_PATH))
         appName[0] = 0;
-    const int msecsFunctionTime = qRound(QTestLog::msecsFunctionTime());
-    const int msecsTotalTime = qRound(QTestLog::msecsTotalTime());
+    // const int msecsFunctionTime = qRound(QTestLog::msecsFunctionTime());
+    // const int msecsTotalTime = qRound(QTestLog::msecsTotalTime());
+    const int msecsFunctionTime = 0;
+    const int msecsTotalTime = 0;
     const void *exceptionAddress = exInfo->ExceptionRecord->ExceptionAddress;
     printf("A crash occurred in %s.\n"
            "Function time: %dms Total time: %dms\n\n"
