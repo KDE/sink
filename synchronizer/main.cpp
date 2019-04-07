@@ -41,6 +41,13 @@
 #include <process.h>
 #endif
 
+#ifdef Q_OS_WIN
+# if !defined(Q_CC_MINGW) || (defined(Q_CC_MINGW) && defined(__MINGW64_VERSION_MAJOR))
+#  include <crtdbg.h>
+# endif
+#include <windows.h>
+#endif
+
 #include "listener.h"
 #include "log.h"
 #include "test.h"
@@ -48,6 +55,152 @@
 #ifdef Q_OS_OSX
 #include <CoreFoundation/CoreFoundation.h>
 #endif
+
+
+
+
+#if defined(Q_OS_WIN) && !defined(Q_OS_WINRT)
+
+// Helper class for resolving symbol names by dynamically loading "dbghelp.dll".
+class DebugSymbolResolver
+{
+    Q_DISABLE_COPY(DebugSymbolResolver)
+public:
+    struct Symbol {
+        Symbol() : name(Q_NULLPTR), address(0) {}
+
+        const char *name; // Must be freed by caller.
+        DWORD64 address;
+    };
+
+    explicit DebugSymbolResolver(HANDLE process);
+    ~DebugSymbolResolver() { cleanup(); }
+
+    bool isValid() const { return m_symFromAddr; }
+
+    Symbol resolveSymbol(DWORD64 address) const;
+
+private:
+    // typedefs from DbgHelp.h/.dll
+    struct DBGHELP_SYMBOL_INFO { // SYMBOL_INFO
+        ULONG       SizeOfStruct;
+        ULONG       TypeIndex;        // Type Index of symbol
+        ULONG64     Reserved[2];
+        ULONG       Index;
+        ULONG       Size;
+        ULONG64     ModBase;          // Base Address of module comtaining this symbol
+        ULONG       Flags;
+        ULONG64     Value;            // Value of symbol, ValuePresent should be 1
+        ULONG64     Address;          // Address of symbol including base address of module
+        ULONG       Register;         // register holding value or pointer to value
+        ULONG       Scope;            // scope of the symbol
+        ULONG       Tag;              // pdb classification
+        ULONG       NameLen;          // Actual length of name
+        ULONG       MaxNameLen;
+        CHAR        Name[1];          // Name of symbol
+    };
+
+    typedef BOOL (__stdcall *SymInitializeType)(HANDLE, PCSTR, BOOL);
+    typedef BOOL (__stdcall *SymFromAddrType)(HANDLE, DWORD64, PDWORD64, DBGHELP_SYMBOL_INFO *);
+
+    void cleanup();
+
+    const HANDLE m_process;
+    HMODULE m_dbgHelpLib;
+    SymFromAddrType m_symFromAddr;
+};
+
+void DebugSymbolResolver::cleanup()
+{
+    if (m_dbgHelpLib)
+        FreeLibrary(m_dbgHelpLib);
+    m_dbgHelpLib = 0;
+    m_symFromAddr = Q_NULLPTR;
+}
+
+DebugSymbolResolver::DebugSymbolResolver(HANDLE process)
+    : m_process(process), m_dbgHelpLib(0), m_symFromAddr(Q_NULLPTR)
+{
+    bool success = false;
+    m_dbgHelpLib = LoadLibraryW(L"dbghelp.dll");
+    if (m_dbgHelpLib) {
+        SymInitializeType symInitialize = (SymInitializeType)(GetProcAddress(m_dbgHelpLib, "SymInitialize"));
+        m_symFromAddr = (SymFromAddrType)(GetProcAddress(m_dbgHelpLib, "SymFromAddr"));
+        success = symInitialize && m_symFromAddr && symInitialize(process, NULL, TRUE);
+    }
+    if (!success)
+        cleanup();
+}
+
+DebugSymbolResolver::Symbol DebugSymbolResolver::resolveSymbol(DWORD64 address) const
+{
+    // reserve additional buffer where SymFromAddr() will store the name
+    struct NamedSymbolInfo : public DBGHELP_SYMBOL_INFO {
+        enum { symbolNameLength = 255 };
+
+        char name[symbolNameLength + 1];
+    };
+
+    Symbol result;
+    if (!isValid())
+        return result;
+    NamedSymbolInfo symbolBuffer;
+    memset(&symbolBuffer, 0, sizeof(NamedSymbolInfo));
+    symbolBuffer.MaxNameLen = NamedSymbolInfo::symbolNameLength;
+    symbolBuffer.SizeOfStruct = sizeof(DBGHELP_SYMBOL_INFO);
+    if (!m_symFromAddr(m_process, address, 0, &symbolBuffer))
+        return result;
+    result.name = qstrdup(symbolBuffer.Name);
+    result.address = symbolBuffer.Address;
+    return result;
+}
+
+static LONG WINAPI windowsFaultHandler(struct _EXCEPTION_POINTERS *exInfo)
+{
+    enum { maxStackFrames = 100 };
+    char appName[MAX_PATH];
+    if (!GetModuleFileNameA(NULL, appName, MAX_PATH))
+        appName[0] = 0;
+    const int msecsFunctionTime = qRound(QTestLog::msecsFunctionTime());
+    const int msecsTotalTime = qRound(QTestLog::msecsTotalTime());
+    const void *exceptionAddress = exInfo->ExceptionRecord->ExceptionAddress;
+    printf("A crash occurred in %s.\n"
+           "Function time: %dms Total time: %dms\n\n"
+           "Exception address: 0x%p\n"
+           "Exception code   : 0x%lx\n",
+           appName, msecsFunctionTime, msecsTotalTime,
+           exceptionAddress, exInfo->ExceptionRecord->ExceptionCode);
+
+    DebugSymbolResolver resolver(GetCurrentProcess());
+    if (resolver.isValid()) {
+        DebugSymbolResolver::Symbol exceptionSymbol = resolver.resolveSymbol(DWORD64(exceptionAddress));
+        if (exceptionSymbol.name) {
+            printf("Nearby symbol    : %s\n", exceptionSymbol.name);
+            delete [] exceptionSymbol.name;
+        }
+        void *stack[maxStackFrames];
+        fputs("\nStack:\n", stdout);
+        const unsigned frameCount = CaptureStackBackTrace(0, DWORD(maxStackFrames), stack, NULL);
+        for (unsigned f = 0; f < frameCount; ++f)     {
+            DebugSymbolResolver::Symbol symbol = resolver.resolveSymbol(DWORD64(stack[f]));
+            if (symbol.name) {
+                printf("#%3u: %s() - 0x%p\n", f + 1, symbol.name, (const void *)symbol.address);
+                delete [] symbol.name;
+            } else {
+                printf("#%3u: Unable to obtain symbol\n", f + 1);
+            }
+        }
+    }
+
+    fputc('\n', stdout);
+    fflush(stdout);
+
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif // Q_OS_WIN) && !Q_OS_WINRT
+
+
+
 
 static Listener *listener = nullptr;
 
@@ -236,6 +389,16 @@ int main(int argc, char *argv[])
         std::signal(SIGABRT, crashHandler);
         std::set_terminate(terminateHandler);
     }
+
+#if defined(Q_OS_WIN)
+# ifndef Q_CC_MINGW
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
+# endif
+# ifndef Q_OS_WINRT
+    SetErrorMode(SetErrorMode(0) | SEM_NOGPFAULTERRORBOX);
+    SetUnhandledExceptionFilter(windowsFaultHandler);
+# endif
+#endif
 
     qInstallMessageHandler(qtMessageHandler);
 
