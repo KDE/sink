@@ -22,9 +22,6 @@
 
 #include <QtGlobal> //For the OS ifdefs
 #include <signal.h>
-#ifndef Q_OS_WIN
-#include <execinfo.h>
-#endif
 #include <csignal>
 #include <iostream>
 #include <cstdlib>
@@ -34,14 +31,17 @@
 #include <chrono>
 
 #ifndef Q_OS_WIN
+#include <execinfo.h>
 #include <unistd.h>
 #include <cxxabi.h>
 #include <dlfcn.h>
 #else
+#include <io.h>
+#include <process.h>
+#include <windows.h>
 # if !defined(Q_CC_MINGW) || (defined(Q_CC_MINGW) && defined(__MINGW64_VERSION_MAJOR))
 #include <crtdbg.h>
 # endif
-#include <windows.h>
 #endif
 
 #include "listener.h"
