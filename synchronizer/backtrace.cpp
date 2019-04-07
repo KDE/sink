@@ -48,70 +48,7 @@
 
 using namespace Sink;
 
-//Print a demangled stacktrace
-static void printStacktrace()
-{
-#ifndef Q_OS_WIN
-    int skip = 1;
-	void *callstack[128];
-	const int nMaxFrames = sizeof(callstack) / sizeof(callstack[0]);
-	char buf[1024];
-	int nFrames = backtrace(callstack, nMaxFrames);
-	char **symbols = backtrace_symbols(callstack, nFrames);
-
-	std::ostringstream trace_buf;
-	for (int i = skip; i < nFrames; i++) {
-		// printf("%s\n", symbols[i]);
-		Dl_info info;
-		if (dladdr(callstack[i], &info) && info.dli_sname) {
-			char *demangled = NULL;
-			int status = -1;
-			if (info.dli_sname[0] == '_') {
-				demangled = abi::__cxa_demangle(info.dli_sname, NULL, 0, &status);
-            }
-			snprintf(buf, sizeof(buf), "%-3d %*p %s + %zd\n",
-					 i, int(2 + sizeof(void*) * 2), callstack[i],
-					 status == 0 ? demangled :
-					 info.dli_sname == 0 ? symbols[i] : info.dli_sname,
-					 (char *)callstack[i] - (char *)info.dli_saddr);
-			free(demangled);
-		} else {
-			snprintf(buf, sizeof(buf), "%-3d %*p %s\n",
-					 i, int(2 + sizeof(void*) * 2), callstack[i], symbols[i]);
-		}
-		trace_buf << buf;
-	}
-	free(symbols);
-	if (nFrames == nMaxFrames) {
-		trace_buf << "[truncated]\n";
-    }
-    std::cerr << trace_buf.str();
-#else
-    enum { maxStackFrames = 100 };
-    DebugSymbolResolver resolver(GetCurrentProcess());
-    if (resolver.isValid()) {
-        void *stack[maxStackFrames];
-        fputs("\nStack:\n", stdout);
-        const unsigned frameCount = CaptureStackBackTrace(0, DWORD(maxStackFrames), stack, NULL);
-        for (unsigned f = 0; f < frameCount; ++f)     {
-            DebugSymbolResolver::Symbol symbol = resolver.resolveSymbol(DWORD64(stack[f]));
-            if (symbol.name) {
-                printf("#%3u: %s() - 0x%p\n", f + 1, symbol.name, (const void *)symbol.address);
-                delete [] symbol.name;
-            } else {
-                printf("#%3u: Unable to obtain symbol\n", f + 1);
-            }
-        }
-    }
-
-    fputc('\n', stdout);
-    fflush(stdout);
-
-#endif
-}
-
 #if defined(Q_OS_WIN) && !defined(Q_OS_WINRT)
-
 // Helper class for resolving symbol names by dynamically loading "dbghelp.dll".
 class DebugSymbolResolver
 {
@@ -201,8 +138,71 @@ private:
     HMODULE m_dbgHelpLib;
     SymFromAddrType m_symFromAddr;
 };
+#endif
 
+//Print a demangled stacktrace
+static void printStacktrace()
+{
+#ifndef Q_OS_WIN
+    int skip = 1;
+	void *callstack[128];
+	const int nMaxFrames = sizeof(callstack) / sizeof(callstack[0]);
+	char buf[1024];
+	int nFrames = backtrace(callstack, nMaxFrames);
+	char **symbols = backtrace_symbols(callstack, nFrames);
 
+	std::ostringstream trace_buf;
+	for (int i = skip; i < nFrames; i++) {
+		// printf("%s\n", symbols[i]);
+		Dl_info info;
+		if (dladdr(callstack[i], &info) && info.dli_sname) {
+			char *demangled = NULL;
+			int status = -1;
+			if (info.dli_sname[0] == '_') {
+				demangled = abi::__cxa_demangle(info.dli_sname, NULL, 0, &status);
+            }
+			snprintf(buf, sizeof(buf), "%-3d %*p %s + %zd\n",
+					 i, int(2 + sizeof(void*) * 2), callstack[i],
+					 status == 0 ? demangled :
+					 info.dli_sname == 0 ? symbols[i] : info.dli_sname,
+					 (char *)callstack[i] - (char *)info.dli_saddr);
+			free(demangled);
+		} else {
+			snprintf(buf, sizeof(buf), "%-3d %*p %s\n",
+					 i, int(2 + sizeof(void*) * 2), callstack[i], symbols[i]);
+		}
+		trace_buf << buf;
+	}
+	free(symbols);
+	if (nFrames == nMaxFrames) {
+		trace_buf << "[truncated]\n";
+    }
+    std::cerr << trace_buf.str();
+#else
+    enum { maxStackFrames = 100 };
+    DebugSymbolResolver resolver(GetCurrentProcess());
+    if (resolver.isValid()) {
+        void *stack[maxStackFrames];
+        fputs("\nStack:\n", stdout);
+        const unsigned frameCount = CaptureStackBackTrace(0, DWORD(maxStackFrames), stack, NULL);
+        for (unsigned f = 0; f < frameCount; ++f)     {
+            DebugSymbolResolver::Symbol symbol = resolver.resolveSymbol(DWORD64(stack[f]));
+            if (symbol.name) {
+                printf("#%3u: %s() - 0x%p\n", f + 1, symbol.name, (const void *)symbol.address);
+                delete [] symbol.name;
+            } else {
+                printf("#%3u: Unable to obtain symbol\n", f + 1);
+            }
+        }
+    }
+
+    fputc('\n', stdout);
+    fflush(stdout);
+
+#endif
+}
+
+#if defined(Q_OS_WIN) && !defined(Q_OS_WINRT)
 static LONG WINAPI windowsFaultHandler(struct _EXCEPTION_POINTERS *exInfo)
 {
     char appName[MAX_PATH];
