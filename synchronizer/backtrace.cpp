@@ -20,6 +20,7 @@
  */
 #include "backtrace.h"
 
+#include <QtGlobal> //For the OS ifdefs
 #include <signal.h>
 #ifndef Q_OS_WIN
 #include <execinfo.h>
