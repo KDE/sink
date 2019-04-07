@@ -45,7 +45,7 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
       m_server(new QLocalServer(this)),
       m_resourceName(resourceType),
       m_resourceInstanceIdentifier(resourceInstanceIdentifier),
-      m_clientBufferProcessesTimer(new QTimer(this)),
+      m_clientBufferProcessesTimer(new QTimer),
       m_checkConnectionsTimer(new QTimer),
       m_messageId(0),
       m_exiting(false)
