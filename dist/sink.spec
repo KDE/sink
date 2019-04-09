@@ -6,7 +6,7 @@ Summary:        sink
 
 Group:          Applications/Desktop
 License:        GPL
-URL:            https://docs.kolab.org/about/sink
+URL:            https://phabricator.kde.org/project/profile/5/
 Source0:        sink-%{version}.tar.xz
 
 BuildRequires:  cmake >= 2.8.12
