@@ -58,6 +58,16 @@ QString parse(const QByteArray &bytes)
     }
 }
 
+static QString operationName(int operation)
+{
+    switch (operation) {
+        case 1: return "Create";
+        case 2: return "Modify";
+        case 3: return "Delete";
+    }
+    return {};
+}
+
 Syntax::List syntax();
 
 bool inspect(const QStringList &args, State &state)
@@ -219,7 +229,7 @@ bool inspect(const QStringList &args, State &state)
                         } else {
                             const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
                             state.printLine("Key: " + parsedKey
-                                          + " Operation: " + QString::number(metadata->operation())
+                                          + " Operation: " + operationName(metadata->operation())
                                           + " Replay: " + (metadata->replayToSource() ? "true" : "false")
                                           + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": "")
                                           + " Value size: " + QString::number(data.size())
