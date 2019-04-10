@@ -53,15 +53,16 @@ QByteArray SynchronizerStore::resolveRemoteId(const QByteArray &bufferType, cons
 {
     if (remoteId.isEmpty()) {
         SinkWarning() << "Cannot resolve empty remote id for type: " << bufferType;
-        return QByteArray();
+        return {};
     }
     // Lookup local id for remote id, or insert a new pair otherwise
     Index index("rid.mapping." + bufferType, mTransaction);
-    QByteArray sinkId = index.lookup(remoteId);
+    const QByteArray sinkId = index.lookup(remoteId);
     if (sinkId.isEmpty() && insertIfMissing) {
-        sinkId = Sink::Storage::DataStore::generateUid();
-        index.add(remoteId, sinkId);
-        Index("localid.mapping." + bufferType, mTransaction).add(sinkId, remoteId);
+        const auto newId = Sink::Storage::DataStore::generateUid();
+        index.add(remoteId, newId);
+        Index("localid.mapping." + bufferType, mTransaction).add(newId, remoteId);
+        return newId;
     }
     return sinkId;
 }

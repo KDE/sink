@@ -201,7 +201,7 @@ void Synchronizer::modify(const QByteArray &bufferType, const QByteArray &remote
 {
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId, false);
     if (sinkId.isEmpty()) {
-        SinkWarningCtx(mLogCtx) << "Can't modify entity that is not locally existing " << remoteId;
+        SinkWarningCtx(mLogCtx) << "Failed to find the local id for " << remoteId;
         return;
     }
     Storage::EntityStore store(mResourceContext, mLogCtx);
@@ -213,7 +213,8 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
     SinkTraceCtx(mLogCtx) << "Create or modify" << bufferType << remoteId;
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
     if (sinkId.isEmpty()) {
-        SinkWarningCtx(mLogCtx) << "Can't modify entity that is not locally existing " << remoteId;
+        SinkWarningCtx(mLogCtx) << "Failed to create a local id for " << remoteId;
+        Q_ASSERT(false);
         return;
     }
     Storage::EntityStore store(mResourceContext, mLogCtx);
@@ -231,7 +232,8 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
     SinkTraceCtx(mLogCtx) << "Create or modify" << bufferType << remoteId;
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
     if (sinkId.isEmpty()) {
-        SinkWarningCtx(mLogCtx) << "Can't modify entity that is not locally existing " << remoteId;
+        SinkWarningCtx(mLogCtx) << "Failed to create a local id for " << remoteId;
+        Q_ASSERT(false);
         return;
     }
     Storage::EntityStore store(mResourceContext, mLogCtx);
@@ -309,12 +311,12 @@ void Synchronizer::modify(const DomainType &entity, const QByteArray &newResourc
 
 QList<Synchronizer::SyncRequest> Synchronizer::getSyncRequests(const Sink::QueryBase &query)
 {
-    return QList<Synchronizer::SyncRequest>() << Synchronizer::SyncRequest{query, "sync"};
+    return {Synchronizer::SyncRequest{query, "sync"}};
 }
 
 void Synchronizer::mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue)
 {
-    mSyncRequestQueue << request;
+    queue << request;
 }
 
 void Synchronizer::synchronize(const Sink::QueryBase &query)
