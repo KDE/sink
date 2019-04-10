@@ -319,6 +319,11 @@ void Synchronizer::mergeIntoQueue(const Synchronizer::SyncRequest &request, QLis
     queue << request;
 }
 
+void Synchronizer::addToQueue(const Synchronizer::SyncRequest &request)
+{
+    mergeIntoQueue(request, mSyncRequestQueue);
+}
+
 void Synchronizer::synchronize(const Sink::QueryBase &query)
 {
     SinkTraceCtx(mLogCtx) << "Synchronizing" << query;

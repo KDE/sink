@@ -47,6 +47,7 @@ auto_tests (
     fulltextindextest
     resourcecommunicationtest
     pipelinetest
+    synchronizertest
     querytest
     modelinteractivitytest
     inspectiontest

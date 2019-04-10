@@ -204,6 +204,7 @@ protected:
      * This allows the synchronizer to merge new requests with existing requests in the queue.
      */
     virtual void mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue);
+    void addToQueue(const Synchronizer::SyncRequest &request);
 
     void emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id = QByteArray{}, const QByteArrayList &entiteis = QByteArrayList{});
     void emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArrayList &entities);
@@ -222,6 +223,8 @@ protected:
      */
     bool aborting() const;
 
+    KAsync::Job<void> processSyncQueue();
+
 private:
     QStack<ApplicationDomain::Status> mCurrentState;
     void setStatusFromResult(const KAsync::Error &error, const QString &s, const QByteArray &requestId);
@@ -232,7 +235,6 @@ private:
 
     void modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
     KAsync::Job<void> processRequest(const SyncRequest &request);
-    KAsync::Job<void> processSyncQueue();
 
     Sink::ResourceContext mResourceContext;
     Sink::Storage::EntityStore::Ptr mEntityStore;
