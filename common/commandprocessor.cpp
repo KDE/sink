@@ -326,7 +326,11 @@ static void waitForDrained(KAsync::Future<void> &f, MessageQueue &queue)
     if (queue.isEmpty()) {
         f.setFinished();
     } else {
-        QObject::connect(&queue, &MessageQueue::drained, [&f]() { f.setFinished(); });
+        auto context = new QObject;
+        QObject::connect(&queue, &MessageQueue::drained, context, [&f, context]() {
+            delete context;
+            f.setFinished();
+        });
     }
 };
 
