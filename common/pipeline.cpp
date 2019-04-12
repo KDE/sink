@@ -252,7 +252,23 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         deletions = BufferUtils::fromVector(*modifyEntity->deletions());
     }
 
-    const auto current = d->entityStore.readLatest(bufferType, diff.identifier());
+    Sink::ApplicationDomain::ApplicationDomainType current;
+    bool alreadyRemoved = false;
+
+    d->entityStore.readLatest(bufferType, diff.identifier(), [&](const QByteArray &uid, const EntityBuffer &buffer) {
+        if (buffer.operation() == Sink::Operation_Removal) {
+            alreadyRemoved = true;
+        } else {
+            auto entity = Sink::ApplicationDomain::ApplicationDomainType{d->resourceContext.instanceId(), key, baseRevision, adaptorFactory->createAdaptor(buffer.entity())};
+            current = *Sink::ApplicationDomain::ApplicationDomainType::getInMemoryRepresentation<Sink::ApplicationDomain::ApplicationDomainType>(entity, entity.availableProperties());
+        }
+    });
+
+    if (alreadyRemoved) {
+        SinkWarningCtx(d->logCtx) << "Tried to modify a removed entity: " << diff.identifier();
+        return KAsync::error<qint64>(0);
+    }
+
     if (current.identifier().isEmpty()) {
         SinkWarningCtx(d->logCtx) << "Failed to read current version: " << diff.identifier();
         return KAsync::error<qint64>(0);

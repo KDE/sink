@@ -463,6 +463,43 @@ private slots:
         QVERIFY2(adaptor->getProperty("summary").toString() == QString("summaryLocal"), "The local modification was reverted.");
         QVERIFY2(adaptor->getProperty("description").toString() == QString("descriptionRemote"), "The remote modification was not applied.");
     }
+
+    void testModifyDeleted()
+    {
+        flatbuffers::FlatBufferBuilder entityFbb;
+        auto command = createEntityCommand(createEvent(entityFbb, "summary", "description"));
+
+        Sink::Pipeline pipeline(getContext(), {"test"});
+
+        auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
+
+        // Create the initial revision
+        pipeline.startTransaction();
+        pipeline.newEntity(command.constData(), command.size());
+        pipeline.commit();
+
+        // Get uid of written entity
+        auto keys = getKeys(instanceIdentifier(), "event.main");
+        QCOMPARE(keys.size(), 1);
+        auto key = keys.first();
+        const auto uid = key.identifier().toDisplayByteArray();
+
+        {
+            auto deleteCommand = deleteEntityCommand(uid, 1);
+            pipeline.startTransaction();
+            pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size());
+            pipeline.commit();
+        }
+
+        {
+            entityFbb.Clear();
+            auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summary2"), uid, 1);
+            pipeline.startTransaction();
+            auto future = pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size()).exec();
+            future.waitForFinished();
+            QCOMPARE(future.errorCode(), 0);
+        }
+    }
 };
 
 QTEST_MAIN(PipelineTest)
