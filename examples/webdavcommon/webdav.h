@@ -38,9 +38,9 @@ protected:
     KAsync::Job<QByteArray> modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &collectionRid);
     KAsync::Job<QByteArray> removeItem(const QByteArray &oldRemoteId);
 
-    KAsync::Job<void> createCollection(const KDAV2::DavUrl &);
-    KAsync::Job<void> removeCollection(const KDAV2::DavUrl &);
-    KAsync::Job<void> modifyCollection(const KDAV2::DavUrl &);
+    KAsync::Job<void> createCollection(const QByteArray &collectionRid);
+    KAsync::Job<void> removeCollection(const QByteArray &collectionRid);
+    KAsync::Job<void> modifyCollection(const QByteArray &collectionRid);
 
     /**
      * Called with the list of discovered collections. It's purpose should be
@@ -65,7 +65,7 @@ protected:
     /**
      * Used to get the url of an item / collection with the given remote ID
      */
-    KDAV2::DavUrl urlOf(const QByteArray &remoteId);
+    KDAV2::DavUrl urlOf(const KDAV2::DavUrl &serverUrl, const QByteArray &remoteId);
 
     /**
      * Used to get the url of an item / collection with the given remote ID,
@@ -73,15 +73,16 @@ protected:
      *
      * Useful when adding a new item to a collection
      */
-    KDAV2::DavUrl urlOf(const QByteArray &collectionRemoteId, const QString &itemPath);
-
-    KDAV2::DavUrl serverUrl() const;
+    KDAV2::DavUrl urlOf(const KDAV2::DavUrl &serverUrl, const QByteArray &collectionRemoteId, const QString &itemPath);
 
 private:
-    KDAV2::Protocol protocol;
+    KAsync::Job<KDAV2::DavUrl> discoverServer();
+
+    KDAV2::Protocol mProtocol;
     const QByteArray mCollectionType;
     const QByteArrayList mEntityTypes;
 
+    KDAV2::DavUrl mCachedServer;
     QUrl mServer;
     QString mUsername;
 };

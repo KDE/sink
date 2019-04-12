@@ -156,7 +156,7 @@ protected:
                 break;
             case Sink::Operation_Removal:
                 SinkLog() << "Replaying calendar removal";
-                removeCollection(urlOf(oldRemoteId));
+                removeCollection(oldRemoteId);
                 break;
             case Sink::Operation_Modification:
                 SinkWarning() << "Unimplemented replay of calendar modification";

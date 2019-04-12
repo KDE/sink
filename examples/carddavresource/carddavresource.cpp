@@ -88,7 +88,6 @@ protected:
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Contact &contact, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
-        SinkLog() << "Replaying to:" << serverUrl().url();
         switch (operation) {
             case Sink::Operation_Creation: {
                 const auto vcard = contact.getVcard();
