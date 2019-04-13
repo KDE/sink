@@ -96,7 +96,7 @@ WebDavSynchronizer::WebDavSynchronizer(const Sink::ResourceContext &context, KDA
     : Sink::Synchronizer(context),
       mProtocol(protocol),
       mCollectionType(collectionType),
-      mEntityTypes({"event", "todo"})
+      mEntityTypes(entityTypes)
 {
     auto config = ResourceConfig::getConfiguration(context.instanceId());
 
