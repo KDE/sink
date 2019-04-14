@@ -42,7 +42,7 @@ class CalDavTest : public QObject
     SinkResource createResource()
     {
         auto resource = Sink::ApplicationDomain::CalDavResource::create("account1");
-        resource.setProperty("server", baseUrl);
+        resource.setProperty("server", "http://localhost");
         resource.setProperty("username", username);
         Sink::SecretStore::instance().insert(resource.identifier(), password);
         return resource;

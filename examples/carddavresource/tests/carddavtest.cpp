@@ -28,7 +28,7 @@ class CardDavTest : public QObject
     SinkResource createResource()
     {
         auto resource = Sink::ApplicationDomain::CardDavResource::create("account1");
-        resource.setProperty("server", "http://localhost/dav/addressbooks/user/doe");
+        resource.setProperty("server", "http://localhost");
         resource.setProperty("username", "doe");
         Sink::SecretStore::instance().insert(resource.identifier(), "doe");
         return resource;
