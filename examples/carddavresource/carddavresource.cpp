@@ -47,32 +47,21 @@ public:
               ApplicationDomain::getTypeName<ApplicationDomain::Addressbook>(),
               {ApplicationDomain::getTypeName<ApplicationDomain::Contact>()})
     {}
-    QByteArray createAddressbook(const QString &addressbookName, const QString &addressbookPath, const QString &parentAddressbookRid)
-    {
-        SinkTrace() << "Creating addressbook: " << addressbookName << parentAddressbookRid;
-        const auto remoteId = addressbookPath.toUtf8();
-        const auto bufferType = ENTITY_TYPE_ADDRESSBOOK;
-        Sink::ApplicationDomain::Addressbook addressbook;
-        addressbook.setName(addressbookName);
-        addressbook.setEnabled(true);
-
-        if (!parentAddressbookRid.isEmpty()) {
-            addressbook.setParent(syncStore().resolveRemoteId(ENTITY_TYPE_ADDRESSBOOK, parentAddressbookRid.toUtf8()));
-        }
-        createOrModify(bufferType, remoteId, addressbook, {});
-        return remoteId;
-    }
 
 protected:
     void updateLocalCollections(KDAV2::DavCollection::List addressbookList) Q_DECL_OVERRIDE
     {
-        const QByteArray bufferType = ENTITY_TYPE_ADDRESSBOOK;
         SinkTrace() << "Found" << addressbookList.size() << "addressbooks";
 
         for (const auto &f : addressbookList) {
-            const auto &rid = resourceID(f);
+            const auto rid = resourceID(f);
             SinkLog() << "Found addressbook:" << rid << f.displayName();
-            createAddressbook(f.displayName(), rid, "");
+
+            Sink::ApplicationDomain::Addressbook addressbook;
+            addressbook.setName(f.displayName());
+            addressbook.setEnabled(true);
+
+            createOrModify(ENTITY_TYPE_ADDRESSBOOK, rid, addressbook);
         }
     }
 
@@ -131,8 +120,7 @@ public:
 CardDavResource::CardDavResource(const Sink::ResourceContext &resourceContext)
     : Sink::GenericResource(resourceContext)
 {
-    auto synchronizer = QSharedPointer<ContactSynchronizer>::create(resourceContext);
-    setupSynchronizer(synchronizer);
+    setupSynchronizer(QSharedPointer<ContactSynchronizer>::create(resourceContext));
 
     setupPreprocessors(ENTITY_TYPE_CONTACT, {new ContactPropertyExtractor});
     setupPreprocessors(ENTITY_TYPE_ADDRESSBOOK, {new CollectionCleanupPreprocessor});

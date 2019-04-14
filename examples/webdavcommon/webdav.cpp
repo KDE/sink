@@ -28,7 +28,6 @@
 #include <KDAV2/DavDiscoveryJob>
 #include <KDAV2/DavItemCreateJob>
 #include <KDAV2/DavItemDeleteJob>
-#include <KDAV2/DavItemFetchJob>
 #include <KDAV2/DavItemsFetchJob>
 #include <KDAV2/DavItemModifyJob>
 #include <KDAV2/DavItemsListJob>
