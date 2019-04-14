@@ -123,7 +123,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
         if (!Commands::VerifyCreateEntityBuffer(verifyer)) {
             SinkWarningCtx(d->logCtx) << "invalid buffer, not a create entity buffer";
-            return KAsync::error<qint64>(0);
+            return KAsync::error<qint64>();
         }
     }
     auto createEntity = Commands::GetCreateEntity(command);
@@ -135,7 +135,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
         key = QByteArray(reinterpret_cast<char const *>(createEntity->entityId()->Data()), createEntity->entityId()->size());
         if (!key.isEmpty() && d->entityStore.contains(bufferType, key)) {
             SinkErrorCtx(d->logCtx) << "An entity with this id already exists: " << key;
-            return KAsync::error<qint64>(0);
+            return KAsync::error<qint64>();
         }
     }
 
@@ -149,19 +149,19 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(createEntity->delta()->Data()), createEntity->delta()->size());
         if (!VerifyEntityBuffer(verifyer)) {
             SinkWarningCtx(d->logCtx) << "invalid buffer, not an entity buffer";
-            return KAsync::error<qint64>(0);
+            return KAsync::error<qint64>();
         }
     }
     auto entity = GetEntity(createEntity->delta()->Data());
     if (!entity->resource()->size() && !entity->local()->size()) {
         SinkWarningCtx(d->logCtx) << "No local and no resource buffer while trying to create entity.";
-        return KAsync::error<qint64>(0);
+        return KAsync::error<qint64>();
     }
 
     auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceContext.resourceType, bufferType);
     if (!adaptorFactory) {
         SinkWarningCtx(d->logCtx) << "no adaptor factory for type " << bufferType << d->resourceContext.resourceType;
-        return KAsync::error<qint64>(0);
+        return KAsync::error<qint64>();
     }
 
     auto adaptor = adaptorFactory->createAdaptor(*entity);
@@ -181,7 +181,7 @@ KAsync::Job<qint64> Pipeline::newEntity(void const *command, size_t size)
     }
 
     if (!d->entityStore.add(bufferType, newEntity, replayToSource)) {
-        return KAsync::error<qint64>(0);
+        return KAsync::error<qint64>();
     }
 
     return KAsync::value(d->entityStore.maxRevision());
@@ -207,7 +207,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
         if (!Commands::VerifyModifyEntityBuffer(verifyer)) {
             SinkWarningCtx(d->logCtx) << "invalid buffer, not a modify entity buffer";
-            return KAsync::error<qint64>(0);
+            return KAsync::error<qint64>();
         }
     }
     auto modifyEntity = Commands::GetModifyEntity(command);
@@ -226,20 +226,20 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
     SinkTraceCtx(d->logCtx) << "Modified Entity. Type: " << bufferType << "uid: "<< key << " replayToSource: " << replayToSource;
     if (bufferType.isEmpty() || key.isEmpty()) {
         SinkWarningCtx(d->logCtx) << "entity type or key " << bufferType << key;
-        return KAsync::error<qint64>(0);
+        return KAsync::error<qint64>();
     }
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(modifyEntity->delta()->Data()), modifyEntity->delta()->size());
         if (!VerifyEntityBuffer(verifyer)) {
             SinkWarningCtx(d->logCtx) << "invalid buffer, not an entity buffer";
-            return KAsync::error<qint64>(0);
+            return KAsync::error<qint64>();
         }
     }
 
     auto adaptorFactory = Sink::AdaptorFactoryRegistry::instance().getFactory(d->resourceContext.resourceType, bufferType);
     if (!adaptorFactory) {
         SinkWarningCtx(d->logCtx) << "no adaptor factory for type " << bufferType;
-        return KAsync::error<qint64>(0);
+        return KAsync::error<qint64>();
     }
 
     auto diffEntity = GetEntity(modifyEntity->delta()->Data());
@@ -266,12 +266,12 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     if (alreadyRemoved) {
         SinkWarningCtx(d->logCtx) << "Tried to modify a removed entity: " << diff.identifier();
-        return KAsync::error<qint64>(0);
+        return KAsync::error<qint64>();
     }
 
     if (current.identifier().isEmpty()) {
         SinkWarningCtx(d->logCtx) << "Failed to read current version: " << diff.identifier();
-        return KAsync::error<qint64>(0);
+        return KAsync::error<qint64>();
     }
 
     //We avoid overwriting local changes that haven't been played back yet with remote modifications
@@ -310,7 +310,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
                 break;
             case Preprocessor::DropModification:
                 SinkTraceCtx(d->logCtx) << "Dropping modification";
-                return KAsync::error<qint64>(0);
+                return KAsync::error<qint64>();
             case Preprocessor::NoAction:
             case Preprocessor::DeleteEntity:
             default:
@@ -351,7 +351,7 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
 
     d->revisionChanged = true;
     if (!d->entityStore.modify(bufferType, current, newEntity, replayToSource)) {
-        return KAsync::error<qint64>(0);
+        return KAsync::error<qint64>();
     }
 
     return KAsync::value(d->entityStore.maxRevision());
@@ -365,7 +365,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command), size);
         if (!Commands::VerifyDeleteEntityBuffer(verifyer)) {
             SinkWarningCtx(d->logCtx) << "invalid buffer, not a delete entity buffer";
-            return KAsync::error<qint64>(0);
+            return KAsync::error<qint64>();
         }
     }
     auto deleteEntity = Commands::GetDeleteEntity(command);
@@ -383,7 +383,7 @@ KAsync::Job<qint64> Pipeline::deletedEntity(void const *command, size_t size)
 
     d->revisionChanged = true;
     if (!d->entityStore.remove(bufferType, current, replayToSource)) {
-        return KAsync::error<qint64>(0);
+        return KAsync::error<qint64>();
     }
 
     return KAsync::value(d->entityStore.maxRevision());

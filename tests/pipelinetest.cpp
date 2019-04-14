@@ -497,7 +497,7 @@ private slots:
             pipeline.startTransaction();
             auto future = pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size()).exec();
             future.waitForFinished();
-            QCOMPARE(future.errorCode(), 0);
+            QVERIFY(future.errorCode());
         }
     }
 };
