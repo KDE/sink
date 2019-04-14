@@ -30,7 +30,6 @@
 #include "index.h"
 #include "bufferutils.h"
 #include "entity_generated.h"
-#include "applicationdomaintype_p.h"
 #include "typeimplementations.h"
 
 using namespace Sink;

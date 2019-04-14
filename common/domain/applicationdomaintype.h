@@ -599,6 +599,36 @@ SINK_EXPORT QDataStream &operator>>(QDataStream &in, Sink::ApplicationDomain::Re
 SINK_REGISTER_TYPES()
 #undef REGISTER_TYPE
 
+
+template <template<typename> class Func>
+struct TypeHelper {
+    const QByteArray type;
+
+    template <typename R, typename ...Args>
+    R operator()(Args && ... args) const {
+        if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Folder>()) {
+            return Func<Sink::ApplicationDomain::Folder>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Mail>()) {
+            return Func<Sink::ApplicationDomain::Mail>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>()) {
+            return Func<Sink::ApplicationDomain::Event>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Todo>()) {
+            return Func<Sink::ApplicationDomain::Todo>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Calendar>()) {
+            return Func<Sink::ApplicationDomain::Calendar>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Contact>()) {
+            return Func<Sink::ApplicationDomain::Contact>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Addressbook>()) {
+            return Func<Sink::ApplicationDomain::Addressbook>{}(std::forward<Args>(args)...);
+        } else {
+            Q_ASSERT(false);
+        }
+        //Silence compiler warning
+        return Func<Sink::ApplicationDomain::Mail>{}(std::forward<Args>(args)...);
+    }
+};
+
+
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType::Ptr)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::Entity)

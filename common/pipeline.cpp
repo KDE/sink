@@ -33,7 +33,6 @@
 #include "entitybuffer.h"
 #include "log.h"
 #include "domain/applicationdomaintype.h"
-#include "domain/applicationdomaintype_p.h"
 #include "adaptorfactoryregistry.h"
 #include "definitions.h"
 #include "bufferutils.h"
