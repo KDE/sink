@@ -44,6 +44,8 @@ public:
     qint64 getLastReplayedRevision();
     virtual bool allChangesReplayed();
 
+    KAsync::Job<void> replayNextRevision();
+
 signals:
     void changesReplayed();
     void replayingChanges();
@@ -53,10 +55,10 @@ public slots:
 
 protected:
     virtual KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) = 0;
+    virtual void notReplaying(const QByteArray &type, const QByteArray &key, const QByteArray &value) = 0;
     virtual bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) = 0;
     virtual void reportProgress(int progress, int total, const QByteArrayList &applicableEntities = {}){};
     Sink::Storage::DataStore mStorage;
-    KAsync::Job<void> replayNextRevision();
 
 private:
     void recordReplayedRevision(qint64 revision);

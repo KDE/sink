@@ -714,7 +714,7 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     //The entitystore transaction is handled by processSyncQueue
     Q_ASSERT(mEntityStore->hasTransaction());
 
-    const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
+    const auto operation = metadataBuffer->operation();
     // TODO: should not use internal representations
     const auto uid = Sink::Storage::Key::fromDisplayByteArray(key).identifier().toDisplayByteArray();
     const auto modifiedProperties = metadataBuffer->modifiedProperties() ? BufferUtils::fromVector(*metadataBuffer->modifiedProperties()) : QByteArrayList();
@@ -788,6 +788,29 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         }
         return KAsync::null();
     });
+}
+
+void Synchronizer::notReplaying(const QByteArray &type, const QByteArray &key, const QByteArray &value)
+{
+
+    Sink::EntityBuffer buffer(value);
+    const Sink::Entity &entity = buffer.entity();
+    const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
+    if (!metadataBuffer) {
+        SinkErrorCtx(mLogCtx) << "No metadata buffer available.";
+        Q_ASSERT(false);
+        return;
+    }
+    if (metadataBuffer->operation() == Sink::Operation_Removal) {
+        const auto uid = Sink::Storage::Key::fromDisplayByteArray(key).identifier().toDisplayByteArray();
+        const auto oldRemoteId = syncStore().resolveLocalId(type, uid);
+        SinkLogCtx(mLogCtx) << "Cleaning up removal with remote id: " << oldRemoteId;
+        if (!oldRemoteId.isEmpty()) {
+            syncStore().removeRemoteId(type, uid, oldRemoteId);
+        }
+    }
+    mSyncStore.clear();
+    mSyncTransaction.commit();
 }
 
 KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Contact &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)

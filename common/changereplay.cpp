@@ -19,7 +19,6 @@
  */
 #include "changereplay.h"
 
-#include "entitybuffer.h"
 #include "log.h"
 #include "definitions.h"
 #include "bufferutils.h"
@@ -138,6 +137,7 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                                     break;
                                 } else {
                                     SinkTraceCtx(mLogCtx) << "Not replaying " << key;
+                                    notReplaying(type, displayKey, entityBuffer);
                                     //We silently skip over revisions that cannot be replayed, as this is not an error.
                                 }
                             }

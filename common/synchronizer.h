@@ -65,6 +65,8 @@ public:
     //Abort all running synchronization requests
     void abort();
 
+    KAsync::Job<void> processSyncQueue();
+
 signals:
     void notify(Notification);
 
@@ -73,8 +75,9 @@ public slots:
 
 protected:
     ///Base implementation calls the replay$Type calls
-    KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
-    virtual bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
+    KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) override;
+    virtual bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) override;
+    virtual void notReplaying(const QByteArray &type, const QByteArray &key, const QByteArray &value) override;
 
 protected:
     ///Implement to write back changes to the server
@@ -222,8 +225,6 @@ protected:
      * Stop the synchronization as soon as possible.
      */
     bool aborting() const;
-
-    KAsync::Job<void> processSyncQueue();
 
 private:
     QStack<ApplicationDomain::Status> mCurrentState;
