@@ -90,6 +90,7 @@ private:
     QSharedPointer<Synchronizer> mSynchronizer;
     QSharedPointer<Inspector> mInspector;
     QTimer mCommitQueueTimer;
+    QVector<QByteArray> mCompleteFlushes;
 };
 
 };

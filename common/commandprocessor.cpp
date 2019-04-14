@@ -250,7 +250,21 @@ KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
                         }
                     });
             })
-        .then([=](const KAsync::Error &) { mPipeline->commit(); });
+        .then([=](const KAsync::Error &) {
+            mPipeline->commit();
+            //The flushed content has been persistet, we can notify the world
+            for (const auto &flushId : mCompleteFlushes) {
+                SinkTraceCtx(mLogCtx) << "Emitting flush completion" << flushId;
+                mSynchronizer->flushComplete(flushId);
+                Sink::Notification n;
+                n.type = Sink::Notification::FlushCompletion;
+                n.id = flushId;
+                emit notify(n);
+            }
+            mCompleteFlushes.clear();
+        });
+
+
 }
 
 KAsync::Job<void> CommandProcessor::processPipeline()
@@ -309,12 +323,8 @@ KAsync::Job<void> CommandProcessor::flush(void const *command, size_t size)
             Q_ASSERT(mSynchronizer);
             mSynchronizer->flush(flushType, flushId);
         } else {
-            SinkTraceCtx(mLogCtx) << "Emitting flush completion" << flushId;
-            mSynchronizer->flushComplete(flushId);
-            Sink::Notification n;
-            n.type = Sink::Notification::FlushCompletion;
-            n.id = flushId;
-            emit notify(n);
+            //Defer notification until the results have been comitted
+            mCompleteFlushes << flushId;
         }
         return KAsync::null<void>();
     }

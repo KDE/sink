@@ -24,6 +24,7 @@
 #include "definitions.h"
 #include "adaptorfactoryregistry.h"
 #include "storage/key.h"
+#include "genericresource.h"
 #include "testutils.h"
 #include "test.h"
 
@@ -34,13 +35,13 @@ public:
 
     }
 
-    std::function<void()> mSyncCallback;
+    QMap<QByteArray, std::function<void()>> mSyncCallbacks;
 
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) override
     {
-        return KAsync::start([this] {
-            qWarning() << "Synchronizing with the source";
-            mSyncCallback();
+        return KAsync::start([this, query] {
+            Q_ASSERT(mSyncCallbacks.contains(query.id()));
+            mSyncCallbacks.value(query.id())();
         });
     }
 
@@ -60,9 +61,11 @@ public:
         return syncStore().resolveRemoteId("calendar", remoteId);
     }
 
-    void synchronize(std::function<void()> callback) {
-        mSyncCallback = callback;
-        addToQueue(Synchronizer::SyncRequest{{}, "sync"});
+    void synchronize(std::function<void()> callback, const QByteArray &id = {}, Synchronizer::SyncRequest::RequestOptions options = Synchronizer::SyncRequest::NoOptions) {
+        mSyncCallbacks.insert(id, callback);
+        Sink::Query query;
+        query.setId(id);
+        addToQueue(Synchronizer::SyncRequest{query, id, options});
         VERIFYEXEC(processSyncQueue());
     }
 };
@@ -91,6 +94,7 @@ private slots:
 
     void init()
     {
+        Sink::GenericResource::removeFromDisk(instanceIdentifier());
     }
 
     void testSynchronizer()
@@ -147,6 +151,39 @@ private slots:
             QVERIFY(store.contains("calendar", sinkId));
             QVERIFY(store.exists("calendar", sinkId));
         }
+    }
+
+    /*
+     * Ensure the flushed content is available during the next sync request
+     */
+    void testFlush()
+    {
+        const auto context = getContext();
+        Sink::Pipeline pipeline(context, instanceIdentifier());
+        Sink::CommandProcessor processor(&pipeline, instanceIdentifier(), Sink::Log::Context{"processor"});
+
+        auto synchronizer = QSharedPointer<TestSynchronizer>::create(context);
+        processor.setSynchronizer(synchronizer);
+
+        synchronizer->setSecret("secret");
+
+        QByteArray sinkId;
+        synchronizer->synchronize([&] {
+            Sink::ApplicationDomain::Calendar calendar;
+            calendar.setName("Name");
+            synchronizer->createOrModify("1", calendar);
+            sinkId = synchronizer->resolveRemoteId("1");
+        }, "1");
+        QVERIFY(!sinkId.isEmpty());
+
+        //With a flush the calendar should be available during the next sync
+        synchronizer->synchronize([&] {
+            Sink::Storage::EntityStore store(context, {"entitystore"});
+            QVERIFY(store.contains("calendar", sinkId));
+
+        }, "2", Sink::Synchronizer::SyncRequest::RequestFlush);
+
+        VERIFYEXEC(processor.processAllMessages());
     }
 
 };
