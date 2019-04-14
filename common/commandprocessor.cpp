@@ -363,7 +363,7 @@ KAsync::Job<void> CommandProcessor::processAllMessages()
         .then<void>([this](KAsync::Future<void> &f) { waitForDrained(f, mSynchronizerQueue); })
         .then<void>([this](KAsync::Future<void> &f) { waitForDrained(f, mUserQueue); })
         .then<void>([this](KAsync::Future<void> &f) {
-            if (mSynchronizer->allChangesReplayed()) {
+            if (mSynchronizer->ChangeReplay::allChangesReplayed()) {
                 f.setFinished();
             } else {
                 auto context = new QObject;
@@ -371,6 +371,7 @@ KAsync::Job<void> CommandProcessor::processAllMessages()
                     delete context;
                     f.setFinished();
                 });
+                mSynchronizer->replayNextRevision().exec();
             }
         });
 }
