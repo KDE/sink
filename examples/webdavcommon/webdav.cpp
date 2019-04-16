@@ -259,7 +259,7 @@ KAsync::Job<KDAV2::DavUrl> WebDavSynchronizer::discoverServer()
     result.setPassword(secret());
     const KDAV2::DavUrl serverUrl{result, mProtocol};
 
-    return runJob<KDAV2::DavUrl>(new KDAV2::DavDiscoveryJob(serverUrl, "caldav"), [=] (KJob *job) {
+    return runJob<KDAV2::DavUrl>(new KDAV2::DavDiscoveryJob(serverUrl, mCollectionType == "addressbook" ? "carddav" : "caldav"), [=] (KJob *job) {
         auto url = serverUrl;
         url.setUrl(static_cast<KDAV2::DavDiscoveryJob*>(job)->url());
         mCachedServer = url;
