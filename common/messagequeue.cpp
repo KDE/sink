@@ -110,7 +110,7 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
             .openDatabase()
             .scan("",
                 [&](const QByteArray &key, const QByteArray &value) -> bool {
-                    auto revision = key.toLongLong();
+                    const auto revision = key.toLongLong();
                     if (revision <= mReplayedRevision) {
                         return true;
                     }
