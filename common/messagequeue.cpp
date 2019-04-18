@@ -72,6 +72,12 @@ void MessageQueue::enqueue(const QByteArray &value)
 void MessageQueue::processRemovals()
 {
     if (mWriteTransaction) {
+        if (mReplayedRevision > 0) {
+            auto dequedRevisions = mReplayedRevision - Sink::Storage::DataStore::cleanedUpRevision(mWriteTransaction);
+            if (dequedRevisions > 500) {
+                SinkTrace() << "We're building up a large backlog of dequeued revisions " << dequedRevisions;
+            }
+        }
         return;
     }
     if (mReplayedRevision >= 0) {
