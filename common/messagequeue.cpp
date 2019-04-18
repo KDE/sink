@@ -1,9 +1,27 @@
+/*
+ * Copyright (C) 2019 Christian Mollekopf <mollekopf@kolabsys.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) version 3, or any
+ * later version accepted by the membership of KDE e.V. (or its
+ * successor approved by the membership of KDE e.V.), which shall
+ * act as a proxy defined in Section 6 of version 3 of the license.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
 #include "messagequeue.h"
 #include "storage.h"
-#include <QDebug>
 #include <log.h>
 
-MessageQueue::MessageQueue(const QString &storageRoot, const QString &name) : mStorage(storageRoot, name, Sink::Storage::DataStore::ReadWrite)
+MessageQueue::MessageQueue(const QString &storageRoot, const QString &name) : mStorage(storageRoot, name, Sink::Storage::DataStore::ReadWrite), mReplayedRevision{-1}
 {
 }
 
@@ -44,8 +62,7 @@ void MessageQueue::enqueue(const QByteArray &value)
         startTransaction();
     }
     const qint64 revision = Sink::Storage::DataStore::maxRevision(mWriteTransaction) + 1;
-    const QByteArray key = QString("%1").arg(revision).toUtf8();
-    mWriteTransaction.openDatabase().write(key, value);
+    mWriteTransaction.openDatabase().write(QByteArray::number(revision), value);
     Sink::Storage::DataStore::setMaxRevision(mWriteTransaction, revision);
     if (implicitTransaction) {
         commit();
@@ -57,12 +74,16 @@ void MessageQueue::processRemovals()
     if (mWriteTransaction) {
         return;
     }
-    auto transaction = mStorage.createTransaction(Sink::Storage::DataStore::ReadWrite);
-    for (const auto &key : mPendingRemoval) {
-        transaction.openDatabase().remove(key);
+    if (mReplayedRevision >= 0) {
+        auto transaction = mStorage.createTransaction(Sink::Storage::DataStore::ReadWrite);
+        auto db = transaction.openDatabase();
+        for (auto revision = Sink::Storage::DataStore::cleanedUpRevision(transaction) + 1; revision <= mReplayedRevision; revision++) {
+            db.remove(QByteArray::number(revision));
+        }
+        Sink::Storage::DataStore::setCleanedUpRevision(transaction, mReplayedRevision);
+        transaction.commit();
+        mReplayedRevision = -1;
     }
-    transaction.commit();
-    mPendingRemoval.clear();
 }
 
 void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::function<void(bool success)>)> &resultHandler, const std::function<void(const Error &error)> &errorHandler)
@@ -76,20 +97,18 @@ void MessageQueue::dequeue(const std::function<void(void *ptr, int size, std::fu
 
 KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::function<KAsync::Job<void>(const QByteArray &)> &resultHandler)
 {
-    auto resultCount = QSharedPointer<int>::create(0);
-    return KAsync::start<void>([this, maxBatchSize, resultHandler, resultCount](KAsync::Future<void> &future) {
+    return KAsync::start<void>([this, maxBatchSize, resultHandler](KAsync::Future<void> &future) {
         int count = 0;
         QList<KAsync::Future<void>> waitCondition;
         mStorage.createTransaction(Sink::Storage::DataStore::ReadOnly)
             .openDatabase()
             .scan("",
-                [this, resultHandler, resultCount, &count, maxBatchSize, &waitCondition](const QByteArray &key, const QByteArray &value) -> bool {
-                    if (mPendingRemoval.contains(key)) {
+                [&](const QByteArray &key, const QByteArray &value) -> bool {
+                    auto revision = key.toLongLong();
+                    if (revision <= mReplayedRevision) {
                         return true;
                     }
-                    *resultCount += 1;
-                    // We need a copy of the key here, otherwise we can't store it in the lambda (the pointers will become invalid)
-                    mPendingRemoval << QByteArray(key.constData(), key.size());
+                    mReplayedRevision = revision;
 
                     waitCondition << resultHandler(value).exec();
 
@@ -106,9 +125,9 @@ KAsync::Job<void> MessageQueue::dequeueBatch(int maxBatchSize, const std::functi
 
         // Trace() << "Waiting on " << waitCondition.size() << " results";
         KAsync::waitForCompletion(waitCondition)
-            .then([this, resultCount, &future]() {
+            .then([this, count, &future]() {
                 processRemovals();
-                if (*resultCount == 0) {
+                if (count == 0) {
                     future.setFinished();
                 } else {
                     if (isEmpty()) {
@@ -129,11 +148,12 @@ bool MessageQueue::isEmpty()
     if (db) {
         db.scan("",
             [&count, this](const QByteArray &key, const QByteArray &value) -> bool {
-                if (!mPendingRemoval.contains(key)) {
-                    count++;
-                    return false;
+                const auto revision = key.toLongLong();
+                if (revision <= mReplayedRevision) {
+                    return true;
                 }
-                return true;
+                count++;
+                return false;
             },
             [](const Sink::Storage::DataStore::Error &error) { SinkError() << "Error while checking if empty" << error.message; });
     }
