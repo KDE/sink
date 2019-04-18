@@ -183,12 +183,12 @@ void CommandProcessor::process()
                     .exec();
 }
 
-KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const Sink::QueuedCommand *queuedCommand)
+KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const Sink::QueuedCommand &queuedCommand)
 {
-    SinkTraceCtx(mLogCtx) << "Processing command: " << Sink::Commands::name(queuedCommand->commandId());
-    const auto data = queuedCommand->command()->Data();
-    const auto size = queuedCommand->command()->size();
-    switch (queuedCommand->commandId()) {
+    SinkTraceCtx(mLogCtx) << "Processing command: " << Sink::Commands::name(queuedCommand.commandId());
+    const auto data = queuedCommand.command()->Data();
+    const auto size = queuedCommand.command()->size();
+    switch (queuedCommand.commandId()) {
         case Sink::Commands::DeleteEntityCommand:
             return mPipeline->deletedEntity(data, size);
         case Sink::Commands::ModifyEntityCommand:
@@ -216,7 +216,7 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
     }
     auto queuedCommand = Sink::GetQueuedCommand(data.constData());
     const auto commandId = queuedCommand->commandId();
-    return processQueuedCommand(queuedCommand)
+    return processQueuedCommand(*queuedCommand)
         .then<qint64, qint64>(
             [this, commandId](const KAsync::Error &error, qint64 createdRevision) -> KAsync::Job<qint64> {
                 if (error) {

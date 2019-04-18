@@ -65,7 +65,7 @@ private:
 
 private slots:
     void process();
-    KAsync::Job<qint64> processQueuedCommand(const Sink::QueuedCommand *queuedCommand);
+    KAsync::Job<qint64> processQueuedCommand(const Sink::QueuedCommand &queuedCommand);
     KAsync::Job<qint64> processQueuedCommand(const QByteArray &data);
     // Process all messages of this queue
     KAsync::Job<void> processQueue(MessageQueue *queue);
