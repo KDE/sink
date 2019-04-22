@@ -92,6 +92,7 @@ void CommandProcessor::processCommand(int commandId, const QByteArray &data)
         default: {
             static int modifications = 0;
             mUserQueue.startTransaction();
+            SinkTraceCtx(mLogCtx) << "Received a command" << commandId;
             enqueueCommand(mUserQueue, commandId, data);
             modifications++;
             if (modifications >= sBatchSize) {
@@ -112,6 +113,7 @@ void CommandProcessor::processFlushCommand(const QByteArray &data)
         auto buffer = Sink::Commands::GetFlush(data.constData());
         const auto flushType = buffer->type();
         const auto flushId = BufferUtils::extractBufferCopy(buffer->id());
+        SinkTraceCtx(mLogCtx) << "Received flush command " << flushId;
         if (flushType == Sink::Flush::FlushSynchronization) {
             mSynchronizer->flush(flushType, flushId);
         } else {
@@ -319,7 +321,7 @@ KAsync::Job<void> CommandProcessor::flush(void const *command, size_t size)
         const QByteArray flushId = BufferUtils::extractBufferCopy(buffer->id());
         Q_ASSERT(!flushId.isEmpty());
         if (flushType == Sink::Flush::FlushReplayQueue) {
-            SinkTraceCtx(mLogCtx) << "Flushing synchronizer ";
+            SinkTraceCtx(mLogCtx) << "Flushing synchronizer " << flushId;
             Q_ASSERT(mSynchronizer);
             mSynchronizer->flush(flushType, flushId);
         } else {

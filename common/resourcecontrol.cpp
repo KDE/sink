@@ -90,7 +90,7 @@ KAsync::Job<void> ResourceControl::flush(Flush::FlushType type, const QByteArray
     auto notifier = QSharedPointer<Sink::Notifier>::create(resourceAccess);
     auto id = createUuid();
     return KAsync::start<void>([=](KAsync::Future<void> &future) {
-            SinkTrace() << "Waiting for flush completion notification " << id;
+            SinkLog() << "Starting flush " << id;
             notifier->registerHandler([&future, id](const Notification &notification) {
                 SinkTrace() << "Received notification: " << notification.type << notification.id;
                 if (notification.type == Notification::Error && notification.code == ApplicationDomain::ResourceCrashedError) {
