@@ -19,9 +19,12 @@
  */
 #include "messagequeue.h"
 #include "storage.h"
+#include "storage/key.h"
 #include <log.h>
 
-MessageQueue::MessageQueue(const QString &storageRoot, const QString &name) : mStorage(storageRoot, name, Sink::Storage::DataStore::ReadWrite), mReplayedRevision{-1}
+using namespace Sink::Storage;
+
+MessageQueue::MessageQueue(const QString &storageRoot, const QString &name) : mStorage(storageRoot, name, DataStore::ReadWrite), mReplayedRevision{-1}
 {
 }
 
@@ -43,13 +46,13 @@ void MessageQueue::startTransaction()
         return;
     }
     processRemovals();
-    mWriteTransaction = mStorage.createTransaction(Sink::Storage::DataStore::ReadWrite);
+    mWriteTransaction = mStorage.createTransaction(DataStore::ReadWrite);
 }
 
 void MessageQueue::commit()
 {
     mWriteTransaction.commit();
-    mWriteTransaction = Sink::Storage::DataStore::Transaction();
+    mWriteTransaction = DataStore::Transaction();
     processRemovals();
     emit messageReady();
 }
@@ -61,8 +64,8 @@ void MessageQueue::enqueue(const QByteArray &value)
         implicitTransaction = true;
         startTransaction();
     }
-    const qint64 revision = Sink::Storage::DataStore::maxRevision(mWriteTransaction) + 1;
-    mWriteTransaction.openDatabase().write(QByteArray::number(revision), value);
+    const qint64 revision = DataStore::maxRevision(mWriteTransaction) + 1;
+    mWriteTransaction.openDatabase().write(Revision{size_t(revision)}.toDisplayByteArray(), value);
     Sink::Storage::DataStore::setMaxRevision(mWriteTransaction, revision);
     if (implicitTransaction) {
         commit();
@@ -84,7 +87,7 @@ void MessageQueue::processRemovals()
         auto transaction = mStorage.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto db = transaction.openDatabase();
         for (auto revision = Sink::Storage::DataStore::cleanedUpRevision(transaction) + 1; revision <= mReplayedRevision; revision++) {
-            db.remove(QByteArray::number(revision));
+            db.remove(Revision{size_t(revision)}.toDisplayByteArray());
         }
         Sink::Storage::DataStore::setCleanedUpRevision(transaction, mReplayedRevision);
         transaction.commit();

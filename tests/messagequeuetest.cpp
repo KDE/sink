@@ -237,6 +237,27 @@ private slots:
         QVERIFY(!queue.isEmpty());
         QCOMPARE(spy.count(), 1);
     }
+
+    void testSortOrder()
+    {
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
+        queue.startTransaction();
+        //Over 10 so we can make sure that 10 > 9
+        const int num = 11;
+        for (int i = 0; i < num; i++) {
+            queue.enqueue("value" + QByteArray::number(i));
+        }
+        queue.commit();
+
+        int count = 0;
+        queue.dequeueBatch(num, [&count](const QByteArray &data) {
+                 ASYNCCOMPARE(data, QByteArray{"value"} + QByteArray::number(count));
+                 count++;
+                 return KAsync::null<void>();
+             }).exec().waitForFinished();
+        QCOMPARE(count, num);
+
+    }
 };
 
 QTEST_MAIN(MessageQueueTest)
