@@ -168,7 +168,14 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                     if (!collectionsToSync.contains(localId)) {
                         return KAsync::null();
                     }
-                    return synchronizeCollection(collection.url(), collectionRid, localId, collection.CTag().toLatin1());
+                    return synchronizeCollection(collection.url(), collectionRid, localId, collection.CTag().toLatin1())
+                        .then([=] (const KAsync::Error &error) {
+                            if (error) {
+                                SinkWarningCtx(mLogCtx) << "Failed to synchronized folder" << error;
+                            }
+                            //Ignore synchronization errors for individual collections, the next one might work.
+                            return KAsync::null();
+                        });
                 });
         } else {
             SinkWarning() << "Unknown query type" << query;
