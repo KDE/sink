@@ -124,7 +124,7 @@ QList<Sink::Synchronizer::SyncRequest> WebDavSynchronizer::getSyncRequests(const
 KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBase &query)
 {
     return discoverServer().then([this, query] (const KDAV2::DavUrl &serverUrl) {
-        SinkLog() << "Synchronizing" << query.type() << "through WebDAV at:" << serverUrl.url();
+        SinkLogCtx(mLogCtx) << "Synchronizing" << query.type() << "through WebDAV at:" << serverUrl.url();
         if (query.type() == mCollectionType) {
             return runJob<KDAV2::DavCollection::List>(new KDAV2::DavCollectionsFetchJob{ serverUrl },
                 [](KJob *job) { return static_cast<KDAV2::DavCollectionsFetchJob *>(job)->collections(); })
@@ -154,10 +154,10 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                 }
             }();
             if (collectionsToSync.isEmpty()) {
-                SinkTrace() << "No collections to sync:" << query;
+                SinkTraceCtx(mLogCtx) << "No collections to sync:" << query;
                 return KAsync::null();
             }
-            SinkTrace() << "Synchronizing collections: " << collectionsToSync;
+            SinkTraceCtx(mLogCtx) << "Synchronizing collections: " << collectionsToSync;
 
             return runJob<KDAV2::DavCollection::List>(new KDAV2::DavCollectionsFetchJob{ serverUrl },
                 [](KJob *job) { return static_cast<KDAV2::DavCollectionsFetchJob *>(job)->collections(); })
@@ -184,10 +184,10 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
     auto progress = QSharedPointer<int>::create(0);
     auto total = QSharedPointer<int>::create(0);
     if (ctag == syncStore().readValue(collectionRid + "_ctag")) {
-        SinkTrace() << "Collection unchanged:" << collectionRid;
+        SinkTraceCtx(mLogCtx) << "Collection unchanged:" << collectionRid;
         return KAsync::null<void>();
     }
-    SinkLog() << "Syncing collection:" << collectionRid << ctag;
+    SinkLogCtx(mLogCtx) << "Syncing collection:" << collectionRid << ctag << collectionUrl;
 
     auto itemsResourceIDs = QSharedPointer<QSet<QByteArray>>::create();
 
@@ -198,13 +198,13 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
     return runJob<KDAV2::DavItem::List>(listJob,
         [](KJob *job) { return static_cast<KDAV2::DavItemsListJob *>(job)->items(); })
         .then([=](const KDAV2::DavItem::List &items) {
-            SinkLog() << "Found" << items.size() << "items on the server";
+            SinkLogCtx(mLogCtx) << "Found" << items.size() << "items on the server";
             QStringList itemsToFetch;
             for (const auto &item : items) {
                 const auto itemRid = resourceID(item);
                 itemsResourceIDs->insert(itemRid);
                 if (item.etag().toLatin1() == syncStore().readValue(collectionRid, itemRid + "_etag")) {
-                    SinkTrace() << "Item unchanged:" << itemRid;
+                    SinkTraceCtx(mLogCtx) << "Item unchanged:" << itemRid;
                     continue;
                 }
                 itemsToFetch << item.url().url().toDisplayString();
@@ -275,7 +275,7 @@ KAsync::Job<QByteArray> WebDavSynchronizer::createItem(const QByteArray &vcard, 
             remoteItem.setData(vcard);
             remoteItem.setContentType(contentType);
             remoteItem.setUrl(urlOf(serverUrl, collectionRid, rid));
-            SinkLog() << "Creating:" <<  "Rid: " <<  rid << "Content-Type: " << contentType << "Url: " << remoteItem.url().url() << "Content:\n" << vcard;
+            SinkLogCtx(mLogCtx) << "Creating:" <<  "Rid: " <<  rid << "Content-Type: " << contentType << "Url: " << remoteItem.url().url() << "Content:\n" << vcard;
 
             return runJob<KDAV2::DavItem>(new KDAV2::DavItemCreateJob(remoteItem), [](KJob *job) { return static_cast<KDAV2::DavItemCreateJob*>(job)->item(); })
                 .then([=] (const KDAV2::DavItem &remoteItem) {
@@ -295,7 +295,7 @@ KAsync::Job<QByteArray> WebDavSynchronizer::modifyItem(const QByteArray &oldRemo
             remoteItem.setContentType(contentType);
             remoteItem.setUrl(urlOf(serverUrl, oldRemoteId));
             remoteItem.setEtag(syncStore().readValue(collectionRid, oldRemoteId + "_etag"));
-            SinkLog() << "Modifying:" << "Content-Type: " << contentType << "Url: " << remoteItem.url().url() << "Etag: " << remoteItem.etag() << "Content:\n" << vcard;
+            SinkLogCtx(mLogCtx) << "Modifying:" << "Content-Type: " << contentType << "Url: " << remoteItem.url().url() << "Etag: " << remoteItem.etag() << "Content:\n" << vcard;
 
             return runJob<KDAV2::DavItem>(new KDAV2::DavItemModifyJob(remoteItem), [](KJob *job) { return static_cast<KDAV2::DavItemModifyJob*>(job)->item(); })
                 .then([=] (const KDAV2::DavItem &remoteItem) {
@@ -312,7 +312,7 @@ KAsync::Job<QByteArray> WebDavSynchronizer::removeItem(const QByteArray &oldRemo
 {
     return discoverServer()
         .then([=] (const KDAV2::DavUrl &serverUrl) {
-            SinkLog() << "Removing:" << oldRemoteId;
+            SinkLogCtx(mLogCtx) << "Removing:" << oldRemoteId;
             // We only need the URL in the DAV item for removal
             KDAV2::DavItem remoteItem;
             remoteItem.setUrl(urlOf(serverUrl, oldRemoteId));
@@ -336,7 +336,7 @@ KAsync::Job<void> WebDavSynchronizer::removeCollection(const QByteArray &collect
 {
     return discoverServer()
         .then([=] (const KDAV2::DavUrl &serverUrl) {
-            return runJob(new KDAV2::DavCollectionDeleteJob(urlOf(serverUrl, collectionRid))).then([] { SinkLog() << "Done removing collection"; });
+            return runJob(new KDAV2::DavCollectionDeleteJob(urlOf(serverUrl, collectionRid))).then([this] { SinkLogCtx(mLogCtx) << "Done removing collection"; });
         });
 }
 
@@ -345,7 +345,7 @@ KAsync::Job<void> WebDavSynchronizer::removeCollection(const QByteArray &collect
 KAsync::Job<void> WebDavSynchronizer::modifyCollection(const QByteArray &collectionRid)
 {
     auto job = new KDAV2::DavCollectionModifyJob(url);
-    return runJob(job).then([] { SinkLog() << "Done modifying collection"; });
+    return runJob(job).then([] { SinkLogCtx(mLogCtx) << "Done modifying collection"; });
 }
 */
 
