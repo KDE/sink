@@ -398,6 +398,7 @@ struct SINK_EXPORT Calendar : public Entity {
     SINK_PROPERTY(QString, Name, name);
     SINK_PROPERTY(QByteArray, Color, color);
     SINK_PROPERTY(bool, Enabled, enabled);
+    SINK_PROPERTY(QByteArrayList, ContentTypes, contentTypes);
 };
 
 struct SINK_EXPORT Event : public Entity {

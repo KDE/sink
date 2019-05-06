@@ -24,7 +24,6 @@
 #include "propertyregistry.h"
 #include "storage.h" //for generateUid()
 #include "utils.h" //for generateUid()
-#include <QFile>
 
 QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::Contact::Email &e)
 {
@@ -153,6 +152,7 @@ SINK_REGISTER_PROPERTY(Todo, Calendar);
 SINK_REGISTER_PROPERTY(Calendar, Name);
 SINK_REGISTER_PROPERTY(Calendar, Color);
 SINK_REGISTER_PROPERTY(Calendar, Enabled);
+SINK_REGISTER_PROPERTY(Calendar, ContentTypes);
 
 static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();

@@ -58,11 +58,21 @@ protected:
         QVector<QByteArray> ridList;
         for (const auto &remoteCalendar : calendarList) {
             const auto &rid = resourceID(remoteCalendar);
-            SinkLog() << "Found calendar:" << remoteCalendar.displayName() << "[" << rid << "]";
+            SinkLog() << "Found calendar:" << remoteCalendar.displayName() << "[" << rid << "]" << remoteCalendar.contentTypes();
 
             Calendar localCalendar;
             localCalendar.setName(remoteCalendar.displayName());
             localCalendar.setColor(remoteCalendar.color().name().toLatin1());
+
+            if (remoteCalendar.contentTypes() & KDAV2::DavCollection::Events) {
+                localCalendar.setContentTypes({"event"});
+            }
+            if (remoteCalendar.contentTypes() & KDAV2::DavCollection::Todos) {
+                localCalendar.setContentTypes({"todo"});
+            }
+            if (remoteCalendar.contentTypes() & KDAV2::DavCollection::Calendar) {
+                localCalendar.setContentTypes({"event", "todo"});
+            }
 
             const auto sinkId = syncStore().resolveRemoteId(ENTITY_TYPE_CALENDAR, rid);
             const auto found = store().contains(ENTITY_TYPE_CALENDAR, sinkId);

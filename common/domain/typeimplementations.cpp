@@ -281,6 +281,7 @@ void TypeImplementation<Calendar>::configure(PropertyMapper &propertyMapper)
     SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Name, name);
     SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Color, color);
     SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Enabled, enabled);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, ContentTypes, contentTypes);
 }
 
 void TypeImplementation<Calendar>::configure(IndexPropertyMapper &) {}

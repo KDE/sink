@@ -4,6 +4,7 @@ table Calendar {
   name:string;
   color:string;
   enabled:bool = true;
+  contentTypes:[string];
 }
 
 root_type Calendar;
