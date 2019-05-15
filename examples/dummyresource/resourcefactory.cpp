@@ -35,6 +35,7 @@
 #include "mailpreprocessor.h"
 #include "eventpreprocessor.h"
 #include "specialpurposepreprocessor.h"
+#include "resourceconfig.h"
 #include <QDate>
 
 //This is the resources entity type, and not the domain type
@@ -51,6 +52,10 @@ class DummySynchronizer : public Sink::Synchronizer {
         : Sink::Synchronizer(context)
     {
         setSecret("dummy");
+        auto config = ResourceConfig::getConfiguration(context.instanceId());
+        if (config.value("populate", false).toBool()) {
+            DummyStore::instance().populate();
+        }
     }
 
     Sink::ApplicationDomain::Event::Ptr createEvent(const QByteArray &ridBuffer, const QMap<QString, QVariant> &data)

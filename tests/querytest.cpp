@@ -39,6 +39,7 @@ private slots:
         auto factory = Sink::ResourceFactory::load("sink.dummy");
         QVERIFY(factory);
         ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
+        ResourceConfig::configureResource("sink.dummy.instance1", {{"populate", true}});
         VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
     }
 

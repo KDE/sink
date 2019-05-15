@@ -30,6 +30,7 @@ private slots:
     {
         Sink::Test::initTest();
         ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
+        ResourceConfig::configureResource("sink.dummy.instance1", {{"populate", true}});
     }
 
     void cleanup()

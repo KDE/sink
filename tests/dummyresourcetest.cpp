@@ -43,6 +43,7 @@ private slots:
         QVERIFY(factory);
         ::DummyResource::removeFromDisk("sink.dummy.instance1");
         ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
+        ResourceConfig::configureResource("sink.dummy.instance1", {{"populate", true}});
     }
 
     void init()
