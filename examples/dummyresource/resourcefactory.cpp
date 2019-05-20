@@ -34,12 +34,18 @@
 #include "inspector.h"
 #include "mailpreprocessor.h"
 #include "eventpreprocessor.h"
+#include "todopreprocessor.h"
+#include "contactpreprocessor.h"
 #include "specialpurposepreprocessor.h"
 #include "resourceconfig.h"
 #include <QDate>
 
 //This is the resources entity type, and not the domain type
 #define ENTITY_TYPE_EVENT "event"
+#define ENTITY_TYPE_TODO "todo"
+#define ENTITY_TYPE_CALENDAR "calendar"
+#define ENTITY_TYPE_ADDRESSBOOK "addressbook"
+#define ENTITY_TYPE_CONTACT "contact"
 #define ENTITY_TYPE_MAIL "mail"
 #define ENTITY_TYPE_FOLDER "folder"
 
@@ -170,6 +176,10 @@ DummyResource::DummyResource(const Sink::ResourceContext &resourceContext, const
     setupPreprocessors(ENTITY_TYPE_MAIL, {new MailPropertyExtractor, new SpecialPurposeProcessor});
     setupPreprocessors(ENTITY_TYPE_FOLDER, {});
     setupPreprocessors(ENTITY_TYPE_EVENT, {new EventPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_TODO, {new TodoPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_CALENDAR, {});
+    setupPreprocessors(ENTITY_TYPE_CONTACT, {new ContactPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_ADDRESSBOOK, {});
 }
 
 DummyResource::~DummyResource()
@@ -178,15 +188,19 @@ DummyResource::~DummyResource()
 }
 
 DummyResourceFactory::DummyResourceFactory(QObject *parent)
-    : Sink::ResourceFactory(parent, {Sink::ApplicationDomain::ResourceCapabilities::Mail::mail,
-            Sink::ApplicationDomain::ResourceCapabilities::Event::event,
-            Sink::ApplicationDomain::ResourceCapabilities::Event::calendar,
-            Sink::ApplicationDomain::ResourceCapabilities::Mail::folder,
-            Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,
-            Sink::ApplicationDomain::ResourceCapabilities::Mail::drafts,
-            "-folder.rename",
-            Sink::ApplicationDomain::ResourceCapabilities::Mail::sent}
-            )
+    : Sink::ResourceFactory(parent, {
+        Sink::ApplicationDomain::ResourceCapabilities::Todo::todo,
+        Sink::ApplicationDomain::ResourceCapabilities::Event::event,
+        Sink::ApplicationDomain::ResourceCapabilities::Event::calendar,
+        Sink::ApplicationDomain::ResourceCapabilities::Contact::contact,
+        Sink::ApplicationDomain::ResourceCapabilities::Contact::addressbook,
+        Sink::ApplicationDomain::ResourceCapabilities::Mail::mail,
+        Sink::ApplicationDomain::ResourceCapabilities::Mail::folder,
+        Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,
+        Sink::ApplicationDomain::ResourceCapabilities::Mail::drafts,
+        "-folder.rename",
+        Sink::ApplicationDomain::ResourceCapabilities::Mail::sent}
+    )
 {
 
 }
@@ -198,18 +212,26 @@ Sink::Resource *DummyResourceFactory::createResource(const Sink::ResourceContext
 
 void DummyResourceFactory::registerFacades(const QByteArray &resourceName, Sink::FacadeFactory &factory)
 {
-    factory.registerFacade<ApplicationDomain::Event, DefaultFacade<ApplicationDomain::Event>>(resourceName);
-    factory.registerFacade<ApplicationDomain::Calendar, DefaultFacade<ApplicationDomain::Calendar>>(resourceName);
-    factory.registerFacade<ApplicationDomain::Mail, DefaultFacade<ApplicationDomain::Mail>>(resourceName);
-    factory.registerFacade<ApplicationDomain::Folder, DefaultFacade<ApplicationDomain::Folder>>(resourceName);
+    using namespace Sink::ApplicationDomain;
+    factory.registerFacade<Contact, DefaultFacade<Contact>>(resourceName);
+    factory.registerFacade<Addressbook, DefaultFacade<Addressbook>>(resourceName);
+    factory.registerFacade<Todo, DefaultFacade<Todo>>(resourceName);
+    factory.registerFacade<Event, DefaultFacade<Event>>(resourceName);
+    factory.registerFacade<Calendar, DefaultFacade<Calendar>>(resourceName);
+    factory.registerFacade<Mail, DefaultFacade<Mail>>(resourceName);
+    factory.registerFacade<Folder, DefaultFacade<Folder>>(resourceName);
 }
 
 void DummyResourceFactory::registerAdaptorFactories(const QByteArray &resourceName, Sink::AdaptorFactoryRegistry &registry)
 {
-    registry.registerFactory<Sink::ApplicationDomain::Event, DomainTypeAdaptorFactory<Sink::ApplicationDomain::Event>>(resourceName);
-    registry.registerFactory<Sink::ApplicationDomain::Calendar, DomainTypeAdaptorFactory<Sink::ApplicationDomain::Calendar>>(resourceName);
-    registry.registerFactory<Sink::ApplicationDomain::Mail, DomainTypeAdaptorFactory<Sink::ApplicationDomain::Mail>>(resourceName);
-    registry.registerFactory<Sink::ApplicationDomain::Folder, DomainTypeAdaptorFactory<Sink::ApplicationDomain::Folder>>(resourceName);
+    using namespace Sink::ApplicationDomain;
+    registry.registerFactory<Contact, DomainTypeAdaptorFactory<Contact>>(resourceName);
+    registry.registerFactory<Addressbook, DomainTypeAdaptorFactory<Addressbook>>(resourceName);
+    registry.registerFactory<Todo, DomainTypeAdaptorFactory<Todo>>(resourceName);
+    registry.registerFactory<Event, DomainTypeAdaptorFactory<Event>>(resourceName);
+    registry.registerFactory<Calendar, DomainTypeAdaptorFactory<Calendar>>(resourceName);
+    registry.registerFactory<Mail, DomainTypeAdaptorFactory<Mail>>(resourceName);
+    registry.registerFactory<Folder, DomainTypeAdaptorFactory<Folder>>(resourceName);
 }
 
 void DummyResourceFactory::removeDataFromDisk(const QByteArray &instanceIdentifier)
