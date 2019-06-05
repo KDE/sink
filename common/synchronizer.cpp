@@ -759,33 +759,56 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         SinkErrorCtx(mLogCtx) << "Replayed unknown type: " << type;
     }
 
-    return job.then([this, operation, type, uid, oldRemoteId](const QByteArray &remoteId) {
-        if (operation == Sink::Operation_Creation) {
-            SinkTraceCtx(mLogCtx) << "Replayed creation with remote id: " << remoteId;
-            if (!remoteId.isEmpty()) {
-                syncStore().recordRemoteId(type, uid, remoteId);
+    return job.then([=](const KAsync::Error &error, const QByteArray &remoteId) {
+
+        //Returning an error here means we stop replaying, so we only to that for known-to-be-transient errors.
+        if (error) {
+            switch (error.errorCode) {
+                case ApplicationDomain::ConnectionError:
+                case ApplicationDomain::NoServerError:
+                case ApplicationDomain::ConfigurationError:
+                case ApplicationDomain::LoginError:
+                case ApplicationDomain::ConnectionLostError:
+                    SinkTraceCtx(mLogCtx) << "Error during changereplay (aborting):" << error;
+                    return KAsync::error(error);
+                default:
+                    SinkErrorCtx(mLogCtx) << "Error during changereplay (continuing):" << error;
+                    break;
+
             }
-        } else if (operation == Sink::Operation_Modification) {
-            SinkTraceCtx(mLogCtx) << "Replayed modification with remote id: " << remoteId;
-            if (!remoteId.isEmpty()) {
-               syncStore().updateRemoteId(type, uid, remoteId);
-            }
-        } else if (operation == Sink::Operation_Removal) {
-            SinkTraceCtx(mLogCtx) << "Replayed removal with remote id: " << oldRemoteId;
-            if (!oldRemoteId.isEmpty()) {
-                syncStore().removeRemoteId(type, uid, oldRemoteId);
-            }
-        } else {
-            SinkErrorCtx(mLogCtx) << "Unkown operation" << operation;
         }
-    })
-    .then([this](const KAsync::Error &error) {
+
+        switch (operation) {
+            case Sink::Operation_Creation: {
+                SinkTraceCtx(mLogCtx) << "Replayed creation with remote id: " << remoteId;
+                if (!remoteId.isEmpty()) {
+                    syncStore().recordRemoteId(type, uid, remoteId);
+                }
+            }
+            break;
+            case Sink::Operation_Modification: {
+                SinkTraceCtx(mLogCtx) << "Replayed modification with remote id: " << remoteId;
+                if (!remoteId.isEmpty()) {
+                    syncStore().updateRemoteId(type, uid, remoteId);
+                }
+            }
+            break;
+            case Sink::Operation_Removal: {
+                SinkTraceCtx(mLogCtx) << "Replayed removal with remote id: " << oldRemoteId;
+                if (!oldRemoteId.isEmpty()) {
+                    syncStore().removeRemoteId(type, uid, oldRemoteId);
+                }
+            }
+            break;
+            default:
+                SinkErrorCtx(mLogCtx) << "Unkown operation" << operation;
+        }
+
         //We need to commit here otherwise the next change-replay step will abort the transaction
         mSyncStore.clear();
         mSyncTransaction.commit();
-        if (error) {
-            return KAsync::error(error);
-        }
+
+        //Ignore errors if not caught above
         return KAsync::null();
     });
 }
