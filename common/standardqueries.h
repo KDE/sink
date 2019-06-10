@@ -54,6 +54,7 @@ namespace StandardQueries {
         query.sort<ApplicationDomain::Mail::Date>();
         query.reduce<ApplicationDomain::Mail::ThreadId>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>())
             .count()
+            .select<ApplicationDomain::Mail::Subject>(Query::Reduce::Selector::Min)
             .collect<ApplicationDomain::Mail::Unread>()
             .collect<ApplicationDomain::Mail::Important>();
         return query;

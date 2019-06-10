@@ -1334,6 +1334,7 @@ private slots:
 
         auto createMail = [] (const QByteArray &messageid, const Folder &folder, const QDateTime &date, bool important) {
             auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setExtractedSubject(messageid);
             mail.setExtractedMessageId(messageid);
             mail.setFolder(folder);
             mail.setExtractedDate(date);
@@ -1351,9 +1352,13 @@ private slots:
         Query query;
         query.setId("testLivequeryThreadleaderChange");
         query.setFlags(Query::LiveQuery);
-        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>()).count().collect<Mail::Folder>();
+        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>())
+            .count()
+            .collect<Mail::Folder>()
+            .select<Mail::Subject>(Query::Reduce::Selector::Min, "subjectSelected");
         query.sort<Mail::Date>();
         query.request<Mail::MessageId>();
+        query.request<Mail::Subject>();
         query.filter<Mail::Important>(false);
 
         auto model = Sink::Store::loadModel<Mail>(query);
@@ -1366,6 +1371,7 @@ private slots:
             QCOMPARE(mail->getMessageId(), QByteArray{"mail1"});
             QCOMPARE(mail->count(), 2);
             QCOMPARE(mail->getCollectedProperty<Mail::Folder>().size(), 2);
+            QCOMPARE(mail->getProperty("subjectSelected").toString(), QString{"mail2"});
         }
     }
 
