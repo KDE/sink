@@ -35,6 +35,7 @@
 #include <KIMAP2/SubscribeJob>
 
 #include <KCoreAddons/KJob>
+#include <QHostInfo>
 
 #include "log.h"
 #include "test.h"
@@ -171,10 +172,20 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     }
     Q_ASSERT(mSession);
     if (mSession->state() == KIMAP2::Session::Authenticated || mSession->state() == KIMAP2::Session::Selected) {
-        //Prevent the socket from timing out right away, right here (otherwise it just might time out right before we were able to start the job)
-        mSession->setTimeout(socketTimeout());
-        SinkLog() << "Reusing existing session.";
-        return KAsync::null();
+        //If we blindly reuse the socket it may very well be stale and then we have to wait for it to time out.
+        //A hostlookup should be fast (a couple of milliseconds once cached), and can typcially tell us quickly
+        //if the host is no longer available.
+        auto info = QHostInfo::fromName(mSession->hostName());
+        if (info.error()) {
+            SinkLog() << "Failed host lookup, closing the socket" << info.errorString();
+            mSession->close();
+            return KAsync::error(Imap::HostNotFoundError);
+        } else {
+            //Prevent the socket from timing out right away, right here (otherwise it just might time out right before we were able to start the job)
+            mSession->setTimeout(socketTimeout());
+            SinkLog() << "Reusing existing session.";
+            return KAsync::null();
+        }
     }
     auto loginJob = new KIMAP2::LoginJob(mSession);
     loginJob->setUserName(username);
