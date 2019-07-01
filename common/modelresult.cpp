@@ -68,7 +68,7 @@ ModelResult<T, Ptr>::ModelResult(const Sink::Query &query, const QList<QByteArra
                 default:
                     //We're not interested
                     return;
-            };
+            }
             if (notification.resource.isEmpty() || notification.entities.isEmpty()) {
                 return;
             }

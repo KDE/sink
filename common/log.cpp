@@ -174,7 +174,7 @@ QByteArray Sink::Log::debugLevelName(DebugLevel debugLevel)
             return "Error";
         default:
             break;
-    };
+    }
     Q_ASSERT(false);
     return QByteArray();
 }
@@ -413,7 +413,7 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
             prefix = "Error:  ";
             prefixColorCode = ANSI_Colors::Red;
             break;
-    };
+    }
 
     auto debugOutput = debugOutputFields();
 

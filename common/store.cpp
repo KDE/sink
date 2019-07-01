@@ -189,7 +189,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(const Query &query)
     //Automatically populate the top-level
     model->fetchMore(QModelIndex());
 
-    return model;
+    return std::move(model);
 }
 
 template <class DomainType>
