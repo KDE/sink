@@ -40,7 +40,7 @@ namespace Sink {
 /**
  * Drives the pipeline using the output from all command queues
  */
-class CommandProcessor : public QObject
+class SINK_EXPORT CommandProcessor : public QObject
 {
     Q_OBJECT
 

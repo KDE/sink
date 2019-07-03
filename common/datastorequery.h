@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include "sink_export.h"
+
 #include "query.h"
 #include "resultset.h"
 #include "log.h"
@@ -30,7 +32,7 @@ class Reduce;
 class Filter;
 class FilterBase;
 
-class DataStoreQuery {
+class SINK_EXPORT DataStoreQuery {
     friend class FilterBase;
     friend class Source;
     friend class Bloom;
