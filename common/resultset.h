@@ -18,6 +18,8 @@
  */
 #pragma once
 
+#include "sink_export.h"
+
 #include <QVector>
 #include <QMap>
 #include <QVariant>
@@ -32,7 +34,7 @@
  *
  * We'll eventually want to lazy load results in next().
  */
-class ResultSet
+class SINK_EXPORT ResultSet
 {
 public:
     struct Result {
