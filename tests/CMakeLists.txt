@@ -62,7 +62,7 @@ auto_tests (
 )
 
 if (WIN32)
-    message("Not building dumm resource tests on windows")
+    message("Not building dummy resource tests on windows")
 else()
     manual_tests (
         dummyresourcebenchmark
