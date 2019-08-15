@@ -56,6 +56,7 @@ class Source : public FilterBase {
     QVector<Identifier>::ConstIterator mIt;
     QVector<Identifier> mIncrementalIds;
     QVector<Identifier>::ConstIterator mIncrementalIt;
+    bool mHaveIncrementalChanges{false};
 
     Source (const QVector<Identifier> &ids, DataStoreQuery *store)
         : FilterBase(store),
@@ -81,11 +82,12 @@ class Source : public FilterBase {
             mIncrementalIds.append(key.identifier());
         }
         mIncrementalIt = mIncrementalIds.constBegin();
+        mHaveIncrementalChanges = true;
     }
 
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
     {
-        if (!mIncrementalIds.isEmpty()) {
+        if (mHaveIncrementalChanges) {
             if (mIncrementalIt == mIncrementalIds.constEnd()) {
                 return false;
             }
@@ -747,6 +749,7 @@ ResultSet DataStoreQuery::update(qint64 baseRevision)
 void DataStoreQuery::updateComplete()
 {
     mSource->mIncrementalIds.clear();
+    mSource->mHaveIncrementalChanges = false;
     auto source = mCollector;
     while (source) {
         source->updateComplete();

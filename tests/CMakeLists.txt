@@ -57,6 +57,7 @@ auto_tests (
     interresourcemovetest
     notificationtest
     entitystoretest
+    datastorequerytest
     upgradetest
     resourcecontroltest
 )
