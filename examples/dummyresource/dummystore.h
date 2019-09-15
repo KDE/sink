@@ -29,6 +29,8 @@ public:
         return instance;
     }
 
+    void populate();
+
     QMap<QString, QMap<QString, QVariant> > &events();
     QMap<QString, QMap<QString, QVariant> > &mails();
     QMap<QString, QMap<QString, QVariant> > &folders();

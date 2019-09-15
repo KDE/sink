@@ -20,6 +20,7 @@
 #include "domainadaptor.h"
 #include "definitions.h"
 #include "adaptorfactoryregistry.h"
+#include "storage/key.h"
 
 static void removeFromDisk(const QString &name)
 {
@@ -27,26 +28,29 @@ static void removeFromDisk(const QString &name)
     store.removeFromDisk();
 }
 
-static QList<QByteArray> getKeys(const QByteArray &dbEnv, const QByteArray &name)
+static QList<Sink::Storage::Key> getKeys(const QByteArray &dbEnv, const QByteArray &name)
 {
     Sink::Storage::DataStore store(Sink::storageLocation(), dbEnv, Sink::Storage::DataStore::ReadOnly);
     auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
-    auto db = transaction.openDatabase(name, nullptr, false);
-    QList<QByteArray> result;
+    auto db = transaction.openDatabase(name, nullptr, Sink::Storage::IntegerKeys);
+    QList<Sink::Storage::Key> result;
     db.scan("", [&](const QByteArray &key, const QByteArray &value) {
-        result << key;
+        size_t revision = Sink::byteArrayToSizeT(key);
+        result << Sink::Storage::Key(Sink::Storage::Identifier::fromDisplayByteArray(
+                                         Sink::Storage::DataStore::getUidFromRevision(transaction, revision)),
+            revision);
         return true;
     });
     return result;
 }
 
-static QByteArray getEntity(const QByteArray &dbEnv, const QByteArray &name, const QByteArray &uid)
+static QByteArray getEntity(const QByteArray &dbEnv, const QByteArray &name, const Sink::Storage::Key &key)
 {
     Sink::Storage::DataStore store(Sink::storageLocation(), dbEnv, Sink::Storage::DataStore::ReadOnly);
     auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
-    auto db = transaction.openDatabase(name, nullptr, false);
+    auto db = transaction.openDatabase(name, nullptr, Sink::Storage::IntegerKeys);
     QByteArray result;
-    db.scan(uid, [&](const QByteArray &key, const QByteArray &value) {
+    db.scan(key.revision().toSizeT(), [&](size_t rev, const QByteArray &value) {
         result = value;
         return true;
     });
@@ -126,7 +130,7 @@ QByteArray modifyEntityCommand(const flatbuffers::FlatBufferBuilder &entityFbb, 
     const QByteArray command(reinterpret_cast<const char *>(fbb.GetBufferPointer()), fbb.GetSize());
     {
         flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(command.data()), command.size());
-        Q_ASSERT(Sink::Commands::VerifyCreateEntityBuffer(verifyer));
+        Q_ASSERT(Sink::Commands::VerifyModifyEntityBuffer(verifyer));
     }
     return command;
 }
@@ -250,8 +254,8 @@ private slots:
         // Get uid of written entity
         auto keys = getKeys(instanceIdentifier(), "event.main");
         QCOMPARE(keys.size(), 1);
-        const auto key = keys.first();
-        const auto uid = Sink::Storage::DataStore::uidFromKey(key);
+        auto key = keys.first();
+        const auto uid = key.identifier().toDisplayByteArray();
 
         // Execute the modification
         entityFbb.Clear();
@@ -260,8 +264,10 @@ private slots:
         pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
         pipeline.commit();
 
+        key.setRevision(2);
+
         // Ensure we've got the new revision with the modification
-        auto buffer = getEntity(instanceIdentifier(), "event.main", Sink::Storage::DataStore::assembleKey(uid, 2));
+        auto buffer = getEntity(instanceIdentifier(), "event.main", key);
         QVERIFY(!buffer.isEmpty());
         Sink::EntityBuffer entityBuffer(buffer.data(), buffer.size());
         auto adaptor = adaptorFactory->createAdaptor(entityBuffer.entity());
@@ -296,7 +302,8 @@ private slots:
         // Get uid of written entity
         auto keys = getKeys(instanceIdentifier(), "event.main");
         QCOMPARE(keys.size(), 1);
-        const auto uid = Sink::Storage::DataStore::uidFromKey(keys.first());
+        auto key = keys.first();
+        const auto uid = key.identifier().toDisplayByteArray();
 
 
         // Create another operation inbetween
@@ -315,8 +322,10 @@ private slots:
         pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
         pipeline.commit();
 
+        key.setRevision(3);
+
         // Ensure we've got the new revision with the modification
-        auto buffer = getEntity(instanceIdentifier(), "event.main", Sink::Storage::DataStore::assembleKey(uid, 3));
+        auto buffer = getEntity(instanceIdentifier(), "event.main", key);
         QVERIFY(!buffer.isEmpty());
         Sink::EntityBuffer entityBuffer(buffer.data(), buffer.size());
         auto adaptor = adaptorFactory->createAdaptor(entityBuffer.entity());
@@ -337,7 +346,7 @@ private slots:
         auto result = getKeys(instanceIdentifier(), "event.main");
         QCOMPARE(result.size(), 1);
 
-        const auto uid = Sink::Storage::DataStore::uidFromKey(result.first());
+        const auto uid = result.first().identifier().toDisplayByteArray();
 
         // Delete entity
         auto deleteCommand = deleteEntityCommand(uid, 1);
@@ -372,22 +381,22 @@ private slots:
             pipeline.newEntity(command.constData(), command.size());
             QCOMPARE(testProcessor->newUids.size(), 1);
             QCOMPARE(testProcessor->newRevisions.size(), 1);
-            // Key doesn't contain revision and is just the uid
-            QCOMPARE(testProcessor->newUids.at(0), Sink::Storage::DataStore::uidFromKey(testProcessor->newUids.at(0)));
+            const auto uid = Sink::Storage::Identifier::fromDisplayByteArray(testProcessor->newUids.at(0)).toDisplayByteArray();
+            QCOMPARE(testProcessor->newUids.at(0), uid);
         }
         pipeline.commit();
         entityFbb.Clear();
         pipeline.startTransaction();
         auto keys = getKeys(instanceIdentifier(), "event.main");
         QCOMPARE(keys.size(), 1);
-        const auto uid = Sink::Storage::DataStore::uidFromKey(keys.first());
+        const auto uid = keys.first().identifier().toDisplayByteArray();
         {
             auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summary2"), uid, 1);
             pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
             QCOMPARE(testProcessor->modifiedUids.size(), 1);
             QCOMPARE(testProcessor->modifiedRevisions.size(), 1);
-            // Key doesn't contain revision and is just the uid
-            QCOMPARE(testProcessor->modifiedUids.at(0), Sink::Storage::DataStore::uidFromKey(testProcessor->modifiedUids.at(0)));
+            const auto uid2 = Sink::Storage::Identifier::fromDisplayByteArray(testProcessor->modifiedUids.at(0)).toDisplayByteArray();
+            QCOMPARE(testProcessor->modifiedUids.at(0), uid2);
         }
         pipeline.commit();
         entityFbb.Clear();
@@ -398,8 +407,8 @@ private slots:
             QCOMPARE(testProcessor->deletedUids.size(), 1);
             QCOMPARE(testProcessor->deletedUids.size(), 1);
             QCOMPARE(testProcessor->deletedSummaries.size(), 1);
-            // Key doesn't contain revision and is just the uid
-            QCOMPARE(testProcessor->deletedUids.at(0), Sink::Storage::DataStore::uidFromKey(testProcessor->deletedUids.at(0)));
+            const auto uid2 = Sink::Storage::Identifier::fromDisplayByteArray(testProcessor->modifiedUids.at(0)).toDisplayByteArray();
+            QCOMPARE(testProcessor->deletedUids.at(0), uid2);
             QCOMPARE(testProcessor->deletedSummaries.at(0), QByteArray("summary2"));
         }
     }
@@ -421,8 +430,8 @@ private slots:
         // Get uid of written entity
         auto keys = getKeys(instanceIdentifier(), "event.main");
         QCOMPARE(keys.size(), 1);
-        const auto key = keys.first();
-        const auto uid = Sink::Storage::DataStore::uidFromKey(key);
+        auto key = keys.first();
+        const auto uid = key.identifier().toDisplayByteArray();
 
         //Simulate local modification
         {
@@ -444,13 +453,52 @@ private slots:
             pipeline.commit();
         }
 
+        key.setRevision(3);
+
         // Ensure we've got the new revision with the modification
-        auto buffer = getEntity(instanceIdentifier(), "event.main", Sink::Storage::DataStore::assembleKey(uid, 3));
+        auto buffer = getEntity(instanceIdentifier(), "event.main", key);
         QVERIFY(!buffer.isEmpty());
         Sink::EntityBuffer entityBuffer(buffer.data(), buffer.size());
         auto adaptor = adaptorFactory->createAdaptor(entityBuffer.entity());
         QVERIFY2(adaptor->getProperty("summary").toString() == QString("summaryLocal"), "The local modification was reverted.");
         QVERIFY2(adaptor->getProperty("description").toString() == QString("descriptionRemote"), "The remote modification was not applied.");
+    }
+
+    void testModifyDeleted()
+    {
+        flatbuffers::FlatBufferBuilder entityFbb;
+        auto command = createEntityCommand(createEvent(entityFbb, "summary", "description"));
+
+        Sink::Pipeline pipeline(getContext(), {"test"});
+
+        auto adaptorFactory = QSharedPointer<TestEventAdaptorFactory>::create();
+
+        // Create the initial revision
+        pipeline.startTransaction();
+        pipeline.newEntity(command.constData(), command.size());
+        pipeline.commit();
+
+        // Get uid of written entity
+        auto keys = getKeys(instanceIdentifier(), "event.main");
+        QCOMPARE(keys.size(), 1);
+        auto key = keys.first();
+        const auto uid = key.identifier().toDisplayByteArray();
+
+        {
+            auto deleteCommand = deleteEntityCommand(uid, 1);
+            pipeline.startTransaction();
+            pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size());
+            pipeline.commit();
+        }
+
+        {
+            entityFbb.Clear();
+            auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summary2"), uid, 1);
+            pipeline.startTransaction();
+            auto future = pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size()).exec();
+            future.waitForFinished();
+            QVERIFY(future.errorCode());
+        }
     }
 };
 

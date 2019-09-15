@@ -1,7 +1,8 @@
 leak:mdb_env_open
 leak:mdb_dbi_open
-#Catch everything from lmdb for now
+#Catch everything from lmdb and libQt5Network for now
 leak:liblmdb.so
+leak:libQt5Network.so
 #There seems to be a tiny leak in qrand that we can't do anything about
 leak:qrand
 leak:ApplicationDomain::getTypeName
@@ -12,3 +13,13 @@ leak:QArrayData::allocate
 leak:QListData::detach_grow
 leak:QArrayData::reallocateUnaligned
 leak:QHostAddress::clear
+leak:QObject::startTimer
+#Often connections show up as tiny leaks
+leak:QMetaObject::Connection
+leak:QObjectPrivate::addConnection
+leak:ObjectPrivate::connectImpl
+leak:QObjectPrivate::connectImpl
+leak:libKIMAP2.so
+leak:KIMAP2::Session::Session
+leak:KIMAP2::SessionPrivate::addJob
+leak:createNewSession

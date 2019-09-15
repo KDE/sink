@@ -73,6 +73,8 @@ void FulltextIndex::add(const QByteArray &key, const QList<QPair<QString, QStrin
         for (const auto &entry : values) {
             if (!entry.second.isEmpty()) {
                 generator.index_text(entry.second.toStdString());
+                //Prevent phrase searches from spanning different indexed parts
+                generator.increase_termpos();
             }
         }
         document.add_value(0, key.toStdString());
@@ -163,14 +165,33 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
 
     try {
         Xapian::QueryParser parser;
-        auto query = parser.parse_query(searchTerm.toStdString(), Xapian::QueryParser::FLAG_WILDCARD|Xapian::QueryParser::FLAG_PHRASE|Xapian::QueryParser::FLAG_BOOLEAN|Xapian::QueryParser::FLAG_LOVEHATE|Xapian::QueryParser::FLAG_PARTIAL);
+        parser.set_default_op(Xapian::Query::OP_AND);
+        parser.set_database(*mDb);
+        parser.set_max_expansion(100, Xapian::Query::WILDCARD_LIMIT_MOST_FREQUENT, Xapian::QueryParser::FLAG_PARTIAL);
+        auto query = parser.parse_query(searchTerm.toStdString(), Xapian::QueryParser::FLAG_PHRASE|Xapian::QueryParser::FLAG_BOOLEAN|Xapian::QueryParser::FLAG_LOVEHATE|Xapian::QueryParser::FLAG_PARTIAL);
+        SinkTrace() << "Running xapian query: " << QString::fromStdString(query.get_description());
         Xapian::Enquire enquire(*mDb);
         enquire.set_query(query);
 
-        auto limit = 1000;
+        const Xapian::doccount limit = [&] {
+            switch (searchTerm.size()) {
+                case 1:
+                case 2:
+                case 3:
+                    return 500;
+                case 4:
+                    return 5000;
+                default:
+                    return 20000;
+            }
+        }();
         Xapian::MSet mset = enquire.get_mset(0, limit);
-        Xapian::MSetIterator it = mset.begin();
-        for (;it != mset.end(); it++) {
+        SinkTrace() << "Found " << mset.size() << " results, limited to " << limit;
+        //Print a hint why a query could lack some expected results.
+        if (searchTerm.size() > 4 && mset.size() >= limit) {
+            SinkLog() << "Result set exceeding limit of " << limit << QString::fromStdString(query.get_description());
+        }
+        for (Xapian::MSetIterator it = mset.begin(); it != mset.end(); it++) {
             auto doc = it.get_document();
             const auto data = doc.get_value(0);
             results << QByteArray{data.c_str(), int(data.length())};
@@ -182,3 +203,37 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
     return results;
 }
 
+qint64 FulltextIndex::getDoccount() const
+{
+    if (!mDb) {
+        return -1;
+    }
+    try {
+        return mDb->get_doccount();
+    } catch (const Xapian::Error &) {
+        // Nothing to do, move along
+    }
+    return  -1;
+}
+
+FulltextIndex::Result FulltextIndex::getIndexContent(const QByteArray &identifier) const
+{
+    if (!mDb) {
+        {};
+    }
+    try {
+        auto id = "Q" + identifier.toStdString();
+        Xapian::PostingIterator p = mDb->postlist_begin(id);
+        if (p != mDb->postlist_end(id)) {
+            auto document = mDb->get_document(*p);
+            QStringList terms;
+            for (auto it = document.termlist_begin(); it != document.termlist_end(); it++) {
+                terms << QString::fromStdString(*it);
+            }
+            return {true, terms};
+        }
+    } catch (const Xapian::Error &) {
+        // Nothing to do, move along
+    }
+    return {};
+}

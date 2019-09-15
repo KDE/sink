@@ -37,21 +37,32 @@ static QByteArray operationName(const Sink::Operation op)
     return "";
 }
 
+static bool compare(const QVariant &left, const QVariant &right, QueryBase::Reduce::Selector::Comparator comparator) {
+    if (comparator == QueryBase::Reduce::Selector::Max) {
+        return left > right;
+    }
+    if (comparator == QueryBase::Reduce::Selector::Min) {
+        return left < right;
+    }
+    return false;
+}
+
+
 class Source : public FilterBase {
     public:
     typedef QSharedPointer<Source> Ptr;
 
-    QVector<QByteArray> mIds;
-    QVector<QByteArray>::ConstIterator mIt;
-    QVector<QByteArray> mIncrementalIds;
-    QVector<QByteArray>::ConstIterator mIncrementalIt;
+    QVector<Identifier> mIds;
+    QVector<Identifier>::ConstIterator mIt;
+    QVector<Identifier> mIncrementalIds;
+    QVector<Identifier>::ConstIterator mIncrementalIt;
+    bool mHaveIncrementalChanges{false};
 
-    Source (const QVector<QByteArray> &ids, DataStoreQuery *store)
+    Source (const QVector<Identifier> &ids, DataStoreQuery *store)
         : FilterBase(store),
-        mIds(ids),
-        mIt(mIds.constBegin())
+        mIds(ids)
     {
-
+        mIt = mIds.constBegin();
     }
 
     virtual ~Source(){}
@@ -63,15 +74,20 @@ class Source : public FilterBase {
         }
     };
 
-    void add(const QVector<QByteArray> &ids)
+    void add(const QVector<Key> &keys)
     {
-        mIncrementalIds = ids;
+        mIncrementalIds.clear();
+        mIncrementalIds.reserve(keys.size());
+        for (const auto &key : keys) {
+            mIncrementalIds.append(key.identifier());
+        }
         mIncrementalIt = mIncrementalIds.constBegin();
+        mHaveIncrementalChanges = true;
     }
 
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
     {
-        if (!mIncrementalIds.isEmpty()) {
+        if (mHaveIncrementalChanges) {
             if (mIncrementalIt == mIncrementalIds.constEnd()) {
                 return false;
             }
@@ -220,13 +236,47 @@ public:
         QVariant mResult;
     };
 
+    struct PropertySelector {
+        QueryBase::Reduce::Selector selector;
+        QByteArray resultProperty;
+
+        PropertySelector(QueryBase::Reduce::Selector s, const QByteArray &resultProperty_)
+            : selector(s), resultProperty(resultProperty_)
+        {
+
+        }
+
+        void process(const QVariant &value, const QVariant &selectionValue) {
+            if (!selectionResultValue.isValid() || compare(selectionValue, selectionResultValue, selector.comparator)) {
+                selectionResultValue = selectionValue;
+                mResult = value;
+            }
+        }
+
+        void reset()
+        {
+            selectionResultValue.clear();
+            mResult.clear();
+        }
+
+        QVariant result() const
+        {
+            return mResult;
+        }
+    private:
+
+        QVariant selectionResultValue;
+        QVariant mResult;
+    };
+
     QSet<QByteArray> mReducedValues;
     QSet<QByteArray> mIncrementallyReducedValues;
-    QHash<QByteArray, QByteArray> mSelectedValues;
+    QHash<QByteArray, Identifier> mSelectedValues;
     QByteArray mReductionProperty;
     QByteArray mSelectionProperty;
     QueryBase::Reduce::Selector::Comparator mSelectionComparator;
     QList<Aggregator> mAggregators;
+    QList<PropertySelector> mSelectors;
 
     Reduce(const QByteArray &reductionProperty, const QByteArray &selectionProperty, QueryBase::Reduce::Selector::Comparator comparator, FilterBase::Ptr source, DataStoreQuery *store)
         : Filter(source, store),
@@ -255,16 +305,9 @@ public:
         return QByteArray();
     }
 
-    static bool compare(const QVariant &left, const QVariant &right, QueryBase::Reduce::Selector::Comparator comparator) {
-        if (comparator == QueryBase::Reduce::Selector::Max) {
-            return left > right;
-        }
-        return false;
-    }
-
     struct ReductionResult {
-        QByteArray selection;
-        QVector<QByteArray> aggregateIds;
+        Identifier selection;
+        QVector<Identifier> aggregateIds;
         QMap<QByteArray, QVariant> aggregateValues;
     };
 
@@ -272,12 +315,15 @@ public:
     {
         QMap<QByteArray, QVariant> aggregateValues;
         QVariant selectionResultValue;
-        QByteArray selectionResult;
+        Identifier selectionResult;
         const auto results = indexLookup(mReductionProperty, reductionValue);
         for (auto &aggregator : mAggregators) {
             aggregator.reset();
         }
-        QVector<QByteArray> reducedAndFilteredResults;
+        for (auto &selector : mSelectors) {
+            selector.reset();
+        }
+        QVector<Identifier> reducedAndFilteredResults;
         for (const auto &r : results) {
             readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                 //We need to apply all property filters that we have until the reduction, because the index lookup was unfiltered.
@@ -293,16 +339,26 @@ public:
                         aggregator.process(QVariant{});
                     }
                 }
-                auto selectionValue = entity.getProperty(mSelectionProperty);
+
+                const auto selectionValue = entity.getProperty(mSelectionProperty);
+
+                for (auto &selector : mSelectors) {
+                    if (!selector.selector.property.isEmpty()) {
+                        selector.process(entity.getProperty(selector.selector.property), selectionValue);
+                    }
+                }
                 if (!selectionResultValue.isValid() || compare(selectionValue, selectionResultValue, mSelectionComparator)) {
                     selectionResultValue = selectionValue;
-                    selectionResult = entity.identifier();
+                    selectionResult = Identifier::fromDisplayByteArray(entity.identifier());
                 }
             });
         }
 
-        for (auto &aggregator : mAggregators) {
+        for (const auto &aggregator : mAggregators) {
             aggregateValues.insert(aggregator.resultProperty, aggregator.result());
+        }
+        for (const auto &selector : mSelectors) {
+            aggregateValues.insert(selector.resultProperty, selector.result());
         }
         return {selectionResult, reducedAndFilteredResults, aggregateValues};
     }
@@ -318,7 +374,8 @@ public:
                     if (v.isNull() && result.operation == Sink::Operation_Removal) {
                         //For removals we have to read the last revision to get a value, and thus be able to find the correct thread.
                         QVariant reductionValue;
-                        readPrevious(result.entity.identifier(), [&] (const ApplicationDomain::ApplicationDomainType &prev) {
+                        const auto id = Identifier::fromDisplayByteArray(result.entity.identifier());
+                        readPrevious(id, [&] (const ApplicationDomain::ApplicationDomainType &prev) {
                             Q_ASSERT(result.entity.identifier() == prev.identifier());
                             reductionValue = prev.getProperty(mReductionProperty);
                         });
@@ -341,7 +398,7 @@ public:
                     auto reductionResult = reduceOnValue(reductionValue);
 
                     //This can happen if we get a removal message from a filtered entity and all entites of the reduction are filtered.
-                    if (reductionResult.selection.isEmpty()) {
+                    if (reductionResult.selection.isNull()) {
                         return;
                     }
                     mSelectedValues.insert(reductionValueBa, reductionResult.selection);
@@ -359,28 +416,30 @@ public:
                         //Redo the reduction to find new aggregated values
                         auto selectionResult = reduceOnValue(reductionValue);
 
+                        //If mSelectedValues did not contain the value, oldSelectionResult will be empty.(Happens if entites have been filtered)
                         auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
                         SinkTraceCtx(mDatastore->mLogCtx) << "Old selection result: " << oldSelectionResult << " New selection result: " << selectionResult.selection;
-                        if (oldSelectionResult == selectionResult.selection) {
+                        if (selectionResult.selection.isNull() && oldSelectionResult.isNull()) {
+                            //Nothing to do, the item was filtered before, and still is.
+                        } else if (oldSelectionResult == selectionResult.selection) {
                             mSelectedValues.insert(reductionValueBa, selectionResult.selection);
-                            Q_ASSERT(!selectionResult.selection.isEmpty());
+                            Q_ASSERT(!selectionResult.selection.isNull());
                             readEntity(selectionResult.selection, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
                                 callback({entity, Sink::Operation_Modification, selectionResult.aggregateValues, selectionResult.aggregateIds});
                             });
                         } else {
                             //remove old result
-                            //If mSelectedValues did not containthe value, oldSelectionResult will be empty.(Happens if entites have been filtered)
-                            if (!oldSelectionResult.isEmpty()) {
+                            if (!oldSelectionResult.isNull()) {
                                 readEntity(oldSelectionResult, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
                                     callback({entity, Sink::Operation_Removal});
                                 });
                             }
 
                             //If the last item has been removed, then there's nothing to add
-                            if (!selectionResult.selection.isEmpty()) {
+                            if (!selectionResult.selection.isNull()) {
                                 //add new result
                                 mSelectedValues.insert(reductionValueBa, selectionResult.selection);
-                                Q_ASSERT(!selectionResult.selection.isEmpty());
+                                Q_ASSERT(!selectionResult.selection.isNull());
                                 readEntity(selectionResult.selection, [&](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation) {
                                     callback({entity, Sink::Operation_Creation, selectionResult.aggregateValues, selectionResult.aggregateIds});
                                 });
@@ -475,17 +534,17 @@ DataStoreQuery::State::Ptr DataStoreQuery::getState()
     return state;
 }
 
-void DataStoreQuery::readEntity(const QByteArray &key, const BufferCallback &resultCallback)
+void DataStoreQuery::readEntity(const Identifier &id, const BufferCallback &resultCallback)
 {
-    mStore.readLatest(mType, key, resultCallback);
+    mStore.readLatest(mType, id, resultCallback);
 }
 
-void DataStoreQuery::readPrevious(const QByteArray &key, const std::function<void (const ApplicationDomain::ApplicationDomainType &)> &callback)
+void DataStoreQuery::readPrevious(const Identifier &id, const std::function<void (const ApplicationDomain::ApplicationDomainType &)> &callback)
 {
-    mStore.readPrevious(mType, key, mStore.maxRevision(), callback);
+    mStore.readPrevious(mType, id, mStore.maxRevision(), callback);
 }
 
-QVector<QByteArray> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value)
+QVector<Identifier> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value)
 {
     return mStore.indexLookup(mType, property, value);
 }
@@ -604,7 +663,11 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
     mSource = [&]() {
         if (!query.ids().isEmpty()) {
             //We have a set of ids as a starting point
-            return Source::Ptr::create(query.ids().toVector(), this);
+            QVector<Identifier> ids;
+            for (const auto & id: query.ids()) {
+                ids.append(Identifier::fromDisplayByteArray(id));
+            }
+            return Source::Ptr::create(ids, this);
         } else {
             QSet<QByteArrayList> appliedFilters;
             auto resultSet = mStore.indexLookup(mType, query, appliedFilters, appliedSorting);
@@ -642,6 +705,9 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
             for (const auto &aggregator : filter->aggregators) {
                 reduction->mAggregators << Reduce::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
             }
+            for (const auto &propertySelector : filter->propertySelectors) {
+                reduction->mSelectors << Reduce::PropertySelector(propertySelector.selector, propertySelector.resultProperty);
+            }
             reduction->propertyFilter = query.getBaseFilters();
             baseSet = reduction;
         } else if (auto filter = stage.dynamicCast<Query::Bloom>()) {
@@ -652,10 +718,10 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
     mCollector = Collector::Ptr::create(baseSet, this);
 }
 
-QVector<QByteArray> DataStoreQuery::loadIncrementalResultSet(qint64 baseRevision)
+QVector<Key> DataStoreQuery::loadIncrementalResultSet(qint64 baseRevision)
 {
-    QVector<QByteArray> changedKeys;
-    mStore.readRevisions(baseRevision, mType, [&](const QByteArray &key) {
+    QVector<Key> changedKeys;
+    mStore.readRevisions(baseRevision, mType, [&](const Key &key) {
         changedKeys << key;
     });
     return changedKeys;
@@ -683,6 +749,7 @@ ResultSet DataStoreQuery::update(qint64 baseRevision)
 void DataStoreQuery::updateComplete()
 {
     mSource->mIncrementalIds.clear();
+    mSource->mHaveIncrementalChanges = false;
     auto source = mCollector;
     while (source) {
         source->updateComplete();

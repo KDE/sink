@@ -18,11 +18,13 @@
  */
 #pragma once
 
+#include "sink_export.h"
+
 #include "query.h"
 #include "resultset.h"
 #include "log.h"
 #include "storage/entitystore.h"
-
+#include "storage/key.h"
 
 class Source;
 class Bloom;
@@ -30,7 +32,7 @@ class Reduce;
 class Filter;
 class FilterBase;
 
-class DataStoreQuery {
+class SINK_EXPORT DataStoreQuery {
     friend class FilterBase;
     friend class Source;
     friend class Bloom;
@@ -59,13 +61,13 @@ private:
     typedef std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> FilterFunction;
     typedef std::function<void(const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> BufferCallback;
 
-    QVector<QByteArray> indexLookup(const QByteArray &property, const QVariant &value);
+    QVector<Sink::Storage::Identifier> indexLookup(const QByteArray &property, const QVariant &value);
 
-    void readEntity(const QByteArray &key, const BufferCallback &resultCallback);
-    void readPrevious(const QByteArray &key, const std::function<void (const Sink::ApplicationDomain::ApplicationDomainType &)> &callback);
+    void readEntity(const Sink::Storage::Identifier &id, const BufferCallback &resultCallback);
+    void readPrevious(const Sink::Storage::Identifier &id, const std::function<void (const Sink::ApplicationDomain::ApplicationDomainType &)> &callback);
 
     ResultSet createFilteredSet(ResultSet &resultSet, const FilterFunction &);
-    QVector<QByteArray> loadIncrementalResultSet(qint64 baseRevision);
+    QVector<Sink::Storage::Key> loadIncrementalResultSet(qint64 baseRevision);
 
     void setupQuery(const Sink::QueryBase &query_);
     QByteArrayList executeSubquery(const Sink::QueryBase &subquery);
@@ -96,22 +98,22 @@ public:
 
     virtual ~FilterBase(){}
 
-    void readEntity(const QByteArray &key, const std::function<void(const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> &callback)
+    void readEntity(const Sink::Storage::Identifier &id, const std::function<void(const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> &callback)
     {
         Q_ASSERT(mDatastore);
-        mDatastore->readEntity(key, callback);
+        mDatastore->readEntity(id, callback);
     }
 
-    QVector<QByteArray> indexLookup(const QByteArray &property, const QVariant &value)
+    QVector<Sink::Storage::Identifier> indexLookup(const QByteArray &property, const QVariant &value)
     {
         Q_ASSERT(mDatastore);
         return mDatastore->indexLookup(property, value);
     }
 
-    void readPrevious(const QByteArray &key, const std::function<void (const Sink::ApplicationDomain::ApplicationDomainType &)> &callback)
+    void readPrevious(const Sink::Storage::Identifier &id, const std::function<void (const Sink::ApplicationDomain::ApplicationDomainType &)> &callback)
     {
         Q_ASSERT(mDatastore);
-        mDatastore->readPrevious(key, callback);
+        mDatastore->readPrevious(id, callback);
     }
 
     virtual void skip() { mSource->skip(); }

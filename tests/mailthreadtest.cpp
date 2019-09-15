@@ -218,7 +218,7 @@ void MailThreadTest::testRealWorldThread()
         VERIFYEXEC(Store::create(mail));
     };
 
-    createMail(readMail("thread1"));
+    createMail(readMail("thread1_1"));
 
     VERIFYEXEC(ResourceControl::flushMessageQueue(QByteArrayList() << mResourceInstanceIdentifier));
 
@@ -233,13 +233,13 @@ void MailThreadTest::testRealWorldThread()
         return mails.first();
     }();
 
-    createMail(readMail("thread2"));
-    createMail(readMail("thread3"));
-    createMail(readMail("thread4"));
-    createMail(readMail("thread5"));
-    createMail(readMail("thread6"));
-    createMail(readMail("thread7"));
-    createMail(readMail("thread8")); //This mail is breaking the thread
+    createMail(readMail("thread1_2"));
+    createMail(readMail("thread1_3"));
+    createMail(readMail("thread1_4"));
+    createMail(readMail("thread1_5"));
+    createMail(readMail("thread1_6"));
+    createMail(readMail("thread1_7"));
+    createMail(readMail("thread1_8")); //This mail is breaking the thread
     VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
     //Ensure the thread is complete
@@ -249,6 +249,23 @@ void MailThreadTest::testRealWorldThread()
 
         auto mails = Store::read<Mail>(query);
         QCOMPARE(mails.size(), 8);
+    }
+
+    {
+        auto query = Sink::StandardQueries::threadLeaders(folder);
+        Mail threadLeader2 = [&] {
+            auto mails = Store::read<Mail>(query);
+            Q_ASSERT(mails.size() == 1);
+            return mails.first();
+        }();
+
+        {
+            auto query = Sink::StandardQueries::completeThread(threadLeader2);
+            query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
+
+            auto mails = Store::read<Mail>(query);
+            QCOMPARE(mails.size(), 8);
+        }
     }
 }
 
@@ -327,3 +344,46 @@ void MailThreadTest::testNoParentsWithModifications()
     checkMail(mail1);
     checkMail(mail2);
 }
+
+
+void MailThreadTest::testRealWorldThread2()
+{
+    auto folder = Folder::create(mResourceInstanceIdentifier);
+    folder.setName("folder2");
+    VERIFYEXEC(Store::create(folder));
+
+    auto createMail = [this, folder] (KMime::Message::Ptr msg) {
+        auto mail = Mail::create(mResourceInstanceIdentifier);
+        mail.setMimeMessage(msg->encodedContent(true));
+        mail.setFolder(folder);
+        VERIFYEXEC(Store::create(mail));
+    };
+
+    createMail(readMail(QString("thread2_%1").arg(1))); //30.10.18
+    createMail(readMail(QString("thread2_%1").arg(2))); //02.11.18
+    createMail(readMail(QString("thread2_%1").arg(3))); //07.11.18
+    createMail(readMail(QString("thread2_%1").arg(4))); //09.11.18
+    createMail(readMail(QString("thread2_%1").arg(14))); //13.11.18
+    createMail(readMail(QString("thread2_%1").arg(12))); //16.11.18
+    createMail(readMail(QString("thread2_%1").arg(6))); //16.11.18
+    createMail(readMail(QString("thread2_%1").arg(9))); //23.11.18
+    // createMail(readMail(QString("thread2_%1").arg(i))); //Different thread 18.1
+    createMail(readMail(QString("thread2_%1").arg(7))); //04.12.18
+    createMail(readMail(QString("thread2_%1").arg(17))); //18.12.18
+    createMail(readMail(QString("thread2_%1").arg(13))); //22.1
+    createMail(readMail(QString("thread2_%1").arg(15))); //25.1
+    createMail(readMail(QString("thread2_%1").arg(11))); //28.1
+    createMail(readMail(QString("thread2_%1").arg(10))); //29.1
+    createMail(readMail(QString("thread2_%1").arg(16))); //29.1
+
+
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+    //Ensure we only got one thread
+    const auto mails = Store::read<Mail>(Sink::StandardQueries::threadLeaders(folder));
+    QCOMPARE(mails.size(), 1);
+
+    //Ensure the thread is complete
+    QCOMPARE(Store::read<Mail>(Sink::StandardQueries::completeThread(mails.first())).size(), 15);
+}
+

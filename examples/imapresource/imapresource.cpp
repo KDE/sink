@@ -34,6 +34,7 @@
 #include <QDate>
 #include <QDateTime>
 #include <QtAlgorithms>
+#include <QUrl>
 
 #include "facadefactory.h"
 #include "adaptorfactoryregistry.h"
@@ -126,7 +127,7 @@ public:
         folder.setName(f.name());
         folder.setIcon("folder");
         folder.setEnabled(f.subscribed);
-        auto specialPurpose = [&] {
+        const auto specialPurpose = [&] {
             if (hasSpecialPurposeFlag(f.flags)) {
                 return getSpecialPurposeType(f.flags);
             } else if (SpecialPurpose::isSpecialPurposeFolderName(f.name()) && isToplevel) {
@@ -136,6 +137,10 @@ public:
         }();
         if (!specialPurpose.isEmpty()) {
             folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
+        }
+        //Always show the inbox
+        if (specialPurpose == ApplicationDomain::SpecialPurpose::Mail::inbox) {
+            folder.setEnabled(true);
         }
 
         if (!isToplevel) {
@@ -243,7 +248,7 @@ public:
 
     KAsync::Job<void> synchronizeFolder(QSharedPointer<ImapServerProxy> imap, const Imap::Folder &folder, const QDate &dateFilter, bool fetchHeaderAlso = false)
     {
-        SinkLogCtx(mLogCtx) << "Synchronizing mails: " << folderRid(folder);
+        SinkLogCtx(mLogCtx) << "Synchronizing mails in folder: " << folderRid(folder);
         SinkLogCtx(mLogCtx) << " fetching headers also: " << fetchHeaderAlso;
         const auto folderRemoteId = folderRid(folder);
         if (folder.path().isEmpty() || folderRemoteId.isEmpty()) {
@@ -556,6 +561,9 @@ public:
 
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
+        if (!QUrl{mServer}.isValid()) {
+            return KAsync::error(ApplicationDomain::ConfigurationError, "Invalid server url: " + mServer);
+        }
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, &mSessionCache);
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
             return login(imap)
@@ -582,9 +590,14 @@ public:
                                 }
                             }).then([=] (const KAsync::Error &error) {
                                 if (error) {
-                                    //Ignore the error because we don't want to fail the synchronization here
-                                    SinkWarningCtx(mLogCtx) << "Examine failed: " << error.errorMessage;
+                                    SinkWarningCtx(mLogCtx) << "Examine failed: " << error;
+                                    if (error.errorCode == Imap::CommandFailed) {
+                                        //Ignore the error because we don't want to fail the synchronization for all folders
+                                        return KAsync::null();
+                                    }
+                                    return KAsync::error(error);
                                 }
+                                return KAsync::null();
                             });
                     }
                     return KAsync::null();
@@ -639,22 +652,43 @@ public:
                 } else {
                     //Otherwise we sync the folder(s)
                     bool syncHeaders = query.hasFilter<ApplicationDomain::Mail::Folder>();
+
+                    const QDate dateFilter = [&] {
+                        auto filter = query.getFilter<ApplicationDomain::Mail::Date>();
+                        if (filter.value.canConvert<QDate>()) {
+                            SinkLog() << " with date-range " << filter.value.value<QDate>();
+                            return filter.value.value<QDate>();
+                        }
+                        return QDate{};
+                    }();
+
                     //FIXME If we were able to to flush in between we could just query the local store for the folder list.
                     return getFolderList(imap, query)
-                        .serialEach([=](const Folder &folder) {
-                            SinkLog() << "Syncing folder " << folder.path();
-                            //Emit notification that the folder is being synced.
-                            //The synchronizer can't do that because it has no concept of the folder filter on a mail sync scope meaning that the folder is being synchronized.
-                            QDate dateFilter;
-                            auto filter = query.getFilter<ApplicationDomain::Mail::Date>();
-                            if (filter.value.canConvert<QDate>()) {
-                                dateFilter = filter.value.value<QDate>();
-                                SinkLog() << " with date-range " << dateFilter;
-                            }
-                            return synchronizeFolder(imap, folder, dateFilter, syncHeaders)
-                                .onError([=](const KAsync::Error &error) {
-                                    SinkWarning() << "Failed to sync folder: " << folder.path() << "Error: " << error.errorMessage;
+                        .then([=](const QVector<Folder> &folders) {
+                            auto job = KAsync::null<void>();
+                            for (const auto &folder : folders) {
+                                job = job.then([=] {
+                                    if (aborting()) {
+                                        return KAsync::null();
+                                    }
+                                    return synchronizeFolder(imap, folder, dateFilter, syncHeaders)
+                                        .then([=](const KAsync::Error &error) {
+                                            if (error) {
+                                                if (error.errorCode == Imap::CommandFailed) {
+                                                    SinkWarning() << "Continuing after protocol error: " << folder.path() << "Error: " << error;
+                                                    //Ignore protocol-level errors and continue
+                                                    return KAsync::null();
+                                                }
+                                                SinkWarning() << "Aborting on error: " << folder.path() << "Error: " << error;
+                                                //Abort otherwise, e.g. if we disconnected
+                                                return KAsync::error(error);
+                                            }
+                                            return KAsync::null();
+                                        });
                                 });
+
+                            }
+                            return job;
                         });
                 }
             })
@@ -1032,6 +1066,18 @@ public:
     QString mUser;
 };
 
+class FolderCleanupPreprocessor : public Sink::Preprocessor
+{
+public:
+    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    {
+        //Remove all mails of a folder when removing the folder.
+        const auto revision = entityStore().maxRevision();
+        entityStore().indexLookup<ApplicationDomain::Mail, ApplicationDomain::Mail::Folder>(oldEntity.identifier(), [&] (const QByteArray &identifier) {
+            deleteEntity(ApplicationDomain::ApplicationDomainType{{}, identifier, revision, {}}, ApplicationDomain::getTypeName<ApplicationDomain::Mail>(), false);
+        });
+    }
+};
 
 ImapResource::ImapResource(const ResourceContext &resourceContext)
     : Sink::GenericResource(resourceContext)
@@ -1093,8 +1139,8 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     inspector->mUser = user;
     setupInspector(inspector);
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor << new MailPropertyExtractor);
-    setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>());
+    setupPreprocessors(ENTITY_TYPE_MAIL, {new SpecialPurposeProcessor, new MailPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_FOLDER, {new FolderCleanupPreprocessor});
 }
 
 ImapResourceFactory::ImapResourceFactory(QObject *parent)

@@ -52,7 +52,7 @@ bool sync(const QStringList &args, State &state)
         query.resourceFilter(SinkshUtils::parseUid(options.positionalArguments.first().toLatin1()));
     } else {
         //We have specified a full filter
-        if (!SinkshUtils::applyFilter(query, options.positionalArguments)) {
+        if (!SinkshUtils::applyFilter(query, options)) {
             state.printError(QObject::tr("Options: $type $resource/$folder/$subfolder --password $password"));
             return false;
         }
@@ -83,6 +83,11 @@ bool sync(const QStringList &args, State &state)
 Syntax::List syntax()
 {
     Syntax sync("sync", QObject::tr("Synchronizes a resource."), &SinkSync::sync, Syntax::EventDriven);
+
+    sync.addPositionalArgument({"type", "The type of resource to synchronize"});
+    sync.addPositionalArgument({"resourceId", "The ID of the resource to synchronize"});
+    sync.addParameter("password", {"password", "The password of the resource", true});
+
     sync.completer = &SinkshUtils::resourceCompleter;
 
     return Syntax::List() << sync;

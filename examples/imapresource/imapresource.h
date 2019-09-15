@@ -19,19 +19,8 @@
 
 #pragma once
 
+#include "common/resource.h"
 #include "common/genericresource.h"
-
-#include <KAsync/Async>
-
-#include <flatbuffers/flatbuffers.h>
-
-class ImapMailAdaptorFactory;
-class ImapFolderAdaptorFactory;
-
-namespace Imap {
-struct Message;
-struct Folder;
-}
 
 /**
  * An imap resource.

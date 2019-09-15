@@ -29,13 +29,14 @@
 #include "facade.h"
 #include "facadefactory.h"
 
-#include <KCalCore/ICalFormat>
+#include <QColor>
 
 #define ENTITY_TYPE_EVENT "event"
 #define ENTITY_TYPE_TODO "todo"
 #define ENTITY_TYPE_CALENDAR "calendar"
 
 using Sink::ApplicationDomain::getTypeName;
+using namespace Sink;
 
 class CalDAVSynchronizer : public WebDavSynchronizer
 {
@@ -45,7 +46,7 @@ class CalDAVSynchronizer : public WebDavSynchronizer
 
 public:
     explicit CalDAVSynchronizer(const Sink::ResourceContext &context)
-        : WebDavSynchronizer(context, KDAV2::CalDav, getTypeName<Calendar>(), getTypeName<Event>())
+        : WebDavSynchronizer(context, KDAV2::CalDav, getTypeName<Calendar>(), {getTypeName<Event>(), getTypeName<Todo>()})
     {
     }
 
@@ -57,65 +58,59 @@ protected:
         QVector<QByteArray> ridList;
         for (const auto &remoteCalendar : calendarList) {
             const auto &rid = resourceID(remoteCalendar);
-            SinkLog() << "Found calendar:" << remoteCalendar.displayName() << "[" << rid << "]";
+            SinkLog() << "Found calendar:" << remoteCalendar.displayName() << "[" << rid << "]" << remoteCalendar.contentTypes();
 
             Calendar localCalendar;
             localCalendar.setName(remoteCalendar.displayName());
+            localCalendar.setColor(remoteCalendar.color().name().toLatin1());
 
-            createOrModify(ENTITY_TYPE_CALENDAR, rid, localCalendar,
-                /* mergeCriteria = */ QHash<QByteArray, Sink::Query::Comparator>{});
+            if (remoteCalendar.contentTypes() & KDAV2::DavCollection::Events) {
+                localCalendar.setContentTypes({"event"});
+            }
+            if (remoteCalendar.contentTypes() & KDAV2::DavCollection::Todos) {
+                localCalendar.setContentTypes({"todo"});
+            }
+            if (remoteCalendar.contentTypes() & KDAV2::DavCollection::Calendar) {
+                localCalendar.setContentTypes({"event", "todo"});
+            }
+
+            const auto sinkId = syncStore().resolveRemoteId(ENTITY_TYPE_CALENDAR, rid);
+            const auto found = store().contains(ENTITY_TYPE_CALENDAR, sinkId);
+
+            //Set default when creating, otherwise don't touch
+            if (!found) {
+                localCalendar.setEnabled(false);
+            }
+
+            createOrModify(ENTITY_TYPE_CALENDAR, rid, localCalendar);
         }
     }
 
-    void updateLocalItem(KDAV2::DavItem remoteItem, const QByteArray &calendarLocalId) Q_DECL_OVERRIDE
+    void updateLocalItem(const KDAV2::DavItem &remoteItem, const QByteArray &calendarLocalId) Q_DECL_OVERRIDE
     {
-        const auto &rid = resourceID(remoteItem);
+        const auto rid = resourceID(remoteItem);
 
-        auto ical = remoteItem.data();
-        auto incidence = KCalCore::ICalFormat().fromString(ical);
+        const auto ical = remoteItem.data();
 
-        using Type = KCalCore::IncidenceBase::IncidenceType;
+        if (ical.contains("BEGIN:VEVENT")) {
+            Event localEvent;
+            localEvent.setIcal(ical);
+            localEvent.setCalendar(calendarLocalId);
 
-        switch (incidence->type()) {
-            case Type::TypeEvent: {
-                Event localEvent;
-                localEvent.setIcal(ical);
-                localEvent.setCalendar(calendarLocalId);
+            SinkTrace() << "Found an event with id:" << rid;
 
-                SinkTrace() << "Found an event with id:" << rid;
+            createOrModify(ENTITY_TYPE_EVENT, rid, localEvent, {});
+        } else if (ical.contains("BEGIN:VTODO")) {
+            Todo localTodo;
+            localTodo.setIcal(ical);
+            localTodo.setCalendar(calendarLocalId);
 
-                createOrModify(ENTITY_TYPE_EVENT, rid, localEvent,
-                    /* mergeCriteria = */ QHash<QByteArray, Sink::Query::Comparator>{});
-                break;
-            }
-            case Type::TypeTodo: {
-                Todo localTodo;
-                localTodo.setIcal(ical);
-                localTodo.setCalendar(calendarLocalId);
+            SinkTrace() << "Found a Todo with id:" << rid;
 
-                SinkTrace() << "Found a Todo with id:" << rid;
-
-                createOrModify(ENTITY_TYPE_TODO, rid, localTodo,
-                    /* mergeCriteria = */ QHash<QByteArray, Sink::Query::Comparator>{});
-                break;
-            }
-            case Type::TypeJournal:
-                SinkWarning() << "Unimplemented add of a 'Journal' item in the Store";
-                break;
-            case Type::TypeFreeBusy:
-                SinkWarning() << "Unimplemented add of a 'FreeBusy' item in the Store";
-                break;
-            case Type::TypeUnknown:
+            createOrModify(ENTITY_TYPE_TODO, rid, localTodo, {});
+        } else {
                 SinkWarning() << "Trying to add a 'Unknown' item";
-                break;
-            default:
-                break;
         }
-    }
-
-    QByteArray collectionLocalResourceID(const KDAV2::DavCollection &calendar) Q_DECL_OVERRIDE
-    {
-        return syncStore().resolveRemoteId(ENTITY_TYPE_CALENDAR, resourceID(calendar));
     }
 
     template<typename Item>
@@ -130,43 +125,22 @@ protected:
         switch (operation) {
             case Sink::Operation_Creation: {
                 auto rawIcal = localItem.getIcal();
-                if (rawIcal == "") {
+                if (rawIcal.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for creation replay");
                 }
-
-                auto collectionId = syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar());
-
-                remoteItem.setData(rawIcal);
-                remoteItem.setContentType("text/calendar");
-                remoteItem.setUrl(urlOf(collectionId, localItem.getUid()));
-
-                SinkLog() << "Creating" << entityType << ":" << localItem.getSummary();
-                return createItem(remoteItem).then([remoteItem] { return resourceID(remoteItem); });
+                return createItem(rawIcal, "text/calendar", localItem.getUid().toUtf8() + ".ics", syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()));
             }
             case Sink::Operation_Removal: {
-                // We only need the URL in the DAV item for removal
-                remoteItem.setUrl(urlOf(oldRemoteId));
-
-                SinkLog() << "Removing" << entityType << ":" << oldRemoteId;
-                return removeItem(remoteItem).then([] { return QByteArray{}; });
+                return removeItem(oldRemoteId);
             }
             case Sink::Operation_Modification:
                 auto rawIcal = localItem.getIcal();
-                if (rawIcal == "") {
+                if (rawIcal.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for modification replay");
                 }
-
-                remoteItem.setData(rawIcal);
-                remoteItem.setContentType("text/calendar");
-                remoteItem.setUrl(urlOf(oldRemoteId));
-
-                SinkLog() << "Modifying" << entityType << ":" << localItem.getSummary();
-
-                // It would be nice to check that the URL of the item hasn't
-                // changed and move he item if it did, but since the URL is
-                // pretty much arbitrary, whoe does that anyway?
-                return modifyItem(remoteItem).then([oldRemoteId] { return oldRemoteId; });
+                return modifyItem(oldRemoteId, rawIcal, "text/calendar", syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()));
         }
+        return KAsync::null<QByteArray>();
     }
 
     KAsync::Job<QByteArray> replay(const Event &event, Sink::Operation operation,
@@ -184,7 +158,7 @@ protected:
     KAsync::Job<QByteArray> replay(const Calendar &calendar, Sink::Operation operation,
         const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
-        SinkLog() << "Replaying calendar";
+        SinkLog() << "Replaying calendar" << changedProperties;
 
         switch (operation) {
             case Sink::Operation_Creation:
@@ -192,14 +166,37 @@ protected:
                 break;
             case Sink::Operation_Removal:
                 SinkLog() << "Replaying calendar removal";
-                removeCollection(urlOf(oldRemoteId));
+                removeCollection(oldRemoteId);
                 break;
             case Sink::Operation_Modification:
                 SinkWarning() << "Unimplemented replay of calendar modification";
+                if (calendar.getEnabled() && changedProperties.contains(Calendar::Enabled::name)) {
+                    //Trigger synchronization of that calendar
+                    Query scope;
+                    scope.setType<Event>();
+                    scope.filter<Event::Calendar>(calendar);
+                    synchronize(scope);
+                }
                 break;
         }
 
         return KAsync::null<QByteArray>();
+    }
+};
+
+class CollectionCleanupPreprocessor : public Sink::Preprocessor
+{
+public:
+    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    {
+        //Remove all events of a collection when removing the collection.
+        const auto revision = entityStore().maxRevision();
+        entityStore().indexLookup<ApplicationDomain::Event, ApplicationDomain::Event::Calendar>(oldEntity.identifier(), [&] (const QByteArray &identifier) {
+            deleteEntity(ApplicationDomain::ApplicationDomainType{{}, identifier, revision, {}}, ApplicationDomain::getTypeName<ApplicationDomain::Event>(), false);
+        });
+        entityStore().indexLookup<ApplicationDomain::Todo, ApplicationDomain::Event::Calendar>(oldEntity.identifier(), [&] (const QByteArray &identifier) {
+            deleteEntity(ApplicationDomain::ApplicationDomainType{{}, identifier, revision, {}}, ApplicationDomain::getTypeName<ApplicationDomain::Todo>(), false);
+        });
     }
 };
 
@@ -209,8 +206,9 @@ CalDavResource::CalDavResource(const Sink::ResourceContext &context)
     auto synchronizer = QSharedPointer<CalDAVSynchronizer>::create(context);
     setupSynchronizer(synchronizer);
 
-    setupPreprocessors(ENTITY_TYPE_EVENT, QVector<Sink::Preprocessor *>() << new EventPropertyExtractor);
-    setupPreprocessors(ENTITY_TYPE_TODO, QVector<Sink::Preprocessor *>() << new TodoPropertyExtractor);
+    setupPreprocessors(ENTITY_TYPE_EVENT, {new EventPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_TODO, {new TodoPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_CALENDAR, {new CollectionCleanupPreprocessor});
 }
 
 CalDavResourceFactory::CalDavResourceFactory(QObject *parent)

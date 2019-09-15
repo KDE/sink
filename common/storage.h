@@ -22,13 +22,20 @@
 #pragma once
 
 #include "sink_export.h"
+#include "utils.h"
 #include <string>
 #include <functional>
+#include <QUuid>
 #include <QString>
 #include <QMap>
 
 namespace Sink {
 namespace Storage {
+
+extern SINK_EXPORT int AllowDuplicates;
+extern SINK_EXPORT int IntegerKeys;
+// Only useful with AllowDuplicates
+extern SINK_EXPORT int IntegerValues;
 
 struct SINK_EXPORT DbLayout {
     typedef QMap<QByteArray, int> Databases;
@@ -56,7 +63,7 @@ public:
         NotFound
     };
 
-    class Error
+    class SINK_EXPORT Error
     {
     public:
         Error(const QByteArray &s, int c, const QByteArray &m) : store(s), message(m), code(c)
@@ -78,14 +85,22 @@ public:
          */
         bool write(const QByteArray &key, const QByteArray &value, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
 
+        // of QByteArray for keys
+        bool write(const size_t key, const QByteArray &value, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
+
         /**
          * Remove a key
          */
         void remove(const QByteArray &key, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
+
+        void remove(const size_t key, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
+
         /**
          * Remove a key-value pair
          */
         void remove(const QByteArray &key, const QByteArray &value, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
+
+        void remove(const size_t key, const QByteArray &value, const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>());
 
         /**
         * Read values with a given key.
@@ -99,6 +114,9 @@ public:
         int scan(const QByteArray &key, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
             const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>(), bool findSubstringKeys = false, bool skipInternalKeys = true) const;
 
+        int scan(const size_t key, const std::function<bool(size_t key, const QByteArray &value)> &resultHandler,
+            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>(), bool skipInternalKeys = true) const;
+
         /**
          * Finds the last value in a series matched by prefix.
          *
@@ -106,6 +124,9 @@ public:
          * Note that this relies on a key scheme like $uid$revision.
          */
         void findLatest(const QByteArray &uid, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
+            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>()) const;
+
+        void findLatest(size_t key, const std::function<void(size_t key, const QByteArray &value)> &resultHandler,
             const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>()) const;
 
         /**
@@ -116,6 +137,10 @@ public:
             const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
             const std::function<void(const DataStore::Error &error)> &errorHandler =
                 std::function<void(const DataStore::Error &error)>()) const;
+
+        int findAllInRange(const size_t lowerBound, const size_t upperBound,
+            const std::function<void(size_t key, const QByteArray &value)> &resultHandler,
+            const std::function<void(const DataStore::Error &error)> &errorHandler = {}) const;
 
         /**
          * Returns true if the database contains the substring key.
@@ -161,8 +186,9 @@ public:
 
         QList<QByteArray> getDatabaseNames() const;
 
-        NamedDatabase openDatabase(const QByteArray &name = {"default"},
-            const std::function<void(const DataStore::Error &error)> &errorHandler = {}, bool allowDuplicates = false) const;
+        NamedDatabase openDatabase(const QByteArray &name = { "default" },
+            const std::function<void(const DataStore::Error &error)> &errorHandler = {},
+            int flags = 0) const;
 
         Transaction(Transaction &&other);
         Transaction &operator=(Transaction &&other);
@@ -222,13 +248,17 @@ public:
     static qint64 cleanedUpRevision(const Transaction &);
     static void setCleanedUpRevision(Transaction &, qint64 revision);
 
-    static QByteArray getUidFromRevision(const Transaction &, qint64 revision);
-    static QByteArray getTypeFromRevision(const Transaction &, qint64 revision);
-    static void recordRevision(Transaction &, qint64 revision, const QByteArray &uid, const QByteArray &type);
-    static void removeRevision(Transaction &, qint64 revision);
+    static QByteArray getUidFromRevision(const Transaction &, size_t revision);
+    static size_t getLatestRevisionFromUid(Transaction &, const QByteArray &uid);
+    static QList<size_t> getRevisionsUntilFromUid(DataStore::Transaction &, const QByteArray &uid, size_t lastRevision);
+    static QList<size_t> getRevisionsFromUid(DataStore::Transaction &, const QByteArray &uid);
+    static QByteArray getTypeFromRevision(const Transaction &, size_t revision);
+    static void recordRevision(Transaction &, size_t revision, const QByteArray &uid, const QByteArray &type);
+    static void removeRevision(Transaction &, size_t revision);
     static void recordUid(DataStore::Transaction &transaction, const QByteArray &uid, const QByteArray &type);
     static void removeUid(DataStore::Transaction &transaction, const QByteArray &uid, const QByteArray &type);
     static void getUids(const QByteArray &type, const Transaction &, const std::function<void(const QByteArray &uid)> &);
+    static bool hasUid(const QByteArray &type, const Transaction &, const QByteArray &uid);
 
     bool exists() const;
     static bool exists(const QString &storageRoot, const QString &name);
@@ -236,10 +266,6 @@ public:
     static bool isInternalKey(const char *key);
     static bool isInternalKey(void *key, int keySize);
     static bool isInternalKey(const QByteArray &key);
-
-    static QByteArray assembleKey(const QByteArray &key, qint64 revision);
-    static QByteArray uidFromKey(const QByteArray &key);
-    static qint64 revisionFromKey(const QByteArray &key);
 
     static NamedDatabase mainDatabase(const Transaction &, const QByteArray &type);
 

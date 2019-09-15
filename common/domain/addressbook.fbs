@@ -3,6 +3,7 @@ namespace Sink.ApplicationDomain.Buffer;
 table Addressbook {
   name:string;
   parent:string;
+  enabled:bool = true;
 }
 
 root_type Addressbook;

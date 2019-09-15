@@ -29,6 +29,13 @@ public:
 
     QVector<QByteArray> lookup(const QString &key);
 
+    qint64 getDoccount() const;
+    struct Result {
+        bool found{false};
+        QStringList terms;
+    };
+    Result getIndexContent(const QByteArray &identifier) const;
+
 private:
     Xapian::WritableDatabase* writableDatabase();
     Q_DISABLE_COPY(FulltextIndex);

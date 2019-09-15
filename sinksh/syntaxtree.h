@@ -42,9 +42,32 @@ public:
     Syntax(const QString &keyword, const QString &helpText = QString(),
         std::function<bool(const QStringList &, State &)> lambda = std::function<bool(const QStringList &, State &)>(), Interactivity interactivity = NotInteractive);
 
+    struct Argument {
+        QString name;
+        QString help;
+        bool required = true;
+        bool variadic = false;
+    };
+
+    struct ParameterOptions {
+        QString name;
+        QString help;
+        bool required = false;
+    };
+
+    // TODO: add examples?
     QString keyword;
     QString help;
+    QVector<Argument> arguments;
+    QMap<QString, ParameterOptions> parameters;
+    QMap<QString, QString> flags;
     Interactivity interactivity;
+
+    void addPositionalArgument(const Argument &);
+    void addParameter(const QString &name, const ParameterOptions &options);
+    void addFlag(const QString &name, const QString &help);
+
+    QString usage() const;
 
     /**
      * This function will be called to execute the command.

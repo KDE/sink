@@ -23,6 +23,8 @@
 
 using namespace Sink::Log;
 
+const char *getComponentName() { return nullptr; }
+
 static QThreadStorage<QSharedPointer<QSettings>> sSettings;
 static QSettings &config()
 {
@@ -172,7 +174,7 @@ QByteArray Sink::Log::debugLevelName(DebugLevel debugLevel)
             return "Error";
         default:
             break;
-    };
+    }
     Q_ASSERT(false);
     return QByteArray();
 }
@@ -253,14 +255,22 @@ class DebugAreaCollector {
 public:
     DebugAreaCollector()
     {
-        QMutexLocker locker(&mutex);
-        mDebugAreas = debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+        //This call can potentially print a log message (if we fail to remove the qsettings lockfile), which would result in a deadlock if we locked over all of it.
+        const auto areas = debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+        {
+            QMutexLocker locker(&mutex);
+            mDebugAreas = areas;
+        }
     }
 
     ~DebugAreaCollector()
     {
-        QMutexLocker locker(&mutex);
-        mDebugAreas += debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+        //This call can potentially print a log message (if we fail to remove the qsettings lockfile), which would result in a deadlock if we locked over all of it.
+        const auto areas = debugAreasConfig()->value("areas").value<QString>().split(';').toSet();
+        {
+            QMutexLocker locker(&mutex);
+            mDebugAreas += areas;
+        }
         debugAreasConfig()->setValue("areas", QVariant::fromValue(mDebugAreas.toList().join(';')));
     }
 
@@ -363,6 +373,10 @@ static bool isFiltered(DebugLevel debugLevel, const QByteArray &fullDebugArea)
 
 bool Sink::Log::isFiltered(DebugLevel debugLevel, const char *debugArea, const char *debugComponent, const char *file)
 {
+    //Avoid assembleDebugArea if we can, because it's fairly expensive.
+    if (debugLevel < debugOutputLevel()) {
+        return true;
+    }
     return isFiltered(debugLevel, assembleDebugArea(debugArea, debugComponent, file).toLatin1());
 }
 
@@ -399,7 +413,7 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
             prefix = "Error:  ";
             prefixColorCode = ANSI_Colors::Red;
             break;
-    };
+    }
 
     auto debugOutput = debugOutputFields();
 

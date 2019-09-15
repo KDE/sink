@@ -33,6 +33,104 @@ Syntax::Syntax(const QString &k, const QString &helpText, std::function<bool(con
 {
 }
 
+void Syntax::addPositionalArgument(const Argument &argument)
+{
+    arguments.push_back(argument);
+}
+
+void Syntax::addParameter(const QString &name, const ParameterOptions &options)
+{
+    parameters.insert(name, options);
+}
+
+void Syntax::addFlag(const QString &name, const QString &help)
+{
+    flags.insert(name, help);
+}
+
+QString Syntax::usage() const
+{
+    // TODO: refactor into meaningful functions?
+    bool hasArguments = !arguments.isEmpty();
+    bool hasFlags = !flags.isEmpty();
+    bool hasOptions = !parameters.isEmpty();
+    bool hasSubcommand = !children.isEmpty();
+
+    QString argumentsSummary;
+
+    QString argumentsUsage;
+    if (hasArguments) {
+        argumentsUsage += "\nARGUMENTS:\n";
+        for (const auto &arg : arguments) {
+            if (arg.required) {
+                argumentsSummary += QString(" <%1>").arg(arg.name);
+                argumentsUsage += QString("    <%1>: %2\n").arg(arg.name).arg(arg.help);
+            } else {
+                argumentsSummary += QString(" [%1]").arg(arg.name);
+                argumentsUsage += QString("    [%1]: %2\n").arg(arg.name).arg(arg.help);
+            }
+            if (arg.variadic) {
+                argumentsSummary += "...";
+            }
+        }
+    }
+
+    if (hasFlags) {
+        argumentsSummary += " [FLAGS]";
+    }
+
+    if (hasOptions) {
+        argumentsSummary += " [OPTIONS]";
+    }
+
+    if (hasSubcommand) {
+        if (hasArguments || hasFlags || hasOptions) {
+            argumentsSummary = QString(" [ <SUB-COMMAND> |%1 ]").arg(argumentsSummary);
+        } else {
+            argumentsSummary = " <SUB-COMMAND>";
+        }
+    }
+
+    argumentsSummary += '\n';
+
+    QString subcommandsUsage;
+    if (hasSubcommand) {
+        subcommandsUsage += "\nSUB-COMMANDS:\n"
+                            "    Use the 'help' command to find out more about a sub-command.\n\n";
+        for (const auto &command : children) {
+            subcommandsUsage += QString("    %1: %2\n").arg(command.keyword).arg(command.help);
+        }
+    }
+
+    QString flagsUsage;
+    if (hasFlags) {
+        flagsUsage += "\nFLAGS:\n";
+        for (auto it = flags.constBegin(); it != flags.constEnd(); ++it) {
+            flagsUsage += QString("    [--%1]: %2\n").arg(it.key()).arg(it.value());
+        }
+    }
+
+    QString optionsUsage;
+    if (hasOptions) {
+        optionsUsage += "\nOPTIONS:\n";
+        for (auto it = parameters.constBegin(); it != parameters.constEnd(); ++it) {
+            optionsUsage += "    ";
+            if (!it.value().required) {
+                optionsUsage += QString("[--%1 $%2]").arg(it.key()).arg(it.value().name);
+            } else {
+                optionsUsage += QString("<--%1 $%2>").arg(it.key()).arg(it.value().name);
+            }
+
+            optionsUsage += ": " + it.value().help + '\n';
+        }
+    }
+
+    // TODO: instead of just the keyword, we might want to have the whole
+    // command (e.g. if this is a sub-command)
+    return QString("USAGE:\n    ") + keyword + argumentsSummary + subcommandsUsage +
+           argumentsUsage + flagsUsage + optionsUsage;
+}
+
 SyntaxTree::SyntaxTree()
 {
 }

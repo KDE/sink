@@ -19,14 +19,8 @@
 
 #pragma once
 
+#include "common/resource.h"
 #include "common/genericresource.h"
-
-#include <KAsync/Async>
-
-#include <flatbuffers/flatbuffers.h>
-
-class MaildirMailAdaptorFactory;
-class MaildirFolderAdaptorFactory;
 
 /**
  * A maildir resource.

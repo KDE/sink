@@ -64,6 +64,7 @@ private slots:
     void testListFolderHierarchy();
     void testListNewSubFolder();
     void testListRemovedSubFolder();
+    void testListRemovedFullFolder();
 
     void testListMails();
     void testResyncMails();

@@ -241,6 +241,19 @@ public:
     QString mMaildirPath;
 };
 
+class FolderCleanupPreprocessor : public Sink::Preprocessor
+{
+public:
+    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    {
+        //Remove all mails of a folder when removing the folder.
+        const auto revision = entityStore().maxRevision();
+        entityStore().indexLookup<ApplicationDomain::Mail, ApplicationDomain::Mail::Folder>(oldEntity.identifier(), [&] (const QByteArray &identifier) {
+            deleteEntity(ApplicationDomain::ApplicationDomainType{{}, identifier, revision, {}}, ApplicationDomain::getTypeName<ApplicationDomain::Mail>(), false);
+        });
+    }
+};
+
 
 class MaildirSynchronizer : public Sink::Synchronizer {
 public:
@@ -579,8 +592,8 @@ MaildirResource::MaildirResource(const Sink::ResourceContext &resourceContext)
     setupSynchronizer(synchronizer);
     setupInspector(QSharedPointer<MaildirInspector>::create(resourceContext));
 
-    setupPreprocessors(ENTITY_TYPE_MAIL, QVector<Sink::Preprocessor*>() << new SpecialPurposeProcessor << new MaildirMimeMessageMover(resourceContext.instanceId(), mMaildirPath) << new MaildirMailPropertyExtractor);
-    setupPreprocessors(ENTITY_TYPE_FOLDER, QVector<Sink::Preprocessor*>() << new FolderPreprocessor(mMaildirPath));
+    setupPreprocessors(ENTITY_TYPE_MAIL, {new SpecialPurposeProcessor, new MaildirMimeMessageMover(resourceContext.instanceId(), mMaildirPath), new MaildirMailPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_FOLDER, {new FolderPreprocessor(mMaildirPath), new FolderCleanupPreprocessor});
 
     KPIM::Maildir dir(mMaildirPath, true);
     if (dir.isValid(false)) {

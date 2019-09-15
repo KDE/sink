@@ -188,7 +188,7 @@ public:
         adaptor->mLocalMapper = mPropertyMapper;
         adaptor->mIndexMapper = mIndexMapper;
         adaptor->mIndex = index;
-        return adaptor;
+        return std::move(adaptor);
     }
 
     virtual bool

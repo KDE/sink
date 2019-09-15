@@ -67,6 +67,8 @@ QByteArray name(int commandId)
             return "Secret";
         case UpgradeCommand:
             return "Upgrade";
+        case AbortSynchronizationCommand:
+            return "AbortSynchronization";
         case CustomCommand:
             return "Custom";
     };

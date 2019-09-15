@@ -63,6 +63,19 @@ static bool sanityCheckQuery(const Sink::Query &query)
     return true;
 }
 
+static KAsync::Job<void> forEachResource(const Sink::SyncScope &scope, std::function<KAsync::Job<void>(const Sink::ApplicationDomain::SinkResource::Ptr &resource)> callback)
+{
+    using namespace Sink;
+    auto resourceFilter = scope.getResourceFilter();
+    //Filter resources by type by default
+    if (!resourceFilter.propertyFilter.contains({ApplicationDomain::SinkResource::Capabilities::name}) && !scope.type().isEmpty()) {
+        resourceFilter.propertyFilter.insert({ApplicationDomain::SinkResource::Capabilities::name}, Query::Comparator{scope.type(), Query::Comparator::Contains});
+    }
+    Sink::Query query;
+    query.setFilter(resourceFilter);
+    return Store::fetchAll<ApplicationDomain::SinkResource>(query)
+        .template each(callback);
+}
 
 namespace Sink {
 
@@ -176,7 +189,7 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(const Query &query)
     //Automatically populate the top-level
     model->fetchMore(QModelIndex());
 
-    return model;
+    return std::move(model);
 }
 
 template <class DomainType>
@@ -312,8 +325,11 @@ KAsync::Job<void> Store::removeDataFromDisk(const QByteArray &identifier)
         .then<void>([resourceAccess](KAsync::Future<void> &future) {
             if (resourceAccess->isReady()) {
                 //Wait for the resource shutdown
-                QObject::connect(resourceAccess.data(), &ResourceAccess::ready, [&future](bool ready) {
+                auto guard = new QObject;
+                QObject::connect(resourceAccess.data(), &ResourceAccess::ready, guard, [&future, guard](bool ready) {
                     if (!ready) {
+                        //We don't disconnect if ResourceAccess get's recycled, so ready can fire multiple times, which can result in a crash if the future is no longer valid.
+                        delete guard;
                         future.setFinished();
                     }
                 });
@@ -403,17 +419,25 @@ KAsync::Job<void> Store::synchronize(const Sink::Query &query)
 
 KAsync::Job<void> Store::synchronize(const Sink::SyncScope &scope)
 {
-    auto resourceFilter = scope.getResourceFilter();
-    //Filter resources by type by default
-    if (!resourceFilter.propertyFilter.contains({ApplicationDomain::SinkResource::Capabilities::name}) && !scope.type().isEmpty()) {
-        resourceFilter.propertyFilter.insert({ApplicationDomain::SinkResource::Capabilities::name}, Query::Comparator{scope.type(), Query::Comparator::Contains});
-    }
-    Sink::Query query;
-    query.setFilter(resourceFilter);
-    SinkLog() << "Synchronizing all resource matching: " << query;
-    return fetchAll<ApplicationDomain::SinkResource>(query)
-        .template each([scope](const ApplicationDomain::SinkResource::Ptr &resource) -> KAsync::Job<void> {
+    SinkLog() << "Synchronizing all resource matching: " << scope;
+    return forEachResource(scope, [=] (const auto &resource) {
             return synchronize(resource->identifier(), scope);
+        });
+}
+
+KAsync::Job<void> Store::abortSynchronization(const Sink::SyncScope &scope)
+{
+    return forEachResource(scope, [] (const auto &resource) {
+        auto resourceAccess = ResourceAccessFactory::instance().getAccess(resource->identifier(), ResourceConfig::getResourceType(resource->identifier()));
+        return resourceAccess->sendCommand(Sink::Commands::AbortSynchronizationCommand)
+            .addToContext(resourceAccess)
+            .then([=](const KAsync::Error &error) {
+                if (error) {
+                    SinkWarning() << "Error aborting synchronization.";
+                    return KAsync::error(error);
+                }
+                return KAsync::null();
+            });
         });
 }
 

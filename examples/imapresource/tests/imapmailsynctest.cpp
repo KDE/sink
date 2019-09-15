@@ -69,9 +69,13 @@ protected:
     Sink::ApplicationDomain::SinkResource createFaultyResource() Q_DECL_OVERRIDE
     {
         auto resource = ApplicationDomain::ImapResource::create("account1");
-        //Using a bogus ip instead of a bogus hostname avoids getting stuck in the hostname lookup
-        resource.setProperty("server", "111.111.1.1");
-        resource.setProperty("port", 143);
+        //We try to connect on localhost on port 0 because:
+        //* Using a bogus ip instead of a bogus hostname avoids getting stuck in the hostname lookup.
+        //* Using localhost avoids tcp trying to retransmit packets into nirvana
+        //* Using port 0 fails immediately because it's not an existing port.
+        //All we really want is something that immediately rejects our connection attempt, and this seems to work.
+        resource.setProperty("server", "127.0.0.1");
+        resource.setProperty("port", 0);
         resource.setProperty("username", "doe");
         Sink::SecretStore::instance().insert(resource.identifier(), "doe");
         return resource;

@@ -6,4 +6,4 @@ include(SinkTest)
 auto_tests (
     carddavtest
 )
-target_link_libraries(carddavtest sink_resource_carddav)
+target_link_libraries(carddavtest sink_resource_carddav KF5::Contacts)

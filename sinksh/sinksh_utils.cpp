@@ -63,12 +63,14 @@ QList<QByteArray> requestedProperties(const QString &type)
                                   << Mail::Date::name;
     } else if (type == getTypeName<Event>()) {
         return QList<QByteArray>() << Event::Summary::name;
+    } else if (type == getTypeName<Todo>()) {
+        return QList<QByteArray>() << Todo::Summary::name << Todo::Status::name;
     } else if (type == getTypeName<Contact>()) {
         return QList<QByteArray>() << Contact::Fn::name << Contact::Emails::name << Contact::Addressbook::name;
     } else if (type == getTypeName<Addressbook>()) {
         return QList<QByteArray>() << Addressbook::Name::name << Addressbook::Parent::name;
     } else if (type == getTypeName<SinkResource>()) {
-        return QList<QByteArray>() << SinkResource::ResourceType::name << SinkResource::Account::name;
+        return QList<QByteArray>() << SinkResource::ResourceType::name << SinkResource::Account::name << SinkResource::Server::name;
     } else if (type == getTypeName<SinkAccount>()) {
         return QList<QByteArray>() << SinkAccount::AccountType::name << SinkAccount::Name::name;
     } else if (type == getTypeName<Identity>()) {

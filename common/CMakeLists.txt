@@ -73,6 +73,7 @@ add_library(${PROJECT_NAME} SHARED
     specialpurposepreprocessor.cpp
     datastorequery.cpp
     storage/entitystore.cpp
+    storage/key.cpp
     indexer.cpp
     mail/threadindexer.cpp
     mail/fulltextindexer.cpp

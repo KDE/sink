@@ -74,11 +74,7 @@ bool GenericResource::checkForUpgrade()
         if (nukeDatabases) {
             SinkLog() << "Wiping all databases during upgrade, you will have to resync.";
             //Right now upgrading just means removing all local storage so we will resync
-            Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadWrite).removeFromDisk();
-            Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".userqueue", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
-            Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronizerqueue", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
-            Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".changereplay", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
-            Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
+            GenericResource::removeFromDisk(mResourceContext.instanceId());
         }
         auto store = Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadWrite);
         auto t = store.createTransaction(Storage::DataStore::ReadWrite);

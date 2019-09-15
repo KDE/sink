@@ -69,7 +69,6 @@ void statResource(const QString &resource, const State &state)
     state.printLine(QObject::tr("Actual database file sizes total: %1 [kb]").arg(size), 1);
 
     QDir dataDir{Sink::resourceStorageLocation(resource.toLatin1()) + "/fulltext/"};
-    Q_ASSERT(dataDir.exists());
     qint64 dataSize = 0;
     for (const auto &e : dataDir.entryInfoList(QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot)) {
         dataSize += e.size();
@@ -103,8 +102,8 @@ bool stat(const QStringList &args, State &state)
 Syntax::List syntax()
 {
     Syntax state("stat", QObject::tr("Shows database usage for the resources requested"), &SinkStat::stat, Syntax::NotInteractive);
+    state.addPositionalArgument({"resourceId", "Show statistics of the given resource(s). If no resource is provided, show statistics of all resources", false, true});
     state.completer = &SinkshUtils::resourceCompleter;
-
     return Syntax::List() << state;
 }
 

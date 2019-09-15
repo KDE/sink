@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2015 Christian Mollekopf <chrigi_1@fastmail.fm>
+ *   Copyright (C) 2019 Christian Mollekopf <mollekopf@kolabsys.com>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -16,29 +16,10 @@
  *   Free Software Foundation, Inc.,
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
+#pragma once
 
-#include "domainadaptor.h"
-
-#include "dummycalendar_generated.h"
-#include "applicationdomaintype.h"
-
-using namespace DummyCalendar;
-using namespace flatbuffers;
-
-DummyEventAdaptorFactory::DummyEventAdaptorFactory()
-    : DomainTypeAdaptorFactory()
-{
+class Listener;
+namespace Sink {
+    void setListener(Listener*);
+    void installCrashHandler();
 }
-
-DummyMailAdaptorFactory::DummyMailAdaptorFactory()
-    : DomainTypeAdaptorFactory()
-{
-
-}
-
-DummyFolderAdaptorFactory::DummyFolderAdaptorFactory()
-    : DomainTypeAdaptorFactory()
-{
-
-}
-

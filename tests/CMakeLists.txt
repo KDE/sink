@@ -22,6 +22,7 @@ target_link_libraries(sink_test
     Qt5::Concurrent
     Qt5::Test
     KF5::Mime
+    KF5::CalendarCore
 )
 
 add_executable(dbwriter dbwriter.cpp)
@@ -43,8 +44,10 @@ auto_tests (
     domainadaptortest
     messagequeuetest
     indextest
+    fulltextindextest
     resourcecommunicationtest
     pipelinetest
+    synchronizertest
     querytest
     modelinteractivitytest
     inspectiontest
@@ -54,11 +57,13 @@ auto_tests (
     interresourcemovetest
     notificationtest
     entitystoretest
+    datastorequerytest
     upgradetest
+    resourcecontroltest
 )
 
 if (WIN32)
-    message("Not building dumm resource tests on windows")
+    message("Not building dummy resource tests on windows")
 else()
     manual_tests (
         dummyresourcebenchmark

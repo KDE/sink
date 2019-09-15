@@ -67,7 +67,7 @@ class MailQueryBenchmark : public QObject
         for (int i = offset; i < offset + count; i++) {
             auto domainObject = Mail::createEntity<Mail>(resourceIdentifier);
             domainObject.setExtractedMessageId("uid");
-            domainObject.setExtractedParentMessageId("parentuid");
+            domainObject.setExtractedParentMessageIds({"parentuid"});
             domainObject.setExtractedSubject(QString("subject%1").arg(i));
             domainObject.setExtractedDate(date.addSecs(count));
             if (folderSpreadFactor == 0) {
@@ -170,8 +170,6 @@ private slots:
 
         int liveQueryTime = 0;
         {
-            VERIFYEXEC(Sink::ResourceControl::shutdown(resourceIdentifier));
-
             auto q = query;
             q.setFlags(Sink::Query::LiveQuery);
 
@@ -183,8 +181,6 @@ private slots:
 
         int nonLiveQueryTime = 0;
         {
-            VERIFYEXEC(Sink::ResourceControl::shutdown(resourceIdentifier));
-
             auto q = query;
 
             QTime time;

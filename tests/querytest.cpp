@@ -15,8 +15,11 @@
 #include "applicationdomaintype.h"
 #include "queryrunner.h"
 #include "adaptorfactoryregistry.h"
+#include "fulltextindex.h"
 
 #include <KMime/Message>
+#include <KCalCore/Event>
+#include <KCalCore/ICalFormat>
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -36,6 +39,7 @@ private slots:
         auto factory = Sink::ResourceFactory::load("sink.dummy");
         QVERIFY(factory);
         ResourceConfig::addResource("sink.dummy.instance1", "sink.dummy");
+        ResourceConfig::configureResource("sink.dummy.instance1", {{"populate", true}});
         VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
     }
 
@@ -202,12 +206,24 @@ private slots:
         }
 
         // Test
-        Sink::Query query;
-        query.resourceFilter("sink.dummy.instance1");
-        query.filter(id);
-        auto model = Sink::Store::loadModel<Mail>(query);
-        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-        QCOMPARE(model->rowCount(), 1);
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter(id);
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            //Try a non-existing id
+            query.filter("{87fcea5e-8d2e-408e-bb8d-b27b9dcf5e92}");
+            auto model = Sink::Store::loadModel<Mail>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 0);
+        }
     }
 
     void testFolder()
@@ -1039,6 +1055,10 @@ private slots:
             mail.setExtractedMessageId("aggregatedId");
             mail.setFolder(folder2);
             VERIFYEXEC(Sink::Store::create(mail));
+
+            //Ensure that we can deal with a modification to the filtered message
+            mail.setUnread(true);
+            VERIFYEXEC(Sink::Store::modify(mail));
         }
 
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
@@ -1050,6 +1070,10 @@ private slots:
             mail.setExtractedMessageId("aggregatedId");
             mail.setFolder(folder1);
             VERIFYEXEC(Sink::Store::create(mail));
+
+            //Ensure that we can deal with a modification to the filtered message
+            mail.setUnread(true);
+            VERIFYEXEC(Sink::Store::modify(mail));
         }
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
         QTRY_COMPARE(model->rowCount(), 1);
@@ -1310,6 +1334,7 @@ private slots:
 
         auto createMail = [] (const QByteArray &messageid, const Folder &folder, const QDateTime &date, bool important) {
             auto mail = Mail::createEntity<Mail>("sink.dummy.instance1");
+            mail.setExtractedSubject(messageid);
             mail.setExtractedMessageId(messageid);
             mail.setFolder(folder);
             mail.setExtractedDate(date);
@@ -1327,9 +1352,13 @@ private slots:
         Query query;
         query.setId("testLivequeryThreadleaderChange");
         query.setFlags(Query::LiveQuery);
-        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>()).count().collect<Mail::Folder>();
+        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>())
+            .count()
+            .collect<Mail::Folder>()
+            .select<Mail::Subject>(Query::Reduce::Selector::Min, "subjectSelected");
         query.sort<Mail::Date>();
         query.request<Mail::MessageId>();
+        query.request<Mail::Subject>();
         query.filter<Mail::Important>(false);
 
         auto model = Sink::Store::loadModel<Mail>(query);
@@ -1342,6 +1371,7 @@ private slots:
             QCOMPARE(mail->getMessageId(), QByteArray{"mail1"});
             QCOMPARE(mail->count(), 2);
             QCOMPARE(mail->getCollectedProperty<Mail::Folder>().size(), 2);
+            QCOMPARE(mail->getProperty("subjectSelected").toString(), QString{"mail2"});
         }
     }
 
@@ -1502,74 +1532,124 @@ private slots:
         VERIFYEXEC(Sink::Store::removeDataFromDisk(QByteArray("sink.dummy.instance1")));
     }
 
-    void testMailFulltextSubject()
+    void testMailFulltext()
     {
+        QByteArray id1;
+        QByteArray id2;
         // Setup
         {
-            auto msg = KMime::Message::Ptr::create();
-            msg->subject()->from7BitString("Subject To Search");
-            msg->setBody("This is the searchable body.");
-            msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
-            msg->assemble();
             {
-                Mail mail("sink.dummy.instance1");
+                auto msg = KMime::Message::Ptr::create();
+                msg->subject()->from7BitString("Subject To Search");
+                msg->setBody("This is the searchable body bar. unique sender2");
+                msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
+                msg->to()->from7BitString("\"Foo Bar\"<foo-bar@example.org>");
+                msg->assemble();
+
+                auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
                 mail.setExtractedMessageId("test1");
                 mail.setFolder("folder1");
                 mail.setMimeMessage(msg->encodedContent());
                 VERIFYEXEC(Sink::Store::create<Mail>(mail));
+                id1 = mail.identifier();
             }
             {
-                Mail mail("sink.dummy.instance1");
+                auto msg = KMime::Message::Ptr::create();
+                msg->subject()->from7BitString("Stuff to Search");
+                msg->setBody("Body foo bar");
+                msg->from()->from7BitString("\"Another Sender2\"<sender2@unique.com>");
+                msg->assemble();
+                auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
                 mail.setExtractedMessageId("test2");
                 mail.setFolder("folder2");
-                mail.setExtractedSubject("Stuff");
+                mail.setMimeMessage(msg->encodedContent());
                 VERIFYEXEC(Sink::Store::create<Mail>(mail));
+                id2 = mail.identifier();
             }
             VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+            {
+                FulltextIndex index("sink.dummy.instance1", Sink::Storage::DataStore::ReadOnly);
+                qInfo() << QString("Found document 1 with terms: ") + index.getIndexContent(id1).terms.join(", ");
+                qInfo() << QString("Found document 2 with terms: ") + index.getIndexContent(id2).terms.join(", ");
+            }
         }
 
         // Test
+        // Default search
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
             query.filter<Mail::Subject>(QueryBase::Comparator(QString("Subject To Search"), QueryBase::Comparator::Fulltext));
-            auto model = Sink::Store::loadModel<Mail>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 1);
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
         }
+        // Phrase search
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("\"Subject To Search\""), QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("\"Stuff to Search\""), QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+        }
+        //Operators
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("subject AND search"), QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("subject OR search"), QueryBase::Comparator::Fulltext));
+            QCOMPARE(Sink::Store::read<Mail>(query).size(), 2);
+        }
+        //Case-insensitive
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
             query.filter<Mail::Subject>(QueryBase::Comparator(QString("Subject"), QueryBase::Comparator::Fulltext));
-            QCOMPARE(Sink::Store::read<Mail>(query).size(), 1);
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
         }
         //Case-insensitive
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
-            query.filter<Mail::Subject>(QueryBase::Comparator(QString("Search"), QueryBase::Comparator::Fulltext));
-            QCOMPARE(Sink::Store::read<Mail>(query).size(), 1);
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("subject"), QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
         }
-        //Case-insensitive
+        //Partial match
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
-            query.filter<Mail::Subject>(QueryBase::Comparator(QString("search"), QueryBase::Comparator::Fulltext));
-            QCOMPARE(Sink::Store::read<Mail>(query).size(), 1);
-        }
-        //Wildcard match
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Mail::Subject>(QueryBase::Comparator(QString("sear*"), QueryBase::Comparator::Fulltext));
-            QCOMPARE(Sink::Store::read<Mail>(query).size(), 1);
+            query.filter<Mail::Subject>(QueryBase::Comparator(QString("subj"), QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
         }
         //Filter by body
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
             query.filter<Mail::MimeMessage>(QueryBase::Comparator(QString("searchable"), QueryBase::Comparator::Fulltext));
-            QCOMPARE(Sink::Store::read<Mail>(query).size(), 1);
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
         }
         //Filter by folder
         {
@@ -1577,7 +1657,9 @@ private slots:
             query.resourceFilter("sink.dummy.instance1");
             query.filter<Mail::Subject>(QueryBase::Comparator(QString("Subject"), QueryBase::Comparator::Fulltext));
             query.filter<Mail::Folder>("folder1");
-            QCOMPARE(Sink::Store::read<Mail>(query).size(), 1);
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
         }
         //Filter by folder
         {
@@ -1592,29 +1674,63 @@ private slots:
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
             query.filter({}, Sink::QueryBase::Comparator(QString("sender"), Sink::QueryBase::Comparator::Fulltext));
-            QCOMPARE(Sink::Store::read<Mail>(query).size(), 1);
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 2);
         }
         //Filter by sender
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
             query.filter({}, Sink::QueryBase::Comparator(QString("Sender"), Sink::QueryBase::Comparator::Fulltext));
-            QCOMPARE(Sink::Store::read<Mail>(query).size(), 1);
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 2);
         }
         //Filter by sender
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
             query.filter({}, Sink::QueryBase::Comparator(QString("sender@example"), Sink::QueryBase::Comparator::Fulltext));
-            QCOMPARE(Sink::Store::read<Mail>(query).size(), 1);
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
         }
         //Filter by sender
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
             query.filter({}, Sink::QueryBase::Comparator(QString("The Sender"), Sink::QueryBase::Comparator::Fulltext));
-            QCOMPARE(Sink::Store::read<Mail>(query).size(), 1);
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
         }
+
+        //Filter by sender
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, Sink::QueryBase::Comparator(QString("sender2@unique.com"), Sink::QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id2);
+        }
+
+        //Filter by recipient
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, Sink::QueryBase::Comparator(QString("foo-bar@example.org"), Sink::QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+
+        //Filter by recipient
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, Sink::QueryBase::Comparator(QString("foo-bar@example.com"), Sink::QueryBase::Comparator::Fulltext));
+            QCOMPARE(Sink::Store::read<Mail>(query).size(), 0);
+        }
+
     }
 
     void mailsWithDates()
@@ -1725,127 +1841,72 @@ private slots:
         }
     }
 
-    void eventsWithDates()
-    {
-        {
-            Event event("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-23T12:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-23T13:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-        {
-            Event event("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-23T13:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-23T14:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-        {
-            Event event("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-23T14:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-23T15:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-        {
-            Event event("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-23T12:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-23T14:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-        {
-            Event event("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-24T12:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-24T14:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-        {
-            Event event("sink.dummy.instance1");
-            VERIFYEXEC(Sink::Store::create<Event>(event));
-        }
-
-        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
-    }
-
     void testOverlap()
     {
-        eventsWithDates();
+        auto createEvent = [] (const QString &start, const QString &end) {
+            auto icalEvent = KCalCore::Event::Ptr::create();
+            icalEvent->setSummary("test");
+            icalEvent->setDtStart(QDateTime::fromString(start, Qt::ISODate));
+            icalEvent->setDtEnd(QDateTime::fromString(end, Qt::ISODate));
 
-        {
+            Event event("sink.dummy.instance1");
+            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            VERIFYEXEC(Sink::Store::create(event));
+        };
+
+        createEvent("2018-05-23T12:00:00Z", "2018-05-23T13:00:00Z");
+        createEvent("2018-05-23T13:00:00Z", "2018-05-23T14:00:00Z");
+        createEvent("2018-05-23T14:00:00Z", "2018-05-23T15:00:00Z");
+        createEvent("2018-05-24T12:00:00Z", "2018-05-24T14:00:00Z");
+        //Long event that spans multiple buckets
+        createEvent("2018-05-30T22:00:00",  "2019-04-25T03:00:00");
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        auto findInRange = [] (const QString &start, const QString &end) {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
             query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-22T12:00:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-30T13:00:00Z", Qt::ISODate) },
+                QVariantList{ QDateTime::fromString(start, Qt::ISODate),
+                    QDateTime::fromString(end, Qt::ISODate) },
                 QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 5);
-        }
+            return Sink::Store::read<Event>(query);
+        };
 
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-22T12:30:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-22T12:31:00Z", Qt::ISODate) },
-                QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 0);
-        }
+        //Find all
+        QCOMPARE(findInRange("2018-05-22T12:00:00Z", "2018-05-30T13:00:00Z").size(), 4);
+        //Find none on day without events
+        QCOMPARE(findInRange("2018-05-22T12:00:00Z", "2018-05-22T13:00:00Z").size(), 0);
+        //Find none on day with events
+        QCOMPARE(findInRange("2018-05-24T10:00:00Z", "2018-05-24T11:00:00Z").size(), 0);
+        //Find on same day
+        QCOMPARE(findInRange("2018-05-23T12:30:00Z", "2018-05-23T12:31:00Z").size(), 1);
+        //Find on different days
+        QCOMPARE(findInRange("2018-05-22T12:30:00Z", "2018-05-23T12:00:00Z").size(), 1);
+        QCOMPARE(findInRange("2018-05-23T14:30:00Z", "2018-05-23T16:00:00Z").size(), 1);
 
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-24T10:00:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-24T11:00:00Z", Qt::ISODate) },
-                QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 0);
-        }
-
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-23T12:30:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-23T12:31:00Z", Qt::ISODate) },
-                QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 2);
-        }
-
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-22T12:30:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-23T12:00:00Z", Qt::ISODate) },
-                QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 2);
-        }
-
-        {
-            Sink::Query query;
-            query.resourceFilter("sink.dummy.instance1");
-            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
-                QVariantList{ QDateTime::fromString("2018-05-23T14:30:00Z", Qt::ISODate),
-                    QDateTime::fromString("2018-05-23T16:00:00Z", Qt::ISODate) },
-                QueryBase::Comparator::Overlap));
-            auto model = Sink::Store::loadModel<Event>(query);
-            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 1);
-        }
-
+        //Find long range event
+        QCOMPARE(findInRange("2018-07-23T14:30:00Z", "2018-10-23T16:00:00Z").size(), 1);
     }
 
     void testOverlapLive()
     {
-        eventsWithDates();
+        auto createEvent = [] (const QString &start, const QString &end) {
+            auto icalEvent = KCalCore::Event::Ptr::create();
+            icalEvent->setSummary("test");
+            icalEvent->setDtStart(QDateTime::fromString(start, Qt::ISODate));
+            icalEvent->setDtEnd(QDateTime::fromString(end, Qt::ISODate));
+
+            Event event = Event::createEntity<Event>("sink.dummy.instance1");
+            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            VERIFYEXEC_RET(Sink::Store::create(event), {});
+            return event;
+        };
+
+        createEvent("2018-05-23T12:00:00Z", "2018-05-23T13:00:00Z");
+        createEvent("2018-05-23T13:00:00Z", "2018-05-23T14:00:00Z");
+        createEvent("2018-05-23T14:00:00Z", "2018-05-23T15:00:00Z");
+        createEvent("2018-05-24T12:00:00Z", "2018-05-24T14:00:00Z");
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
 
         {
             Sink::Query query;
@@ -1857,28 +1918,46 @@ private slots:
                 QueryBase::Comparator::Overlap));
             auto model = Sink::Store::loadModel<Event>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 5);
+            QCOMPARE(model->rowCount(), 4);
 
-            Event event = Event::createEntity<Event>("sink.dummy.instance1");
-            event.setExtractedStartTime(QDateTime::fromString("2018-05-23T12:00:00Z", Qt::ISODate));
-            event.setExtractedEndTime(QDateTime::fromString("2018-05-23T13:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event));
+            auto event1 = createEvent("2018-05-23T12:00:00Z", "2018-05-23T13:00:00Z");
+            auto event2 = createEvent("2018-05-31T12:00:00Z", "2018-05-31T13:00:00Z");
 
-            Event event2 = Event::createEntity<Event>("sink.dummy.instance1");
-            event2.setExtractedStartTime(QDateTime::fromString("2018-05-33T12:00:00Z", Qt::ISODate));
-            event2.setExtractedEndTime(QDateTime::fromString("2018-05-33T13:00:00Z", Qt::ISODate));
-            VERIFYEXEC(Sink::Store::create<Event>(event2));
+            QTRY_COMPARE(model->rowCount(), 5);
 
-            QTest::qWait(500);
-            QCOMPARE(model->rowCount(), 6);
+            VERIFYEXEC(Sink::Store::remove(event1));
+            VERIFYEXEC(Sink::Store::remove(event2));
 
-            VERIFYEXEC(Sink::Store::remove<Event>(event));
-            VERIFYEXEC(Sink::Store::remove<Event>(event2));
-
-            QTest::qWait(500);
-            QCOMPARE(model->rowCount(), 5);
+            QTRY_COMPARE(model->rowCount(), 4);
         }
+    }
 
+    void testRecurringEvents()
+    {
+        auto icalEvent = KCalCore::Event::Ptr::create();
+        icalEvent->setSummary("test");
+        icalEvent->setDtStart(QDateTime::fromString("2018-05-10T13:00:00Z", Qt::ISODate));
+        icalEvent->setDtEnd(QDateTime::fromString("2018-05-10T14:00:00Z", Qt::ISODate));
+        icalEvent->recurrence()->setWeekly(3);
+
+        Event event = Event::createEntity<Event>("sink.dummy.instance1");
+        event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+        VERIFYEXEC(Sink::Store::create(event));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Sink::Query query;
+        query.resourceFilter("sink.dummy.instance1");
+        query.setFlags(Query::LiveQuery);
+        query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
+            QVariantList{ QDateTime::fromString("2018-05-15T12:00:00Z", Qt::ISODate),
+                QDateTime::fromString("2018-05-30T13:00:00Z", Qt::ISODate) },
+            QueryBase::Comparator::Overlap));
+        auto model = Sink::Store::loadModel<Event>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 1);
+
+        VERIFYEXEC(Sink::Store::remove(event));
+        QTRY_COMPARE(model->rowCount(), 0);
     }
 
 };

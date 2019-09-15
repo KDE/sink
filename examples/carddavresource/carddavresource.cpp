@@ -45,55 +45,56 @@ public:
     ContactSynchronizer(const Sink::ResourceContext &resourceContext)
         : WebDavSynchronizer(resourceContext, KDAV2::CardDav,
               ApplicationDomain::getTypeName<ApplicationDomain::Addressbook>(),
-              ApplicationDomain::getTypeName<ApplicationDomain::Contact>())
+              {ApplicationDomain::getTypeName<ApplicationDomain::Contact>()})
     {}
-    QByteArray createAddressbook(const QString &addressbookName, const QString &addressbookPath, const QString &parentAddressbookRid)
-    {
-        SinkTrace() << "Creating addressbook: " << addressbookName << parentAddressbookRid;
-        const auto remoteId = addressbookPath.toUtf8();
-        const auto bufferType = ENTITY_TYPE_ADDRESSBOOK;
-        Sink::ApplicationDomain::Addressbook addressbook;
-        addressbook.setName(addressbookName);
-        QHash<QByteArray, Query::Comparator> mergeCriteria;
-
-        if (!parentAddressbookRid.isEmpty()) {
-            addressbook.setParent(syncStore().resolveRemoteId(ENTITY_TYPE_ADDRESSBOOK, parentAddressbookRid.toUtf8()));
-        }
-        createOrModify(bufferType, remoteId, addressbook, mergeCriteria);
-        return remoteId;
-    }
 
 protected:
     void updateLocalCollections(KDAV2::DavCollection::List addressbookList) Q_DECL_OVERRIDE
     {
-        const QByteArray bufferType = ENTITY_TYPE_ADDRESSBOOK;
         SinkTrace() << "Found" << addressbookList.size() << "addressbooks";
 
         for (const auto &f : addressbookList) {
-            const auto &rid = resourceID(f);
+            const auto rid = resourceID(f);
             SinkLog() << "Found addressbook:" << rid << f.displayName();
-            createAddressbook(f.displayName(), rid, "");
+
+            Sink::ApplicationDomain::Addressbook addressbook;
+            addressbook.setName(f.displayName());
+            addressbook.setEnabled(true);
+
+            createOrModify(ENTITY_TYPE_ADDRESSBOOK, rid, addressbook);
         }
     }
 
-    void updateLocalItem(KDAV2::DavItem remoteContact, const QByteArray &addressbookLocalId) Q_DECL_OVERRIDE
+    void updateLocalItem(const KDAV2::DavItem &remoteContact, const QByteArray &addressbookLocalId) Q_DECL_OVERRIDE
     {
         Sink::ApplicationDomain::Contact localContact;
 
         localContact.setVcard(remoteContact.data());
         localContact.setAddressbook(addressbookLocalId);
 
-        QHash<QByteArray, Query::Comparator> mergeCriteria;
-        createOrModify(ENTITY_TYPE_CONTACT, resourceID(remoteContact), localContact, mergeCriteria);
-    }
-
-    QByteArray collectionLocalResourceID(const KDAV2::DavCollection &addressbook) Q_DECL_OVERRIDE
-    {
-        return syncStore().resolveRemoteId(ENTITY_TYPE_ADDRESSBOOK, resourceID(addressbook));
+        createOrModify(ENTITY_TYPE_CONTACT, resourceID(remoteContact), localContact, {});
     }
 
     KAsync::Job<QByteArray> replay(const ApplicationDomain::Contact &contact, Sink::Operation operation, const QByteArray &oldRemoteId, const QList<QByteArray> &changedProperties) Q_DECL_OVERRIDE
     {
+        switch (operation) {
+            case Sink::Operation_Creation: {
+                const auto vcard = contact.getVcard();
+                if (vcard.isEmpty()) {
+                    return KAsync::error<QByteArray>("No vcard in item for creation replay.");
+                }
+                return createItem(vcard, "text/vcard", contact.getUid().toUtf8() + ".vcf", syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()));
+            }
+            case Sink::Operation_Removal: {
+                return removeItem(oldRemoteId);
+            }
+            case Sink::Operation_Modification:
+                const auto vcard = contact.getVcard();
+                if (vcard.isEmpty()) {
+                    return KAsync::error<QByteArray>("No ICal in item for modification replay");
+                }
+                return modifyItem(oldRemoteId, vcard, "text/vcard", syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()));
+        }
         return KAsync::null<QByteArray>();
     }
 
@@ -103,14 +104,26 @@ protected:
     }
 };
 
+class CollectionCleanupPreprocessor : public Sink::Preprocessor
+{
+public:
+    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    {
+        //Remove all events of a collection when removing the collection.
+        const auto revision = entityStore().maxRevision();
+        entityStore().indexLookup<ApplicationDomain::Contact, ApplicationDomain::Contact::Addressbook>(oldEntity.identifier(), [&] (const QByteArray &identifier) {
+            deleteEntity(ApplicationDomain::ApplicationDomainType{{}, identifier, revision, {}}, ApplicationDomain::getTypeName<ApplicationDomain::Contact>(), false);
+        });
+    }
+};
 
 CardDavResource::CardDavResource(const Sink::ResourceContext &resourceContext)
     : Sink::GenericResource(resourceContext)
 {
-    auto synchronizer = QSharedPointer<ContactSynchronizer>::create(resourceContext);
-    setupSynchronizer(synchronizer);
+    setupSynchronizer(QSharedPointer<ContactSynchronizer>::create(resourceContext));
 
-    setupPreprocessors(ENTITY_TYPE_CONTACT, QVector<Sink::Preprocessor*>() << new ContactPropertyExtractor);
+    setupPreprocessors(ENTITY_TYPE_CONTACT, {new ContactPropertyExtractor});
+    setupPreprocessors(ENTITY_TYPE_ADDRESSBOOK, {new CollectionCleanupPreprocessor});
 }
 
 

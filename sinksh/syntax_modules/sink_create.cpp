@@ -40,15 +40,12 @@ using namespace Sink;
 namespace SinkCreate
 {
 
+Syntax::List syntax();
+
 bool create(const QStringList &allArgs, State &state)
 {
-    if (allArgs.isEmpty()) {
-        state.printError(QObject::tr("A type is required"), "sinkcreate/02");
-        return false;
-    }
-
     if (allArgs.count() < 2) {
-        state.printError(QObject::tr("A resource ID is required to create items"), "sinkcreate/03");
+        state.printError(syntax()[0].usage());
         return false;
     }
 
@@ -56,7 +53,7 @@ bool create(const QStringList &allArgs, State &state)
     auto type = args.takeFirst();
     auto &store = SinkshUtils::getStore(type);
     ApplicationDomain::ApplicationDomainType::Ptr object;
-    auto resource = args.takeFirst().toLatin1();
+    auto resource = SinkshUtils::parseUid(args.takeFirst().toLatin1());
     object = store.getObject(resource);
 
     auto map = SinkshUtils::keyValueMapFromArgs(args);
@@ -84,11 +81,11 @@ bool resource(const QStringList &args, State &state)
 
     auto &store = SinkshUtils::getStore("resource");
 
-    auto resourceType = args.at(0);
+    const auto resourceType = args.at(0);
 
     auto map = SinkshUtils::keyValueMapFromArgs(args);
 
-    auto identifier = map.take("identifier").toLatin1();
+    const auto identifier = SinkshUtils::parseUid(map.take("identifier").toLatin1());
 
     auto object = ApplicationDomain::ApplicationDomainType::createEntity<ApplicationDomain::SinkResource>("", identifier);
     object.setResourceType(resourceType.toLatin1());
@@ -173,15 +170,29 @@ bool identity(const QStringList &args, State &state)
     return true;
 }
 
-
 Syntax::List syntax()
 {
     Syntax::List syntax;
 
     Syntax create("create", QObject::tr("Create items in a resource"), &SinkCreate::create);
-    create.children << Syntax("resource", QObject::tr("Creates a new resource"), &SinkCreate::resource);
-    create.children << Syntax("account", QObject::tr("Creates a new account"), &SinkCreate::account);
-    create.children << Syntax("identity", QObject::tr("Creates a new identity"), &SinkCreate::identity);
+    create.addPositionalArgument({"type", "The type of entity to create (mail, event, etc.)"});
+    create.addPositionalArgument({"resourceId", "The ID of the resource that will contain the new entity"});
+    create.addPositionalArgument({"key value", "Content of the entity", false, true});
+
+    Syntax resource("resource", QObject::tr("Creates a new resource"), &SinkCreate::resource);
+    resource.addPositionalArgument({"type", "The type of resource to create" });
+    resource.addPositionalArgument({"key value", "Content of the resource", false, true});
+
+    Syntax account("account", QObject::tr("Creates a new account"), &SinkCreate::account);
+    account.addPositionalArgument({"type", "The type of account to create" });
+    account.addPositionalArgument({"key value", "Content of the account", false, true});
+
+    Syntax identity("identity", QObject::tr("Creates a new identity"), &SinkCreate::identity);
+    identity.addPositionalArgument({"key value", "Content of the identity", false, true});
+
+    create.children << resource;
+    create.children << account;
+    create.children << identity;
 
     syntax << create;
     return syntax;

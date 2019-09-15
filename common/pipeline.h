@@ -109,7 +109,8 @@ protected:
     {
         createEntity(entity, ApplicationDomain::getTypeName<DomainType>());
     }
-    void createEntity(const ApplicationDomain::ApplicationDomainType &entity, const QByteArray &type);
+    void createEntity(const ApplicationDomain::ApplicationDomainType &entity, const QByteArray &type, bool replayToSource = true);
+    void deleteEntity(const Sink::ApplicationDomain::ApplicationDomainType &entity, const QByteArray &typeName, bool replayToSource = true);
 
     QByteArray resourceInstanceIdentifier() const;
 

@@ -45,26 +45,14 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
       m_server(new QLocalServer(this)),
       m_resourceName(resourceType),
       m_resourceInstanceIdentifier(resourceInstanceIdentifier),
-      m_clientBufferProcessesTimer(new QTimer(this)),
+      m_clientBufferProcessesTimer(new QTimer),
+      m_checkConnectionsTimer(new QTimer),
       m_messageId(0),
       m_exiting(false)
 {
     connect(m_server.get(), &QLocalServer::newConnection, this, &Listener::acceptConnection);
     SinkTrace() << "Trying to open " << m_resourceInstanceIdentifier;
 
-    if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
-        m_server->removeServer(m_resourceInstanceIdentifier);
-        if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
-            SinkWarning() << "Utter failure to start server";
-            exit(-1);
-        }
-    }
-
-    if (m_server->isListening()) {
-        SinkTrace() << QString("Listening on %1").arg(m_server->serverName());
-    }
-
-    m_checkConnectionsTimer = std::unique_ptr<QTimer>(new QTimer);
     m_checkConnectionsTimer->setSingleShot(true);
     connect(m_checkConnectionsTimer.get(), &QTimer::timeout, [this]() {
         if (m_connections.isEmpty()) {
@@ -80,6 +68,18 @@ Listener::Listener(const QByteArray &resourceInstanceIdentifier, const QByteArra
     m_clientBufferProcessesTimer->setInterval(0);
     m_clientBufferProcessesTimer->setSingleShot(true);
     connect(m_clientBufferProcessesTimer.get(), &QTimer::timeout, this, &Listener::processClientBuffers);
+
+    if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
+        m_server->removeServer(m_resourceInstanceIdentifier);
+        if (!m_server->listen(QString::fromLatin1(m_resourceInstanceIdentifier))) {
+            SinkWarning() << "Utter failure to start server";
+            exit(-1);
+        }
+    }
+
+    if (m_server->isListening()) {
+        SinkTrace() << QString("Listening on %1").arg(m_server->serverName());
+    }
 }
 
 Listener::~Listener()
@@ -98,12 +98,6 @@ void Listener::checkForUpgrade()
 
 void Listener::emergencyAbortAllConnections()
 {
-    Sink::Notification n;
-    n.type = Sink::Notification::Status;
-    n.message = "The resource crashed.";
-    n.code = Sink::ApplicationDomain::ErrorStatus;
-    notify(n);
-
     for (Client &client : m_connections) {
         if (client.socket) {
             SinkWarning() << "Sending panic";
@@ -268,6 +262,7 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         case Sink::Commands::ModifyEntityCommand:
         case Sink::Commands::CreateEntityCommand:
         case Sink::Commands::FlushCommand:
+        case Sink::Commands::AbortSynchronizationCommand:
             SinkTrace() << "Command id  " << messageId << " of type \"" << Sink::Commands::name(commandId) << "\" from " << client.name;
             loadResource().processCommand(commandId, commandBuffer);
             break;

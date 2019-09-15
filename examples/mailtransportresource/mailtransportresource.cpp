@@ -27,6 +27,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QSettings>
+#include <QUrl>
 #include <KMime/Message>
 
 #include "mailtransport.h"
@@ -127,7 +128,11 @@ public:
             } else {
                 MailTransport::Options options;
                 if (settings.server.contains("smtps")) {
-                    options |= MailTransport::UseTls;
+                    if (settings.server.contains("465")) {
+                        options |= MailTransport::UseTls;
+                    } else {
+                        options |= MailTransport::UseStarttls;
+                    }
                 }
 
                 SinkLog() << "Sending message " << settings.server << settings.username << "CaCert: " << settings.cacert << "Using tls: " << bool(options & MailTransport::UseTls);
@@ -168,6 +173,9 @@ public:
 
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE
     {
+        if (!QUrl{mSettings.server}.isValid()) {
+            return KAsync::error(ApplicationDomain::ConfigurationError, "Invalid server url: " + mSettings.server);
+        }
         return KAsync::start<void>([this]() {
             QList<ApplicationDomain::Mail> toSend;
             SinkLog() << "Looking for mails to send.";

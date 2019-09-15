@@ -27,7 +27,8 @@ namespace MailTransport
 {
     enum Option {
         UseTls = 1,
-        VerifyPeers = 2
+        UseStarttls = 2,
+        VerifyPeers = 4
     };
     Q_DECLARE_FLAGS(Options, Option);
 

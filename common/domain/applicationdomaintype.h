@@ -28,7 +28,7 @@
 #include "bufferadaptor.h"
 
 #define SINK_ENTITY(TYPE, LOWERCASENAME) \
-    static constexpr const char *name = #LOWERCASENAME; \
+    inline static constexpr const char *name = #LOWERCASENAME; \
     typedef QSharedPointer<TYPE> Ptr; \
     using Entity::Entity; \
     TYPE() = default; \
@@ -39,7 +39,7 @@
 
 #define SINK_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
-        SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
+        SINK_EXPORT inline static constexpr const char *name = #LOWERCASENAME; \
         typedef TYPE Type; \
     }; \
     void set##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
@@ -48,7 +48,7 @@
 
 #define SINK_EXTRACTED_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
-        SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
+        SINK_EXPORT inline static constexpr const char *name = #LOWERCASENAME; \
         typedef TYPE Type; \
     }; \
     void setExtracted##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
@@ -56,7 +56,7 @@
 
 #define SINK_STATUS_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
-        SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
+        SINK_EXPORT inline static constexpr const char *name = #LOWERCASENAME; \
         typedef TYPE Type; \
     }; \
     void setStatus##NAME(const TYPE &value) { setProperty(NAME::name, QVariant::fromValue(value)); } \
@@ -64,7 +64,7 @@
 
 #define SINK_REFERENCE_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
-        SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
+        SINK_EXPORT inline static constexpr const char *name = #LOWERCASENAME; \
         typedef Reference Type; \
         typedef ApplicationDomain::TYPE ReferenceType; \
     }; \
@@ -74,7 +74,7 @@
 
 #define SINK_INDEX_PROPERTY(TYPE, NAME, LOWERCASENAME) \
     struct NAME { \
-        SINK_EXPORT static constexpr const char *name = #LOWERCASENAME; \
+        SINK_EXPORT inline static constexpr const char *name = #LOWERCASENAME; \
         typedef TYPE Type; \
     }; \
 
@@ -85,13 +85,13 @@ namespace ApplicationDomain {
 enum ErrorCode {
     NoError = 0,
     UnknownError,
-    NoServerError,
-    ConnectionError,
-    LoginError,
-    ConfigurationError,
-    TransmissionError,
-    ConnectionLostError,
-    MissingCredentialsError,
+    NoServerError, //Failed to find the server. E.g. due to failed hostname resolution.
+    ConnectionError, //The connection somehow failed (but the server was found)
+    LoginError, //Login failed (but we managed to connect) -> Typically wrong credentials.
+    ConfigurationError, //The configuration is broken.
+    TransmissionError, //There was an error while transmission (e.g. while uploading something)
+    ConnectionLostError, //We lost the connection to the server.
+    MissingCredentialsError, //There are no credentials available, but required.
     ResourceCrashedError
 };
 
@@ -292,7 +292,7 @@ public:
     int count() const;
 
 private:
-    friend QDebug operator<<(QDebug, const ApplicationDomainType &);
+    friend SINK_EXPORT QDebug operator<<(QDebug, const ApplicationDomainType &);
     QSharedPointer<BufferAdaptor> mAdaptor;
     QSharedPointer<QSet<QByteArray>> mChangeSet;
     /*
@@ -319,7 +319,7 @@ SINK_EXPORT QDebug operator<< (QDebug d, const Reference &ref);
 
 
 struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
-    static constexpr const char *name = "account";
+    inline static constexpr const char *name = "account";
     typedef QSharedPointer<SinkAccount> Ptr;
     explicit SinkAccount(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
     explicit SinkAccount(const QByteArray &identifier);
@@ -340,7 +340,7 @@ struct SINK_EXPORT SinkAccount : public ApplicationDomainType {
  * and for creating and removing resource instances.
  */
 struct SINK_EXPORT SinkResource : public ApplicationDomainType {
-    static constexpr const char *name = "resource";
+    inline static constexpr const char *name = "resource";
     typedef QSharedPointer<SinkResource> Ptr;
     explicit SinkResource(const QByteArray &resourceInstanceIdentifier, const QByteArray &identifier, qint64 revision, const QSharedPointer<BufferAdaptor> &adaptor);
     explicit SinkResource(const QByteArray &identifier);
@@ -351,6 +351,7 @@ struct SINK_EXPORT SinkResource : public ApplicationDomainType {
     SINK_PROPERTY(QByteArray, ResourceType, type);
     SINK_PROPERTY(QByteArrayList, Capabilities, capabilities);
     SINK_STATUS_PROPERTY(int, Status, status);
+    SINK_PROPERTY(QString, Server, server);
 };
 
 struct SINK_EXPORT Entity : public ApplicationDomainType {
@@ -366,6 +367,7 @@ struct SINK_EXPORT Addressbook : public Entity {
     SINK_REFERENCE_PROPERTY(Addressbook, Parent, parent);
     SINK_PROPERTY(QString, Name, name);
     SINK_EXTRACTED_PROPERTY(QDateTime, LastUpdated, lastUpdated);
+    SINK_PROPERTY(bool, Enabled, enabled);
 };
 
 struct SINK_EXPORT Contact : public Entity {
@@ -389,9 +391,14 @@ struct SINK_EXPORT Contact : public Entity {
     SINK_REFERENCE_PROPERTY(Addressbook, Addressbook, addressbook);
 };
 
+SINK_EXPORT QDebug operator<< (QDebug d, const Contact::Email &);
+
 struct SINK_EXPORT Calendar : public Entity {
     SINK_ENTITY(Calendar, calendar);
     SINK_PROPERTY(QString, Name, name);
+    SINK_PROPERTY(QByteArray, Color, color);
+    SINK_PROPERTY(bool, Enabled, enabled);
+    SINK_PROPERTY(QByteArrayList, ContentTypes, contentTypes);
 };
 
 struct SINK_EXPORT Event : public Entity {
@@ -402,6 +409,7 @@ struct SINK_EXPORT Event : public Entity {
     SINK_EXTRACTED_PROPERTY(QDateTime, StartTime, startTime);
     SINK_EXTRACTED_PROPERTY(QDateTime, EndTime, endTime);
     SINK_EXTRACTED_PROPERTY(bool, AllDay, allDay);
+    SINK_EXTRACTED_PROPERTY(bool, Recurring, recurring);
     SINK_PROPERTY(QByteArray, Ical, ical);
     SINK_REFERENCE_PROPERTY(Calendar, Calendar, calendar);
 };
@@ -455,7 +463,7 @@ struct SINK_EXPORT Mail : public Entity {
     SINK_PROPERTY(bool, Trash, trash);
     SINK_PROPERTY(bool, Sent, sent);
     SINK_EXTRACTED_PROPERTY(QByteArray, MessageId, messageId);
-    SINK_EXTRACTED_PROPERTY(QByteArray, ParentMessageId, parentMessageId);
+    SINK_EXTRACTED_PROPERTY(QByteArrayList, ParentMessageIds, parentMessageIds);
     SINK_INDEX_PROPERTY(QByteArray, ThreadId, threadId);
 };
 
@@ -591,6 +599,36 @@ SINK_EXPORT QDataStream &operator>>(QDataStream &in, Sink::ApplicationDomain::Re
     Q_DECLARE_METATYPE(TYPE::Ptr)
 SINK_REGISTER_TYPES()
 #undef REGISTER_TYPE
+
+
+template <template<typename> class Func>
+struct TypeHelper {
+    const QByteArray type;
+
+    template <typename R, typename ...Args>
+    R operator()(Args && ... args) const {
+        if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Folder>()) {
+            return Func<Sink::ApplicationDomain::Folder>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Mail>()) {
+            return Func<Sink::ApplicationDomain::Mail>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Event>()) {
+            return Func<Sink::ApplicationDomain::Event>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Todo>()) {
+            return Func<Sink::ApplicationDomain::Todo>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Calendar>()) {
+            return Func<Sink::ApplicationDomain::Calendar>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Contact>()) {
+            return Func<Sink::ApplicationDomain::Contact>{}(std::forward<Args>(args)...);
+        } else if (type == Sink::ApplicationDomain::getTypeName<Sink::ApplicationDomain::Addressbook>()) {
+            return Func<Sink::ApplicationDomain::Addressbook>{}(std::forward<Args>(args)...);
+        } else {
+            Q_ASSERT(false);
+        }
+        //Silence compiler warning
+        return Func<Sink::ApplicationDomain::Mail>{}(std::forward<Args>(args)...);
+    }
+};
+
 
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType)
 Q_DECLARE_METATYPE(Sink::ApplicationDomain::ApplicationDomainType::Ptr)

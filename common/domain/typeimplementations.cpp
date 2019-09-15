@@ -40,7 +40,7 @@ using namespace Sink::ApplicationDomain;
 typedef IndexConfig<Mail,
         SortedIndex<Mail::Date>,
         ValueIndex<Mail::Folder>,
-        ValueIndex<Mail::ParentMessageId>,
+        ValueIndex<Mail::ParentMessageIds>,
         ValueIndex<Mail::MessageId>,
         ValueIndex<Mail::Draft>,
         SortedIndex<Mail::Folder, Mail::Date>,
@@ -56,7 +56,8 @@ typedef IndexConfig<Folder,
     > FolderIndexConfig;
 
 typedef IndexConfig<Contact,
-        ValueIndex<Contact::Uid>
+        ValueIndex<Contact::Uid>,
+        ValueIndex<Contact::Addressbook>
     > ContactIndexConfig;
 
 typedef IndexConfig<Addressbook,
@@ -65,19 +66,27 @@ typedef IndexConfig<Addressbook,
 
 typedef IndexConfig<Event,
         ValueIndex<Event::Uid>,
+        ValueIndex<Event::Calendar>,
+        ValueIndex<Event::AllDay>,
+        ValueIndex<Event::Recurring>,
         SortedIndex<Event::StartTime>,
         SampledPeriodIndex<Event::StartTime, Event::EndTime>
     > EventIndexConfig;
 
 typedef IndexConfig<Todo,
-        ValueIndex<Todo::Uid>
+        ValueIndex<Todo::Uid>,
+        ValueIndex<Todo::Calendar>
     > TodoIndexConfig;
 
 typedef IndexConfig<Calendar,
         ValueIndex<Calendar::Name>
     > CalendarIndexConfig;
 
-
+template <typename EntityType, typename EntityIndexConfig>
+QMap<QByteArray, int> defaultTypeDatabases()
+{
+    return merge(QMap<QByteArray, int>{{QByteArray{EntityType::name} + ".main", Storage::IntegerKeys}}, EntityIndexConfig::databases());
+}
 
 void TypeImplementation<Mail>::configure(TypeIndex &index)
 {
@@ -86,7 +95,7 @@ void TypeImplementation<Mail>::configure(TypeIndex &index)
 
 QMap<QByteArray, int> TypeImplementation<Mail>::typeDatabases()
 {
-    return merge(QMap<QByteArray, int>{{QByteArray{Mail::name} + ".main", 0}}, MailIndexConfig::databases());
+    return defaultTypeDatabases<Mail, MailIndexConfig>();
 }
 
 void TypeImplementation<Mail>::configure(IndexPropertyMapper &indexPropertyMapper)
@@ -118,7 +127,7 @@ void TypeImplementation<Mail>::configure(PropertyMapper &propertyMapper)
     SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Trash, trash);
     SINK_REGISTER_SERIALIZER(propertyMapper, Mail, Sent, sent);
     SINK_REGISTER_SERIALIZER(propertyMapper, Mail, MessageId, messageId);
-    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, ParentMessageId, parentMessageId);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Mail, ParentMessageIds, parentMessageIds);
 }
 
 
@@ -129,7 +138,7 @@ void TypeImplementation<Folder>::configure(TypeIndex &index)
 
 QMap<QByteArray, int> TypeImplementation<Folder>::typeDatabases()
 {
-    return merge(QMap<QByteArray, int>{{QByteArray{Folder::name} + ".main", 0}}, FolderIndexConfig::databases());
+    return defaultTypeDatabases<Folder, FolderIndexConfig>();
 }
 
 void TypeImplementation<Folder>::configure(PropertyMapper &propertyMapper)
@@ -154,7 +163,7 @@ void TypeImplementation<Contact>::configure(TypeIndex &index)
 
 QMap<QByteArray, int> TypeImplementation<Contact>::typeDatabases()
 {
-    return merge(QMap<QByteArray, int>{{QByteArray{Contact::name} + ".main", 0}}, ContactIndexConfig::databases());
+    return defaultTypeDatabases<Contact, ContactIndexConfig>();
 }
 
 void TypeImplementation<Contact>::configure(PropertyMapper &propertyMapper)
@@ -182,13 +191,14 @@ void TypeImplementation<Addressbook>::configure(TypeIndex &index)
 
 QMap<QByteArray, int> TypeImplementation<Addressbook>::typeDatabases()
 {
-    return merge(QMap<QByteArray, int>{{QByteArray{Addressbook::name} + ".main", 0}}, AddressbookIndexConfig::databases());
+    return defaultTypeDatabases<Addressbook, AddressbookIndexConfig>();
 }
 
 void TypeImplementation<Addressbook>::configure(PropertyMapper &propertyMapper)
 {
     SINK_REGISTER_SERIALIZER(propertyMapper, Addressbook, Parent, parent);
     SINK_REGISTER_SERIALIZER(propertyMapper, Addressbook, Name, name);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Addressbook, Enabled, enabled);
 }
 
 void TypeImplementation<Addressbook>::configure(IndexPropertyMapper &)
@@ -204,7 +214,7 @@ void TypeImplementation<Event>::configure(TypeIndex &index)
 
 QMap<QByteArray, int> TypeImplementation<Event>::typeDatabases()
 {
-    return merge(QMap<QByteArray, int>{{QByteArray{Event::name} + ".main", 0}}, EventIndexConfig::databases());
+    return defaultTypeDatabases<Event, EventIndexConfig>();
 }
 
 void TypeImplementation<Event>::configure(PropertyMapper &propertyMapper)
@@ -232,7 +242,7 @@ void TypeImplementation<Todo>::configure(TypeIndex &index)
 
 QMap<QByteArray, int> TypeImplementation<Todo>::typeDatabases()
 {
-    return merge(QMap<QByteArray, int>{{QByteArray{Todo::name} + ".main", 0}}, TodoIndexConfig::databases());
+    return defaultTypeDatabases<Todo, TodoIndexConfig>();
 }
 
 void TypeImplementation<Todo>::configure(PropertyMapper &propertyMapper)
@@ -263,12 +273,15 @@ void TypeImplementation<Calendar>::configure(TypeIndex &index)
 
 QMap<QByteArray, int> TypeImplementation<Calendar>::typeDatabases()
 {
-    return merge(QMap<QByteArray, int>{{QByteArray{Calendar::name} + ".main", 0}}, CalendarIndexConfig::databases());
+    return defaultTypeDatabases<Calendar, CalendarIndexConfig>();
 }
 
 void TypeImplementation<Calendar>::configure(PropertyMapper &propertyMapper)
 {
     SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Name, name);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Color, color);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, Enabled, enabled);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Calendar, ContentTypes, contentTypes);
 }
 
 void TypeImplementation<Calendar>::configure(IndexPropertyMapper &) {}

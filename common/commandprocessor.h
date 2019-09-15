@@ -40,7 +40,7 @@ namespace Sink {
 /**
  * Drives the pipeline using the output from all command queues
  */
-class CommandProcessor : public QObject
+class SINK_EXPORT CommandProcessor : public QObject
 {
     Q_OBJECT
 
@@ -65,7 +65,7 @@ private:
 
 private slots:
     void process();
-    KAsync::Job<qint64> processQueuedCommand(const Sink::QueuedCommand *queuedCommand);
+    KAsync::Job<qint64> processQueuedCommand(const Sink::QueuedCommand &queuedCommand);
     KAsync::Job<qint64> processQueuedCommand(const QByteArray &data);
     // Process all messages of this queue
     KAsync::Job<void> processQueue(MessageQueue *queue);
@@ -90,6 +90,7 @@ private:
     QSharedPointer<Synchronizer> mSynchronizer;
     QSharedPointer<Inspector> mInspector;
     QTimer mCommitQueueTimer;
+    QVector<QByteArray> mCompleteFlushes;
 };
 
 };

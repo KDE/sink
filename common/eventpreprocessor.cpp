@@ -21,25 +21,15 @@
 #include "eventpreprocessor.h"
 
 #include <KCalCore/ICalFormat>
+#include <QDateTime>
 
 void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteArray &rawIcal)
 {
-    auto incidence = KCalCore::ICalFormat().readIncidence(rawIcal);
-
-    if(!incidence) {
-        SinkWarning() << "Invalid ICal to process, ignoring...";
+    auto icalEvent = KCalCore::ICalFormat().readIncidence(rawIcal).dynamicCast<KCalCore::Event>();
+    if(!icalEvent) {
+        SinkWarning() << "Invalid ICal to process, ignoring: " << rawIcal;
         return;
     }
-
-    if(incidence->type() != KCalCore::IncidenceBase::IncidenceType::TypeEvent) {
-        SinkWarning() << "ICal to process is not of type `Event`, ignoring...";
-        return;
-    }
-
-    auto icalEvent = dynamic_cast<const KCalCore::Event *>(incidence.data());
-    // Should be guaranteed by the incidence->type() condition above.
-    Q_ASSERT(icalEvent);
-
     SinkTrace() << "Extracting properties for event:" << icalEvent->summary();
 
     event.setExtractedUid(icalEvent->uid());
@@ -48,6 +38,20 @@ void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteA
     event.setExtractedStartTime(icalEvent->dtStart());
     event.setExtractedEndTime(icalEvent->dtEnd());
     event.setExtractedAllDay(icalEvent->allDay());
+    event.setExtractedRecurring(icalEvent->recurs());
+
+    if (icalEvent->recurs() && icalEvent->recurrence()) {
+        QList<QPair<QDateTime, QDateTime>> ranges;
+        const auto duration = icalEvent->hasDuration() ? icalEvent->duration().asSeconds() : 0;
+        const auto occurrences = icalEvent->recurrence()->timesInInterval(icalEvent->dtStart(), icalEvent->dtStart().addYears(10));
+        for (const auto &start : occurrences) {
+            ranges.append(qMakePair(start, start.addSecs(duration)));
+        }
+        if (!ranges.isEmpty()) {
+            event.setExtractedEndTime(ranges.last().second);
+            event.setProperty("indexRanges", QVariant::fromValue(ranges));
+        }
+    }
 }
 
 void EventPropertyExtractor::newEntity(Event &event)

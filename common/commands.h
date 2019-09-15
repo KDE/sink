@@ -50,6 +50,7 @@ enum CommandIds
     FlushCommand,
     SecretCommand,
     UpgradeCommand,
+    AbortSynchronizationCommand,
     CustomCommand = 0xffff
 };
 

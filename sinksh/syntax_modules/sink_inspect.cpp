@@ -17,9 +17,6 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-//xapian.h needs to be included first to build
-#include <xapian.h>
-
 #include <QDebug>
 #include <QObject> // tr()
 #include <QFile>
@@ -33,6 +30,9 @@
 #include "common/entitybuffer.h"
 #include "common/metadata_generated.h"
 #include "common/bufferutils.h"
+#include "common/fulltextindex.h"
+
+#include "storage/key.h"
 
 #include "sinksh_utils.h"
 #include "state.h"
@@ -41,10 +41,41 @@
 namespace SinkInspect
 {
 
+using Sink::Storage::Key;
+using Sink::Storage::Identifier;
+using Sink::Storage::Revision;
+
+QString parse(const QByteArray &bytes)
+{
+    if (Revision::isValidInternal(bytes)) {
+        return Revision::fromInternalByteArray(bytes).toDisplayString();
+    } else if (Key::isValidInternal(bytes)) {
+        return Key::fromInternalByteArray(bytes).toDisplayString();
+    } else if (Identifier::isValidInternal(bytes)) {
+        return Identifier::fromInternalByteArray(bytes).toDisplayString();
+    } else {
+        return QString::fromUtf8(bytes);
+    }
+}
+
+static QString operationName(int operation)
+{
+    switch (operation) {
+        case 1: return "Create";
+        case 2: return "Modify";
+        case 3: return "Delete";
+    }
+    return {};
+}
+
+Syntax::List syntax();
+
 bool inspect(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] [--showinternal] | [--validaterids $type] | [--fulltext [$id]])"));
+        //state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] [--showinternal] | [--validaterids $type] | [--fulltext [$id]])"));
+        state.printError(syntax()[0].usage());
+        return false;
     }
     auto options = SyntaxTree::parseOptions(args);
     auto resource = SinkshUtils::parseUid(options.options.value("resource").value(0).toUtf8());
@@ -69,13 +100,13 @@ bool inspect(const QStringList &args, State &state)
                 [&] (const Sink::Storage::DataStore::Error &e) {
                     Q_ASSERT(false);
                     state.printError(e.message);
-                }, false);
+                }, Sink::Storage::IntegerKeys);
 
         auto ridMap = syncTransaction.openDatabase("localid.mapping." + type,
                 [&] (const Sink::Storage::DataStore::Error &e) {
                     Q_ASSERT(false);
                     state.printError(e.message);
-                }, false);
+                });
 
         QHash<QByteArray, QByteArray> hash;
 
@@ -90,7 +121,8 @@ bool inspect(const QStringList &args, State &state)
 
         QSet<QByteArray> uids;
         db.scan("", [&] (const QByteArray &key, const QByteArray &data) {
-                    uids.insert(Sink::Storage::DataStore::uidFromKey(key));
+                    size_t revision = Sink::byteArrayToSizeT(key);
+                    uids.insert(Sink::Storage::DataStore::getUidFromRevision(transaction, revision));
                     return true;
                 },
                 [&](const Sink::Storage::DataStore::Error &e) {
@@ -120,32 +152,19 @@ bool inspect(const QStringList &args, State &state)
         return false;
     }
     if (options.options.contains("fulltext")) {
-        try {
-            Xapian::Database db(QFile::encodeName(Sink::resourceStorageLocation(resource) + '/' + "fulltext").toStdString(), Xapian::DB_OPEN);
-            if (options.options.value("fulltext").isEmpty()) {
-                state.printLine(QString("Total document count: ") + QString::number(db.get_doccount()));
+        FulltextIndex index(resource, Sink::Storage::DataStore::ReadOnly);
+        if (options.options.value("fulltext").isEmpty()) {
+            state.printLine(QString("Total document count: ") + QString::number(index.getDoccount()));
+        } else {
+            const auto entityId = SinkshUtils::parseUid(options.options.value("fulltext").first().toUtf8());
+            const auto content = index.getIndexContent(entityId);
+            if (!content.found) {
+                state.printLine(QString("Failed to find the document with the id: ") + entityId);
             } else {
-                auto entityId = SinkshUtils::parseUid(options.options.value("fulltext").first().toUtf8());
-                auto id = "Q" + entityId.toStdString();
-                Xapian::PostingIterator p = db.postlist_begin(id);
-                if (p == db.postlist_end(id)) {
-                    state.printLine(QString("Failed to find the document with the id: ") + QString::fromStdString(id));
-                } else {
-                    state.printLine(QString("Found the document: "));
-                    auto document = db.get_document(*p);
-
-                    QStringList terms;
-                    for (auto it = document.termlist_begin(); it != document.termlist_end(); it++) {
-                        terms << QString::fromStdString(*it);
-                    }
-                    state.printLine(QString("Terms: ") + terms.join(", "), 1);
-                }
-
+                state.printLine(QString("Found document with terms: ") + content.terms.join(", "), 1);
             }
-        } catch (const Xapian::Error &) {
-            // Nothing to do, move along
-        }
 
+        }
         return false;
     }
 
@@ -175,7 +194,7 @@ bool inspect(const QStringList &args, State &state)
             [&] (const Sink::Storage::DataStore::Error &e) {
                 Q_ASSERT(false);
                 state.printError(e.message);
-            }, false);
+            });
 
     if (showInternal) {
         //Print internal keys
@@ -200,21 +219,24 @@ bool inspect(const QStringList &args, State &state)
         auto count = db.scan(filter, [&] (const QByteArray &key, const QByteArray &data) {
                     keySizeTotal += key.size();
                     valueSizeTotal += data.size();
+
+                    const auto parsedKey = parse(key);
+
                     if (isMainDb) {
                         Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
                         if (!buffer.isValid()) {
-                            state.printError("Read invalid buffer from disk: " + key);
+                            state.printError("Read invalid buffer from disk: " + parsedKey);
                         } else {
                             const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
-                            state.printLine("Key: " + key
-                                          + " Operation: " + QString::number(metadata->operation())
+                            state.printLine("Key: " + parsedKey
+                                          + " Operation: " + operationName(metadata->operation())
                                           + " Replay: " + (metadata->replayToSource() ? "true" : "false")
                                           + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": "")
                                           + " Value size: " + QString::number(data.size())
                                           );
                         }
                     } else {
-                        state.printLine("Key: " + key + "\tValue: " + QString::fromUtf8(data));
+                        state.printLine("Key: " + parsedKey + "\tValue: " + parse(data));
                     }
                     return true;
                 },
@@ -232,7 +254,16 @@ bool inspect(const QStringList &args, State &state)
 
 Syntax::List syntax()
 {
-    Syntax state("inspect", QObject::tr("Inspect database for the resource requested"), &SinkInspect::inspect, Syntax::NotInteractive);
+    Syntax state("inspect", QObject::tr("Inspect database for the resource requested"),
+        &SinkInspect::inspect, Syntax::NotInteractive);
+
+    state.addParameter("resource", {"resource", "Which resource to inspect", true});
+    state.addParameter("db", {"database", "Which database to inspect"});
+    state.addParameter("filter", {"id", "A specific id to filter the results by (currently not working)"});
+    state.addFlag("showinternal", "Show internal fields only");
+    state.addParameter("validaterids", {"type", "Validate remote Ids of the given type"});
+    state.addParameter("fulltext", {"id", "If 'id' is not given, count the number of fulltext documents. Else, print the terms of the document with the given id"});
+
     state.completer = &SinkshUtils::resourceCompleter;
 
     return Syntax::List() << state;

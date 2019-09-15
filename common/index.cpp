@@ -2,9 +2,11 @@
 
 #include "log.h"
 
+using Sink::Storage::Identifier;
+
 Index::Index(const QString &storageRoot, const QString &dbName, const QString &indexName, Sink::Storage::DataStore::AccessMode mode)
     : mTransaction(Sink::Storage::DataStore(storageRoot, dbName, mode).createTransaction(mode)),
-      mDb(mTransaction.openDatabase(indexName.toLatin1(), std::function<void(const Sink::Storage::DataStore::Error &)>(), true)),
+      mDb(mTransaction.openDatabase(indexName.toLatin1(), std::function<void(const Sink::Storage::DataStore::Error &)>(), Sink::Storage::AllowDuplicates)),
       mName(indexName),
       mLogCtx("index." + indexName.toLatin1())
 {
@@ -12,7 +14,7 @@ Index::Index(const QString &storageRoot, const QString &dbName, const QString &i
 
 Index::Index(const QString &storageRoot, const QString &name, Sink::Storage::DataStore::AccessMode mode)
     : mTransaction(Sink::Storage::DataStore(storageRoot, name, mode).createTransaction(mode)),
-      mDb(mTransaction.openDatabase(name.toLatin1(), std::function<void(const Sink::Storage::DataStore::Error &)>(), true)),
+      mDb(mTransaction.openDatabase(name.toLatin1(), std::function<void(const Sink::Storage::DataStore::Error &)>(), Sink::Storage::AllowDuplicates)),
       mName(name),
       mLogCtx("index." + name.toLatin1())
 {
@@ -20,16 +22,21 @@ Index::Index(const QString &storageRoot, const QString &name, Sink::Storage::Dat
 
 Index::Index(const QString &storageRoot, const Sink::Storage::DbLayout &layout, Sink::Storage::DataStore::AccessMode mode)
     : mTransaction(Sink::Storage::DataStore(storageRoot, layout, mode).createTransaction(mode)),
-      mDb(mTransaction.openDatabase(layout.name, std::function<void(const Sink::Storage::DataStore::Error &)>(), true)),
+      mDb(mTransaction.openDatabase(layout.name, std::function<void(const Sink::Storage::DataStore::Error &)>(), Sink::Storage::AllowDuplicates)),
       mName(layout.name),
       mLogCtx("index." + layout.name)
 {
 }
 
 Index::Index(const QByteArray &name, Sink::Storage::DataStore::Transaction &transaction)
-    : mDb(transaction.openDatabase(name, std::function<void(const Sink::Storage::DataStore::Error &)>(), true)), mName(name),
+    : mDb(transaction.openDatabase(name, std::function<void(const Sink::Storage::DataStore::Error &)>(), Sink::Storage::AllowDuplicates)), mName(name),
       mLogCtx("index." + name)
 {
+}
+
+void Index::add(const Identifier &key, const QByteArray &value)
+{
+    add(key.toInternalByteArray(), value);
 }
 
 void Index::add(const QByteArray &key, const QByteArray &value)
@@ -40,10 +47,17 @@ void Index::add(const QByteArray &key, const QByteArray &value)
     });
 }
 
-void Index::remove(const QByteArray &key, const QByteArray &value)
+void Index::remove(const Identifier &key, const QByteArray &value, bool ignoreRemovalFailure)
+{
+    remove(key.toInternalByteArray(), value, ignoreRemovalFailure);
+}
+
+void Index::remove(const QByteArray &key, const QByteArray &value, bool ignoreRemovalFailure)
 {
     mDb.remove(key, value, [&] (const Sink::Storage::DataStore::Error &error) {
-        SinkWarningCtx(mLogCtx) << "Error while removing value: " << key << value << error;
+        if (!ignoreRemovalFailure || error.code != Sink::Storage::DataStore::NotFound) {
+            SinkWarningCtx(mLogCtx) << "Error while removing value: " << key << value << error;
+        }
     });
 }
 

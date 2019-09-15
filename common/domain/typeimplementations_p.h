@@ -57,7 +57,7 @@ public:
     template <typename EntityType>
     static QMap<QByteArray, int> databases()
     {
-        return {{QByteArray{EntityType::name} +".index." + Property::name, 1}};
+        return {{QByteArray{EntityType::name} +".index." + Property::name, Sink::Storage::AllowDuplicates}};
     }
 };
 
@@ -74,7 +74,7 @@ public:
     template <typename EntityType>
     static QMap<QByteArray, int> databases()
     {
-        return {{QByteArray{EntityType::name} +".index." + Property::name + ".sort." + SortProperty::name, 1}};
+        return {{QByteArray{EntityType::name} +".index." + Property::name + ".sort." + SortProperty::name, Sink::Storage::AllowDuplicates}};
     }
 };
 
@@ -90,7 +90,7 @@ public:
     template <typename EntityType>
     static QMap<QByteArray, int> databases()
     {
-        return {{QByteArray{EntityType::name} +".index." + SortProperty::name + ".sorted", 1}};
+        return {{QByteArray{EntityType::name} +".index." + SortProperty::name + ".sorted", Sink::Storage::AllowDuplicates}};
     }
 };
 
@@ -106,7 +106,7 @@ public:
     template <typename EntityType>
     static QMap<QByteArray, int> databases()
     {
-        return {{QByteArray{EntityType::name} +".index." + Property::name + SecondaryProperty::name, 1}};
+        return {{QByteArray{EntityType::name} +".index." + Property::name + SecondaryProperty::name, Sink::Storage::AllowDuplicates}};
     }
 };
 
@@ -142,7 +142,7 @@ public:
     template <typename EntityType>
     static QMap<QByteArray, int> databases()
     {
-        return {{QByteArray{EntityType::name} +".index." + RangeBeginProperty::name + ".range." + RangeEndProperty::name, 1}};
+        return {{QByteArray{EntityType::name} +".index." + RangeBeginProperty::name + ".range." + RangeEndProperty::name, Sink::Storage::AllowDuplicates}};
     }
 };
 

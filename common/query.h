@@ -195,13 +195,18 @@ public:
             enum Comparator {
                 Min, //get the minimum value
                 Max, //get the maximum value
-                First //Get the first result we get
             };
 
             template <typename SelectionProperty>
             static Selector max()
             {
                 return Selector(SelectionProperty::name, Max);
+            }
+
+            template <typename SelectionProperty>
+            static Selector min()
+            {
+                return Selector(SelectionProperty::name, Min);
             }
 
             Selector(const QByteArray &p, Comparator c)
@@ -212,6 +217,11 @@ public:
 
             QByteArray property;
             Comparator comparator;
+        };
+
+        struct PropertySelector {
+            QByteArray resultProperty;
+            Selector selector;
         };
 
         class Aggregator {
@@ -239,37 +249,55 @@ public:
         {
         }
 
-        Reduce &count(const QByteArray &propertyName = "count")
+        Reduce &count(const QByteArray &resultProperty = "count")
         {
-            aggregators << Aggregator(propertyName, Aggregator::Count);
+            aggregators << Aggregator(resultProperty, Aggregator::Count);
             return *this;
         }
 
+        /**
+         * Collect all properties and make them available as a QList as the virtual properite with the name @param resultProperty
+         */
         template <typename T>
-        Reduce &collect(const QByteArray &propertyName)
+        Reduce &collect(const QByteArray &resultProperty)
         {
-            aggregators << Aggregator(propertyName, Aggregator::Collect, T::name);
+            aggregators << Aggregator(resultProperty, Aggregator::Collect, T::name);
             return *this;
         }
 
         template <typename T>
         Reduce &collect()
         {
-            aggregators << Aggregator(QByteArray{T::name} + QByteArray{"Collected"}, Aggregator::Collect, T::name);
+            return collect<T>(QByteArray{T::name} + QByteArray{"Collected"});
+        }
+
+        /**
+         * Select a property and make it available as the virtual properite with the name @param resultProperty.
+         *
+         * This allows to make a different choice for this property than for the main selector of the reduction,
+         * so we can e.g. select the subject of the first email sorted by date, while otherwise selecting the latest email.
+         *
+         * Please note that this will reuse the selection property of the main selector.
+         */
+        template <typename T>
+        Reduce &select(Selector::Comparator comparator, const QByteArray &resultProperty)
+        {
+            propertySelectors << PropertySelector{resultProperty, Selector{T::name, comparator}};
             return *this;
         }
+
+        template <typename T>
+        Reduce &select(Selector::Comparator comparator)
+        {
+            return select<T>(comparator, QByteArray{T::name} + QByteArray{"Selected"});
+        }
+
 
         //Reduce on property
         QByteArray property;
         Selector selector;
         QList<Aggregator> aggregators;
-
-        //TODO add aggregate functions like:
-        //.count()
-        //.collect<Mail::sender>();
-        //...
-        //
-        //Potentially pass-in an identifier under which the result will be available in the result set.
+        QList<PropertySelector> propertySelectors;
     };
 
     Reduce &reduce(const QByteArray &name, const Reduce::Selector &s)
@@ -616,3 +644,4 @@ SINK_EXPORT QDataStream &operator>> (QDataStream &stream, Sink::QueryBase &query
 Q_DECLARE_OPERATORS_FOR_FLAGS(Sink::Query::Flags)
 Q_DECLARE_METATYPE(Sink::QueryBase);
 Q_DECLARE_METATYPE(Sink::Query);
+Q_DECLARE_METATYPE(Sink::SyncScope);

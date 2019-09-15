@@ -23,6 +23,7 @@
 #include "query.h"
 #include "log.h"
 #include "indexer.h"
+#include "storage/key.h"
 #include <QByteArray>
 
 namespace Sink {
@@ -89,12 +90,12 @@ public:
         addSampledPeriodIndex<typename Begin::Type, typename End::Type>(Begin::name, End::name);
     }
 
-    void add(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
-    void modify(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, const Sink::ApplicationDomain::ApplicationDomainType &newEntity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
-    void remove(const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
+    void add(const Sink::Storage::Identifier &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
+    void modify(const Sink::Storage::Identifier &identifier, const Sink::ApplicationDomain::ApplicationDomainType &oldEntity, const Sink::ApplicationDomain::ApplicationDomainType &newEntity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
+    void remove(const Sink::Storage::Identifier &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
 
-    QVector<QByteArray> query(const Sink::QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
-    QVector<QByteArray> lookup(const QByteArray &property, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction);
+    QVector<Sink::Storage::Identifier> query(const Sink::QueryBase &query, QSet<QByteArrayList> &appliedFilters, QByteArray &appliedSorting, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
+    QVector<Sink::Storage::Identifier> lookup(const QByteArray &property, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction);
 
     template <typename Left, typename Right>
     QVector<QByteArray> secondaryLookup(const QVariant &value)
@@ -133,7 +134,7 @@ public:
 
 private:
     friend class Sink::Storage::EntityStore;
-    void updateIndex(Action action, const QByteArray &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
+    void updateIndex(Action action, const Sink::Storage::Identifier &identifier, const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId);
     QByteArray indexName(const QByteArray &property, const QByteArray &sortProperty = QByteArray()) const;
     QByteArray sortedIndexName(const QByteArray &property) const;
     QByteArray sampledPeriodIndexName(const QByteArray &rangeBeginProperty, const QByteArray &rangeEndProperty) const;
@@ -147,8 +148,8 @@ private:
     QSet<QPair<QByteArray, QByteArray>> mSampledPeriodProperties;
     QList<Sink::Indexer::Ptr> mCustomIndexer;
     Sink::Storage::DataStore::Transaction *mTransaction;
-    QHash<QByteArray, std::function<void(Action, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mIndexer;
-    QHash<QByteArray, std::function<void(Action, const QByteArray &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mSortIndexer;
-    QHash<QByteArray, std::function<void(Action, const QByteArray &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction)>> mGroupedSortIndexer;
-    QHash<QPair<QByteArray, QByteArray>, std::function<void(Action, const QByteArray &identifier, const QVariant &begin, const QVariant &end, Sink::Storage::DataStore::Transaction &transaction)>> mSampledPeriodIndexer;
+    QHash<QByteArray, std::function<void(Action, const Sink::Storage::Identifier &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mIndexer;
+    QHash<QByteArray, std::function<void(Action, const Sink::Storage::Identifier &identifier, const QVariant &value, Sink::Storage::DataStore::Transaction &transaction)>> mSortIndexer;
+    QHash<QByteArray, std::function<void(Action, const Sink::Storage::Identifier &identifier, const QVariant &value, const QVariant &sortValue, Sink::Storage::DataStore::Transaction &transaction)>> mGroupedSortIndexer;
+    QHash<QPair<QByteArray, QByteArray>, std::function<void(Action, const Sink::Storage::Identifier &identifier, const QVariant &begin, const QVariant &end, Sink::Storage::DataStore::Transaction &transaction)>> mSampledPeriodIndexer;
 };

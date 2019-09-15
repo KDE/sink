@@ -20,6 +20,8 @@
 
 #include "log.h"
 
+using Sink::Storage::Identifier;
+
 ResultSet::ResultSet() : mIt(nullptr)
 {
 }
@@ -28,11 +30,7 @@ ResultSet::ResultSet(const ValueGenerator &generator, const SkipValue &skip) : m
 {
 }
 
-ResultSet::ResultSet(const IdGenerator &generator) : mIt(nullptr), mGenerator(generator), mSkip([this]() { next(); })
-{
-}
-
-ResultSet::ResultSet(const QVector<QByteArray> &resultSet)
+ResultSet::ResultSet(const QVector<Identifier> &resultSet)
     : mResultSet(resultSet),
       mIt(mResultSet.constBegin()),
       mSkip([this]() {
@@ -49,9 +47,6 @@ ResultSet::ResultSet(const ResultSet &other) : mResultSet(other.mResultSet), mIt
     if (other.mValueGenerator) {
         mValueGenerator = other.mValueGenerator;
         mSkip = other.mSkip;
-    } else if (other.mGenerator) {
-        mGenerator = other.mGenerator;
-        mSkip = [this]() { next(); };
     } else {
         mResultSet = other.mResultSet;
         mIt = mResultSet.constBegin();
@@ -72,12 +67,6 @@ bool ResultSet::next()
         }
         mFirst = false;
         return mIt != mResultSet.constEnd();
-    } else if (mGenerator) {
-        Q_ASSERT(mGenerator);
-        mCurrentValue = mGenerator();
-        if (!mCurrentValue.isNull()) {
-            return true;
-        }
     } else {
         next([](const Result &) { return false; });
     }
@@ -114,11 +103,11 @@ ResultSet::ReplayResult ResultSet::replaySet(int offset, int batchSize, const Ca
     return {counter, false};
 }
 
-QByteArray ResultSet::id()
+Identifier ResultSet::id()
 {
     if (mIt) {
         if (mIt == mResultSet.constEnd()) {
-            return QByteArray();
+            return {};
         }
         Q_ASSERT(mIt != mResultSet.constEnd());
         return *mIt;

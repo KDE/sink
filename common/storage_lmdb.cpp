@@ -48,6 +48,10 @@ static QMutex sCreateDbiLock;
 static QHash<QString, MDB_env *> sEnvironments;
 static QHash<QString, MDB_dbi> sDbis;
 
+int AllowDuplicates = MDB_DUPSORT;
+int IntegerKeys = MDB_INTEGERKEY;
+int IntegerValues = MDB_INTEGERDUP;
+
 int getErrorCode(int e)
 {
     switch (e) {
@@ -101,14 +105,8 @@ static QList<QByteArray> getDatabaseNames(MDB_txn *transaction)
  * and we always need to commit the transaction ASAP
  * We can only ever enter from one point per process.
  */
-static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly, bool allowDuplicates, MDB_dbi &dbi)
+static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly, int flags, MDB_dbi &dbi)
 {
-
-    unsigned int flags = 0;
-    if (allowDuplicates) {
-        flags |= MDB_DUPSORT;
-    }
-
     MDB_dbi flagtableDbi;
     if (const int rc = mdb_dbi_open(transaction, "__flagtable", readOnly ? 0 : MDB_CREATE, &flagtableDbi)) {
         if (!readOnly) {
@@ -128,6 +126,10 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
             const auto ba = QByteArray::fromRawData((char *)value.mv_data, value.mv_size);
             flags = ba.toInt();
         }
+    }
+
+    if (flags & IntegerValues && !(flags & AllowDuplicates)) {
+        SinkWarning() << "Opening a database with integer values, but not duplicate keys";
     }
 
     if (const int rc = mdb_dbi_open(transaction, db.constData(), flags, &dbi)) {
@@ -164,8 +166,8 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
             key.mv_size = db.size();
             //Store the flags without the create option
             const auto ba = QByteArray::number(flags);
-            value.mv_data = const_cast<void*>(static_cast<const void*>(db.constData()));
-            value.mv_size = db.size();
+            value.mv_data = const_cast<void*>(static_cast<const void*>(ba.constData()));
+            value.mv_size = ba.size();
             if (const int rc = mdb_put(transaction, flagtableDbi, &key, &value, MDB_NOOVERWRITE)) {
                 //We expect this to fail if we're only creating the dbi but not the db
                 if (rc != MDB_KEYEXIST) {
@@ -175,7 +177,7 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
         } else {
             //It's not an error if we only want to read
             if (!readOnly) {
-                SinkWarning() << "Failed to open db " << QByteArray(mdb_strerror(rc));
+                SinkWarning() << "Failed to open db " << db << "error:" << QByteArray(mdb_strerror(rc));
                 return true;
             }
             return false;
@@ -187,8 +189,14 @@ static bool createDbi(MDB_txn *transaction, const QByteArray &db, bool readOnly,
 class DataStore::NamedDatabase::Private
 {
 public:
-    Private(const QByteArray &_db, bool _allowDuplicates, const std::function<void(const DataStore::Error &error)> &_defaultErrorHandler, const QString &_name, MDB_txn *_txn)
-        : db(_db), transaction(_txn), allowDuplicates(_allowDuplicates), defaultErrorHandler(_defaultErrorHandler), name(_name)
+    Private(const QByteArray &_db, int _flags,
+        const std::function<void(const DataStore::Error &error)> &_defaultErrorHandler,
+        const QString &_name, MDB_txn *_txn)
+        : db(_db),
+          transaction(_txn),
+          flags(_flags),
+          defaultErrorHandler(_defaultErrorHandler),
+          name(_name)
     {
     }
 
@@ -199,7 +207,7 @@ public:
     QByteArray db;
     MDB_txn *transaction;
     MDB_dbi dbi;
-    bool allowDuplicates;
+    int flags;
     std::function<void(const DataStore::Error &error)> defaultErrorHandler;
     QString name;
     bool createdNewDbi = false;
@@ -219,80 +227,126 @@ public:
     bool openDatabase(bool readOnly, std::function<void(const DataStore::Error &error)> errorHandler)
     {
         const auto dbiName = name + db;
+        //Never access sDbis while anything is writing to it.
         QReadLocker dbiLocker{&sDbisLock};
         if (sDbis.contains(dbiName)) {
             dbi = sDbis.value(dbiName);
-            Q_ASSERT(dbiValidForTransaction(dbi, transaction));
-        } else {
-            /*
-             * Dynamic creation of databases.
-             * If all databases were defined via the database layout we wouldn't ever end up in here.
-             * However, we rely on this codepath for indexes, synchronization databases and in race-conditions
-             * where the database is not yet fully created when the client initializes it for reading.
-             *
-             * There are a few things to consider:
-             * * dbi's (DataBase Identifier) should be opened once (ideally), and then be persisted in the environment.
-             * * To open a dbi we need a transaction and must commit the transaction. From then on any open transaction will have access to the dbi.
-             * * Already running transactions will not have access to the dbi.
-             * * There *must* only ever be one active transaction opening dbi's (using mdb_dbi_open), and that transaction *must*
-             * commit or abort before any other transaction opens a dbi.
-             *
-             * We solve this the following way:
-             * * For read-only transactions we abort the transaction, open the dbi and persist it in the environment, and reopen the transaction (so the dbi is available). This may result in the db content changing unexpectedly and referenced memory becoming unavailable, but isn't a problem as long as we don't rely on memory remaining valid for the duration of the transaction (which is anyways not given since any operation would invalidate the memory region)..
-             * * For write transactions we open the dbi for future use, and then open it as well in the current transaction.
-             * * Write transactions that open the named database multiple times will call this codepath multiple times,
-             * this is ok though because the same dbi will be returned by mdb_dbi_open (We could also start to do a lookup in
-             * Transaction::Private::createdDbs first).
-             */
-            SinkTrace() << "Creating database dynamically: " << dbiName << readOnly;
-            //Only one transaction may ever create dbis at a time.
-            QMutexLocker createDbiLocker(&sCreateDbiLock);
-            //Double checked locking
-            if (sDbis.contains(dbiName)) {
-                dbi = sDbis.value(dbiName);
-                Q_ASSERT(dbiValidForTransaction(dbi, transaction));
+            //sDbis can potentially contain a dbi that is not valid for this transaction, if this transaction was created before the dbi was created.
+            if (dbiValidForTransaction(dbi, transaction)) {
                 return true;
+            } else {
+                SinkTrace() << "Found dbi that is not available for the current transaction.";
+                if (readOnly) {
+                    //Recovery for read-only transactions. Abort and renew.
+                    mdb_txn_reset(transaction);
+                    mdb_txn_renew(transaction);
+                    Q_ASSERT(dbiValidForTransaction(dbi, transaction));
+                    return true;
+                }
+                //There is no recover path for non-read-only transactions.
             }
+            //Nothing in the code deals well with non-existing databases.
+            Q_ASSERT(false);
+            return false;
+        }
 
-            //Create a transaction to open the dbi
-            MDB_txn *dbiTransaction;
-            if (readOnly) {
-                MDB_env *env = mdb_txn_env(transaction);
-                Q_ASSERT(env);
-                mdb_txn_reset(transaction);
-                if (const int rc = mdb_txn_begin(env, nullptr, MDB_RDONLY, &dbiTransaction)) {
-                    SinkError() << "Failed to open transaction: " << QByteArray(mdb_strerror(rc)) << readOnly << transaction;
-                    return false;
-                }
+
+        /*
+        * Dynamic creation of databases.
+        * If all databases were defined via the database layout we wouldn't ever end up in here.
+        * However, we rely on this codepath for indexes, synchronization databases and in race-conditions
+        * where the database is not yet fully created when the client initializes it for reading.
+        *
+        * There are a few things to consider:
+        * * dbi's (DataBase Identifier) should be opened once (ideally), and then be persisted in the environment.
+        * * To open a dbi we need a transaction and must commit the transaction. From then on any open transaction will have access to the dbi.
+        * * Already running transactions will not have access to the dbi.
+        * * There *must* only ever be one active transaction opening dbi's (using mdb_dbi_open), and that transaction *must*
+        * commit or abort before any other transaction opens a dbi.
+        *
+        * We solve this the following way:
+        * * For read-only transactions we abort the transaction, open the dbi and persist it in the environment, and reopen the transaction (so the dbi is available). This may result in the db content changing unexpectedly and referenced memory becoming unavailable, but isn't a problem as long as we don't rely on memory remaining valid for the duration of the transaction (which is anyways not given since any operation would invalidate the memory region)..
+        * * For write transactions we open the dbi for future use, and then open it as well in the current transaction.
+        * * Write transactions that open the named database multiple times will call this codepath multiple times,
+        * this is ok though because the same dbi will be returned by mdb_dbi_open (We could also start to do a lookup in
+        * Transaction::Private::createdDbs first).
+        */
+        SinkTrace() << "Creating database dynamically: " << dbiName << readOnly;
+        //Only one transaction may ever create dbis at a time.
+        while (!sCreateDbiLock.tryLock(10)) {
+            //Allow another thread that has already acquired sCreateDbiLock to continue below.
+            //Otherwise we risk a dead-lock if another thread already acquired sCreateDbiLock, but then lost the sDbisLock while upgrading it to a
+            //write lock below
+            dbiLocker.unlock();
+            dbiLocker.relock();
+        }
+        //Double checked locking
+        if (sDbis.contains(dbiName)) {
+            dbi = sDbis.value(dbiName);
+            //sDbis can potentially contain a dbi that is not valid for this transaction, if this transaction was created before the dbi was created.
+            sCreateDbiLock.unlock();
+            if (dbiValidForTransaction(dbi, transaction)) {
+                return true;
             } else {
-                dbiTransaction = transaction;
-            }
-            if (createDbi(dbiTransaction, db, readOnly, allowDuplicates, dbi)) {
+                SinkTrace() << "Found dbi that is not available for the current transaction.";
                 if (readOnly) {
-                    mdb_txn_commit(dbiTransaction);
-                    dbiLocker.unlock();
-                    QWriteLocker dbiWriteLocker(&sDbisLock);
-                    sDbis.insert(dbiName, dbi);
-                    //We reopen the read-only transaction so the dbi becomes available in it.
+                    //Recovery for read-only transactions. Abort and renew.
+                    mdb_txn_reset(transaction);
                     mdb_txn_renew(transaction);
-                } else {
-                    createdNewDbi = true;
-                    createdNewDbiName = dbiName;
+                    Q_ASSERT(dbiValidForTransaction(dbi, transaction));
+                    return true;
                 }
-                //Ensure the dbi is valid for the parent transaction
-                Q_ASSERT(dbiValidForTransaction(dbi, transaction));
-            } else {
-                if (readOnly) {
-                    mdb_txn_abort(dbiTransaction);
-                    mdb_txn_renew(transaction);
-                } else {
-                    SinkWarning() << "Failed to create the dbi: " << dbiName;
-                }
-                dbi = 0;
-                transaction = 0;
+                //There is no recover path for non-read-only transactions.
+                Q_ASSERT(false);
                 return false;
             }
         }
+
+        //Ensure nobody reads sDbis either
+        dbiLocker.unlock();
+        //We risk loosing the lock in here. That's why we tryLock above in the while loop
+        QWriteLocker dbiWriteLocker(&sDbisLock);
+
+        //Create a transaction to open the dbi
+        MDB_txn *dbiTransaction;
+        if (readOnly) {
+            MDB_env *env = mdb_txn_env(transaction);
+            Q_ASSERT(env);
+            mdb_txn_reset(transaction);
+            if (const int rc = mdb_txn_begin(env, nullptr, MDB_RDONLY, &dbiTransaction)) {
+                SinkError() << "Failed to open transaction: " << QByteArray(mdb_strerror(rc)) << readOnly << transaction;
+                sCreateDbiLock.unlock();
+                return false;
+            }
+        } else {
+            dbiTransaction = transaction;
+        }
+        if (createDbi(dbiTransaction, db, readOnly, flags, dbi)) {
+            if (readOnly) {
+                mdb_txn_commit(dbiTransaction);
+                Q_ASSERT(!sDbis.contains(dbiName));
+                sDbis.insert(dbiName, dbi);
+                //We reopen the read-only transaction so the dbi becomes available in it.
+                mdb_txn_renew(transaction);
+            } else {
+                createdNewDbi = true;
+                createdNewDbiName = dbiName;
+            }
+            //Ensure the dbi is valid for the parent transaction
+            Q_ASSERT(dbiValidForTransaction(dbi, transaction));
+        } else {
+            if (readOnly) {
+                mdb_txn_abort(dbiTransaction);
+                mdb_txn_renew(transaction);
+            } else {
+                SinkWarning() << "Failed to create the dbi: " << dbiName;
+            }
+            dbi = 0;
+            transaction = 0;
+            sCreateDbiLock.unlock();
+            return false;
+        }
+        sCreateDbiLock.unlock();
         return true;
     }
 };
@@ -323,6 +377,12 @@ DataStore::NamedDatabase &DataStore::NamedDatabase::operator=(DataStore::NamedDa
 DataStore::NamedDatabase::~NamedDatabase()
 {
     delete d;
+}
+
+bool DataStore::NamedDatabase::write(const size_t key, const QByteArray &value,
+    const std::function<void(const DataStore::Error &error)> &errorHandler)
+{
+    return write(sizeTToByteArray(key), value, errorHandler);
 }
 
 bool DataStore::NamedDatabase::write(const QByteArray &sKey, const QByteArray &sValue, const std::function<void(const DataStore::Error &error)> &errorHandler)
@@ -361,9 +421,21 @@ bool DataStore::NamedDatabase::write(const QByteArray &sKey, const QByteArray &s
     return !rc;
 }
 
+void DataStore::NamedDatabase::remove(
+    const size_t key, const std::function<void(const DataStore::Error &error)> &errorHandler)
+{
+    return remove(sizeTToByteArray(key), errorHandler);
+}
+
 void DataStore::NamedDatabase::remove(const QByteArray &k, const std::function<void(const DataStore::Error &error)> &errorHandler)
 {
     remove(k, QByteArray(), errorHandler);
+}
+
+void DataStore::NamedDatabase::remove(const size_t key, const QByteArray &value,
+    const std::function<void(const DataStore::Error &error)> &errorHandler)
+{
+    return remove(sizeTToByteArray(key), value, errorHandler);
 }
 
 void DataStore::NamedDatabase::remove(const QByteArray &k, const QByteArray &value, const std::function<void(const DataStore::Error &error)> &errorHandler)
@@ -399,6 +471,17 @@ void DataStore::NamedDatabase::remove(const QByteArray &k, const QByteArray &val
     }
 }
 
+int DataStore::NamedDatabase::scan(const size_t key,
+    const std::function<bool(size_t key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const DataStore::Error &error)> &errorHandler, bool skipInternalKeys) const
+{
+    return scan(sizeTToByteArray(key),
+        [&resultHandler](const QByteArray &key, const QByteArray &value) {
+            return resultHandler(byteArrayToSizeT(key), value);
+        },
+        errorHandler, /* findSubstringKeys = */ false, skipInternalKeys);
+}
+
 int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
     const std::function<void(const DataStore::Error &error)> &errorHandler, bool findSubstringKeys, bool skipInternalKeys) const
 {
@@ -425,8 +508,10 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
 
     int numberOfRetrievedValues = 0;
 
-    if (k.isEmpty() || d->allowDuplicates || findSubstringKeys) {
-        MDB_cursor_op op = d->allowDuplicates ? MDB_SET : MDB_FIRST;
+    bool allowDuplicates = d->flags & AllowDuplicates;
+
+    if (k.isEmpty() || allowDuplicates || findSubstringKeys) {
+        MDB_cursor_op op = allowDuplicates ? MDB_SET : MDB_FIRST;
         if (findSubstringKeys) {
             op = MDB_SET_RANGE;
         }
@@ -444,7 +529,7 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
                         key.mv_data = (void *)k.constData();
                         key.mv_size = k.size();
                     }
-                    MDB_cursor_op nextOp = (d->allowDuplicates && !findSubstringKeys) ? MDB_NEXT_DUP : MDB_NEXT;
+                    MDB_cursor_op nextOp = (allowDuplicates && !findSubstringKeys) ? MDB_NEXT_DUP : MDB_NEXT;
                     while ((rc = mdb_cursor_get(cursor, &key, &data, nextOp)) == 0) {
                         const auto current = QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
                         // Every consequitive lookup simply iterates through the list
@@ -481,6 +566,18 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
     }
 
     return numberOfRetrievedValues;
+}
+
+
+void DataStore::NamedDatabase::findLatest(size_t key,
+    const std::function<void(size_t key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const DataStore::Error &error)> &errorHandler) const
+{
+    return findLatest(sizeTToByteArray(key),
+        [&resultHandler](const QByteArray &key, const QByteArray &value) {
+            resultHandler(byteArrayToSizeT(value), value);
+        },
+        errorHandler);
 }
 
 void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
@@ -554,6 +651,17 @@ void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::functi
     }
 
     return;
+}
+
+int DataStore::NamedDatabase::findAllInRange(const size_t lowerBound, const size_t upperBound,
+    const std::function<void(size_t key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const DataStore::Error &error)> &errorHandler) const
+{
+    return findAllInRange(sizeTToByteArray(lowerBound), sizeTToByteArray(upperBound),
+        [&resultHandler](const QByteArray &key, const QByteArray &value) {
+            resultHandler(byteArrayToSizeT(value), value);
+        },
+        errorHandler);
 }
 
 int DataStore::NamedDatabase::findAllInRange(const QByteArray &lowerBound, const QByteArray &upperBound,
@@ -793,30 +901,8 @@ void DataStore::Transaction::abort()
     d->transaction = nullptr;
 }
 
-//Ensure that we opened the correct database by comparing the expected identifier with the one
-//we write to the database on first open.
-static bool ensureCorrectDb(DataStore::NamedDatabase &database, const QByteArray &db, bool readOnly)
-{
-    bool openedTheWrongDatabase = false;
-    auto count = database.scan("__internal_dbname", [db, &openedTheWrongDatabase](const QByteArray &key, const QByteArray &value) ->bool {
-        if (value != db) {
-            SinkWarning() << "Opened the wrong database, got " << value << " instead of " << db;
-            openedTheWrongDatabase = true;
-        }
-        return false;
-    },
-    [&](const DataStore::Error &) {
-    }, false);
-    //This is the first time we open this database in a write transaction, write the db name
-    if (!count) {
-        if (!readOnly) {
-            database.write("__internal_dbname", db);
-        }
-    }
-    return !openedTheWrongDatabase;
-}
-
-DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &db, const std::function<void(const DataStore::Error &error)> &errorHandler, bool allowDuplicates) const
+DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &db,
+    const std::function<void(const DataStore::Error &error)> &errorHandler, int flags) const
 {
     if (!d) {
         SinkError() << "Tried to open database on invalid transaction: " << db;
@@ -825,7 +911,8 @@ DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &
     Q_ASSERT(d->transaction);
     // We don't now if anything changed
     d->implicitCommit = true;
-    auto p = new DataStore::NamedDatabase::Private(db, allowDuplicates, d->defaultErrorHandler, d->name, d->transaction);
+    auto p = new DataStore::NamedDatabase::Private(
+        db, flags, d->defaultErrorHandler, d->name, d->transaction);
     auto ret = p->openDatabase(d->requestedRead, errorHandler);
     if (!ret) {
         delete p;
@@ -837,11 +924,6 @@ DataStore::NamedDatabase DataStore::Transaction::openDatabase(const QByteArray &
     }
 
     auto database = DataStore::NamedDatabase(p);
-    if (!ensureCorrectDb(database, db, d->requestedRead)) {
-        SinkWarning() << "Failed to open the database correctly" << db;
-        Q_ASSERT(false);
-        return DataStore::NamedDatabase();
-    }
     return database;
 }
 
@@ -1003,11 +1085,11 @@ public:
 
                             //Create dbis from the given layout.
                             for (auto it = layout.tables.constBegin(); it != layout.tables.constEnd(); it++) {
-                                const bool allowDuplicates = it.value();
+                                const int flags = it.value();
                                 MDB_dbi dbi = 0;
                                 const auto db = it.key();
                                 const auto dbiName = name + db;
-                                if (createDbi(transaction, db, readOnly, allowDuplicates, dbi)) {
+                                if (createDbi(transaction, db, readOnly, flags, dbi)) {
                                     sDbis.insert(dbiName, dbi);
                                 }
                             }
@@ -1017,8 +1099,8 @@ public:
                                 MDB_dbi dbi = 0;
                                 const auto dbiName = name + db;
                                 //We're going to load the flags anyways.
-                                bool allowDuplicates = false;
-                                if (createDbi(transaction, db, readOnly, allowDuplicates, dbi)) {
+                                const int flags = 0;
+                                if (createDbi(transaction, db, readOnly, flags, dbi)) {
                                     sDbis.insert(dbiName, dbi);
                                 }
                             }

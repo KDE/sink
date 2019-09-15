@@ -33,13 +33,24 @@
 
 using namespace Sink;
 
+bool operator==(const Synchronizer::SyncRequest &left, const Synchronizer::SyncRequest &right)
+{
+    return left.flushType == right.flushType
+        && left.requestId == right.requestId
+        && left.requestType == right.requestType
+        && left.options == right.options
+        && left.query == right.query
+        && left.applicableEntities == right.applicableEntities;
+}
+
 Synchronizer::Synchronizer(const Sink::ResourceContext &context)
     : ChangeReplay(context, {"synchronizer"}),
     mLogCtx{"synchronizer"},
     mResourceContext(context),
     mEntityStore(Storage::EntityStore::Ptr::create(mResourceContext, mLogCtx)),
     mSyncStorage(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::DataStore::ReadWrite),
-    mSyncInProgress(false)
+    mSyncInProgress(false),
+    mAbort(false)
 {
     mCurrentState.push(ApplicationDomain::Status::NoStatus);
     SinkTraceCtx(mLogCtx) << "Starting synchronizer: " << mResourceContext.resourceType << mResourceContext.instanceId();
@@ -168,16 +179,20 @@ void Synchronizer::scanForRemovals(const QByteArray &bufferType, std::function<b
 void Synchronizer::modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
     store.readLatest(bufferType, sinkId, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &current) {
-        bool changed = false;
-        for (const auto &property : entity.changedProperties()) {
-            if (entity.getProperty(property) != current.getProperty(property)) {
-                SinkTraceCtx(mLogCtx) << "Property changed " << sinkId << property;
-                changed = true;
+        const bool changed = [&] {
+            for (const auto &property : entity.changedProperties()) {
+                if (entity.getProperty(property) != current.getProperty(property)) {
+                    SinkTraceCtx(mLogCtx) << "Property changed " << sinkId << property;
+                    return true;
+                }
             }
-        }
+            return false;
+        }();
         if (changed) {
             SinkTraceCtx(mLogCtx) << "Found a modified entity: " << sinkId;
             modifyEntity(sinkId, store.maxRevision(), bufferType, entity);
+        } else {
+            SinkTraceCtx(mLogCtx) << "Entity was not modified: " << sinkId;
         }
     });
 }
@@ -186,7 +201,7 @@ void Synchronizer::modify(const QByteArray &bufferType, const QByteArray &remote
 {
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId, false);
     if (sinkId.isEmpty()) {
-        SinkWarningCtx(mLogCtx) << "Can't modify entity that is not locally existing " << remoteId;
+        SinkWarningCtx(mLogCtx) << "Failed to find the local id for " << remoteId;
         return;
     }
     Storage::EntityStore store(mResourceContext, mLogCtx);
@@ -196,33 +211,39 @@ void Synchronizer::modify(const QByteArray &bufferType, const QByteArray &remote
 void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const Sink::ApplicationDomain::ApplicationDomainType &entity)
 {
     SinkTraceCtx(mLogCtx) << "Create or modify" << bufferType << remoteId;
-    Storage::EntityStore store(mResourceContext, mLogCtx);
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
-    const auto found = store.contains(bufferType, sinkId);
-    if (!found) {
+    if (sinkId.isEmpty()) {
+        SinkWarningCtx(mLogCtx) << "Failed to create a local id for " << remoteId;
+        Q_ASSERT(false);
+        return;
+    }
+    Storage::EntityStore store(mResourceContext, mLogCtx);
+    if (!store.contains(bufferType, sinkId)) {
         SinkTraceCtx(mLogCtx) << "Found a new entity: " << remoteId;
         createEntity(sinkId, bufferType, entity);
     } else { // modification
-        modify(bufferType, remoteId, entity);
+        modifyIfChanged(store, bufferType, sinkId, entity);
     }
 }
 
 template<typename DomainType>
 void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray &remoteId, const DomainType &entity, const QHash<QByteArray, Sink::Query::Comparator> &mergeCriteria)
 {
-
     SinkTraceCtx(mLogCtx) << "Create or modify" << bufferType << remoteId;
     const auto sinkId = syncStore().resolveRemoteId(bufferType, remoteId);
+    if (sinkId.isEmpty()) {
+        SinkWarningCtx(mLogCtx) << "Failed to create a local id for " << remoteId;
+        Q_ASSERT(false);
+        return;
+    }
     Storage::EntityStore store(mResourceContext, mLogCtx);
-    const auto found = store.contains(bufferType, sinkId);
-    if (!found) {
+    if (!store.contains(bufferType, sinkId)) {
         if (!mergeCriteria.isEmpty()) {
             Sink::Query query;
             for (auto it = mergeCriteria.constBegin(); it != mergeCriteria.constEnd(); it++) {
                 query.filter(it.key(), it.value());
             }
             bool merge = false;
-            Storage::EntityStore store{mResourceContext, mLogCtx};
             DataStoreQuery dataStoreQuery{query, ApplicationDomain::getTypeName<DomainType>(), store};
             auto resultSet = dataStoreQuery.execute();
             resultSet.replaySet(0, 1, [this, &merge, bufferType, remoteId](const ResultSet::Result &r) {
@@ -244,29 +265,42 @@ void Synchronizer::createOrModify(const QByteArray &bufferType, const QByteArray
     }
 }
 
+QByteArrayList Synchronizer::resolveQuery(const QueryBase &query)
+{
+    if (query.type().isEmpty()) {
+        SinkWarningCtx(mLogCtx) << "Can't resolve a query without a type" << query;
+        return {};
+    }
+    QByteArrayList result;
+    Storage::EntityStore store{mResourceContext, mLogCtx};
+    DataStoreQuery dataStoreQuery{query, query.type(), store};
+    auto resultSet = dataStoreQuery.execute();
+    resultSet.replaySet(0, 0, [&](const ResultSet::Result &r) {
+        result << r.entity.identifier();
+    });
+    return result;
+}
+
 QByteArrayList Synchronizer::resolveFilter(const QueryBase::Comparator &filter)
 {
-    QByteArrayList result;
     if (filter.value.canConvert<QByteArray>()) {
         const auto value = filter.value.value<QByteArray>();
         if (value.isEmpty()) {
             SinkErrorCtx(mLogCtx) << "Tried to filter for an empty value: " << filter;
         } else {
-            result << filter.value.value<QByteArray>();
+            return {filter.value.value<QByteArray>()};
         }
     } else if (filter.value.canConvert<QueryBase>()) {
-        auto query = filter.value.value<QueryBase>();
-        Storage::EntityStore store{mResourceContext, mLogCtx};
-        DataStoreQuery dataStoreQuery{query, query.type(), store};
-        auto resultSet = dataStoreQuery.execute();
-        resultSet.replaySet(0, 0, [&result](const ResultSet::Result &r) {
-            result << r.entity.identifier();
-        });
+        return resolveQuery(filter.value.value<QueryBase>());
+    } else if (filter.value.canConvert<Query>()) {
+        return resolveQuery(filter.value.value<Query>());
+    } else if (filter.value.canConvert<SyncScope>()) {
+        return resolveQuery(filter.value.value<SyncScope>());
     } else {
         SinkWarningCtx(mLogCtx) << "unknown filter type: " << filter;
         Q_ASSERT(false);
     }
-    return result;
+    return {};
 }
 
 template<typename DomainType>
@@ -277,22 +311,61 @@ void Synchronizer::modify(const DomainType &entity, const QByteArray &newResourc
 
 QList<Synchronizer::SyncRequest> Synchronizer::getSyncRequests(const Sink::QueryBase &query)
 {
-    return QList<Synchronizer::SyncRequest>() << Synchronizer::SyncRequest{query, "sync"};
+    return {Synchronizer::SyncRequest{query, "sync"}};
 }
 
 void Synchronizer::mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue)
 {
-    mSyncRequestQueue << request;
+    queue << request;
+}
+
+void Synchronizer::addToQueue(const Synchronizer::SyncRequest &request)
+{
+    mergeIntoQueue(request, mSyncRequestQueue);
 }
 
 void Synchronizer::synchronize(const Sink::QueryBase &query)
 {
-    SinkTraceCtx(mLogCtx) << "Synchronizing";
+    SinkTraceCtx(mLogCtx) << "Synchronizing" << query;
     auto newRequests = getSyncRequests(query);
     for (const auto &request: newRequests) {
+        auto shouldSkip = [&] {
+            for (auto &r : mSyncRequestQueue) {
+                if (r == request) {
+                    //Merge
+                    SinkTraceCtx(mLogCtx) << "Merging equal request " << request.query << "\n to" << r.query;
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if (shouldSkip()) {
+            continue;
+        }
         mergeIntoQueue(request, mSyncRequestQueue);
     }
     processSyncQueue().exec();
+}
+
+void Synchronizer::clearQueue()
+{
+    //Complete all pending flushes. Without this pending flushes would get stuck indefinitely when we clear the queue on failure.
+    //TODO we should probably fail them instead
+    for (const auto &request : mSyncRequestQueue) {
+        if (request.requestType == Synchronizer::SyncRequest::Flush) {
+            SinkTraceCtx(mLogCtx) << "Emitting flush completion: " << request.requestId;
+            emitNotification(Notification::FlushCompletion, 0, "", request.requestId);
+        }
+    }
+    mSyncRequestQueue.clear();
+}
+
+void Synchronizer::abort()
+{
+    SinkLogCtx(mLogCtx) << "Aborting all running synchronization requests";
+    clearQueue();
+    mAbort = true;
 }
 
 void Synchronizer::flush(int commandId, const QByteArray &flushId)
@@ -407,7 +480,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
         });
     } else if (request.requestType == Synchronizer::SyncRequest::Synchronization) {
         return KAsync::start([this, request] {
-            SinkLogCtx(mLogCtx) << "Synchronizing: " << request.query;
+            SinkLogCtx(mLogCtx) << "Synchronizing:" << request.query;
             setBusy(true, "Synchronization has started.", request.requestId);
             emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, {}, {}, request.applicableEntities);
         }).then(synchronizeWithSource(request.query)).then([this] {
@@ -453,7 +526,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             .then<void>([this, request](const KAsync::Error &error) {
                 setStatusFromResult(error, "Changereplay has ended.", request.requestId);
                 if (error) {
-                    SinkWarningCtx(mLogCtx) << "Changereplay failed: " << error.errorMessage;
+                    SinkWarningCtx(mLogCtx) << "Changereplay failed: " << error;
                     return KAsync::error(error);
                 } else {
                     SinkLogCtx(mLogCtx) << "Done replaying changes";
@@ -468,13 +541,33 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
 
 }
 
+/*
+ * We're using a stack so we can go back to whatever we had after the temporary busy status.
+ * Whenever we do change the status we emit a status notification.
+ */
 void Synchronizer::setStatus(ApplicationDomain::Status state, const QString &reason, const QByteArray requestId)
 {
+    //We won't be able to execute any of the coming requests, so clear them
+    if (state == ApplicationDomain::OfflineStatus || state == ApplicationDomain::ErrorStatus) {
+        clearQueue();
+    }
     if (state != mCurrentState.top()) {
+        //The busy state is transient and we want to override it.
         if (mCurrentState.top() == ApplicationDomain::BusyStatus) {
             mCurrentState.pop();
         }
-        mCurrentState.push(state);
+        if (state != mCurrentState.top()) {
+            //Always leave the first state intact
+            if (mCurrentState.count() > 1 && state != ApplicationDomain::BusyStatus) {
+                mCurrentState.pop();
+            }
+            mCurrentState.push(state);
+        }
+        //We should never have more than: (NoStatus, $SOMESTATUS, BusyStatus)
+        if (mCurrentState.count() > 3) {
+            qWarning() << mCurrentState;
+            Q_ASSERT(false);
+        }
         emitNotification(Notification::Status, state, reason, requestId);
     }
 }
@@ -499,7 +592,7 @@ void Synchronizer::setBusy(bool busy, const QString &reason, const QByteArray re
 KAsync::Job<void> Synchronizer::processSyncQueue()
 {
     if (secret().isEmpty()) {
-        SinkWarningCtx(mLogCtx) << "Secret not available but required.";
+        SinkLogCtx(mLogCtx) << "Secret not available but required.";
         emitNotification(Notification::Warning, ApplicationDomain::SyncError, "Secret is not available.", {}, {});
         return KAsync::null<void>();
     }
@@ -535,6 +628,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         mMessageQueue->commit();
         mSyncStore.clear();
         mSyncInProgress = false;
+        mAbort = false;
         if (allChangesReplayed()) {
             emit changesReplayed();
         }
@@ -545,6 +639,11 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
         //In case we got more requests meanwhile.
         return processSyncQueue();
     });
+}
+
+bool Synchronizer::aborting() const
+{
+    return mAbort;
 }
 
 void Synchronizer::commit()
@@ -615,8 +714,9 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
     //The entitystore transaction is handled by processSyncQueue
     Q_ASSERT(mEntityStore->hasTransaction());
 
-    const auto operation = metadataBuffer ? metadataBuffer->operation() : Sink::Operation_Creation;
-    const auto uid = Sink::Storage::DataStore::uidFromKey(key);
+    const auto operation = metadataBuffer->operation();
+    // TODO: should not use internal representations
+    const auto uid = Sink::Storage::Key::fromDisplayByteArray(key).identifier().toDisplayByteArray();
     const auto modifiedProperties = metadataBuffer->modifiedProperties() ? BufferUtils::fromVector(*metadataBuffer->modifiedProperties()) : QByteArrayList();
     QByteArray oldRemoteId;
 
@@ -659,36 +759,81 @@ KAsync::Job<void> Synchronizer::replay(const QByteArray &type, const QByteArray 
         SinkErrorCtx(mLogCtx) << "Replayed unknown type: " << type;
     }
 
-    return job.then([this, operation, type, uid, oldRemoteId](const QByteArray &remoteId) {
-        if (operation == Sink::Operation_Creation) {
-            SinkTraceCtx(mLogCtx) << "Replayed creation with remote id: " << remoteId;
-            if (!remoteId.isEmpty()) {
-                syncStore().recordRemoteId(type, uid, remoteId);
+    return job.then([=](const KAsync::Error &error, const QByteArray &remoteId) {
+
+        //Returning an error here means we stop replaying, so we only to that for known-to-be-transient errors.
+        if (error) {
+            switch (error.errorCode) {
+                case ApplicationDomain::ConnectionError:
+                case ApplicationDomain::NoServerError:
+                case ApplicationDomain::ConfigurationError:
+                case ApplicationDomain::LoginError:
+                case ApplicationDomain::ConnectionLostError:
+                    SinkTraceCtx(mLogCtx) << "Error during changereplay (aborting):" << error;
+                    return KAsync::error(error);
+                default:
+                    SinkErrorCtx(mLogCtx) << "Error during changereplay (continuing):" << error;
+                    break;
+
             }
-        } else if (operation == Sink::Operation_Modification) {
-            SinkTraceCtx(mLogCtx) << "Replayed modification with remote id: " << remoteId;
-            if (!remoteId.isEmpty()) {
-               syncStore().updateRemoteId(type, uid, remoteId);
-            }
-        } else if (operation == Sink::Operation_Removal) {
-            SinkTraceCtx(mLogCtx) << "Replayed removal with remote id: " << oldRemoteId;
-            if (!oldRemoteId.isEmpty()) {
-                syncStore().removeRemoteId(type, uid, oldRemoteId);
-            }
-        } else {
-            SinkErrorCtx(mLogCtx) << "Unkown operation" << operation;
         }
-    })
-    .then([this](const KAsync::Error &error) {
+
+        switch (operation) {
+            case Sink::Operation_Creation: {
+                SinkTraceCtx(mLogCtx) << "Replayed creation with remote id: " << remoteId;
+                if (!remoteId.isEmpty()) {
+                    syncStore().recordRemoteId(type, uid, remoteId);
+                }
+            }
+            break;
+            case Sink::Operation_Modification: {
+                SinkTraceCtx(mLogCtx) << "Replayed modification with remote id: " << remoteId;
+                if (!remoteId.isEmpty()) {
+                    syncStore().updateRemoteId(type, uid, remoteId);
+                }
+            }
+            break;
+            case Sink::Operation_Removal: {
+                SinkTraceCtx(mLogCtx) << "Replayed removal with remote id: " << oldRemoteId;
+                if (!oldRemoteId.isEmpty()) {
+                    syncStore().removeRemoteId(type, uid, oldRemoteId);
+                }
+            }
+            break;
+            default:
+                SinkErrorCtx(mLogCtx) << "Unkown operation" << operation;
+        }
+
         //We need to commit here otherwise the next change-replay step will abort the transaction
         mSyncStore.clear();
         mSyncTransaction.commit();
-        if (error) {
-            SinkWarningCtx(mLogCtx) << "Failed to replay change: " << error.errorMessage;
-            return KAsync::error(error);
-        }
+
+        //Ignore errors if not caught above
         return KAsync::null();
     });
+}
+
+void Synchronizer::notReplaying(const QByteArray &type, const QByteArray &key, const QByteArray &value)
+{
+
+    Sink::EntityBuffer buffer(value);
+    const Sink::Entity &entity = buffer.entity();
+    const auto metadataBuffer = Sink::EntityBuffer::readBuffer<Sink::Metadata>(entity.metadata());
+    if (!metadataBuffer) {
+        SinkErrorCtx(mLogCtx) << "No metadata buffer available.";
+        Q_ASSERT(false);
+        return;
+    }
+    if (metadataBuffer->operation() == Sink::Operation_Removal) {
+        const auto uid = Sink::Storage::Key::fromDisplayByteArray(key).identifier().toDisplayByteArray();
+        const auto oldRemoteId = syncStore().resolveLocalId(type, uid);
+        SinkLogCtx(mLogCtx) << "Cleaning up removal with remote id: " << oldRemoteId;
+        if (!oldRemoteId.isEmpty()) {
+            syncStore().removeRemoteId(type, uid, oldRemoteId);
+        }
+    }
+    mSyncStore.clear();
+    mSyncTransaction.commit();
 }
 
 KAsync::Job<QByteArray> Synchronizer::replay(const ApplicationDomain::Contact &, Sink::Operation, const QByteArray &, const QList<QByteArray> &)

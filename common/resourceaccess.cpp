@@ -424,6 +424,11 @@ KAsync::Job<void> ResourceAccess::sendSecret(const QString &secret)
     return sendCommand(Sink::Commands::SecretCommand, fbb);
 }
 
+KAsync::Job<void> ResourceAccess::shutdown()
+{
+    return sendCommand(Sink::Commands::ShutdownCommand);
+}
+
 void ResourceAccess::open()
 {
     if (d->socket && d->socket->isValid()) {

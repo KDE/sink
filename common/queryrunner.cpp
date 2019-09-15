@@ -271,7 +271,14 @@ void QueryWorker<DomainType>::resultProviderCallback(const Sink::Query &query, S
     for (auto it = result.aggregateValues.constBegin(); it != result.aggregateValues.constEnd(); it++) {
         valueCopy->setProperty(it.key(), it.value());
     }
-    valueCopy->aggregatedIds() = result.aggregateIds;
+    valueCopy->aggregatedIds() = [&] {
+        QVector<QByteArray> aggregateIdsBA;
+        aggregateIdsBA.reserve(result.aggregateIds.size());
+        for (const auto &id : result.aggregateIds) {
+            aggregateIdsBA << id.toDisplayByteArray();
+        }
+        return aggregateIdsBA;
+    }();
     if (mResultTransformation) {
         mResultTransformation(*valueCopy);
     }

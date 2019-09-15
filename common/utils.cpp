@@ -23,3 +23,13 @@ QByteArray Sink::createUuid()
 {
     return QUuid::createUuid().toByteArray();
 }
+
+const QByteArray Sink::sizeTToByteArray(const size_t &value)
+{
+    return QByteArray::fromRawData(reinterpret_cast<const char *>(&value), sizeof(size_t));
+}
+
+size_t Sink::byteArrayToSizeT(const QByteArray &value)
+{
+    return *reinterpret_cast<const size_t *>(value.constData());
+}

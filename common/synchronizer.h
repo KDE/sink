@@ -62,6 +62,11 @@ public:
 
     void setSecret(const QString &s);
 
+    //Abort all running synchronization requests
+    void abort();
+
+    KAsync::Job<void> processSyncQueue();
+
 signals:
     void notify(Notification);
 
@@ -70,8 +75,9 @@ public slots:
 
 protected:
     ///Base implementation calls the replay$Type calls
-    KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
-    virtual bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) Q_DECL_OVERRIDE;
+    KAsync::Job<void> replay(const QByteArray &type, const QByteArray &key, const QByteArray &value) override;
+    virtual bool canReplay(const QByteArray &type, const QByteArray &key, const QByteArray &value) override;
+    virtual void notReplaying(const QByteArray &type, const QByteArray &key, const QByteArray &value) override;
 
 protected:
     ///Implement to write back changes to the server
@@ -122,6 +128,8 @@ protected:
     void SINK_EXPORT modify(const DomainType &entity, const QByteArray &newResource = QByteArray(), bool remove = false);
     // template <typename DomainType>
     // void remove(const DomainType &entity);
+ 
+    QByteArrayList resolveQuery(const QueryBase &query);
     QByteArrayList resolveFilter(const QueryBase::Comparator &filter);
 
     virtual KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) = 0;
@@ -199,6 +207,7 @@ protected:
      * This allows the synchronizer to merge new requests with existing requests in the queue.
      */
     virtual void mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue);
+    void addToQueue(const Synchronizer::SyncRequest &request);
 
     void emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id = QByteArray{}, const QByteArrayList &entiteis = QByteArrayList{});
     void emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArrayList &entities);
@@ -210,16 +219,23 @@ protected:
 
     Sink::Log::Context mLogCtx;
 
+    /**
+     * True while aborting.
+     *
+     * Stop the synchronization as soon as possible.
+     */
+    bool aborting() const;
+
 private:
     QStack<ApplicationDomain::Status> mCurrentState;
     void setStatusFromResult(const KAsync::Error &error, const QString &s, const QByteArray &requestId);
     void setStatus(ApplicationDomain::Status busy, const QString &reason, const QByteArray requestId);
     void resetStatus(const QByteArray requestId);
     void setBusy(bool busy, const QString &reason, const QByteArray requestId);
+    void clearQueue();
 
     void modifyIfChanged(Storage::EntityStore &store, const QByteArray &bufferType, const QByteArray &sinkId, const Sink::ApplicationDomain::ApplicationDomainType &entity);
     KAsync::Job<void> processRequest(const SyncRequest &request);
-    KAsync::Job<void> processSyncQueue();
 
     Sink::ResourceContext mResourceContext;
     Sink::Storage::EntityStore::Ptr mEntityStore;
@@ -231,6 +247,7 @@ private:
     SyncRequest mCurrentRequest;
     MessageQueue *mMessageQueue;
     bool mSyncInProgress;
+    bool mAbort;
     QMultiHash<QByteArray, SyncRequest> mPendingSyncRequests;
     QString mSecret;
 };

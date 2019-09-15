@@ -35,6 +35,7 @@
 #include <KIMAP2/SubscribeJob>
 
 #include <KCoreAddons/KJob>
+#include <QHostInfo>
 
 #include "log.h"
 #include "test.h"
@@ -65,28 +66,19 @@ const char* Imap::Capabilities::Condstore = "CONDSTORE";
 
 static int translateImapError(KJob *job)
 {
-    const int error = job->error();
-    const bool isLoginJob = dynamic_cast<KIMAP2::LoginJob*>(job);
-    const bool isSelectJob = dynamic_cast<KIMAP2::SelectJob*>(job);
-    switch (error) {
-        case KIMAP2::LoginJob::ErrorCode::ERR_HOST_NOT_FOUND:
+    switch (job->error()) {
+        case KIMAP2::HostNotFound:
             return Imap::HostNotFoundError;
-        case KIMAP2::LoginJob::ErrorCode::ERR_COULD_NOT_CONNECT:
+        case KIMAP2::CouldNotConnect:
             return Imap::CouldNotConnectError;
-        case KIMAP2::LoginJob::ErrorCode::ERR_SSL_HANDSHAKE_FAILED:
+        case KIMAP2::SslHandshakeFailed:
             return Imap::SslHandshakeError;
-    }
-    //Hack to detect login failures
-    if (isLoginJob) {
-        return Imap::LoginFailed;
-    }
-    //Hack to detect selection errors
-    if (isSelectJob) {
-        return Imap::SelectFailed;
-    }
-    //Hack to detect connection lost
-    if (error == KJob::UserDefinedError) {
-        return Imap::ConnectionLost;
+        case KIMAP2::ConnectionLost:
+            return Imap::ConnectionLost;
+        case KIMAP2::LoginFailed:
+            return Imap::LoginFailed;
+        case KIMAP2::CommandFailed:
+            return Imap::CommandFailed;
     }
     return Imap::UnknownError;
 }
@@ -132,7 +124,7 @@ static KAsync::Job<void> runJob(KJob *job)
 static int socketTimeout()
 {
     if (Sink::Test::testModeEnabled()) {
-        return 1;
+        return 5;
     }
     return 40;
 }
@@ -142,7 +134,10 @@ KIMAP2::Session *createNewSession(const QString &serverUrl, int port)
     auto newSession = new KIMAP2::Session(serverUrl, qint16(port));
     newSession->setTimeout(socketTimeout());
     QObject::connect(newSession, &KIMAP2::Session::sslErrors, [=](const QList<QSslError> &errors) {
-        SinkLog() << "Received ssl error: " << errors;
+        SinkWarning() << "Received SSL errors:";
+        for (const auto &e : errors) {
+            SinkWarning() << "  " << e.error() << ":" << e.errorString() << "Certificate: " << e.certificate().toText();
+        }
         newSession->ignoreErrors(errors);
     });
     return newSession;
@@ -177,10 +172,20 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     }
     Q_ASSERT(mSession);
     if (mSession->state() == KIMAP2::Session::Authenticated || mSession->state() == KIMAP2::Session::Selected) {
-        //Prevent the socket from timing out right away, right here (otherwise it just might time out right before we were able to start the job)
-        mSession->setTimeout(socketTimeout());
-        SinkLog() << "Reusing existing session.";
-        return KAsync::null();
+        //If we blindly reuse the socket it may very well be stale and then we have to wait for it to time out.
+        //A hostlookup should be fast (a couple of milliseconds once cached), and can typcially tell us quickly
+        //if the host is no longer available.
+        auto info = QHostInfo::fromName(mSession->hostName());
+        if (info.error()) {
+            SinkLog() << "Failed host lookup, closing the socket" << info.errorString();
+            mSession->close();
+            return KAsync::error(Imap::HostNotFoundError);
+        } else {
+            //Prevent the socket from timing out right away, right here (otherwise it just might time out right before we were able to start the job)
+            mSession->setTimeout(socketTimeout());
+            SinkLog() << "Reusing existing session.";
+            return KAsync::null();
+        }
     }
     auto loginJob = new KIMAP2::LoginJob(mSession);
     loginJob->setUserName(username);
@@ -580,7 +585,7 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
                 return;
             }
         }
-        SinkLog() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect  << " sub: " << subscribed;
+        SinkTrace() << "Found mailbox: " << mailbox.name << flags << FolderFlags::Noselect << noselect  << " sub: " << subscribed;
         //Ignore all non-mail folders
         if (metaData->contains(mailbox.name)) {
             auto m = metaData->value(mailbox.name);
@@ -588,7 +593,7 @@ KAsync::Job<void> ImapServerProxy::fetchFolders(std::function<void(const Folder 
             auto privateType = m.value("/private/vendor/kolab/folder-type");
             auto type = !privateType.isEmpty() ? privateType : sharedType;
             if (!type.isEmpty() && !type.contains("mail")) {
-                SinkLog() << "Skipping due to folder type: " << type;
+                SinkTrace() << "Skipping due to folder type: " << type;
                 return;
             }
         }

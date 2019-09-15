@@ -91,7 +91,7 @@ SINK_EXPORT bool isFiltered(DebugLevel debugLevel, const char *debugArea, const 
 }
 }
 
-static const char *getComponentName() { return nullptr; }
+SINK_EXPORT const char *getComponentName() __attribute__ ((unused));
 
 #define SINK_DEBUG_STREAM_IMPL(LEVEL, AREA, COMPONENT) if (!Sink::Log::isFiltered(LEVEL, AREA, COMPONENT, __FILE__)) Sink::Log::debugStream(LEVEL, __LINE__, __FILE__, Q_FUNC_INFO, AREA, COMPONENT)
 

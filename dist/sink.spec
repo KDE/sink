@@ -1,12 +1,12 @@
 
 Name:           sink
-Version:        0.7.0
+Version:        0.8.0
 Release:        0%{?dist}
 Summary:        sink
 
 Group:          Applications/Desktop
 License:        GPL
-URL:            https://docs.kolab.org/about/sink
+URL:            https://phabricator.kde.org/project/profile/5/
 Source0:        sink-%{version}.tar.xz
 
 BuildRequires:  cmake >= 2.8.12
@@ -18,13 +18,12 @@ BuildRequires:  kf5-kcoreaddons-devel
 BuildRequires:  kf5-kcontacts-devel
 BuildRequires:  kf5-kmime-devel
 BuildRequires:  kf5-kcalendarcore-devel
-BuildRequires:  kimap2-devel >= 0.2
-BuildRequires:  kdav2-devel
+BuildRequires:  kimap2-devel >= 0.3
+BuildRequires:  kdav2-devel >= 0.3
 BuildRequires:  libcurl-devel
 BuildRequires:  libgit2-devel
 BuildRequires:  lmdb-devel
 BuildRequires:  qt5-qtbase-devel
-BuildRequires:  readline-devel
 BuildRequires:  xapian-core-devel >= 1.4
 
 %description

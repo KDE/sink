@@ -46,13 +46,17 @@ using namespace Sink::Storage;
 CommandProcessor::CommandProcessor(Sink::Pipeline *pipeline, const QByteArray &instanceId, const Sink::Log::Context &ctx)
     : QObject(),
     mLogCtx(ctx.subContext("commandprocessor")),
-    mPipeline(pipeline), 
+    mPipeline(pipeline),
     mUserQueue(Sink::storageLocation(), instanceId + ".userqueue"),
     mSynchronizerQueue(Sink::storageLocation(), instanceId + ".synchronizerqueue"),
-    mCommandQueues(QList<MessageQueue*>() << &mUserQueue << &mSynchronizerQueue), mProcessingLock(false), mLowerBoundRevision(0)
+    mCommandQueues({&mUserQueue, &mSynchronizerQueue}), mProcessingLock(false), mLowerBoundRevision(0)
 {
     for (auto queue : mCommandQueues) {
-        const bool ret = connect(queue, &MessageQueue::messageReady, this, &CommandProcessor::process);
+        /*
+         * This is a queued connection because otherwise we would execute CommandProcessor::process in the middle of
+         * Synchronizer::commit, which is not what we want.
+         */
+        const bool ret = connect(queue, &MessageQueue::messageReady, this, &CommandProcessor::process, Qt::QueuedConnection);
         Q_UNUSED(ret);
     }
 
@@ -79,12 +83,16 @@ void CommandProcessor::processCommand(int commandId, const QByteArray &data)
         case Commands::SynchronizeCommand:
             processSynchronizeCommand(data);
             break;
+        case Commands::AbortSynchronizationCommand:
+            mSynchronizer->abort();
+            break;
         // case Commands::RevisionReplayedCommand:
         //     processRevisionReplayedCommand(data);
         //     break;
         default: {
             static int modifications = 0;
             mUserQueue.startTransaction();
+            SinkTraceCtx(mLogCtx) << "Received a command" << commandId;
             enqueueCommand(mUserQueue, commandId, data);
             modifications++;
             if (modifications >= sBatchSize) {
@@ -105,6 +113,7 @@ void CommandProcessor::processFlushCommand(const QByteArray &data)
         auto buffer = Sink::Commands::GetFlush(data.constData());
         const auto flushType = buffer->type();
         const auto flushId = BufferUtils::extractBufferCopy(buffer->id());
+        SinkTraceCtx(mLogCtx) << "Received flush command " << flushId;
         if (flushType == Sink::Flush::FlushSynchronization) {
             mSynchronizer->flush(flushType, flushId);
         } else {
@@ -121,8 +130,6 @@ void CommandProcessor::processSynchronizeCommand(const QByteArray &data)
     flatbuffers::Verifier verifier((const uint8_t *)data.constData(), data.size());
     if (Sink::Commands::VerifySynchronizeBuffer(verifier)) {
         auto buffer = Sink::Commands::GetSynchronize(data.constData());
-        auto timer = QSharedPointer<QTime>::create();
-        timer->start();
         Sink::QueryBase query;
         if (buffer->query()) {
             auto data = QByteArray::fromStdString(buffer->query()->str());
@@ -178,12 +185,12 @@ void CommandProcessor::process()
                     .exec();
 }
 
-KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const Sink::QueuedCommand *queuedCommand)
+KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const Sink::QueuedCommand &queuedCommand)
 {
-    SinkTraceCtx(mLogCtx) << "Processing command: " << Sink::Commands::name(queuedCommand->commandId());
-    const auto data = queuedCommand->command()->Data();
-    const auto size = queuedCommand->command()->size();
-    switch (queuedCommand->commandId()) {
+    SinkTraceCtx(mLogCtx) << "Processing command: " << Sink::Commands::name(queuedCommand.commandId());
+    const auto data = queuedCommand.command()->Data();
+    const auto size = queuedCommand.command()->size();
+    switch (queuedCommand.commandId()) {
         case Sink::Commands::DeleteEntityCommand:
             return mPipeline->deletedEntity(data, size);
         case Sink::Commands::ModifyEntityCommand:
@@ -211,7 +218,7 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
     }
     auto queuedCommand = Sink::GetQueuedCommand(data.constData());
     const auto commandId = queuedCommand->commandId();
-    return processQueuedCommand(queuedCommand)
+    return processQueuedCommand(*queuedCommand)
         .then<qint64, qint64>(
             [this, commandId](const KAsync::Error &error, qint64 createdRevision) -> KAsync::Job<qint64> {
                 if (error) {
@@ -223,35 +230,43 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
             });
 }
 
-// Process all messages of this queue
+// Process one batch of messages from this queue
 KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
 {
     auto time = QSharedPointer<QTime>::create();
-    return KAsync::start([this]() { mPipeline->startTransaction(); })
-        .then(KAsync::doWhile(
-            [this, queue, time]() -> KAsync::Job<KAsync::ControlFlowFlag> {
+    return KAsync::start([=] { mPipeline->startTransaction(); })
+        .then([=] {
                 return queue->dequeueBatch(sBatchSize,
-                    [this, time](const QByteArray &data) -> KAsync::Job<void> {
+                    [=](const QByteArray &data) {
                         time->start();
                         return processQueuedCommand(data)
-                        .then([this, time](qint64 createdRevision) {
+                        .then([=](qint64 createdRevision) {
                             SinkTraceCtx(mLogCtx) << "Created revision " << createdRevision << ". Processing took: " << Log::TraceTime(time->elapsed());
                         });
                     })
-                    .then<KAsync::ControlFlowFlag>([queue, this](const KAsync::Error &error) {
-                            if (error) {
-                                if (error.errorCode != MessageQueue::ErrorCodes::NoMessageFound) {
-                                    SinkWarningCtx(mLogCtx) << "Error while getting message from messagequeue: " << error.errorMessage;
-                                }
+                    .then([=](const KAsync::Error &error) {
+                        if (error) {
+                            if (error.errorCode != MessageQueue::ErrorCodes::NoMessageFound) {
+                                SinkWarningCtx(mLogCtx) << "Error while getting message from messagequeue: " << error.errorMessage;
                             }
-                            if (queue->isEmpty()) {
-                                return KAsync::Break;
-                            } else {
-                                return KAsync::Continue;
-                            }
-                        });
-            }))
-        .then([this](const KAsync::Error &) { mPipeline->commit(); });
+                        }
+                    });
+            })
+        .then([=](const KAsync::Error &) {
+            mPipeline->commit();
+            //The flushed content has been persistet, we can notify the world
+            for (const auto &flushId : mCompleteFlushes) {
+                SinkTraceCtx(mLogCtx) << "Emitting flush completion" << flushId;
+                mSynchronizer->flushComplete(flushId);
+                Sink::Notification n;
+                n.type = Sink::Notification::FlushCompletion;
+                n.id = flushId;
+                emit notify(n);
+            }
+            mCompleteFlushes.clear();
+        });
+
+
 }
 
 KAsync::Job<void> CommandProcessor::processPipeline()
@@ -265,21 +280,19 @@ KAsync::Job<void> CommandProcessor::processPipeline()
     if (mCommandQueues.isEmpty()) {
         return KAsync::null<void>();
     }
-    auto it = QSharedPointer<QListIterator<MessageQueue *>>::create(mCommandQueues);
-    return KAsync::doWhile(
-        [it, this]() {
-            auto time = QSharedPointer<QTime>::create();
-            time->start();
-
-            auto queue = it->next();
-            return processQueue(queue)
-                .then([this, time, it]() {
-                    SinkTraceCtx(mLogCtx) << "Queue processed." << Log::TraceTime(time->elapsed());
-                    if (it->hasNext()) {
-                        return KAsync::Continue;
-                    }
-                    return KAsync::Break;
-                });
+    return KAsync::doWhile([this]() {
+            for (auto queue : mCommandQueues) {
+                if (!queue->isEmpty()) {
+                    auto time = QSharedPointer<QTime>::create();
+                    time->start();
+                    return processQueue(queue)
+                        .then([=] {
+                            SinkTraceCtx(mLogCtx) << "Queue processed." << Log::TraceTime(time->elapsed());
+                            return KAsync::Continue;
+                        });
+                }
+            }
+            return KAsync::value(KAsync::Break);
         });
 }
 
@@ -308,16 +321,12 @@ KAsync::Job<void> CommandProcessor::flush(void const *command, size_t size)
         const QByteArray flushId = BufferUtils::extractBufferCopy(buffer->id());
         Q_ASSERT(!flushId.isEmpty());
         if (flushType == Sink::Flush::FlushReplayQueue) {
-            SinkTraceCtx(mLogCtx) << "Flushing synchronizer ";
+            SinkTraceCtx(mLogCtx) << "Flushing synchronizer " << flushId;
             Q_ASSERT(mSynchronizer);
             mSynchronizer->flush(flushType, flushId);
         } else {
-            SinkTraceCtx(mLogCtx) << "Emitting flush completion" << flushId;
-            mSynchronizer->flushComplete(flushId);
-            Sink::Notification n;
-            n.type = Sink::Notification::FlushCompletion;
-            n.id = flushId;
-            emit notify(n);
+            //Defer notification until the results have been comitted
+            mCompleteFlushes << flushId;
         }
         return KAsync::null<void>();
     }
@@ -329,7 +338,11 @@ static void waitForDrained(KAsync::Future<void> &f, MessageQueue &queue)
     if (queue.isEmpty()) {
         f.setFinished();
     } else {
-        QObject::connect(&queue, &MessageQueue::drained, [&f]() { f.setFinished(); });
+        auto context = new QObject;
+        QObject::connect(&queue, &MessageQueue::drained, context, [&f, context]() {
+            delete context;
+            f.setFinished();
+        });
     }
 };
 
@@ -352,7 +365,7 @@ KAsync::Job<void> CommandProcessor::processAllMessages()
         .then<void>([this](KAsync::Future<void> &f) { waitForDrained(f, mSynchronizerQueue); })
         .then<void>([this](KAsync::Future<void> &f) { waitForDrained(f, mUserQueue); })
         .then<void>([this](KAsync::Future<void> &f) {
-            if (mSynchronizer->allChangesReplayed()) {
+            if (mSynchronizer->ChangeReplay::allChangesReplayed()) {
                 f.setFinished();
             } else {
                 auto context = new QObject;
@@ -360,6 +373,7 @@ KAsync::Job<void> CommandProcessor::processAllMessages()
                     delete context;
                     f.setFinished();
                 });
+                mSynchronizer->replayNextRevision().exec();
             }
         });
 }

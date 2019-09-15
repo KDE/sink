@@ -6,7 +6,6 @@
 #include <iostream>
 
 #include "dummyresource/resourcefactory.h"
-#include "dummyresource/domainadaptor.h"
 #include "store.h"
 #include "commands.h"
 #include "entitybuffer.h"

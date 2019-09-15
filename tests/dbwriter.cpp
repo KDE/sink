@@ -29,14 +29,14 @@ int main(int argc, char *argv[])
             qWarning() << "No valid transaction";
             return -1;
         }
-        transaction.openDatabase("a", nullptr, false).write(QByteArray::number(i), "a");
-        transaction.openDatabase("b", nullptr, false).write(QByteArray::number(i), "b");
-        transaction.openDatabase("c", nullptr, false).write(QByteArray::number(i), "c");
-        transaction.openDatabase("p", nullptr, false).write(QByteArray::number(i), "c");
-        transaction.openDatabase("q", nullptr, false).write(QByteArray::number(i), "c");
+        transaction.openDatabase("a", nullptr, 0).write(QByteArray::number(i), "a");
+        transaction.openDatabase("b", nullptr, 0).write(QByteArray::number(i), "b");
+        transaction.openDatabase("c", nullptr, 0).write(QByteArray::number(i), "c");
+        transaction.openDatabase("p", nullptr, 0).write(QByteArray::number(i), "c");
+        transaction.openDatabase("q", nullptr, 0).write(QByteArray::number(i), "c");
         if (i > (count/2)) {
             for (int d = 0; d < 40; d++) {
-                transaction.openDatabase("db" + QByteArray::number(d), nullptr, false).write(QByteArray::number(i), "a");
+                transaction.openDatabase("db" + QByteArray::number(d), nullptr, 0).write(QByteArray::number(i), "a");
             }
         }
         if ((i % 1000) == 0) {

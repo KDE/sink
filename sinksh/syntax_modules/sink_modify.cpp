@@ -38,29 +38,21 @@
 namespace SinkModify
 {
 
-bool modify(const QStringList &args, State &state)
+Syntax::List syntax();
+
+bool modify(QStringList args, State &state)
 {
-    if (args.isEmpty()) {
-        state.printError(QObject::tr("A type is required"), "sink_modify/02");
-        return false;
-    }
-
-    if (args.count() < 2) {
-        state.printError(QObject::tr("A resource ID is required to remove items"), "sink_modify/03");
-        return false;
-    }
-
     if (args.count() < 3) {
-        state.printError(QObject::tr("An object ID is required to remove items"), "sink_modify/03");
+        state.printError(syntax()[0].usage());
         return false;
     }
 
-    auto type = args[0];
-    auto resourceId = args[1];
-    auto identifier = args[2];
+    const auto type = args.takeFirst();
+    const auto resourceId = SinkshUtils::parseUid(args.takeFirst().toLatin1());
+    const auto identifier = SinkshUtils::parseUid(args.takeFirst().toLatin1());
 
     auto &store = SinkshUtils::getStore(type);
-    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject(resourceId.toUtf8(), identifier.toUtf8());
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject(resourceId, identifier);
 
     auto map = SinkshUtils::keyValueMapFromArgs(args);
     for (auto i = map.begin(); i != map.end(); ++i) {
@@ -71,45 +63,54 @@ bool modify(const QStringList &args, State &state)
     auto result = store.modify(*object).exec();
     result.waitForFinished();
     if (result.errorCode()) {
-        state.printError(QObject::tr("An error occurred while removing %1 from %1: %2").arg(identifier).arg(resourceId).arg(result.errorMessage()),
-                         "akonaid__modify_e" + QString::number(result.errorCode()));
+        state.printError(QObject::tr("An error occurred while removing %1 from %1: %2").arg(QString{identifier}).arg(QString{resourceId}).arg(result.errorMessage()),
+                         "sinksh__modify_e" + QString::number(result.errorCode()));
     }
 
     return true;
 }
 
-bool resource(const QStringList &args, State &state)
+bool resource(QStringList args, State &state)
 {
     if (args.isEmpty()) {
+        // TODO: pass the syntax as parameter
         state.printError(QObject::tr("A resource can not be modified without an id"), "sink_modify/01");
     }
 
     auto &store = SinkshUtils::getStore("resource");
 
-    auto resourceId = args.at(0);
-    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", resourceId.toLatin1());
+    auto resourceId = SinkshUtils::parseUid(args.takeFirst().toLatin1());
+    Sink::ApplicationDomain::ApplicationDomainType::Ptr object = store.getObject("", resourceId);
 
     auto map = SinkshUtils::keyValueMapFromArgs(args);
     for (auto i = map.begin(); i != map.end(); ++i) {
         const auto property = i.key().toLatin1();
-        object->setProperty(property, Sink::PropertyParser::parse("resource", property, i.value()));
+        object->setProperty(property, i.value());
     }
 
     auto result = store.modify(*object).exec();
     result.waitForFinished();
     if (result.errorCode()) {
-        state.printError(QObject::tr("An error occurred while modifying the resource %1: %2").arg(resourceId).arg(result.errorMessage()),
-                         "akonaid_modify_e" + QString::number(result.errorCode()));
+        state.printError(QObject::tr("An error occurred while modifying the resource %1: %2").arg(QString{resourceId}).arg(result.errorMessage()),
+                         "sinksh_modify_e" + QString::number(result.errorCode()));
     }
 
     return true;
 }
 
-
 Syntax::List syntax()
 {
     Syntax modify("modify", QObject::tr("Modify items in a resource"), &SinkModify::modify);
+    modify.addPositionalArgument({"type", "The type of entity to modify (mail, event, etc.)"});
+    modify.addPositionalArgument({"resourceId", "The ID of the resource containing the entity"});
+    modify.addPositionalArgument({"objectId", "The ID of the entity"});
+    modify.addPositionalArgument({"key value", "Attributes and values to modify", false, true });
+
     Syntax resource("resource", QObject::tr("Modify a resource"), &SinkModify::resource);//, Syntax::EventDriven);
+
+    resource.addPositionalArgument({"id", "The ID of the resource" });
+    resource.addPositionalArgument({"key value", "Attributes and values to modify", false, true});
+
     resource.completer = &SinkshUtils::resourceOrTypeCompleter;
     modify.children << resource;
 

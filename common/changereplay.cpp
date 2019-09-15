@@ -19,10 +19,10 @@
  */
 #include "changereplay.h"
 
-#include "entitybuffer.h"
 #include "log.h"
 #include "definitions.h"
 #include "bufferutils.h"
+#include "storage/key.h"
 
 #include <QTimer>
 
@@ -113,28 +113,31 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                         if (uid.isEmpty() || type.isEmpty()) {
                             SinkErrorCtx(mLogCtx) << "Failed to read uid or type for revison: " << revision << uid << type;
                         } else {
-                            const auto key = DataStore::assembleKey(uid, revision);
+                            // TODO: should not use internal representations
+                            const auto key = Storage::Key(Storage::Identifier::fromDisplayByteArray(uid), revision);
+                            const auto displayKey = key.toDisplayByteArray();
                             QByteArray entityBuffer;
                             DataStore::mainDatabase(mMainStoreTransaction, type)
-                                .scan(key,
-                                    [&entityBuffer](const QByteArray &key, const QByteArray &value) -> bool {
+                                .scan(revision,
+                                    [&entityBuffer](const size_t, const QByteArray &value) -> bool {
                                         entityBuffer = value;
                                         return false;
                                     },
-                                    [this, key](const DataStore::Error &) { SinkErrorCtx(mLogCtx) << "Failed to read the entity buffer " << key; });
+                                    [this, key](const DataStore::Error &e) { SinkErrorCtx(mLogCtx) << "Failed to read the entity buffer " << key << "error:" << e; });
 
                             if (entityBuffer.isEmpty()) {
                                 SinkErrorCtx(mLogCtx) << "Failed to replay change " << key;
                             } else {
-                                if (canReplay(type, key, entityBuffer)) {
-                                    SinkTraceCtx(mLogCtx) << "Replaying " << key;
-                                    replayJob = replay(type, key, entityBuffer);
+                                if (canReplay(type, displayKey, entityBuffer)) {
+                                    SinkTraceCtx(mLogCtx) << "Replaying " << displayKey;
+                                    replayJob = replay(type, displayKey, entityBuffer);
                                     //Set the last revision we tried to replay
                                     *lastReplayedRevision = revision;
                                     //Execute replay job and commit
                                     break;
                                 } else {
                                     SinkTraceCtx(mLogCtx) << "Not replaying " << key;
+                                    notReplaying(type, displayKey, entityBuffer);
                                     //We silently skip over revisions that cannot be replayed, as this is not an error.
                                 }
                             }
@@ -167,9 +170,6 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
         })
         .then([this](const KAsync::Error &error) {
             SinkTraceCtx(mLogCtx) << "Change replay complete.";
-            if (error) {
-                SinkWarningCtx(mLogCtx) << "Error during change replay: " << error;
-            }
             mMainStoreTransaction.abort();
             mReplayInProgress = false;
             if (ChangeReplay::allChangesReplayed()) {

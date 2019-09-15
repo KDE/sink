@@ -20,8 +20,8 @@
 #pragma once
 
 #include "sink_export.h"
-#include <resource.h>
-#include <resourcecontext.h>
+#include "resource.h"
+#include "resourcecontext.h"
 
 namespace Sink {
 class Pipeline;
@@ -35,6 +35,7 @@ class CommandProcessor;
  */
 class SINK_EXPORT GenericResource : public Resource
 {
+    Q_OBJECT
 public:
     GenericResource(const Sink::ResourceContext &context, const QSharedPointer<Pipeline> &pipeline = QSharedPointer<Pipeline>());
     virtual ~GenericResource() Q_DECL_OVERRIDE;

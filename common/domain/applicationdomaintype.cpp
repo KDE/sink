@@ -24,7 +24,12 @@
 #include "propertyregistry.h"
 #include "storage.h" //for generateUid()
 #include "utils.h" //for generateUid()
-#include <QFile>
+
+QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::Contact::Email &e)
+{
+    d << "Email(" << e.email << ", " << e.type << ")";
+    return d;
+}
 
 QDebug Sink::ApplicationDomain::operator<< (QDebug d, const Sink::ApplicationDomain::Mail::Contact &c)
 {
@@ -76,20 +81,12 @@ int registerProperty() {
     return 0;
 }
 
-#define SINK_REGISTER_ENTITY(ENTITY) \
-    constexpr const char *ENTITY::name;
-
 #define SINK_REGISTER_PROPERTY(ENTITYTYPE, PROPERTY) \
-    constexpr const char *ENTITYTYPE::PROPERTY::name; \
     static int foo##ENTITYTYPE##PROPERTY = registerProperty<ENTITYTYPE, ENTITYTYPE::PROPERTY>();
 
 namespace Sink {
 namespace ApplicationDomain {
 
-constexpr const char *SinkResource::name;
-constexpr const char *SinkAccount::name;
-
-SINK_REGISTER_ENTITY(Mail);
 SINK_REGISTER_PROPERTY(Mail, Sender);
 SINK_REGISTER_PROPERTY(Mail, To);
 SINK_REGISTER_PROPERTY(Mail, Cc);
@@ -105,10 +102,9 @@ SINK_REGISTER_PROPERTY(Mail, Draft);
 SINK_REGISTER_PROPERTY(Mail, Trash);
 SINK_REGISTER_PROPERTY(Mail, Sent);
 SINK_REGISTER_PROPERTY(Mail, MessageId);
-SINK_REGISTER_PROPERTY(Mail, ParentMessageId);
+SINK_REGISTER_PROPERTY(Mail, ParentMessageIds);
 SINK_REGISTER_PROPERTY(Mail, ThreadId);
 
-SINK_REGISTER_ENTITY(Folder);
 SINK_REGISTER_PROPERTY(Folder, Name);
 SINK_REGISTER_PROPERTY(Folder, Icon);
 SINK_REGISTER_PROPERTY(Folder, SpecialPurpose);
@@ -117,7 +113,6 @@ SINK_REGISTER_PROPERTY(Folder, Parent);
 SINK_REGISTER_PROPERTY(Folder, Count);
 SINK_REGISTER_PROPERTY(Folder, FullContentAvailable);
 
-SINK_REGISTER_ENTITY(Contact);
 SINK_REGISTER_PROPERTY(Contact, Uid);
 SINK_REGISTER_PROPERTY(Contact, Fn);
 SINK_REGISTER_PROPERTY(Contact, Firstname);
@@ -127,22 +122,21 @@ SINK_REGISTER_PROPERTY(Contact, Vcard);
 SINK_REGISTER_PROPERTY(Contact, Addressbook);
 SINK_REGISTER_PROPERTY(Contact, Photo);
 
-SINK_REGISTER_ENTITY(Addressbook);
 SINK_REGISTER_PROPERTY(Addressbook, Name);
 SINK_REGISTER_PROPERTY(Addressbook, Parent);
 SINK_REGISTER_PROPERTY(Addressbook, LastUpdated);
+SINK_REGISTER_PROPERTY(Addressbook, Enabled);
 
-SINK_REGISTER_ENTITY(Event);
 SINK_REGISTER_PROPERTY(Event, Uid);
 SINK_REGISTER_PROPERTY(Event, Summary);
 SINK_REGISTER_PROPERTY(Event, Description);
 SINK_REGISTER_PROPERTY(Event, StartTime);
 SINK_REGISTER_PROPERTY(Event, EndTime);
 SINK_REGISTER_PROPERTY(Event, AllDay);
+SINK_REGISTER_PROPERTY(Event, Recurring);
 SINK_REGISTER_PROPERTY(Event, Ical);
 SINK_REGISTER_PROPERTY(Event, Calendar);
 
-SINK_REGISTER_ENTITY(Todo);
 SINK_REGISTER_PROPERTY(Todo, Uid);
 SINK_REGISTER_PROPERTY(Todo, Summary);
 SINK_REGISTER_PROPERTY(Todo, Description);
@@ -155,8 +149,10 @@ SINK_REGISTER_PROPERTY(Todo, Categories);
 SINK_REGISTER_PROPERTY(Todo, Ical);
 SINK_REGISTER_PROPERTY(Todo, Calendar);
 
-SINK_REGISTER_ENTITY(Calendar);
 SINK_REGISTER_PROPERTY(Calendar, Name);
+SINK_REGISTER_PROPERTY(Calendar, Color);
+SINK_REGISTER_PROPERTY(Calendar, Enabled);
+SINK_REGISTER_PROPERTY(Calendar, ContentTypes);
 
 static const int foo = [] {
     QMetaType::registerEqualsComparator<Reference>();

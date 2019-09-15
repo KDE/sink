@@ -17,11 +17,11 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
-#include <QCoreApplication>
 #include <QDebug>
 #include <QObject> // tr()
 #include <QModelIndex>
 #include <QTime>
+#include <iostream>
 
 #include "common/resource.h"
 #include "common/storage.h"
@@ -38,6 +38,8 @@
 
 namespace SinkList
 {
+
+Syntax::List syntax();
 
 static QByteArray compressId(bool compress, const QByteArray &id)
 {
@@ -61,6 +63,17 @@ QByteArray baIfAvailable(const QStringList &list)
         return QByteArray{};
     }
     return list.first().toUtf8();
+}
+
+template <typename T>
+static QString qDebugToString(const T &c)
+{
+    QString s;
+    {
+        QDebug debug{&s};
+        debug << c;
+    }
+    return s;
 }
 
 QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o, bool compact, const QByteArrayList &toPrint, bool limitPropertySize)
@@ -87,6 +100,12 @@ QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o,
                 }
             } else if (value.canConvert<QByteArrayList>()) {
                 line << value.value<QByteArrayList>().join(", ");
+            } else if (value.canConvert<Sink::ApplicationDomain::Mail::Contact>()) {
+                line << qDebugToString(value.value<Sink::ApplicationDomain::Mail::Contact>());
+            } else if (value.canConvert<QList<Sink::ApplicationDomain::Mail::Contact>>()) {
+                line << qDebugToString(value.value<QList<Sink::ApplicationDomain::Mail::Contact>>());
+            } else if (value.canConvert<QList<Sink::ApplicationDomain::Contact::Email>>()) {
+                line << qDebugToString(value.value<QList<Sink::ApplicationDomain::Contact::Email>>());
             } else {
                 line << QString("Unprintable type: %1").arg(value.typeName());
             }
@@ -100,7 +119,7 @@ QStringList printToList(const Sink::ApplicationDomain::ApplicationDomainType &o,
 bool list(const QStringList &args_, State &state)
 {
     if (args_.isEmpty()) {
-        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--id $id] [--showall|--show $property] [--reduce $reduceProperty:$selectorProperty] [--sort $sortProperty] [--limit $count]"));
+        state.printError(syntax()[0].usage());
         return false;
     }
 
@@ -110,7 +129,7 @@ bool list(const QStringList &args_, State &state)
     Sink::Query query;
     query.setId("list");
     if (!SinkshUtils::applyFilter(query, options)) {
-        state.printError(QObject::tr("Options: $type [--resource $resource] [--compact] [--filter $property=$value] [--showall|--show $property]"));
+        state.printError(syntax()[0].usage());
         return false;
     }
 
@@ -127,7 +146,8 @@ bool list(const QStringList &args_, State &state)
         query.reduce(value.split(':').value(0), Sink::Query::Reduce::Selector(value.split(':').value(1), Sink::Query::Reduce::Selector::Max));
     }
 
-    auto compact = options.options.contains("compact");
+    const auto compact = options.options.contains("compact");
+    const auto exportProperties = options.options.contains("export");
     bool limitPropertySize = true;
     if (!options.options.contains("showall")) {
         if (options.options.contains("show")) {
@@ -142,22 +162,32 @@ bool list(const QStringList &args_, State &state)
         asLine = false;
     }
 
-    QByteArrayList toPrint;
+    QByteArrayList toPrint = query.requestedProperties;
+    std::sort(toPrint.begin(), toPrint.end());
     QStringList tableLine;
 
     for (const auto &o : SinkshUtils::getStore(query.type()).read(query)) {
+        if (exportProperties) {
+            for (const auto &prop: toPrint) {
+                const auto value = o.getProperty(prop);
+                if (value.isValid()) {
+                    if (value.canConvert<QString>()) {
+                        std::cout << value.toString().toStdString() << std::endl;
+                    } else if (value.canConvert<QByteArray>()) {
+                        std::cout << value.toByteArray().toStdString() << std::endl;
+                    }
+                }
+            }
+            continue;
+        }
         if (tableLine.isEmpty()) {
             tableLine << QObject::tr("Resource") << QObject::tr("Identifier");
-            if (query.requestedProperties.isEmpty()) {
+            if (toPrint.isEmpty()) {
                 toPrint = o.availableProperties();
-                std::sort(toPrint.begin(), toPrint.end());
-            } else {
-                toPrint = query.requestedProperties;
                 std::sort(toPrint.begin(), toPrint.end());
             }
             if (asLine) {
-                auto in = toPrint;
-                std::transform(in.constBegin(), in.constEnd(), std::back_inserter(tableLine), [] (const QByteArray &s) -> QString { return s; });
+                std::transform(toPrint.constBegin(), toPrint.constEnd(), std::back_inserter(tableLine), [] (const QByteArray &s) -> QString { return s; });
                 state.stageTableLine(tableLine);
             }
         }
@@ -181,6 +211,19 @@ bool list(const QStringList &args_, State &state)
 Syntax::List syntax()
 {
     Syntax list("list", QObject::tr("List all resources, or the contents of one or more resources."), &SinkList::list, Syntax::NotInteractive);
+
+    list.addPositionalArgument({"type", "The type of content to list (resource, identity, account, mail, etc.)"});
+    list.addParameter("resource", {"resource", "List only the content of the given resource" });
+    list.addFlag("compact", "Use a compact view (reduces the size of IDs)");
+    list.addParameter("filter", {"property=$value", "Filter the results" });
+    list.addParameter("fulltext", {"query", "Filter the results" });
+    list.addParameter("id", {"id", "List only the content with the given ID" });
+    list.addFlag("showall", "Show all properties");
+    list.addParameter("show", {"property", "Only show the given property" });
+    list.addParameter("reduce", {"property:$selectorProperty", "Combine the result with the same $property, sorted by $selectorProperty" });
+    list.addParameter("sort", {"property", "Sort the results according to the given property" });
+    list.addParameter("limit", {"count", "Limit the results" });
+
     list.completer = &SinkshUtils::resourceOrTypeCompleter;
     return Syntax::List() << list;
 }

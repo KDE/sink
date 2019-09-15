@@ -28,38 +28,19 @@
 class WebDavSynchronizer : public Sink::Synchronizer
 {
 public:
-    WebDavSynchronizer(const Sink::ResourceContext &, KDAV2::Protocol, QByteArray collectionName,
-        QByteArray itemName);
+    WebDavSynchronizer(const Sink::ResourceContext &, KDAV2::Protocol, const QByteArray &collectionName, const QByteArrayList &itemNames);
 
     QList<Synchronizer::SyncRequest> getSyncRequests(const Sink::QueryBase &query) Q_DECL_OVERRIDE;
     KAsync::Job<void> synchronizeWithSource(const Sink::QueryBase &query) Q_DECL_OVERRIDE;
 
 protected:
+    KAsync::Job<QByteArray> createItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &uid, const QByteArray &collectionRid);
+    KAsync::Job<QByteArray> modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &collectionRid);
+    KAsync::Job<QByteArray> removeItem(const QByteArray &oldRemoteId);
 
-    /**
-     * Called in a child synchronizer, when replaying a creation of an item.
-     */
-    KAsync::Job<void> createItem(const KDAV2::DavItem &);
-
-    /**
-     * Called in a child synchronizer, when replaying a removal of an item.
-     */
-    KAsync::Job<void> removeItem(const KDAV2::DavItem &);
-
-    /**
-     * Called in a child synchronizer, when replaying a modification of an item.
-     *
-     * The item to modify is chosen according to the given item's URL.
-     * The job will fail if the ETag does not match.
-     */
-    KAsync::Job<void> modifyItem(const KDAV2::DavItem &);
-
-    /**
-     * See comments of the *Item version above
-     */
-    KAsync::Job<void> createCollection(const KDAV2::DavUrl &);
-    KAsync::Job<void> removeCollection(const KDAV2::DavUrl &);
-    KAsync::Job<void> modifyCollection(const KDAV2::DavUrl &);
+    KAsync::Job<void> createCollection(const QByteArray &collectionRid);
+    KAsync::Job<void> removeCollection(const QByteArray &collectionRid);
+    KAsync::Job<void> modifyCollection(const QByteArray &collectionRid);
 
     /**
      * Called with the list of discovered collections. It's purpose should be
@@ -71,20 +52,12 @@ protected:
      * Called when discovering a new item, or when an item has been modified.
      * It's purpose should be adding the said item to the store.
      *
-     * `collectionLocalRid` is the local resource id of the collection the item
-     * is in.
+     * `collectionLocalId` is the local collection id of the item.
      */
-    virtual void updateLocalItem(KDAV2::DavItem item, const QByteArray &collectionLocalRid) = 0;
+    virtual void updateLocalItem(const KDAV2::DavItem &item, const QByteArray &collectionLocalId) = 0;
 
-    /**
-     * Get the local resource id from a collection.
-     */
-    virtual QByteArray collectionLocalResourceID(const KDAV2::DavCollection &collection) = 0;
+    KAsync::Job<void> synchronizeCollection(const KDAV2::DavUrl &collectionUrl, const QByteArray &collectionRid, const QByteArray &collectionLocalId, const QByteArray &ctag);
 
-    KAsync::Job<void> synchronizeCollection(const KDAV2::DavCollection &,
-        QSharedPointer<int> progress, QSharedPointer<int> total, QSharedPointer<QSet<QByteArray>> itemsResourceIDs);
-    KAsync::Job<void> synchronizeItem(const KDAV2::DavItem &, const QByteArray &collectionLocalRid,
-        QSharedPointer<int> progress, QSharedPointer<int> total);
 
     static QByteArray resourceID(const KDAV2::DavCollection &);
     static QByteArray resourceID(const KDAV2::DavItem &);
@@ -92,7 +65,7 @@ protected:
     /**
      * Used to get the url of an item / collection with the given remote ID
      */
-    KDAV2::DavUrl urlOf(const QByteArray &remoteId);
+    KDAV2::DavUrl urlOf(const KDAV2::DavUrl &serverUrl, const QByteArray &remoteId);
 
     /**
      * Used to get the url of an item / collection with the given remote ID,
@@ -100,18 +73,16 @@ protected:
      *
      * Useful when adding a new item to a collection
      */
-    KDAV2::DavUrl urlOf(const QByteArray &collectionRemoteId, const QString &itemPath);
-
-    bool unchanged(const KDAV2::DavCollection &);
-    bool unchanged(const KDAV2::DavItem &);
-
-    KDAV2::DavUrl serverUrl() const;
+    KDAV2::DavUrl urlOf(const KDAV2::DavUrl &serverUrl, const QByteArray &collectionRemoteId, const QString &itemPath);
 
 private:
-    KDAV2::Protocol protocol;
-    const QByteArray collectionName;
-    const QByteArray itemName;
+    KAsync::Job<KDAV2::DavUrl> discoverServer();
 
-    QUrl server;
-    QString username;
+    KDAV2::Protocol mProtocol;
+    const QByteArray mCollectionType;
+    const QByteArrayList mEntityTypes;
+
+    KDAV2::DavUrl mCachedServer;
+    QUrl mServer;
+    QString mUsername;
 };

@@ -8,6 +8,7 @@
 #include "messagequeue.h"
 #include "log.h"
 #include "test.h"
+#include "testutils.h"
 
 /**
  * Test of the messagequeue implementation.
@@ -39,6 +40,8 @@ private slots:
         QVERIFY(queue.isEmpty());
         queue.enqueue("value");
         QVERIFY(!queue.isEmpty());
+        queue.dequeue([](void *ptr, int size, std::function<void(bool success)> callback) { callback(true); }, [](const MessageQueue::Error &error) {});
+        QVERIFY(queue.isEmpty());
     }
 
     void testDequeueEmpty()
@@ -166,15 +169,55 @@ private slots:
         int count = 0;
         queue.dequeueBatch(2, [&count](const QByteArray &data) {
                  count++;
+                 ASYNCCOMPARE(data, QByteArray{"value"} + QByteArray::number(count));
                  return KAsync::null<void>();
              }).exec().waitForFinished();
         QCOMPARE(count, 2);
 
         queue.dequeueBatch(1, [&count](const QByteArray &data) {
                  count++;
+                 ASYNCCOMPARE(data, QByteArray{"value"} + QByteArray::number(count));
                  return KAsync::null<void>();
              }).exec().waitForFinished();
         QCOMPARE(count, 3);
+    }
+
+    void testBatchDequeueDuringWriteTransaction()
+    {
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
+        queue.enqueue("value1");
+        queue.enqueue("value2");
+        queue.enqueue("value3");
+
+        queue.startTransaction();
+        //Inivisible to dequeues because in write transaction
+        queue.enqueue("value4");
+
+        int count = 0;
+        queue.dequeueBatch(2, [&count](const QByteArray &data) {
+                 count++;
+                 ASYNCCOMPARE(data, QByteArray{"value"} + QByteArray::number(count));
+                 return KAsync::null<void>();
+             }).exec().waitForFinished();
+        QCOMPARE(count, 2);
+
+        queue.dequeueBatch(2, [&count](const QByteArray &data) {
+                 count++;
+                 ASYNCCOMPARE(data, QByteArray{"value"} + QByteArray::number(count));
+                 return KAsync::null<void>();
+             }).exec().waitForFinished();
+        QCOMPARE(count, 3);
+        QVERIFY(queue.isEmpty());
+
+        //Commit value4
+        queue.commit();
+        QVERIFY(!queue.isEmpty());
+        queue.dequeueBatch(2, [&count](const QByteArray &data) {
+                 count++;
+                 ASYNCCOMPARE(data, QByteArray{"value"} + QByteArray::number(count));
+                 return KAsync::null<void>();
+             }).exec().waitForFinished();
+        QCOMPARE(count, 4);
     }
 
     void testBatchEnqueue()
@@ -193,6 +236,27 @@ private slots:
 
         QVERIFY(!queue.isEmpty());
         QCOMPARE(spy.count(), 1);
+    }
+
+    void testSortOrder()
+    {
+        MessageQueue queue(Sink::Store::storageLocation(), "sink.dummy.testqueue");
+        queue.startTransaction();
+        //Over 10 so we can make sure that 10 > 9
+        const int num = 11;
+        for (int i = 0; i < num; i++) {
+            queue.enqueue("value" + QByteArray::number(i));
+        }
+        queue.commit();
+
+        int count = 0;
+        queue.dequeueBatch(num, [&count](const QByteArray &data) {
+                 ASYNCCOMPARE(data, QByteArray{"value"} + QByteArray::number(count));
+                 count++;
+                 return KAsync::null<void>();
+             }).exec().waitForFinished();
+        QCOMPARE(count, num);
+
     }
 };
 

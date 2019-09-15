@@ -99,10 +99,13 @@ QMap<QString, QMap<QString, QVariant> > DummyStore::populateFolders()
 
 DummyStore::DummyStore()
 {
+}
+
+void DummyStore::populate()
+{
     mFolders = populateFolders();
     mMails = populateMails();
     mEvents = populateEvents();
-
 }
 
 QMap<QString, QMap<QString, QVariant> > &DummyStore::events()

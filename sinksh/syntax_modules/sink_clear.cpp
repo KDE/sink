@@ -35,10 +35,12 @@
 namespace SinkClear
 {
 
+Syntax::List syntax();
+
 bool clear(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        state.printError(QObject::tr("Please provide at least one resource to clear."));
+        state.printError(syntax()[0].usage());
         return false;
     }
     for (const auto &resource : args) {
@@ -53,8 +55,8 @@ bool clear(const QStringList &args, State &state)
 Syntax::List syntax()
 {
     Syntax clear("clear", QObject::tr("Clears the local cache of one or more resources (be careful!)"), &SinkClear::clear, Syntax::NotInteractive);
+    clear.addPositionalArgument({"resource", "The resource to clear"});
     clear.completer = &SinkshUtils::resourceCompleter;
-
     return Syntax::List() << clear;
 }
 

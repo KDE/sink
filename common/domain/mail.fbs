@@ -21,7 +21,7 @@ table Mail {
   trash:bool = false;
   sent:bool = false;
   messageId:string;
-  parentMessageId:string;
+  parentMessageIds:[string];
   fullPayloadAvailable:bool = true;
 }
 

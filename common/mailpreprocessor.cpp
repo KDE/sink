@@ -73,6 +73,10 @@ static QList<QPair<QString, QString>> processPart(KMime::Content* content)
     return {};
 }
 
+QByteArray normalizeMessageId(const QByteArray &id) {
+    return id;
+}
+
 void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, const QByteArray &data)
 {
     if (data.isEmpty()) {
@@ -92,27 +96,26 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     mail.setExtractedBcc(getContactList(msg->bcc(true)));
     mail.setExtractedDate(msg->date(true)->dateTime());
 
-    const auto parentMessageId = [&] {
+    const auto parentMessageIds = [&] {
         //The last is the parent
         auto references = msg->references(true)->identifiers();
 
-        //The first is the parent
-        auto inReplyTo = msg->inReplyTo(true)->identifiers();
-
         if (!references.isEmpty()) {
-            return references.last();
-            //TODO we could use the rest of the references header to complete the ancestry in case we have missing parents.
+            QByteArrayList list;
+            std::transform(references.constBegin(), references.constEnd(), std::back_inserter(list), [] (const QByteArray &id) { return normalizeMessageId(id); });
+            return list;
         } else {
+            auto inReplyTo = msg->inReplyTo(true)->identifiers();
             if (!inReplyTo.isEmpty()) {
                 //According to RFC5256 we should ignore all but the first
-                return inReplyTo.first();
+                return QByteArrayList{normalizeMessageId(inReplyTo.first())};
             }
         }
-        return QByteArray{};
+        return QByteArrayList{};
     }();
 
     //The rest should never change, unless we didn't have the headers available initially.
-    auto messageId = msg->messageID(true)->identifier();
+    auto messageId = normalizeMessageId(msg->messageID(true)->identifier());
     if (messageId.isEmpty()) {
         //reuse an existing messageid (on modification)
         const auto existing = mail.getMessageId();
@@ -128,8 +131,8 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     }
 
     mail.setExtractedMessageId(messageId);
-    if (!parentMessageId.isEmpty()) {
-        mail.setExtractedParentMessageId(parentMessageId);
+    if (!parentMessageIds.isEmpty()) {
+        mail.setExtractedParentMessageIds(parentMessageIds);
     }
     QList<QPair<QString, QString>> contentToIndex;
     contentToIndex.append({{}, msg->subject()->asUnicodeString()});
