@@ -1,6 +1,6 @@
 
 Name:           sink
-Version:        0.8
+Version:        0.8.0
 Release:        0%{?dist}
 Summary:        sink
 
@@ -18,8 +18,8 @@ BuildRequires:  kf5-kcoreaddons-devel
 BuildRequires:  kf5-kcontacts-devel
 BuildRequires:  kf5-kmime-devel
 BuildRequires:  kf5-kcalendarcore-devel
-BuildRequires:  kimap2-devel >= 0.2
-BuildRequires:  kdav2-devel >= 0.2
+BuildRequires:  kimap2-devel >= 0.3
+BuildRequires:  kdav2-devel >= 0.3
 BuildRequires:  libcurl-devel
 BuildRequires:  libgit2-devel
 BuildRequires:  lmdb-devel
