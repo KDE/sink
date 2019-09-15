@@ -4,7 +4,7 @@ cmake_policy(SET CMP0048 NEW)
 cmake_policy(SET CMP0028 NEW)
 cmake_policy(SET CMP0063 NEW)
 
-project(sink VERSION 0.8.0)
+project(sink VERSION 0.9)
 
 option(BUILD_MAILDIR "BUILD_MAILDIR" ON)
 option(BUILD_DAV "BUILD_DAV" ON)
