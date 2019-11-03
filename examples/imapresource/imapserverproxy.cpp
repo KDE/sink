@@ -447,13 +447,30 @@ KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUids(const QString &mailbox)
     return select(mailbox).then<QVector<qint64>>(search(notDeleted));
 }
 
+KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUidsSince(const QString &mailbox, const QDate &since, qint64 lowerBound)
+{
+    auto notDeleted = KIMAP2::Term{KIMAP2::Term::Deleted};
+    notDeleted.setNegated(true);
+
+    return select(mailbox)
+        .then<QVector<qint64>>(
+            search(
+                KIMAP2::Term{KIMAP2::Term::Or, {
+                    KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Since, since}, notDeleted}},
+                    KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Uid, KIMAP2::ImapSet{lowerBound, 0}}, notDeleted}}
+                }}
+            ));
+}
+
 KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUidsSince(const QString &mailbox, const QDate &since)
 {
-    auto sinceTerm = KIMAP2::Term(KIMAP2::Term::Since, since);
-    auto notDeleted = KIMAP2::Term(KIMAP2::Term::Deleted);
+    auto notDeleted = KIMAP2::Term{KIMAP2::Term::Deleted};
     notDeleted.setNegated(true);
-    auto term = KIMAP2::Term(KIMAP2::Term::And, QVector<KIMAP2::Term>() << sinceTerm << notDeleted);
-    return select(mailbox).then<QVector<qint64>>(search(term));
+
+    return select(mailbox)
+        .then<QVector<qint64>>(
+            search(KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Since, since}, notDeleted}})
+        );
 }
 
 KAsync::Job<void> ImapServerProxy::list(KIMAP2::ListJob::Option option, const std::function<void(const KIMAP2::MailBoxDescriptor &mailboxes, const QList<QByteArray> &flags)> &callback)

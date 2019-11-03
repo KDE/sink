@@ -296,6 +296,7 @@ public:
     KAsync::Job<QString> renameSubfolder(const QString &mailbox, const QString &newName);
     KAsync::Job<QVector<qint64>> fetchUids(const QString &mailbox);
     KAsync::Job<QVector<qint64>> fetchUidsSince(const QString &mailbox, const QDate &since);
+    KAsync::Job<QVector<qint64>> fetchUidsSince(const QString &mailbox, const QDate &since, qint64 lowerBound);
 
     QString mailboxFromFolder(const Folder &) const;
 

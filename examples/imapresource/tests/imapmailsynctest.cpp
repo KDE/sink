@@ -254,6 +254,50 @@ private slots:
             QCOMPARE(mails.at(1).getFullPayloadAvailable(), true);
         }
     }
+
+    /*
+     * Ensure that even though we have a date-filter we don't leave any gaps in the maillist.
+     */
+    void testDateFilterForGaps()
+    {
+        auto dt = QDateTime{{2019, 04, 20}};
+
+        createFolder({"datefilter"});
+        createMessage({"datefilter"}, newMessage("0", dt.addDays(-6)), dt.addDays(-6));
+
+        VERIFYEXEC(Store::synchronize(Sink::SyncScope{}));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        auto folder = Store::readOne<Folder>(Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>("datefilter"));
+
+        // We create two messages with one not matching the date filter below, and then ensure we get it nevertheless
+        createMessage({"datefilter"}, newMessage("1", dt.addDays(-4)), dt.addDays(-4));
+        createMessage({"datefilter"}, newMessage("2", dt.addDays(-2)), dt.addDays(-2));
+
+        {
+            Sink::Query query;
+            query.setType<ApplicationDomain::Mail>();
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.filter(ApplicationDomain::Mail::Date::name, QVariant::fromValue(dt.addDays(-3).date()));
+            query.filter<Mail::Folder>(folder);
+
+            VERIFYEXEC(Store::synchronize(query));
+            VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.sort<ApplicationDomain::Mail::Date>();
+            auto mails = Store::read<Mail>(query);
+            QCOMPARE(mails.size(), 3);
+            QCOMPARE(mails.at(0).getFullPayloadAvailable(), true);
+            //We don't strictly have to pull the full payload for an item that is just fetched to ensure we have no missing mails,
+            //but we currently do
+            QCOMPARE(mails.at(1).getFullPayloadAvailable(), true);
+            QCOMPARE(mails.at(2).getFullPayloadAvailable(), true);
+        }
+    }
 };
 
 QTEST_MAIN(ImapMailSyncTest)

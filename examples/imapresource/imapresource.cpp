@@ -308,10 +308,16 @@ public:
         //We fetch all data for this set.
         //This will also pull in any new messages in subsequent runs.
         .then([=] (qint64 serverUidNext){
-            auto job = [&] {
+            const auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
+            auto job = [=] {
                 if (dateFilter.isValid()) {
                     SinkLogCtx(mLogCtx) << "Fetching messages since: " << dateFilter;
-                    return imap->fetchUidsSince(imap->mailboxFromFolder(folder), dateFilter);
+                    //Avoid creating a gap if we didn't fetch messages older than dateFilter, but aren't in the initial fetch either 
+                    if (lastSeenUid > 0) {
+                        return imap->fetchUidsSince(imap->mailboxFromFolder(folder), dateFilter, lastSeenUid);
+                    } else {
+                        return imap->fetchUidsSince(imap->mailboxFromFolder(folder), dateFilter);
+                    }
                 } else {
                     SinkLogCtx(mLogCtx) << "Fetching messages.";
                     return imap->fetchUids(imap->mailboxFromFolder(folder));
@@ -325,7 +331,7 @@ public:
                 //Make sure the uids are sorted in reverse order and drop everything below lastSeenUid (so we don't refetch what we already have
                 QVector<qint64> filteredAndSorted = uidsToFetch;
                 qSort(filteredAndSorted.begin(), filteredAndSorted.end(), qGreater<qint64>());
-                auto lowerBound = qLowerBound(filteredAndSorted.begin(), filteredAndSorted.end(), lastSeenUid, qGreater<qint64>());
+                const auto lowerBound = qLowerBound(filteredAndSorted.begin(), filteredAndSorted.end(), lastSeenUid, qGreater<qint64>());
                 if (lowerBound != filteredAndSorted.end()) {
                     filteredAndSorted.erase(lowerBound, filteredAndSorted.end());
                 }
