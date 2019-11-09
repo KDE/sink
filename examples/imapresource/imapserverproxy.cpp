@@ -251,8 +251,12 @@ KAsync::Job<SelectResult> ImapServerProxy::select(const QString &mailbox)
     select->setCondstoreEnabled(mCapabilities.contains(Capabilities::Condstore));
     return runJob<SelectResult>(select, [select](KJob* job) -> SelectResult {
         return {select->uidValidity(), select->nextUid(), select->highestModSequence()};
-    }).onError([=] (const KAsync::Error &error) {
-        SinkWarning() << "Select failed: " << mailbox;
+    }).then([=] (const KAsync::Error &error, const SelectResult &result) {
+        if (error) {
+            SinkWarning() << "Select failed: " << mailbox;
+            return KAsync::error<SelectResult>(error);
+        }
+        return KAsync::value<SelectResult>(result);
     });
 }
 
@@ -269,8 +273,12 @@ KAsync::Job<SelectResult> ImapServerProxy::examine(const QString &mailbox)
     select->setCondstoreEnabled(mCapabilities.contains(Capabilities::Condstore));
     return runJob<SelectResult>(select, [select](KJob* job) -> SelectResult {
         return {select->uidValidity(), select->nextUid(), select->highestModSequence()};
-    }).onError([=] (const KAsync::Error &error) {
-        SinkWarning() << "Examine failed: " << mailbox;
+    }).then([=] (const KAsync::Error &error, const SelectResult &result) {
+        if (error) {
+            SinkWarning() << "Examine failed: " << mailbox;
+            return KAsync::error<SelectResult>(error);
+        }
+        return KAsync::value<SelectResult>(result);
     });
 }
 

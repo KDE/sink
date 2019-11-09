@@ -135,6 +135,20 @@ private slots:
         QCOMPARE(count, 0);
     }
 
+    /*
+     * Ensure that commands fail and don't just block.
+     *
+     * Running multiple failing commands one after the other is also covered by this.
+     * (We used to have a bug failing under this condition only)
+     */
+    void testFailures()
+    {
+        ImapServerProxy imap("foobar", 143, Imap::EncryptionMode::NoEncryption);
+
+        VERIFYEXEC_FAIL(imap.select("INBOX.test"));
+        VERIFYEXEC_FAIL(imap.examine("INBOX.test"));
+    }
+
 };
 
 QTEST_MAIN(ImapServerProxyTest)
