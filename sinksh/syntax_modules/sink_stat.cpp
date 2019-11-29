@@ -56,10 +56,10 @@ void statResource(const QString &resource, const State &state)
     auto stat = transaction.stat(false);
     state.printLine(QObject::tr("Total calculated free size [kb]: %1").arg(stat.freePages * stat.pageSize / 1024), 1);
     state.printLine(QObject::tr("Write amplification of main database: %1").arg(double(storage.diskUsage() / 1024)/double(total)), 1);
-    int diskUsage = 0;
-
     state.printLine();
+
     QDir dir(Sink::storageLocation());
+    long long int diskUsage = 0;
     for (const auto &folder : dir.entryList(QStringList() << resource + "*")) {
         auto size = Sink::Storage::DataStore(Sink::storageLocation(), folder, Sink::Storage::DataStore::ReadOnly).diskUsage();
         diskUsage += size;
