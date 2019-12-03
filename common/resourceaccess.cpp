@@ -161,11 +161,11 @@ KAsync::Job<QSharedPointer<QLocalSocket>> ResourceAccess::connectToServer(const 
             future.setFinished();
         });
         QObject::connect(s.data(), static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error), context, [&future, &s, context, identifier](QLocalSocket::LocalSocketError localSocketError) {
-            SinkTrace() << "Failed to connect to server " << identifier;
+            SinkTrace() << "Failed to connect to server " << localSocketError << identifier;
             const auto errorString = s->errorString();
             const auto name = s->fullServerName();
             delete context;
-            future.setError(localSocketError, QString("Failed to connect to socket %1: %2").arg(name).arg(errorString));
+            //We don't set the localSocketError as errorcode, because ConnectionRefused is 0 (no error)
             future.setError({1, QString("Failed to connect to socket %1: %2 %3").arg(name).arg(localSocketError).arg(errorString)});
         });
         s->connectToServer(identifier);
