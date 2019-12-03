@@ -153,14 +153,14 @@ KAsync::Job<QSharedPointer<QLocalSocket>> ResourceAccess::connectToServer(const 
     return KAsync::start<QSharedPointer<QLocalSocket>>([identifier, s](KAsync::Future<QSharedPointer<QLocalSocket>> &future) {
         SinkTrace() << "Connecting to server " << identifier;
         auto context = new QObject;
-        QObject::connect(s.data(), &QLocalSocket::connected, context, [&future, &s, context]() {
+        QObject::connect(s.data(), &QLocalSocket::connected, context, [&future, &s, context, identifier]() {
             SinkTrace() << "Connected to server " << identifier;
             Q_ASSERT(s);
             delete context;
             future.setValue(s);
             future.setFinished();
         });
-        QObject::connect(s.data(), static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error), context, [&future, &s, context](QLocalSocket::LocalSocketError localSocketError) {
+        QObject::connect(s.data(), static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error), context, [&future, &s, context, identifier](QLocalSocket::LocalSocketError localSocketError) {
             SinkTrace() << "Failed to connect to server " << identifier;
             const auto errorString = s->errorString();
             const auto name = s->fullServerName();
