@@ -247,11 +247,12 @@ private slots:
         {
             Sink::Query query;
             query.resourceFilter(mResourceInstanceIdentifier);
+            query.filter<Mail::Folder>(folder);
             query.sort<ApplicationDomain::Mail::Date>();
             auto mails = Store::read<Mail>(query);
             QCOMPARE(mails.size(), 2);
-            QCOMPARE(mails.at(0).getFullPayloadAvailable(), false);
-            QCOMPARE(mails.at(1).getFullPayloadAvailable(), true);
+            QCOMPARE(mails.at(0).getFullPayloadAvailable(), true);
+            QCOMPARE(mails.at(1).getFullPayloadAvailable(), false);
         }
     }
 
@@ -262,17 +263,18 @@ private slots:
     {
         auto dt = QDateTime{{2019, 04, 20}};
 
-        createFolder({"datefilter"});
-        createMessage({"datefilter"}, newMessage("0", dt.addDays(-6)), dt.addDays(-6));
+        auto foldername = "datefilter1";
+        createFolder({foldername});
+        createMessage({foldername}, newMessage("0", dt.addDays(-6)), dt.addDays(-6));
 
         VERIFYEXEC(Store::synchronize(Sink::SyncScope{}));
         VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
 
-        auto folder = Store::readOne<Folder>(Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>("datefilter"));
+        auto folder = Store::readOne<Folder>(Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>(foldername));
 
         // We create two messages with one not matching the date filter below, and then ensure we get it nevertheless
-        createMessage({"datefilter"}, newMessage("1", dt.addDays(-4)), dt.addDays(-4));
-        createMessage({"datefilter"}, newMessage("2", dt.addDays(-2)), dt.addDays(-2));
+        createMessage({foldername}, newMessage("1", dt.addDays(-4)), dt.addDays(-4));
+        createMessage({foldername}, newMessage("2", dt.addDays(-2)), dt.addDays(-2));
 
         {
             Sink::Query query;
@@ -289,6 +291,7 @@ private slots:
             Sink::Query query;
             query.resourceFilter(mResourceInstanceIdentifier);
             query.sort<ApplicationDomain::Mail::Date>();
+            query.filter<Mail::Folder>(folder);
             auto mails = Store::read<Mail>(query);
             QCOMPARE(mails.size(), 3);
             QCOMPARE(mails.at(0).getFullPayloadAvailable(), true);
