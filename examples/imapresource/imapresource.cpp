@@ -272,12 +272,12 @@ public:
         })
         // //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
         .then([=] {
-            auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
+            const auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
             bool ok = false;
             const auto changedsince = syncStore().readValue(folderRemoteId, "changedsince").toLongLong(&ok);
             SinkLogCtx(mLogCtx) << "About to update flags" << folder.path() << "changedsince: " << changedsince;
-            //If we have any mails so far we start off by updating any changed flags using changedsince
-            if (ok) {
+            //If we have any mails so far we start off by updating any changed flags using changedsince, unless we don't have any mails so far.
+            if (ok && lastSeenUid >= 1) {
                 return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(lastSeenUid, qint64(1))), changedsince, [=](const Message &message) {
                     const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                     const auto remoteId = assembleMailRid(folderLocalId, message.uid);
@@ -376,9 +376,9 @@ public:
         })
         .then<void>([=] {
             bool ok = false;
-            const auto headersFetched = !syncStore().readValue(folderRemoteId, "headersFetched").isEmpty();
+            const auto latestHeaderFetched = syncStore().readValue(folderRemoteId, "latestHeaderFetched").toLongLong();
             const auto fullsetLowerbound = syncStore().readValue(folderRemoteId, "fullsetLowerbound").toLongLong(&ok);
-            if (ok && !headersFetched) {
+            if (ok && latestHeaderFetched <= fullsetLowerbound) {
                 SinkLogCtx(mLogCtx) << "Fetching headers until: " << fullsetLowerbound;
 
                 return imap->fetchUids(imap->mailboxFromFolder(folder))
@@ -409,7 +409,7 @@ public:
                 })
                 .then([=] {
                     SinkLogCtx(mLogCtx) << "Headers fetched: " << folder.path();
-                    syncStore().writeValue(folderRemoteId, "headersFetched", "true");
+                    syncStore().writeValue(folderRemoteId, "latestHeaderFetched", QByteArray::number(fullsetLowerbound));
                     commit();
                 });
 

@@ -298,7 +298,61 @@ private slots:
             //We don't strictly have to pull the full payload for an item that is just fetched to ensure we have no missing mails,
             //but we currently do
             QCOMPARE(mails.at(1).getFullPayloadAvailable(), true);
-            QCOMPARE(mails.at(2).getFullPayloadAvailable(), true);
+            QCOMPARE(mails.at(2).getFullPayloadAvailable(), false);
+        }
+    }
+
+    /*
+     * * First sync the folder
+     * * Then create a message on the server
+     * * Then attempt to sync it even though it doens't match the date filter.
+     * We expect the message to be fetched but without payload because it doesn't match the date-filter.
+     */
+    void testDateFilterAfterInitialSync()
+    {
+        auto dt = QDateTime{{2019, 04, 20}};
+
+        auto foldername = "datefilter2";
+        createFolder({foldername});
+
+        Sink::SyncScope query;
+        query.setType<ApplicationDomain::Folder>();
+        VERIFYEXEC(Store::synchronize(query));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        auto folder = Store::readOne<Folder>(Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>(foldername));
+
+        {
+            Sink::Query query;
+            query.setType<ApplicationDomain::Mail>();
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.filter<Mail::Folder>(folder);
+
+            VERIFYEXEC(Store::synchronize(query));
+            VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        createMessage({foldername}, newMessage("0", dt.addDays(-6)), dt.addDays(-6));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        {
+            Sink::Query query;
+            query.setType<ApplicationDomain::Mail>();
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.filter(ApplicationDomain::Mail::Date::name, QVariant::fromValue(dt.addDays(-3).date()));
+            query.filter<Mail::Folder>(folder);
+
+            VERIFYEXEC(Store::synchronize(query));
+            VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.sort<ApplicationDomain::Mail::Date>();
+            query.filter<Mail::Folder>(folder);
+            auto mails = Store::read<Mail>(query);
+            QCOMPARE(mails.size(), 1);
+            QCOMPARE(mails.at(0).getFullPayloadAvailable(), false);
         }
     }
 };
