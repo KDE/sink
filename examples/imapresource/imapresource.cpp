@@ -276,9 +276,9 @@ public:
             bool ok = false;
             const auto changedsince = syncStore().readValue(folderRemoteId, "changedsince").toLongLong(&ok);
             SinkLogCtx(mLogCtx) << "About to update flags" << folder.path() << "changedsince: " << changedsince;
-            //If we have any mails so far we start off by updating any changed flags using changedsince, unless we don't have any mails so far.
+            //If we have any mails so far we start off by updating any changed flags using changedsince, unless we don't have any mails at all.
             if (ok && lastSeenUid >= 1) {
-                return imap->fetchFlags(folder, KIMAP2::ImapSet(1, qMax(lastSeenUid, qint64(1))), changedsince, [=](const Message &message) {
+                return imap->fetchFlags(folder, KIMAP2::ImapSet(1, lastSeenUid), changedsince, [=](const Message &message) {
                     const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                     const auto remoteId = assembleMailRid(folderLocalId, message.uid);
 
@@ -311,8 +311,8 @@ public:
             const auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
             auto job = [=] {
                 if (dateFilter.isValid()) {
-                    SinkLogCtx(mLogCtx) << "Fetching messages since: " << dateFilter;
-                    //Avoid creating a gap if we didn't fetch messages older than dateFilter, but aren't in the initial fetch either 
+                    SinkLogCtx(mLogCtx) << "Fetching messages since: " << dateFilter << lastSeenUid;
+                    //Avoid creating a gap if we didn't fetch messages older than dateFilter, but aren't in the initial fetch either
                     if (lastSeenUid > 0) {
                         return imap->fetchUidsSince(imap->mailboxFromFolder(folder), dateFilter, lastSeenUid);
                     } else {
