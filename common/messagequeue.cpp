@@ -24,7 +24,7 @@
 
 using namespace Sink::Storage;
 
-MessageQueue::MessageQueue(const QString &storageRoot, const QString &name) : mStorage(storageRoot, name, DataStore::ReadWrite), mReplayedRevision{-1}
+MessageQueue::MessageQueue(const QString &storageRoot, const QString &name) : mStorage(storageRoot, name, DataStore::ReadWrite), mReplayedRevision{-1}, mName{name}
 {
 }
 
@@ -33,6 +33,11 @@ MessageQueue::~MessageQueue()
     if (mWriteTransaction) {
         mWriteTransaction.abort();
     }
+}
+
+QString MessageQueue::name() const
+{
+    return mName;
 }
 
 void MessageQueue::enqueue(void const *msg, size_t size)
