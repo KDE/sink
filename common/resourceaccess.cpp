@@ -478,10 +478,10 @@ void ResourceAccess::sendCommand(const QSharedPointer<QueuedCommand> &command)
     // TODO: we should have a timeout for commands
     d->messageId++;
     const auto messageId = d->messageId;
-    SinkTrace() << QString("Sending command \"%1\" with messageId %2").arg(QString(Sink::Commands::name(command->commandId))).arg(d->messageId);
+    SinkLog() << QString("Sending command \"%1\" with messageId %2").arg(QString(Sink::Commands::name(command->commandId))).arg(d->messageId);
     Q_ASSERT(command->callback);
     registerCallback(d->messageId, [this, messageId, command](int errorCode, QString errorMessage) {
-        SinkTrace() << "Command complete " << messageId;
+        SinkLog() << "Command complete " << messageId;
         d->pendingCommands.remove(messageId);
         command->callback(errorCode, errorMessage);
     });

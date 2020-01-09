@@ -187,6 +187,7 @@ void Listener::checkConnections()
     m_checkConnectionsTimer->start(std::chrono::milliseconds{1000});
 }
 
+//FIXME looks like this does not even get invoked under heavy load, because readFromSocket is never called
 void Listener::onDataAvailable()
 {
     QLocalSocket *socket = qobject_cast<QLocalSocket *>(sender());
@@ -198,7 +199,7 @@ void Listener::onDataAvailable()
 
 void Listener::readFromSocket(QLocalSocket *socket)
 {
-    SinkTrace() << "Reading from socket...";
+    SinkLog() << "Reading from socket...";
     for (Client &client : m_connections) {
         if (client.socket == socket) {
             client.commandBuffer += socket->readAll();
@@ -208,6 +209,7 @@ void Listener::readFromSocket(QLocalSocket *socket)
             break;
         }
     }
+    SinkLog() << "Finished reading from socket...";
 }
 
 void Listener::processClientBuffers()
@@ -263,8 +265,9 @@ void Listener::processCommand(int commandId, uint messageId, const QByteArray &c
         case Sink::Commands::CreateEntityCommand:
         case Sink::Commands::FlushCommand:
         case Sink::Commands::AbortSynchronizationCommand:
-            SinkTrace() << "Command id  " << messageId << " of type \"" << Sink::Commands::name(commandId) << "\" from " << client.name;
+            SinkLog() << "Command id  " << messageId << " of type \"" << Sink::Commands::name(commandId) << "\" from " << client.name;
             loadResource().processCommand(commandId, commandBuffer);
+            SinkLog() << "Command processed  " << messageId;
             break;
         case Sink::Commands::ShutdownCommand:
             SinkLog() << QString("Received shutdown command from %1").arg(client.name);
@@ -362,7 +365,7 @@ bool Listener::processClientBuffer(Client &client)
     const uint messageId = *(const uint *)client.commandBuffer.constData();
     const int commandId = *(const int *)(client.commandBuffer.constData() + sizeof(uint));
     const uint size = *(const uint *)(client.commandBuffer.constData() + sizeof(int) + sizeof(uint));
-    SinkTrace() << "Received message. Id:" << messageId << " CommandId: " << commandId << " Size: " << size;
+    SinkLog() << "Received message. Id:" << messageId << " CommandId: " << commandId << " Size: " << size;
 
     // TODO: reject messages above a certain size?
 
@@ -375,7 +378,7 @@ bool Listener::processClientBuffer(Client &client)
         const QByteArray commandBuffer = client.commandBuffer.left(size);
         client.commandBuffer.remove(0, size);
         processCommand(commandId, messageId, commandBuffer, client, [this, messageId, commandId, socket, clientName](bool success) {
-            SinkTrace() << QString("Completed command messageid %1 of type \"%2\" from %3").arg(messageId).arg(QString(Sink::Commands::name(commandId))).arg(clientName);
+            SinkLog() << QString("Completed command messageid %1 of type \"%2\" from %3").arg(messageId).arg(QString(Sink::Commands::name(commandId))).arg(clientName);
             if (socket) {
                 sendCommandCompleted(socket.data(), messageId, success);
             } else {

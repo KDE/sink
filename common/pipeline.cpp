@@ -105,7 +105,7 @@ void Pipeline::commit()
     }
     const auto revision = d->entityStore.maxRevision();
     const auto elapsed = d->transactionTime.elapsed();
-    SinkTraceCtx(d->logCtx) << "Committing revision: " << revision << ":" << d->transactionItemCount << " items in: " << Log::TraceTime(elapsed) << " "
+    SinkLogCtx(d->logCtx) << "Committing revision: " << revision << ":" << d->transactionItemCount << " items in: " << Log::TraceTime(elapsed) << " "
             << (double)elapsed / (double)qMax(d->transactionItemCount, 1) << "[ms/item]";
     d->entityStore.commitTransaction();
     if (d->revisionChanged) {

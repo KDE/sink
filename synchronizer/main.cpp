@@ -20,6 +20,7 @@
 #include <QGuiApplication>
 #include <QLockFile>
 #include <QDir>
+#include <QTime>
 
 #include <signal.h>
 #ifndef Q_OS_WIN
@@ -45,7 +46,7 @@
  * We capture all qt debug messages in the same process and feed it into the sink debug system.
  * This way we get e.g. kimap debug messages as well together with the rest.
  */
-void qtMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+static void qtMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
     QByteArray localMsg = msg.toLocal8Bit();
     switch (type) {
@@ -67,7 +68,7 @@ void qtMessageHandler(QtMsgType type, const QMessageLogContext &context, const Q
     }
 }
 
-QString read(const QString &filename)
+static QString read(const QString &filename)
 {
     QFile file{filename};
     file.open(QIODevice::ReadOnly);
@@ -120,6 +121,29 @@ void printStats()
 #endif
 }
 
+class SynchronizerApplication : public QGuiApplication
+{
+    Q_OBJECT
+protected:
+    using QGuiApplication::QGuiApplication;
+
+    QTime time;
+
+    /*
+     * If we block the event loop for too long the system becomes unresponsive to user inputs,
+     * so we monitor it and attempt to avoid blocking behaviour
+     */
+    bool notify(QObject *receiver, QEvent *event) override
+    {
+        time.start();
+        const auto ret = QGuiApplication::notify(receiver, event);
+        if (time.elapsed() > 1000) {
+            SinkWarning() << "Blocked the eventloop for " << Sink::Log::TraceTime(time.elapsed()) << " with event " << event->type();
+        }
+        return ret;
+    }
+};
+
 int main(int argc, char *argv[])
 {
     if (qEnvironmentVariableIsSet("SINK_GDB_DEBUG")) {
@@ -146,7 +170,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    QGuiApplication app(argc, argv);
+    SynchronizerApplication app(argc, argv);
     app.setQuitLockEnabled(false);
 
     QByteArrayList arguments;
@@ -199,3 +223,5 @@ int main(int argc, char *argv[])
     printStats();
     return ret;
 }
+
+#include "main.moc"

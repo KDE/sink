@@ -19,6 +19,8 @@
  */
 #include "synchronizer.h"
 
+#include <QCoreApplication>
+
 #include "definitions.h"
 #include "commands.h"
 #include "bufferutils.h"
@@ -419,7 +421,7 @@ void Synchronizer::reportProgress(int progress, int total, const QByteArrayList 
         if (total >= 100 && progress % 10 != 0) {
             return;
         }
-        SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total << mCurrentRequest.requestId << mCurrentRequest.applicableEntities;
+        // SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total << mCurrentRequest.requestId << mCurrentRequest.applicableEntities;
         const auto applicableEntities = [&] {
             if (entities.isEmpty()) {
                 return mCurrentRequest.applicableEntities;
@@ -613,6 +615,8 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
 
     const auto request = mSyncRequestQueue.takeFirst();
     return KAsync::start([=] {
+        SinkLogCtx(mLogCtx) << "Start processing request " << request.requestType;
+        mTime.start();
         mMessageQueue->startTransaction();
         mEntityStore->startTransaction(Sink::Storage::DataStore::ReadOnly);
         mSyncInProgress = true;
@@ -620,7 +624,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
     })
     .then(processRequest(request))
     .then<void>([this, request](const KAsync::Error &error) {
-        SinkTraceCtx(mLogCtx) << "Sync request processed";
+        SinkLogCtx(mLogCtx) << "Sync request processed " << Sink::Log::TraceTime(mTime.elapsed());
         setBusy(false, {}, request.requestId);
         mCurrentRequest = {};
         mEntityStore->abortTransaction();
@@ -648,9 +652,13 @@ bool Synchronizer::aborting() const
 
 void Synchronizer::commit()
 {
+    SinkLogCtx(mLogCtx) << "Commit." << Sink::Log::TraceTime(mTime.elapsed());
     mMessageQueue->commit();
     mSyncTransaction.commit();
     mSyncStore.clear();
+
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+
     if (mSyncInProgress) {
         mMessageQueue->startTransaction();
     }

@@ -46,8 +46,6 @@
 
 #include "listener.h"
 
-using namespace Sink;
-
 #if defined(Q_OS_WIN) && !defined(Q_OS_WINRT)
 // Helper class for resolving symbol names by dynamically loading "dbghelp.dll".
 class DebugSymbolResolver
@@ -284,6 +282,11 @@ static void terminateHandler()
         std::fprintf(stderr, "Terminated due to unknown reason :(\n");
     }
     std::abort();
+}
+
+void Sink::printStackTrace()
+{
+    printStacktrace();
 }
 
 void Sink::setListener(Listener *listener)
