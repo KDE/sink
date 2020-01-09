@@ -22,6 +22,7 @@
 #include "sink_export.h"
 #include <QObject>
 #include <QStack>
+#include <QTime>
 #include <KAsync/Async>
 #include <domainadaptor.h>
 #include <query.h>
@@ -250,6 +251,7 @@ private:
     bool mAbort;
     QMultiHash<QByteArray, SyncRequest> mPendingSyncRequests;
     QString mSecret;
+    QTime mTime;
 };
 
 }

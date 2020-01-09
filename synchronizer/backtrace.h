@@ -22,4 +22,5 @@ class Listener;
 namespace Sink {
     void setListener(Listener*);
     void installCrashHandler();
+    void printStackTrace();
 }

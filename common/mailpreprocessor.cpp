@@ -124,7 +124,7 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
             //Genereate a globally unique messageid that doesn't leak the local hostname
             messageId = QString{"<" + QUuid::createUuid().toString().mid(1, 36).remove('-') + "@sink>"}.toLatin1();
             tmp->messageID(true)->fromUnicodeString(messageId, "utf-8");
-            SinkWarning() << "Message id is empty, generating one: " << messageId;
+            // SinkWarning() << "Message id is empty, generating one: " << messageId;
         } else {
             messageId = existing;
         }

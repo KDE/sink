@@ -67,6 +67,7 @@ CommandProcessor::CommandProcessor(Sink::Pipeline *pipeline, const QByteArray &i
 
 static void enqueueCommand(MessageQueue &mq, int commandId, const QByteArray &data)
 {
+    // qWarning() << "Enquing command " << mq.name();
     flatbuffers::FlatBufferBuilder fbb;
     auto commandData = Sink::EntityBuffer::appendAsVector(fbb, data.constData(), data.size());
     auto buffer = Sink::CreateQueuedCommand(fbb, commandId, commandData);
@@ -92,7 +93,7 @@ void CommandProcessor::processCommand(int commandId, const QByteArray &data)
         default: {
             static int modifications = 0;
             mUserQueue.startTransaction();
-            SinkTraceCtx(mLogCtx) << "Received a command" << commandId;
+            SinkWarningCtx(mLogCtx) << "Received a command" << commandId;
             enqueueCommand(mUserQueue, commandId, data);
             modifications++;
             if (modifications >= sBatchSize) {
@@ -136,7 +137,10 @@ void CommandProcessor::processSynchronizeCommand(const QByteArray &data)
             QDataStream stream(&data, QIODevice::ReadOnly);
             stream >> query;
         }
-        mSynchronizer->synchronize(query);
+        //Avoid blocking this call
+        QMetaObject::invokeMethod(mSynchronizer.data(), [=] {
+            mSynchronizer->synchronize(query);
+        }, Qt::QueuedConnection);
     } else {
         SinkWarningCtx(mLogCtx) << "received invalid command";
     }
@@ -175,14 +179,15 @@ void CommandProcessor::process()
         return;
     }
     mProcessingLock = true;
-    auto job = processPipeline()
-                    .then([this]() {
-                        mProcessingLock = false;
-                        if (messagesToProcessAvailable()) {
-                            process();
-                        }
-                    })
-                    .exec();
+    processPipeline()
+        .then([this]() {
+            mProcessingLock = false;
+            //TODO process some events?
+            if (messagesToProcessAvailable()) {
+                process();
+            }
+        })
+        .exec();
 }
 
 KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const Sink::QueuedCommand &queuedCommand)
@@ -214,9 +219,9 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
     flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(data.constData()), data.size());
     if (!Sink::VerifyQueuedCommandBuffer(verifyer)) {
         SinkWarningCtx(mLogCtx) << "invalid buffer";
-        // return KAsync::error<void, qint64>(1, "Invalid Buffer");
+        return KAsync::error<qint64>(-1, "Invalid Buffer");
     }
-    auto queuedCommand = Sink::GetQueuedCommand(data.constData());
+    const auto queuedCommand = Sink::GetQueuedCommand(data.constData());
     const auto commandId = queuedCommand->commandId();
     return processQueuedCommand(*queuedCommand)
         .then<qint64, qint64>(
@@ -283,13 +288,16 @@ KAsync::Job<void> CommandProcessor::processPipeline()
     return KAsync::doWhile([this]() {
             for (auto queue : mCommandQueues) {
                 if (!queue->isEmpty()) {
+                    // SinkLogCtx(mLogCtx) << "Processing queue" << queue->name();
                     auto time = QSharedPointer<QTime>::create();
                     time->start();
                     return processQueue(queue)
                         .then([=] {
-                            SinkTraceCtx(mLogCtx) << "Queue processed." << Log::TraceTime(time->elapsed());
+                            SinkLogCtx(mLogCtx) << "Queue processed." << queue->name() << Log::TraceTime(time->elapsed());
                             return KAsync::Continue;
                         });
+                } else {
+                    // SinkLogCtx(mLogCtx) << "Nothing in queue" << queue->name();
                 }
             }
             return KAsync::value(KAsync::Break);
