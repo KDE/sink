@@ -20,6 +20,7 @@
 #include "commandprocessor.h"
 
 #include <QDataStream>
+#include <QCoreApplication>
 
 #include "commands.h"
 #include "messagequeue.h"
@@ -269,6 +270,7 @@ KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
                 emit notify(n);
             }
             mCompleteFlushes.clear();
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
         });
 
 

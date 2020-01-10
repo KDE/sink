@@ -99,7 +99,7 @@ private slots:
         VERIFYEXEC(ResourceControl::start(mResourceInstanceIdentifier));
     }
 
-    void testSync()
+    void testResponsivenessDuringSync()
     {
         Sink::Query query;
         query.resourceFilter(mResourceInstanceIdentifier);
@@ -115,29 +115,26 @@ private slots:
         Sink::ResourceAccess resourceAccess(mResourceInstanceIdentifier, "");
         resourceAccess.open();
 
-        bool syncComplete = false;
+        auto flush = ResourceControl::flushMessageQueue(mResourceInstanceIdentifier).exec();
 
-        QObject::connect(&resourceAccess, &ResourceAccess::notification, [&syncComplete](Sink::Notification notification) {
-            qWarning() << "Notification" << notification;
-            //Sync complete
-            if (notification.type == Sink::Notification::Status && notification.code == Sink::ApplicationDomain::ConnectedStatus) {
-                syncComplete = true;
-            }
-        });
+        const int roundtripSoftLimit = 500;
+        const int roundtripHardLimit = 2000;
 
         QTime pingTime;
         for (int i = 0; i < 500; i++) {
             pingTime.start();
             VERIFYEXEC(resourceAccess.sendCommand(Sink::Commands::PingCommand));
-            if (pingTime.elapsed() > 500) {
-                if (pingTime.elapsed() > 2000) {
-                    SinkWarning() << "Ping took: " << Sink::Log::TraceTime(pingTime.elapsed());
-                    // QVERIFY(pingTime.elapsed() < 2000);
+            SinkWarning() << "Ping took: " << Sink::Log::TraceTime(pingTime.elapsed());
+            if (pingTime.elapsed() > roundtripSoftLimit) {
+                if (pingTime.elapsed() > roundtripHardLimit) {
+                    SinkError() << "Ping took: " << Sink::Log::TraceTime(pingTime.elapsed());
+                    QVERIFY(false);
                 } else {
-                    SinkLog() << "Ping took: " << Sink::Log::TraceTime(pingTime.elapsed());
+                    SinkWarning() << "Ping took: " << Sink::Log::TraceTime(pingTime.elapsed());
                 }
             }
-            if (syncComplete) {
+            //Until the sync is complete
+            if (flush.isFinished()) {
                 break;
             }
             QTest::qWait(500);
