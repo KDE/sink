@@ -23,6 +23,7 @@
 
 #include <QObject>
 #include <QTimer>
+#include <QTime>
 #include <KAsync/Async>
 #include <functional>
 
@@ -90,6 +91,7 @@ private:
     QSharedPointer<Synchronizer> mSynchronizer;
     QSharedPointer<Inspector> mInspector;
     QTimer mCommitQueueTimer;
+    QTime mTime;
     QVector<QByteArray> mCompleteFlushes;
 };
 

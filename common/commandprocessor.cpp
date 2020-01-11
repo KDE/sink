@@ -234,11 +234,11 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
 // Process one batch of messages from this queue
 KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
 {
-    auto time = QSharedPointer<QTime>::create();
     return KAsync::start([=] { mPipeline->startTransaction(); })
         .then([=] {
                 return queue->dequeueBatch(sBatchSize,
                     [=](const QByteArray &data) {
+                        auto time = QSharedPointer<QTime>::create();
                         time->start();
                         return processQueuedCommand(data)
                         .then([=](qint64 createdRevision) {
@@ -273,10 +273,9 @@ KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
 
 KAsync::Job<void> CommandProcessor::processPipeline()
 {
-    auto time = QSharedPointer<QTime>::create();
-    time->start();
+    mTime.start();
     mPipeline->cleanupRevisions(mLowerBoundRevision);
-    SinkTraceCtx(mLogCtx) << "Cleanup done." << Log::TraceTime(time->elapsed());
+    SinkTraceCtx(mLogCtx) << "Cleanup done." << Log::TraceTime(mTime.elapsed());
 
     // Go through all message queues
     if (mCommandQueues.isEmpty()) {
@@ -285,11 +284,11 @@ KAsync::Job<void> CommandProcessor::processPipeline()
     return KAsync::doWhile([this]() {
             for (auto queue : mCommandQueues) {
                 if (!queue->isEmpty()) {
-                    auto time = QSharedPointer<QTime>::create();
-                    time->start();
+                    mTime.start();
                     return processQueue(queue)
-                        .then([=] {
-                            SinkTraceCtx(mLogCtx) << "Queue processed." << Log::TraceTime(time->elapsed());
+                        .guard(this)
+                        .then([this] {
+                            SinkTraceCtx(mLogCtx) << "Queue processed." << Log::TraceTime(mTime.elapsed());
                             return KAsync::Continue;
                         });
                 }
