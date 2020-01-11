@@ -613,6 +613,8 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
 
     const auto request = mSyncRequestQueue.takeFirst();
     return KAsync::start([=] {
+        SinkTraceCtx(mLogCtx) << "Start processing request " << request.requestType;
+        mTime.start();
         mMessageQueue->startTransaction();
         mEntityStore->startTransaction(Sink::Storage::DataStore::ReadOnly);
         mSyncInProgress = true;
@@ -620,7 +622,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
     })
     .then(processRequest(request))
     .then<void>([this, request](const KAsync::Error &error) {
-        SinkTraceCtx(mLogCtx) << "Sync request processed";
+        SinkTraceCtx(mLogCtx) << "Sync request processed " << Sink::Log::TraceTime(mTime.elapsed());
         setBusy(false, {}, request.requestId);
         mCurrentRequest = {};
         mEntityStore->abortTransaction();
@@ -648,6 +650,7 @@ bool Synchronizer::aborting() const
 
 void Synchronizer::commit()
 {
+    SinkTraceCtx(mLogCtx) << "Commit." << Sink::Log::TraceTime(mTime.elapsed());
     mMessageQueue->commit();
     mSyncTransaction.commit();
     mSyncStore.clear();
