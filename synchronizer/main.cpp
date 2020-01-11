@@ -20,6 +20,7 @@
 #include <QGuiApplication>
 #include <QLockFile>
 #include <QDir>
+#include <QTime>
 
 #include <signal.h>
 #ifndef Q_OS_WIN
@@ -120,6 +121,29 @@ void printStats()
 #endif
 }
 
+class SynchronizerApplication : public QGuiApplication
+{
+    Q_OBJECT
+protected:
+    using QGuiApplication::QGuiApplication;
+
+    QTime time;
+
+    /*
+     * If we block the event loop for too long the system becomes unresponsive to user inputs,
+     * so we monitor it and attempt to avoid blocking behaviour
+     */
+    bool notify(QObject *receiver, QEvent *event) override
+    {
+        time.start();
+        const auto ret = QGuiApplication::notify(receiver, event);
+        if (time.elapsed() > 1000) {
+            SinkWarning() << "Blocked the eventloop for " << Sink::Log::TraceTime(time.elapsed()) << " with event " << event->type();
+        }
+        return ret;
+    }
+};
+
 int main(int argc, char *argv[])
 {
     if (qEnvironmentVariableIsSet("SINK_GDB_DEBUG")) {
@@ -146,7 +170,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    QGuiApplication app(argc, argv);
+    SynchronizerApplication app(argc, argv);
     app.setQuitLockEnabled(false);
 
     QByteArrayList arguments;
@@ -199,3 +223,5 @@ int main(int argc, char *argv[])
     printStats();
     return ret;
 }
+
+#include "main.moc"
