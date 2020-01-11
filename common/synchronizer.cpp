@@ -19,6 +19,8 @@
  */
 #include "synchronizer.h"
 
+#include <QCoreApplication>
+
 #include "definitions.h"
 #include "commands.h"
 #include "bufferutils.h"
@@ -654,6 +656,9 @@ void Synchronizer::commit()
     mMessageQueue->commit();
     mSyncTransaction.commit();
     mSyncStore.clear();
+
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+
     if (mSyncInProgress) {
         mMessageQueue->startTransaction();
     }
