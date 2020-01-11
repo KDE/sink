@@ -354,7 +354,7 @@ public:
                 [=](int progress, int total) {
                     reportProgress(progress, total, QByteArrayList{} << folderLocalId);
                     //commit every 10 messages
-                    if ((progress % 10) == 0) {
+                    if ((progress % 100) == 0) {
                         commit();
                     }
                 })
