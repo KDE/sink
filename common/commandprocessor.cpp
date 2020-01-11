@@ -215,7 +215,7 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
     flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(data.constData()), data.size());
     if (!Sink::VerifyQueuedCommandBuffer(verifyer)) {
         SinkWarningCtx(mLogCtx) << "invalid buffer";
-        // return KAsync::error<void, qint64>(1, "Invalid Buffer");
+        return KAsync::error<qint64>(-1, "Invalid Buffer");
     }
     auto queuedCommand = Sink::GetQueuedCommand(data.constData());
     const auto commandId = queuedCommand->commandId();
