@@ -1164,8 +1164,7 @@ DataStore::Transaction DataStore::createTransaction(AccessMode type, const std::
 {
     auto errorHandler = errorHandlerArg ? errorHandlerArg : defaultErrorHandler();
     if (!d->env) {
-        errorHandler(Error(d->name.toLatin1(), ErrorCodes::GenericError, "Failed to create transaction: Missing database environment"));
-        return Transaction();
+        throw std::runtime_error("Failed to create transaction: Missing database environment");
     }
 
     bool requestedRead = type == ReadOnly;
