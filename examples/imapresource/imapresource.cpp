@@ -193,7 +193,7 @@ public:
         return flags;
     }
 
-    void synchronizeMails(const QByteArray &folderRid, const QByteArray &folderLocalId, const Message &message)
+    void createOrModifyMail(const QByteArray &folderRid, const QByteArray &folderLocalId, const Message &message)
     {
         auto time = QSharedPointer<QTime>::create();
         time->start();
@@ -355,7 +355,7 @@ public:
                     if (*maxUid < m.uid) {
                         *maxUid = m.uid;
                     }
-                    synchronizeMails(folderRemoteId, folderLocalId, m);
+                    createOrModifyMail(folderRemoteId, folderLocalId, m);
                 },
                 [=](int progress, int total) {
                     reportProgress(progress, total, {folderLocalId});
@@ -397,7 +397,7 @@ public:
                     bool headersOnly = true;
                     const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                     return imap->fetchMessages(folder, toFetch, headersOnly, [=](const Message &m) {
-                        synchronizeMails(folderRemoteId, folderLocalId, m);
+                        createOrModifyMail(folderRemoteId, folderLocalId, m);
                     },
                     [=](int progress, int total) {
                         reportProgress(progress, total, {folderLocalId});
@@ -646,7 +646,7 @@ public:
                     bool headersOnly = false;
                     const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                     return imap->fetchMessages(Folder{folderRemoteId}, toFetch, headersOnly, [=](const Message &m) {
-                        synchronizeMails(folderRemoteId, folderLocalId, m);
+                        createOrModifyMail(folderRemoteId, folderLocalId, m);
                     },
                     [=](int progress, int total) {
                         reportProgress(progress, total, {folderLocalId});
