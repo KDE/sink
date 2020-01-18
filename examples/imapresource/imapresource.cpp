@@ -368,11 +368,18 @@ public:
                 .then([=] {
                     SinkLogCtx(logCtx) << "Highest found uid: " << *maxUid << folder.path() << " Full set lower bound: " << lowerBoundUid;
                     syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(*maxUid));
-                    syncStore().writeValue(folderRemoteId, "fullsetLowerbound", QByteArray::number(lowerBoundUid));
+                    //Remember the lowest full message we fetched.
+                    //This is used below to fetch headers for the rest.
+                    if (!syncStore().contains(folderRemoteId, "fullsetLowerbound")) {
+                        syncStore().writeValue(folderRemoteId, "fullsetLowerbound", QByteArray::number(lowerBoundUid));
+                    }
                     commit();
                 });
             });
         })
+        //For all remaining messages we fetch the headers only
+        //This is supposed to make all existing messages avialable with at least the headers only.
+        //If we succeed this only needs to happen once (everything new is fetched above as full message).
         .then<void>([=] {
             bool ok = false;
             const auto latestHeaderFetched = syncStore().readValue(folderRemoteId, "latestHeaderFetched").toLongLong();
