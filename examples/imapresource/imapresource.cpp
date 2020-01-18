@@ -326,22 +326,28 @@ public:
             return job.then([=](const QVector<qint64> &uidsToFetch) {
                 SinkTraceCtx(mLogCtx) << "Received result set " << uidsToFetch;
                 SinkTraceCtx(mLogCtx) << "About to fetch mail" << folder.path();
-                const auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
 
-                //Make sure the uids are sorted in reverse order and drop everything below lastSeenUid (so we don't refetch what we already have
+                //Make sure the uids are sorted in reverse order and drop everything below lastSeenUid (so we don't refetch what we already have)
                 QVector<qint64> filteredAndSorted = uidsToFetch;
                 qSort(filteredAndSorted.begin(), filteredAndSorted.end(), qGreater<qint64>());
                 const auto lowerBound = qLowerBound(filteredAndSorted.begin(), filteredAndSorted.end(), lastSeenUid, qGreater<qint64>());
                 if (lowerBound != filteredAndSorted.end()) {
                     filteredAndSorted.erase(lowerBound, filteredAndSorted.end());
                 }
-                const qint64 lowerBoundUid = filteredAndSorted.isEmpty() ? 0 : filteredAndSorted.last();
-
-                auto maxUid = QSharedPointer<qint64>::create(0);
-                if (!filteredAndSorted.isEmpty()) {
-                    *maxUid = filteredAndSorted.first();
+                if (filteredAndSorted.isEmpty()) {
+                    SinkTraceCtx(mLogCtx) << "Nothing new to fetch for full set.";
+                    if (serverUidNext) {
+                        SinkLogCtx(mLogCtx) << "Storing the server side uidnext: " << serverUidNext << folder.path();
+                        //If we don't receive a mail we should still record the updated uidnext value.
+                        syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(serverUidNext - 1));
+                    }
+                    return KAsync::null();
                 }
-                SinkTraceCtx(mLogCtx) << "Uids to fetch: " << filteredAndSorted;
+
+                const qint64 lowerBoundUid = filteredAndSorted.last();
+
+                auto maxUid = QSharedPointer<qint64>::create(filteredAndSorted.first());
+                SinkTraceCtx(mLogCtx) << "Uids to fetch for full set: " << filteredAndSorted;
 
                 bool headersOnly = false;
                 const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
@@ -353,22 +359,14 @@ public:
                 },
                 [=](int progress, int total) {
                     reportProgress(progress, total, QByteArrayList{} << folderLocalId);
-                    //commit every 10 messages
+                    //commit every 100 messages
                     if ((progress % 100) == 0) {
                         commit();
                     }
                 })
                 .then([=] {
-                    SinkLogCtx(mLogCtx) << "Highest found uid: " << *maxUid << folder.path();
-                    if (*maxUid > 0) {
-                        syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(*maxUid));
-                    } else {
-                        if (serverUidNext) {
-                            SinkLogCtx(mLogCtx) << "Storing the server side uidnext: " << serverUidNext << folder.path();
-                            //If we don't receive a mail we should still record the updated uidnext value.
-                            syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(serverUidNext - 1));
-                        }
-                    }
+                    SinkLogCtx(mLogCtx) << "Highest found uid: " << *maxUid << folder.path() << " Full set lower bound: " << lowerBoundUid;
+                    syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(*maxUid));
                     syncStore().writeValue(folderRemoteId, "fullsetLowerbound", QByteArray::number(lowerBoundUid));
                     commit();
                 });
@@ -378,12 +376,14 @@ public:
             bool ok = false;
             const auto latestHeaderFetched = syncStore().readValue(folderRemoteId, "latestHeaderFetched").toLongLong();
             const auto fullsetLowerbound = syncStore().readValue(folderRemoteId, "fullsetLowerbound").toLongLong(&ok);
-            if (ok && latestHeaderFetched <= fullsetLowerbound) {
+
+            if (ok && latestHeaderFetched < fullsetLowerbound) {
                 SinkLogCtx(mLogCtx) << "Fetching headers until: " << fullsetLowerbound;
 
                 return imap->fetchUids(imap->mailboxFromFolder(folder))
                 .then([=] (const QVector<qint64> &uids) {
-                    //sort in reverse order and remove everything greater than fullsetLowerbound
+                    //sort in reverse order and remove everything greater than fullsetLowerbound.
+                    //This gives us all emails for which we haven't fetched the full content yet.
                     QVector<qint64> toFetch = uids;
                     qSort(toFetch.begin(), toFetch.end(), qGreater<qint64>());
                     if (fullsetLowerbound) {
@@ -392,7 +392,7 @@ public:
                             toFetch.erase(toFetch.begin(), upperBound);
                         }
                     }
-                    SinkLogCtx(mLogCtx) << "Fetching headers for: " << toFetch;
+                    SinkLogCtx(mLogCtx) << "Uids to fetch for headers only: " << toFetch;
 
                     bool headersOnly = true;
                     const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
