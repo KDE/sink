@@ -181,7 +181,7 @@ public:
         mail.setImportant(flags.contains(Imap::Flags::Flagged));
     }
 
-    KIMAP2::MessageFlags getFlags(const Sink::ApplicationDomain::Mail &mail)
+    static KIMAP2::MessageFlags getFlags(const Sink::ApplicationDomain::Mail &mail)
     {
         KIMAP2::MessageFlags flags;
         if (!mail.getUnread()) {
