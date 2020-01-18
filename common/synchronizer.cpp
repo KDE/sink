@@ -418,7 +418,9 @@ void Synchronizer::reportProgress(int progress, int total, const QByteArrayList 
 {
     if (progress > 0 && total > 0) {
         //Limit progress updates for large amounts
-        if (total >= 100 && progress % 10 != 0) {
+        if (total >= 1000 && progress % 100 != 0) {
+            return;
+        } else if (total >= 100 && progress % 10 != 0) {
             return;
         }
         SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total << mCurrentRequest.requestId << mCurrentRequest.applicableEntities;
