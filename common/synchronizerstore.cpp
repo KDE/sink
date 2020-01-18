@@ -149,3 +149,13 @@ void SynchronizerStore::removePrefix(const QByteArray &prefix)
     }
 }
 
+bool SynchronizerStore::contains(const QByteArray &key)
+{
+    return !readValue(key).isEmpty();
+}
+
+bool SynchronizerStore::contains(const QByteArray &prefix, const QByteArray &key)
+{
+    return contains(prefix + key);
+}
+
