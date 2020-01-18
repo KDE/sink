@@ -136,7 +136,7 @@ public:
             return QByteArray{};
         }();
         if (!specialPurpose.isEmpty()) {
-            folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
+            folder.setSpecialPurpose({specialPurpose});
         }
         //Always show the inbox
         if (specialPurpose == ApplicationDomain::SpecialPurpose::Mail::inbox) {
@@ -358,7 +358,7 @@ public:
                     synchronizeMails(folderRemoteId, folderLocalId, m);
                 },
                 [=](int progress, int total) {
-                    reportProgress(progress, total, QByteArrayList{} << folderLocalId);
+                    reportProgress(progress, total, {folderLocalId});
                     //commit every 100 messages
                     if ((progress % 100) == 0) {
                         commit();
@@ -400,7 +400,7 @@ public:
                         synchronizeMails(folderRemoteId, folderLocalId, m);
                     },
                     [=](int progress, int total) {
-                        reportProgress(progress, total, QByteArrayList{} << folderLocalId);
+                        reportProgress(progress, total, {folderLocalId});
                         //commit every 100 messages
                         if ((progress % 100) == 0) {
                             commit();
@@ -649,7 +649,7 @@ public:
                         synchronizeMails(folderRemoteId, folderLocalId, m);
                     },
                     [=](int progress, int total) {
-                        reportProgress(progress, total, QByteArrayList{} << folderLocalId);
+                        reportProgress(progress, total, {folderLocalId});
                         //commit every 100 messages
                         if ((progress % 100) == 0) {
                             commit();
