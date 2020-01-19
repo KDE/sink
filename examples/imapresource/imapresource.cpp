@@ -273,10 +273,10 @@ public:
         })
         //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
         .then([=] {
-            const auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
+            const auto lastSeenUid = qMax(qint64{0}, syncStore().readValue(folderRemoteId, "uidnext").toLongLong() - 1);
             bool ok = false;
             const auto changedsince = syncStore().readValue(folderRemoteId, "changedsince").toLongLong(&ok);
-            SinkLogCtx(logCtx) << "About to update flags" << folder.path() << "changedsince: " << changedsince;
+            SinkLogCtx(logCtx) << "About to update flags" << folder.path() << "changedsince: " << changedsince << "last seen uid: " << lastSeenUid;
             //If we have any mails so far we start off by updating any changed flags using changedsince, unless we don't have any mails at all.
             if (ok && lastSeenUid >= 1) {
                 return imap->fetchFlags(folder, KIMAP2::ImapSet(1, lastSeenUid), changedsince, [=](const Message &message) {
@@ -309,13 +309,13 @@ public:
         //We fetch all data for this set.
         //This will also pull in any new messages in subsequent runs.
         .then([=] (qint64 serverUidNext){
-            const auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
+            const auto lastSeenUid = syncStore().contains(folderRemoteId, "uidnext") ? qMax(qint64{0}, syncStore().readValue(folderRemoteId, "uidnext").toLongLong() - 1) : -1;
             auto job = [=] {
                 if (dateFilter.isValid()) {
                     SinkLogCtx(logCtx) << "Fetching messages since: " << dateFilter  << " or uid: " << lastSeenUid;
                     //Avoid creating a gap if we didn't fetch messages older than dateFilter, but aren't in the initial fetch either
-                    if (lastSeenUid > 0) {
-                        return imap->fetchUidsSince(imap->mailboxFromFolder(folder), dateFilter, lastSeenUid);
+                    if (syncStore().contains(folderRemoteId, "uidnext")) {
+                        return imap->fetchUidsSince(imap->mailboxFromFolder(folder), dateFilter, lastSeenUid + 1);
                     } else {
                         return imap->fetchUidsSince(imap->mailboxFromFolder(folder), dateFilter);
                     }
@@ -331,16 +331,20 @@ public:
                 //Make sure the uids are sorted in reverse order and drop everything below lastSeenUid (so we don't refetch what we already have)
                 QVector<qint64> filteredAndSorted = uidsToFetch;
                 qSort(filteredAndSorted.begin(), filteredAndSorted.end(), qGreater<qint64>());
-                const auto lowerBound = qLowerBound(filteredAndSorted.begin(), filteredAndSorted.end(), lastSeenUid, qGreater<qint64>());
-                if (lowerBound != filteredAndSorted.end()) {
-                    filteredAndSorted.erase(lowerBound, filteredAndSorted.end());
+                //Only filter the set if we have a valid lastSeenUid. Otherwise we would miss uid 1
+                if (lastSeenUid > 0) {
+                    const auto lowerBound = qLowerBound(filteredAndSorted.begin(), filteredAndSorted.end(), lastSeenUid, qGreater<qint64>());
+                    if (lowerBound != filteredAndSorted.end()) {
+                        filteredAndSorted.erase(lowerBound, filteredAndSorted.end());
+                    }
                 }
+
                 if (filteredAndSorted.isEmpty()) {
                     SinkTraceCtx(logCtx) << "Nothing new to fetch for full set.";
                     if (serverUidNext) {
                         SinkLogCtx(logCtx) << "Storing the server side uidnext: " << serverUidNext << folder.path();
                         //If we don't receive a mail we should still record the updated uidnext value.
-                        syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(serverUidNext - 1));
+                        syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(serverUidNext));
                     }
                     return KAsync::null();
                 }
@@ -367,7 +371,7 @@ public:
                 })
                 .then([=] {
                     SinkLogCtx(logCtx) << "Highest found uid: " << *maxUid << folder.path() << " Full set lower bound: " << lowerBoundUid;
-                    syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(*maxUid));
+                    syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(*maxUid + 1));
                     //Remember the lowest full message we fetched.
                     //This is used below to fetch headers for the rest.
                     if (!syncStore().contains(folderRemoteId, "fullsetLowerbound")) {
@@ -596,9 +600,9 @@ public:
                         return imap->examine(folder)
                             .then([=](const SelectResult &result) {
                                 const auto folderRemoteId = folderRid(folder);
-                                auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
-                                SinkTraceCtx(mLogCtx) << "Checking for new messages." << folderRemoteId << " Last seen uid: " << lastSeenUid << " Uidnext: " << result.uidNext;
-                                if (result.uidNext > (lastSeenUid + 1)) {
+                                const auto uidNext = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
+                                SinkTraceCtx(mLogCtx) << "Checking for new messages." << folderRemoteId << " Local uidnext: " << uidNext << " Server uidnext: " << result.uidNext;
+                                if (result.uidNext > uidNext) {
                                     const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                                     emitNotification(Notification::Info, ApplicationDomain::NewContentAvailable, {}, {}, {{folderLocalId}});
                                 }

@@ -298,7 +298,7 @@ private slots:
             //We don't strictly have to pull the full payload for an item that is just fetched to ensure we have no missing mails,
             //but we currently do
             QCOMPARE(mails.at(1).getFullPayloadAvailable(), true);
-            QCOMPARE(mails.at(2).getFullPayloadAvailable(), false);
+            QCOMPARE(mails.at(2).getFullPayloadAvailable(), true);
         }
     }
 
@@ -306,7 +306,7 @@ private slots:
      * * First sync the folder
      * * Then create a message on the server
      * * Then attempt to sync it even though it doens't match the date filter.
-     * We expect the message to be fetched but without payload because it doesn't match the date-filter.
+     * We expect the message to be fetched with the payload even though it doesn't match the date-filter.
      */
     void testDateFilterAfterInitialSync()
     {
@@ -352,7 +352,7 @@ private slots:
             query.filter<Mail::Folder>(folder);
             auto mails = Store::read<Mail>(query);
             QCOMPARE(mails.size(), 1);
-            QCOMPARE(mails.at(0).getFullPayloadAvailable(), false);
+            QCOMPARE(mails.at(0).getFullPayloadAvailable(), true);
         }
     }
 };
