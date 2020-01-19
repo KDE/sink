@@ -259,10 +259,10 @@ public:
 
         //Start by checking if UIDVALIDITY is still correct
         return KAsync::start([=] {
-            bool ok = false;
-            const auto uidvalidity = syncStore().readValue(folderRemoteId, "uidvalidity").toLongLong(&ok);
             return imap->select(folder)
                 .then([=](const SelectResult &selectResult) {
+                    bool ok = false;
+                    const auto uidvalidity = syncStore().readValue(folderRemoteId, "uidvalidity").toLongLong(&ok);
                     SinkLogCtx(logCtx) << "Checking UIDVALIDITY. Local" << uidvalidity << "remote " << selectResult.uidValidity;
                     if (ok && selectResult.uidValidity != uidvalidity) {
                         SinkWarningCtx(logCtx) << "UIDVALIDITY changed " << selectResult.uidValidity << uidvalidity;
@@ -271,7 +271,7 @@ public:
                     syncStore().writeValue(folderRemoteId, "uidvalidity", QByteArray::number(selectResult.uidValidity));
                 });
         })
-        // //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
+        //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
         .then([=] {
             const auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
             bool ok = false;
@@ -312,7 +312,7 @@ public:
             const auto lastSeenUid = syncStore().readValue(folderRemoteId, "uidnext").toLongLong();
             auto job = [=] {
                 if (dateFilter.isValid()) {
-                    SinkLogCtx(logCtx) << "Fetching messages since: " << dateFilter << lastSeenUid;
+                    SinkLogCtx(logCtx) << "Fetching messages since: " << dateFilter  << " or uid: " << lastSeenUid;
                     //Avoid creating a gap if we didn't fetch messages older than dateFilter, but aren't in the initial fetch either
                     if (lastSeenUid > 0) {
                         return imap->fetchUidsSince(imap->mailboxFromFolder(folder), dateFilter, lastSeenUid);
