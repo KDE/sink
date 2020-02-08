@@ -137,8 +137,6 @@ PRIVATE
 install(TARGETS ${PROJECT_NAME}
     EXPORT SinkTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )
 
-add_clang_static_analysis(${PROJECT_NAME})
-
 install(FILES
     store.h
     notifier.h

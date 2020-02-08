@@ -12,6 +12,7 @@ option(CATCH_ERRORS "CATCH_ERRORS" OFF)
 option(ENABLE_MEMCHECK "Build valgrind tests" OFF)
 option(ENABLE_ASAN "Enable the address sanitizer" OFF)
 option(ENABLE_TSAN "Enable the thread sanitizer" OFF)
+option(ENABLE_TIDY "Enable the static code analyzer" OFF)
 
 # ECM setup
 find_package(ECM 1.0.0 REQUIRED NO_MODULE)
@@ -75,6 +76,15 @@ if (${ENABLE_TSAN})
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${SINK_TSAN_FLAG}")
 endif()
 
+if (${ENABLE_TIDY})
+    find_program(
+        CLANG_TIDY
+        NAMES "clang-tidy"
+        DOC "Path to clang-tidy executable"
+    )
+    set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY})
+endif()
+
 
 #Clang-format support
 add_custom_command(
@@ -104,22 +114,6 @@ function(generate_flatbuffers _target)
     endforeach(fbs)
 endfunction(generate_flatbuffers)
 
-#Clang-analyze support
-add_custom_target(analyze)
-function(add_clang_static_analysis target)
-    get_target_property(SRCs ${target} SOURCES)
-    get_target_property(INCLUDEs ${target} INCLUDE_DIRECTORIES)
-    add_library(${target}_analyze OBJECT EXCLUDE_FROM_ALL ${SRCs})
-    set_target_properties(${target}_analyze PROPERTIES
-        COMPILE_OPTIONS "--analyze"
-        EXCLUDE_FROM_DEFAULT_BUILD true
-        INCLUDE_DIRECTORIES "${INCLUDEs};${KDE_INSTALL_FULL_INCLUDEDIR}/KF5/" # Had to hardcode include directory to find KAsync includes
-        #COMPILE_FLAGS is deprecated, but the only way that -Xanalyzer isn't erronously deduplicated
-        COMPILE_FLAGS "-Xanalyzer -analyzer-eagerly-assume -Xanalyzer -analyzer-opt-analyze-nested-blocks"
-    )
-    target_compile_options(${target}_analyze PRIVATE ${Qt5Core_EXECUTABLE_COMPILE_FLAGS})# Necessary to get options such as fPIC
-    add_dependencies(analyze ${target}_analyze)
-endfunction()
 
 set(CMAKE_AUTOMOC ON)
 if (${CATCH_ERRORS})
