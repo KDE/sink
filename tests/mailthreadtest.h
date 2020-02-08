@@ -56,6 +56,7 @@ private slots:
     void testRealWorldThread();
     void testRealWorldThread2();
     void testNoParentsWithModifications();
+    void testRealWorldSenderThread();
 };
 
 }

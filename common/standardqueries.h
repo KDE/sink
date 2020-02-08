@@ -61,6 +61,42 @@ namespace StandardQueries {
     }
 
     /**
+     * Returns sender leaders only, sorted by date.
+     */
+    static Query senderLeaders(const ApplicationDomain::Folder &folder)
+    {
+        Sink::Query query;
+        query.setId("senderleaders");
+        if (!folder.resourceInstanceIdentifier().isEmpty()) {
+            query.resourceFilter(folder.resourceInstanceIdentifier());
+        }
+        query.filter<ApplicationDomain::Mail::Folder>(folder);
+        query.sort<ApplicationDomain::Mail::Date>();
+        query.reduce<ApplicationDomain::Mail::Sender>(Query::Reduce::Selector::max<ApplicationDomain::Mail::Date>())
+            .count()
+            .select<ApplicationDomain::Mail::Subject>(Query::Reduce::Selector::Min)
+            .collect<ApplicationDomain::Mail::Unread>()
+            .collect<ApplicationDomain::Mail::Important>();
+        return query;
+    }
+
+    /**
+     * Returns the complete thread, containing all mails from all folders.
+     */
+    static Query completeSender(const ApplicationDomain::Mail &mail)
+    {
+        Sink::Query query;
+        query.setId("completesender");
+        if (!mail.resourceInstanceIdentifier().isEmpty()) {
+            query.resourceFilter(mail.resourceInstanceIdentifier());
+        }
+        query.filter(mail.identifier());
+        query.sort<ApplicationDomain::Mail::Date>();
+        query.bloom<ApplicationDomain::Mail::Sender>();
+        return query;
+    }
+
+    /**
      * Outgoing mails.
      */
     static Query outboxMails()

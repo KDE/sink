@@ -43,9 +43,12 @@ typedef IndexConfig<Mail,
         ValueIndex<Mail::ParentMessageIds>,
         ValueIndex<Mail::MessageId>,
         ValueIndex<Mail::Draft>,
+        ValueIndex<Mail::Sender>,
         SortedIndex<Mail::Folder, Mail::Date>,
         SecondaryIndex<Mail::MessageId, Mail::ThreadId>,
         SecondaryIndex<Mail::ThreadId, Mail::MessageId>,
+        SecondaryIndex<Mail::MessageId, Mail::Sender>,
+        SecondaryIndex<Mail::Sender, Mail::MessageId>,
         CustomSecondaryIndex<Mail::MessageId, Mail::ThreadId, ThreadIndexer>,
         CustomSecondaryIndex<Mail::Subject, Mail::Subject, FulltextIndexer>
     > MailIndexConfig;

@@ -387,3 +387,36 @@ void MailThreadTest::testRealWorldThread2()
     QCOMPARE(Store::read<Mail>(Sink::StandardQueries::completeThread(mails.first())).size(), 15);
 }
 
+void MailThreadTest::testRealWorldSenderThread()
+{
+    auto folder = Folder::create(mResourceInstanceIdentifier);
+    folder.setName("folder");
+    VERIFYEXEC(Store::create(folder));
+
+    auto createMail = [this, folder] (KMime::Message::Ptr msg) {
+        auto mail = Mail::create(mResourceInstanceIdentifier);
+        mail.setMimeMessage(msg->encodedContent(true));
+        mail.setFolder(folder);
+        VERIFYEXEC(Store::create(mail));
+    };
+
+    createMail(readMail("thread1_1"));
+    createMail(readMail("thread1_2"));
+    createMail(readMail("thread1_3"));
+    createMail(readMail("thread1_4"));
+    VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+    {
+        const auto query = Sink::StandardQueries::senderLeaders(folder);
+        const auto mails = Store::read<Mail>(query);
+        QCOMPARE(mails.size(), 3);
+
+        {
+            auto query = Sink::StandardQueries::completeSender(mails.first());
+            query.request<Mail::Subject>().request<Mail::MimeMessage>().request<Mail::Folder>().request<Mail::Date>();
+
+            auto mails = Store::read<Mail>(query);
+            QCOMPARE(mails.size(), 2);
+        }
+    }
+}

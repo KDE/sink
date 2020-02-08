@@ -46,6 +46,12 @@ static QByteArray getByteArray(const QVariant &value)
             return ba;
         }
     }
+    if (value.canConvert<Sink::ApplicationDomain::Mail::Contact>()) {
+        const auto ba = value.value<Sink::ApplicationDomain::Mail::Contact>().emailAddress.toUtf8();
+        if (!ba.isEmpty()) {
+            return ba;
+        }
+    }
     if (value.isValid() && !value.toByteArray().isEmpty()) {
         return value.toByteArray();
     }

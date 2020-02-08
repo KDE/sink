@@ -299,10 +299,10 @@ public:
         if (value.type() == QVariant::DateTime) {
             return value.toDateTime().toString().toLatin1();
         }
-        if (value.isValid() && !value.toByteArray().isEmpty()) {
-            return value.toByteArray();
+        if (value.canConvert<Sink::ApplicationDomain::Mail::Contact>()) {
+            return value.value<Sink::ApplicationDomain::Mail::Contact>().emailAddress.toUtf8();
         }
-        return QByteArray();
+        return value.toByteArray();
     }
 
     struct ReductionResult {
