@@ -204,7 +204,7 @@ public:
 
     QByteArray db;
     MDB_txn *transaction;
-    MDB_dbi dbi;
+    MDB_dbi dbi{0};
     int flags;
     std::function<void(const DataStore::Error &error)> defaultErrorHandler;
     QString name;
