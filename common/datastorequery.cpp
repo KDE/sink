@@ -55,7 +55,7 @@ class Source : public FilterBase {
     QVector<Identifier> mIds;
     QVector<Identifier>::ConstIterator mIt;
     QVector<Identifier> mIncrementalIds;
-    QVector<Identifier>::ConstIterator mIncrementalIt;
+    QVector<Identifier>::ConstIterator mIncrementalIt{};
     bool mHaveIncrementalChanges{false};
 
     Source (const QVector<Identifier> &ids, DataStoreQuery *store)
@@ -65,9 +65,9 @@ class Source : public FilterBase {
         mIt = mIds.constBegin();
     }
 
-    virtual ~Source(){}
+    virtual ~Source() = default;
 
-    virtual void skip() Q_DECL_OVERRIDE
+    void skip() override
     {
         if (mIt != mIds.constEnd()) {
             mIt++;
@@ -96,21 +96,18 @@ class Source : public FilterBase {
                 callback({entity, operation});
             });
             mIncrementalIt++;
-            if (mIncrementalIt == mIncrementalIds.constEnd()) {
-                return false;
-            }
-            return true;
-        } else {
-            if (mIt == mIds.constEnd()) {
-                return false;
-            }
-            readEntity(*mIt, [this, callback](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
-                SinkTraceCtx(mDatastore->mLogCtx) << "Source: Read entity: " << entity.identifier() << operationName(operation);
-                callback({entity, operation});
-            });
-            mIt++;
-            return mIt != mIds.constEnd();
+
+            return mIncrementalIt != mIncrementalIds.constEnd();
         }
+        if (mIt == mIds.constEnd()) {
+            return false;
+        }
+        readEntity(*mIt, [this, callback](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+            SinkTraceCtx(mDatastore->mLogCtx) << "Source: Read entity: " << entity.identifier() << operationName(operation);
+            callback({entity, operation});
+        });
+        mIt++;
+        return mIt != mIds.constEnd();
     }
 };
 
@@ -123,7 +120,7 @@ public:
     {
 
     }
-    virtual ~Collector(){}
+    ~Collector() override = default;
 
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
     {
@@ -392,9 +389,9 @@ public:
                 }
                 const auto reductionValueBa = getByteArray(reductionValue);
                 if (!mReducedValues.contains(reductionValueBa)) {
+                    SinkTraceCtx(mDatastore->mLogCtx) << "Reducing new value: " << result.entity.identifier() << reductionValueBa;
                     //Only reduce every value once.
                     mReducedValues.insert(reductionValueBa);
-                    SinkTraceCtx(mDatastore->mLogCtx) << "Reducing new value: " << result.entity.identifier() << reductionValueBa;
                     auto reductionResult = reduceOnValue(reductionValue);
 
                     //This can happen if we get a removal message from a filtered entity and all entites of the reduction are filtered.
@@ -763,16 +760,12 @@ ResultSet DataStoreQuery::execute()
 
     Q_ASSERT(mCollector);
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
-        if (mCollector->next([this, callback](const ResultSet::Result &result) {
+        return mCollector->next([this, callback](const ResultSet::Result &result) {
                 if (result.operation != Sink::Operation_Removal) {
                     SinkTraceCtx(mLogCtx) << "Got initial result: " << result.entity.identifier() << result.operation;
                     callback(ResultSet::Result{result.entity, Sink::Operation_Creation, result.aggregateValues, result.aggregateIds});
                 }
-            }))
-        {
-            return true;
-        }
-        return false;
+            });
     };
     return ResultSet(generator, [this]() { mCollector->skip(); });
 }
