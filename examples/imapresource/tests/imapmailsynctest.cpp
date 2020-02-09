@@ -355,6 +355,47 @@ private slots:
             QCOMPARE(mails.at(0).getFullPayloadAvailable(), true);
         }
     }
+
+    /**
+     * The mails are too old so we only fetch headers
+     */
+    void testDateFilterFetchHeadersOnly()
+    {
+        auto dt = QDateTime{{2019, 04, 20}};
+
+        auto foldername = "datefilter3";
+        createFolder({foldername});
+        createMessage({foldername}, newMessage("0", dt.addDays(-30)), dt.addDays(-30));
+
+        Sink::SyncScope query;
+        query.setType<ApplicationDomain::Folder>();
+        VERIFYEXEC(Store::synchronize(query));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        auto folder = Store::readOne<Folder>(Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>(foldername));
+
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        {
+            Sink::Query query;
+            query.setType<ApplicationDomain::Mail>();
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.filter(ApplicationDomain::Mail::Date::name, QVariant::fromValue(dt.addDays(-3).date()));
+            query.filter<Mail::Folder>(folder);
+
+            VERIFYEXEC(Store::synchronize(query));
+            VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.sort<ApplicationDomain::Mail::Date>();
+            query.filter<Mail::Folder>(folder);
+            auto mails = Store::read<Mail>(query);
+            QCOMPARE(mails.size(), 1);
+            QCOMPARE(mails.at(0).getFullPayloadAvailable(), false);
+        }
+    }
 };
 
 QTEST_MAIN(ImapMailSyncTest)

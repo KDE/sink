@@ -344,6 +344,9 @@ public:
                         //If we don't receive a mail we should still record the updated uidnext value.
                         syncStore().writeValue(folderRemoteId, "uidnext", QByteArray::number(serverUidNext));
                     }
+                    if (!syncStore().contains(folderRemoteId, "fullsetLowerbound")) {
+                        syncStore().writeValue(folderRemoteId, "fullsetLowerbound", QByteArray::number(serverUidNext));
+                    }
                     return KAsync::null();
                 }
 
