@@ -200,9 +200,7 @@ public:
     {
     }
 
-    ~Private()
-    {
-    }
+    ~Private() = default;
 
     QByteArray db;
     MDB_txn *transaction;
@@ -1087,7 +1085,7 @@ public:
                             for (auto it = layout.tables.constBegin(); it != layout.tables.constEnd(); it++) {
                                 const int flags = it.value();
                                 MDB_dbi dbi = 0;
-                                const auto db = it.key();
+                                const auto &db = it.key();
                                 const auto dbiName = name + db;
                                 if (createDbi(transaction, db, readOnly, flags, dbi)) {
                                     sDbis.insert(dbiName, dbi);

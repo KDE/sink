@@ -518,7 +518,7 @@ public:
         queue << request;
     }
 
-    KAsync::Job<void> login(QSharedPointer<ImapServerProxy> imap)
+    KAsync::Job<void> login(const QSharedPointer<ImapServerProxy> &imap)
     {
         SinkTrace() << "Connecting to:" << mServer << mPort;
         SinkTrace() << "as:" << mUser;
@@ -526,7 +526,7 @@ public:
         .addToContext(imap);
     }
 
-    KAsync::Job<QVector<Folder>> getFolderList(QSharedPointer<ImapServerProxy> imap, const Sink::QueryBase &query)
+    KAsync::Job<QVector<Folder>> getFolderList(const QSharedPointer<ImapServerProxy> &imap, const Sink::QueryBase &query)
     {
         if (query.hasFilter<ApplicationDomain::Mail::Folder>()) {
             //If we have a folder filter fetch full payload of date-range & all headers
@@ -561,7 +561,6 @@ public:
                 case Imap::CouldNotConnectError:
                     return {ApplicationDomain::ConnectionError, error.errorMessage};
                 case Imap::SslHandshakeError:
-                    return {ApplicationDomain::LoginError, error.errorMessage};
                 case Imap::LoginFailed:
                     return {ApplicationDomain::LoginError, error.errorMessage};
                 case Imap::HostNotFoundError:
@@ -1087,7 +1086,7 @@ public:
 class FolderCleanupPreprocessor : public Sink::Preprocessor
 {
 public:
-    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) override
     {
         //Remove all mails of a folder when removing the folder.
         const auto revision = entityStore().maxRevision();
