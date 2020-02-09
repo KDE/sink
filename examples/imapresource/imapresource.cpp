@@ -30,10 +30,8 @@
 #include "inspector.h"
 #include "query.h"
 
-#include <QtGlobal>
 #include <QDate>
 #include <QDateTime>
-#include <QtAlgorithms>
 #include <QUrl>
 
 #include "facadefactory.h"
@@ -330,10 +328,10 @@ public:
 
                 //Make sure the uids are sorted in reverse order and drop everything below lastSeenUid (so we don't refetch what we already have)
                 QVector<qint64> filteredAndSorted = uidsToFetch;
-                qSort(filteredAndSorted.begin(), filteredAndSorted.end(), qGreater<qint64>());
+                std::sort(filteredAndSorted.begin(), filteredAndSorted.end(), std::greater<qint64>());
                 //Only filter the set if we have a valid lastSeenUid. Otherwise we would miss uid 1
                 if (lastSeenUid > 0) {
-                    const auto lowerBound = qLowerBound(filteredAndSorted.begin(), filteredAndSorted.end(), lastSeenUid, qGreater<qint64>());
+                    const auto lowerBound = std::lower_bound(filteredAndSorted.begin(), filteredAndSorted.end(), lastSeenUid, std::greater<qint64>());
                     if (lowerBound != filteredAndSorted.end()) {
                         filteredAndSorted.erase(lowerBound, filteredAndSorted.end());
                     }
@@ -397,9 +395,9 @@ public:
                     //sort in reverse order and remove everything greater than fullsetLowerbound.
                     //This gives us all emails for which we haven't fetched the full content yet.
                     QVector<qint64> toFetch = uids;
-                    qSort(toFetch.begin(), toFetch.end(), qGreater<qint64>());
+                    std::sort(toFetch.begin(), toFetch.end(), std::greater<qint64>());
                     if (fullsetLowerbound) {
-                        auto upperBound = qUpperBound(toFetch.begin(), toFetch.end(), fullsetLowerbound, qGreater<qint64>());
+                        auto upperBound = std::upper_bound(toFetch.begin(), toFetch.end(), fullsetLowerbound, std::greater<qint64>());
                         if (upperBound != toFetch.begin()) {
                             toFetch.erase(toFetch.begin(), upperBound);
                         }
