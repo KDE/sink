@@ -25,9 +25,9 @@
 #include <QGuiApplication>
 #include <QUuid>
 #include <KMime/KMime/KMimeMessage>
+#include <mime/mimetreeparser/objecttreeparser.h>
 
 #include "pipeline.h"
-#include "fulltextindex.h"
 #include "definitions.h"
 #include "applicationdomaintype.h"
 
@@ -49,32 +49,20 @@ static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime:
     return list;
 }
 
-static QList<QPair<QString, QString>> processPart(KMime::Content* content)
+static QByteArray normalizeMessageId(const QByteArray &id)
 {
-    if (KMime::Headers::ContentType* type = content->contentType(false)) {
-        if (type->isMultipart() && !type->isSubtype("encrypted")) {
-            QList<QPair<QString, QString>> list;
-            for (const auto c : content->contents()) {
-                list << processPart(c);
-            }
-            return list;
-        } else if (type->isHTMLText()) {
-            //QTextDocument has an implicit runtime dependency on QGuiApplication via the color palette.
-            //If the QGuiApplication is not available we will crash (if the html contains colors).
-            Q_ASSERT(QGuiApplication::instance());
-            // Only get HTML content, if no plain text content
-            QTextDocument doc;
-            doc.setHtml(content->decodedText());
-            return {{{}, {doc.toPlainText()}}};
-        } else if (type->isEmpty()) {
-            return {{{}, {content->decodedText()}}};
-        }
-    }
-    return {};
+    return id;
 }
 
-QByteArray normalizeMessageId(const QByteArray &id) {
-    return id;
+static QString toPlain(const QString &html)
+{
+    //QTextDocument has an implicit runtime dependency on QGuiApplication via the color palette.
+    //If the QGuiApplication is not available we will crash (if the html contains colors).
+    Q_ASSERT(QGuiApplication::instance());
+    // Only get HTML content, if no plain text content
+    QTextDocument doc;
+    doc.setHtml(html);
+    return doc.toPlainText();
 }
 
 void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, const QByteArray &data)
@@ -136,11 +124,17 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     }
     QList<QPair<QString, QString>> contentToIndex;
     contentToIndex.append({{}, msg->subject()->asUnicodeString()});
-    if (KMime::Content* mainBody = msg->mainBodyPart("text/plain")) {
-        contentToIndex.append({{}, mainBody->decodedText()});
+
+    MimeTreeParser::ObjectTreeParser otp;
+    otp.parseObjectTree(msg.data());
+    otp.decryptAndVerify();
+    const auto plainTextContent = otp.plainTextContent();
+    if (plainTextContent.isEmpty()) {
+        contentToIndex.append({{}, toPlain(otp.htmlContent())});
     } else {
-        contentToIndex << processPart(msg.data());
+        contentToIndex.append({{}, plainTextContent});
     }
+
     const auto sender = mail.getSender();
     contentToIndex.append({{}, sender.name});
     contentToIndex.append({{}, sender.emailAddress});
