@@ -10,32 +10,20 @@ add_definitions( -DMAIL_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../testdata" )
 include(ECMAddTests)
 include(${CMAKE_SOURCE_DIR}/cmake/modules/add_gpg_crypto_test.cmake)
 
-# convenience macro to add qtest unit tests
-macro(add_mimetreeparser_unittest _source)
-    get_filename_component(_name ${_source} NAME_WE)
-    ecm_add_test(${_source} util.cpp setupenv.cpp
-        TEST_NAME ${_name}
-        NAME_PREFIX "mimetreeparser-"
-        LINK_LIBRARIES kube_otp Qt5::Test KF5::Mime
+macro(add_mimetreeparser_class_unittest _name _additionalSource)
+    add_executable(${_name} ${_name}.cpp setupenv.cpp ${_additionalSource})
+    target_link_libraries(${_name}
+        sink_mimetreeparser
+        Qt5::Test
+        KF5::Mime
     )
+    add_test(NAME ${_name} COMMAND $<TARGET_FILE:${_name}>)
 endmacro ()
 
-macro(add_mimetreeparser_class_unittest _source _additionalSource)
-    get_filename_component(_name ${_source} NAME_WE)
-    ecm_add_test(${_source} ${_additionalSource}
-        TEST_NAME ${_name}
-        NAME_PREFIX "mimetreeparser-"
-        LINK_LIBRARIES kube_otp Qt5::Test KF5::Mime
-    )
-endmacro ()
-
-macro(add_mimetreeparser_crypto_unittest _source)
-    set(_test ${_source} util.cpp)
-    get_filename_component(_name ${_source} NAME_WE)
-    add_executable( ${_name} ${_test} setupenv.cpp)
-    ecm_mark_as_test(${_name})
-    target_link_libraries( ${_name}
-        kube_otp
+macro(add_mimetreeparser_crypto_unittest _name)
+    add_executable(${_name} ${_name}.cpp setupenv.cpp)
+    target_link_libraries(${_name}
+        sink_mimetreeparser
         Qt5::Test
         KF5::Mime
         Gpgme::Gpgme
@@ -43,6 +31,5 @@ macro(add_mimetreeparser_crypto_unittest _source)
     add_gpg_crypto_test(${_name} mimetreeparser-${_name})
 endmacro ()
 
-add_mimetreeparser_crypto_unittest(attachmenttest.cpp)
-add_mimetreeparser_unittest(nodehelpertest.cpp)
-add_mimetreeparser_class_unittest(cryptohelpertest.cpp "../cryptohelper.cpp")
+add_mimetreeparser_crypto_unittest(attachmenttest)
+add_mimetreeparser_class_unittest(cryptohelpertest "../cryptohelper.cpp")

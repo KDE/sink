@@ -33,6 +33,7 @@
 
 #include "bodypartformatterbasefactory.h"
 #include "bodypartformatterbasefactory_p.h"
+#include "bodypartformatter.h"
 #include "mimetreeparser_debug.h"
 
 // Qt
@@ -63,7 +64,7 @@ void BodyPartFormatterBaseFactoryPrivate::setup()
     }
 }
 
-void BodyPartFormatterBaseFactoryPrivate::insert(const char *type, const char *subtype, const Interface::BodyPartFormatter *formatter)
+void BodyPartFormatterBaseFactoryPrivate::insert(const char *type, const char *subtype, Interface::BodyPartFormatter *formatter)
 {
     if (!type || !*type || !subtype || !*subtype || !formatter || !all) {
         return;
@@ -90,7 +91,7 @@ BodyPartFormatterBaseFactory::~BodyPartFormatterBaseFactory()
     delete d;
 }
 
-void BodyPartFormatterBaseFactory::insert(const char *type, const char *subtype, const Interface::BodyPartFormatter *formatter)
+void BodyPartFormatterBaseFactory::insert(const char *type, const char *subtype, Interface::BodyPartFormatter *formatter)
 {
     d->insert(type, subtype, formatter);
 }

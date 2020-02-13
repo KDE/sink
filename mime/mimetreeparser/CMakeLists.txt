@@ -6,47 +6,40 @@ find_package(KF5Codecs CONFIG REQUIRED)
 find_package(Gpgme REQUIRED)
 
 include_directories(${GPGME_INCLUDE_DIRS})
-add_library(kube_otp STATIC
+add_library(sink_mimetreeparser STATIC
     objecttreeparser.cpp
 
     #Bodyformatter
-    applicationpgpencrypted.cpp
-    applicationpkcs7mime.cpp
-    mailman.cpp
-    multipartalternative.cpp
-    multipartencrypted.cpp
-    multipartsigned.cpp
-    textplain.cpp
-    texthtml.cpp
     utils.cpp
     bodypartformatter_impl.cpp
 
     #Interfaces
     bodypartformatter.cpp
-    bodypart.cpp
 
     #bodypartformatter.cpp
     bodypartformatterbasefactory.cpp
     cryptohelper.cpp
     nodehelper.cpp
     messagepart.cpp
-    partnodebodypart.cpp
     #Stuff
     mimetreeparser_debug.cpp
-    util.cpp
     )
 
-target_link_libraries(kube_otp
-    PUBLIC
+target_link_libraries(sink_mimetreeparser
+PUBLIC
     KF5::Mime
-)
-
-target_link_libraries(kube_otp
-    PRIVATE
+PRIVATE
     crypto
     KF5::Codecs
     Qt5::Gui
     Gpgme::Gpgme
+)
+
+install(FILES
+    objecttreeparser.h
+    messagepart.h
+    partmetadata.h
+    DESTINATION ${INCLUDE_INSTALL_DIR}/sink/mimetreeparser COMPONENT Devel
 )
 
 add_subdirectory(autotests)

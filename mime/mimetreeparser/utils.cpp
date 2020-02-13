@@ -18,24 +18,8 @@
 */
 
 #include "utils.h"
-#include "nodehelper.h"
 
 using namespace MimeTreeParser;
-
-MimeMessagePart::Ptr MimeTreeParser::createAndParseTempNode(Interface::BodyPart &part, const char *content, const char *cntDesc)
-{
-    KMime::Content *newNode = new KMime::Content();
-    newNode->setContent(KMime::CRLFtoLF(content));
-    newNode->parse();
-
-    if (!newNode->head().isEmpty()) {
-        newNode->contentDescription()->from7BitString(cntDesc);
-    }
-
-    auto mp = MimeMessagePart::Ptr(new MimeMessagePart(part.objectTreeParser(), newNode));
-    mp->bindLifetime(newNode);
-    return mp;
-}
 
 KMime::Content *MimeTreeParser::findTypeInDirectChildren(KMime::Content *content, const QByteArray &mimeType)
 {
@@ -48,21 +32,3 @@ KMime::Content *MimeTreeParser::findTypeInDirectChildren(KMime::Content *content
     return nullptr;
 }
 
-MessagePart::Ptr MimeTreeParser::toplevelTextNode(MessagePart::Ptr messageTree)
-{
-    foreach (const auto &mp, messageTree->subParts()) {
-        auto text = mp.dynamicCast<TextMessagePart>();
-        auto attach = mp.dynamicCast<AttachmentMessagePart>();
-        if (text && !attach) {
-            return text;
-        } else if (const auto alternative = mp.dynamicCast<AlternativeMessagePart>()) {
-            return alternative;
-        } else if (const auto m = mp.dynamicCast<MessagePart>()) {
-            auto ret = toplevelTextNode(m);
-            if (ret) {
-                return ret;
-            }
-        }
-    }
-    return MessagePart::Ptr();
-}

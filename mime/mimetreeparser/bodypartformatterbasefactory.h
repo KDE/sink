@@ -67,7 +67,7 @@ public:
     const SubtypeRegistry &subtypeRegistry(const char *type) const;
 
 protected:
-    void insert(const char *type, const char *subtype, const Interface::BodyPartFormatter *formatter);
+    void insert(const char *type, const char *subtype, Interface::BodyPartFormatter *formatter);
 private:
     static BodyPartFormatterBaseFactory *mSelf;
 

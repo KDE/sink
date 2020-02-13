@@ -12,14 +12,18 @@ include(ECMAddTests)
 add_executable(mimetreeparsertest mimetreeparsertest.cpp)
 add_gpg_crypto_test(mimetreeparsertest mimetreeparsertest)
 target_link_libraries(mimetreeparsertest
-    kube_otp
+    sink_mimetreeparser
     Qt5::Core
     Qt5::Test
     KF5::Mime
 )
 
-ecm_add_test(gpgerrortest.cpp
-    TEST_NAME "gpgerrortest"
-    NAME_PREFIX "mimetreeparser-"
-    LINK_LIBRARIES Qt5::Core Qt5::Test kube_otp Gpgme::Gpgme
+add_executable(gpgerrortest gpgerrortest.cpp)
+target_link_libraries(gpgerrortest
+    sink_mimetreeparser
+    Qt5::Core
+    Qt5::Test
+    KF5::Mime
+    Gpgme::Gpgme
 )
+add_test(NAME gpgerrortest COMMAND $<TARGET_FILE:gpgerrortest>)
