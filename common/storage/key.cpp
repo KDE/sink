@@ -20,7 +20,8 @@
  */
 
 #include "key.h"
-#include "utils.h"
+
+#include "common/utils.h"
 
 using Sink::Storage::Identifier;
 using Sink::Storage::Key;
@@ -136,12 +137,12 @@ Revision Revision::fromInternalByteArray(const QByteArray &bytes)
 
 QString Revision::toDisplayString() const
 {
-    return QString::fromUtf8(padNumber(rev));
+    return QString::fromUtf8(Sink::padNumber(rev));
 }
 
 QByteArray Revision::toDisplayByteArray() const
 {
-    return padNumber(rev);
+    return Sink::padNumber(rev);
 }
 
 Revision Revision::fromDisplayByteArray(const QByteArray &bytes)

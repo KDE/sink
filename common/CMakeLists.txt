@@ -133,6 +133,7 @@ PRIVATE
     KF5::Contacts
     KF5::CalendarCore
     ${XAPIAN_LIBRARIES}
+    kube_otp
 )
 install(TARGETS ${PROJECT_NAME}
     EXPORT SinkTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )

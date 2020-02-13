@@ -46,6 +46,7 @@ find_package(FlatBuffers REQUIRED 1.4.0)
 find_package(KAsync REQUIRED 0.3)
 find_package(LMDB REQUIRED 0.9)
 find_package(Xapian REQUIRED 1.4)
+find_package(Gpgme REQUIRED)
 
 if (${ENABLE_MEMCHECK})
     message("Enabled memcheck")
@@ -130,13 +131,16 @@ if (MSVC)
 endif()
 
 include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${FLATBUFFERS_INCLUDE_DIR} ${CMAKE_BINARY_DIR}/common 3rdparty)
-include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/common ${CMAKE_SOURCE_DIR}/common/domain)
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/common ${CMAKE_SOURCE_DIR}/common/domain ${CMAKE_SOURCE_DIR}/mime)
 
 configure_file(hawd.conf hawd.conf)
 
 enable_testing()
 
 set(SINK_RESOURCE_PLUGINS_PATH ${QT_PLUGIN_INSTALL_DIR}/sink/resources)
+
+# mime support
+add_subdirectory(mime)
 
 # common, eventually a lib but right now just the command buffers
 add_subdirectory(common)
