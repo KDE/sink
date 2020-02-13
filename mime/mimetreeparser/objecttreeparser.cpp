@@ -40,13 +40,11 @@
 #include "bodypartformatterbasefactory.h"
 #include "nodehelper.h"
 #include "messagepart.h"
-#include "partnodebodypart.h"
 
 #include "mimetreeparser_debug.h"
 
 #include "utils.h"
 #include "bodypartformatter.h"
-#include "util.h"
 
 #include <KMime/Message>
 
@@ -54,6 +52,8 @@
 #include <QUrl>
 #include <QMimeDatabase>
 #include <QTextStream>
+#include <KCharsets>
+#include <QTextCodec>
 
 using namespace MimeTreeParser;
 
@@ -82,38 +82,10 @@ static QVector<MessagePart::Ptr> collect(MessagePart::Ptr start, const std::func
     return list;
 }
 
-
-
 ObjectTreeParser::ObjectTreeParser()
-    : mNodeHelper(nullptr),
-      mTopLevelContent(nullptr)
+    : mNodeHelper{new NodeHelper}
 {
-    init();
-}
 
-ObjectTreeParser::ObjectTreeParser(MimeTreeParser::NodeHelper *nodeHelper)
-    : mNodeHelper(nodeHelper),
-      mTopLevelContent(nullptr)
-{
-    init();
-}
-
-void ObjectTreeParser::init()
-{
-    if (!mNodeHelper) {
-        mNodeHelper = new NodeHelper();
-        mDeleteNodeHelper = true;
-    } else {
-        mDeleteNodeHelper = false;
-    }
-}
-
-ObjectTreeParser::~ObjectTreeParser()
-{
-    if (mDeleteNodeHelper) {
-        delete mNodeHelper;
-        mNodeHelper = nullptr;
-    }
 }
 
 QString ObjectTreeParser::plainTextContent()
@@ -429,8 +401,7 @@ QVector<MessagePartPtr> ObjectTreeParser::processType(KMime::Content *node, cons
         if (!formatter) {
             continue;
         }
-        PartNodeBodyPart part(this, mTopLevelContent, node, mNodeHelper);
-        const auto list = formatter->processList(part);
+        const auto list = formatter->processList(this, node);
         if (!list.isEmpty()) {
             return list;
         }
@@ -457,13 +428,10 @@ MessagePart::Ptr ObjectTreeParser::parseObjectTreeInternal(KMime::Content *node,
     }
 
     const bool isRoot = node->isTopLevel();
-    auto parsedPart = MessagePart::Ptr(new MessagePartList(this));
+    auto parsedPart = MessagePart::Ptr(new MessagePartList(this, node));
     parsedPart->setIsRoot(isRoot);
     KMime::Content *parent = node->parent();
-    auto contents = parent ? parent->contents() : KMime::Content::List();
-    if (contents.isEmpty()) {
-        contents.append(node);
-    }
+    const auto contents = parent ? parent->contents() : KMime::Content::List{node};
     int i = contents.indexOf(const_cast<KMime::Content *>(node));
     for (; i < contents.size(); ++i) {
         node = contents.at(i);
@@ -506,6 +474,9 @@ MessagePart::Ptr ObjectTreeParser::parseObjectTreeInternal(KMime::Content *node,
 
         for (const auto p : mp) {
             parsedPart->appendSubPart(p);
+            if (p.dynamicCast<SignedMessagePart>()) {
+                mNodeHelper->setNodeProcessed(p->node(), true);
+            }
         }
 
         mNodeHelper->setNodeProcessed(node, false);
@@ -534,13 +505,55 @@ QVector<MessagePart::Ptr> ObjectTreeParser::defaultHandling(KMime::Content *node
     return {AttachmentMessagePart::Ptr(new AttachmentMessagePart(this, node))};
 }
 
-const QTextCodec *ObjectTreeParser::codecFor(KMime::Content *node) const
+
+static QTextCodec *getLocalCodec()
 {
-    Q_ASSERT(node);
-    return mNodeHelper->codec(node);
+    auto codec = QTextCodec::codecForLocale();
+
+    // In the case of Japan. Japanese locale name is "eucjp" but
+    // The Japanese mail systems normally used "iso-2022-jp" of locale name.
+    // We want to change locale name from eucjp to iso-2022-jp at KMail only.
+
+    // (Introduction to i18n, 6.6 Limit of Locale technology):
+    // EUC-JP is the de-facto standard for UNIX systems, ISO 2022-JP
+    // is the standard for Internet, and Shift-JIS is the encoding
+    // for Windows and Macintosh.
+    if (codec) {
+        const QByteArray codecNameLower = codec->name().toLower();
+        if (codecNameLower == "eucjp"
+#if defined Q_OS_WIN || defined Q_OS_MACX
+                || codecNameLower == "shift-jis" // OK?
+#endif
+           ) {
+            codec = QTextCodec::codecForName("jis7");
+            // QTextCodec *cdc = QTextCodec::codecForName("jis7");
+            // QTextCodec::setCodecForLocale(cdc);
+            // KLocale::global()->setEncoding(cdc->mibEnum());
+        }
+    }
+    return codec;
 }
 
-MimeTreeParser::NodeHelper *ObjectTreeParser::nodeHelper() const
+const QTextCodec *ObjectTreeParser::codecFor(KMime::Content *node) const
 {
-    return mNodeHelper;
+    static auto localCodec = getLocalCodec();
+    if (!node) {
+        return localCodec;
+    }
+
+    QByteArray charset = node->contentType()->charset().toLower();
+
+    // utf-8 is a superset of us-ascii, so we don't loose anything, if we it insead
+    // utf-8 is nowadays that widely, that it is a good guess to use it to fix issus with broken clients.
+    if (charset == "us-ascii") {
+        charset = "utf-8";
+    }
+    if (!charset.isEmpty()) {
+        if (auto c = KCharsets::charsets()->codecForName(QLatin1String(charset))) {
+            return c;
+        };
+    }
+    // no charset means us-ascii (RFC 2045), so using local encoding should
+    // be okay
+    return localCodec;
 }

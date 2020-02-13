@@ -16,14 +16,10 @@
    Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
    02110-1301, USA.
 */
+#pragma once
 
-#ifndef __MIMETREEPARSER_MESSAGEPART_H__
-#define __MIMETREEPARSER_MESSAGEPART_H__
-
-#include "util.h"
-#include "enums.h"
 #include "partmetadata.h"
-#include <crypto.h>
+#include "../crypto.h"
 
 #include <KMime/Message>
 
@@ -31,7 +27,6 @@
 #include <QSharedPointer>
 
 class QTextCodec;
-class PartPrivate;
 
 namespace KMime
 {
@@ -40,10 +35,27 @@ class Content;
 
 namespace MimeTreeParser
 {
+
+/** Flags for the encryption state. */
+typedef enum {
+    KMMsgEncryptionStateUnknown,
+    KMMsgNotEncrypted,
+    KMMsgPartiallyEncrypted,
+    KMMsgFullyEncrypted,
+    KMMsgEncryptionProblematic
+} KMMsgEncryptionState;
+
+/** Flags for the signature state. */
+typedef enum {
+    KMMsgSignatureStateUnknown,
+    KMMsgNotSigned,
+    KMMsgPartiallySigned,
+    KMMsgFullySigned,
+    KMMsgSignatureProblematic
+} KMMsgSignatureState;
+
+
 class ObjectTreeParser;
-class HTMLBlock;
-typedef QSharedPointer<HTMLBlock> HTMLBlockPtr;
-class CryptoBodyPartMemento;
 class MultiPartAlternativeBodyPartFormatter;
 
 class SignedMessagePart;
@@ -159,7 +171,6 @@ public:
     QString htmlContent() const Q_DECL_OVERRIDE;
 private:
     friend class AlternativeMessagePart;
-    friend class ::PartPrivate;
 };
 
 class MessagePartList : public MessagePart
@@ -167,7 +178,7 @@ class MessagePartList : public MessagePart
     Q_OBJECT
 public:
     typedef QSharedPointer<MessagePartList> Ptr;
-    MessagePartList(MimeTreeParser::ObjectTreeParser *otp, KMime::Content *node = nullptr);
+    MessagePartList(MimeTreeParser::ObjectTreeParser *otp, KMime::Content *node);
     virtual ~MessagePartList();
 
     QString text() const Q_DECL_OVERRIDE;
@@ -199,9 +210,7 @@ private:
     KMMsgSignatureState mSignatureState;
     KMMsgEncryptionState mEncryptionState;
 
-    friend class DefaultRendererPrivate;
     friend class ObjectTreeParser;
-    friend class ::PartPrivate;
 };
 
 class AttachmentMessagePart : public TextMessagePart
@@ -231,14 +240,20 @@ private:
     QString mBodyHTML;
     QByteArray mCharset;
 
-    friend class DefaultRendererPrivate;
-    friend class ::PartPrivate;
 };
 
 class AlternativeMessagePart : public MessagePart
 {
     Q_OBJECT
 public:
+    enum HtmlMode {
+        Normal,         ///< A normal plaintext message, non-multipart
+        Html,           ///< A HTML message, non-multipart
+        MultipartPlain, ///< A multipart/alternative message, the plain text part is currently displayed
+        MultipartHtml,  ///< A multipart/altervative message, the HTML part is currently displayed
+        MultipartIcal   ///< A multipart/altervative message, the ICal part is currently displayed
+    };
+
     typedef QSharedPointer<AlternativeMessagePart> Ptr;
     AlternativeMessagePart(MimeTreeParser::ObjectTreeParser *otp, KMime::Content *node);
     virtual ~AlternativeMessagePart();
@@ -251,14 +266,12 @@ public:
     QString htmlContent() const Q_DECL_OVERRIDE;
     QString icalContent() const;
 
-    QList<Util::HtmlMode> availableModes();
+    QList<HtmlMode> availableModes();
 private:
-    QMap<Util::HtmlMode, MessagePart::Ptr> mChildParts;
+    QMap<HtmlMode, MessagePart::Ptr> mChildParts;
 
-    friend class DefaultRendererPrivate;
     friend class ObjectTreeParser;
     friend class MultiPartAlternativeBodyPartFormatter;
-    friend class ::PartPrivate;
 };
 
 class CertMessagePart : public MessagePart
@@ -274,7 +287,6 @@ public:
 
 private:
     const CryptoProtocol mProtocol;
-    friend class DefaultRendererPrivate;
 };
 
 class EncapsulatedRfc822MessagePart : public MessagePart
@@ -291,7 +303,6 @@ public:
 private:
     const KMime::Message::Ptr mMessage;
 
-    friend class DefaultRendererPrivate;
 };
 
 class EncryptedMessagePart : public MessagePart
@@ -303,7 +314,6 @@ public:
     EncryptedMessagePart(ObjectTreeParser *otp,
                          const QString &text,
                          const CryptoProtocol protocol,
-                         const QString &fromAddress,
                          KMime::Content *node, KMime::Content *encryptedNode = nullptr);
 
     virtual ~EncryptedMessagePart();
@@ -332,12 +342,9 @@ private:
 
 protected:
     const CryptoProtocol mProtocol;
-    QString mFromAddress;
     QByteArray mVerifiedText;
     KMime::Content *mEncryptedNode;
 
-    friend class DefaultRendererPrivate;
-    friend class ::PartPrivate;
 };
 
 class SignedMessagePart : public MessagePart
@@ -349,7 +356,6 @@ public:
     SignedMessagePart(ObjectTreeParser *otp,
                       const QString &text,
                       const CryptoProtocol protocol,
-                      const QString &fromAddress,
                       KMime::Content *node, KMime::Content *signedData);
 
     virtual ~SignedMessagePart();
@@ -366,17 +372,13 @@ public:
     QString htmlContent() const Q_DECL_OVERRIDE;
 
 private:
-    void sigStatusToMetaData(const Crypto::Signature &signature);
     void setVerificationResult(const Crypto::VerificationResult &result, bool parseText, const QByteArray &plainText);
 
 protected:
     CryptoProtocol mProtocol;
-    QString mFromAddress;
     KMime::Content *mSignedData;
 
     friend EncryptedMessagePart;
-    friend class DefaultRendererPrivate;
-    friend class ::PartPrivate;
 };
 
 class HeadersPart : public MessagePart
@@ -389,5 +391,3 @@ public:
 };
 
 }
-
-#endif //__MIMETREEPARSER_MESSAGEPART_H__

@@ -32,9 +32,6 @@
 
 #include "bodypartformatter.h"
 
-#include "bodypart.h"
-#include "objecttreeparser.h"
-
 using namespace MimeTreeParser::Interface;
 
 namespace MimeTreeParser
@@ -42,14 +39,14 @@ namespace MimeTreeParser
 namespace Interface
 {
 
-MessagePart::Ptr BodyPartFormatter::process(BodyPart &) const
+MessagePart::Ptr BodyPartFormatter::process(ObjectTreeParser *otp, KMime::Content *node) const
 {
     return {};
 }
 
-QVector<MessagePart::Ptr> BodyPartFormatter::processList(BodyPart &part) const
+QVector<MessagePart::Ptr> BodyPartFormatter::processList(ObjectTreeParser *otp, KMime::Content *node) const
 {
-    if (auto p = process(part)) {
+    if (auto p = process(otp, node)) {
         return {p};
     }
     return {};

@@ -34,14 +34,16 @@
 #ifndef __MIMETREEPARSER_INTERFACE_BODYPARTFORMATTER_H__
 #define __MIMETREEPARSER_INTERFACE_BODYPARTFORMATTER_H__
 
-#include <QObject>
-#include <QSharedPointer>
-
-#include "objecttreeparser.h"
 #include "messagepart.h"
+
+namespace KMime
+{
+class Content;
+}
 
 namespace MimeTreeParser
 {
+class ObjectTreeParser;
 
 namespace Interface
 {
@@ -53,8 +55,8 @@ class BodyPartFormatter
 public:
     virtual ~BodyPartFormatter() {}
 
-    virtual MessagePart::Ptr process(BodyPart &part) const;
-    virtual QVector<MessagePart::Ptr> processList(Interface::BodyPart &part) const;
+    virtual MessagePart::Ptr process(ObjectTreeParser *otp, KMime::Content *node) const;
+    virtual QVector<MessagePart::Ptr> processList(ObjectTreeParser *otp, KMime::Content *node) const;
 };
 
 } // namespace Interface

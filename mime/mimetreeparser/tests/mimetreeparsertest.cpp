@@ -478,7 +478,7 @@ private slots:
         QCOMPARE(part->encryptions().size(), 0);
         QCOMPARE(part->signatures().size(), 0);
         QVERIFY(!part->isHtml());
-        QVERIFY(part->availableModes().contains(MimeTreeParser::Util::MultipartIcal));
+        QVERIFY(part->availableModes().contains(MimeTreeParser::AlternativeMessagePart::MultipartIcal));
 
         auto attachments = otp.collectAttachmentParts();
         QCOMPARE(attachments.size(), 0);
@@ -497,7 +497,7 @@ private slots:
         QCOMPARE(part->encryptions().size(), 0);
         QCOMPARE(part->signatures().size(), 0);
         QVERIFY(part->isHtml());
-        QVERIFY(part->availableModes().contains(MimeTreeParser::Util::MultipartIcal));
+        QVERIFY(part->availableModes().contains(MimeTreeParser::AlternativeMessagePart::MultipartIcal));
 
         auto attachments = otp.collectAttachmentParts();
         QCOMPARE(attachments.size(), 1);
@@ -538,6 +538,32 @@ private slots:
         auto part = otp.collectContentParts()[0];
         QVERIFY(part->header("references"));
         QCOMPARE(part->header("references")->asUnicodeString(), QStringLiteral("<a1777ec781546ccc5dcd4918a5e4e03d@info>"));
+    }
+
+    void testMIMESignature()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("text+html-maillinglist.mbox"));
+        otp.decryptParts();
+        otp.print();
+
+        auto partList = otp.collectContentParts();
+        for (const auto &part : partList) {
+            qWarning() << "found part " << part->metaObject()->className();
+        }
+        QCOMPARE(partList.size(), 2);
+        //The actual content
+        {
+            auto part = partList[0].dynamicCast<MimeTreeParser::AlternativeMessagePart>();
+            QVERIFY(bool(part));
+        }
+
+        //The signature
+        {
+            auto part = partList[1].dynamicCast<MimeTreeParser::TextMessagePart>();
+            QVERIFY(bool(part));
+            QVERIFY(part->text().contains(QStringLiteral("bugzilla mailing list")));
+        }
     }
 
 };

@@ -18,21 +18,9 @@
 */
 #pragma once
 
-#include "bodypart.h"
-#include "messagepart.h"
-
 #include <KMime/Content>
 
 namespace MimeTreeParser
 {
-/**
-  1. Create a new partNode using 'content' data and Content-Description
-     found in 'cntDesc'.
-  2. Parse the 'node' to display the content.
-*/
-MimeMessagePart::Ptr createAndParseTempNode(Interface::BodyPart &part, const char *content, const char *cntDesc);
-
 KMime::Content *findTypeInDirectChildren(KMime::Content *content, const QByteArray &mimeType);
-
-MessagePart::Ptr toplevelTextNode(MessagePart::Ptr messageTree);
 }

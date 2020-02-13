@@ -17,7 +17,6 @@
   02110-1301, USA.
 */
 #include "objecttreeparser.h"
-#include "util.h"
 
 #include "setupenv.h"
 
@@ -37,6 +36,15 @@ private Q_SLOTS:
 
 QTEST_MAIN(AttachmentTest)
 
+
+QByteArray readMailFromFile(const QString &mailFile)
+{
+    QFile file(QLatin1String(MAIL_DATA_DIR) + QLatin1Char('/') + mailFile);
+    file.open(QIODevice::ReadOnly);
+    Q_ASSERT(file.isOpen());
+    return file.readAll();
+}
+
 void AttachmentTest::initTestCase()
 {
     MimeTreeParser::Test::setupEnv();
@@ -54,10 +62,8 @@ void AttachmentTest::testEncryptedAttachment_data()
 void AttachmentTest::testEncryptedAttachment()
 {
     QFETCH(QString, mbox);
-    auto msg = readAndParseMail(mbox);
-    NodeHelper nodeHelper;
-    ObjectTreeParser otp(&nodeHelper);
-    otp.parseObjectTree(msg.data());
+    ObjectTreeParser otp;
+    otp.parseObjectTree(readMailFromFile(mbox));
     otp.decryptParts();
     otp.print();
 

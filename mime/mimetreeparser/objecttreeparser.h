@@ -32,10 +32,10 @@
 */
 #pragma once
 
-#include "nodehelper.h"
 #include "messagepart.h"
 
 #include <functional>
+#include <QSharedPointer>
 
 class QString;
 
@@ -60,10 +60,7 @@ class ObjectTreeParser
     ObjectTreeParser(const ObjectTreeParser &other);
 public:
     explicit ObjectTreeParser();
-
-    explicit ObjectTreeParser(NodeHelper *nodeHelper);
-
-    virtual ~ObjectTreeParser();
+    virtual ~ObjectTreeParser() = default;
 
     QString structureAsString() const;
     void print();
@@ -79,8 +76,6 @@ public:
     * Similar to plainTextContent(), but returns the HTML source of the first text/html MIME part.
     */
     QString htmlContent();
-
-    NodeHelper *nodeHelper() const;
 
     /** Parse beginning at a given node and recursively parsing
       the children of that node and it's next sibling. */
@@ -115,22 +110,16 @@ private:
 
     QVector<MessagePartPtr> defaultHandling(KMime::Content *node);
 
-private:
-
-    /** ctor helper */
-    void init();
-
     const QTextCodec *codecFor(KMime::Content *node) const;
-private:
-    NodeHelper *mNodeHelper;
+
+    QSharedPointer<NodeHelper> mNodeHelper;
     QByteArray mPlainTextContentCharset;
     QByteArray mHtmlContentCharset;
     QString mPlainTextContent;
     QString mHtmlContent;
-    KMime::Content *mTopLevelContent;
+    KMime::Content *mTopLevelContent{nullptr};
     MessagePartPtr mParsedPart;
 
-    bool mDeleteNodeHelper;
     KMime::Message::Ptr mMsg;
 
     friend class PartNodeBodyPart;

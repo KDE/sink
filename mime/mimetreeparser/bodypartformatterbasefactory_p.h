@@ -37,6 +37,7 @@
 namespace MimeTreeParser
 {
 class BodyPartFormatterBaseFactory;
+class ObjectTreeParser;
 
 class BodyPartFormatterBaseFactoryPrivate
 {
@@ -46,10 +47,11 @@ public:
 
     void setup();
     void messageviewer_create_builtin_bodypart_formatters();        //defined in bodypartformatter.cpp
-    void insert(const char *type, const char *subtype, const Interface::BodyPartFormatter *formatter);
+    void insert(const char *type, const char *subtype, Interface::BodyPartFormatter *formatter);
 
     BodyPartFormatterBaseFactory *q;
     TypeRegistry *all;
+    ObjectTreeParser *mOtp;
 };
 
 }
