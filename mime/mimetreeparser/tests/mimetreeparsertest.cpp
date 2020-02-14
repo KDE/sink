@@ -20,6 +20,7 @@
 
 #include <QTest>
 #include <QDebug>
+#include <QTimeZone>
 
 QByteArray readMailFromFile(const QString &mailFile)
 {
@@ -501,6 +502,44 @@ private slots:
         auto attachments = otp.collectAttachmentParts();
         QCOMPARE(attachments.size(), 1);
     }
+
+    void testMemoryHole()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("openpgp-encrypted-memoryhole.mbox"));
+        otp.decryptParts();
+        otp.print();
+
+        auto partList = otp.collectContentParts();
+        QCOMPARE(partList.size(), 1);
+        auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+
+        QCOMPARE(part->text(), QStringLiteral("very secret mesage\n"));
+
+        QCOMPARE(part->header("subject")->asUnicodeString(), QStringLiteral("hidden subject"));
+        QCOMPARE(part->header("from")->asUnicodeString(), QStringLiteral("you@example.com"));
+        QCOMPARE(part->header("to")->asUnicodeString(), QStringLiteral("me@example.com"));
+        QCOMPARE(part->header("subject")->asUnicodeString(), QStringLiteral("hidden subject"));
+        QCOMPARE(part->header("cc")->asUnicodeString(), QStringLiteral("cc@example.com"));
+        QCOMPARE(part->header("message-id")->asUnicodeString(), QStringLiteral("<myhiddenreference@me>"));
+        QCOMPARE(part->header("references")->asUnicodeString(), QStringLiteral("<hiddenreference@hidden>"));
+        QCOMPARE(part->header("in-reply-to")->asUnicodeString(), QStringLiteral("<hiddenreference@hidden>"));
+        QCOMPARE(static_cast<const KMime::Headers::Date *>(part->header("date"))->dateTime(), QDateTime(QDate(2018, 1, 2), QTime(3,4,5), QTimeZone::utc()));
+    }
+
+    /**
+     * Required special handling because the list replaces the toplevel part.
+     */
+    void testMemoryHoleWithList()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("cid-links-forwarded-inline.mbox"));
+        auto part = otp.collectContentParts()[0];
+        QVERIFY(part->header("references"));
+        QCOMPARE(part->header("references")->asUnicodeString(), QStringLiteral("<a1777ec781546ccc5dcd4918a5e4e03d@info>"));
+    }
+
 };
 
 QTEST_GUILESS_MAIN(MimeTreeParserTest)
