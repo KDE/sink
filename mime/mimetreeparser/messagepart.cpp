@@ -333,6 +333,23 @@ void MessagePart::bindLifetime(KMime::Content *node)
     mNodesToDelete << node;
 }
 
+KMime::Headers::Base *MimeTreeParser::MessagePart::header(const char *header) const
+{
+    if (node() && node()->hasHeader(header)) {
+        return node()->headerByType(header);
+    }
+    if (auto parent = parentPart()) {
+        return parent->header(header);
+    }
+
+    //Necessary for MessagePartList (because there's no toplevel part)
+    if (mOtp->mTopLevelContent && mOtp->mTopLevelContent->hasHeader(header)) {
+        return mOtp->mTopLevelContent->headerByType(header);
+    }
+
+    return nullptr;
+}
+
 //-----MessagePartList----------------------
 MessagePartList::MessagePartList(ObjectTreeParser *otp, KMime::Content *node)
     : MessagePart(otp, QString(), node)

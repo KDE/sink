@@ -118,6 +118,13 @@ public:
     QVector<SignedMessagePart*> signatures() const;
     QVector<EncryptedMessagePart*> encryptions() const;
 
+    /**
+     * Retrieve the header @header in this part or any parent parent.
+     *
+     * Useful for MemoryHole support.
+     */
+    KMime::Headers::Base *header(const char *header) const;
+
     void bindLifetime(KMime::Content *);
 
 protected:
