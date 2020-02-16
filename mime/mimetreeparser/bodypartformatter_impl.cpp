@@ -221,154 +221,6 @@ public:
     }
 };
 
-class MailmanBodyPartFormatter: public MimeTreeParser::Interface::BodyPartFormatter
-{
-public:
-    static MimeMessagePart::Ptr createAndParseTempNode(ObjectTreeParser *otp, const char *content, const char *cntDesc)
-    {
-        KMime::Content *newNode = new KMime::Content();
-        newNode->setContent(KMime::CRLFtoLF(content));
-        newNode->parse();
-
-        if (!newNode->head().isEmpty()) {
-            newNode->contentDescription()->from7BitString(cntDesc);
-        }
-
-        auto mp = MimeMessagePart::Ptr(new MimeMessagePart(otp, newNode));
-        mp->bindLifetime(newNode);
-        return mp;
-    }
-
-    static bool isMailmanMessage(KMime::Content *curNode)
-    {
-        if (!curNode || curNode->head().isEmpty()) {
-            return false;
-        }
-        if (curNode->hasHeader("X-Mailman-Version")) {
-            return true;
-        }
-        if (KMime::Headers::Base *header = curNode->headerByType("X-Mailer")) {
-            if (header->asUnicodeString().contains(QStringLiteral("MAILMAN"), Qt::CaseInsensitive)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    MessagePart::Ptr process(ObjectTreeParser *objectTreeParser, KMime::Content *curNode) const Q_DECL_OVERRIDE
-    {
-        if (!isMailmanMessage(curNode)) {
-            return MessagePart::Ptr();
-        }
-
-        const QString str = QString::fromLatin1(curNode->decodedContent());
-
-        //###
-        const QLatin1String delim1("--__--__--\n\nMessage:");
-        const QLatin1String delim2("--__--__--\r\n\r\nMessage:");
-        const QLatin1String delimZ2("--__--__--\n\n_____________");
-        const QLatin1String delimZ1("--__--__--\r\n\r\n_____________");
-        QString partStr, digestHeaderStr;
-        int thisDelim = str.indexOf(delim1, Qt::CaseInsensitive);
-        if (thisDelim == -1) {
-            thisDelim = str.indexOf(delim2, Qt::CaseInsensitive);
-        }
-        if (thisDelim == -1) {
-            return MessagePart::Ptr();
-        }
-
-        int nextDelim = str.indexOf(delim1, thisDelim + 1, Qt::CaseInsensitive);
-        if (-1 == nextDelim) {
-            nextDelim = str.indexOf(delim2, thisDelim + 1, Qt::CaseInsensitive);
-        }
-        if (-1 == nextDelim) {
-            nextDelim = str.indexOf(delimZ1, thisDelim + 1, Qt::CaseInsensitive);
-        }
-        if (-1 == nextDelim) {
-            nextDelim = str.indexOf(delimZ2, thisDelim + 1, Qt::CaseInsensitive);
-        }
-        if (nextDelim < 0) {
-            return MessagePart::Ptr();
-        }
-
-        //if ( curNode->mRoot )
-        //  curNode = curNode->mRoot;
-
-        // at least one message found: build a mime tree
-        digestHeaderStr = QStringLiteral("Content-Type: text/plain\nContent-Description: digest header\n\n");
-        digestHeaderStr += str.midRef(0, thisDelim);
-
-        MessagePartList::Ptr mpl(new MessagePartList(objectTreeParser));
-        mpl->appendSubPart(createAndParseTempNode(objectTreeParser, digestHeaderStr.toLatin1().constData(), "Digest Header"));
-        //mReader->queueHtml("<br><hr><br>");
-        // temporarily change curent node's Content-Type
-        // to get our embedded RfC822 messages properly inserted
-        curNode->contentType()->setMimeType("multipart/digest");
-        while (-1 < nextDelim) {
-            int thisEoL = str.indexOf(QLatin1String("\nMessage:"), thisDelim, Qt::CaseInsensitive);
-            if (-1 < thisEoL) {
-                thisDelim = thisEoL + 1;
-            } else {
-                thisEoL = str.indexOf(QLatin1String("\n_____________"), thisDelim, Qt::CaseInsensitive);
-                if (-1 < thisEoL) {
-                    thisDelim = thisEoL + 1;
-                }
-            }
-            thisEoL = str.indexOf(QLatin1Char('\n'), thisDelim);
-            if (-1 < thisEoL) {
-                thisDelim = thisEoL + 1;
-            } else {
-                thisDelim = thisDelim + 1;
-            }
-            //while( thisDelim < cstr.size() && '\n' == cstr[thisDelim] )
-            //  ++thisDelim;
-
-            partStr = QStringLiteral("Content-Type: message/rfc822\nContent-Description: embedded message\n\n");
-            partStr += str.midRef(thisDelim, nextDelim - thisDelim);
-            QString subject = QStringLiteral("embedded message");
-            QString subSearch = QStringLiteral("\nSubject:");
-            int subPos = partStr.indexOf(subSearch, 0, Qt::CaseInsensitive);
-            if (-1 < subPos) {
-                subject = partStr.mid(subPos + subSearch.length());
-                thisEoL = subject.indexOf(QLatin1Char('\n'));
-                if (-1 < thisEoL) {
-                    subject.truncate(thisEoL);
-                }
-            }
-            qCDebug(MIMETREEPARSER_LOG) << "        embedded message found: \"" << subject;
-            mpl->appendSubPart(createAndParseTempNode(objectTreeParser, partStr.toLatin1().constData(), subject.toLatin1().constData()));
-            //mReader->queueHtml("<br><hr><br>");
-            thisDelim = nextDelim + 1;
-            nextDelim = str.indexOf(delim1, thisDelim, Qt::CaseInsensitive);
-            if (-1 == nextDelim) {
-                nextDelim = str.indexOf(delim2, thisDelim, Qt::CaseInsensitive);
-            }
-            if (-1 == nextDelim) {
-                nextDelim = str.indexOf(delimZ1, thisDelim, Qt::CaseInsensitive);
-            }
-            if (-1 == nextDelim) {
-                nextDelim = str.indexOf(delimZ2, thisDelim, Qt::CaseInsensitive);
-            }
-        }
-        // reset curent node's Content-Type
-        curNode->contentType()->setMimeType("text/plain");
-        int thisEoL = str.indexOf(QLatin1String("_____________"), thisDelim);
-        if (-1 < thisEoL) {
-            thisDelim = thisEoL;
-            thisEoL = str.indexOf(QLatin1Char('\n'), thisDelim);
-            if (-1 < thisEoL) {
-                thisDelim = thisEoL + 1;
-            }
-        } else {
-            thisDelim = thisDelim + 1;
-        }
-        partStr = QStringLiteral("Content-Type: text/plain\nContent-Description: digest footer\n\n");
-        partStr += str.midRef(thisDelim);
-        mpl->appendSubPart(createAndParseTempNode(objectTreeParser, partStr.toLatin1().constData(), "Digest Footer"));
-        return mpl;
-    }
-};
-
 class MultiPartAlternativeBodyPartFormatter: public MimeTreeParser::Interface::BodyPartFormatter {
 public:
     MessagePart::Ptr process(ObjectTreeParser *objectTreeParser, KMime::Content *node) const Q_DECL_OVERRIDE
@@ -503,7 +355,6 @@ void BodyPartFormatterBaseFactoryPrivate::messageviewer_create_builtin_bodypart_
     auto pkcs7 = new ApplicationPkcs7MimeBodyPartFormatter;
     auto pgp = new ApplicationPGPEncryptedBodyPartFormatter;
     auto html = new TextHtmlBodyPartFormatter;
-    auto mailman = new MailmanBodyPartFormatter;
     auto headers = new HeadersBodyPartFormatter;
     auto multipartAlternative = new MultiPartAlternativeBodyPartFormatter;
     auto multipartMixed = new MultiPartMixedBodyPartFormatter;
@@ -521,10 +372,8 @@ void BodyPartFormatterBaseFactoryPrivate::messageviewer_create_builtin_bodypart_
 
     insert("text", "html", html);
     insert("text", "rtf", any);
-    insert("text", "plain", mailman);
     insert("text", "plain", textPlain);
     insert("text", "rfc822-headers", headers);
-    insert("text", "*", mailman);
     insert("text", "*", textPlain);
 
     insert("image", "*", any);
