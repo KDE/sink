@@ -22,8 +22,6 @@
 #include <type_traits>
 #include <utility>
 
-#include <QtGlobal>
-
 // A somewhat implementation of the expected monad, proposed here:
 // https://isocpp.org/files/papers/n4015.pdf
 
