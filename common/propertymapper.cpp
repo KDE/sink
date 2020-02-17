@@ -22,8 +22,43 @@
 #include "applicationdomaintype.h"
 #include <QDateTime>
 #include <QDataStream>
+#include <zstd.h>
 #include "mail_generated.h"
 #include "contact_generated.h"
+
+static QByteArray decompress(const char *data, size_t size)
+{
+    auto decompressedSize = ZSTD_getFrameContentSize(data, size);
+    if (decompressedSize < 0) {
+        qWarning() << "Error during decompression: invalid frame content size." << decompressedSize;
+        return{};
+    }
+
+    QByteArray result;
+    result.resize(decompressedSize);
+    const auto res = ZSTD_decompress(result.data(), result.size(), data, size);
+    if (ZSTD_isError(res)) {
+        qWarning() << "Error during decompression" << ZSTD_getErrorName(res);
+        return {};
+    }
+    result.resize(res);
+    return result;
+}
+
+static QByteArray compress(const QByteArray &ba)
+{
+    QByteArray result;
+    result.resize(ZSTD_compressBound(ba.size()));
+    //The default compression level of the zstd tool
+    static int compressionLevel = 3;
+    const auto res = ZSTD_compress(result.data(), result.size(), ba.data(), ba.size(), compressionLevel);
+    if (ZSTD_isError(res)) {
+        qWarning() << "Error during compression" << ZSTD_getErrorName(res);
+        return {};
+    }
+    result.resize(res);
+    return result;
+}
 
 template <>
 flatbuffers::uoffset_t variantToProperty<QString>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
@@ -47,8 +82,8 @@ template <>
 flatbuffers::uoffset_t variantToProperty<QByteArray>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
 {
     if (property.isValid()) {
-        const auto ba = property.toByteArray();
-        const auto s = fbb.CreateString(ba.constData(), ba.size());
+        const auto result = compress(property.toByteArray());
+        const auto s = fbb.CreateString(result.constData(), result.size());
         return s.o;
     }
     return 0;
@@ -170,8 +205,7 @@ template <>
 QVariant propertyToVariant<QByteArray>(const flatbuffers::String *property)
 {
     if (property) {
-        // We have to copy the memory, otherwise it would become eventually invalid
-        return QByteArray(property->c_str(), property->Length());
+        return decompress(property->c_str(), property->size());
     }
     return QVariant();
 }
@@ -181,7 +215,7 @@ QVariant propertyToVariant<QByteArray>(const flatbuffers::Vector<uint8_t> *prope
 {
     if (property) {
         // We have to copy the memory, otherwise it would become eventually invalid
-        return QByteArray(reinterpret_cast<const char *>(property->Data()), property->Length());
+        return QByteArray(reinterpret_cast<const char *>(property->Data()), property->size());
     }
     return QVariant();
 }

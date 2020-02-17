@@ -134,6 +134,7 @@ PRIVATE
     KF5::CalendarCore
     ${XAPIAN_LIBRARIES}
     sink_mimetreeparser
+    zstd::zstd
 )
 install(TARGETS ${PROJECT_NAME}
     EXPORT SinkTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )

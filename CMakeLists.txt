@@ -47,6 +47,7 @@ find_package(KAsync REQUIRED 0.3)
 find_package(LMDB REQUIRED 0.9)
 find_package(Xapian REQUIRED 1.4)
 find_package(Gpgme REQUIRED)
+find_package(zstd REQUIRED)
 
 if (${ENABLE_MEMCHECK})
     message("Enabled memcheck")
