@@ -960,6 +960,28 @@ private slots:
         }
     }
 
+    /**
+     * Demonstrate how long running transactions result in an accumulation of free-pages.
+     */
+    void testFreePages()
+    {
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
+
+        // With any ro transaction ongoing we just accumulate endless free pages
+        // auto rotransaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+        for (int i = 0; i < 5; i++) {
+            {
+                auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+                transaction.openDatabase("test").write("sub" + QByteArray::number(i), "value1");
+            }
+            // If we reset the rotransaction the accumulation is not a problem (because previous free pages can be reused at that point)
+            // auto rotransaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+            {
+                auto stat = store.createTransaction(Sink::Storage::DataStore::ReadOnly).stat(false);
+                QVERIFY(stat.freePages <= 6);
+            }
+        }
+    }
 };
 
 QTEST_MAIN(StorageTest)
