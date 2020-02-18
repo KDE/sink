@@ -659,6 +659,12 @@ void Synchronizer::commit()
     mSyncTransaction.commit();
     mSyncStore.clear();
 
+    //Avoid accumulating free pages at the cost of not executing a full sync on a consistent db view
+    if (mEntityStore->hasTransaction()) {
+        mEntityStore->abortTransaction();
+        mEntityStore->startTransaction(Sink::Storage::DataStore::ReadOnly);
+    }
+
     QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
 
     if (mSyncInProgress) {
