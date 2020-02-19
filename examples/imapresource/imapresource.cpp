@@ -50,6 +50,8 @@ Q_DECLARE_METATYPE(QSharedPointer<Imap::ImapServerProxy>)
 using namespace Imap;
 using namespace Sink;
 
+static qint64 sCommitInterval = 100;
+
 static qint64 uidFromMailRid(const QByteArray &remoteId)
 {
     auto ridParts = remoteId.split(':');
@@ -366,7 +368,7 @@ public:
                 [=](int progress, int total) {
                     reportProgress(progress, total, {folderLocalId});
                     //commit every 100 messages
-                    if ((progress % 100) == 0) {
+                    if ((progress % sCommitInterval) == 0) {
                         commit();
                     }
                 })
@@ -415,7 +417,7 @@ public:
                     [=](int progress, int total) {
                         reportProgress(progress, total, {folderLocalId});
                         //commit every 100 messages
-                        if ((progress % 100) == 0) {
+                        if ((progress % sCommitInterval) == 0) {
                             commit();
                         }
                     });
@@ -663,7 +665,7 @@ public:
                     [=](int progress, int total) {
                         reportProgress(progress, total, {folderLocalId});
                         //commit every 100 messages
-                        if ((progress % 100) == 0) {
+                        if ((progress % sCommitInterval) == 0) {
                             commit();
                         }
                     });
