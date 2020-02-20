@@ -5,8 +5,10 @@
 #include "hawd/dataset.h"
 #include "hawd/formatter.h"
 #include "common/storage.h"
+#include "common/storage/key.h"
 #include "common/log.h"
 
+#include <definitions.h>
 #include <fstream>
 
 #include <QDebug>
@@ -52,7 +54,7 @@ private:
 private slots:
     void initTestCase()
     {
-        Sink::Log::setDebugOutputLevel(Sink::Log::Warning);
+        // testDataPath = Sink::storageLocation() + "/testdb";
         testDataPath = "./testdb";
         dbName = "test";
         filePath = testDataPath + "buffer.fb";
@@ -208,6 +210,80 @@ private slots:
         HAWD::Formatter::print(dataset);
     }
 
+    /*
+     * This benchmark is supposed to roughly emulate the workload we get during a large sync.
+     *
+     * Observed behavior is that without a concurrent read-only transaction free pages are mostly reused,
+     * but commits start to take longer and longer.
+     * With a concurrent read-only transaction free pages are kept from being reused and commits a greatly sped up.
+     *
+     * NOTE: At least in podman there seems to be a massive performance difference whether we use a path within the home directory,
+     * or in the bind-mounted build directory. This is probably because the home directory is a fuse-overlayfs, and the build directory is
+     * just the underlying ext4 volume. I suppose the overlayfs is not suitable for this specific workload.
+     */
+    void testWrite()
+    {
+        Sink::Storage::DataStore(testDataPath, dbName).removeFromDisk();
+
+        using namespace Sink::Storage;
+
+        auto entity = createEntity();
+        qWarning() << "entity size " << entity.size();
+        Sink::Storage::DataStore store(testDataPath, dbName, Sink::Storage::DataStore::ReadWrite);
+
+        QTime time;
+        time.start();
+        // Test db write time
+        {
+            //This read-only transaction will make commits fast but cause a quick buildup of free pages.
+            // auto rotransaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+            for (int i = 0; i < count; i++) {
+                time.start();
+                const auto identifier = Identifier::fromDisplayByteArray(Sink::Storage::DataStore::generateUid());
+                const qint64 newRevision = Sink::Storage::DataStore::maxRevision(transaction) + 1;
+                const auto key = Sink::Storage::Key(identifier, newRevision);
+
+                DataStore::mainDatabase(transaction, "mail")
+                    .write(newRevision, entity,
+                        [&](const DataStore::Error &error) { qWarning() << "Failed to write entity" << identifier << newRevision; });
+
+                DataStore::setMaxRevision(transaction, newRevision);
+                DataStore::recordRevision(transaction, newRevision, identifier.toDisplayByteArray(), "mail");
+                DataStore::recordUid(transaction, identifier.toDisplayByteArray(), "mail");
+
+                auto db = transaction.openDatabase("mail.index.messageId" , std::function<void(const Sink::Storage::DataStore::Error &)>(), Sink::Storage::AllowDuplicates);
+                db.write("messageid", key.toInternalByteArray(), [&] (const Sink::Storage::DataStore::Error &error) {
+                    qWarning() << "Error while writing value" << error;
+                });
+
+                if ((i % 100) == 0) {
+                    transaction.commit();
+                    qWarning() << "Commit " <<  i << time.elapsed() << "[ms]";
+                    transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+                    // rotransaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+                    qWarning() << "Free pages " << store.createTransaction(Sink::Storage::DataStore::ReadOnly).stat(false).freePages;
+                }
+            }
+            transaction.commit();
+        }
+        qreal dbWriteDuration = time.elapsed();
+        qreal dbWriteOpsPerMs = count / dbWriteDuration;
+        {
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+            auto stat = transaction.stat(false);
+            qWarning() << "Write duration " << dbWriteDuration;
+            qWarning() << "free " << stat.freePages;
+            qWarning() << "total " << stat.totalPages;
+
+            QList<QByteArray> databases = transaction.getDatabaseNames();
+            for (const auto &databaseName : databases) {
+                auto db = transaction.openDatabase(databaseName);
+                qint64 size = db.getSize() / 1024;
+                qWarning() << QString("%1: %2 [kb]").arg(QString(databaseName)).arg(size);
+            }
+        }
+    }
 
 private:
     HAWD::State m_hawdState;
