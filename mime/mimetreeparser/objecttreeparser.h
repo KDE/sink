@@ -47,8 +47,6 @@ class Content;
 namespace MimeTreeParser
 {
 
-class NodeHelper;
-
 typedef QSharedPointer<MessagePart> MessagePartPtr;
 
 /**
@@ -59,7 +57,7 @@ class ObjectTreeParser
     //Disable copy
     ObjectTreeParser(const ObjectTreeParser &other);
 public:
-    explicit ObjectTreeParser();
+    explicit ObjectTreeParser() = default;
     virtual ~ObjectTreeParser() = default;
 
     QString structureAsString() const;
@@ -112,11 +110,11 @@ private:
 
     const QTextCodec *codecFor(KMime::Content *node) const;
 
-    QSharedPointer<NodeHelper> mNodeHelper;
-    QByteArray mPlainTextContentCharset;
-    QByteArray mHtmlContentCharset;
-    QString mPlainTextContent;
-    QString mHtmlContent;
+    void setNodeProcessed(KMime::Content *node, bool recurse);
+    void setNodeUnprocessed(KMime::Content *node, bool recurse);
+    bool nodeProcessed(KMime::Content *node) const;
+
+    QList<KMime::Content *> mProcessedNodes;
     KMime::Content *mTopLevelContent{nullptr};
     MessagePartPtr mParsedPart;
 

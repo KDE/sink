@@ -19,7 +19,6 @@ add_library(sink_mimetreeparser STATIC
     #bodypartformatter.cpp
     bodypartformatterbasefactory.cpp
     cryptohelper.cpp
-    nodehelper.cpp
     messagepart.cpp
     #Stuff
     mimetreeparser_debug.cpp

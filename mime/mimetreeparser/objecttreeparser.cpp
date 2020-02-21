@@ -38,7 +38,6 @@
 #include "objecttreeparser.h"
 
 #include "bodypartformatterbasefactory.h"
-#include "nodehelper.h"
 #include "messagepart.h"
 
 #include "mimetreeparser_debug.h"
@@ -82,10 +81,37 @@ static QVector<MessagePart::Ptr> collect(MessagePart::Ptr start, const std::func
     return list;
 }
 
-ObjectTreeParser::ObjectTreeParser()
-    : mNodeHelper{new NodeHelper}
+void ObjectTreeParser::setNodeProcessed(KMime::Content *node, bool recurse)
 {
+    mProcessedNodes.append(node);
+    // qCDebug(MIMETREEPARSER_LOG) << "Node processed: " << node->index().toString() << node->contentType()->as7BitString();
+    //<< " decodedContent" << node->decodedContent();
+    if (recurse) {
+        const auto contents = node->contents();
+        for (KMime::Content *c : contents) {
+            setNodeProcessed(c, true);
+        }
+    }
+}
 
+void ObjectTreeParser::setNodeUnprocessed(KMime::Content *node, bool recurse)
+{
+    mProcessedNodes.removeAll(node);
+    // qCDebug(MIMETREEPARSER_LOG) << "Node UNprocessed: " << node;
+    if (recurse) {
+        const auto contents = node->contents();
+        for (KMime::Content *c : contents) {
+            setNodeUnprocessed(c, true);
+        }
+    }
+}
+
+bool ObjectTreeParser::nodeProcessed(KMime::Content *node) const
+{
+    if (!node) {
+        return true;
+    }
+    return mProcessedNodes.contains(node);
 }
 
 QString ObjectTreeParser::plainTextContent()
@@ -418,24 +444,21 @@ MessagePart::Ptr ObjectTreeParser::parseObjectTreeInternal(KMime::Content *node,
     // reset "processed" flags for...
     if (onlyOneMimePart) {
         // ... this node and all descendants
-        mNodeHelper->setNodeUnprocessed(node, false);
+        setNodeUnprocessed(node, false);
         if (!node->contents().isEmpty()) {
-            mNodeHelper->setNodeUnprocessed(node, true);
+            setNodeUnprocessed(node, true);
         }
     } else if (!node->parent()) {
         // ...this node and all it's siblings and descendants
-        mNodeHelper->setNodeUnprocessed(node, true);
+        setNodeUnprocessed(node, true);
     }
 
-    const bool isRoot = node->isTopLevel();
     auto parsedPart = MessagePart::Ptr(new MessagePartList(this, node));
-    parsedPart->setIsRoot(isRoot);
-    KMime::Content *parent = node->parent();
-    const auto contents = parent ? parent->contents() : KMime::Content::List{node};
-    int i = contents.indexOf(const_cast<KMime::Content *>(node));
-    for (; i < contents.size(); ++i) {
+    parsedPart->setIsRoot(node->isTopLevel());
+    const auto contents = node->parent() ? node->parent()->contents() : KMime::Content::List{node};
+    for (int i = contents.indexOf(node); i < contents.size(); ++i) {
         node = contents.at(i);
-        if (mNodeHelper->nodeProcessed(node)) {
+        if (nodeProcessed(node)) {
             continue;
         }
 
@@ -463,23 +486,17 @@ MessagePart::Ptr ObjectTreeParser::parseObjectTreeInternal(KMime::Content *node,
                 }
             }
             //Fallback to the default handler
-            {
-                auto list = defaultHandling(node);
-                if (!list.isEmpty()) {
-                    return list;
-                }
-            }
-            return QVector<MessagePart::Ptr>{};
+            return defaultHandling(node);
         }();
 
         for (const auto p : mp) {
             parsedPart->appendSubPart(p);
             if (p.dynamicCast<SignedMessagePart>()) {
-                mNodeHelper->setNodeProcessed(p->node(), true);
+                setNodeProcessed(p->node(), true);
             }
         }
 
-        mNodeHelper->setNodeProcessed(node, false);
+        setNodeProcessed(node, false);
 
         if (onlyOneMimePart) {
             break;
