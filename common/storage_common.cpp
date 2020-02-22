@@ -117,7 +117,7 @@ qint64 DataStore::cleanedUpRevision(const DataStore::Transaction &transaction)
     return r;
 }
 
-QByteArray DataStore::getUidFromRevision(const DataStore::Transaction &transaction, size_t revision)
+Identifier DataStore::getUidFromRevision(const DataStore::Transaction &transaction, size_t revision)
 {
     QByteArray uid;
     transaction
@@ -131,25 +131,25 @@ QByteArray DataStore::getUidFromRevision(const DataStore::Transaction &transacti
                 SinkWarning() << "Couldn't find uid for revision: " << revision << error.message;
             });
     Q_ASSERT(!uid.isEmpty());
-    return uid;
+    return Identifier::fromInternalByteArray(uid);
 }
 
-size_t DataStore::getLatestRevisionFromUid(DataStore::Transaction &t, const QByteArray &uid)
+size_t DataStore::getLatestRevisionFromUid(DataStore::Transaction &t, const Identifier &uid)
 {
     size_t revision = 0;
     t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
-        .findLatest(uid, [&revision](const QByteArray &key, const QByteArray &value) {
+        .findLatest(uid.toInternalByteArray(), [&revision](const QByteArray &key, const QByteArray &value) {
             revision = byteArrayToSizeT(value);
         });
 
     return revision;
 }
 
-QList<size_t> DataStore::getRevisionsUntilFromUid(DataStore::Transaction &t, const QByteArray &uid, size_t lastRevision)
+QList<size_t> DataStore::getRevisionsUntilFromUid(DataStore::Transaction &t, const Identifier &uid, size_t lastRevision)
 {
     QList<size_t> queriedRevisions;
     t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues | IntegerKeys)
-        .scan(uid, [&queriedRevisions, lastRevision](const QByteArray &, const QByteArray &value) {
+        .scan(uid.toInternalByteArray(), [&queriedRevisions, lastRevision](const QByteArray &, const QByteArray &value) {
             size_t currentRevision = byteArrayToSizeT(value);
             if (currentRevision < lastRevision) {
                 queriedRevisions << currentRevision;
@@ -162,11 +162,11 @@ QList<size_t> DataStore::getRevisionsUntilFromUid(DataStore::Transaction &t, con
     return queriedRevisions;
 }
 
-QList<size_t> DataStore::getRevisionsFromUid(DataStore::Transaction &t, const QByteArray &uid)
+QList<size_t> DataStore::getRevisionsFromUid(DataStore::Transaction &t, const Identifier &uid)
 {
     QList<size_t> queriedRevisions;
     t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues | IntegerKeys)
-        .scan(uid, [&queriedRevisions](const QByteArray &, const QByteArray &value) {
+        .scan(uid.toInternalByteArray(), [&queriedRevisions](const QByteArray &, const QByteArray &value) {
             queriedRevisions << byteArrayToSizeT(value);
             return true;
         });
@@ -189,13 +189,14 @@ QByteArray DataStore::getTypeFromRevision(const DataStore::Transaction &transact
 }
 
 void DataStore::recordRevision(DataStore::Transaction &transaction, size_t revision,
-    const QByteArray &uid, const QByteArray &type)
+    const Identifier &uid, const QByteArray &type)
 {
+    const auto &uidBa = uid.toInternalByteArray();
     transaction
         .openDatabase("revisions", /* errorHandler = */ {}, IntegerKeys)
-        .write(revision, uid);
+        .write(revision, uidBa);
     transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues | IntegerKeys)
-        .write(uid, sizeTToByteArray(revision));
+        .write(uidBa, sizeTToByteArray(revision));
     transaction
         .openDatabase("revisionType", /* errorHandler = */ {}, IntegerKeys)
         .write(revision, type);
@@ -203,41 +204,41 @@ void DataStore::recordRevision(DataStore::Transaction &transaction, size_t revis
 
 void DataStore::removeRevision(DataStore::Transaction &transaction, size_t revision)
 {
-    const QByteArray uid = getUidFromRevision(transaction, revision);
+    const auto uid = getUidFromRevision(transaction, revision);
 
     transaction
         .openDatabase("revisions", /* errorHandler = */ {}, IntegerKeys)
         .remove(revision);
     transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues | IntegerKeys)
-        .remove(uid, sizeTToByteArray(revision));
+        .remove(uid.toInternalByteArray(), sizeTToByteArray(revision));
     transaction
         .openDatabase("revisionType", /* errorHandler = */ {}, IntegerKeys)
         .remove(revision);
 }
 
-void DataStore::recordUid(DataStore::Transaction &transaction, const QByteArray &uid, const QByteArray &type)
+void DataStore::recordUid(DataStore::Transaction &transaction, const Identifier &uid, const QByteArray &type)
 {
-    transaction.openDatabase(type + "uids", {}, IntegerKeys).write(uid, "");
+    transaction.openDatabase(type + "uids", {}, IntegerKeys).write(uid.toInternalByteArray(), "");
 }
 
-void DataStore::removeUid(DataStore::Transaction &transaction, const QByteArray &uid, const QByteArray &type)
+void DataStore::removeUid(DataStore::Transaction &transaction, const Identifier &uid, const QByteArray &type)
 {
-    transaction.openDatabase(type + "uids", {}, IntegerKeys).remove(uid);
+    transaction.openDatabase(type + "uids", {}, IntegerKeys).remove(uid.toInternalByteArray());
 }
 
-void DataStore::getUids(const QByteArray &type, const Transaction &transaction, const std::function<void(const QByteArray &uid)> &callback)
+void DataStore::getUids(const QByteArray &type, const Transaction &transaction, const std::function<void(const Identifier &uid)> &callback)
 {
     transaction.openDatabase(type + "uids", {}, IntegerKeys).scan("", [&] (const QByteArray &key, const QByteArray &) {
-        callback(key);
+        callback(Identifier::fromInternalByteArray(key));
         return true;
     });
 }
 
-bool DataStore::hasUid(const QByteArray &type, const Transaction &transaction, const QByteArray &uid)
+bool DataStore::hasUid(const QByteArray &type, const Transaction &transaction, const Identifier &uid)
 {
     bool hasTheUid = false;
-    transaction.openDatabase(type + "uids", {}, IntegerKeys).scan(uid, [&](const QByteArray &key, const QByteArray &) {
-        Q_ASSERT(uid == key);
+    transaction.openDatabase(type + "uids", {}, IntegerKeys).scan(uid.toInternalByteArray(), [&](const QByteArray &key, const QByteArray &) {
+        Q_ASSERT(uid.toInternalByteArray() == key);
         hasTheUid = true;
         return false;
     });

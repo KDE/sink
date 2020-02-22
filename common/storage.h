@@ -23,6 +23,7 @@
 
 #include "sink_export.h"
 #include "utils.h"
+#include "storage/key.h"
 #include <string>
 #include <functional>
 #include <QUuid>
@@ -248,17 +249,17 @@ public:
     static qint64 cleanedUpRevision(const Transaction &);
     static void setCleanedUpRevision(Transaction &, qint64 revision);
 
-    static QByteArray getUidFromRevision(const Transaction &, size_t revision);
-    static size_t getLatestRevisionFromUid(Transaction &, const QByteArray &uid);
-    static QList<size_t> getRevisionsUntilFromUid(DataStore::Transaction &, const QByteArray &uid, size_t lastRevision);
-    static QList<size_t> getRevisionsFromUid(DataStore::Transaction &, const QByteArray &uid);
+    static Identifier getUidFromRevision(const Transaction &, size_t revision);
+    static size_t getLatestRevisionFromUid(Transaction &, const Identifier &uid);
+    static QList<size_t> getRevisionsUntilFromUid(DataStore::Transaction &, const Identifier &uid, size_t lastRevision);
+    static QList<size_t> getRevisionsFromUid(DataStore::Transaction &, const Identifier &uid);
     static QByteArray getTypeFromRevision(const Transaction &, size_t revision);
-    static void recordRevision(Transaction &, size_t revision, const QByteArray &uid, const QByteArray &type);
+    static void recordRevision(Transaction &, size_t revision, const Identifier &uid, const QByteArray &type);
     static void removeRevision(Transaction &, size_t revision);
-    static void recordUid(DataStore::Transaction &transaction, const QByteArray &uid, const QByteArray &type);
-    static void removeUid(DataStore::Transaction &transaction, const QByteArray &uid, const QByteArray &type);
-    static void getUids(const QByteArray &type, const Transaction &, const std::function<void(const QByteArray &uid)> &);
-    static bool hasUid(const QByteArray &type, const Transaction &, const QByteArray &uid);
+    static void recordUid(DataStore::Transaction &transaction, const Identifier &uid, const QByteArray &type);
+    static void removeUid(DataStore::Transaction &transaction, const Identifier &uid, const QByteArray &type);
+    static void getUids(const QByteArray &type, const Transaction &, const std::function<void(const Identifier &uid)> &);
+    static bool hasUid(const QByteArray &type, const Transaction &, const Identifier &uid);
 
     bool exists() const;
     static bool exists(const QString &storageRoot, const QString &name);

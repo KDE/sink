@@ -249,8 +249,8 @@ private slots:
                         [&](const DataStore::Error &error) { qWarning() << "Failed to write entity" << identifier << newRevision; });
 
                 DataStore::setMaxRevision(transaction, newRevision);
-                DataStore::recordRevision(transaction, newRevision, identifier.toDisplayByteArray(), "mail");
-                DataStore::recordUid(transaction, identifier.toDisplayByteArray(), "mail");
+                DataStore::recordRevision(transaction, newRevision, identifier, "mail");
+                DataStore::recordUid(transaction, identifier, "mail");
 
                 auto db = transaction.openDatabase("mail.index.messageId" , std::function<void(const Sink::Storage::DataStore::Error &)>(), Sink::Storage::AllowDuplicates);
                 db.write("messageid", key.toInternalByteArray(), [&] (const Sink::Storage::DataStore::Error &error) {

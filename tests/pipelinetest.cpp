@@ -36,9 +36,7 @@ static QList<Sink::Storage::Key> getKeys(const QByteArray &dbEnv, const QByteArr
     QList<Sink::Storage::Key> result;
     db.scan("", [&](const QByteArray &key, const QByteArray &value) {
         size_t revision = Sink::byteArrayToSizeT(key);
-        result << Sink::Storage::Key(Sink::Storage::Identifier::fromDisplayByteArray(
-                                         Sink::Storage::DataStore::getUidFromRevision(transaction, revision)),
-            revision);
+        result << Sink::Storage::Key(Sink::Storage::DataStore::getUidFromRevision(transaction, revision), revision);
         return true;
     });
     return result;

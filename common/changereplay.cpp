@@ -110,11 +110,11 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                     while (revision <= *topRevision) {
                         const auto uid = DataStore::getUidFromRevision(mMainStoreTransaction, revision);
                         const auto type = DataStore::getTypeFromRevision(mMainStoreTransaction, revision);
-                        if (uid.isEmpty() || type.isEmpty()) {
+                        if (uid.isNull() || type.isEmpty()) {
                             SinkErrorCtx(mLogCtx) << "Failed to read uid or type for revison: " << revision << uid << type;
                         } else {
                             // TODO: should not use internal representations
-                            const auto key = Storage::Key(Storage::Identifier::fromDisplayByteArray(uid), revision);
+                            const auto key = Storage::Key(uid, revision);
                             const auto displayKey = key.toDisplayByteArray();
                             QByteArray entityBuffer;
                             DataStore::mainDatabase(mMainStoreTransaction, type)

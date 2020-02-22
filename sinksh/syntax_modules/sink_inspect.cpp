@@ -122,7 +122,7 @@ bool inspect(const QStringList &args, State &state)
         QSet<QByteArray> uids;
         db.scan("", [&] (const QByteArray &key, const QByteArray &data) {
                     size_t revision = Sink::byteArrayToSizeT(key);
-                    uids.insert(Sink::Storage::DataStore::getUidFromRevision(transaction, revision));
+                    uids.insert(Sink::Storage::DataStore::getUidFromRevision(transaction, revision).toDisplayByteArray());
                     return true;
                 },
                 [&](const Sink::Storage::DataStore::Error &e) {

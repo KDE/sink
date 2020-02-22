@@ -277,7 +277,7 @@ private slots:
         Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadOnly);
         QVERIFY(!store.exists());
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
-        Sink::Storage::DataStore::getUids("test", transaction, [&](const QByteArray &uid) {});
+        Sink::Storage::DataStore::getUids("test", transaction, [&](const auto &uid) {});
         int numValues = transaction
                             .openDatabase("test")
                             .scan("",
@@ -491,9 +491,10 @@ private slots:
     {
         Sink::Storage::DataStore store(testDataPath, {dbName, baseDbs()}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
-        Sink::Storage::DataStore::recordRevision(transaction, 1, "uid", "type");
+        auto id = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdadf}");
+        Sink::Storage::DataStore::recordRevision(transaction, 1, id, "type");
         QCOMPARE(Sink::Storage::DataStore::getTypeFromRevision(transaction, 1), QByteArray("type"));
-        QCOMPARE(Sink::Storage::DataStore::getUidFromRevision(transaction, 1), QByteArray("uid"));
+        QCOMPARE(Sink::Storage::DataStore::getUidFromRevision(transaction, 1).toDisplayByteArray(), id.toDisplayByteArray());
     }
 
     void testRecordRevisionSorting()
@@ -685,7 +686,8 @@ private slots:
     void testRecordUid()
     {
 
-        QMap<QByteArray, int> dbs = {{"revisionType", 0},
+        QMap<QByteArray, int> dbs = {
+                {"revisionType", 0},
                 {"revisions", 0},
                 {"uids", 0},
                 {"default", 0},
@@ -696,27 +698,30 @@ private slots:
 
         Sink::Storage::DataStore store(testDataPath, {dbName, dbs}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
-        Sink::Storage::DataStore::recordUid(transaction, "uid1", "type");
-        Sink::Storage::DataStore::recordUid(transaction, "uid2", "type");
-        Sink::Storage::DataStore::recordUid(transaction, "uid3", "type2");
+        auto id1 = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdad1}");
+        auto id2 = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdad2}");
+        auto id3 = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdad3}");
+        Sink::Storage::DataStore::recordUid(transaction, id1, "type");
+        Sink::Storage::DataStore::recordUid(transaction, id2, "type");
+        Sink::Storage::DataStore::recordUid(transaction, id3, "type2");
 
         {
             QVector<QByteArray> uids;
-            Sink::Storage::DataStore::getUids("type", transaction, [&](const QByteArray &r) {
-                uids << r;
+            Sink::Storage::DataStore::getUids("type", transaction, [&](const Sink::Storage::Identifier &r) {
+                uids << r.toDisplayByteArray();
             });
-            QVector<QByteArray> expected{{"uid1"}, {"uid2"}};
+            QVector<QByteArray> expected{id1.toDisplayByteArray(), id2.toDisplayByteArray()};
             QCOMPARE(uids, expected);
         }
 
-        Sink::Storage::DataStore::removeUid(transaction, "uid2", "type");
+        Sink::Storage::DataStore::removeUid(transaction, id2, "type");
 
         {
             QVector<QByteArray> uids;
-            Sink::Storage::DataStore::getUids("type", transaction, [&](const QByteArray &r) {
-                uids << r;
+            Sink::Storage::DataStore::getUids("type", transaction, [&](const Sink::Storage::Identifier &r) {
+                uids << r.toDisplayByteArray();
             });
-            QVector<QByteArray> expected{{"uid1"}};
+            QVector<QByteArray> expected{{id1.toDisplayByteArray()}};
             QCOMPARE(uids, expected);
         }
     }
