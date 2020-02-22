@@ -39,8 +39,9 @@ static QMap<QByteArray, int> baseDbs()
 {
     return {{"revisionType", Storage::IntegerKeys},
             {"revisions", Storage::IntegerKeys},
-            {"uidsToRevisions", Storage::AllowDuplicates | Storage::IntegerValues | IntegerKeys},
+            {"uidsToRevisions", Storage::AllowDuplicates | Storage::IntegerValues | Storage::IntegerKeys},
             {"default", 0},
+            {"__metadata", 0},
             {"__flagtable", 0}};
 }
 
@@ -684,8 +685,7 @@ void EntityStore::readRevisions(const QByteArray &type, const QByteArray &uid, s
             },
             [&](const DataStore::Error &error) {
                 SinkWarningCtx(d->logCtx) << "Error while reading: " << error.message;
-            },
-            true);
+            });
     }
 }
 

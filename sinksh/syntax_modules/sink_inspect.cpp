@@ -73,7 +73,7 @@ Syntax::List syntax();
 bool inspect(const QStringList &args, State &state)
 {
     if (args.isEmpty()) {
-        //state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] [--showinternal] | [--validaterids $type] | [--fulltext [$id]])"));
+        //state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] | [--validaterids $type] | [--fulltext [$id]])"));
         state.printError(syntax()[0].usage());
         return false;
     }
@@ -170,7 +170,6 @@ bool inspect(const QStringList &args, State &state)
 
     auto dbs = options.options.value("db");
     auto idFilter = options.options.value("filter");
-    bool showInternal = options.options.contains("showinternal");
 
     state.printLine(QString("Current revision: %1").arg(Sink::Storage::DataStore::maxRevision(transaction)));
     state.printLine(QString("Last clean revision: %1").arg(Sink::Storage::DataStore::cleanedUpRevision(transaction)));
@@ -196,59 +195,47 @@ bool inspect(const QStringList &args, State &state)
                 state.printError(e.message);
             });
 
-    if (showInternal) {
-        //Print internal keys
-        db.scan("__internal", [&] (const QByteArray &key, const QByteArray &data) {
-                state.printLine("Internal: " + key + "\tValue: " + QString::fromUtf8(data));
+    QByteArray filter;
+    if (!idFilter.isEmpty()) {
+        filter = idFilter.first().toUtf8();
+    }
+
+    //Print rest of db
+    bool findSubstringKeys = !filter.isEmpty();
+    int keySizeTotal = 0;
+    int valueSizeTotal = 0;
+    auto count = db.scan(filter, [&] (const QByteArray &key, const QByteArray &data) {
+                keySizeTotal += key.size();
+                valueSizeTotal += data.size();
+
+                const auto parsedKey = parse(key);
+
+                if (isMainDb) {
+                    Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+                    if (!buffer.isValid()) {
+                        state.printError("Read invalid buffer from disk: " + parsedKey);
+                    } else {
+                        const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
+                        state.printLine("Key: " + parsedKey
+                                        + " Operation: " + operationName(metadata->operation())
+                                        + " Replay: " + (metadata->replayToSource() ? "true" : "false")
+                                        + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": "")
+                                        + " Value size: " + QString::number(data.size())
+                                        );
+                    }
+                } else {
+                    state.printLine("Key: " + parsedKey + "\tValue: " + parse(data));
+                }
                 return true;
             },
             [&](const Sink::Storage::DataStore::Error &e) {
                 state.printError(e.message);
             },
-            true, false);
-    } else {
-        QByteArray filter;
-        if (!idFilter.isEmpty()) {
-            filter = idFilter.first().toUtf8();
-        }
+            findSubstringKeys);
 
-        //Print rest of db
-        bool findSubstringKeys = !filter.isEmpty();
-        int keySizeTotal = 0;
-        int valueSizeTotal = 0;
-        auto count = db.scan(filter, [&] (const QByteArray &key, const QByteArray &data) {
-                    keySizeTotal += key.size();
-                    valueSizeTotal += data.size();
-
-                    const auto parsedKey = parse(key);
-
-                    if (isMainDb) {
-                        Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
-                        if (!buffer.isValid()) {
-                            state.printError("Read invalid buffer from disk: " + parsedKey);
-                        } else {
-                            const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
-                            state.printLine("Key: " + parsedKey
-                                          + " Operation: " + operationName(metadata->operation())
-                                          + " Replay: " + (metadata->replayToSource() ? "true" : "false")
-                                          + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": "")
-                                          + " Value size: " + QString::number(data.size())
-                                          );
-                        }
-                    } else {
-                        state.printLine("Key: " + parsedKey + "\tValue: " + parse(data));
-                    }
-                    return true;
-                },
-                [&](const Sink::Storage::DataStore::Error &e) {
-                    state.printError(e.message);
-                },
-                findSubstringKeys);
-
-        state.printLine("Found " + QString::number(count) + " entries");
-        state.printLine("Keys take up " + QString::number(keySizeTotal) + " bytes => " + QString::number(keySizeTotal/1024) + " kb");
-        state.printLine("Values take up " + QString::number(valueSizeTotal) + " bytes => " + QString::number(valueSizeTotal/1024) + " kb");
-    }
+    state.printLine("Found " + QString::number(count) + " entries");
+    state.printLine("Keys take up " + QString::number(keySizeTotal) + " bytes => " + QString::number(keySizeTotal/1024) + " kb");
+    state.printLine("Values take up " + QString::number(valueSizeTotal) + " bytes => " + QString::number(valueSizeTotal/1024) + " kb");
     return false;
 }
 
@@ -260,7 +247,6 @@ Syntax::List syntax()
     state.addParameter("resource", {"resource", "Which resource to inspect", true});
     state.addParameter("db", {"database", "Which database to inspect"});
     state.addParameter("filter", {"id", "A specific id to filter the results by (currently not working)"});
-    state.addFlag("showinternal", "Show internal fields only");
     state.addParameter("validaterids", {"type", "Validate remote Ids of the given type"});
     state.addParameter("fulltext", {"id", "If 'id' is not given, count the number of fulltext documents. Else, print the terms of the document with the given id"});
 

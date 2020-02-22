@@ -113,10 +113,10 @@ public:
         * @return The number of values retrieved.
         */
         int scan(const QByteArray &key, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>(), bool findSubstringKeys = false, bool skipInternalKeys = true) const;
+            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>(), bool findSubstringKeys = false) const;
 
         int scan(const size_t key, const std::function<bool(size_t key, const QByteArray &value)> &resultHandler,
-            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>(), bool skipInternalKeys = true) const;
+            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>()) const;
 
         /**
          * Finds the last value in a series matched by prefix.
@@ -263,10 +263,6 @@ public:
 
     bool exists() const;
     static bool exists(const QString &storageRoot, const QString &name);
-
-    static bool isInternalKey(const char *key);
-    static bool isInternalKey(void *key, int keySize);
-    static bool isInternalKey(const QByteArray &key);
 
     static NamedDatabase mainDatabase(const Transaction &, const QByteArray &type);
 

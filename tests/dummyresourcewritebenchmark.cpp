@@ -222,7 +222,7 @@ class DummyResourceWriteBenchmark : public QObject
                 [&](const Sink::Storage::DataStore::Error &e) {
                     qWarning() << "Error while reading" << e;
                 },
-                false, false);
+                false);
 
             auto s = db.stat();
             auto usedPages = (s.leafPages + s.branchPages + s.overflowPages);

@@ -33,9 +33,6 @@ QDebug& operator<<(QDebug &dbg, const Sink::Storage::DataStore::Error &error)
 namespace Sink {
 namespace Storage {
 
-static const char *s_internalPrefix = "__internal";
-static const int s_internalPrefixSize = strlen(s_internalPrefix);
-
 DbLayout::DbLayout()
 {
 
@@ -77,13 +74,13 @@ std::function<void(const DataStore::Error &error)> DataStore::defaultErrorHandle
 
 void DataStore::setMaxRevision(DataStore::Transaction &transaction, qint64 revision)
 {
-    transaction.openDatabase().write("__internal_maxRevision", QByteArray::number(revision));
+    transaction.openDatabase("__metadata").write("maxRevision", QByteArray::number(revision));
 }
 
 qint64 DataStore::maxRevision(const DataStore::Transaction &transaction)
 {
     qint64 r = 0;
-    transaction.openDatabase().scan("__internal_maxRevision",
+    transaction.openDatabase("__metadata").scan("maxRevision",
         [&](const QByteArray &, const QByteArray &revision) -> bool {
             r = revision.toLongLong();
             return false;
@@ -98,13 +95,13 @@ qint64 DataStore::maxRevision(const DataStore::Transaction &transaction)
 
 void DataStore::setCleanedUpRevision(DataStore::Transaction &transaction, qint64 revision)
 {
-    transaction.openDatabase().write("__internal_cleanedUpRevision", QByteArray::number(revision));
+    transaction.openDatabase("__metadata").write("cleanedUpRevision", QByteArray::number(revision));
 }
 
 qint64 DataStore::cleanedUpRevision(const DataStore::Transaction &transaction)
 {
     qint64 r = 0;
-    transaction.openDatabase().scan("__internal_cleanedUpRevision",
+    transaction.openDatabase("__metadata").scan("cleanedUpRevision",
         [&](const QByteArray &, const QByteArray &revision) -> bool {
             r = revision.toLongLong();
             return false;
@@ -191,7 +188,7 @@ QByteArray DataStore::getTypeFromRevision(const DataStore::Transaction &transact
 void DataStore::recordRevision(DataStore::Transaction &transaction, size_t revision,
     const Identifier &uid, const QByteArray &type)
 {
-    const auto &uidBa = uid.toInternalByteArray();
+    const auto uidBa = uid.toInternalByteArray();
     transaction
         .openDatabase("revisions", /* errorHandler = */ {}, IntegerKeys)
         .write(revision, uidBa);
@@ -246,25 +243,6 @@ bool DataStore::hasUid(const QByteArray &type, const Transaction &transaction, c
     return hasTheUid;
 }
 
-bool DataStore::isInternalKey(const char *key)
-{
-    return key && strncmp(key, s_internalPrefix, s_internalPrefixSize) == 0;
-}
-
-bool DataStore::isInternalKey(void *key, int size)
-{
-    if (size < 1) {
-        return false;
-    }
-
-    return key && strncmp(static_cast<char *>(key), s_internalPrefix, (size > s_internalPrefixSize ? s_internalPrefixSize : size)) == 0;
-}
-
-bool DataStore::isInternalKey(const QByteArray &key)
-{
-    return key.startsWith(s_internalPrefix);
-}
-
 QByteArray DataStore::generateUid()
 {
     return createUuid();
@@ -294,13 +272,13 @@ bool DataStore::NamedDatabase::contains(const QByteArray &uid)
 
 void DataStore::setDatabaseVersion(DataStore::Transaction &transaction, qint64 revision)
 {
-    transaction.openDatabase().write("__internal_databaseVersion", QByteArray::number(revision));
+    transaction.openDatabase("__metadata").write("databaseVersion", QByteArray::number(revision));
 }
 
 qint64 DataStore::databaseVersion(const DataStore::Transaction &transaction)
 {
     qint64 r = 0;
-    transaction.openDatabase().scan("__internal_databaseVersion",
+    transaction.openDatabase("__metadata").scan("databaseVersion",
         [&](const QByteArray &, const QByteArray &revision) -> bool {
             r = revision.toLongLong();
             return false;

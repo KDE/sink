@@ -143,7 +143,7 @@ void SynchronizerStore::removePrefix(const QByteArray &prefix)
     db.scan(prefix, [&] (const QByteArray &key, const QByteArray &value) {
         keys << key;
         return true;
-    }, {}, true, true);
+    }, {}, true);
     for (const auto &k : keys) {
         db.remove(k);
     }

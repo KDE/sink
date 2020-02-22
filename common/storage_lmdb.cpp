@@ -471,17 +471,17 @@ void DataStore::NamedDatabase::remove(const QByteArray &k, const QByteArray &val
 
 int DataStore::NamedDatabase::scan(const size_t key,
     const std::function<bool(size_t key, const QByteArray &value)> &resultHandler,
-    const std::function<void(const DataStore::Error &error)> &errorHandler, bool skipInternalKeys) const
+    const std::function<void(const DataStore::Error &error)> &errorHandler) const
 {
     return scan(sizeTToByteArray(key),
         [&resultHandler](const QByteArray &key, const QByteArray &value) {
             return resultHandler(byteArrayToSizeT(key), value);
         },
-        errorHandler, /* findSubstringKeys = */ false, skipInternalKeys);
+        errorHandler, /* findSubstringKeys = */ false);
 }
 
 int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-    const std::function<void(const DataStore::Error &error)> &errorHandler, bool findSubstringKeys, bool skipInternalKeys) const
+    const std::function<void(const DataStore::Error &error)> &errorHandler, bool findSubstringKeys) const
 {
     if (!d || !d->transaction) {
         // Not an error. We rely on this to read nothing from non-existing databases.
@@ -517,11 +517,8 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
             const auto current = QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
             // The first lookup will find a key that is equal or greather than our key
             if (current.startsWith(k)) {
-                const bool callResultHandler =  !(skipInternalKeys && isInternalKey(current));
-                if (callResultHandler) {
-                    numberOfRetrievedValues++;
-                }
-                if (!callResultHandler || resultHandler(current, QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
+                numberOfRetrievedValues++;
+                if (resultHandler(current, QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
                     if (findSubstringKeys) {
                         // Reset the key to what we search for
                         key.mv_data = (void *)k.constData();
@@ -532,12 +529,9 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
                         const auto current = QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
                         // Every consequitive lookup simply iterates through the list
                         if (current.startsWith(k)) {
-                            const bool callResultHandler =  !(skipInternalKeys && isInternalKey(current));
-                            if (callResultHandler) {
-                                numberOfRetrievedValues++;
-                                if (!resultHandler(current, QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
-                                    break;
-                                }
+                            numberOfRetrievedValues++;
+                            if (!resultHandler(current, QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
+                                break;
                             }
                         }
                     }
