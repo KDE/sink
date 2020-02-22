@@ -148,7 +148,7 @@ size_t DataStore::getLatestRevisionFromUid(DataStore::Transaction &t, const QByt
 QList<size_t> DataStore::getRevisionsUntilFromUid(DataStore::Transaction &t, const QByteArray &uid, size_t lastRevision)
 {
     QList<size_t> queriedRevisions;
-    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
+    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues | IntegerKeys)
         .scan(uid, [&queriedRevisions, lastRevision](const QByteArray &, const QByteArray &value) {
             size_t currentRevision = byteArrayToSizeT(value);
             if (currentRevision < lastRevision) {
@@ -165,7 +165,7 @@ QList<size_t> DataStore::getRevisionsUntilFromUid(DataStore::Transaction &t, con
 QList<size_t> DataStore::getRevisionsFromUid(DataStore::Transaction &t, const QByteArray &uid)
 {
     QList<size_t> queriedRevisions;
-    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
+    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues | IntegerKeys)
         .scan(uid, [&queriedRevisions](const QByteArray &, const QByteArray &value) {
             queriedRevisions << byteArrayToSizeT(value);
             return true;
@@ -194,7 +194,7 @@ void DataStore::recordRevision(DataStore::Transaction &transaction, size_t revis
     transaction
         .openDatabase("revisions", /* errorHandler = */ {}, IntegerKeys)
         .write(revision, uid);
-    transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues)
+    transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues | IntegerKeys)
         .write(uid, sizeTToByteArray(revision));
     transaction
         .openDatabase("revisionType", /* errorHandler = */ {}, IntegerKeys)
@@ -208,7 +208,7 @@ void DataStore::removeRevision(DataStore::Transaction &transaction, size_t revis
     transaction
         .openDatabase("revisions", /* errorHandler = */ {}, IntegerKeys)
         .remove(revision);
-    transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues)
+    transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues | IntegerKeys)
         .remove(uid, sizeTToByteArray(revision));
     transaction
         .openDatabase("revisionType", /* errorHandler = */ {}, IntegerKeys)
@@ -217,17 +217,17 @@ void DataStore::removeRevision(DataStore::Transaction &transaction, size_t revis
 
 void DataStore::recordUid(DataStore::Transaction &transaction, const QByteArray &uid, const QByteArray &type)
 {
-    transaction.openDatabase(type + "uids").write(uid, "");
+    transaction.openDatabase(type + "uids", {}, IntegerKeys).write(uid, "");
 }
 
 void DataStore::removeUid(DataStore::Transaction &transaction, const QByteArray &uid, const QByteArray &type)
 {
-    transaction.openDatabase(type + "uids").remove(uid);
+    transaction.openDatabase(type + "uids", {}, IntegerKeys).remove(uid);
 }
 
 void DataStore::getUids(const QByteArray &type, const Transaction &transaction, const std::function<void(const QByteArray &uid)> &callback)
 {
-    transaction.openDatabase(type + "uids").scan("", [&] (const QByteArray &key, const QByteArray &) {
+    transaction.openDatabase(type + "uids", {}, IntegerKeys).scan("", [&] (const QByteArray &key, const QByteArray &) {
         callback(key);
         return true;
     });
@@ -236,7 +236,7 @@ void DataStore::getUids(const QByteArray &type, const Transaction &transaction, 
 bool DataStore::hasUid(const QByteArray &type, const Transaction &transaction, const QByteArray &uid)
 {
     bool hasTheUid = false;
-    transaction.openDatabase(type + "uids").scan(uid, [&](const QByteArray &key, const QByteArray &) {
+    transaction.openDatabase(type + "uids", {}, IntegerKeys).scan(uid, [&](const QByteArray &key, const QByteArray &) {
         Q_ASSERT(uid == key);
         hasTheUid = true;
         return false;
