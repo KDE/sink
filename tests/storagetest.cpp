@@ -483,9 +483,20 @@ private slots:
         Sink::Storage::DataStore store(testDataPath, {dbName, Sink::Storage::DataStore::baseDbs()}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto id = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdadf}");
+        auto id2 = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdad2}");
         Sink::Storage::DataStore::recordRevision(transaction, 1, id, "type");
+        Sink::Storage::DataStore::recordRevision(transaction, 2, id2, "type");
+
         QCOMPARE(Sink::Storage::DataStore::getTypeFromRevision(transaction, 1), QByteArray("type"));
         QCOMPARE(Sink::Storage::DataStore::getUidFromRevision(transaction, 1).toDisplayByteArray(), id.toDisplayByteArray());
+        QCOMPARE(Sink::Storage::DataStore::getLatestRevisionFromUid(transaction, id), 1);
+
+        Sink::Storage::DataStore::recordRevision(transaction, 10, id, "type");
+        QCOMPARE(Sink::Storage::DataStore::getLatestRevisionFromUid(transaction, id), 10);
+
+        QCOMPARE(Sink::Storage::DataStore::getRevisionsUntilFromUid(transaction, id, 10).size(), 1);
+        QCOMPARE(Sink::Storage::DataStore::getRevisionsUntilFromUid(transaction, id, 11).size(), 2);
+        QCOMPARE(Sink::Storage::DataStore::getRevisionsFromUid(transaction, id).size(), 2);
     }
 
     void testRecordRevisionSorting()

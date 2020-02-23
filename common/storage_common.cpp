@@ -144,7 +144,7 @@ Identifier DataStore::getUidFromRevision(const DataStore::Transaction &transacti
 size_t DataStore::getLatestRevisionFromUid(DataStore::Transaction &t, const Identifier &uid)
 {
     size_t revision = 0;
-    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
+    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues | IntegerKeys)
         .findLatest(uid.toInternalByteArray(), [&revision](const QByteArray &key, const QByteArray &value) {
             revision = byteArrayToSizeT(value);
         });
