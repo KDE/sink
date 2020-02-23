@@ -26,7 +26,6 @@
 #include "storage/key.h"
 #include <string>
 #include <functional>
-#include <QUuid>
 #include <QString>
 #include <QMap>
 
@@ -270,6 +269,8 @@ public:
 
     static qint64 databaseVersion(const Transaction &);
     static void setDatabaseVersion(Transaction &, qint64 revision);
+
+    static QMap<QByteArray, int> baseDbs();
 
 private:
     std::function<void(const DataStore::Error &error)> mErrorHandler;

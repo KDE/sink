@@ -33,6 +33,16 @@ QDebug& operator<<(QDebug &dbg, const Sink::Storage::DataStore::Error &error)
 namespace Sink {
 namespace Storage {
 
+QMap<QByteArray, int> DataStore::baseDbs()
+{
+    return {{"revisionType", Storage::IntegerKeys},
+            {"revisions", Storage::IntegerKeys},
+            {"uidsToRevisions", Storage::AllowDuplicates | Storage::IntegerValues | Storage::IntegerKeys},
+            {"default", 0},
+            {"__metadata", 0},
+            {"__flagtable", 0}};
+}
+
 DbLayout::DbLayout()
 {
 

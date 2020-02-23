@@ -478,18 +478,9 @@ private slots:
         QCOMPARE(result, QByteArray("value3"));
     }
 
-    static QMap<QByteArray, int> baseDbs()
-    {
-        return {{"revisionType", Sink::Storage::IntegerKeys},
-                {"revisions", Sink::Storage::IntegerKeys},
-                {"uids", 0},
-                {"default", 0},
-                {"__flagtable", 0}};
-    }
-
     void testRecordRevision()
     {
-        Sink::Storage::DataStore store(testDataPath, {dbName, baseDbs()}, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, Sink::Storage::DataStore::baseDbs()}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
         auto id = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdadf}");
         Sink::Storage::DataStore::recordRevision(transaction, 1, id, "type");

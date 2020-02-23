@@ -35,16 +35,6 @@
 using namespace Sink;
 using namespace Sink::Storage;
 
-static QMap<QByteArray, int> baseDbs()
-{
-    return {{"revisionType", Storage::IntegerKeys},
-            {"revisions", Storage::IntegerKeys},
-            {"uidsToRevisions", Storage::AllowDuplicates | Storage::IntegerValues | Storage::IntegerKeys},
-            {"default", 0},
-            {"__metadata", 0},
-            {"__flagtable", 0}};
-}
-
 template <typename T, typename First>
 void mergeImpl(T &map, First f)
 {
@@ -88,7 +78,7 @@ static Sink::Storage::DbLayout dbLayout(const QByteArray &instanceId)
         mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Calendar>::typeDatabases());
         mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Event>::typeDatabases());
         mergeImpl(map, ApplicationDomain::TypeImplementation<ApplicationDomain::Todo>::typeDatabases());
-        return merge(baseDbs(), map);
+        return merge(Storage::DataStore::baseDbs(), map);
     }();
     return {instanceId, databases};
 }
