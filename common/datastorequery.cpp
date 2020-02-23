@@ -698,12 +698,12 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
             f->propertyFilter = filter->propertyFilter;
             baseSet = f;
         } else if (auto filter = stage.dynamicCast<Query::Reduce>()) {
-            auto reduction = Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
+            auto reduction = ::Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
             for (const auto &aggregator : filter->aggregators) {
-                reduction->mAggregators << Reduce::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
+                reduction->mAggregators << ::Reduce::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
             }
             for (const auto &propertySelector : filter->propertySelectors) {
-                reduction->mSelectors << Reduce::PropertySelector(propertySelector.selector, propertySelector.resultProperty);
+                reduction->mSelectors << ::Reduce::PropertySelector(propertySelector.selector, propertySelector.resultProperty);
             }
             reduction->propertyFilter = query.getBaseFilters();
             baseSet = reduction;
