@@ -51,6 +51,7 @@ public:
     };
 
     QByteArray id;
+    QByteArray entitiesType;
     QByteArrayList entities;
     int type = 0;
     QString message;

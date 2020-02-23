@@ -606,7 +606,7 @@ public:
                                 SinkTraceCtx(mLogCtx) << "Checking for new messages." << folderRemoteId << " Local uidnext: " << uidNext << " Server uidnext: " << result.uidNext;
                                 if (result.uidNext > uidNext) {
                                     const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
-                                    emitNotification(Notification::Info, ApplicationDomain::NewContentAvailable, {}, {}, {{folderLocalId}});
+                                    emitNotification(Notification::Info, ApplicationDomain::NewContentAvailable, {}, {}, ENTITY_TYPE_FOLDER, {folderLocalId});
                                 }
                             }).then([=] (const KAsync::Error &error) {
                                 if (error) {

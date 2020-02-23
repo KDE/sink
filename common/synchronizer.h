@@ -155,6 +155,7 @@ public:
             requestType(Synchronization),
             options(o),
             query(q),
+            applicableEntitiesType(q.type()),
             applicableEntities(q.ids())
         {
         }
@@ -182,6 +183,7 @@ public:
         RequestType requestType;
         RequestOptions options = NoOptions;
         Sink::QueryBase query;
+        QByteArray applicableEntitiesType;
         QByteArrayList applicableEntities;
     };
 
@@ -210,8 +212,8 @@ protected:
     virtual void mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue);
     void addToQueue(const Synchronizer::SyncRequest &request);
 
-    void emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id = QByteArray{}, const QByteArrayList &entiteis = QByteArrayList{});
-    void emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArrayList &entities);
+    void emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id = {}, const QByteArray &applicableEntitiesType = {}, const QByteArrayList &entities = {});
+    void emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArray &entitiesType, const QByteArrayList &entities);
 
     /**
      * Report progress for current task

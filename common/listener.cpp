@@ -434,12 +434,14 @@ void Listener::notify(const Sink::Notification &notification)
 {
     auto messageString = m_fbb.CreateString(notification.message.toUtf8().constData(), notification.message.toUtf8().size());
     auto idString = m_fbb.CreateString(notification.id.constData(), notification.id.size());
+    auto entitiesType = m_fbb.CreateString(notification.entitiesType.constData(), notification.entitiesType.size());
     auto entities = Sink::BufferUtils::toVector(m_fbb, notification.entities);
     Sink::Commands::NotificationBuilder builder(m_fbb);
     builder.add_type(notification.type);
     builder.add_code(notification.code);
     builder.add_identifier(idString);
     builder.add_message(messageString);
+    builder.add_entitiesType(entitiesType);
     builder.add_entities(entities);
     builder.add_progress(notification.progress);
     builder.add_total(notification.total);

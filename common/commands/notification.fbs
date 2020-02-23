@@ -8,6 +8,7 @@ table Notification {
     progress: int = 0; //See notification.h
     total: int = 0; //See notification.h
     entities: [string]; //A list of entities this applies to
+    entitiesType: string; //The type of the entities this applies to
 }
 
 root_type Notification;

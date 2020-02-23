@@ -392,24 +392,26 @@ void Synchronizer::flushComplete(const QByteArray &flushId)
     }
 }
 
-void Synchronizer::emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id, const QByteArrayList &entities)
+void Synchronizer::emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id, const QByteArray &applicableEntitiesType, const QByteArrayList &entities)
 {
     Sink::Notification n;
     n.id = id;
     n.type = type;
     n.message = message;
     n.code = code;
+    n.entitiesType = applicableEntitiesType;
     n.entities = entities;
     emit notify(n);
 }
 
-void Synchronizer::emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArrayList &entities)
+void Synchronizer::emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArray &entitiesType, const QByteArrayList &entities)
 {
     Sink::Notification n;
     n.id = id;
     n.type = type;
     n.progress = progress;
     n.total = total;
+    n.entitiesType = entitiesType;
     n.entities = entities;
     emit notify(n);
 }
@@ -430,7 +432,7 @@ void Synchronizer::reportProgress(int progress, int total, const QByteArrayList 
             }
             return entities;
         }();
-        emitProgressNotification(Notification::Progress, progress, total, mCurrentRequest.requestId, applicableEntities);
+        emitProgressNotification(Notification::Progress, progress, total, mCurrentRequest.requestId, mCurrentRequest.query.type(), applicableEntities);
     }
 }
 
@@ -486,7 +488,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
         return KAsync::start([this, request] {
             SinkLogCtx(mLogCtx) << "Synchronizing:" << request.query;
             setBusy(true, "Synchronization has started.", request.requestId);
-            emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, {}, {}, request.applicableEntities);
+            emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, {}, {}, request.applicableEntitiesType, request.applicableEntities);
         }).then(synchronizeWithSource(request.query)).then([this] {
             //Commit after every request, so implementations only have to commit more if they add a lot of data.
             commit();
@@ -495,11 +497,11 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             if (error) {
                 //Emit notification with error
                 SinkWarningCtx(mLogCtx) << "Synchronization failed: " << error;
-                emitNotification(Notification::Warning, ApplicationDomain::SyncError, {}, {}, request.applicableEntities);
+                emitNotification(Notification::Warning, ApplicationDomain::SyncError, {}, {}, request.applicableEntitiesType, request.applicableEntities);
                 return KAsync::error(error);
             } else {
                 SinkLogCtx(mLogCtx) << "Done Synchronizing";
-                emitNotification(Notification::Info, ApplicationDomain::SyncSuccess, {}, {}, request.applicableEntities);
+                emitNotification(Notification::Info, ApplicationDomain::SyncSuccess, {}, {}, request.applicableEntitiesType, request.applicableEntities);
                 return KAsync::null();
             }
         });

@@ -606,6 +606,10 @@ static Sink::Notification getNotification(const Sink::Commands::Notification *bu
     n.code = buffer->code();
     n.progress = buffer->progress();
     n.total = buffer->total();
+    if (buffer->entitiesType()) {
+        // Don't use fromRawData, the buffer is gone once we invoke emit notification
+        n.entitiesType = BufferUtils::extractBufferCopy(buffer->entitiesType());
+    }
     n.entities = BufferUtils::fromVector(*buffer->entities());
     return n;
 }
