@@ -273,6 +273,7 @@ private slots:
             auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
             auto stat = transaction.stat(false);
             qWarning() << "Write duration " << dbWriteDuration;
+            qWarning() << "Write per ms " << dbWriteOpsPerMs;
             qWarning() << "free " << stat.freePages;
             qWarning() << "total " << stat.totalPages;
 

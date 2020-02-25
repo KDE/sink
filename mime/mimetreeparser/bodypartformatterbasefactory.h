@@ -30,9 +30,7 @@
     you do not wish to do so, delete this exception statement from
     your version.
 */
-
-#ifndef __MIMETREEPARSER_BODYPARTFORMATTERBASEFACTORY_H__
-#define __MIMETREEPARSER_BODYPARTFORMATTERBASEFACTORY_H__
+#pragma once
 
 #include <map>
 #include <QByteArray>
@@ -80,5 +78,3 @@ private:
 };
 
 }
-
-#endif // __MIMETREEPARSER_BODYPARTFORMATTERFACTORY_H__

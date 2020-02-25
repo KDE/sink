@@ -489,7 +489,7 @@ MessagePart::Ptr ObjectTreeParser::parseObjectTreeInternal(KMime::Content *node,
             return defaultHandling(node);
         }();
 
-        for (const auto p : mp) {
+        for (const auto &p : mp) {
             parsedPart->appendSubPart(p);
             if (p.dynamicCast<SignedMessagePart>()) {
                 setNodeProcessed(p->node(), true);

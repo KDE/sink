@@ -30,9 +30,7 @@
     you do not wish to do so, delete this exception statement from
     your version.
 */
-
-#ifndef __MIMETREEPARSER_BODYPARTFORMATTERBASEFACTORY_P_H__
-#define __MIMETREEPARSER_BODYPARTFORMATTERBASEFACTORY_P_H__
+#pragma once
 
 namespace MimeTreeParser
 {
@@ -55,5 +53,3 @@ public:
 };
 
 }
-
-#endif // __MIMETREEPARSER_BODYPARTFORMATTERFACTORY_P_H__

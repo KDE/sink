@@ -444,7 +444,7 @@ Crypto::sign(const QByteArray &content, const std::vector<Key> &signingKeys)
 
     const QByteArray algo = [&] {
         if (gpgme_sign_result_t res = gpgme_op_sign_result(context.context)) {
-            for (gpgme_new_signature_t is = res->signatures ; is ; is = is->next) {
+            if (gpgme_new_signature_t is = res->signatures) {
                 return QByteArray{gpgme_hash_algo_name(is->hash_algo)};
             }
         }

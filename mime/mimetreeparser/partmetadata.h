@@ -12,9 +12,7 @@
     along with this program; if not, write to the Free Software Foundation,
     Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, US
 */
-
-#ifndef __MIMETREEPARSER_PARTMETADATA_H__
-#define __MIMETREEPARSER_PARTMETADATA_H__
+#pragma once
 
 #include <QStringList>
 #include <QDateTime>
@@ -49,6 +47,3 @@ public:
 };
 
 }
-
-#endif // __MIMETREEPARSER_PARTMETADATA_H__
-

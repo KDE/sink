@@ -30,9 +30,7 @@
     you do not wish to do so, delete this exception statement from
     your version.
 */
-
-#ifndef __MIMETREEPARSER_INTERFACE_BODYPARTFORMATTER_H__
-#define __MIMETREEPARSER_INTERFACE_BODYPARTFORMATTER_H__
+#pragma once
 
 #include "messagepart.h"
 
@@ -62,4 +60,3 @@ public:
 } // namespace Interface
 
 }
-#endif // __MIMETREEPARSER_INTERFACE_BODYPARTFORMATTER_H__

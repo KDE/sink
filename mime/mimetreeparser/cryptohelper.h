@@ -14,9 +14,7 @@
     along with this program; if not, write to the Free Software Foundation,
     Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
-
-#ifndef __MIMETREEPARSER_CRYPTOHELPER_H__
-#define __MIMETREEPARSER_CRYPTOHELPER_H__
+#pragma once
 
 #include <QByteArray>
 #include <QList>
@@ -58,5 +56,3 @@ QList<Block> prepareMessageForDecryption(const QByteArray &msg);
 } // namespace MimeTreeParser
 
 Q_DECLARE_TYPEINFO(MimeTreeParser::Block, Q_MOVABLE_TYPE);
-
-#endif

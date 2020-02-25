@@ -129,7 +129,7 @@ public:
                                     data->decodedText(), OpenPGP,
                                     node, data));
         mp->setIsEncrypted(true);
-        return mp;
+        return std::move(mp);
     }
 };
 
@@ -233,7 +233,7 @@ public:
         if (mp->mChildParts.isEmpty()) {
             return MimeMessagePart::Ptr(new MimeMessagePart(objectTreeParser, node->contents().at(0)));
         }
-        return mp;
+        return std::move(mp);
     }
 };
 
@@ -274,7 +274,7 @@ public:
                                     node,
                                     data));
         mp->setIsEncrypted(true);
-        return mp;
+        return std::move(mp);
     }
 };
 
