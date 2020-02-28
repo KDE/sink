@@ -37,7 +37,7 @@ QMap<QByteArray, int> DataStore::baseDbs()
 {
     return {{"revisionType", Storage::IntegerKeys},
             {"revisions", Storage::IntegerKeys},
-            {"uidsToRevisions", Storage::AllowDuplicates | Storage::IntegerValues | Storage::IntegerKeys},
+            {"uidsToRevisions", Storage::AllowDuplicates | Storage::IntegerValues},
             {"default", 0},
             {"__metadata", 0},
             {"__flagtable", 0}};
@@ -144,7 +144,7 @@ Identifier DataStore::getUidFromRevision(const DataStore::Transaction &transacti
 size_t DataStore::getLatestRevisionFromUid(DataStore::Transaction &t, const Identifier &uid)
 {
     size_t revision = 0;
-    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues | IntegerKeys)
+    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
         .findLatest(uid.toInternalByteArray(), [&revision](const QByteArray &key, const QByteArray &value) {
             revision = byteArrayToSizeT(value);
         });
@@ -155,7 +155,7 @@ size_t DataStore::getLatestRevisionFromUid(DataStore::Transaction &t, const Iden
 QList<size_t> DataStore::getRevisionsUntilFromUid(DataStore::Transaction &t, const Identifier &uid, size_t lastRevision)
 {
     QList<size_t> queriedRevisions;
-    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues | IntegerKeys)
+    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
         .scan(uid.toInternalByteArray(), [&queriedRevisions, lastRevision](const QByteArray &, const QByteArray &value) {
             size_t currentRevision = byteArrayToSizeT(value);
             if (currentRevision < lastRevision) {
@@ -172,7 +172,7 @@ QList<size_t> DataStore::getRevisionsUntilFromUid(DataStore::Transaction &t, con
 QList<size_t> DataStore::getRevisionsFromUid(DataStore::Transaction &t, const Identifier &uid)
 {
     QList<size_t> queriedRevisions;
-    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues | IntegerKeys)
+    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
         .scan(uid.toInternalByteArray(), [&queriedRevisions](const QByteArray &, const QByteArray &value) {
             queriedRevisions << byteArrayToSizeT(value);
             return true;
@@ -202,7 +202,7 @@ void DataStore::recordRevision(DataStore::Transaction &transaction, size_t revis
     transaction
         .openDatabase("revisions", /* errorHandler = */ {}, IntegerKeys)
         .write(revision, uidBa);
-    transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues | IntegerKeys)
+    transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues)
         .write(uidBa, sizeTToByteArray(revision));
     transaction
         .openDatabase("revisionType", /* errorHandler = */ {}, IntegerKeys)
@@ -216,7 +216,7 @@ void DataStore::removeRevision(DataStore::Transaction &transaction, size_t revis
     transaction
         .openDatabase("revisions", /* errorHandler = */ {}, IntegerKeys)
         .remove(revision);
-    transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues | IntegerKeys)
+    transaction.openDatabase("uidsToRevisions", /* errorHandler = */ {}, AllowDuplicates | IntegerValues)
         .remove(uid.toInternalByteArray(), sizeTToByteArray(revision));
     transaction
         .openDatabase("revisionType", /* errorHandler = */ {}, IntegerKeys)
