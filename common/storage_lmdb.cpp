@@ -645,6 +645,55 @@ void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::functi
     return;
 }
 
+void DataStore::NamedDatabase::findLast(const QByteArray &k, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const DataStore::Error &error)> &errorHandler) const
+{
+    if (!d || !d->transaction) {
+        // Not an error. We rely on this to read nothing from non-existing databases.
+        return;
+    }
+    if (k.isEmpty()) {
+        Error error(d->name.toLatin1() + d->db, GenericError, QByteArray("Can't use findLatest with empty key."));
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        return;
+    }
+
+    int rc;
+    MDB_val key;
+    MDB_val data;
+    MDB_cursor *cursor;
+
+    key.mv_data = (void *)k.constData();
+    key.mv_size = k.size();
+
+    rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
+    if (rc) {
+        Error error(d->name.toLatin1() + d->db, getErrorCode(rc), QByteArray("Error during mdb_cursor_open: ") + QByteArray(mdb_strerror(rc)));
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        return;
+    }
+
+    bool foundValue = false;
+    if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_SET)) == 0) {
+        if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_LAST_DUP)) == 0) {
+            foundValue = true;
+            resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size));
+        }
+    }
+
+    mdb_cursor_close(cursor);
+
+    if (rc) {
+        Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Error during find latest. Key: ") + k + " : " + QByteArray(mdb_strerror(rc)));
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+    } else if (!foundValue) {
+        Error error(d->name.toLatin1(), 1, QByteArray("Error during find latest. Key: ") + k + " : No value found");
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+    }
+
+    return;
+}
+
 int DataStore::NamedDatabase::findAllInRange(const size_t lowerBound, const size_t upperBound,
     const std::function<void(size_t key, const QByteArray &value)> &resultHandler,
     const std::function<void(const DataStore::Error &error)> &errorHandler) const

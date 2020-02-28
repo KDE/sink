@@ -145,7 +145,7 @@ size_t DataStore::getLatestRevisionFromUid(DataStore::Transaction &t, const Iden
 {
     size_t revision = 0;
     t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
-        .findLatest(uid.toInternalByteArray(), [&revision](const QByteArray &key, const QByteArray &value) {
+        .findLast(uid.toInternalByteArray(), [&revision](const QByteArray &key, const QByteArray &value) {
             revision = byteArrayToSizeT(value);
         });
 

@@ -130,6 +130,14 @@ public:
             const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>()) const;
 
         /**
+         * Finds the last value by key in sorted duplicates.
+         *
+         * Only makes sense for a database with AllowDuplicates
+         */
+        void findLast(const QByteArray &uid, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
+            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>()) const;
+
+        /**
          * Finds all the keys and values whose keys are in a given range
          * (inclusive).
          */
