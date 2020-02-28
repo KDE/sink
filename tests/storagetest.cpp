@@ -516,6 +516,24 @@ private slots:
         QCOMPARE(result, QByteArray("value2"));
     }
 
+    //FIXME this test currently fails
+    void testRecordRevisionRandom()
+    {
+        Sink::Storage::DataStore store(testDataPath, {dbName, Sink::Storage::DataStore::baseDbs()}, Sink::Storage::DataStore::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+
+        for (auto i = 1; i <= 1000; i+=2) {
+            const auto uid = Sink::Storage::DataStore::generateUid();
+            const auto id = Sink::Storage::Identifier::fromDisplayByteArray(uid);
+            qWarning() << uid;
+            Sink::Storage::DataStore::recordRevision(transaction, i, id, "type");
+
+            QCOMPARE(Sink::Storage::DataStore::getTypeFromRevision(transaction, i), QByteArray("type"));
+            QCOMPARE(Sink::Storage::DataStore::getUidFromRevision(transaction, i).toDisplayByteArray(), id.toDisplayByteArray());
+            QCOMPARE(Sink::Storage::DataStore::getLatestRevisionFromUid(transaction, id), i);
+        }
+    }
+
     void setupTestFindRange(Sink::Storage::DataStore::NamedDatabase &db)
     {
         db.write("0002", "value1");
