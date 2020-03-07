@@ -175,7 +175,7 @@ private slots:
 
         const auto calendars = Sink::Store::read<Calendar>(Sink::Query().request<Calendar::Name>());
         QCOMPARE(calendars.size(), 1);
-        QCOMPARE(calendars.first().getName(), {"personal"});
+        QCOMPARE(calendars.first().getName(), QLatin1String{"personal"});
     }
 
     void testSyncCalendars()
@@ -267,7 +267,7 @@ private slots:
 
         auto events = Sink::Store::read<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)));
         QCOMPARE(events.size(), 1);
-        QCOMPARE(events.first().getSummary(), {"Hello"});
+        QCOMPARE(events.first().getSummary(), QLatin1String{"Hello"});
         QCOMPARE(events.first().getCalendar(), calendar.identifier());
 
         //Modify
@@ -290,7 +290,7 @@ private slots:
 
             auto events = Sink::Store::read<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)));
             QCOMPARE(events.size(), 1);
-            QCOMPARE(events.first().getSummary(), {"Hello World!"});
+            QCOMPARE(events.first().getSummary(), QLatin1String{"Hello World!"});
         }
         //Delete
         {
@@ -329,7 +329,7 @@ private slots:
 
         auto todos = Sink::Store::read<Todo>(Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)));
         QCOMPARE(todos.size(), 1);
-        QCOMPARE(todos.first().getSummary(), {"Hello"});
+        QCOMPARE(todos.first().getSummary(), QLatin1String{"Hello"});
 
         //Modify
         {
@@ -351,7 +351,7 @@ private slots:
 
             auto todos = Sink::Store::read<Todo>(Sink::Query().filter("uid", Sink::Query::Comparator(addedTodoUid)));
             QCOMPARE(todos.size(), 1);
-            QCOMPARE(todos.first().getSummary(), {"Hello World!"});
+            QCOMPARE(todos.first().getSummary(), QLatin1String{"Hello World!"});
         }
         //Delete
         {
