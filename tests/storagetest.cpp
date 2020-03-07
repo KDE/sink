@@ -839,7 +839,7 @@ private slots:
         });
 
         QCOMPARE(numValues2, 1);
-        QCOMPARE(resultKey, {1});
+        QCOMPARE(resultKey, size_t{1});
         QCOMPARE(result, QByteArray{"value2"});
     }
 
