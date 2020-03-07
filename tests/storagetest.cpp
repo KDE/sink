@@ -829,7 +829,7 @@ private slots:
         });
 
         QCOMPARE(numValues, 1);
-        QCOMPARE(resultKey, {0});
+        QCOMPARE(resultKey, size_t{0});
         QCOMPARE(result, QByteArray{"value1"});
 
         int numValues2 = db.scan(1, [&](size_t key, const QByteArray &value) -> bool {
