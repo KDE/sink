@@ -546,6 +546,6 @@ void MailSyncTest::testSyncUidvalidity()
     query.filter<Mail::Folder>(folder2);
     auto mails = Store::read<Mail>(query);
     QCOMPARE(mails.size(), 1);
-    QCOMPARE(mails.first().getSubject(), {"new"});
+    QCOMPARE(mails.first().getSubject(), QLatin1String{"new"});
 }
 
