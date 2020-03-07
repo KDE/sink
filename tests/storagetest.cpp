@@ -928,7 +928,7 @@ private slots:
                 return false;
             });
 
-            QCOMPARE(resultKey, {0x100});
+            QCOMPARE(resultKey, size_t{0x100});
             QCOMPARE(resultValue, QByteArray{"hello"});
         }
     }
