@@ -425,7 +425,7 @@ private slots:
         Sink::Store::modify(modification).exec().waitForFinished();
         QCOMPARE(facade->modifications.size(), 2);
         for (const auto &m : facade->modifications) {
-            QCOMPARE(m.getUid(), {"modifiedUid2"});
+            QCOMPARE(m.getUid(), QByteArray{"modifiedUid2"});
         }
 
         Sink::Store::remove(modification).exec().waitForFinished();
