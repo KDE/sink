@@ -15,7 +15,7 @@ option(ENABLE_TSAN "Enable the thread sanitizer" OFF)
 option(ENABLE_TIDY "Enable the static code analyzer" OFF)
 
 # ECM setup
-find_package(ECM 1.0.0 REQUIRED NO_MODULE)
+find_package(ECM 5.29.0 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH
         ${ECM_MODULE_PATH}
         ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules
