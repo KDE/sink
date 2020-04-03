@@ -50,7 +50,10 @@ namespace MimeTreeParser
 typedef QSharedPointer<MessagePart> MessagePartPtr;
 
 /**
- Entry point to parse mime messages.
+    Entry point to parse mime messages.
+
+    Content returned by the ObjectTreeParser (including messageparts),
+    is normalized to not contain any CRLF's but only LF's (just like KMime).
 */
 class ObjectTreeParser
 {

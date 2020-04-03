@@ -566,6 +566,16 @@ private slots:
         }
     }
 
+    void testCRLFEncryptedWithSignature()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("crlf-encrypted-with-signature.mbox"));
+        otp.decryptParts();
+        otp.print();
+
+        QCOMPARE(otp.plainTextContent(), "CRLF file\n\n-- \nThis is a signature\nWith two lines\n\nAand another line\n");
+    }
+
 };
 
 QTEST_GUILESS_MAIN(MimeTreeParserTest)

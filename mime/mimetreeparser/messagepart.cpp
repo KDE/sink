@@ -899,6 +899,9 @@ bool EncryptedMessagePart::okDecryptMIME(KMime::Content &data)
     std::tie(decryptResult, verifyResult) = decryptAndVerify(mProtocol, ciphertext, plainText);
     mMetaData.isSigned = verifyResult.signatures.size() > 0;
 
+    // Normalize CRLF's
+    plainText = KMime::CRLFtoLF(plainText);
+
     if (verifyResult.signatures.size() > 0) {
         //We simply attach a signed message part to indicate that this content is also signed
         auto subPart = SignedMessagePart::Ptr(new SignedMessagePart(mOtp, QString::fromUtf8(plainText), mProtocol, nullptr, nullptr));
