@@ -187,12 +187,6 @@ public:
     QString htmlContent() const Q_DECL_OVERRIDE;
 };
 
-enum IconType {
-    NoIcon = 0,
-    IconExternal,
-    IconInline
-};
-
 class TextMessagePart : public MessagePartList
 {
     Q_OBJECT
