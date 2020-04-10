@@ -358,15 +358,13 @@ TextMessagePart::~TextMessagePart()
 
 void TextMessagePart::parseContent()
 {
-    const auto aCodec = mOtp->codecFor(mNode);
     mSignatureState  = KMMsgNotSigned;
     mEncryptionState = KMMsgNotEncrypted;
-    auto body = mNode->decodedContent();
-    const auto blocks = prepareMessageForDecryption(body);
-
-    const auto cryptProto = OpenPGP;
-
+    const auto blocks = prepareMessageForDecryption(mNode->decodedContent());
+    // We also get blocks for unencrypted messages 
     if (!blocks.isEmpty()) {
+        const auto aCodec = mOtp->codecFor(mNode);
+        const auto cryptProto = OpenPGP;
 
         /* The (overall) signature/encrypted status is broken
          * if one unencrypted part is at the beginning or in the middle
@@ -386,7 +384,7 @@ void TextMessagePart::parseContent()
 
             if (block.type() == NoPgpBlock && !block.text().trimmed().isEmpty()) {
                 fullySignedOrEncryptedTmp = false;
-                appendSubPart(MessagePart::Ptr(new MessagePart(mOtp, aCodec->toUnicode(block.text()))));
+                appendSubPart(MessagePart::Ptr(new MessagePart(mOtp, aCodec->toUnicode(KMime::CRLFtoLF(block.text())))));
             } else if (block.type() == PgpMessageBlock) {
                 KMime::Content *content = new KMime::Content;
                 content->setBody(block.text());
@@ -411,7 +409,7 @@ void TextMessagePart::parseContent()
             const PartMetaData *messagePart(mp->partMetaData());
 
             if (!messagePart->isEncrypted && !messagePart->isSigned && !block.text().trimmed().isEmpty()) {
-                mp->setText(aCodec->toUnicode(block.text()));
+                mp->setText(aCodec->toUnicode(KMime::CRLFtoLF(block.text())));
             }
 
             if (messagePart->isEncrypted) {

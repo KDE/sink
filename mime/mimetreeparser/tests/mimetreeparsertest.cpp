@@ -587,6 +587,17 @@ private slots:
         QCOMPARE(otp.plainTextContent(), "CRLF file\n\n-- \nThis is a signature\nWith two lines\n\nAand another line\n");
     }
 
+    void testCRLFOutlook()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("outlook.mbox"));
+        otp.decryptParts();
+        otp.print();
+
+        qWarning() << otp.plainTextContent();
+        QVERIFY(otp.plainTextContent().startsWith("Hi Christian,\n\nhabs gerade getestet:\n\n\u00ABThis is a test"));
+    }
+
 };
 
 QTEST_GUILESS_MAIN(MimeTreeParserTest)
