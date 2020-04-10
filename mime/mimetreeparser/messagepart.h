@@ -226,14 +226,7 @@ public:
     HtmlMessagePart(MimeTreeParser::ObjectTreeParser *otp, KMime::Content *node);
     virtual ~HtmlMessagePart();
 
-    QString text() const Q_DECL_OVERRIDE;
-
     bool isHtml() const Q_DECL_OVERRIDE;
-
-private:
-    QString mBodyHTML;
-    QByteArray mCharset;
-
 };
 
 class AlternativeMessagePart : public MessagePart

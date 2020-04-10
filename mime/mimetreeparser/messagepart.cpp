@@ -473,17 +473,11 @@ HtmlMessagePart::HtmlMessagePart(ObjectTreeParser *otp, KMime::Content *node)
         return;
     }
 
-    const QByteArray partBody(mNode->decodedContent());
-    mBodyHTML = mOtp->codecFor(mNode)->toUnicode(partBody);
+    setText(mOtp->codecFor(mNode)->toUnicode(mNode->decodedContent()));
 }
 
 HtmlMessagePart::~HtmlMessagePart()
 {
-}
-
-QString HtmlMessagePart::text() const
-{
-    return mBodyHTML;
 }
 
 bool HtmlMessagePart::isHtml() const
