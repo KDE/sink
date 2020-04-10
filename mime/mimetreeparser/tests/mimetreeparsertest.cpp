@@ -585,6 +585,7 @@ private slots:
 
         QEXPECT_FAIL("", "because MessagePart::parseInternal uses \n\n to detect encapsulated messages (so 'CRLF file' ends up as header)", Continue);
         QCOMPARE(otp.plainTextContent(), "CRLF file\n\n-- \nThis is a signature\nWith two lines\n\nAand another line\n");
+        QVERIFY(!otp.htmlContent().contains("\r\n"));
     }
 
     void testCRLFOutlook()
@@ -596,6 +597,7 @@ private slots:
 
         qWarning() << otp.plainTextContent();
         QVERIFY(otp.plainTextContent().startsWith("Hi Christian,\n\nhabs gerade getestet:\n\n\u00ABThis is a test"));
+        QVERIFY(!otp.htmlContent().contains("\r\n"));
     }
 
 };

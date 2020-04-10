@@ -473,7 +473,7 @@ HtmlMessagePart::HtmlMessagePart(ObjectTreeParser *otp, KMime::Content *node)
         return;
     }
 
-    setText(mOtp->codecFor(mNode)->toUnicode(mNode->decodedContent()));
+    setText(mOtp->codecFor(mNode)->toUnicode(KMime::CRLFtoLF(mNode->decodedContent())));
 }
 
 HtmlMessagePart::~HtmlMessagePart()
