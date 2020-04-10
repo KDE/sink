@@ -179,7 +179,7 @@ class MessagePartList : public MessagePart
 public:
     typedef QSharedPointer<MessagePartList> Ptr;
     MessagePartList(MimeTreeParser::ObjectTreeParser *otp, KMime::Content *node);
-    virtual ~MessagePartList();
+    virtual ~MessagePartList() = default;
 
     QString text() const Q_DECL_OVERRIDE;
 
@@ -193,7 +193,7 @@ class TextMessagePart : public MessagePartList
 public:
     typedef QSharedPointer<TextMessagePart> Ptr;
     TextMessagePart(MimeTreeParser::ObjectTreeParser *otp, KMime::Content *node);
-    virtual ~TextMessagePart();
+    virtual ~TextMessagePart() = default;
 
     KMMsgSignatureState signatureState() const Q_DECL_OVERRIDE;
     KMMsgEncryptionState encryptionState() const Q_DECL_OVERRIDE;
@@ -213,7 +213,7 @@ class AttachmentMessagePart : public TextMessagePart
 public:
     typedef QSharedPointer<AttachmentMessagePart> Ptr;
     AttachmentMessagePart(MimeTreeParser::ObjectTreeParser *otp, KMime::Content *node);
-    virtual ~AttachmentMessagePart();
+    virtual ~AttachmentMessagePart() = default;
     virtual bool isAttachment() const Q_DECL_OVERRIDE { return true; }
 
 };
@@ -224,9 +224,8 @@ class HtmlMessagePart : public MessagePart
 public:
     typedef QSharedPointer<HtmlMessagePart> Ptr;
     HtmlMessagePart(MimeTreeParser::ObjectTreeParser *otp, KMime::Content *node);
-    virtual ~HtmlMessagePart();
-
-    bool isHtml() const Q_DECL_OVERRIDE;
+    virtual ~HtmlMessagePart() = default;
+    bool isHtml() const Q_DECL_OVERRIDE { return true; };
 };
 
 class AlternativeMessagePart : public MessagePart
@@ -282,7 +281,7 @@ class EncapsulatedRfc822MessagePart : public MessagePart
 public:
     typedef QSharedPointer<EncapsulatedRfc822MessagePart> Ptr;
     EncapsulatedRfc822MessagePart(MimeTreeParser::ObjectTreeParser *otp, KMime::Content *node, const KMime::Message::Ptr &message);
-    virtual ~EncapsulatedRfc822MessagePart();
+    virtual ~EncapsulatedRfc822MessagePart() = default;
 
     QString text() const Q_DECL_OVERRIDE;
     QString from() const;
@@ -303,7 +302,7 @@ public:
                          const CryptoProtocol protocol,
                          KMime::Content *node, KMime::Content *encryptedNode = nullptr);
 
-    virtual ~EncryptedMessagePart();
+    virtual ~EncryptedMessagePart() = default;
 
     QString text() const Q_DECL_OVERRIDE;
 
@@ -374,7 +373,7 @@ class HeadersPart : public MessagePart
 public:
     typedef QSharedPointer<HeadersPart> Ptr;
     HeadersPart(ObjectTreeParser *otp, KMime::Content *node);
-    virtual ~HeadersPart();
+    virtual ~HeadersPart() = default;
 };
 
 }

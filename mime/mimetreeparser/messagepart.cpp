@@ -315,11 +315,6 @@ MessagePartList::MessagePartList(ObjectTreeParser *otp, KMime::Content *node)
 {
 }
 
-MessagePartList::~MessagePartList()
-{
-
-}
-
 QString MessagePartList::text() const
 {
     return renderInternalText();
@@ -349,11 +344,6 @@ TextMessagePart::TextMessagePart(ObjectTreeParser *otp, KMime::Content *node)
 
 
     parseContent();
-}
-
-TextMessagePart::~TextMessagePart()
-{
-
 }
 
 void TextMessagePart::parseContent()
@@ -457,11 +447,6 @@ AttachmentMessagePart::AttachmentMessagePart(ObjectTreeParser *otp, KMime::Conte
 
 }
 
-AttachmentMessagePart::~AttachmentMessagePart()
-{
-
-}
-
 
 //-----HtmlMessageBlock----------------------
 
@@ -474,15 +459,6 @@ HtmlMessagePart::HtmlMessagePart(ObjectTreeParser *otp, KMime::Content *node)
     }
 
     setText(mOtp->codecFor(mNode)->toUnicode(KMime::CRLFtoLF(mNode->decodedContent())));
-}
-
-HtmlMessagePart::~HtmlMessagePart()
-{
-}
-
-bool HtmlMessagePart::isHtml() const
-{
-    return true;
 }
 
 //-----MimeMessageBlock----------------------
@@ -832,11 +808,6 @@ EncryptedMessagePart::EncryptedMessagePart(ObjectTreeParser *otp,
     mMetaData.status = tr("Wrong Crypto Plug-In.");
 }
 
-EncryptedMessagePart::~EncryptedMessagePart()
-{
-
-}
-
 void EncryptedMessagePart::setIsEncrypted(bool encrypted)
 {
     mMetaData.isEncrypted = encrypted;
@@ -1025,11 +996,6 @@ EncapsulatedRfc822MessagePart::EncapsulatedRfc822MessagePart(ObjectTreeParser *o
     parseInternal(message.data());
 }
 
-EncapsulatedRfc822MessagePart::~EncapsulatedRfc822MessagePart()
-{
-
-}
-
 QString EncapsulatedRfc822MessagePart::text() const
 {
     return renderInternalText();
@@ -1054,9 +1020,4 @@ QDateTime EncapsulatedRfc822MessagePart::date() const
 HeadersPart::HeadersPart(ObjectTreeParser *otp, KMime::Content *node)
     : MessagePart(otp, QString(), node)
 {
-}
-
-HeadersPart::~HeadersPart()
-{
-
 }
