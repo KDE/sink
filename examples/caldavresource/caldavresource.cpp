@@ -58,7 +58,6 @@ protected:
         QVector<QByteArray> ridList;
         for (const auto &remoteCalendar : calendarList) {
             const auto &rid = resourceID(remoteCalendar);
-            SinkLog() << "Found calendar:" << remoteCalendar.displayName() << "[" << rid << "]" << remoteCalendar.contentTypes();
 
             Calendar localCalendar;
             localCalendar.setName(remoteCalendar.displayName());
@@ -76,6 +75,7 @@ protected:
 
             const auto sinkId = syncStore().resolveRemoteId(ENTITY_TYPE_CALENDAR, rid);
             const auto found = store().contains(ENTITY_TYPE_CALENDAR, sinkId);
+            SinkLog() << "Found calendar:" << remoteCalendar.displayName() << "[" << rid << "]" << remoteCalendar.contentTypes() << (found ? " (existing)" : "");
 
             //Set default when creating, otherwise don't touch
             if (!found) {
