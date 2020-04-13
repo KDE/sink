@@ -151,24 +151,27 @@ void Synchronizer::deleteEntity(const QByteArray &sinkId, qint64 revision, const
     enqueueCommand(Sink::Commands::DeleteEntityCommand, BufferUtils::extractBuffer(fbb));
 }
 
-void Synchronizer::scanForRemovals(const QByteArray &bufferType, const std::function<void(const std::function<void(const QByteArray &key)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists)
+int Synchronizer::scanForRemovals(const QByteArray &bufferType, const std::function<void(const std::function<void(const QByteArray &key)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists)
 {
-    entryGenerator([this, bufferType, &exists](const QByteArray &sinkId) {
+    int count = 0;
+    entryGenerator([this, bufferType, &exists, &count](const QByteArray &sinkId) {
         const auto remoteId = syncStore().resolveLocalId(bufferType, sinkId);
         SinkTraceCtx(mLogCtx) << "Checking for removal " << sinkId << remoteId;
         // If we have no remoteId, the entity hasn't been replayed to the source yet
         if (!remoteId.isEmpty()) {
             if (!exists(remoteId)) {
                 SinkTraceCtx(mLogCtx) << "Found a removed entity: " << sinkId;
+                count++;
                 deleteEntity(sinkId, mEntityStore->maxRevision(), bufferType);
             }
         }
     });
+    return count;
 }
 
-void Synchronizer::scanForRemovals(const QByteArray &bufferType, std::function<bool(const QByteArray &remoteId)> exists)
+int Synchronizer::scanForRemovals(const QByteArray &bufferType, std::function<bool(const QByteArray &remoteId)> exists)
 {
-    scanForRemovals(bufferType,
+    return scanForRemovals(bufferType,
         [this, &bufferType](const std::function<void(const QByteArray &)> &callback) {
             store().readAllUids(bufferType, [callback](const QByteArray &uid) {
                 callback(uid);

@@ -227,18 +227,12 @@ public:
 
         SinkTraceCtx(mLogCtx) << "Finding removed mail: " << folderLocalId << " remoteId: " << folderRid;
 
-        int count = 0;
-
-        scanForRemovals(ENTITY_TYPE_MAIL,
+        int count = scanForRemovals(ENTITY_TYPE_MAIL,
             [&](const std::function<void(const QByteArray &)> &callback) {
                 store().indexLookup<ApplicationDomain::Mail, ApplicationDomain::Mail::Folder>(folderLocalId, callback);
             },
-            [&](const QByteArray &remoteId) -> bool {
-                if (messages.contains(uidFromMailRid(remoteId))) {
-                    return true;
-                }
-                count++;
-                return false;
+            [&](const QByteArray &remoteId) {
+                return messages.contains(uidFromMailRid(remoteId));
             }
         );
 

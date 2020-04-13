@@ -109,9 +109,9 @@ protected:
     *
     * All functions are called synchronously, and both @param entryGenerator and @param exists need to be synchronous.
     */
-    void scanForRemovals(const QByteArray &bufferType,
+    int scanForRemovals(const QByteArray &bufferType,
         const std::function<void(const std::function<void(const QByteArray &sinkId)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists);
-    void scanForRemovals(const QByteArray &bufferType, std::function<bool(const QByteArray &remoteId)> exists);
+    int scanForRemovals(const QByteArray &bufferType, std::function<bool(const QByteArray &remoteId)> exists);
 
     /**
      * An algorithm to create or modify the entity.

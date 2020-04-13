@@ -134,9 +134,10 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                     for (const auto &collection : collections) {
                         collectionRemoteIDs.insert(resourceID(collection));
                     }
-                    scanForRemovals(mCollectionType, [&](const QByteArray &remoteId) {
+                    int count = scanForRemovals(mCollectionType, [&](const QByteArray &remoteId) {
                         return collectionRemoteIDs.contains(remoteId);
                     });
+                    SinkLogCtx(mLogCtx) << "Removed " << count << " collections";
                     updateLocalCollections(collections);
                 });
         } else if (mEntityTypes.contains(query.type())) {
@@ -235,7 +236,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
             syncStore().writeValue(collectionRid + "_ctag", ctag);
 
             for (const auto &entityType : mEntityTypes) {
-                scanForRemovals(entityType,
+                int count = scanForRemovals(entityType,
                     [&](const std::function<void(const QByteArray &)> &callback) {
                         //FIXME: The collection type just happens to have the same name as the parent collection property
                         const auto collectionProperty = mCollectionType;
@@ -244,6 +245,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
                     [&itemsResourceIDs](const QByteArray &remoteId) {
                         return itemsResourceIDs->contains(remoteId);
                     });
+                SinkLogCtx(mLogCtx) << "Removed " << count << " items";
             }
         });
 }
