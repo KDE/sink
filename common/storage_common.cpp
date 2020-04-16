@@ -157,7 +157,7 @@ QList<size_t> DataStore::getRevisionsUntilFromUid(DataStore::Transaction &t, con
     QList<size_t> queriedRevisions;
     t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
         .scan(uid.toInternalByteArray(), [&queriedRevisions, lastRevision](const QByteArray &, const QByteArray &value) {
-            size_t currentRevision = byteArrayToSizeT(value);
+            const size_t currentRevision = byteArrayToSizeT(value);
             if (currentRevision < lastRevision) {
                 queriedRevisions << currentRevision;
                 return true;
@@ -171,14 +171,7 @@ QList<size_t> DataStore::getRevisionsUntilFromUid(DataStore::Transaction &t, con
 
 QList<size_t> DataStore::getRevisionsFromUid(DataStore::Transaction &t, const Identifier &uid)
 {
-    QList<size_t> queriedRevisions;
-    t.openDatabase("uidsToRevisions", {}, AllowDuplicates | IntegerValues)
-        .scan(uid.toInternalByteArray(), [&queriedRevisions](const QByteArray &, const QByteArray &value) {
-            queriedRevisions << byteArrayToSizeT(value);
-            return true;
-        });
-
-    return queriedRevisions;
+    return getRevisionsUntilFromUid(t, uid, SIZE_MAX);
 }
 
 QByteArray DataStore::getTypeFromRevision(const DataStore::Transaction &transaction, size_t revision)
