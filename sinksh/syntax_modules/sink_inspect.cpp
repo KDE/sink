@@ -168,6 +168,43 @@ bool inspect(const QStringList &args, State &state)
         return false;
     }
 
+    if (options.options.contains("history")) {
+        FulltextIndex index(resource, Sink::Storage::DataStore::ReadOnly);
+        if (options.options.value("history").isEmpty()) {
+            state.printLine(QString("Provide an entity uid to search for."));
+        } else {
+            const auto entityId = SinkshUtils::parseUid(options.options.value("history").first().toUtf8());
+
+            auto db = transaction.openDatabase("mail.main",
+                [&] (const Sink::Storage::DataStore::Error &e) {
+                    Q_ASSERT(false);
+                    state.printError(e.message);
+                });
+            //Print a by revision history for the given uid.
+            for (size_t revision : Sink::Storage::DataStore::getRevisionsFromUid(transaction, Sink::Storage::Identifier::fromDisplayByteArray(entityId))) {
+                db.scan(revision, [&] (const size_t &key, const QByteArray &data) {
+                    Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+                    if (!buffer.isValid()) {
+                        state.printError("Read invalid buffer from disk.");
+                    } else {
+                        const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
+                        state.printLine(" Operation: " + operationName(metadata->operation())
+                                        + " Replay: " + (metadata->replayToSource() ? "true" : "false")
+                                        + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": "")
+                                        + " Value size: " + QString::number(data.size())
+                                        );
+                    }
+                    return true;
+                },
+                [&](const Sink::Storage::DataStore::Error &e) {
+                    state.printError(e.message);
+                });
+            }
+
+        }
+        return false;
+    }
+
     auto dbs = options.options.value("db");
     auto idFilter = options.options.value("filter");
 
@@ -249,6 +286,7 @@ Syntax::List syntax()
     state.addParameter("filter", {"id", "A specific id to filter the results by (currently not working)"});
     state.addParameter("validaterids", {"type", "Validate remote Ids of the given type"});
     state.addParameter("fulltext", {"id", "If 'id' is not given, count the number of fulltext documents. Else, print the terms of the document with the given id"});
+    state.addParameter("history", {"id", "Print all revisions for the entity with the given id"});
 
     state.completer = &SinkshUtils::resourceCompleter;
 
