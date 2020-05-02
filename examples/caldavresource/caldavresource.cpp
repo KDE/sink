@@ -141,9 +141,7 @@ protected:
 
                 //Not pretty but all ical types happen to have a calendar property of the same name.
                 if (changedProperties.contains(ApplicationDomain::Event::Calendar::name)) {
-                    SinkTrace() << "Moving message.";
-                    return createItem(rawIcal, "text/calendar", localItem.getUid().toUtf8() + ".ics", syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()))
-                       .then(removeItem(oldRemoteId));
+                    return moveItem(rawIcal, "text/calendar", localItem.getUid().toUtf8() + ".ics", syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()), oldRemoteId);
                 }
 
                 return modifyItem(oldRemoteId, rawIcal, "text/calendar", syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()));

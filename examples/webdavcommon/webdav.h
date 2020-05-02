@@ -35,6 +35,7 @@ public:
 
 protected:
     KAsync::Job<QByteArray> createItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &uid, const QByteArray &collectionRid);
+    KAsync::Job<QByteArray> moveItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &uid, const QByteArray &collectionRid, const QByteArray &oldRemoteId);
     KAsync::Job<QByteArray> modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &collectionRid);
     KAsync::Job<QByteArray> removeItem(const QByteArray &oldRemoteId);
 

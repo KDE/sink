@@ -295,6 +295,19 @@ KAsync::Job<QByteArray> WebDavSynchronizer::createItem(const QByteArray &vcard, 
 
 }
 
+
+KAsync::Job<QByteArray> WebDavSynchronizer::moveItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &rid, const QByteArray &collectionRid, const QByteArray &oldRemoteId)
+{
+    SinkLogCtx(mLogCtx) << "Moving:" << oldRemoteId;
+    return createItem(vcard, contentType, rid, collectionRid)
+        .then([=] (const QByteArray &remoteId) {
+            return removeItem(oldRemoteId)
+                .then([=] {
+                    return remoteId;
+                });
+        });
+}
+
 KAsync::Job<QByteArray> WebDavSynchronizer::modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &collectionRid)
 {
     return discoverServer()
