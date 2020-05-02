@@ -93,6 +93,11 @@ protected:
                 if (vcard.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for modification replay");
                 }
+                if (changedProperties.contains(ApplicationDomain::Contact::Addressbook::name)) {
+                    SinkTrace() << "Moving message.";
+                    return createItem(vcard, "text/vcard", contact.getUid().toUtf8() + ".vcf", syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()))
+                       .then(removeItem(oldRemoteId));
+                }
                 return modifyItem(oldRemoteId, vcard, "text/vcard", syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()));
         }
         return KAsync::null<QByteArray>();
