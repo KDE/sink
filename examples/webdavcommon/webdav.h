@@ -39,9 +39,9 @@ protected:
     KAsync::Job<QByteArray> modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &collectionRid);
     KAsync::Job<QByteArray> removeItem(const QByteArray &oldRemoteId);
 
-    KAsync::Job<void> createCollection(const QByteArray &collectionRid);
-    KAsync::Job<void> removeCollection(const QByteArray &collectionRid);
-    KAsync::Job<void> modifyCollection(const QByteArray &collectionRid);
+    KAsync::Job<QByteArray> createCollection(const KDAV2::DavCollection &collection);
+    KAsync::Job<QByteArray> removeCollection(const QByteArray &collectionRid);
+    KAsync::Job<QByteArray> modifyCollection(const QByteArray &collectionRid, const KDAV2::DavCollection &collection);
 
     /**
      * Called with the list of discovered collections. It's purpose should be

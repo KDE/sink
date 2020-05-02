@@ -167,23 +167,46 @@ protected:
         SinkLog() << "Replaying calendar" << changedProperties;
 
         switch (operation) {
-            case Sink::Operation_Creation:
-                SinkWarning() << "Unimplemented replay of calendar creation";
-                break;
+            case Sink::Operation_Creation: {
+                SinkLog() << "Replaying calendar creation";
+                KDAV2::DavCollection collection;
+
+                collection.setDisplayName(calendar.getName());
+                if (calendar.getContentTypes().contains("event")) {
+                    collection.setContentTypes(KDAV2::DavCollection::Events);
+                }
+                if (calendar.getContentTypes().contains("todo")) {
+                    collection.setContentTypes(KDAV2::DavCollection::Todos);
+                }
+
+                return createCollection(collection);
+            }
             case Sink::Operation_Removal:
                 SinkLog() << "Replaying calendar removal";
-                removeCollection(oldRemoteId);
-                break;
-            case Sink::Operation_Modification:
-                SinkWarning() << "Unimplemented replay of calendar modification";
+                return removeCollection(oldRemoteId);
+            case Sink::Operation_Modification: {
+                SinkLog() << "Replaying calendar modification";
                 if (calendar.getEnabled() && changedProperties.contains(Calendar::Enabled::name)) {
                     //Trigger synchronization of that calendar
                     Query scope;
                     scope.setType<Event>();
                     scope.filter<Event::Calendar>(calendar);
                     synchronize(scope);
+                    if (changedProperties.size() == 1) {
+                        return KAsync::value(oldRemoteId);
+                    }
                 }
-                break;
+                KDAV2::DavCollection collection;
+                collection.setDisplayName(calendar.getName());
+                collection.setColor(QColor{QString{calendar.getColor()}});
+                if (calendar.getContentTypes().contains("event")) {
+                    collection.setContentTypes(KDAV2::DavCollection::Events);
+                }
+                if (calendar.getContentTypes().contains("todo")) {
+                    collection.setContentTypes(KDAV2::DavCollection::Todos);
+                }
+                return modifyCollection(oldRemoteId, collection);
+            }
         }
 
         return KAsync::null<QByteArray>();

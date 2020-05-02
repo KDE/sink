@@ -24,6 +24,7 @@
 
 #include <KDAV2/DavCollectionDeleteJob>
 #include <KDAV2/DavCollectionModifyJob>
+#include <KDAV2/DavCollectionCreateJob>
 #include <KDAV2/DavCollectionsFetchJob>
 #include <KDAV2/DavDiscoveryJob>
 #include <KDAV2/DavItemCreateJob>
@@ -33,6 +34,7 @@
 #include <KDAV2/DavItemsListJob>
 
 #include <QNetworkReply>
+#include <QColor>
 
 static int translateDavError(KJob *job)
 {
@@ -345,31 +347,48 @@ KAsync::Job<QByteArray> WebDavSynchronizer::removeItem(const QByteArray &oldRemo
         });
 }
 
-// There is no "DavCollectionCreateJob"
-/*
-KAsync::Job<void> WebDavSynchronizer::createCollection(const QByteArray &collectionRid)
-{
-    auto job = new KDAV2::DavCollectionCreateJob(collection);
-    return runJob(job);
-}
-*/
-
-KAsync::Job<void> WebDavSynchronizer::removeCollection(const QByteArray &collectionRid)
+KAsync::Job<QByteArray> WebDavSynchronizer::createCollection(const KDAV2::DavCollection &collection)
 {
     return discoverServer()
         .then([=] (const KDAV2::DavUrl &serverUrl) {
-            return runJob(new KDAV2::DavCollectionDeleteJob(urlOf(serverUrl, collectionRid))).then([this] { SinkLogCtx(mLogCtx) << "Done removing collection"; });
+            auto job = new KDAV2::DavCollectionCreateJob(collection);
+            return runJob(job)
+                .then([=] {
+                    SinkLogCtx(mLogCtx) << "Done creating collection";
+                    return  resourceID(job->collection());
+                });
         });
 }
 
-// Useless without using the `setProperty` method of DavCollectionModifyJob
-/*
-KAsync::Job<void> WebDavSynchronizer::modifyCollection(const QByteArray &collectionRid)
+KAsync::Job<QByteArray> WebDavSynchronizer::removeCollection(const QByteArray &collectionRid)
 {
-    auto job = new KDAV2::DavCollectionModifyJob(url);
-    return runJob(job).then([] { SinkLogCtx(mLogCtx) << "Done modifying collection"; });
+    return discoverServer()
+        .then([=] (const KDAV2::DavUrl &serverUrl) {
+            return runJob(new KDAV2::DavCollectionDeleteJob(urlOf(serverUrl, collectionRid)))
+                .then([this] {
+                    SinkLogCtx(mLogCtx) << "Done removing collection";
+                    return QByteArray{};
+                });
+        });
 }
-*/
+
+KAsync::Job<QByteArray> WebDavSynchronizer::modifyCollection(const QByteArray &collectionRid, const KDAV2::DavCollection &collection)
+{
+    return discoverServer()
+        .then([=] (const KDAV2::DavUrl &serverUrl) {
+            auto job = new KDAV2::DavCollectionModifyJob(urlOf(serverUrl, collectionRid));
+
+            //TODO we should be setting those properties in KDAV2
+            job->setProperty("calendar-color", collection.color().name(), QStringLiteral("http://apple.com/ns/ical/"));
+            job->setProperty("displayname", collection.displayName(), QStringLiteral("DAV:"));
+
+            return runJob(job)
+                .then([=] {
+                    SinkLogCtx(mLogCtx) << "Done modifying collection";
+                    return  collectionRid;
+                });
+        });
+}
 
 QByteArray WebDavSynchronizer::resourceID(const KDAV2::DavCollection &collection)
 {
