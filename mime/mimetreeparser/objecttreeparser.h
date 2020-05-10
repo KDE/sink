@@ -123,7 +123,6 @@ private:
 
     KMime::Message::Ptr mMsg;
 
-    friend class PartNodeBodyPart;
     friend class MessagePart;
     friend class EncryptedMessagePart;
     friend class SignedMessagePart;
