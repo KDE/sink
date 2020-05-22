@@ -36,7 +36,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
     QList<double> mTimePerEntity;
     HAWD::State mHawdState;
 
-    void populateDatabase(int count)
+    void populateDatabase(double count)
     {
         Sink::Storage::DataStore(Sink::storageLocation(), "identifier", Sink::Storage::DataStore::ReadWrite).removeFromDisk();
         // Setup
@@ -87,7 +87,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
 
     void testLoad(int count)
     {
-        const auto startingRss = getCurrentRSS();
+        const auto startingRss = static_cast<double>(getCurrentRSS());
 
         Sink::Query query;
         query.requestedProperties << "uid"
@@ -117,16 +117,16 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         QUICK_TRY_VERIFY(done);
         QCOMPARE(list.size(), count);
 
-        const auto elapsed = time.elapsed();
+        const double elapsed = time.elapsed();
 
-        const auto finalRss = getCurrentRSS();
-        const auto rssGrowth = finalRss - startingRss;
+        const double finalRss = static_cast<double>(getCurrentRSS());
+        const double rssGrowth = finalRss - startingRss;
         // Since the database is memory mapped it is attributted to the resident set size.
-        const auto rssWithoutDb = finalRss - Sink::Storage::DataStore(Sink::storageLocation(), identifier, Sink::Storage::DataStore::ReadWrite).diskUsage();
-        const auto peakRss = getPeakRSS();
+        const double rssWithoutDb = finalRss - static_cast<double>(Sink::Storage::DataStore(Sink::storageLocation(), identifier, Sink::Storage::DataStore::ReadWrite).diskUsage());
+        const double peakRss = static_cast<double>(getPeakRSS());
         // How much peak deviates from final rss in percent (should be around 0)
-        const auto percentageRssError = static_cast<double>(peakRss - finalRss) * 100.0 / static_cast<double>(finalRss);
-        auto rssGrowthPerEntity = rssGrowth / count;
+        const double percentageRssError = static_cast<double>(peakRss - finalRss) * 100.0 / static_cast<double>(finalRss);
+        const double rssGrowthPerEntity = rssGrowth / static_cast<double>(count);
 
         std::cout << "Loaded " << list.size() << " results." << std::endl;
         std::cout << "The query took [ms]: " << elapsed << std::endl;
@@ -144,7 +144,7 @@ class DatabasePopulationAndFacadeQueryBenchmark : public QObject
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
 
-        mTimePerEntity << static_cast<double>(elapsed) / static_cast<double>(count);
+        mTimePerEntity << elapsed / static_cast<double>(count);
         mRssGrowthPerEntity << rssGrowthPerEntity;
 
         QVERIFY(percentageRssError < 10);
