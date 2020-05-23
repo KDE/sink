@@ -448,37 +448,32 @@ KAsync::Job<QVector<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbo
     });
 }
 
-KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUids(const QString &mailbox)
+KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUids()
 {
     auto notDeleted = KIMAP2::Term(KIMAP2::Term::Deleted);
     notDeleted.setNegated(true);
-    return select(mailbox).then<QVector<qint64>>(search(notDeleted));
+    return search(notDeleted);
 }
 
-KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUidsSince(const QString &mailbox, const QDate &since, qint64 lowerBound)
+KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUidsSince(const QDate &since, qint64 lowerBound)
 {
     auto notDeleted = KIMAP2::Term{KIMAP2::Term::Deleted};
     notDeleted.setNegated(true);
 
-    return select(mailbox)
-        .then<QVector<qint64>>(
-            search(
-                KIMAP2::Term{KIMAP2::Term::Or, {
-                    KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Since, since}, notDeleted}},
-                    KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Uid, KIMAP2::ImapSet{lowerBound, 0}}, notDeleted}}
-                }}
-            ));
-}
-
-KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUidsSince(const QString &mailbox, const QDate &since)
-{
-    auto notDeleted = KIMAP2::Term{KIMAP2::Term::Deleted};
-    notDeleted.setNegated(true);
-
-    return select(mailbox)
-        .then<QVector<qint64>>(
-            search(KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Since, since}, notDeleted}})
+    return search(
+            KIMAP2::Term{KIMAP2::Term::Or, {
+                KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Since, since}, notDeleted}},
+                KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Uid, KIMAP2::ImapSet{lowerBound, 0}}, notDeleted}}
+            }}
         );
+}
+
+KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUidsSince(const QDate &since)
+{
+    auto notDeleted = KIMAP2::Term{KIMAP2::Term::Deleted};
+    notDeleted.setNegated(true);
+
+    return search(KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Since, since}, notDeleted}});
 }
 
 KAsync::Job<void> ImapServerProxy::list(KIMAP2::ListJob::Option option, const std::function<void(const KIMAP2::MailBoxDescriptor &mailboxes, const QList<QByteArray> &flags)> &callback)
@@ -641,27 +636,13 @@ QString ImapServerProxy::mailboxFromFolder(const Folder &folder) const
     return folder.path();
 }
 
-KAsync::Job<SelectResult> ImapServerProxy::fetchFlags(const Folder &folder, const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback)
+KAsync::Job<void> ImapServerProxy::fetchFlags(const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback)
 {
-    SinkTrace() << "Fetching flags " << folder.path();
-    return select(folder).then<SelectResult, SelectResult>([=](const SelectResult &selectResult) -> KAsync::Job<SelectResult> {
-        SinkTrace() << "Modeseq " << folder.path() << selectResult.highestModSequence << changedsince;
+    KIMAP2::FetchJob::FetchScope scope;
+    scope.mode = KIMAP2::FetchJob::FetchScope::Flags;
+    scope.changedSince = changedsince;
 
-        if (selectResult.highestModSequence == static_cast<quint64>(changedsince)) {
-            SinkTrace()<< folder.path() << "Changedsince didn't change, nothing to do.";
-            return KAsync::value<SelectResult>(selectResult);
-        }
-
-        SinkTrace() << "Fetching flags  " << folder.path() << set << selectResult.highestModSequence << changedsince;
-
-        KIMAP2::FetchJob::FetchScope scope;
-        scope.mode = KIMAP2::FetchJob::FetchScope::Flags;
-        scope.changedSince = changedsince;
-
-        return fetch(set, scope, callback).then([selectResult] {
-            return selectResult;
-        });
-    });
+    return fetch(set, scope, callback);
 }
 
 KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 uidNext, std::function<void(const Message &)> callback, std::function<void(int, int)> progress)
@@ -735,5 +716,5 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, std::func
 
 KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUids(const Folder &folder)
 {
-    return fetchUids(mailboxFromFolder(folder));
+    return select(mailboxFromFolder(folder)).then(fetchUids());
 }

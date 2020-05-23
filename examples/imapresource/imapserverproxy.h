@@ -294,9 +294,9 @@ public:
     KAsync::Job<void> move(const QString &mailbox, const KIMAP2::ImapSet &set, const QString &newMailbox);
     KAsync::Job<QString> createSubfolder(const QString &parentMailbox, const QString &folderName);
     KAsync::Job<QString> renameSubfolder(const QString &mailbox, const QString &newName);
-    KAsync::Job<QVector<qint64>> fetchUids(const QString &mailbox);
-    KAsync::Job<QVector<qint64>> fetchUidsSince(const QString &mailbox, const QDate &since);
-    KAsync::Job<QVector<qint64>> fetchUidsSince(const QString &mailbox, const QDate &since, qint64 lowerBound);
+    KAsync::Job<QVector<qint64>> fetchUids();
+    KAsync::Job<QVector<qint64>> fetchUidsSince(const QDate &since);
+    KAsync::Job<QVector<qint64>> fetchUidsSince(const QDate &since, qint64 lowerBound);
 
     QString mailboxFromFolder(const Folder &) const;
 
@@ -304,7 +304,7 @@ public:
     KAsync::Job<void> fetchMessages(const Folder &folder, std::function<void(const Message &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
     KAsync::Job<void> fetchMessages(const Folder &folder, qint64 uidNext, std::function<void(const Message &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
     KAsync::Job<void> fetchMessages(const Folder &folder, const QVector<qint64> &uidsToFetch, bool headersOnly, std::function<void(const Message &)> callback, std::function<void(int, int)> progress);
-    KAsync::Job<SelectResult> fetchFlags(const Folder &folder, const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback);
+    KAsync::Job<void> fetchFlags(const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback);
     KAsync::Job<QVector<qint64>> fetchUids(const Folder &folder);
 
 private:
