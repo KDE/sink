@@ -126,7 +126,7 @@ public:
         Sink::ApplicationDomain::Folder folder;
         folder.setName(f.name());
         folder.setIcon("folder");
-        folder.setEnabled(f.subscribed);
+        folder.setEnabled(f.subscribed && !f.noselect);
         const auto specialPurpose = [&] {
             if (hasSpecialPurposeFlag(f.flags)) {
                 return getSpecialPurposeType(f.flags);
@@ -570,7 +570,6 @@ public:
             Sink::Query folderQuery;
             folderQuery.setType<ApplicationDomain::Folder>();
             folderQuery.filter<ApplicationDomain::Folder::Enabled>(true);
-            //TODO filter noselect folders?
             return resolveQuery(folderQuery);
         }();
 
