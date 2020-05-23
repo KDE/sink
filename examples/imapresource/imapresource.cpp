@@ -244,21 +244,22 @@ public:
     {
         const auto folderRemoteId = folderRid(folder);
         const auto logCtx = mLogCtx.subContext(folder.path().toUtf8());
+
+        bool ok = false;
+        const auto changedsince = syncStore().readValue(folderRemoteId, "changedsince").toLongLong(&ok);
+
+        //If modseq should change on any change.
+        if (ok && selectResult.highestModSequence == static_cast<quint64>(changedsince)) {
+            SinkLogCtx(logCtx) << folder.path() << "highestModSequence didn't change, nothing to do.";
+            return KAsync::null();
+        }
+
         //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
         return KAsync::start<qint64>([=] {
             const auto lastSeenUid = qMax(qint64{0}, syncStore().readValue(folderRemoteId, "uidnext").toLongLong() - 1);
-            bool ok = false;
-            const auto changedsince = syncStore().readValue(folderRemoteId, "changedsince").toLongLong(&ok);
             SinkLogCtx(logCtx) << "About to update flags" << folder.path() << "changedsince: " << changedsince << "last seen uid: " << lastSeenUid;
             //If we have any mails so far we start off by updating any changed flags using changedsince, unless we don't have any mails at all.
             if (ok && lastSeenUid >= 1) {
-
-                SinkTrace() << "Modeseq " << folder.path() << selectResult.highestModSequence << changedsince;
-                if (selectResult.highestModSequence == static_cast<quint64>(changedsince)) {
-                    SinkTrace()<< folder.path() << "Changedsince didn't change, nothing to do.";
-                    return KAsync::value(selectResult.uidNext);
-                }
-
                 return imap->fetchFlags(KIMAP2::ImapSet(1, lastSeenUid), changedsince, [=](const Message &message) {
                     const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                     const auto remoteId = assembleMailRid(folderLocalId, message.uid);
