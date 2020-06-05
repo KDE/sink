@@ -609,7 +609,7 @@ public:
         if (!QUrl{mServer}.isValid()) {
             return KAsync::error(ApplicationDomain::ConfigurationError, "Invalid server url: " + mServer);
         }
-        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, &mSessionCache);
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, mAuthenticationMode, &mSessionCache);
         if (query.type() == ApplicationDomain::getTypeName<ApplicationDomain::Folder>()) {
             return login(imap)
             .then([=] {
@@ -746,7 +746,7 @@ public:
                 return KAsync::null<QByteArray>();
             }
         }
-        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, &mSessionCache);
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, mAuthenticationMode, &mSessionCache);
         auto login = imap->login(mUser, secret());
         KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
         if (operation == Sink::Operation_Creation) {
@@ -841,7 +841,7 @@ public:
                 return KAsync::error<QByteArray>("Tried to replay modification without old remoteId.");
             }
         }
-        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, &mSessionCache);
+        auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, mAuthenticationMode, &mSessionCache);
         auto login = imap->login(mUser, secret());
         if (operation == Sink::Operation_Creation) {
             QString parentFolder;
@@ -916,6 +916,7 @@ public:
     QString mServer;
     int mPort;
     Imap::EncryptionMode mEncryptionMode = Imap::NoEncryption;
+    Imap::AuthenticationMode mAuthenticationMode;
     QString mUser;
     int mDaysToSync = 0;
     QByteArray mResourceInstanceIdentifier;
@@ -966,7 +967,7 @@ protected:
             }
             KIMAP2::FetchJob::FetchScope scope;
             scope.mode = KIMAP2::FetchJob::FetchScope::Full;
-            auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode);
+            auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, mAuthenticationMode);
             auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
             SinkTrace() << "Connecting to:" << mServer << mPort;
             SinkTrace() << "as:" << mUser;
@@ -1034,7 +1035,7 @@ protected:
                 auto set = KIMAP2::ImapSet::fromImapSequenceSet("1:*");
                 KIMAP2::FetchJob::FetchScope scope;
                 scope.mode = KIMAP2::FetchJob::FetchScope::Headers;
-                auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode);
+                auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, mAuthenticationMode);
                 auto messageByUid = QSharedPointer<QHash<qint64, Imap::Message>>::create();
                 return imap->login(mUser, secret())
                     .then(imap->select(remoteId))
@@ -1052,7 +1053,7 @@ protected:
                 auto  folderByPath = QSharedPointer<QSet<QString>>::create();
                 auto  folderByName = QSharedPointer<QSet<QString>>::create();
 
-                auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode);
+                auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, mAuthenticationMode);
                 auto inspectionJob = imap->login(mUser, secret())
                     .then(imap->fetchFolders([=](const Imap::Folder &f) {
                         *folderByPath << f.path();
@@ -1078,6 +1079,7 @@ public:
     QString mServer;
     int mPort;
     Imap::EncryptionMode mEncryptionMode = Imap::NoEncryption;
+    Imap::AuthenticationMode mAuthenticationMode;
     QString mUser;
 };
 
@@ -1103,6 +1105,7 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     auto user = config.value("username").toString();
     auto daysToSync = config.value("daysToSync", 14).toInt();
     auto starttls = config.value("starttls", false).toBool();
+    auto auth = config.value("authenticationMode", "PLAIN").toString();
 
     auto encryption = Imap::NoEncryption;
     if (server.startsWith("imaps")) {
@@ -1143,6 +1146,7 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     synchronizer->mServer = server;
     synchronizer->mPort = port;
     synchronizer->mEncryptionMode = encryption;
+    synchronizer->mAuthenticationMode = Imap::fromAuthString(auth);
     synchronizer->mUser = user;
     synchronizer->mDaysToSync = daysToSync;
     setupSynchronizer(synchronizer);
@@ -1151,6 +1155,7 @@ ImapResource::ImapResource(const ResourceContext &resourceContext)
     inspector->mServer = server;
     inspector->mPort = port;
     inspector->mEncryptionMode = encryption;
+    inspector->mAuthenticationMode = Imap::fromAuthString(auth);
     inspector->mUser = user;
     setupInspector(inspector);
 

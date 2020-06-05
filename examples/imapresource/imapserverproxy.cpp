@@ -143,7 +143,7 @@ KIMAP2::Session *createNewSession(const QString &serverUrl, int port)
     return newSession;
 }
 
-ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryptionMode, SessionCache *sessionCache) : mSessionCache(sessionCache), mSession(nullptr), mEncryptionMode(encryptionMode)
+ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryptionMode, AuthenticationMode authenticationMode, SessionCache *sessionCache) : mSessionCache(sessionCache), mSession(nullptr), mEncryptionMode(encryptionMode), mAuthenticationMode(authenticationMode)
 {
     if (!mSessionCache || mSessionCache->isEmpty()) {
         mSession = createNewSession(serverUrl, port);
@@ -195,7 +195,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     } else if (mEncryptionMode == Tls) {
         loginJob->setEncryptionMode(QSsl::AnyProtocol, false);
     }
-    loginJob->setAuthenticationMode(KIMAP2::LoginJob::Plain);
+    loginJob->setAuthenticationMode(mAuthenticationMode);
 
     auto capabilitiesJob = new KIMAP2::CapabilitiesJob(mSession);
     QObject::connect(capabilitiesJob, &KIMAP2::CapabilitiesJob::capabilitiesReceived, &mGuard, [this](const QStringList &capabilities) {
@@ -550,6 +550,19 @@ static bool caseInsensitiveContains(const QByteArray &f, const QByteArrayList &l
 bool Imap::flagsContain(const QByteArray &f, const QByteArrayList &flags)
 {
     return caseInsensitiveContains(f, flags);
+}
+
+AuthenticationMode Imap::fromAuthString(const QString &s)
+{
+    if (s == QStringLiteral("CLEARTEXT")) return KIMAP2::LoginJob::ClearText;
+    if (s == QStringLiteral("LOGIN")) return KIMAP2::LoginJob::Login;
+    if (s == QStringLiteral("PLAIN")) return KIMAP2::LoginJob::Plain;
+    if (s == QStringLiteral("CRAM-MD5")) return KIMAP2::LoginJob::CramMD5;
+    if (s == QStringLiteral("DIGEST-MD5")) return KIMAP2::LoginJob::DigestMD5;
+    if (s == QStringLiteral("GSSAPI")) return KIMAP2::LoginJob::GSSAPI;
+    if (s == QStringLiteral("ANONYMOUS")) return KIMAP2::LoginJob::Anonymous;
+    if (s == QStringLiteral("XOAUTH2")) return KIMAP2::LoginJob::XOAuth2;
+    return KIMAP2::LoginJob::Plain;
 }
 
 static void reportFolder(const Folder &f, QSharedPointer<QSet<QString>> reportedList, std::function<void(const Folder &)> callback) {

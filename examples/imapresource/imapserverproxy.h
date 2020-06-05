@@ -26,6 +26,7 @@
 #include <KIMAP2/Session>
 #include <KIMAP2/FetchJob>
 #include <KIMAP2/SearchJob>
+#include <KIMAP2/LoginJob>
 
 namespace Imap {
 
@@ -253,9 +254,13 @@ enum EncryptionMode {
     Starttls
 };
 
+using AuthenticationMode = KIMAP2::LoginJob::AuthenticationMode;
+
+AuthenticationMode fromAuthString(const QString &s);
+
 class ImapServerProxy {
 public:
-    ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryption, SessionCache *sessionCache = nullptr);
+    ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryption, AuthenticationMode authentication = AuthenticationMode::Plain, SessionCache *sessionCache = nullptr);
 
     //Standard IMAP calls
     KAsync::Job<void> login(const QString &username, const QString &password);
@@ -318,6 +323,7 @@ private:
     QStringList mCapabilities;
     Namespaces mNamespaces;
     EncryptionMode mEncryptionMode;
+    AuthenticationMode mAuthenticationMode;
 };
 
 }
