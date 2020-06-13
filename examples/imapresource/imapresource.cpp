@@ -433,7 +433,7 @@ public:
             .then([=](const SelectResult &selectResult) {
                 bool ok = false;
                 const auto uidvalidity = syncStore().readValue(folderRemoteId, "uidvalidity").toLongLong(&ok);
-                SinkLogCtx(logCtx) << "Checking UIDVALIDITY. Local" << uidvalidity << "remote " << selectResult.uidValidity;
+                SinkTraceCtx(logCtx) << "Checking UIDVALIDITY. Local" << uidvalidity << "remote " << selectResult.uidValidity;
                 if (ok && selectResult.uidValidity != uidvalidity) {
                     SinkWarningCtx(logCtx) << "UIDVALIDITY changed " << selectResult.uidValidity << uidvalidity;
                     syncStore().removePrefix(folderRemoteId);
