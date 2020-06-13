@@ -861,7 +861,7 @@ public:
                         return *rid;
                     });
             } else { //We try to merge special purpose folders first
-                auto  specialPurposeFolders = QSharedPointer<QHash<QByteArray, QString>>::create();
+                auto specialPurposeFolders = QSharedPointer<QHash<QByteArray, QString>>::create();
                 auto mergeJob = imap->login(mUser, secret())
                     .then(imap->fetchFolders([=](const Imap::Folder &folder) {
                         if (SpecialPurpose::isSpecialPurposeFolderName(folder.name())) {
