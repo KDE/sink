@@ -30,17 +30,19 @@
 #include <thread>
 #include <chrono>
 
-#if defined(__GLIBC__) || defined(Q_OS_DARWIN) //musl lacks backtrace/backtrace_symbols
-#include <execinfo.h>
-#include <unistd.h>
-#include <cxxabi.h>
-#include <dlfcn.h>
-#elif defined(Q_OS_WIN)
+#if defined(Q_OS_WIN)
 #include <io.h>
 #include <process.h>
 #include <windows.h>
 # if !defined(Q_CC_MINGW) || (defined(Q_CC_MINGW) && defined(__MINGW64_VERSION_MAJOR))
 #include <crtdbg.h>
+# endif
+#else //Linux/Mac/...
+#include <unistd.h>
+# if defined(__GLIBC__) || defined(Q_OS_DARWIN) //musl lacks backtrace/backtrace_symbols
+#include <execinfo.h>
+#include <cxxabi.h>
+#include <dlfcn.h>
 # endif
 #endif
 
