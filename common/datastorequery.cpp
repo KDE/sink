@@ -79,10 +79,15 @@ class Source : public FilterBase {
         mIncrementalIds.clear();
         mIncrementalIds.reserve(keys.size());
         for (const auto &key : keys) {
-            mIncrementalIds.append(key.identifier());
+            //Pre-filter by uid if a uid-filter is set.
+            if (mIds.isEmpty() || mIds.contains(key.identifier())) {
+                mIncrementalIds.append(key.identifier());
+            }
         }
-        mIncrementalIt = mIncrementalIds.constBegin();
-        mHaveIncrementalChanges = true;
+        if (!mIncrementalIds.isEmpty()) {
+            mIncrementalIt = mIncrementalIds.constBegin();
+            mHaveIncrementalChanges = true;
+        }
     }
 
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE

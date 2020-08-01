@@ -778,6 +778,43 @@ private slots:
         QTRY_COMPARE(model->rowCount(), 0);
     }
 
+    void testLivequeryFilterUnrelated()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail1.setExtractedMessageId("mail1");
+        mail1.setFolder(folder1);
+        VERIFYEXEC(Sink::Store::create(mail1));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        query.setId("testLivequeryUnmatch");
+        query.filter(mail1.identifier());
+        query.setFlags(Query::LiveQuery);
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+
+        //Create another mail and make sure it doesn't show up in the query
+        auto mail2 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail2.setExtractedMessageId("mail2");
+        mail2.setFolder(folder1);
+        VERIFYEXEC(Sink::Store::create(mail2));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        QCOMPARE(model->rowCount(), 1);
+
+        //A removal should still make it though
+        {
+            VERIFYEXEC(Sink::Store::remove(mail1));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 0);
+    }
+
+
     void testLivequeryRemoveOneInThread()
     {
         // Setup
