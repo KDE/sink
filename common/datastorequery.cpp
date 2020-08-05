@@ -57,10 +57,12 @@ class Source : public FilterBase {
     QVector<Identifier> mIncrementalIds;
     QVector<Identifier>::ConstIterator mIncrementalIt{};
     bool mHaveIncrementalChanges{false};
+    bool mIdsAreFinal{false};
 
-    Source (const QVector<Identifier> &ids, DataStoreQuery *store)
+    Source (const QVector<Identifier> &ids, DataStoreQuery *store, bool idsAreFinal = false)
         : FilterBase(store),
-        mIds(ids)
+        mIds(ids),
+        mIdsAreFinal(idsAreFinal)
     {
         mIt = mIds.constBegin();
     }
@@ -80,7 +82,7 @@ class Source : public FilterBase {
         mIncrementalIds.reserve(keys.size());
         for (const auto &key : keys) {
             //Pre-filter by uid if a uid-filter is set.
-            if (mIds.isEmpty() || mIds.contains(key.identifier())) {
+            if (!mIdsAreFinal || mIds.contains(key.identifier())) {
                 mIncrementalIds.append(key.identifier());
             }
         }
@@ -669,7 +671,14 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
             for (const auto & id: query.ids()) {
                 ids.append(Identifier::fromDisplayByteArray(id));
             }
-            return Source::Ptr::create(ids, this);
+
+            //If there is no bloom or reduction filter the result set is final (so we must reject new ids as we are not filtering them later on)
+            const auto fs = query.getFilterStages();
+            const bool resultSetIsFinal = !std::any_of(fs.cbegin(), fs.cend(), [&] (const auto &stage) {
+                return stage.template dynamicCast<Query::Reduce>() || stage.template dynamicCast<Query::Bloom>();
+            });
+
+            return Source::Ptr::create(ids, this, resultSetIsFinal);
         } else {
             QSet<QByteArrayList> appliedFilters;
             auto resultSet = mStore.indexLookup(mType, query, appliedFilters, appliedSorting);
@@ -685,7 +694,8 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
     FilterBase::Ptr baseSet = mSource;
     if (!query.getBaseFilters().isEmpty()) {
         auto filter = Filter::Ptr::create(baseSet, this);
-        //For incremental queries the remaining filters are not sufficient
+        //For incremental queries the remaining filters are not sufficient,
+        //we have to check the properties that we used during the index lookup since we are no re-executing the index lookup.
         for (const auto &f : query.getBaseFilters().keys()) {
             filter->propertyFilter.insert(f, query.getFilter(f));
         }

@@ -1170,6 +1170,7 @@ private slots:
         QCOMPARE(model->rowCount(), 2);
     }
 
+    //Live query bloom filter
     void testLivequeryFilterCreationInThread()
     {
         // Setup
@@ -1244,6 +1245,7 @@ private slots:
         QCOMPARE(resetSpy.size(), 0);
     }
 
+    //Live query reduction
     void testLivequeryThreadleaderChange()
     {
         // Setup
