@@ -31,8 +31,13 @@
 namespace Sink {
 namespace ResourceControl {
 
+KAsync::Job<void> SINK_EXPORT inspect(const Inspection &inspectionCommand, const QByteArray &domainType = {});
+
 template <class DomainType>
-KAsync::Job<void> SINK_EXPORT inspect(const Inspection &inspectionCommand);
+KAsync::Job<void> SINK_EXPORT inspect(const Inspection &inspectionCommand)
+{
+    return inspect(inspectionCommand, ApplicationDomain::getTypeName<DomainType>());
+}
 
 /**
  * Shutdown resource.

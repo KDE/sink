@@ -933,6 +933,22 @@ public:
 
 protected:
     KAsync::Job<void> inspect(int inspectionType, const QByteArray &inspectionId, const QByteArray &domainType, const QByteArray &entityId, const QByteArray &property, const QVariant &expectedValue) Q_DECL_OVERRIDE {
+
+
+        if (inspectionType == Sink::ResourceControl::Inspection::ConnectionInspectionType) {
+            SinkLog() << "Checking the connection ";
+            auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, mAuthenticationMode);
+            return imap->login(mUser, secret())
+                .addToContext(imap)
+                .then([] {
+                    SinkLog() << "Login successful.";
+                })
+                .then(imap->fetchFolders([=](const Imap::Folder &f) {
+                    SinkLog() << "Found a folder " << f.path();
+                }))
+                .then(imap->logout());
+        }
+
         auto synchronizationStore = QSharedPointer<Sink::Storage::DataStore>::create(Sink::storageLocation(), mResourceContext.instanceId() + ".synchronization", Sink::Storage::DataStore::ReadOnly);
         auto synchronizationTransaction = synchronizationStore->createTransaction(Sink::Storage::DataStore::ReadOnly);
 

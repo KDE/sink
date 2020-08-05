@@ -58,11 +58,20 @@ struct Inspection
         return inspection;
     }
 
+    static Inspection ConnectionInspection(const QByteArray &resourceIdentifier)
+    {
+        Inspection inspection;
+        inspection.resourceIdentifier = resourceIdentifier;
+        inspection.type = ConnectionInspectionType;
+        return inspection;
+    }
+
     enum Type
     {
         PropertyInspectionType,
         ExistenceInspectionType,
-        CacheIntegrityInspectionType
+        CacheIntegrityInspectionType,
+        ConnectionInspectionType,
     };
     QByteArray resourceIdentifier;
     QByteArray entityIdentifier;

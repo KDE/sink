@@ -126,8 +126,7 @@ KAsync::Job<void> ResourceControl::flushReplayQueue(const QByteArray &resourceId
     return flush(Flush::FlushReplayQueue, resourceIdentifier);
 }
 
-template <class DomainType>
-KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
+KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand, const QByteArray &domainType)
 {
     auto resourceIdentifier = inspectionCommand.resourceIdentifier;
     auto resourceAccess = ResourceAccessFactory::instance().getAccess(resourceIdentifier, ResourceConfig::getResourceType(resourceIdentifier));
@@ -145,15 +144,12 @@ KAsync::Job<void> ResourceControl::inspect(const Inspection &inspectionCommand)
                     }
                 }
             });
-            resourceAccess->sendInspectionCommand(inspectionCommand.type, id, ApplicationDomain::getTypeName<DomainType>(), inspectionCommand.entityIdentifier, inspectionCommand.property, inspectionCommand.expectedValue).onError([&future] (const KAsync::Error &error) {
+            resourceAccess->sendInspectionCommand(inspectionCommand.type, id, domainType, inspectionCommand.entityIdentifier, inspectionCommand.property, inspectionCommand.expectedValue).onError([&future] (const KAsync::Error &error) {
                 SinkWarning() << "Failed to send command";
                 future.setError(1, "Failed to send command: " + error.errorMessage);
             }).exec();
         });
 }
 
-#define REGISTER_TYPE(T) template KAsync::Job<void> ResourceControl::inspect<T>(const Inspection &);
-
-SINK_REGISTER_TYPES()
 
 } // namespace Sink
