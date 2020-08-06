@@ -28,6 +28,9 @@ namespace ResourceControl {
 
 struct Inspection
 {
+    /**
+     * Inspect if the property of an entity has the expected value on the server.
+     */
     static Inspection PropertyInspection(const Sink::ApplicationDomain::Entity &entity, const QByteArray &property, const QVariant &expectedValue)
     {
         Inspection inspection;
@@ -39,6 +42,9 @@ struct Inspection
         return inspection;
     }
 
+    /**
+     * Inspect if the entity is existing on the server.
+     */
     static Inspection ExistenceInspection(const Sink::ApplicationDomain::Entity &entity, bool exists)
     {
         Inspection inspection;
@@ -49,6 +55,9 @@ struct Inspection
         return inspection;
     }
 
+    /**
+     * Inspect the integrity of the cache for entity.
+     */
     static Inspection CacheIntegrityInspection(const Sink::ApplicationDomain::Entity &entity)
     {
         Inspection inspection;
@@ -58,6 +67,9 @@ struct Inspection
         return inspection;
     }
 
+    /**
+     * Inspect the connection to the server to validate the resource configuration.
+     */
     static Inspection ConnectionInspection(const QByteArray &resourceIdentifier)
     {
         Inspection inspection;
