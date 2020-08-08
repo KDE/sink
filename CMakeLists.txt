@@ -121,11 +121,11 @@ if (${CATCH_ERRORS})
     add_definitions("-Werror -Wall -Weverything -Wno-unused-function -Wno-cast-align -Wno-used-but-marked-unused -Wno-shadow -Wno-weak-vtables -Wno-global-constructors -Wno-deprecated -Wno-weak-template-vtables -Wno-exit-time-destructors -Wno-covered-switch-default -Wno-shorten-64-to-32 -Wno-documentation -Wno-old-style-cast -Wno-extra-semi -Wno-unused-parameter -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-padded -Wno-missing-noreturn -Wno-missing-prototypes -Wno-documentation-unknown-command -Wno-sign-conversion -Wno-gnu-zero-variadic-macro-arguments -Wno-disabled-macro-expansion -Wno-vla-extension -Wno-vla -Wno-undefined-func-template -Wno-#warnings -Wno-unused-template -Wno-inconsistent-missing-destructor-override -Wno-zero-as-null-pointer-constant -Wno-unused-lambda-capture -Wno-switch-enum -Wno-redundant-parens -Wno-extra-semi-stmt")
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (MSVC)
     # Workaround for older cmake versions
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++20")
     # We get way to many warnings for this
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-nonportable-include-path")
 endif()
