@@ -172,12 +172,12 @@ public:
     ApplicationDomainType(const ApplicationDomainType &other);
     ApplicationDomainType& operator=(const ApplicationDomainType &other);
 
-    inline bool operator==(const ApplicationDomainType &other)
+    inline bool operator==(const ApplicationDomainType &other) const
     {
         return other.identifier() == identifier();
     }
 
-    inline bool operator!=(const ApplicationDomainType &other)
+    inline bool operator!=(const ApplicationDomainType &other) const
     {
         return !(*this == other);
     }
