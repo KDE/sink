@@ -86,10 +86,8 @@ class Source : public FilterBase {
                 mIncrementalIds.append(key.identifier());
             }
         }
-        if (!mIncrementalIds.isEmpty()) {
-            mIncrementalIt = mIncrementalIds.constBegin();
-            mHaveIncrementalChanges = true;
-        }
+        mIncrementalIt = mIncrementalIds.constBegin();
+        mHaveIncrementalChanges = true;
     }
 
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
