@@ -103,7 +103,10 @@ public:
         if (node->contents().isEmpty()) {
             return {};
         }
-        return MimeMessagePart::Ptr(new MimeMessagePart(objectTreeParser, node->contents().at(0), false));
+        //we need the intermediate part to preserve the headers (necessary for with protected headers using multipart mixed)
+        auto part = MessagePart::Ptr(new MessagePart(objectTreeParser, {}, node));
+        part->appendSubPart(MimeMessagePart::Ptr(new MimeMessagePart(objectTreeParser, node->contents().at(0), false)));
+        return part;
     }
 };
 

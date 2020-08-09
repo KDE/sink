@@ -520,7 +520,6 @@ private slots:
         QCOMPARE(part->header("subject")->asUnicodeString(), QStringLiteral("hidden subject"));
         QCOMPARE(part->header("from")->asUnicodeString(), QStringLiteral("you@example.com"));
         QCOMPARE(part->header("to")->asUnicodeString(), QStringLiteral("me@example.com"));
-        QCOMPARE(part->header("subject")->asUnicodeString(), QStringLiteral("hidden subject"));
         QCOMPARE(part->header("cc")->asUnicodeString(), QStringLiteral("cc@example.com"));
         QCOMPARE(part->header("message-id")->asUnicodeString(), QStringLiteral("<myhiddenreference@me>"));
         QCOMPARE(part->header("references")->asUnicodeString(), QStringLiteral("<hiddenreference@hidden>"));
@@ -538,6 +537,23 @@ private slots:
         auto part = otp.collectContentParts()[0];
         QVERIFY(part->header("references"));
         QCOMPARE(part->header("references")->asUnicodeString(), QStringLiteral("<a1777ec781546ccc5dcd4918a5e4e03d@info>"));
+    }
+
+    void testMemoryHoleMultipartMixed()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("openpgp-encrypted-memoryhole2.mbox"));
+        otp.decryptParts();
+        otp.print();
+
+        auto partList = otp.collectContentParts();
+        QCOMPARE(partList.size(), 1);
+        auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+
+        QCOMPARE(part->text(), QStringLiteral("\n\n  Fsdflkjdslfj\n\n\nHappy Monday!\n\nBelow you will find a quick overview of the current on-goings. Remember\n"));
+
+        QCOMPARE(part->header("subject")->asUnicodeString(), QStringLiteral("This is the subject"));
     }
 
     void testMIMESignature()
