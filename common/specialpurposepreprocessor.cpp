@@ -51,7 +51,7 @@ QByteArray SpecialPurposeProcessor::findFolder(const QByteArray &specialPurpose,
     if (!mSpecialPurposeFolders.contains(specialPurpose)) {
         //Try to find an existing and enabled folder we can use.
         auto query = Sink::Query();
-        query.filter<ApplicationDomain::Folder::SpecialPurpose>(Query::Comparator(specialPurpose, Query::Comparator::Contains))
+        query.filter<ApplicationDomain::Folder::SpecialPurpose>(Query::Comparator(specialPurpose, Query::Comparator::Contains));
         query.filter<ApplicationDomain::Folder::Enabled>(true);
         query.request<ApplicationDomain::Folder::Enabled>();
 
