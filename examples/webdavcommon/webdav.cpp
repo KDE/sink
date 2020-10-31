@@ -46,6 +46,7 @@ static int translateDavError(KJob *job)
     switch (responseCode) {
         case QNetworkReply::HostNotFoundError:
         case QNetworkReply::ContentNotFoundError: //If we can't find the content we probably messed up the url configuration
+        case QNetworkReply::UnknownNetworkError: //That's what I got for a create job without any network at all
             return ErrorCode::NoServerError;
         case QNetworkReply::AuthenticationRequiredError:
         case QNetworkReply::InternalServerError: //The kolab server reports a HTTP 500 instead of 401 on invalid credentials (we could introspect the error message for the 401 error code)
