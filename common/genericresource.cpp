@@ -61,7 +61,14 @@ bool GenericResource::checkForUpgrade()
     auto store = Sink::Storage::DataStore(Sink::storageLocation(), mResourceContext.instanceId(), Sink::Storage::DataStore::ReadOnly);
     //We rely on the store already having been created in the pipeline constructor before this get's called.
     Q_ASSERT(store.exists());
-    const auto currentDatabaseVersion = Storage::DataStore::databaseVersion(store.createTransaction(Storage::DataStore::ReadOnly));
+    const auto transaction = store.createTransaction(Storage::DataStore::ReadOnly);
+    //If we can't create a read-only transaction something is wrong and we have to exit.
+    //Otherwise we risk deleting data due to a temporary issue.
+    if (!transaction) {
+        SinkError() << "Failed to create a read-only transaction during upgrade check";
+        std::abort();
+    }
+    const auto currentDatabaseVersion = Storage::DataStore::databaseVersion(transaction);
     if (currentDatabaseVersion != Sink::latestDatabaseVersion()) {
         SinkLog() << "Starting database upgrade from " << currentDatabaseVersion << " to " << Sink::latestDatabaseVersion();
 

@@ -38,6 +38,11 @@ qint64 ChangeReplay::getLastReplayedRevision()
 {
     qint64 lastReplayedRevision = 0;
     auto replayStoreTransaction = mChangeReplayStore.createTransaction(DataStore::ReadOnly);
+    //This only happens if we for some reason can't open the database at all, and we don't have a recovery from that.
+    if (!replayStoreTransaction) {
+        SinkErrorCtx(mLogCtx) << "Failed to create a read-only transaction during change-replay";
+        std::abort();
+    }
     replayStoreTransaction.openDatabase().scan("lastReplayedRevision",
         [&lastReplayedRevision](const QByteArray &key, const QByteArray &value) -> bool {
             lastReplayedRevision = value.toLongLong();

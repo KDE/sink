@@ -827,7 +827,7 @@ public:
     bool error;
     QMap<QString, MDB_dbi> createdDbs;
 
-    void startTransaction()
+    bool startTransaction()
     {
         Q_ASSERT(!transaction);
         Q_ASSERT(sEnvironments.values().contains(env));
@@ -847,7 +847,9 @@ public:
                 SinkError() << "Tried to open a write transation in a read-only enironment";
             }
             defaultErrorHandler(Error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening transaction: " + QByteArray(mdb_strerror(rc))));
+            return false;
         }
+        return true;
     }
 };
 
@@ -857,7 +859,10 @@ DataStore::Transaction::Transaction() : d(nullptr)
 
 DataStore::Transaction::Transaction(Transaction::Private *prv) : d(prv)
 {
-    d->startTransaction();
+    if (!d->startTransaction()) {
+        delete d;
+        d = nullptr;
+    }
 }
 
 DataStore::Transaction::Transaction(Transaction &&other) : d(nullptr)
