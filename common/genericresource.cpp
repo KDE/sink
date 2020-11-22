@@ -165,6 +165,7 @@ void GenericResource::updateLowerBoundRevision()
 
 void GenericResource::setLowerBoundRevision(qint64 revision)
 {
+    SinkTrace() << "Updating client lower bound revision:" << revision;
     mClientLowerBoundRevision = revision;
     updateLowerBoundRevision();
 }

@@ -157,6 +157,7 @@ void CommandProcessor::processSynchronizeCommand(const QByteArray &data)
 
 void CommandProcessor::setOldestUsedRevision(qint64 revision)
 {
+    SinkTrace() << "Updating lower bound revision:" << revision;
     mLowerBoundRevision = revision;
 }
 
@@ -275,7 +276,7 @@ KAsync::Job<void> CommandProcessor::processPipeline()
 {
     mTime.start();
     mPipeline->cleanupRevisions(mLowerBoundRevision);
-    SinkTraceCtx(mLogCtx) << "Cleanup done." << Log::TraceTime(mTime.elapsed());
+    SinkTraceCtx(mLogCtx) << "Cleanup until revision " << mLowerBoundRevision << "done." << Log::TraceTime(mTime.elapsed());
 
     // Go through all message queues
     if (mCommandQueues.isEmpty()) {
