@@ -70,15 +70,15 @@ static QString operationName(int operation)
 
 Syntax::List syntax();
 
-bool inspect(const QStringList &args, State &state)
+bool inspect(QStringList args, State &state)
 {
     if (args.isEmpty()) {
-        //state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] | [--validaterids $type] | [--fulltext [$id]])"));
         state.printError(syntax()[0].usage());
         return false;
     }
+
+    const auto resource = SinkshUtils::parseUid(args.takeFirst().toLatin1());
     auto options = SyntaxTree::parseOptions(args);
-    auto resource = SinkshUtils::parseUid(options.options.value("resource").value(0).toUtf8());
 
     Sink::Storage::DataStore storage(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
     auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
@@ -281,7 +281,7 @@ Syntax::List syntax()
     Syntax state("inspect", QObject::tr("Inspect database for the resource requested"),
         &SinkInspect::inspect, Syntax::NotInteractive);
 
-    state.addParameter("resource", {"resource", "Which resource to inspect", true});
+    state.addPositionalArgument({"resource", "Resource to inspect."});
     state.addParameter("db", {"database", "Which database to inspect"});
     state.addParameter("filter", {"id", "A specific id to filter the results by (currently not working)"});
     state.addParameter("validaterids", {"type", "Validate remote Ids of the given type"});
