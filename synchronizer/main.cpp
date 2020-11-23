@@ -20,7 +20,7 @@
 #include <QGuiApplication>
 #include <QLockFile>
 #include <QDir>
-#include <QTime>
+#include <QElapsedTimer>
 
 #include <signal.h>
 #ifndef Q_OS_WIN
@@ -127,7 +127,7 @@ class SynchronizerApplication : public QGuiApplication
 protected:
     using QGuiApplication::QGuiApplication;
 
-    QTime time;
+    QElapsedTimer time;
 
     /*
      * If we block the event loop for too long the system becomes unresponsive to user inputs,
@@ -135,10 +135,15 @@ protected:
      */
     bool notify(QObject *receiver, QEvent *event) override
     {
-        time.start();
+        if (time.isValid()) {
+            time.restart();
+        } else {
+            time.start();
+        }
         const auto ret = QGuiApplication::notify(receiver, event);
-        if (time.elapsed() > 1000) {
-            SinkWarning() << "Blocked the eventloop for " << Sink::Log::TraceTime(time.elapsed()) << " with event " << event->type();
+        const auto elapsed = time.elapsed();
+        if (elapsed > 1000) {
+            SinkWarning() << "Blocked the eventloop for " << Sink::Log::TraceTime(elapsed) << " with event " << event->type();
         }
         return ret;
     }
