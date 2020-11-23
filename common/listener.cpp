@@ -143,11 +143,6 @@ void Listener::acceptConnection()
     connect(socket, &QLocalSocket::disconnected, this, &Listener::clientDropped);
     m_checkConnectionsTimer->stop();
 
-    // If this is the first client, set the lower limit for revision cleanup
-    if (m_connections.size() == 1) {
-        loadResource().setLowerBoundRevision(0);
-    }
-
     if (socket->bytesAvailable()) {
         readFromSocket(socket);
     }

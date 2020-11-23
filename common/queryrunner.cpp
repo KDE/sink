@@ -149,6 +149,9 @@ void QueryRunner<DomainType>::fetch(const Sink::Query &query, const QByteArray &
             mQueryInProgress = false;
             mQueryState = result.queryState;
             // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
+            // FIXME: There is a small race condition here where the resource could have cleaned up beyond newRevision,
+            // before the revisionReplayed command arrives to set a low enough lower-bound revision.
+            // Ideally we would only start the query once we have succesfully protected the revision we're about to read.
             if (query.liveQuery()) {
                 mResourceAccess->sendRevisionReplayedCommand(result.newRevision);
             }
