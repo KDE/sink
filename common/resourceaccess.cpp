@@ -630,7 +630,7 @@ bool ResourceAccess::processMessageBuffer()
     const uint availableMessageSize = d->partialMessageBuffer.size() - headerSize;
     if (size > availableMessageSize) {
         //This is not an error
-        SinkTrace() << "command too small, message smaller than advertised: " << availableMessageSize << headerSize;
+        SinkTrace() << "command too small, message smaller than advertised. Available: " << availableMessageSize << "Expected" << size << "HeaderSize: " << headerSize;
         return false;
     }
 

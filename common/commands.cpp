@@ -87,8 +87,12 @@ void write(QLocalSocket *device, int messageId, int commandId)
 
 static void write(QLocalSocket *device, const char *buffer, uint size)
 {
-    if (device->write(buffer, size) < 0) {
+    const auto bytesWritten = device->write(buffer, size);
+    if (bytesWritten < 0) {
         SinkWarningCtx(Sink::Log::Context{"commands"}) << "Error while writing " << device->errorString();
+    } else if (bytesWritten != size) {
+        SinkErrorCtx(Sink::Log::Context{"commands"}) << "Wrote incorrect number of bytes " << bytesWritten << " Expected " << size << " Buffer " << QByteArray{buffer, static_cast<int>(size)};
+        Q_ASSERT(false);
     }
 }
 
