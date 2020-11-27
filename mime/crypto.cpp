@@ -470,7 +470,7 @@ std::vector<Key> Crypto::findKeys(const QStringList &patterns, bool findPrivate,
         qWarning() << "Failed to lookup keys: " << res.error;
         return {};
     }
-    qDebug() << "got keys:" << res.keys.size();
+    qDebug() << "got keys:" << res.keys.size() << " for " << patterns;
     for (const auto &key : res.keys) {
         qDebug() << "isexpired:" << key.isExpired;
         for (const auto &userId : key.userIds) {
