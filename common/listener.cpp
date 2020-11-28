@@ -101,7 +101,7 @@ void Listener::emergencyAbortAllConnections()
     for (Client &client : m_connections) {
         if (client.socket) {
             SinkWarning() << "Sending panic";
-            client.socket->write("PANIC");
+            Sink::Commands::write(client.socket, ++m_messageId, Sink::Commands::ShutdownCommand, "PANIC", 5);
             client.socket->waitForBytesWritten();
             disconnect(client.socket, nullptr, this, nullptr);
             client.socket->abort();
