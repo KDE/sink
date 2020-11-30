@@ -91,10 +91,14 @@ static KMime::Headers::ContentType *contentType(KMime::Content *node)
 
 QByteArray MessagePart::charset() const
 {
+    if (!mNode) {
+        return "us-ascii";
+    }
     if (auto ct = contentType(mNode)) {
         return ct->charset();
     }
-    return mNode->defaultCharset();
+    // Per rfc2045 us-ascii is the default
+    return "us-ascii";
 }
 
 QByteArray MessagePart::mimeType() const
@@ -210,6 +214,7 @@ void MessagePart::parseInternal(const QByteArray &data)
         tempNode->setBody(lfData);
     }
     tempNode->parse();
+    tempNode->contentType()->setCharset(charset());
     bindLifetime(tempNode);
 
     if (!tempNode->head().isEmpty()) {
@@ -379,7 +384,7 @@ void TextMessagePart::parseContent()
                 KMime::Content *content = new KMime::Content;
                 content->setBody(block.text());
                 content->parse();
-                EncryptedMessagePart::Ptr mp(new EncryptedMessagePart(mOtp, QString(), cryptProto, nullptr, content));
+                EncryptedMessagePart::Ptr mp(new EncryptedMessagePart(mOtp, QString(), cryptProto, content, content, false));
                 mp->bindLifetime(content);
                 mp->setIsEncrypted(true);
                 appendSubPart(mp);
@@ -387,7 +392,8 @@ void TextMessagePart::parseContent()
                 KMime::Content *content = new KMime::Content;
                 content->setBody(block.text());
                 content->parse();
-                SignedMessagePart::Ptr mp(new SignedMessagePart(mOtp, QString(), cryptProto, nullptr, content));
+                content->contentType()->setCharset(charset());
+                SignedMessagePart::Ptr mp(new SignedMessagePart(mOtp, QString(), cryptProto, nullptr, content, false));
                 mp->bindLifetime(content);
                 mp->setIsSigned(true);
                 appendSubPart(mp);
@@ -616,8 +622,9 @@ QString CertMessagePart::text() const
 SignedMessagePart::SignedMessagePart(ObjectTreeParser *otp,
                                      const QString &text,
                                      const CryptoProtocol cryptoProto,
-                                     KMime::Content *node, KMime::Content *signedData)
+                                     KMime::Content *node, KMime::Content *signedData, bool parseAfterDecryption)
     : MessagePart(otp, text, node)
+    , mParseAfterDecryption(parseAfterDecryption)
     , mProtocol(cryptoProto)
     , mSignedData(signedData)
 {
@@ -723,28 +730,27 @@ void SignedMessagePart::startVerification()
     if (mSignedData) {
         const QByteArray cleartext = KMime::CRLFtoLF(mSignedData->encodedContent());
 
+        mMetaData.isEncrypted = false;
+        mMetaData.isDecryptable = false;
+
         //The case for pkcs7
         if (mNode == mSignedData) {
-            startVerificationDetached(cleartext, nullptr, {});
+            startVerificationDetached(cleartext, {});
         } else {
             if (mNode) {
-                startVerificationDetached(cleartext, mSignedData, mNode->decodedContent());
+                if (mParseAfterDecryption && mSignedData) {
+                    parseInternal(mSignedData);
+                }
+                startVerificationDetached(cleartext, mNode->decodedContent());
             } else { //The case for clearsigned above
-                startVerificationDetached(cleartext, nullptr, {});
+                startVerificationDetached(cleartext, {});
             }
         }
     }
 }
 
-void SignedMessagePart::startVerificationDetached(const QByteArray &text, KMime::Content *textNode, const QByteArray &signature)
+void SignedMessagePart::startVerificationDetached(const QByteArray &text, const QByteArray &signature)
 {
-    mMetaData.isEncrypted = false;
-    mMetaData.isDecryptable = false;
-
-    if (textNode) {
-        parseInternal(textNode);
-    }
-
     mMetaData.isSigned = false;
     mMetaData.status = tr("Wrong Crypto Plug-In.");
 
@@ -768,7 +774,7 @@ void SignedMessagePart::setVerificationResult(const VerificationResult &result, 
     if (!signatures.empty()) {
         mMetaData.isSigned = true;
         sigStatusToMetaData(mMetaData, signatures.front());
-        if (!plainText.isEmpty() && parseText) {
+        if (!plainText.isEmpty() && parseText && mParseAfterDecryption) {
             parseInternal(plainText);
         }
     }
@@ -796,8 +802,9 @@ QString SignedMessagePart::htmlContent() const
 EncryptedMessagePart::EncryptedMessagePart(ObjectTreeParser *otp,
         const QString &text,
         const CryptoProtocol cryptoProto,
-        KMime::Content *node, KMime::Content *encryptedNode)
+        KMime::Content *node, KMime::Content *encryptedNode, bool parseAfterDecryption)
     : MessagePart(otp, text, node)
+    , mParseAfterDecryption(parseAfterDecryption)
     , mProtocol(cryptoProto)
     , mEncryptedNode(encryptedNode)
 {
@@ -864,10 +871,13 @@ bool EncryptedMessagePart::okDecryptMIME(KMime::Content &data)
 
     // Normalize CRLF's
     plainText = KMime::CRLFtoLF(plainText);
+    const auto codec = mOtp->codecFor(&data);
+    const auto decoded = codec->toUnicode(plainText);
 
     if (verifyResult.signatures.size() > 0) {
         //We simply attach a signed message part to indicate that this content is also signed
-        auto subPart = SignedMessagePart::Ptr(new SignedMessagePart(mOtp, QString::fromUtf8(plainText), mProtocol, nullptr, nullptr));
+        //We're forwarding mNode to not loose the encoding information
+        auto subPart = SignedMessagePart::Ptr(new SignedMessagePart(mOtp, decoded, mProtocol, mNode, nullptr));
         subPart->setVerificationResult(verifyResult, true, plainText);
         appendSubPart(subPart);
     }
@@ -892,7 +902,7 @@ bool EncryptedMessagePart::okDecryptMIME(KMime::Content &data)
 
     if (!decryptResult.error) {
         mDecryptedData = plainText;
-        setText(QString::fromUtf8(mDecryptedData.constData()));
+        setText(decoded);
     } else {
         const auto errorCode = decryptResult.error.errorCode();
         mMetaData.isEncrypted = errorCode != GPG_ERR_NO_DATA;
@@ -943,7 +953,7 @@ void EncryptedMessagePart::startDecryption(KMime::Content *data)
     //     mMetaData.isDecryptable = true;
     // }
 
-    if (mNode && !mMetaData.isSigned) {
+    if (mParseAfterDecryption && !mMetaData.isSigned) {
         parseInternal(mDecryptedData);
     }
 }

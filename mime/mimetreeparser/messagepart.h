@@ -300,7 +300,7 @@ public:
     EncryptedMessagePart(ObjectTreeParser *otp,
                          const QString &text,
                          const CryptoProtocol protocol,
-                         KMime::Content *node, KMime::Content *encryptedNode = nullptr);
+                         KMime::Content *node, KMime::Content *encryptedNode = nullptr, bool parseAfterDecryption = true);
 
     virtual ~EncryptedMessagePart() = default;
 
@@ -325,6 +325,7 @@ private:
      * if used in async mode, check if mMetaData.inProgress is true, it inicates a running decryption process.
      */
     bool okDecryptMIME(KMime::Content &data);
+    bool mParseAfterDecryption{true};
 
 protected:
     const CryptoProtocol mProtocol;
@@ -342,14 +343,14 @@ public:
     SignedMessagePart(ObjectTreeParser *otp,
                       const QString &text,
                       const CryptoProtocol protocol,
-                      KMime::Content *node, KMime::Content *signedData);
+                      KMime::Content *node, KMime::Content *signedData, bool parseAfterDecryption = true);
 
     virtual ~SignedMessagePart();
 
     void setIsSigned(bool isSigned);
     bool isSigned() const;
 
-    void startVerificationDetached(const QByteArray &text, KMime::Content *textNode, const QByteArray &signature);
+    void startVerificationDetached(const QByteArray &text, const QByteArray &signature);
     void startVerification();
 
     QByteArray mDecryptedData;
@@ -359,6 +360,7 @@ public:
 
 private:
     void setVerificationResult(const Crypto::VerificationResult &result, bool parseText, const QByteArray &plainText);
+    bool mParseAfterDecryption{true};
 
 protected:
     CryptoProtocol mProtocol;

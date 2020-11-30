@@ -63,8 +63,7 @@ private slots:
         auto part = partList[0].dynamicCast<MimeTreeParser::AlternativeMessagePart>();
         QVERIFY(bool(part));
         QCOMPARE(part->plaintextContent(), QStringLiteral("If you can see this text it means that your email client couldn't display our newsletter properly.\nPlease visit this link to view the newsletter on our website: http://www.gog.com/newsletter/\n"));
-        //FIXME html charset is different from plain, and both are not ISO-8859-1
-        QCOMPARE(part->charset(), QStringLiteral("ISO-8859-1").toLocal8Bit());
+        QCOMPARE(part->charset(), QStringLiteral("us-ascii").toLocal8Bit());
         QCOMPARE(part->htmlContent(), QStringLiteral("<html><body><p><span>HTML</span> text</p></body></html>\n\n"));
         QCOMPARE(otp.collectAttachmentParts().size(), 0);
         QCOMPARE(part->encryptions().size(), 0);
@@ -155,7 +154,7 @@ private slots:
         QCOMPARE(partList.size(), 1);
         auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
         QVERIFY(bool(part));
-        QCOMPARE(part->charset(), QStringLiteral("ISO-8859-1").toLocal8Bit());
+        QCOMPARE(part->charset(), QStringLiteral("ISO-8859-15").toLocal8Bit());
         QCOMPARE(part->text(), QString::fromUtf8("asdasd asd asd asdf sadf sdaf sadf öäü"));
 
         QCOMPARE(part->encryptions().size(), 1);

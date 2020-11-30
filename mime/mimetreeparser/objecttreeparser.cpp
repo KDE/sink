@@ -398,6 +398,11 @@ void ObjectTreeParser::parseObjectTree(const QByteArray &mimeMessage)
     mMsg = KMime::Message::Ptr(new KMime::Message);
     mMsg->setContent(mailData);
     mMsg->parse();
+    //We avoid using mMsg->contentType()->charset(), because that will just return kmime's defaultCharset(), ISO-8859-1
+    const auto charset = mMsg->contentType()->parameter(QStringLiteral("charset")).toLatin1();
+    if (charset.isEmpty()) {
+        mMsg->contentType()->setCharset("us-ascii");
+    }
     parseObjectTree(mMsg.data());
 }
 
