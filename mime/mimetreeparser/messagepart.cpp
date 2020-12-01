@@ -830,7 +830,7 @@ bool EncryptedMessagePart::isDecryptable() const
     return mMetaData.isDecryptable;
 }
 
-bool EncryptedMessagePart::okDecryptMIME(KMime::Content &data)
+bool EncryptedMessagePart::decrypt(KMime::Content &data)
 {
     mError = NoError;
     mMetaData.errorText.clear();
@@ -902,6 +902,7 @@ bool EncryptedMessagePart::okDecryptMIME(KMime::Content &data)
             mMetaData.errorText = tr("Could not decrypt the data.");
             //                         + tr("Error: %1").arg(QString::fromLocal8Bit(decryptResult.error().asString()));
         }
+        setText(QString::fromUtf8(mDecryptedData.constData()));
         return false;
     }
 
@@ -911,16 +912,7 @@ bool EncryptedMessagePart::okDecryptMIME(KMime::Content &data)
 void EncryptedMessagePart::startDecryption(KMime::Content *data)
 {
     mMetaData.isEncrypted = true;
-
-    mMetaData.isDecryptable = okDecryptMIME(*data);
-
-    if (!mMetaData.isDecryptable) {
-        setText(QString::fromUtf8(mDecryptedData.constData()));
-    }
-
-    // if (mMetaData.isEncrypted && !decryptMessage()) {
-    //     mMetaData.isDecryptable = true;
-    // }
+    mMetaData.isDecryptable = decrypt(*data);
 
     if (mParseAfterDecryption && !mMetaData.isSigned) {
         parseInternal(mDecryptedData);
