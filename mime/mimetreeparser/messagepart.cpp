@@ -830,30 +830,6 @@ bool EncryptedMessagePart::isDecryptable() const
     return mMetaData.isDecryptable;
 }
 
-void EncryptedMessagePart::startDecryption(const QByteArray &text, const QTextCodec *aCodec)
-{
-    KMime::Content *content = new KMime::Content;
-    content->setBody(text);
-    content->parse();
-    bindLifetime(content);
-
-    startDecryption(content);
-
-    if (mMetaData.isDecryptable) {
-        const auto codec = aCodec ? aCodec : mOtp->codecFor(mNode);
-        const auto decoded = codec->toUnicode(mDecryptedData);
-        if (hasSubParts()) {
-            if (auto mp = (subParts()[0]).dynamicCast<SignedMessagePart>()) {
-                mp->setText(decoded);
-            } else {
-                setText(decoded);
-            }
-        } else {
-            setText(decoded);
-        }
-    }
-}
-
 bool EncryptedMessagePart::okDecryptMIME(KMime::Content &data)
 {
     mError = NoError;
@@ -934,13 +910,6 @@ bool EncryptedMessagePart::okDecryptMIME(KMime::Content &data)
 
 void EncryptedMessagePart::startDecryption(KMime::Content *data)
 {
-    if (!data) {
-        data = mEncryptedNode;
-        if (!data) {
-            data = mNode;
-        }
-    }
-
     mMetaData.isEncrypted = true;
 
     mMetaData.isDecryptable = okDecryptMIME(*data);
@@ -955,6 +924,15 @@ void EncryptedMessagePart::startDecryption(KMime::Content *data)
 
     if (mParseAfterDecryption && !mMetaData.isSigned) {
         parseInternal(mDecryptedData);
+    }
+}
+
+void EncryptedMessagePart::startDecryption()
+{
+    if (mEncryptedNode) {
+        startDecryption(mEncryptedNode);
+    } else {
+        startDecryption(mNode);
     }
 }
 

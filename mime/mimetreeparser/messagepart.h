@@ -311,8 +311,8 @@ public:
 
     bool isDecryptable() const;
 
-    void startDecryption(const QByteArray &text, const QTextCodec *aCodec);
-    void startDecryption(KMime::Content *data = nullptr);
+    void startDecryption(KMime::Content *data);
+    void startDecryption();
 
     QByteArray mDecryptedData;
 
