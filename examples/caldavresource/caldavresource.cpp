@@ -216,7 +216,7 @@ protected:
 class CollectionCleanupPreprocessor : public Sink::Preprocessor
 {
 public:
-    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
     {
         //Remove all events of a collection when removing the collection.
         const auto revision = entityStore().maxRevision();

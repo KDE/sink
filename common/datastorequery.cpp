@@ -67,7 +67,7 @@ class Source : public FilterBase {
         mIt = mIds.constBegin();
     }
 
-    virtual ~Source() = default;
+    ~Source() override = default;
 
     void skip() override
     {
@@ -145,9 +145,9 @@ public:
 
     }
 
-    virtual ~Filter(){}
+    ~Filter() override{}
 
-    virtual bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                 SinkTraceCtx(mDatastore->mLogCtx) << "Filter: " << result.entity.identifier() << operationName(result.operation);
@@ -289,7 +289,7 @@ public:
 
     }
 
-    virtual ~Reduce(){}
+    ~Reduce() override{}
 
     void updateComplete() Q_DECL_OVERRIDE
     {
@@ -468,7 +468,7 @@ public:
 
     }
 
-    virtual ~Bloom(){}
+    ~Bloom() override{}
 
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
         if (!mBloomed) {

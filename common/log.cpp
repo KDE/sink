@@ -51,21 +51,21 @@ public:
     {
         open(WriteOnly);
     }
-    virtual ~DebugStream();
+    ~DebugStream() override;
 
-    bool isSequential() const
+    bool isSequential() const override
     {
         return true;
     }
-    qint64 readData(char *, qint64)
+    qint64 readData(char *, qint64) override
     {
         return 0; /* eof */
     }
-    qint64 readLineData(char *, qint64)
+    qint64 readLineData(char *, qint64) override
     {
         return 0; /* eof */
     }
-    qint64 writeData(const char *data, qint64 len)
+    qint64 writeData(const char *data, qint64 len) override
     {
 #ifdef Q_OS_WIN
         const auto string = QString::fromUtf8(data, len);
@@ -92,21 +92,21 @@ public:
     {
         open(WriteOnly);
     }
-    virtual ~NullStream();
+    ~NullStream() override;
 
-    bool isSequential() const
+    bool isSequential() const override
     {
         return true;
     }
-    qint64 readData(char *, qint64)
+    qint64 readData(char *, qint64) override
     {
         return 0; /* eof */
     }
-    qint64 readLineData(char *, qint64)
+    qint64 readLineData(char *, qint64) override
     {
         return 0; /* eof */
     }
-    qint64 writeData(const char *data, qint64 len)
+    qint64 writeData(const char *data, qint64 len) override
     {
         return len;
     }

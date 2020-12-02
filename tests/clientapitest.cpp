@@ -36,7 +36,7 @@ public:
         });
         return facade;
     }
-    ~TestDummyResourceFacade(){};
+    ~TestDummyResourceFacade() override{};
     KAsync::Job<void> create(const T &domainObject) Q_DECL_OVERRIDE
     {
         SinkLogCtx(Sink::Log::Context{"test"}) << "Create: " <<  domainObject;

@@ -97,32 +97,32 @@ class NullFacade : public StoreFacade<DomainType>
 {
 public:
     virtual ~NullFacade(){};
-    KAsync::Job<void> create(const DomainType &domainObject)
+    KAsync::Job<void> create(const DomainType &domainObject) override
     {
         return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
-    KAsync::Job<void> modify(const DomainType &domainObject)
+    KAsync::Job<void> modify(const DomainType &domainObject) override
     {
         return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
-    KAsync::Job<void> move(const DomainType &domainObject, const QByteArray &newResource)
+    KAsync::Job<void> move(const DomainType &domainObject, const QByteArray &newResource) override
     {
         return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
-    KAsync::Job<void> copy(const DomainType &domainObject, const QByteArray &newResource)
+    KAsync::Job<void> copy(const DomainType &domainObject, const QByteArray &newResource) override
     {
         return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
-    KAsync::Job<void> remove(const DomainType &domainObject)
+    KAsync::Job<void> remove(const DomainType &domainObject) override
     {
         return KAsync::error<void>(-1, "Failed to create a facade");
     }
 
-    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Query &query, const Log::Context &)
+    QPair<KAsync::Job<void>, typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr> load(const Query &query, const Log::Context &) override
     {
         return qMakePair(KAsync::null<void>(), typename Sink::ResultEmitter<typename DomainType::Ptr>::Ptr());
     }
