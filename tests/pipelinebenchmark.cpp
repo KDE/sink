@@ -78,7 +78,7 @@ class PipelineBenchmark : public QObject
             domainObject->setFolder("folder1");
             // domainObject->setProperty("attachment", attachment);
             const auto command = createCommand<Sink::ApplicationDomain::Mail>(*domainObject, *domainTypeAdaptorFactory);
-            pipeline->newEntity(command.data(), command.size());
+            pipeline->newEntity(command.data(), command.size()).exec();
         }
         pipeline->commit();
         auto appendTime = time.elapsed();
