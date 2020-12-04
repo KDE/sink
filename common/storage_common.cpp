@@ -134,8 +134,10 @@ Identifier DataStore::getUidFromRevision(const DataStore::Transaction &transacti
                 uid = QByteArray{ value.constData(), value.size() };
                 return false;
             },
-            [revision](const Error &error) {
-                SinkWarning() << "Couldn't find uid for revision: " << revision << error.message;
+            [revision, &transaction](const Error &error) {
+                //This can fail if we attempt to replay from a removed revision that has been cleaned up already.
+                SinkError() << "Couldn't find uid for revision: " << revision << error.message;
+                SinkTrace() << "Cleaned up revision: " << cleanedUpRevision(transaction);
             });
     Q_ASSERT(!uid.isEmpty());
     return Identifier::fromInternalByteArray(uid);

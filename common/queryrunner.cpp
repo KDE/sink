@@ -153,7 +153,7 @@ void QueryRunner<DomainType>::fetch(const Sink::Query &query, const QByteArray &
             // before the revisionReplayed command arrives to set a low enough lower-bound revision.
             // Ideally we would only start the query once we have succesfully protected the revision we're about to read.
             if (query.liveQuery()) {
-                mResourceAccess->sendRevisionReplayedCommand(result.newRevision);
+                mResourceAccess->sendRevisionReplayedCommand(result.newRevision).exec();
             }
             //Initial queries do not fetch updates, so avoid updating the revision when fetching more content.
             //Otherwise we end up breaking incremental updates.
@@ -219,7 +219,7 @@ KAsync::Job<void> QueryRunner<DomainType>::incrementalFetch(const Sink::Query &q
                 return KAsync::null();
             }
             mQueryInProgress = false;
-            mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.newRevision);
+            mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.newRevision).exec();
             mResultProvider->setRevision(newRevisionAndReplayedEntities.newRevision);
             if (mRevisionChangedMeanwhile) {
                 return incrementalFetch(query, bufferType);
