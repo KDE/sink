@@ -313,6 +313,12 @@ ReplayResult QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query 
     auto entityStore = EntityStore{mResourceContext, mLogCtx};
     const qint64 topRevision = entityStore.maxRevision();
     SinkTraceCtx(mLogCtx) << "Running query update from revision: " << baseRevision << " to revision " << topRevision;
+    if (entityStore.lastCleanRevision() >= baseRevision) {
+        //This is a situation we should never end up in. In case of removals some revisions may be gone entirely, which will result in failures later on.
+        SinkErrorCtx(mLogCtx) << "Revision from which we want to replay is no longer available" << entityStore.lastCleanRevision();
+        Q_ASSERT(false);
+        return {0, 0, false, DataStoreQuery::State::Ptr{}};
+    }
     if (!state) {
         SinkWarningCtx(mLogCtx) << "No previous query state.";
         return {0, 0, false, DataStoreQuery::State::Ptr{}};

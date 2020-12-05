@@ -416,6 +416,23 @@ bool EntityStore::cleanupRevisions(qint64 revision)
     return cleanupIsNecessary;
 }
 
+qint64 EntityStore::lastCleanRevision()
+{
+    Q_ASSERT(d->exists());
+    bool implicitTransaction = false;
+    if (!d->transaction) {
+        startTransaction(DataStore::ReadOnly);
+        Q_ASSERT(d->transaction);
+        implicitTransaction = true;
+    }
+    const auto lastCleanRevision = DataStore::cleanedUpRevision(d->transaction);
+    if (implicitTransaction) {
+        abortTransaction();
+    }
+    return lastCleanRevision;
+}
+
+
 QVector<Identifier> EntityStore::fullScan(const QByteArray &type)
 {
     SinkTraceCtx(d->logCtx) << "Looking for : " << type;

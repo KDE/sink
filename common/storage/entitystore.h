@@ -50,6 +50,7 @@ public:
     bool modify(const QByteArray &type, const ApplicationDomainType &current, ApplicationDomainType newEntity, bool replayToSource);
     bool remove(const QByteArray &type, const ApplicationDomainType &current, bool replayToSource);
     bool cleanupRevisions(qint64 revision);
+    qint64 lastCleanRevision();
     ApplicationDomainType applyDiff(const QByteArray &type, const ApplicationDomainType &current, const ApplicationDomainType &diff, const QByteArrayList &deletions, const QSet<QByteArray> &excludeProperties = {}) const;
 
     void startTransaction(Sink::Storage::DataStore::AccessMode);
