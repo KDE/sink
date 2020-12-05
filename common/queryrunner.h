@@ -36,12 +36,13 @@ public:
     typedef std::function<void(Sink::ApplicationDomain::ApplicationDomainType &domainObject)> ResultTransformation;
 
     /// Disable query updates on revision change. Used for testing only.
-    void ignoreRevisionChanges(bool ignore) {
-        mIgnoreRevisionChanges = ignore;
+    void ignoreRevisionChanges() {
+        mIgnoreRevisionChanges = true;
     }
 
     /// Manually triger a revision change. Used for testing only.
     void triggerRevisionChange() {
+        mIgnoreRevisionChanges = false;
         revisionChanged();
     }
 

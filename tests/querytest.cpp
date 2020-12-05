@@ -1467,6 +1467,7 @@ private slots:
      * This test excercises the scenario where a fetchMore is triggered after
      * the revision is already updated in storage, but the incremental query was not run yet.
      * This resulted in lost modification updates.
+     * It also exercised the lower bound protection, because we delay the update, and thus the resource will already have cleaned up.
      */
     void testQueryRunnerDontMissUpdatesWithFetchMore()
     {
@@ -1492,12 +1493,17 @@ private slots:
         emitter->onModified([&](Folder::Ptr folder) {
             modified << folder;
         });
+        QList<Folder::Ptr> removed;
+        emitter->onRemoved([&](Folder::Ptr folder) {
+            removed << folder;
+        });
 
         emitter->fetch();
         QTRY_COMPARE(added.size(), 1);
         QCOMPARE(modified.size(), 0);
+        QCOMPARE(removed.size(), 0);
 
-        runner->ignoreRevisionChanges(true);
+        runner->ignoreRevisionChanges();
 
         folder1.setName("name2");
         VERIFYEXEC(Sink::Store::modify<Folder>(folder1));
@@ -1505,11 +1511,17 @@ private slots:
 
         emitter->fetch();
 
-        runner->ignoreRevisionChanges(false);
         runner->triggerRevisionChange();
 
         QTRY_COMPARE(added.size(), 1);
         QTRY_COMPARE(modified.size(), 1);
+        QCOMPARE(removed.size(), 0);
+
+        runner->ignoreRevisionChanges();
+        VERIFYEXEC(Sink::Store::remove<Folder>(folder1));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        runner->triggerRevisionChange();
+        QTRY_COMPARE(removed.size(), 1);
     }
 
     /*
