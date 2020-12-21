@@ -225,7 +225,7 @@ Syntax::List syntax()
     set.children << loggingFilter;
 
     Syntax loggingFields("loggingFields", QObject::tr("Set logging fields."), &CoreSyntax::setLoggingFields);
-    loggingFields.completer = [](const QStringList &, const QString &fragment, State &state) -> QStringList { return Utils::filteredCompletions(QStringList() << "name" << "function" << "location" << "", fragment, Qt::CaseInsensitive); };
+    loggingFields.completer = [](const QStringList &, const QString &fragment, State &state) -> QStringList { return Utils::filteredCompletions(QStringList() << "time" << "name" << "function" << "location" << "", fragment, Qt::CaseInsensitive); };
     set.children << loggingFields;
 
     syntax << set;

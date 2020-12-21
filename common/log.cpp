@@ -8,6 +8,7 @@
 #include <QSharedPointer>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QDateTime>
 #include <iostream>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -417,6 +418,7 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
 
     auto debugOutput = debugOutputFields();
 
+    bool showTime = debugOutput.isEmpty() ? false : caseInsensitiveContains("time", debugOutput);
     bool showLocation = debugOutput.isEmpty() ? false : caseInsensitiveContains("location", debugOutput);
     bool showFunction = debugOutput.isEmpty() ? false : caseInsensitiveContains("function", debugOutput);
     bool showProgram = debugOutput.isEmpty() ? false : caseInsensitiveContains("application", debugOutput);
@@ -429,6 +431,9 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
 
     const QString resetColor = colorCommand(ANSI_Colors::Reset);
     QString output;
+    if (showTime) {
+        output = QString("%1 ").arg(QDateTime::currentDateTime().toString(Qt::ISODateWithMs));
+    }
     if (useColor) {
         output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode);
     }
