@@ -384,6 +384,7 @@ void TextMessagePart::parseContent()
                 KMime::Content *content = new KMime::Content;
                 content->setBody(block.text());
                 content->parse();
+                content->contentType()->setCharset(charset());
                 EncryptedMessagePart::Ptr mp(new EncryptedMessagePart(mOtp, QString(), cryptProto, content, content, false));
                 mp->bindLifetime(content);
                 mp->setIsEncrypted(true);
