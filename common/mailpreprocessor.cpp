@@ -113,7 +113,7 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     }
     MimeTreeParser::ObjectTreeParser otp;
     otp.parseObjectTree(data);
-    otp.decrypt();
+    otp.decryptAndVerify();
 
     auto partList = otp.collectContentParts();
     if (partList.isEmpty()) {
