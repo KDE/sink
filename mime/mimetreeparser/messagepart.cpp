@@ -734,23 +734,18 @@ void SignedMessagePart::startVerification()
         mMetaData.isEncrypted = false;
         mMetaData.isDecryptable = false;
 
-        //The case for pkcs7
-        if (mNode == mSignedData) {
-            startVerificationDetached(cleartext, {});
-        } else {
-            if (mNode) {
-                if (mParseAfterDecryption && mSignedData) {
-                    parseInternal(mSignedData);
-                }
-                startVerificationDetached(cleartext, mNode->decodedContent());
-            } else { //The case for clearsigned above
-                startVerificationDetached(cleartext, {});
+        if (mNode) {
+            if (mParseAfterDecryption) {
+                parseInternal(mSignedData);
             }
+            verifySignature(cleartext, mNode->decodedContent());
+        } else { //The case for clearsigned above or pkcs7 (mNode == mSignedData)
+            verifySignature(cleartext, {});
         }
     }
 }
 
-void SignedMessagePart::startVerificationDetached(const QByteArray &text, const QByteArray &signature)
+void SignedMessagePart::verifySignature(const QByteArray &text, const QByteArray &signature)
 {
     mMetaData.isSigned = false;
     mMetaData.status = tr("Wrong Crypto Plug-In.");

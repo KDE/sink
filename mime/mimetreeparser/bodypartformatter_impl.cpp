@@ -283,25 +283,11 @@ public:
 
 class MultiPartSignedBodyPartFormatter: public MimeTreeParser::Interface::BodyPartFormatter {
 public:
-    MessagePart::Ptr process(ObjectTreeParser *objectTreeParser, KMime::Content *node) const Q_DECL_OVERRIDE
+
+
+    static CryptoProtocol detectProtocol(const QString &protocolContentType_, const QString &signatureContentType)
     {
-        if (node->contents().size() != 2) {
-            qCDebug(MIMETREEPARSER_LOG) << "mulitpart/signed must have exactly two child parts!" << endl
-                                        << "processing as multipart/mixed";
-            if (!node->contents().isEmpty()) {
-                return MessagePart::Ptr(new MimeMessagePart(objectTreeParser, node->contents().at(0)));
-            } else {
-                return MessagePart::Ptr();
-            }
-        }
-
-        KMime::Content *signedData =  node->contents().at(0);
-        KMime::Content *signature = node->contents().at(1);
-        Q_ASSERT(signedData);
-        Q_ASSERT(signature);
-
-        QString protocolContentType = node->contentType()->parameter(QStringLiteral("protocol")).toLower();
-        const QString signatureContentType = QLatin1String(signature->contentType()->mimeType().toLower());
+        auto protocolContentType = protocolContentType_;
         if (protocolContentType.isEmpty()) {
             qCWarning(MIMETREEPARSER_LOG) << "Message doesn't set the protocol for the multipart/signed content-type, "
                                         "using content-type of the signature:" << signatureContentType;
@@ -316,6 +302,27 @@ public:
                 protocolContentType == QLatin1String("application/x-pgp-signature")) {
             protocol = OpenPGP;
         }
+        return protocol;
+    }
+
+    MessagePart::Ptr process(ObjectTreeParser *objectTreeParser, KMime::Content *node) const Q_DECL_OVERRIDE
+    {
+        if (node->contents().size() != 2) {
+            qCDebug(MIMETREEPARSER_LOG) << "mulitpart/signed must have exactly two child parts!" << endl
+                                        << "processing as multipart/mixed";
+            if (!node->contents().isEmpty()) {
+                return MessagePart::Ptr(new MimeMessagePart(objectTreeParser, node->contents().at(0)));
+            } else {
+                return MessagePart::Ptr();
+            }
+        }
+
+        KMime::Content *signedData = node->contents().at(0);
+        KMime::Content *signature = node->contents().at(1);
+        Q_ASSERT(signedData);
+        Q_ASSERT(signature);
+
+        auto protocol = detectProtocol(node->contentType()->parameter(QStringLiteral("protocol")).toLower(), QLatin1String(signature->contentType()->mimeType().toLower()));
 
         if (protocol == UnknownProtocol) {
             return MessagePart::Ptr(new MimeMessagePart(objectTreeParser, signedData));

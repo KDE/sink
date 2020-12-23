@@ -626,8 +626,8 @@ private slots:
         QCOMPARE(partList.size(), 1);
         auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
         QVERIFY(bool(part));
-        // QCOMPARE(part->text(), QStringLiteral("test text"));
-        // QCOMPARE(part->charset(), QStringLiteral("us-ascii").toLocal8Bit());
+        QCOMPARE(part->text(), QStringLiteral("sdfsdf\n"));
+        QCOMPARE(part->charset(), QStringLiteral("utf-8").toLocal8Bit());
         QCOMPARE(part->encryptions().size(), 1);
         QCOMPARE(part->signatures().size(), 1);
         QCOMPARE(part->signatures()[0]->partMetaData()->isGoodSignature, true);
@@ -635,7 +635,6 @@ private slots:
         QCOMPARE(part->signatureState(), MimeTreeParser::KMMsgFullySigned);
         auto contentAttachmentList = otp.collectAttachmentParts();
         QCOMPARE(contentAttachmentList.size(), 1);
-    //     QCOMPARE(contentAttachmentList[0]->availableContents(), QVector<QByteArray>() << "text/plain");
         // QCOMPARE(contentAttachmentList[0]->content().size(), 1);
         QCOMPARE(contentAttachmentList[0]->encryptions().size(), 1);
         QCOMPARE(contentAttachmentList[0]->signatures().size(), 1);

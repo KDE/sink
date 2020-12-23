@@ -346,7 +346,6 @@ public:
     void setIsSigned(bool isSigned);
     bool isSigned() const;
 
-    void startVerificationDetached(const QByteArray &text, const QByteArray &signature);
     void startVerification();
 
     QByteArray mDecryptedData;
@@ -355,6 +354,7 @@ public:
     QString htmlContent() const Q_DECL_OVERRIDE;
 
 private:
+    void verifySignature(const QByteArray &text, const QByteArray &signature);
     void setVerificationResult(const Crypto::VerificationResult &result, bool parseText, const QByteArray &plainText);
     bool mParseAfterDecryption{true};
 
