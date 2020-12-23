@@ -615,6 +615,33 @@ private slots:
         QVERIFY(!otp.htmlContent().contains("\r\n"));
     }
 
+    void testOpenPGPEncryptedSignedThunderbird()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("openpgp-encrypted-signed-thunderbird.mbox"));
+        otp.print();
+        otp.decryptParts();
+        otp.print();
+        auto partList = otp.collectContentParts();
+        QCOMPARE(partList.size(), 1);
+        auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+        // QCOMPARE(part->text(), QStringLiteral("test text"));
+        // QCOMPARE(part->charset(), QStringLiteral("us-ascii").toLocal8Bit());
+        QCOMPARE(part->encryptions().size(), 1);
+        QCOMPARE(part->signatures().size(), 1);
+        QCOMPARE(part->encryptionState(), MimeTreeParser::KMMsgFullyEncrypted);
+        QCOMPARE(part->signatureState(), MimeTreeParser::KMMsgFullySigned);
+        auto contentAttachmentList = otp.collectAttachmentParts();
+        QCOMPARE(contentAttachmentList.size(), 1);
+    //     QCOMPARE(contentAttachmentList[0]->availableContents(), QVector<QByteArray>() << "text/plain");
+        // QCOMPARE(contentAttachmentList[0]->content().size(), 1);
+        QCOMPARE(contentAttachmentList[0]->encryptions().size(), 1);
+        QCOMPARE(contentAttachmentList[0]->signatures().size(), 1);
+        QCOMPARE(contentAttachmentList[0]->encryptionState(), MimeTreeParser::KMMsgFullyEncrypted);
+        QCOMPARE(contentAttachmentList[0]->signatureState(), MimeTreeParser::KMMsgFullySigned);
+    }
+
 };
 
 QTEST_GUILESS_MAIN(MimeTreeParserTest)
