@@ -321,7 +321,7 @@ public:
             return MessagePart::Ptr(new MimeMessagePart(objectTreeParser, signedData));
         }
 
-        const QByteArray cleartext = KMime::CRLFtoLF(signedData->encodedContent());
+        const QByteArray cleartext = KMime::LFtoCRLF(signedData->encodedContent());
         const QTextCodec *aCodec(objectTreeParser->codecFor(signedData));
 
         return SignedMessagePart::Ptr(new SignedMessagePart(objectTreeParser,

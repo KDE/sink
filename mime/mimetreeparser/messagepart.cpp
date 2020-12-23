@@ -729,7 +729,7 @@ static void sigStatusToMetaData(PartMetaData &mMetaData, const Signature &signat
 void SignedMessagePart::startVerification()
 {
     if (mSignedData) {
-        const QByteArray cleartext = KMime::CRLFtoLF(mSignedData->encodedContent());
+        const QByteArray cleartext = KMime::LFtoCRLF(mSignedData->encodedContent());
 
         mMetaData.isEncrypted = false;
         mMetaData.isDecryptable = false;
