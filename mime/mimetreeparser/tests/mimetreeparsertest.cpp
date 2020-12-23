@@ -630,6 +630,7 @@ private slots:
         // QCOMPARE(part->charset(), QStringLiteral("us-ascii").toLocal8Bit());
         QCOMPARE(part->encryptions().size(), 1);
         QCOMPARE(part->signatures().size(), 1);
+        QCOMPARE(part->signatures()[0]->partMetaData()->isGoodSignature, true);
         QCOMPARE(part->encryptionState(), MimeTreeParser::KMMsgFullyEncrypted);
         QCOMPARE(part->signatureState(), MimeTreeParser::KMMsgFullySigned);
         auto contentAttachmentList = otp.collectAttachmentParts();
