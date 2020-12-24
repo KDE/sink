@@ -748,10 +748,10 @@ void SignedMessagePart::verifySignature(const QByteArray &signedData, const QByt
     mMetaData.status = tr("Wrong Crypto Plug-In.");
 
     if (!signature.isEmpty()) {
-        setVerificationResult(verifyDetachedSignature(mProtocol, signature, signedData), true, signedData);
+        setVerificationResult(verifyDetachedSignature(mProtocol, signature, signedData), signedData);
     } else {
         QByteArray outdata;
-        setVerificationResult(verifyOpaqueSignature(mProtocol, signedData, outdata), true, outdata);
+        setVerificationResult(verifyOpaqueSignature(mProtocol, signedData, outdata), outdata);
         const auto codec = mOtp->codecFor(mSignedData);
         const auto decoded = codec->toUnicode(KMime::CRLFtoLF(outdata));
         setText(decoded);
@@ -762,7 +762,7 @@ void SignedMessagePart::verifySignature(const QByteArray &signedData, const QByt
     }
 }
 
-void SignedMessagePart::setVerificationResult(const VerificationResult &result, bool parseText, const QByteArray &plainText)
+void SignedMessagePart::setVerificationResult(const VerificationResult &result, const QByteArray &signedData)
 {
     const auto signatures = result.signatures;
     // FIXME
@@ -770,8 +770,8 @@ void SignedMessagePart::setVerificationResult(const VerificationResult &result, 
     if (!signatures.empty()) {
         mMetaData.isSigned = true;
         sigStatusToMetaData(mMetaData, signatures.front());
-        if (!plainText.isEmpty() && parseText && mParseAfterDecryption) {
-            parseInternal(plainText);
+        if (!signedData.isEmpty() && mParseAfterDecryption) {
+            parseInternal(signedData);
         }
     }
 }

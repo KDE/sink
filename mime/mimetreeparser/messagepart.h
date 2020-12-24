@@ -355,7 +355,7 @@ public:
 
 private:
     void verifySignature(const QByteArray &text, const QByteArray &signature);
-    void setVerificationResult(const Crypto::VerificationResult &result, bool parseText, const QByteArray &plainText);
+    void setVerificationResult(const Crypto::VerificationResult &result, const QByteArray &signedData);
     bool mParseAfterDecryption{true};
 
 protected:
