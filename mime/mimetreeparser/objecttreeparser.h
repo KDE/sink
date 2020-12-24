@@ -89,8 +89,6 @@ public:
     QVector<MessagePartPtr> collectAttachmentParts();
 
     /** Decrypt parts and verify signatures */
-    void decrypt();
-    void verifySignatures();
     void decryptAndVerify();
     //DEPRECATED calls decryptAndVerify
     void decryptParts();

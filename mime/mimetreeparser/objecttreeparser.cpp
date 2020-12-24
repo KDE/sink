@@ -307,8 +307,13 @@ void ObjectTreeParser::decryptParts()
     decryptAndVerify();
 }
 
-void ObjectTreeParser::decrypt()
+/*
+ * This naive implementation assumes that there is an encrypted part wrapping a signature.
+ * For other cases we would have to process both recursively (I think?)
+ */
+void ObjectTreeParser::decryptAndVerify()
 {
+    //We first decrypt
     ::collect(mParsedPart,
         [] (const MessagePartPtr &) { return true; },
         [] (const MessagePartPtr &part) {
@@ -317,10 +322,7 @@ void ObjectTreeParser::decrypt()
             }
             return false;
         });
-}
-
-void ObjectTreeParser::verifySignatures()
-{
+    //And then verify the available signatures
     ::collect(mParsedPart,
         [] (const MessagePartPtr &) { return true; },
         [] (const MessagePartPtr &part) {
@@ -329,13 +331,6 @@ void ObjectTreeParser::verifySignatures()
             }
             return false;
         });
-
-}
-
-void ObjectTreeParser::decryptAndVerify()
-{
-    decrypt();
-    verifySignatures();
 }
 
 void ObjectTreeParser::importCertificates()
