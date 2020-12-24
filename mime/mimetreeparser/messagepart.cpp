@@ -735,9 +735,6 @@ void SignedMessagePart::startVerification()
         mMetaData.isDecryptable = false;
 
         if (mNode) {
-            if (mParseAfterDecryption) {
-                parseInternal(mSignedData);
-            }
             verifySignature(cleartext, mNode->decodedContent());
         } else { //The case for clearsigned above or pkcs7 (mNode == mSignedData)
             verifySignature(cleartext, {});
@@ -751,7 +748,7 @@ void SignedMessagePart::verifySignature(const QByteArray &signedData, const QByt
     mMetaData.status = tr("Wrong Crypto Plug-In.");
 
     if (!signature.isEmpty()) {
-        setVerificationResult(verifyDetachedSignature(mProtocol, signature, signedData), false, signedData);
+        setVerificationResult(verifyDetachedSignature(mProtocol, signature, signedData), true, signedData);
     } else {
         QByteArray outdata;
         setVerificationResult(verifyOpaqueSignature(mProtocol, signedData, outdata), true, outdata);
