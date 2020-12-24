@@ -745,16 +745,19 @@ void SignedMessagePart::startVerification()
     }
 }
 
-void SignedMessagePart::verifySignature(const QByteArray &text, const QByteArray &signature)
+void SignedMessagePart::verifySignature(const QByteArray &signedData, const QByteArray &signature)
 {
     mMetaData.isSigned = false;
     mMetaData.status = tr("Wrong Crypto Plug-In.");
 
     if (!signature.isEmpty()) {
-        setVerificationResult(verifyDetachedSignature(mProtocol, signature, text), false, text);
+        setVerificationResult(verifyDetachedSignature(mProtocol, signature, signedData), false, signedData);
     } else {
         QByteArray outdata;
-        setVerificationResult(verifyOpaqueSignature(mProtocol, text, outdata), false, outdata);
+        setVerificationResult(verifyOpaqueSignature(mProtocol, signedData, outdata), true, outdata);
+        const auto codec = mOtp->codecFor(mSignedData);
+        const auto decoded = codec->toUnicode(KMime::CRLFtoLF(outdata));
+        setText(decoded);
     }
 
     if (!mMetaData.isSigned) {

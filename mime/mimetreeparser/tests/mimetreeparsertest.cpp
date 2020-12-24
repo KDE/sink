@@ -355,6 +355,9 @@ private slots:
         QCOMPARE(part->signatures().size(), 1);
         QCOMPARE(part->encryptionState(), MimeTreeParser::KMMsgNotEncrypted);
         QCOMPARE(part->signatureState(), MimeTreeParser::KMMsgFullySigned);
+        QCOMPARE(part->text(), QString::fromUtf8("ohno öäü\n"));
+
+        QVERIFY(otp.plainTextContent().contains(QString::fromUtf8("ohno öäü")));
 
         auto signaturePart = part->signatures().first();
         QCOMPARE(signaturePart->partMetaData()->isGoodSignature, true);
