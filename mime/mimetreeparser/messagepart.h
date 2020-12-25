@@ -337,7 +337,6 @@ class SignedMessagePart : public MessagePart
 public:
     typedef QSharedPointer<SignedMessagePart> Ptr;
     SignedMessagePart(ObjectTreeParser *otp,
-                      const QString &text,
                       const CryptoProtocol protocol,
                       KMime::Content *node, KMime::Content *signedData, bool parseAfterDecryption = true);
 
@@ -347,8 +346,6 @@ public:
     bool isSigned() const;
 
     void startVerification();
-
-    QByteArray mDecryptedData;
 
     QString plaintextContent() const Q_DECL_OVERRIDE;
     QString htmlContent() const Q_DECL_OVERRIDE;

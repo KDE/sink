@@ -394,7 +394,7 @@ void TextMessagePart::parseContent()
                 content->setBody(block.text());
                 content->parse();
                 content->contentType()->setCharset(charset());
-                SignedMessagePart::Ptr mp(new SignedMessagePart(mOtp, QString(), cryptProto, nullptr, content, false));
+                SignedMessagePart::Ptr mp(new SignedMessagePart(mOtp, cryptProto, nullptr, content, false));
                 mp->bindLifetime(content);
                 mp->setIsSigned(true);
                 appendSubPart(mp);
@@ -621,10 +621,9 @@ QString CertMessagePart::text() const
 
 //-----SignedMessageBlock---------------------
 SignedMessagePart::SignedMessagePart(ObjectTreeParser *otp,
-                                     const QString &text,
                                      const CryptoProtocol cryptoProto,
                                      KMime::Content *node, KMime::Content *signedData, bool parseAfterDecryption)
-    : MessagePart(otp, text, node)
+    : MessagePart(otp, {}, node)
     , mParseAfterDecryption(parseAfterDecryption)
     , mProtocol(cryptoProto)
     , mSignedData(signedData)
@@ -728,33 +727,36 @@ static void sigStatusToMetaData(PartMetaData &mMetaData, const Signature &signat
 
 void SignedMessagePart::startVerification()
 {
-    if (mSignedData) {
-        const QByteArray cleartext = KMime::LFtoCRLF(mSignedData->encodedContent());
-
-        mMetaData.isEncrypted = false;
-        mMetaData.isDecryptable = false;
-
-        if (mNode) {
-            verifySignature(cleartext, mNode->decodedContent());
-        } else { //The case for clearsigned above or pkcs7 (mNode == mSignedData)
-            verifySignature(cleartext, {});
-        }
+    if (!mSignedData) {
+        return;
     }
-}
 
-void SignedMessagePart::verifySignature(const QByteArray &signedData, const QByteArray &signature)
-{
     mMetaData.isSigned = false;
     mMetaData.status = tr("Wrong Crypto Plug-In.");
+    mMetaData.isEncrypted = false;
+    mMetaData.isDecryptable = false;
 
-    if (!signature.isEmpty()) {
+    const auto codec = mOtp->codecFor(mSignedData);
+
+    //This is necessary in case the original data contained CRLF's. Otherwise the signature will not match the data (since KMIME normalizes to LF)
+    const QByteArray signedData = KMime::LFtoCRLF(mSignedData->encodedContent());
+
+    const bool pkcs7 = mNode == mSignedData;
+
+    if (mNode && !pkcs7) {
+        const auto signature = mNode->decodedContent();
+
         setVerificationResult(verifyDetachedSignature(mProtocol, signature, signedData), signedData);
+        setText(codec->toUnicode(KMime::CRLFtoLF(signedData)));
     } else {
         QByteArray outdata;
-        setVerificationResult(verifyOpaqueSignature(mProtocol, signedData, outdata), outdata);
-        const auto codec = mOtp->codecFor(mSignedData);
-        const auto decoded = codec->toUnicode(KMime::CRLFtoLF(outdata));
-        setText(decoded);
+
+        if (pkcs7) {
+            setVerificationResult(verifyOpaqueSignature(mProtocol, mSignedData->decodedContent(), outdata), outdata);
+        } else {
+            setVerificationResult(verifyOpaqueSignature(mProtocol, signedData, outdata), outdata);
+        }
+        setText(codec->toUnicode(KMime::CRLFtoLF(outdata)));
     }
 
     if (!mMetaData.isSigned) {
@@ -849,8 +851,9 @@ bool EncryptedMessagePart::decrypt(KMime::Content &data)
     if (verifyResult.signatures.size() > 0) {
         //We simply attach a signed message part to indicate that this content is also signed
         //We're forwarding mNode to not loose the encoding information
-        auto subPart = SignedMessagePart::Ptr(new SignedMessagePart(mOtp, decoded, mProtocol, mNode, nullptr));
-        subPart->setVerificationResult(verifyResult, true, plainText);
+        auto subPart = SignedMessagePart::Ptr(new SignedMessagePart(mOtp, mProtocol, mNode, nullptr));
+        subPart->setText(decoded);
+        subPart->setVerificationResult(verifyResult, plainText);
         appendSubPart(subPart);
     }
 

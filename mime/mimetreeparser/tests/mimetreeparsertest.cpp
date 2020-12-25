@@ -645,6 +645,21 @@ private slots:
         QCOMPARE(contentAttachmentList[0]->signatureState(), MimeTreeParser::KMMsgFullySigned);
     }
 
+
+    void testSmimeOpaqueSign()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("smime-opaque-sign.mbox"));
+        otp.print();
+        otp.decryptParts();
+        otp.print();
+        auto partList = otp.collectContentParts();
+        QCOMPARE(partList.size(), 1);
+        auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+        QCOMPARE(part->text(), QStringLiteral("A simple signed only test."));
+    }
+
 };
 
 QTEST_GUILESS_MAIN(MimeTreeParserTest)

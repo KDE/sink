@@ -41,7 +41,6 @@
 #include "objecttreeparser.h"
 
 #include <KMime/Content>
-#include <QTextCodec>
 
 using namespace MimeTreeParser;
 using namespace MimeTreeParser::Interface;
@@ -214,11 +213,8 @@ public:
                 qCDebug(MIMETREEPARSER_LOG) << "pkcs7 mime  -  type unknown  -  opaque signed data ?";
             }
 
-            const QTextCodec *aCodec(objectTreeParser->codecFor(signTestNode));
-            const QByteArray signaturetext = signTestNode->decodedContent();
             return SignedMessagePart::Ptr(new SignedMessagePart(objectTreeParser,
-                                            aCodec->toUnicode(signaturetext), CMS,
-                                            signTestNode, signTestNode));
+                                            CMS, signTestNode, signTestNode));
         }
         return mp;
     }
@@ -328,11 +324,8 @@ public:
             return MessagePart::Ptr(new MimeMessagePart(objectTreeParser, signedData));
         }
 
-        const QByteArray cleartext = KMime::LFtoCRLF(signedData->encodedContent());
-        const QTextCodec *aCodec(objectTreeParser->codecFor(signedData));
-
         return SignedMessagePart::Ptr(new SignedMessagePart(objectTreeParser,
-                                aCodec->toUnicode(cleartext), protocol,
+                                protocol,
                                 signature, signedData));
     }
 };
