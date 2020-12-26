@@ -214,7 +214,7 @@ public:
             }
 
             return SignedMessagePart::Ptr(new SignedMessagePart(objectTreeParser,
-                                            CMS, signTestNode, signTestNode));
+                                            CMS, nullptr, signTestNode));
         }
         return mp;
     }

@@ -738,10 +738,8 @@ void SignedMessagePart::startVerification()
 
     const auto codec = mOtp->codecFor(mSignedData);
 
-    const bool pkcs7 = mNode == mSignedData;
-    const bool isOpaqueSignature = pkcs7 || !mNode;
-
-    if (!isOpaqueSignature) {
+    //If we have a mNode, this is a detached signature
+    if (mNode) {
         const auto signature = mNode->decodedContent();
 
         //This is necessary in case the original data contained CRLF's. Otherwise the signature will not match the data (since KMIME normalizes to LF)
