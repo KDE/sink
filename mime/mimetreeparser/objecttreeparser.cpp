@@ -81,39 +81,6 @@ static QVector<MessagePart::Ptr> collect(MessagePart::Ptr start, const std::func
     return list;
 }
 
-void ObjectTreeParser::setNodeProcessed(KMime::Content *node, bool recurse)
-{
-    mProcessedNodes.append(node);
-    // qCDebug(MIMETREEPARSER_LOG) << "Node processed: " << node->index().toString() << node->contentType()->as7BitString();
-    //<< " decodedContent" << node->decodedContent();
-    if (recurse) {
-        const auto contents = node->contents();
-        for (KMime::Content *c : contents) {
-            setNodeProcessed(c, true);
-        }
-    }
-}
-
-void ObjectTreeParser::setNodeUnprocessed(KMime::Content *node, bool recurse)
-{
-    mProcessedNodes.removeAll(node);
-    // qCDebug(MIMETREEPARSER_LOG) << "Node UNprocessed: " << node;
-    if (recurse) {
-        const auto contents = node->contents();
-        for (KMime::Content *c : contents) {
-            setNodeUnprocessed(c, true);
-        }
-    }
-}
-
-bool ObjectTreeParser::nodeProcessed(KMime::Content *node) const
-{
-    if (!node) {
-        return true;
-    }
-    return mProcessedNodes.contains(node);
-}
-
 QString ObjectTreeParser::plainTextContent()
 {
     QString content;
@@ -441,26 +408,11 @@ MessagePart::Ptr ObjectTreeParser::parseObjectTreeInternal(KMime::Content *node,
         return MessagePart::Ptr();
     }
 
-    // reset "processed" flags for...
-    if (onlyOneMimePart) {
-        // ... this node and all descendants
-        setNodeUnprocessed(node, false);
-        if (!node->contents().isEmpty()) {
-            setNodeUnprocessed(node, true);
-        }
-    } else if (!node->parent()) {
-        // ...this node and all it's siblings and descendants
-        setNodeUnprocessed(node, true);
-    }
-
     auto parsedPart = MessagePart::Ptr(new MessagePartList(this, node));
     parsedPart->setIsRoot(node->isTopLevel());
     const auto contents = node->parent() ? node->parent()->contents() : KMime::Content::List{node};
     for (int i = contents.indexOf(node); i < contents.size(); ++i) {
         node = contents.at(i);
-        if (nodeProcessed(node)) {
-            continue;
-        }
 
         QByteArray mediaType("text");
         QByteArray subType("plain");
@@ -491,12 +443,7 @@ MessagePart::Ptr ObjectTreeParser::parseObjectTreeInternal(KMime::Content *node,
 
         for (const auto &p : mp) {
             parsedPart->appendSubPart(p);
-            if (p.dynamicCast<SignedMessagePart>()) {
-                setNodeProcessed(p->node(), true);
-            }
         }
-
-        setNodeProcessed(node, false);
 
         if (onlyOneMimePart) {
             break;
