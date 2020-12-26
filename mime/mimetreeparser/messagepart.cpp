@@ -738,24 +738,20 @@ void SignedMessagePart::startVerification()
 
     const auto codec = mOtp->codecFor(mSignedData);
 
-    //This is necessary in case the original data contained CRLF's. Otherwise the signature will not match the data (since KMIME normalizes to LF)
-    const QByteArray signedData = KMime::LFtoCRLF(mSignedData->encodedContent());
-
     const bool pkcs7 = mNode == mSignedData;
+    const bool isOpaqueSignature = pkcs7 || !mNode;
 
-    if (mNode && !pkcs7) {
+    if (!isOpaqueSignature) {
         const auto signature = mNode->decodedContent();
+
+        //This is necessary in case the original data contained CRLF's. Otherwise the signature will not match the data (since KMIME normalizes to LF)
+        const QByteArray signedData = KMime::LFtoCRLF(mSignedData->encodedContent());
 
         setVerificationResult(verifyDetachedSignature(mProtocol, signature, signedData), signedData);
         setText(codec->toUnicode(KMime::CRLFtoLF(signedData)));
     } else {
         QByteArray outdata;
-
-        if (pkcs7) {
-            setVerificationResult(verifyOpaqueSignature(mProtocol, mSignedData->decodedContent(), outdata), outdata);
-        } else {
-            setVerificationResult(verifyOpaqueSignature(mProtocol, signedData, outdata), outdata);
-        }
+        setVerificationResult(verifyOpaqueSignature(mProtocol, mSignedData->decodedContent(), outdata), outdata);
         setText(codec->toUnicode(KMime::CRLFtoLF(outdata)));
     }
 
