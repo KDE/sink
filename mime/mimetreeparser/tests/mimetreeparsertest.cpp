@@ -645,6 +645,28 @@ private slots:
         QCOMPARE(contentAttachmentList[0]->signatureState(), MimeTreeParser::KMMsgFullySigned);
     }
 
+    void testSignedForwardOpenpgpSignedEncrypted()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("signed-forward-openpgp-signed-encrypted.mbox"));
+        otp.print();
+        otp.decryptParts();
+        otp.print();
+        auto partList = otp.collectContentParts();
+        QCOMPARE(partList.size(), 2);
+        auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+        QCOMPARE(part->text(), QStringLiteral("bla bla bla"));
+
+        part = partList[1].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+        QCOMPARE(part->text(), QStringLiteral(""));
+        QCOMPARE(part->charset(), QStringLiteral("ISO-8859-1").toLocal8Bit());
+        QCOMPARE(part->signatures().size(), 1);
+        QCOMPARE(part->signatures()[0]->partMetaData()->isGoodSignature, true);
+        auto contentAttachmentList = otp.collectAttachmentParts();
+        QCOMPARE(contentAttachmentList.size(), 1);
+    }
 
     void testSmimeOpaqueSign()
     {
@@ -658,6 +680,76 @@ private slots:
         auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
         QVERIFY(bool(part));
         QCOMPARE(part->text(), QStringLiteral("A simple signed only test."));
+    }
+
+    void testSmimeEncrypted()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("smime-encrypted.mbox"));
+        otp.print();
+        otp.decryptParts();
+        otp.print();
+        auto partList = otp.collectContentParts();
+        QCOMPARE(partList.size(), 1);
+        auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+        QCOMPARE(part->text(), QStringLiteral("The quick brown fox jumped over the lazy dog."));
+    }
+
+    void testSmimeSignedApple()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("smime-signed-apple.mbox"));
+        otp.print();
+        otp.decryptParts();
+        otp.print();
+        auto partList = otp.collectContentParts();
+        QCOMPARE(partList.size(), 1);
+        auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+        // QCOMPARE(part->text(), QStringLiteral("A simple signed only test."));
+    }
+
+    void testSmimeEncryptedOctetStream()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("smime-encrypted-octet-stream.mbox"));
+        otp.print();
+        otp.decryptParts();
+        otp.print();
+        auto partList = otp.collectContentParts();
+        QCOMPARE(partList.size(), 1);
+        auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+        QCOMPARE(part->text(), QStringLiteral("The quick brown fox jumped over the lazy dog."));
+    }
+
+    void testSmimeOpaqueSignedEncryptedAttachment()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("smime-opaque-signed-encrypted-attachment.mbox"));
+        otp.print();
+        otp.decryptParts();
+        otp.print();
+        auto partList = otp.collectContentParts();
+        QCOMPARE(partList.size(), 1);
+        auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+        QCOMPARE(part->text(), QStringLiteral("This is an Opaque S/MIME encrypted and signed message with attachment"));
+    }
+
+    void testSmimeOpaqueEncSign()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("smime-opaque-enc+sign.mbox"));
+        otp.print();
+        otp.decryptParts();
+        otp.print();
+        auto partList = otp.collectContentParts();
+        QCOMPARE(partList.size(), 1);
+        auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+        QCOMPARE(part->text(), QStringLiteral("Encrypted and signed mail."));
     }
 
 };
