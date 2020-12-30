@@ -72,13 +72,21 @@ MessagePart::Disposition MessagePart::disposition() const
 QString MessagePart::filename() const
 {
     if (!mNode) {
-        return QString();
+        return {};
     }
-    const auto cd = mNode->contentDisposition(false);
-    if (!cd) {
-        return QString();
+
+    if (const auto cd = mNode->contentDisposition(false)) {
+        const auto name = cd->filename();
+        //Allow for a fallback for mails that have a ContentDisposition header, but don't set the filename anyways.
+        //Not the recommended way, but exists.
+        if (!name.isEmpty()) {
+            return name;
+        }
     }
-    return cd->filename();
+    if (const auto ct = mNode->contentType(false)) {
+        return ct->name();
+    }
+    return {};
 }
 
 static KMime::Headers::ContentType *contentType(KMime::Content *node)

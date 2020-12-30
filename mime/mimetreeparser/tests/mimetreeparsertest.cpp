@@ -273,9 +273,22 @@ private slots:
         QCOMPARE(partList.size(), 1);
         auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
         QVERIFY(bool(part));
-        auto att = part->node();
-        qWarning() << "Attachment type: " << att->contentType(true)->mimeType();
         QCOMPARE(part->mimeType(), QByteArray("image/jpeg"));
+        QCOMPARE(part->filename(), QByteArray("aqnaozisxya.jpeg"));
+    }
+
+
+    void testAttachment2Part()
+    {
+        MimeTreeParser::ObjectTreeParser otp;
+        otp.parseObjectTree(readMailFromFile("attachment2.mbox"));
+        otp.print();
+        auto partList = otp.collectAttachmentParts();
+        QCOMPARE(partList.size(), 1);
+        auto part = partList[0].dynamicCast<MimeTreeParser::MessagePart>();
+        QVERIFY(bool(part));
+        QCOMPARE(part->mimeType(), QByteArray("image/jpeg"));
+        QCOMPARE(part->filename(), QByteArray("aqnaozisxya.jpeg"));
     }
 
     void testCidLink()
