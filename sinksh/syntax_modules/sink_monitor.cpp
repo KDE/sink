@@ -36,10 +36,6 @@ Syntax::List syntax();
 
 bool monitor(const QStringList &args_, State &state)
 {
-    if (args_.isEmpty()) {
-        state.printError(syntax()[0].usage());
-        return false;
-    }
 
     auto options = SyntaxTree::parseOptions(args_);
 
@@ -47,13 +43,16 @@ bool monitor(const QStringList &args_, State &state)
     query.setId("monitor");
     if (options.options.contains("resource")) {
         for (const auto &f : options.options.value("resource")) {
-            query.resourceFilter(f.toLatin1());
+            query.filter(f.toLatin1());
         }
     }
+
     auto notifier = new Sink::Notifier{query};
 
     notifier->registerHandler([&] (const Sink::Notification &notification) {
-        SinkLog() << "Received notification: " << notification;
+        QString line;
+        QDebug(&line)<< "Resource:" << notification.resource << notification;
+        state.printLine(line);
     });
 
 
