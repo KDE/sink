@@ -18,7 +18,7 @@
  */
 
 #pragma once
-#include <QElapsedTimer>
+#include <QDeadlineTimer>
 
 #include <KAsync/Async>
 
@@ -189,13 +189,13 @@ public:
     }
 };
 
+using namespace std::chrono_literals;
 class CachedSession {
 public:
 
     CachedSession() = default;
-    CachedSession(KIMAP2::Session *session, const QStringList &cap, const Namespaces &ns) : mSession(session), mCapabilities(cap), mNamespaces(ns)
+    CachedSession(KIMAP2::Session *session, const QStringList &cap, const Namespaces &ns) : mSession(session), mCapabilities(cap), mNamespaces(ns), mTimer{300s}
     {
-        mTimer.start();
     }
 
     bool operator==(const CachedSession &other) const
@@ -213,7 +213,7 @@ public:
         // Don't touch sessions that have been cached for over 5min
         // This is useful e.g. after a sleep, so we don't use a stale session,
         // that will then fail anyways.
-        return mTimer.elapsed() > 300000;
+        return mTimer.hasExpired();
     }
 
     bool isValid()
@@ -224,7 +224,7 @@ public:
     KIMAP2::Session *mSession = nullptr;
     QStringList mCapabilities;
     Namespaces mNamespaces;
-    QElapsedTimer mTimer;
+    QDeadlineTimer mTimer;
 };
 
 class SessionCache : public QObject {
