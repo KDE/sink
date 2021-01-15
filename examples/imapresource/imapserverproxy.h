@@ -194,7 +194,7 @@ class CachedSession {
 public:
 
     CachedSession() = default;
-    CachedSession(KIMAP2::Session *session, const QStringList &cap, const Namespaces &ns) : mSession(session), mCapabilities(cap), mNamespaces(ns), mTimer{300s}
+    CachedSession(KIMAP2::Session *session, const QStringList &cap, const Namespaces &ns) : mSession(session), mCapabilities(cap), mNamespaces(ns), mTimer{30s}
     {
     }
 
