@@ -1,5 +1,6 @@
 #include <QTest>
 #include <QSignalSpy>
+#include <QTimer>
 
 #include <QString>
 #include <QQueue>
