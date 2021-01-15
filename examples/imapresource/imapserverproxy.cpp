@@ -225,11 +225,8 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
 KAsync::Job<void> ImapServerProxy::logout()
 {
     if (mSessionCache) {
-        auto session = CachedSession{mSession, mCapabilities, mNamespaces};
-        if (session.isConnected()) {
-            mSessionCache->recycleSession(session);
-            return KAsync::null();
-        }
+        mSessionCache->recycleSession({mSession, mCapabilities, mNamespaces});
+        return KAsync::null();
     }
     if (mSession->state() == KIMAP2::Session::State::Authenticated || mSession->state() == KIMAP2::Session::State::Selected) {
         return runJob(new KIMAP2::LogoutJob(mSession));

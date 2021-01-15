@@ -203,7 +203,7 @@ public:
         return mSession && (mSession == other.mSession);
     }
 
-    bool isConnected()
+    bool isConnected() const
     {
         return (mSession->state() == KIMAP2::Session::State::Authenticated || mSession->state() == KIMAP2::Session::State::Selected) ;
     }
@@ -224,6 +224,8 @@ public:
     KIMAP2::Session *mSession = nullptr;
     QStringList mCapabilities;
     Namespaces mNamespaces;
+
+private:
     QDeadlineTimer mTimer;
 };
 
@@ -232,6 +234,9 @@ class SessionCache : public QObject {
 public:
     void recycleSession(const CachedSession &session)
     {
+        if (!session.isConnected()) {
+            return;
+        }
         QObject::connect(session.mSession, &KIMAP2::Session::stateChanged, this, [this, session](KIMAP2::Session::State newState, KIMAP2::Session::State oldState) {
             if (newState == KIMAP2::Session::Disconnected) {
                 mSessions.removeOne(session);
