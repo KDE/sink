@@ -1,5 +1,5 @@
 
-#include <QtTest>
+#include <QTest>
 
 
 #include "common/resourcecontrol.h"

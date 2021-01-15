@@ -1,4 +1,4 @@
-#include <QtTest>
+#include <QTest>
 
 #include <KDAV2/DavCollectionsFetchJob>
 #include <KDAV2/DavCollectionCreateJob>
