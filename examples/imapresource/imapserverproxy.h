@@ -18,6 +18,7 @@
  */
 
 #pragma once
+#include <QElapsedTimer>
 
 #include <KAsync/Async>
 
@@ -194,6 +195,7 @@ public:
     CachedSession() = default;
     CachedSession(KIMAP2::Session *session, const QStringList &cap, const Namespaces &ns) : mSession(session), mCapabilities(cap), mNamespaces(ns)
     {
+        mTimer.start();
     }
 
     bool operator==(const CachedSession &other) const
@@ -206,6 +208,14 @@ public:
         return (mSession->state() == KIMAP2::Session::State::Authenticated || mSession->state() == KIMAP2::Session::State::Selected) ;
     }
 
+    bool isExpired()
+    {
+        // Don't touch sessions that have been cached for over 5min
+        // This is useful e.g. after a sleep, so we don't use a stale session,
+        // that will then fail anyways.
+        return mTimer.elapsed() > 300000;
+    }
+
     bool isValid()
     {
         return mSession;
@@ -214,6 +224,7 @@ public:
     KIMAP2::Session *mSession = nullptr;
     QStringList mCapabilities;
     Namespaces mNamespaces;
+    QElapsedTimer mTimer;
 };
 
 class SessionCache : public QObject {
@@ -233,7 +244,7 @@ public:
     {
         while (!mSessions.isEmpty()) {
             auto session = mSessions.takeLast();
-            if (session.isConnected()) {
+            if (session.isConnected() && !session.isExpired()) {
                 return session;
             }
         }
