@@ -143,11 +143,8 @@ KIMAP2::Session *createNewSession(const QString &serverUrl, int port)
     return newSession;
 }
 
-ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryptionMode, AuthenticationMode authenticationMode, SessionCache *sessionCache) : mSessionCache(sessionCache), mSession(nullptr), mEncryptionMode(encryptionMode), mAuthenticationMode(authenticationMode)
+ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryptionMode, AuthenticationMode authenticationMode, SessionCache *sessionCache) : mSessionCache(sessionCache), mSession(nullptr), mEncryptionMode(encryptionMode), mAuthenticationMode(authenticationMode), mServerUrl(serverUrl), mPort(port)
 {
-    if (!mSessionCache || mSessionCache->isEmpty()) {
-        mSession = createNewSession(serverUrl, port);
-    }
 }
 
 QDebug operator<<(QDebug debug, const KIMAP2::MailBoxDescriptor &c)
@@ -169,6 +166,9 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
             mCapabilities = session.mCapabilities;
             mNamespaces = session.mNamespaces;
         }
+    }
+    if (!mSession) {
+        mSession = createNewSession(mServerUrl, mPort);
     }
     Q_ASSERT(mSession);
     if (mSession->state() == KIMAP2::Session::Authenticated || mSession->state() == KIMAP2::Session::Selected) {

@@ -340,6 +340,8 @@ private:
     Namespaces mNamespaces;
     EncryptionMode mEncryptionMode;
     AuthenticationMode mAuthenticationMode;
+    const QString mServerUrl;
+    const int mPort;
 };
 
 }
