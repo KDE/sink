@@ -477,7 +477,7 @@ public:
             bool foundValue = false;
             while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                     mBloomValue = result.entity.getProperty(mBloomProperty);
-                    auto results = indexLookup(mBloomProperty, mBloomValue);
+                    const auto results = indexLookup(mBloomProperty, mBloomValue);
                     for (const auto &r : results) {
                         readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                             callback({entity, Sink::Operation_Creation});
@@ -712,10 +712,10 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
             baseSet = f;
         } else if (auto filter = stage.dynamicCast<Query::Reduce>()) {
             auto reduction = ::Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
-            for (const auto &aggregator : filter->aggregators) {
+            for (const auto &aggregator : qAsConst(filter->aggregators)) {
                 reduction->mAggregators << ::Reduce::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
             }
-            for (const auto &propertySelector : filter->propertySelectors) {
+            for (const auto &propertySelector : qAsConst(filter->propertySelectors)) {
                 reduction->mSelectors << ::Reduce::PropertySelector(propertySelector.selector, propertySelector.resultProperty);
             }
             reduction->propertyFilter = query.getBaseFilters();
