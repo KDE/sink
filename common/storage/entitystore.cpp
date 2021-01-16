@@ -418,7 +418,9 @@ bool EntityStore::cleanupRevisions(qint64 revision)
 
 qint64 EntityStore::lastCleanRevision()
 {
-    Q_ASSERT(d->exists());
+    if (!d->exists()) {
+        return 0;
+    }
     bool implicitTransaction = false;
     if (!d->transaction) {
         startTransaction(DataStore::ReadOnly);
