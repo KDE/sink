@@ -225,6 +225,7 @@ void TypeImplementation<Event>::configure(PropertyMapper &propertyMapper)
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, StartTime, startTime);
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, EndTime, endTime);
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, AllDay, allDay);
+    SINK_REGISTER_SERIALIZER(propertyMapper, Event, Recurring, recurring);
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, Ical, ical);
     SINK_REGISTER_SERIALIZER(propertyMapper, Event, Calendar, calendar);
 }

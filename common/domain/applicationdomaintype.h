@@ -436,9 +436,6 @@ struct SINK_EXPORT Folder : public Entity {
     SINK_PROPERTY(QByteArray, Icon, icon);
     SINK_PROPERTY(QByteArrayList, SpecialPurpose, specialpurpose);
     SINK_PROPERTY(bool, Enabled, enabled);
-    SINK_EXTRACTED_PROPERTY(QDateTime, LastUpdated, lastUpdated);
-    SINK_EXTRACTED_PROPERTY(int, Count, count);
-    SINK_EXTRACTED_PROPERTY(bool, FullContentAvailable, fullContentAvailable);
 };
 
 struct SINK_EXPORT Mail : public Entity {

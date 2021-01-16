@@ -86,7 +86,8 @@ public:
             const auto accessor = it.value();
             return accessor(buffer);
         }
-        return QVariant();
+        Q_ASSERT_X(false, key, "No read accessor for the property");
+        return {};
     }
 
     virtual void setProperty(const QByteArray &key, const QVariant &value, QList<std::function<void(void *builder)>> &builderCalls, flatbuffers::FlatBufferBuilder &fbb) const
@@ -95,6 +96,8 @@ public:
         if (it != mWriteAccessors.end()) {
             const auto accessor = it.value();
             builderCalls << accessor(value, fbb);
+        } else {
+            Q_ASSERT_X(false, key, "No write accessor for the property");
         }
     }
 
