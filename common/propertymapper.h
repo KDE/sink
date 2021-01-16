@@ -81,8 +81,9 @@ public:
 
     virtual QVariant getProperty(const QByteArray &key, void const *buffer) const
     {
-        if (mReadAccessors.contains(key)) {
-            auto accessor = mReadAccessors.value(key);
+        const auto it = mReadAccessors.constFind(key);
+        if (it != mReadAccessors.end()) {
+            const auto accessor = it.value();
             return accessor(buffer);
         }
         return QVariant();
@@ -90,8 +91,9 @@ public:
 
     virtual void setProperty(const QByteArray &key, const QVariant &value, QList<std::function<void(void *builder)>> &builderCalls, flatbuffers::FlatBufferBuilder &fbb) const
     {
-        if (mWriteAccessors.contains(key)) {
-            auto accessor = mWriteAccessors.value(key);
+        const auto it = mWriteAccessors.constFind(key);
+        if (it != mWriteAccessors.end()) {
+            const auto accessor = it.value();
             builderCalls << accessor(value, fbb);
         }
     }
