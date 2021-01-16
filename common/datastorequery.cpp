@@ -189,9 +189,11 @@ public:
             const auto comparator = propertyFilter.value(filterProperty);
             //We can't deal with a fulltext filter
             if (comparator.comparator == QueryBase::Comparator::Fulltext) {
-                continue;
-            }
-            if (!comparator.matches(property)) {
+                const auto matches = indexLookup("fulltext", comparator.value);
+                if (!matches.contains(Identifier::fromDisplayByteArray(entity.identifier()))) {
+                    return false;
+                }
+            } else if (!comparator.matches(property)) {
                 SinkTraceCtx(mDatastore->mLogCtx) << "Filtering entity due to property mismatch on filter: " << entity.identifier() << "Property: " << filterProperty << property << " Filter:" << comparator.value;
                 return false;
             }

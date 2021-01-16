@@ -468,7 +468,7 @@ QVector<Identifier> EntityStore::indexLookup(const QByteArray &type, const QByte
         SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
         return {};
     }
-    return d->typeIndex(type).lookup(property, value, d->getTransaction());
+    return d->typeIndex(type).lookup(property, value, d->getTransaction(), d->resourceContext.instanceId());
 }
 
 void EntityStore::indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value, const std::function<void(const QByteArray &uid)> &callback)

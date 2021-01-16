@@ -1784,6 +1784,52 @@ private slots:
 
     }
 
+    void testLiveMailFulltext()
+    {
+        Sink::Query query;
+        query.setFlags(Query::LiveQuery);
+        query.resourceFilter("sink.dummy.instance1");
+        query.filter<Mail::Subject>(QueryBase::Comparator(QString("Live Subject To Search"), QueryBase::Comparator::Fulltext));
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 0);
+
+        {
+            {
+                auto msg = KMime::Message::Ptr::create();
+                msg->subject()->from7BitString("Not a match");
+                msg->setBody("This is the searchable body bar. unique sender1");
+                msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
+                msg->to()->from7BitString("\"Foo Bar\"<foo-bar@example.org>");
+                msg->assemble();
+
+                auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
+                mail.setExtractedMessageId("test1");
+                mail.setFolder("folder1");
+                mail.setMimeMessage(msg->encodedContent());
+                VERIFYEXEC(Sink::Store::create<Mail>(mail));
+            }
+            {
+                auto msg = KMime::Message::Ptr::create();
+                msg->subject()->from7BitString("Live Subject To Search");
+                msg->setBody("This is the searchable body bar. unique sender2");
+                msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
+                msg->to()->from7BitString("\"Foo Bar\"<foo-bar@example.org>");
+                msg->assemble();
+
+                auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
+                mail.setExtractedMessageId("test1");
+                mail.setFolder("folder1");
+                mail.setMimeMessage(msg->encodedContent());
+                VERIFYEXEC(Sink::Store::create<Mail>(mail));
+            }
+
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        }
+        QTRY_COMPARE(model->rowCount(), 1);
+    }
+
     void mailsWithDates()
     {
         {
