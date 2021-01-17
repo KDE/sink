@@ -136,7 +136,8 @@ bool QueryBase::operator==(const QueryBase &other) const
 {
     auto ret = mType == other.mType
         && mSortProperty == other.mSortProperty
-        && mBaseFilterStage == other.mBaseFilterStage;
+        && mBaseFilterStage == other.mBaseFilterStage
+        && mId == mId;
     return ret;
 }
 
@@ -205,4 +206,15 @@ bool QueryBase::Comparator::matches(const QVariant &v) const
 bool Query::Comparator::operator==(const Query::Comparator &other) const
 {
     return value == other.value && comparator == other.comparator;
+}
+
+bool Query::operator==(const Query &other) const
+{
+    const auto ret = mResourceFilter == other.mResourceFilter
+        && mFlags == other.mFlags
+        && mParentProperty == other.mParentProperty
+        && mLimit == other.mLimit
+        && QueryBase::operator==(other);
+
+    return ret;
 }
