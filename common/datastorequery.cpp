@@ -695,7 +695,7 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
     if (!query.getBaseFilters().isEmpty()) {
         auto filter = Filter::Ptr::create(baseSet, this);
         //For incremental queries the remaining filters are not sufficient,
-        //we have to check the properties that we used during the index lookup since we are no re-executing the index lookup.
+        //we have to check the properties that we used during the index lookup since we are not re-executing the index lookup.
         for (const auto &f : query.getBaseFilters().keys()) {
             filter->propertyFilter.insert(f, query.getFilter(f));
         }
