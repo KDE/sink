@@ -26,6 +26,15 @@
 #include "log.h"
 #include "definitions.h"
 
+static std::map<std::string, std::string> prefixes()
+{
+    return {
+        {{"subject"}, {"S"}},
+        {{"recipients"}, {"R"}},
+        {{"sender"}, {"F"}}
+    };
+}
+
 FulltextIndex::FulltextIndex(const QByteArray &resourceInstanceIdentifier, Sink::Storage::DataStore::AccessMode accessMode)
     : mName("fulltext"),
     mDbPath{QFile::encodeName(Sink::resourceStorageLocation(resourceInstanceIdentifier) + '/' + "fulltext")}
@@ -70,9 +79,15 @@ void FulltextIndex::add(const QByteArray &key, const QList<QPair<QString, QStrin
         Xapian::Document document;
         generator.set_document(document);
 
+        const auto prefixMap = prefixes();
         for (const auto &entry : values) {
             if (!entry.second.isEmpty()) {
-                generator.index_text(entry.second.toStdString());
+                const auto prefix = prefixMap.find(entry.first.toStdString());
+                if (prefix != prefixMap.end()) {
+                    generator.index_text(entry.second.toStdString(), 1, prefix->second);
+                } else {
+                    generator.index_text(entry.second.toStdString(), 1);
+                }
                 //Prevent phrase searches from spanning different indexed parts
                 generator.increase_termpos();
             }
@@ -165,6 +180,13 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
 
     try {
         Xapian::QueryParser parser;
+        for (const auto& [name, prefix] : prefixes()) {
+            parser.add_prefix(name, prefix);
+            //Search through all prefixes by default
+            parser.add_prefix("", prefix);
+        }
+        //Also search through the empty prefix by default
+        parser.add_prefix("", "");
         parser.set_default_op(Xapian::Query::OP_AND);
         parser.set_database(*mDb);
         parser.set_max_expansion(100, Xapian::Query::WILDCARD_LIMIT_MOST_FREQUENT, Xapian::QueryParser::FLAG_PARTIAL);
@@ -222,7 +244,7 @@ FulltextIndex::Result FulltextIndex::getIndexContent(const QByteArray &identifie
         {};
     }
     try {
-        auto id = "Q" + identifier.toStdString();
+        const auto id = idTerm(identifier);
         Xapian::PostingIterator p = mDb->postlist_begin(id);
         if (p != mDb->postlist_end(id)) {
             auto document = mDb->get_document(*p);

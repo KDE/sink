@@ -1782,6 +1782,23 @@ private slots:
             QCOMPARE(Sink::Store::read<Mail>(query).size(), 0);
         }
 
+        //Filter by subject field
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, QueryBase::Comparator(QString("subject:\"Subject To Search\""), QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+        //Ensure the query searches the right field
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, QueryBase::Comparator(QString("sender:\"Subject To Search\""), QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 0);
+        }
     }
 
     void testLiveMailFulltext()

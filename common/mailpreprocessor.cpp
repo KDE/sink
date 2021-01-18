@@ -169,7 +169,8 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
         mail.setExtractedParentMessageIds(parentMessageIds);
     }
     QList<QPair<QString, QString>> contentToIndex;
-    contentToIndex.append({{}, getString(part->header(KMime::Headers::Subject::staticType()))});
+    const auto subject = getString(part->header(KMime::Headers::Subject::staticType()));
+    contentToIndex.append({{"subject"}, subject});
 
     const auto plainTextContent = otp.plainTextContent();
     if (plainTextContent.isEmpty()) {
@@ -179,19 +180,19 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     }
 
     const auto sender = mail.getSender();
-    contentToIndex.append({{}, sender.name});
-    contentToIndex.append({{}, sender.emailAddress});
+    contentToIndex.append({{"sender"}, sender.name});
+    contentToIndex.append({{"sender"}, sender.emailAddress});
     for (const auto &c : mail.getTo()) {
-        contentToIndex.append({{}, c.name});
-        contentToIndex.append({{}, c.emailAddress});
+        contentToIndex.append({{"recipients"}, c.name});
+        contentToIndex.append({{"recipients"}, c.emailAddress});
     }
     for (const auto &c : mail.getCc()) {
-        contentToIndex.append({{}, c.name});
-        contentToIndex.append({{}, c.emailAddress});
+        contentToIndex.append({{"recipients"}, c.name});
+        contentToIndex.append({{"recipients"}, c.emailAddress});
     }
     for (const auto &c : mail.getBcc()) {
-        contentToIndex.append({{}, c.name});
-        contentToIndex.append({{}, c.emailAddress});
+        contentToIndex.append({{"recipients"}, c.name});
+        contentToIndex.append({{"recipients"}, c.emailAddress});
     }
 
     //Prepare content for indexing;
