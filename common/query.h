@@ -539,6 +539,8 @@ public:
         return resourceFilter(T::name, value);
     }
 
+    bool operator==(const Query &other) const;
+
 private:
     friend class SyncScope;
     int mLimit;
