@@ -280,7 +280,9 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
             if (entity.metadataBuffer()) {
                 if (auto metadata = GetMetadata(entity.metadataBuffer())) {
                     if (metadata->operation() == Operation_Modification && metadata->modifiedProperties()) {
-                        excludeProperties += BufferUtils::fromVector(*metadata->modifiedProperties()).toSet();
+                        const auto locallyModifiedProperties = BufferUtils::fromVector(*metadata->modifiedProperties()).toSet();
+                        SinkTraceCtx(d->logCtx) << "Protecting locally modified properties: " << locallyModifiedProperties;
+                        excludeProperties += locallyModifiedProperties;
                     }
                 }
             }
