@@ -191,7 +191,8 @@ public:
             if (comparator.comparator == QueryBase::Comparator::Fulltext) {
                 //Don't apply it for initial results, since the fulltext index is always the source set.
                 if (mIncremental) {
-                    const auto matches = indexLookup("fulltext", comparator.value);
+                    //We filter the potentially expensive query by the identifier that we actually require.
+                    const auto matches = indexLookup("fulltext", comparator.value.toString() + " identifier:\"" + entity.identifier() + "\"");
                     if (!matches.contains(Identifier::fromDisplayByteArray(entity.identifier()))) {
                         return false;
                     }

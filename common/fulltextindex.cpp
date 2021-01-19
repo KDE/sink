@@ -187,6 +187,7 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
         }
         //Also search through the empty prefix by default
         parser.add_prefix("", "");
+        parser.add_boolean_prefix("identifier", "Q");
         parser.set_default_op(Xapian::Query::OP_AND);
         parser.set_database(*mDb);
         parser.set_max_expansion(100, Xapian::Query::WILDCARD_LIMIT_MOST_FREQUENT, Xapian::QueryParser::FLAG_PARTIAL);
