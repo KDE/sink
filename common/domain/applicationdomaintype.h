@@ -92,6 +92,7 @@ enum ErrorCode {
     TransmissionError, //There was an error while transmission (e.g. while uploading something)
     ConnectionLostError, //We lost the connection to the server.
     MissingCredentialsError, //There are no credentials available, but required.
+    SynchronizationConflictError, //There was a conflict during synchronization.
     ResourceCrashedError
 };
 
