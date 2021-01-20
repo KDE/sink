@@ -138,6 +138,56 @@ class CalDavTest : public QObject
         }
     }
 
+    int modifyEvent(const QString &eventUid, const QString &newSummary)
+    {
+        auto collection = [&]() -> KDAV2::DavCollection {
+            QUrl url(baseUrl);
+            url.setUserName(username);
+            url.setPassword(password);
+            KDAV2::DavUrl davurl(url, KDAV2::CalDav);
+            auto collectionsJob = new KDAV2::DavCollectionsFetchJob(davurl);
+            collectionsJob->exec();
+            Q_ASSERT(collectionsJob->error() == 0);
+            for (const auto &col : collectionsJob->collections()) {
+                if (col.displayName() == "personal") {
+                    return col;
+                }
+            }
+            return {};
+        }();
+
+        auto itemList = ([&collection]() -> KDAV2::DavItem::List {
+            auto itemsListJob = new KDAV2::DavItemsListJob(collection.url());
+            itemsListJob->exec();
+            Q_ASSERT(itemsListJob->error() == 0);
+            return itemsListJob->items();
+        })();
+        auto hollowDavItemIt =
+            std::find_if(itemList.begin(), itemList.end(), [&](const KDAV2::DavItem &item) {
+                return item.url().url().path().contains(eventUid);
+            });
+        Q_ASSERT(hollowDavItemIt != itemList.end());
+
+        auto davitem = ([&]() -> KDAV2::DavItem {
+            auto itemFetchJob = new KDAV2::DavItemFetchJob(*hollowDavItemIt);
+            itemFetchJob->exec();
+            Q_ASSERT(itemFetchJob->error() == 0);
+            return itemFetchJob->item();
+        })();
+
+        auto incidence = KCalCore::ICalFormat().readIncidence(davitem.data());
+        auto calevent = incidence.dynamicCast<KCalCore::Event>();
+        Q_ASSERT(calevent);
+
+        calevent->setSummary(newSummary);
+        auto newical = KCalCore::ICalFormat().toICalString(calevent);
+
+        davitem.setData(newical.toUtf8());
+        auto itemModifyJob = new KDAV2::DavItemModifyJob(davitem);
+        itemModifyJob->exec();
+        return itemModifyJob->error();
+    }
+
     void resetTestEnvironment()
     {
         system("resetcalendar.sh");
@@ -389,57 +439,13 @@ private slots:
         VERIFYEXEC(Sink::Store::create(sinkEvent));
         VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
 
+        //If we fetch too quickly we may not get the item (from experience)
+        QTest::qWait(100);
+
         // Change the item without sink's knowledge
-        {
-            auto collection = [&]() -> KDAV2::DavCollection {
-                QUrl url(baseUrl);
-                url.setUserName(username);
-                url.setPassword(password);
-                KDAV2::DavUrl davurl(url, KDAV2::CalDav);
-                auto collectionsJob = new KDAV2::DavCollectionsFetchJob(davurl);
-                collectionsJob->exec();
-                Q_ASSERT(collectionsJob->error() == 0);
-                for (const auto &col : collectionsJob->collections()) {
-                    if (col.displayName() == "personal") {
-                        return col;
-                    }
-                }
-                return {};
-            }();
+        QVERIFY2(modifyEvent(addedEventUid, "Manual Hello World!") == 0, "Cannot modify item");
 
-            auto itemList = ([&collection]() -> KDAV2::DavItem::List {
-                auto itemsListJob = new KDAV2::DavItemsListJob(collection.url());
-                itemsListJob->exec();
-                Q_ASSERT(itemsListJob->error() == 0);
-                return itemsListJob->items();
-            })();
-            auto hollowDavItemIt =
-                std::find_if(itemList.begin(), itemList.end(), [&](const KDAV2::DavItem &item) {
-                    return item.url().url().path().contains(addedEventUid);
-                });
-            QVERIFY(hollowDavItemIt != itemList.end());
-
-            auto davitem = ([&]() -> KDAV2::DavItem {
-                auto itemFetchJob = new KDAV2::DavItemFetchJob (*hollowDavItemIt);
-                itemFetchJob->exec();
-                Q_ASSERT(itemFetchJob->error() == 0);
-                return itemFetchJob->item();
-            })();
-
-            auto incidence = KCalCore::ICalFormat().readIncidence(davitem.data());
-            auto calevent = incidence.dynamicCast<KCalCore::Event>();
-            QVERIFY2(calevent, "Cannot convert to KCalCore event");
-
-            calevent->setSummary("Manual Hello World!");
-            auto newical = KCalCore::ICalFormat().toICalString(calevent);
-
-            davitem.setData(newical.toUtf8());
-            auto itemModifyJob = new KDAV2::DavItemModifyJob(davitem);
-            itemModifyJob->exec();
-            QVERIFY2(itemModifyJob->error() == 0, "Cannot modify item");
-        }
-
-        //Change the item with sink as well
+        //Change the item with sink as well, this will create a conflict
         {
             auto event = Sink::Store::readOne<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)));
             auto calevent = KCalCore::ICalFormat().readIncidence(event.getIcal()).dynamicCast<KCalCore::Event>();
@@ -448,9 +454,32 @@ private slots:
             calevent->setSummary("Sink Hello World!");
             event.setIcal(KCalCore::ICalFormat().toICalString(calevent).toUtf8());
 
-            // TODO: this produced a conflict, but we're not dealing with it in any way
             VERIFYEXEC(Sink::Store::modify(event));
             VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+            {
+                auto event = Sink::Store::readOne<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)));
+                QCOMPARE(event.getSummary(), QLatin1String{"Sink Hello World!"});
+            }
+        }
+
+        // Change the item without sink's knowledge again
+        QVERIFY2(modifyEvent(addedEventUid, "Manual Hello World2!") == 0, "Cannot modify item");
+
+        //Try to synchronize the modification, the conflict should be resolved by now.
+        Sink::SyncScope scope;
+        scope.setType<Event>();
+        Sink::Query q;
+        q.setType<Calendar>();
+        scope.filter(ApplicationDomain::getTypeName<Calendar>(), {QVariant::fromValue(q)});
+        scope.resourceFilter(mResourceInstanceIdentifier);
+        VERIFYEXEC(Sink::Store::synchronize(scope));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        {
+            auto event = Sink::Store::readOne<Event>(Sink::Query().filter("uid", Sink::Query::Comparator(addedEventUid)));
+            QCOMPARE(event.getSummary(), QLatin1String{"Manual Hello World2!"});
         }
     }
 

@@ -30,6 +30,7 @@
 #include <KDAV2/DavItemCreateJob>
 #include <KDAV2/DavItemDeleteJob>
 #include <KDAV2/DavItemsFetchJob>
+#include <KDAV2/DavItemFetchJob>
 #include <KDAV2/DavItemModifyJob>
 #include <KDAV2/DavItemsListJob>
 
@@ -52,6 +53,9 @@ static int translateDavError(KJob *job)
         case QNetworkReply::InternalServerError: //The kolab server reports a HTTP 500 instead of 401 on invalid credentials (we could introspect the error message for the 401 error code)
         case QNetworkReply::OperationCanceledError: // Since we don't login we will just not have the necessary permissions ot view the object
             return ErrorCode::LoginError;
+        case QNetworkReply::ContentConflictError:
+        case QNetworkReply::UnknownContentError:
+            return ErrorCode::SynchronizationConflictError;
     }
     return ErrorCode::UnknownError;
 }
@@ -323,12 +327,27 @@ KAsync::Job<QByteArray> WebDavSynchronizer::modifyItem(const QByteArray &oldRemo
             SinkLogCtx(mLogCtx) << "Modifying:" << "Content-Type: " << contentType << "Url: " << remoteItem.url().url() << "Etag: " << remoteItem.etag() << "Content:\n" << vcard;
 
             return runJob<KDAV2::DavItem>(new KDAV2::DavItemModifyJob(remoteItem), [](KJob *job) { return static_cast<KDAV2::DavItemModifyJob*>(job)->item(); })
-                .then([=] (const KDAV2::DavItem &remoteItem) {
-                    const auto remoteId = resourceID(remoteItem);
-                    //Should never change if not moved
+                .then([=] (const KAsync::Error &error, const KDAV2::DavItem &fetchedItem) {
+                    if (error) {
+                        if (error.errorCode != Sink::ApplicationDomain::SynchronizationConflictError) {
+                            SinkWarningCtx(mLogCtx) << "Modification failed, but not a conflict.";
+                            return KAsync::error<QByteArray>(error);
+                        }
+                        SinkLogCtx(mLogCtx) << "Fetching server version to resolve conflict during modification";
+                        return runJob<KDAV2::DavItem>(new KDAV2::DavItemFetchJob(remoteItem), [](KJob *job) { return static_cast<KDAV2::DavItemFetchJob*>(job)->item(); })
+                            .then([=] (const KDAV2::DavItem &item) {
+                                const auto collectionLocalId = syncStore().resolveRemoteId(mCollectionType, collectionRid);
+                                const auto remoteId = resourceID(item);
+                                //Overwrite the local version with the sever version.
+                                updateLocalItem(item, collectionLocalId);
+                                syncStore().writeValue(collectionRid, remoteId + "_etag", item.etag().toLatin1());
+                                return KAsync::value(remoteId);
+                            });
+                    }
+                    const auto remoteId = resourceID(fetchedItem);
                     Q_ASSERT(remoteId == oldRemoteId);
-                    syncStore().writeValue(collectionRid, remoteId + "_etag", remoteItem.etag().toLatin1());
-                    return remoteId;
+                    syncStore().writeValue(collectionRid, remoteId + "_etag", fetchedItem.etag().toLatin1());
+                    return KAsync::value(remoteId);
                 });
         });
 }
