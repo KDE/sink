@@ -23,6 +23,7 @@ subscribe INBOX.Trash;
 # done
 # Because this is way faster than a loop
 FOLDERPATH=/var/spool/imap/d/user/doe/test
+sudo mkdir $FOLDERPATH
 SRCMESSAGE=/src/sink/examples/imapresource/tests/data/1365777830.R28.localhost.localdomain\:2\,S
 sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{1..1000}.
 sudo tee <$SRCMESSAGE >/dev/null $FOLDERPATH/{1001..2000}.
