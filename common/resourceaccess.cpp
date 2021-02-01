@@ -473,6 +473,15 @@ void ResourceAccess::close()
     d->socket->close();
 }
 
+void ResourceAccess::abort()
+{
+    SinkLog() << QString("Aborting %1").arg(d->socket->fullServerName());
+    SinkTrace() << "Pending commands: " << d->pendingCommands.size();
+    SinkTrace() << "Queued commands: " << d->commandQueue.size();
+    d->abortPendingOperations();
+    d->socket->abort();
+}
+
 void ResourceAccess::sendCommand(const QSharedPointer<QueuedCommand> &command)
 {
     Q_ASSERT(isReady());
@@ -660,7 +669,7 @@ bool ResourceAccess::processMessageBuffer()
             switch (buffer->type()) {
                 case Sink::Notification::Shutdown:
                     SinkLog() << "Received shutdown notification.";
-                    close();
+                    abort();
                     break;
                 case Sink::Notification::Inspection: {
                     SinkTrace() << "Received inspection notification.";

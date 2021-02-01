@@ -88,6 +88,24 @@ private slots:
         //This operation should be aborted by the shutdown operation
         VERIFYEXEC_FAIL(Sink::ResourceControl::start(identifier));
     }
+
+    void testResourceShutdownRestartLoop()
+    {
+        const QByteArray identifier{"sink.dummy.instance1"};
+        VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
+        QVERIFY(!blockingSocketIsAvailable(identifier));
+        for (int i = 0; i < 10; i++) {
+
+            auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
+            resourceAccess->sendRevisionReplayedCommand(1).exec();
+            resourceAccess->shutdown().exec().waitForFinished();
+            Sink::ResourceControl::start(identifier).exec().waitForFinished();
+        }
+
+        VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
+        QVERIFY(!blockingSocketIsAvailable(identifier));
+    }
+
 };
 
 QTEST_MAIN(ResourceControlTest)
