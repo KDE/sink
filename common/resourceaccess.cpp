@@ -469,6 +469,7 @@ void ResourceAccess::close()
     SinkLog() << QString("Closing %1").arg(d->socket->fullServerName());
     SinkTrace() << "Pending commands: " << d->pendingCommands.size();
     SinkTrace() << "Queued commands: " << d->commandQueue.size();
+    d->abortPendingOperations();
     d->socket->close();
 }
 

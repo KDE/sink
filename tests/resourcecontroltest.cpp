@@ -6,6 +6,7 @@
 #include "testutils.h"
 #include "test.h"
 #include "resourceconfig.h"
+#include "resourceaccess.h"
 
 /**
  * Test starting and stopping of resources.
@@ -77,6 +78,16 @@ private slots:
         QVERIFY(!blockingSocketIsAvailable("sink.dummy.instance2"));
     }
 
+
+    void testAbortCommandsOnShutdown()
+    {
+        const QByteArray identifier{"sink.dummy.instance1"};
+        VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
+        auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
+        resourceAccess->shutdown().exec();
+        //This operation should be aborted by the shutdown operation
+        VERIFYEXEC_FAIL(Sink::ResourceControl::start(identifier));
+    }
 };
 
 QTEST_MAIN(ResourceControlTest)
