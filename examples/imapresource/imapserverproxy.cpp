@@ -179,6 +179,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
         if (info.error()) {
             SinkLog() << "Failed host lookup, closing the socket" << info.errorString();
             mSession->close();
+            mSession = nullptr;
             return KAsync::error(Imap::HostNotFoundError);
         } else {
             //Prevent the socket from timing out right away, right here (otherwise it just might time out right before we were able to start the job)
@@ -286,6 +287,7 @@ KAsync::Job<SelectResult> ImapServerProxy::examine(const Folder &folder)
 
 KAsync::Job<qint64> ImapServerProxy::append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags, const QDateTime &internalDate)
 {
+    Q_ASSERT(mSession);
     auto append = new KIMAP2::AppendJob(mSession);
     append->setMailBox(mailbox);
     append->setContent(content);
@@ -303,6 +305,7 @@ KAsync::Job<void> ImapServerProxy::store(const KIMAP2::ImapSet &set, const QList
 
 KAsync::Job<void> ImapServerProxy::storeFlags(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags)
 {
+    Q_ASSERT(mSession);
     auto store = new KIMAP2::StoreJob(mSession);
     store->setUidBased(true);
     store->setMode(KIMAP2::StoreJob::SetFlags);
@@ -313,6 +316,7 @@ KAsync::Job<void> ImapServerProxy::storeFlags(const KIMAP2::ImapSet &set, const 
 
 KAsync::Job<void> ImapServerProxy::addFlags(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags)
 {
+    Q_ASSERT(mSession);
     auto store = new KIMAP2::StoreJob(mSession);
     store->setUidBased(true);
     store->setMode(KIMAP2::StoreJob::AppendFlags);
@@ -323,6 +327,7 @@ KAsync::Job<void> ImapServerProxy::addFlags(const KIMAP2::ImapSet &set, const QL
 
 KAsync::Job<void> ImapServerProxy::removeFlags(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags)
 {
+    Q_ASSERT(mSession);
     auto store = new KIMAP2::StoreJob(mSession);
     store->setUidBased(true);
     store->setMode(KIMAP2::StoreJob::RemoveFlags);
@@ -333,6 +338,7 @@ KAsync::Job<void> ImapServerProxy::removeFlags(const KIMAP2::ImapSet &set, const
 
 KAsync::Job<void> ImapServerProxy::create(const QString &mailbox)
 {
+    Q_ASSERT(mSession);
     auto create = new KIMAP2::CreateJob(mSession);
     create->setMailBox(mailbox);
     return runJob(create);
@@ -340,6 +346,7 @@ KAsync::Job<void> ImapServerProxy::create(const QString &mailbox)
 
 KAsync::Job<void> ImapServerProxy::subscribe(const QString &mailbox)
 {
+    Q_ASSERT(mSession);
     auto job = new KIMAP2::SubscribeJob(mSession);
     job->setMailBox(mailbox);
     return runJob(job);
@@ -347,6 +354,7 @@ KAsync::Job<void> ImapServerProxy::subscribe(const QString &mailbox)
 
 KAsync::Job<void> ImapServerProxy::rename(const QString &mailbox, const QString &newMailbox)
 {
+    Q_ASSERT(mSession);
     auto rename = new KIMAP2::RenameJob(mSession);
     rename->setSourceMailBox(mailbox);
     rename->setDestinationMailBox(newMailbox);
@@ -355,6 +363,7 @@ KAsync::Job<void> ImapServerProxy::rename(const QString &mailbox, const QString 
 
 KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox)
 {
+    Q_ASSERT(mSession);
     auto job = new KIMAP2::DeleteJob(mSession);
     job->setMailBox(mailbox);
     return runJob(job);
@@ -362,12 +371,14 @@ KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox)
 
 KAsync::Job<void> ImapServerProxy::expunge()
 {
+    Q_ASSERT(mSession);
     auto job = new KIMAP2::ExpungeJob(mSession);
     return runJob(job);
 }
 
 KAsync::Job<void> ImapServerProxy::expunge(const KIMAP2::ImapSet &set)
 {
+    Q_ASSERT(mSession);
     //FIXME implement UID EXPUNGE
     auto job = new KIMAP2::ExpungeJob(mSession);
     return runJob(job);
@@ -375,6 +386,7 @@ KAsync::Job<void> ImapServerProxy::expunge(const KIMAP2::ImapSet &set)
 
 KAsync::Job<void> ImapServerProxy::copy(const KIMAP2::ImapSet &set, const QString &newMailbox)
 {
+    Q_ASSERT(mSession);
     auto copy = new KIMAP2::CopyJob(mSession);
     copy->setSequenceSet(set);
     copy->setUidBased(true);
@@ -384,6 +396,7 @@ KAsync::Job<void> ImapServerProxy::copy(const KIMAP2::ImapSet &set, const QStrin
 
 KAsync::Job<void> ImapServerProxy::fetch(const KIMAP2::ImapSet &set, KIMAP2::FetchJob::FetchScope scope, FetchCallback callback)
 {
+    Q_ASSERT(mSession);
     auto fetch = new KIMAP2::FetchJob(mSession);
     fetch->setSequenceSet(set);
     fetch->setUidBased(true);
@@ -400,6 +413,7 @@ KAsync::Job<QVector<qint64>> ImapServerProxy::search(const KIMAP2::ImapSet &set)
 
 KAsync::Job<QVector<qint64>> ImapServerProxy::search(const KIMAP2::Term &term)
 {
+    Q_ASSERT(mSession);
     auto search = new KIMAP2::SearchJob(mSession);
     search->setTerm(term);
     search->setUidBased(true);
@@ -475,6 +489,7 @@ KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUidsSince(const QDate &since)
 
 KAsync::Job<void> ImapServerProxy::list(KIMAP2::ListJob::Option option, const std::function<void(const KIMAP2::MailBoxDescriptor &mailboxes, const QList<QByteArray> &flags)> &callback)
 {
+    Q_ASSERT(mSession);
     auto listJob = new KIMAP2::ListJob(mSession);
     listJob->setOption(option);
     // listJob->setQueriedNamespaces(serverNamespaces());
@@ -579,6 +594,7 @@ KAsync::Job<void> ImapServerProxy::getMetaData(std::function<void(const QHash<QS
     if (!mCapabilities.contains("METADATA")) {
         return KAsync::null();
     }
+    Q_ASSERT(mSession);
     KIMAP2::GetMetaDataJob *meta = new KIMAP2::GetMetaDataJob(mSession);
     meta->setMailBox(QLatin1String("*"));
     meta->setServerCapability( KIMAP2::MetaDataJobBase::Metadata );
