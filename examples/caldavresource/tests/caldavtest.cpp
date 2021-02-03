@@ -437,10 +437,8 @@ private slots:
         sinkEvent.setCalendar(calendar);
 
         VERIFYEXEC(Sink::Store::create(sinkEvent));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
         VERIFYEXEC(Sink::ResourceControl::flushReplayQueue(mResourceInstanceIdentifier));
-
-        //If we fetch too quickly we may not get the item (from experience)
-        QTest::qWait(100);
 
         // Change the item without sink's knowledge
         QVERIFY2(modifyEvent(addedEventUid, "Manual Hello World!") == 0, "Cannot modify item");
