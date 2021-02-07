@@ -109,7 +109,7 @@ protected:
 
             createOrModify(ENTITY_TYPE_TODO, rid, localTodo, {});
         } else {
-                SinkWarning() << "Trying to add a 'Unknown' item";
+            SinkWarning() << "Trying to add a 'Unknown' item";
         }
     }
 
@@ -172,6 +172,8 @@ protected:
                 KDAV2::DavCollection collection;
 
                 collection.setDisplayName(calendar.getName());
+                //Default to allowing both
+                collection.setContentTypes(KDAV2::DavCollection::Todos | KDAV2::DavCollection::Events);
                 if (calendar.getContentTypes().contains("event")) {
                     collection.setContentTypes(KDAV2::DavCollection::Events);
                 }
@@ -179,7 +181,7 @@ protected:
                     collection.setContentTypes(KDAV2::DavCollection::Todos);
                 }
 
-                return createCollection(collection);
+                return createCollection(collection, KDAV2::CalDav);
             }
             case Sink::Operation_Removal:
                 SinkLog() << "Replaying calendar removal";

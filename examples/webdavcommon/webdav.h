@@ -39,7 +39,7 @@ protected:
     KAsync::Job<QByteArray> modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &collectionRid);
     KAsync::Job<QByteArray> removeItem(const QByteArray &oldRemoteId);
 
-    KAsync::Job<QByteArray> createCollection(const KDAV2::DavCollection &collection);
+    KAsync::Job<QByteArray> createCollection(const KDAV2::DavCollection &collection, const KDAV2::Protocol protocol);
     KAsync::Job<QByteArray> removeCollection(const QByteArray &collectionRid);
     KAsync::Job<QByteArray> modifyCollection(const QByteArray &collectionRid, const KDAV2::DavCollection &collection);
 
@@ -78,6 +78,7 @@ protected:
 
 private:
     KAsync::Job<KDAV2::DavUrl> discoverServer();
+    KAsync::Job<QPair<QUrl, QStringList>> discoverHome(const KDAV2::DavUrl &serverUrl);
 
     KDAV2::Protocol mProtocol;
     const QByteArray mCollectionType;

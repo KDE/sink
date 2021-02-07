@@ -33,6 +33,7 @@
 #include <KDAV2/DavItemFetchJob>
 #include <KDAV2/DavItemModifyJob>
 #include <KDAV2/DavItemsListJob>
+#include <KDAV2/DavPrincipalHomesetsFetchJob>
 
 #include <QNetworkReply>
 #include <QColor>
@@ -283,6 +284,13 @@ KAsync::Job<KDAV2::DavUrl> WebDavSynchronizer::discoverServer()
     });
 }
 
+KAsync::Job<QPair<QUrl, QStringList>> WebDavSynchronizer::discoverHome(const KDAV2::DavUrl &serverUrl)
+{
+    return runJob<QPair<QUrl, QStringList>>(new KDAV2::DavPrincipalHomeSetsFetchJob(serverUrl), [=] (KJob *job) {
+        return qMakePair(static_cast<KDAV2::DavPrincipalHomeSetsFetchJob*>(job)->url(), static_cast<KDAV2::DavPrincipalHomeSetsFetchJob*>(job)->homeSets());
+    });
+}
+
 KAsync::Job<QByteArray> WebDavSynchronizer::createItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &rid, const QByteArray &collectionRid)
 {
     return discoverServer()
@@ -367,17 +375,32 @@ KAsync::Job<QByteArray> WebDavSynchronizer::removeItem(const QByteArray &oldRemo
         });
 }
 
-KAsync::Job<QByteArray> WebDavSynchronizer::createCollection(const KDAV2::DavCollection &collection)
+KAsync::Job<QByteArray> WebDavSynchronizer::createCollection(const KDAV2::DavCollection &collection, const KDAV2::Protocol protocol)
 {
     return discoverServer()
         .then([=] (const KDAV2::DavUrl &serverUrl) {
-            auto job = new KDAV2::DavCollectionCreateJob(collection);
-            return runJob(job)
-                .then([=] {
-                    SinkLogCtx(mLogCtx) << "Done creating collection";
-                    return  resourceID(job->collection());
+            return discoverHome(serverUrl)
+                .then([=] (const QPair<QUrl, QStringList> &pair) {
+                    const auto home = pair.second.first();
+
+                    auto url = serverUrl.url();
+                    url.setPath(home + collection.displayName());
+
+                    auto davUrl = serverUrl;
+                    davUrl.setProtocol(protocol);
+                    davUrl.setUrl(url);
+
+                    auto col = collection;
+                    col.setUrl(davUrl);
+                    SinkLogCtx(mLogCtx) << "Creating collection"<< col.displayName() << col.url() << col.contentTypes();
+                    auto job = new KDAV2::DavCollectionCreateJob(col);
+                    return runJob(job)
+                        .then([=] {
+                            SinkLogCtx(mLogCtx) << "Done creating collection";
+                            return  resourceID(job->collection());
+                        });
                 });
-        });
+            });
 }
 
 KAsync::Job<QByteArray> WebDavSynchronizer::removeCollection(const QByteArray &collectionRid)
