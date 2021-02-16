@@ -71,6 +71,7 @@ QDebug operator<<(QDebug dbg, const Sink::Query &query)
     dbg.nospace() << "  Parent: " << query.parentProperty() << "\n";
     dbg.nospace() << "  IsLive: " << query.liveQuery() << "\n";
     dbg.nospace() << "  ResourceFilter: " << query.getResourceFilter() << "\n";
+    dbg.nospace() << "  limit: " << query.limit() << "\n";
     return dbg.maybeSpace();
 }
 
@@ -137,7 +138,8 @@ bool QueryBase::operator==(const QueryBase &other) const
     auto ret = mType == other.mType
         && mSortProperty == other.mSortProperty
         && mBaseFilterStage == other.mBaseFilterStage
-        && mId == mId;
+        && mId == mId
+        && mLimit == other.mLimit;
     return ret;
 }
 
@@ -213,7 +215,6 @@ bool Query::operator==(const Query &other) const
     const auto ret = mResourceFilter == other.mResourceFilter
         && mFlags == other.mFlags
         && mParentProperty == other.mParentProperty
-        && mLimit == other.mLimit
         && QueryBase::operator==(other);
 
     return ret;

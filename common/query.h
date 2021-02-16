@@ -338,6 +338,16 @@ public:
         mFilterStages << QSharedPointer<Bloom>::create(T::name);
     }
 
+    int limit() const
+    {
+        return mLimit;
+    }
+
+    qint64 baseRevision{0};
+
+protected:
+    int mLimit{0};
+
 private:
     Filter mBaseFilterStage;
     QList<QSharedPointer<FilterStage>> mFilterStages;
@@ -460,17 +470,28 @@ public:
     }
 
 
-    Query(const ApplicationDomain::Entity &value) : mLimit(0)
+    Query(const ApplicationDomain::Entity &value)
     {
         filter(value.identifier());
         resourceFilter(value.resourceInstanceIdentifier());
     }
 
-    Query(Flags flags = Flags()) : mLimit(0), mFlags(flags)
+    Query(Flags flags = Flags()) : mFlags(flags)
     {
     }
 
     QByteArrayList requestedProperties;
+
+    int limit() const
+    {
+        return mLimit;
+    }
+
+    Query &limit(int l)
+    {
+        mLimit = l;
+        return *this;
+    }
 
     void setFlags(Flags flags)
     {
@@ -490,17 +511,6 @@ public:
     bool synchronousQuery() const
     {
         return mFlags.testFlag(SynchronousQuery);
-    }
-
-    Query &limit(int l)
-    {
-        mLimit = l;
-        return *this;
-    }
-
-    int limit() const
-    {
-        return mLimit;
     }
 
     Filter getResourceFilter() const
@@ -543,7 +553,6 @@ public:
 
 private:
     friend class SyncScope;
-    int mLimit;
     Flags mFlags;
     Filter mResourceFilter;
     QByteArray mParentProperty;

@@ -688,7 +688,7 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
         } else {
             QSet<QByteArrayList> appliedFilters;
             auto resultSet = mStore.indexLookup(mType, query, appliedFilters, appliedSorting);
-            if (!appliedFilters.isEmpty()) {
+            if (!appliedFilters.isEmpty() || !appliedSorting.isEmpty()) {
                 //We have an index lookup as starting point
                 return Source::Ptr::create(resultSet, this);
             }

@@ -342,6 +342,26 @@ static QVector<Identifier> sortedIndexLookup(Index &index, QueryBase::Comparator
     return keys;
 }
 
+static QVector<Identifier> sortedIndexLookup(Index &index, int limit)
+{
+    QVector<Identifier> keys;
+    int count = 0;
+    index.lookup("",
+        [&](const QByteArray &value) -> bool {
+            keys << Identifier::fromInternalByteArray(value);
+            count++;
+            if (limit && count > limit) {
+                return false;
+            }
+            return true;
+        },
+        [](const Index::Error &error) {
+            SinkWarning() << "Lookup error in index: " << error.message;
+        },
+        false);
+    return keys;
+}
+
 static QVector<Identifier> sampledIndexLookup(Index &index, QueryBase::Comparator filter)
 {
     if (filter.comparator != Query::Comparator::Overlap) {
@@ -423,6 +443,11 @@ QVector<Identifier> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
             const auto keys = sortedIndexLookup(index, query.getFilter(property));
             appliedFilters.insert({property});
             SinkTraceCtx(mLogCtx) << "Sorted index lookup on " << property << " found " << keys.size() << " keys.";
+            return keys;
+        } else if (query.sortProperty() == property) {
+            Index index(sortedIndexName(property), transaction);
+            const auto keys = sortedIndexLookup(index, query.limit());
+            appliedSorting = property;
             return keys;
         }
     }
