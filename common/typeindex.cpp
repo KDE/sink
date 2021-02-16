@@ -294,6 +294,7 @@ static QVector<Identifier> indexLookup(Index &index, QueryBase::Comparator filte
         index.lookup(lookupKey,
             [&](const QByteArray &value) {
                 keys << Identifier::fromInternalByteArray(value);
+                return true;
             },
             [lookupKey](const Index::Error &error) {
                 SinkWarning() << "Lookup error in index: " << error.message << lookupKey;
@@ -462,6 +463,7 @@ QVector<Identifier> TypeIndex::lookup(const QByteArray &property, const QVariant
         index.lookup(lookupKey,
             [&](const QByteArray &value) {
                 keys << Identifier::fromInternalByteArray(value);
+                return true;
             },
             [property](const Index::Error &error) {
                 SinkWarning() << "Error in index: " << error.message << property;
@@ -477,7 +479,7 @@ QVector<Identifier> TypeIndex::lookup(const QByteArray &property, const QVariant
         QVector<QByteArray> secondaryKeys;
         Index index(indexName(property + resultProperty), transaction);
         const auto lookupKey = getByteArray(value);
-        index.lookup(lookupKey, [&](const QByteArray &value) { secondaryKeys << value; },
+        index.lookup(lookupKey, [&](const QByteArray &value) { secondaryKeys << value; return true; },
             [property](const Index::Error &error) {
                 SinkWarning() << "Error in index: " << error.message << property;
             });
@@ -524,7 +526,7 @@ QVector<QByteArray> TypeIndex::secondaryLookup<QByteArray>(const QByteArray &lef
     Index index(indexName(leftName + rightName), *mTransaction);
     const auto lookupKey = getByteArray(value);
     index.lookup(
-        lookupKey, [&](const QByteArray &value) { keys << QByteArray{value.constData(), value.size()}; }, [=](const Index::Error &error) { SinkWarning() << "Lookup error in secondary index: " << error.message << value << lookupKey; });
+        lookupKey, [&](const QByteArray &value) { keys << QByteArray{value.constData(), value.size()}; return true; }, [=](const Index::Error &error) { SinkWarning() << "Lookup error in secondary index: " << error.message << value << lookupKey; });
 
     return keys;
 }

@@ -61,12 +61,11 @@ void Index::remove(const QByteArray &key, const QByteArray &value, bool ignoreRe
     });
 }
 
-void Index::lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler, const std::function<void(const Error &error)> &errorHandler, bool matchSubStringKeys)
+void Index::lookup(const QByteArray &key, const std::function<bool(const QByteArray &value)> &resultHandler, const std::function<void(const Error &error)> &errorHandler, bool matchSubStringKeys)
 {
     mDb.scan(key,
         [&](const QByteArray &key, const QByteArray &value) -> bool {
-            resultHandler(value);
-            return true;
+            return resultHandler(value);
         },
         [&](const Sink::Storage::DataStore::Error &error) {
             SinkWarningCtx(mLogCtx) << "Error while retrieving value:" << error << mName;
@@ -79,7 +78,7 @@ QByteArray Index::lookup(const QByteArray &key)
 {
     QByteArray result;
     //We have to create a deep copy, otherwise the returned data may become invalid when the transaction ends.
-    lookup(key, [&](const QByteArray &value) { result = QByteArray(value.constData(), value.size()); }, [](const Index::Error &) { });
+    lookup(key, [&](const QByteArray &value) { result = QByteArray(value.constData(), value.size()); return false; }, [](const Index::Error &) { });
     return result;
 }
 

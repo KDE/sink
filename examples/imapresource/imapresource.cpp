@@ -1043,6 +1043,7 @@ protected:
                 Index index("mail.index.folder", transaction);
                 index.lookup(entityId, [&](const QByteArray &sinkId) {
                     expectedCount++;
+                    return true;
                 },
                 [&](const Index::Error &error) {
                     SinkWarning() << "Error in index: " <<  error.message << property;

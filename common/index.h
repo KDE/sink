@@ -40,7 +40,7 @@ public:
     void remove(const QByteArray &key, const QByteArray &value, bool ignoreRemovalFailure = false);
     void remove(const Sink::Storage::Identifier &key, const QByteArray &value, bool ignoreRemovalFailure = false);
 
-    void lookup(const QByteArray &key, const std::function<void(const QByteArray &value)> &resultHandler, const std::function<void(const Error &error)> &errorHandler,
+    void lookup(const QByteArray &key, const std::function<bool(const QByteArray &value)> &resultHandler, const std::function<void(const Error &error)> &errorHandler,
         bool matchSubStringKeys = false);
     QByteArray lookup(const QByteArray &key);
 
