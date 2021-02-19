@@ -462,13 +462,13 @@ QVector<Identifier> EntityStore::indexLookup(const QByteArray &type, const Query
     return d->typeIndex(type).query(query, appliedFilters, appliedSorting, d->getTransaction(), d->resourceContext.instanceId());
 }
 
-QVector<Identifier> EntityStore::indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value)
+QVector<Identifier> EntityStore::indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value, const QVector<Sink::Storage::Identifier> &filter)
 {
     if (!d->exists()) {
         SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
         return {};
     }
-    return d->typeIndex(type).lookup(property, value, d->getTransaction(), d->resourceContext.instanceId());
+    return d->typeIndex(type).lookup(property, value, d->getTransaction(), d->resourceContext.instanceId(), filter);
 }
 
 void EntityStore::indexLookup(const QByteArray &type, const QByteArray &property, const QVariant &value, const std::function<void(const QByteArray &uid)> &callback)
@@ -477,7 +477,7 @@ void EntityStore::indexLookup(const QByteArray &type, const QByteArray &property
         SinkTraceCtx(d->logCtx) << "Database is not existing: " << type;
         return;
     }
-    auto list = indexLookup(type, property, value);
+    const auto list = indexLookup(type, property, value, QVector<Sink::Storage::Identifier>{});
     for (const auto &id : list) {
         callback(id.toDisplayByteArray());
     }

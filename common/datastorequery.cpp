@@ -191,9 +191,11 @@ public:
             if (comparator.comparator == QueryBase::Comparator::Fulltext) {
                 //Don't apply it for initial results, since the fulltext index is always the source set.
                 if (mIncremental) {
+                    const auto entityId = Identifier::fromDisplayByteArray(entity.identifier());
                     //We filter the potentially expensive query by the identifier that we actually require.
-                    const auto matches = indexLookup("fulltext", comparator.value.toString() + " identifier:\"" + entity.identifier() + "\"");
-                    if (!matches.contains(Identifier::fromDisplayByteArray(entity.identifier()))) {
+                    const auto matches = indexLookup("fulltext", comparator.value.toString(), {entityId});
+                    if (!matches.contains(entityId)) {
+                        SinkTraceCtx(mDatastore->mLogCtx) << "Filtering entity due to mismatch on fulltext filter: " << entity.identifier() << "Property: " << filterProperty << property << " Filter:" << comparator.value;
                         return false;
                     }
                 }
@@ -552,9 +554,9 @@ void DataStoreQuery::readPrevious(const Identifier &id, const std::function<void
     mStore.readPrevious(mType, id, mStore.maxRevision(), callback);
 }
 
-QVector<Identifier> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value)
+QVector<Identifier> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value, const QVector<Sink::Storage::Identifier> &filter)
 {
-    return mStore.indexLookup(mType, property, value);
+    return mStore.indexLookup(mType, property, value, filter);
 }
 
 /* ResultSet DataStoreQuery::filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, const QByteArray &sortProperty) */

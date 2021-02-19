@@ -27,7 +27,7 @@ public:
     void commitTransaction();
     void abortTransaction();
 
-    QVector<QByteArray> lookup(const QString &key);
+    QVector<QByteArray> lookup(const QString &key, const QByteArray &id = {});
 
     qint64 getDoccount() const;
     struct Result {

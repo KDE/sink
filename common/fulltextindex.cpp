@@ -171,7 +171,7 @@ void FulltextIndex::remove(const QByteArray &key)
     }
 }
 
-QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
+QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm, const QByteArray &entity)
 {
     if (!mDb) {
         return {};
@@ -191,7 +191,13 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
         parser.set_default_op(Xapian::Query::OP_AND);
         parser.set_database(*mDb);
         parser.set_max_expansion(100, Xapian::Query::WILDCARD_LIMIT_MOST_FREQUENT, Xapian::QueryParser::FLAG_PARTIAL);
-        auto query = parser.parse_query(searchTerm.toStdString(), Xapian::QueryParser::FLAG_PHRASE|Xapian::QueryParser::FLAG_BOOLEAN|Xapian::QueryParser::FLAG_LOVEHATE|Xapian::QueryParser::FLAG_PARTIAL);
+        const auto mainQuery = parser.parse_query(searchTerm.toStdString(), Xapian::QueryParser::FLAG_PHRASE|Xapian::QueryParser::FLAG_BOOLEAN|Xapian::QueryParser::FLAG_LOVEHATE|Xapian::QueryParser::FLAG_PARTIAL);
+        const auto query = [&] {
+            if (!entity.isEmpty()) {
+                return Xapian::Query{Xapian::Query::OP_AND, Xapian::Query{("Q" + entity).toStdString()}, mainQuery};
+            }
+            return mainQuery;
+        }();
         SinkTrace() << "Running xapian query: " << QString::fromStdString(query.get_description());
         Xapian::Enquire enquire(*mDb);
         enquire.set_query(query);
