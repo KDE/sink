@@ -424,10 +424,10 @@ public:
                         SinkTraceCtx(mDatastore->mLogCtx) << "Incremental reduction update: " << result.entity.identifier() << reductionValueBa;
                         mIncrementallyReducedValues.insert(reductionValueBa);
                         //Redo the reduction to find new aggregated values
-                        auto selectionResult = reduceOnValue(reductionValue);
+                        const auto selectionResult = reduceOnValue(reductionValue);
 
                         //If mSelectedValues did not contain the value, oldSelectionResult will be empty.(Happens if entites have been filtered)
-                        auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
+                        const auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
                         SinkTraceCtx(mDatastore->mLogCtx) << "Old selection result: " << oldSelectionResult << " New selection result: " << selectionResult.selection;
                         if (selectionResult.selection.isNull() && oldSelectionResult.isNull()) {
                             //Nothing to do, the item was filtered before, and still is.
