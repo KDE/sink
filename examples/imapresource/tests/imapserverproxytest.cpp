@@ -1,4 +1,4 @@
-#include <QtTest>
+#include <QTest>
 
 #include <QString>
 #include <KMime/Message>
@@ -75,12 +75,6 @@ private slots:
 //examples/imapresource/tests/imapserverproxytest testFetchFolders
     }
 
-    void testFetchFoldersFailure()
-    {
-        ImapServerProxy imap("foobar", 143, Imap::EncryptionMode::NoEncryption);
-        VERIFYEXEC_FAIL(imap.fetchFolders([](const Folder &){}));
-    }
-
     void testAppendMail()
     {
         ImapServerProxy imap("localhost", 143, Imap::EncryptionMode::NoEncryption);
@@ -134,7 +128,6 @@ private slots:
         VERIFYEXEC(job);
         QCOMPARE(count, 0);
     }
-
 };
 
 QTEST_MAIN(ImapServerProxyTest)

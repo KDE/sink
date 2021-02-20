@@ -244,7 +244,7 @@ public:
 class FolderCleanupPreprocessor : public Sink::Preprocessor
 {
 public:
-    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
     {
         //Remove all mails of a folder when removing the folder.
         const auto revision = entityStore().maxRevision();

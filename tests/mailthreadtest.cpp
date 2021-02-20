@@ -18,7 +18,7 @@
  */
 #include "mailthreadtest.h"
 
-#include <QtTest>
+#include <QTest>
 
 #include <QString>
 #include <QFile>

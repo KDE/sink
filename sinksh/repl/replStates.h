@@ -35,7 +35,7 @@ signals:
     void exitRequested();
 
 protected:
-    void onEntry(QEvent *event);
+    void onEntry(QEvent *event) override;
     virtual const char *prompt() const;
 };
 
@@ -47,7 +47,7 @@ public:
     UnfinishedReadState(QState *parent = 0);
 
 protected:
-    const char *prompt() const;
+    const char *prompt() const override;
 };
 
 class EvalState : public QState
@@ -63,7 +63,7 @@ signals:
     void output(const QString &output);
 
 protected:
-    void onEntry(QEvent *event);
+    void onEntry(QEvent *event) override;
 
 private:
     void complete();
@@ -82,6 +82,6 @@ signals:
     void completed();
 
 protected:
-    void onEntry(QEvent *event);
+    void onEntry(QEvent *event) override;
 };
 

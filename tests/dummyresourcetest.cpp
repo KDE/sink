@@ -1,4 +1,4 @@
-#include <QtTest>
+#include <QTest>
 
 #include <QString>
 
@@ -15,6 +15,7 @@
 #include "testutils.h"
 #include "adaptorfactoryregistry.h"
 #include "notifier.h"
+#include "propertyregistry.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -33,6 +34,23 @@ class DummyResourceTest : public QObject
     Sink::ResourceContext getContext()
     {
         return Sink::ResourceContext{"sink.dummy.instance1", "sink.dummy", Sink::AdaptorFactoryRegistry::instance().getFactories("sink.dummy")};
+    }
+
+
+    template <typename T>
+    void testPropertyAccessorAvailability()
+    {
+        Event event("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<T>(event));
+
+        // Ensure all local data is processed
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        auto list = Sink::Store::read<T>(Query().resourceFilter("sink.dummy.instance1"));
+        const auto availableProperties = list.first().availableProperties();
+        for (const auto &p : Sink::Private::PropertyRegistry::instance().registry[Sink::ApplicationDomain::getTypeName<T>()].properties.keys()) {
+            QVERIFY2(availableProperties.contains(p), p);
+        }
     }
 
 private slots:
@@ -276,6 +294,27 @@ private slots:
         {
             QTRY_COMPARE(model->rowCount(QModelIndex()), 0);
         }
+    }
+
+    /*
+     * Ensure we have an accessor for every registered property.
+     * The PropertyRegistry can list available properties,
+     * and an entity loaded from disk uses the property mapper to report available properties.
+     *
+     * If we don't either have a serializer or an index access, then the property will not be accessible at all,
+     * so this is a good sanity check.
+     *
+     * This test is resource specific because resources can in principle override how accessors are used via DomainTypeAdaptorFactory.
+     */
+    void testPropertyAccessorAvailability()
+    {
+        testPropertyAccessorAvailability<Event>();
+        testPropertyAccessorAvailability<Mail>();
+        testPropertyAccessorAvailability<Todo>();
+        testPropertyAccessorAvailability<Folder>();
+        testPropertyAccessorAvailability<Calendar>();
+        testPropertyAccessorAvailability<Contact>();
+        testPropertyAccessorAvailability<Addressbook>();
     }
 };
 

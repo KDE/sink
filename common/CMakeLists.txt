@@ -133,11 +133,10 @@ PRIVATE
     KF5::Contacts
     KF5::CalendarCore
     ${XAPIAN_LIBRARIES}
+    sink_mimetreeparser
 )
 install(TARGETS ${PROJECT_NAME}
     EXPORT SinkTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} ${LIBRARY_NAMELINK} )
-
-add_clang_static_analysis(${PROJECT_NAME})
 
 install(FILES
     store.h

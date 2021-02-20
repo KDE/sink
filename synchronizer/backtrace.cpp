@@ -30,17 +30,19 @@
 #include <thread>
 #include <chrono>
 
-#ifndef Q_OS_WIN
-#include <execinfo.h>
-#include <unistd.h>
-#include <cxxabi.h>
-#include <dlfcn.h>
-#else
+#if defined(Q_OS_WIN)
 #include <io.h>
 #include <process.h>
 #include <windows.h>
 # if !defined(Q_CC_MINGW) || (defined(Q_CC_MINGW) && defined(__MINGW64_VERSION_MAJOR))
 #include <crtdbg.h>
+# endif
+#else //Linux/Mac/...
+#include <unistd.h>
+# if defined(__GLIBC__) || defined(Q_OS_DARWIN) //musl lacks backtrace/backtrace_symbols
+#include <execinfo.h>
+#include <cxxabi.h>
+#include <dlfcn.h>
 # endif
 #endif
 
@@ -143,7 +145,7 @@ private:
 //Print a demangled stacktrace
 static void printStacktrace()
 {
-#ifndef Q_OS_WIN
+#if defined(__GLIBC__) || defined(Q_OS_DARWIN)
     int skip = 1;
 	void *callstack[128];
 	const int nMaxFrames = sizeof(callstack) / sizeof(callstack[0]);
@@ -178,7 +180,7 @@ static void printStacktrace()
 		trace_buf << "[truncated]\n";
     }
     std::cerr << trace_buf.str();
-#else
+#elif defined(Q_OS_WIN)
     enum { maxStackFrames = 100 };
     DebugSymbolResolver resolver(GetCurrentProcess());
     if (resolver.isValid()) {

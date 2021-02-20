@@ -1,5 +1,5 @@
 
-#include <QtTest>
+#include <QTest>
 
 
 #include "common/resourcecontrol.h"
@@ -192,7 +192,7 @@ private slots:
 
             auto contacts = Sink::Store::read<Contact>(Sink::Query().filter("uid", Sink::Query::Comparator(addedUid)));
             QCOMPARE(contacts.size(), 1);
-            QCOMPARE(contacts.first().getFirstname(), {"John"});
+            QCOMPARE(contacts.first().getFirstname(), QLatin1String{"John"});
         }
 
 
@@ -204,7 +204,7 @@ private slots:
             VERIFYEXEC(Sink::ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
             auto contacts = Sink::Store::read<Contact>(Sink::Query().filter("uid", Sink::Query::Comparator(addedUid)));
             QCOMPARE(contacts.size(), 1);
-            QCOMPARE(contacts.first().getFirstname(), {"Jane"});
+            QCOMPARE(contacts.first().getFirstname(), QLatin1String{"Jane"});
         }
 
         {

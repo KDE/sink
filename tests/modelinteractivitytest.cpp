@@ -1,4 +1,4 @@
-#include <QtTest>
+#include <QTest>
 
 #include <QString>
 #include <iostream>
@@ -22,11 +22,11 @@ public:
     TimeMeasuringApplication(int &argc, char **argv) : QCoreApplication(argc, argv)
     {
     }
-    virtual ~TimeMeasuringApplication()
+    ~TimeMeasuringApplication() override
     {
     }
 
-    virtual bool notify(QObject *receiver, QEvent *event)
+    bool notify(QObject *receiver, QEvent *event) override
     {
         t.start();
         auto receiverName = receiver->metaObject()->className();

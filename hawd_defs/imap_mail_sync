@@ -5,6 +5,7 @@
         { "name": "sync", "type": "float", "unit": "ms" },
         { "name": "total", "type": "float", "unit": "ms" },
         { "name": "resync", "type": "float", "unit": "ms" },
-        { "name": "resynctotal", "type": "float", "unit": "ms" }
+        { "name": "resynctotal", "type": "float", "unit": "ms" },
+        { "name": "freepages", "type": "int", "unit": "pages" }
     ]
 }

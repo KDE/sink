@@ -93,6 +93,9 @@ protected:
                 if (vcard.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for modification replay");
                 }
+                if (changedProperties.contains(ApplicationDomain::Contact::Addressbook::name)) {
+                    return moveItem(vcard, "text/vcard", contact.getUid().toUtf8() + ".vcf", syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()), oldRemoteId);
+                }
                 return modifyItem(oldRemoteId, vcard, "text/vcard", syncStore().resolveLocalId(ENTITY_TYPE_ADDRESSBOOK, contact.getAddressbook()));
         }
         return KAsync::null<QByteArray>();
@@ -107,7 +110,7 @@ protected:
 class CollectionCleanupPreprocessor : public Sink::Preprocessor
 {
 public:
-    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
     {
         //Remove all events of a collection when removing the collection.
         const auto revision = entityStore().maxRevision();

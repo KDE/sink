@@ -49,19 +49,26 @@ SpecialPurposeProcessor::SpecialPurposeProcessor() : Sink::Preprocessor() {}
 QByteArray SpecialPurposeProcessor::findFolder(const QByteArray &specialPurpose, bool createIfMissing)
 {
     if (!mSpecialPurposeFolders.contains(specialPurpose)) {
-        //Try to find an existing drafts folder
-        DataStoreQuery dataStoreQuery{Sink::Query().filter<ApplicationDomain::Folder::SpecialPurpose>(Query::Comparator(specialPurpose, Query::Comparator::Contains)), ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), entityStore()};
+        //Try to find an existing and enabled folder we can use.
+        auto query = Sink::Query();
+        query.filter<ApplicationDomain::Folder::SpecialPurpose>(Query::Comparator(specialPurpose, Query::Comparator::Contains));
+        query.filter<ApplicationDomain::Folder::Enabled>(true);
+        query.request<ApplicationDomain::Folder::Enabled>();
+
+        DataStoreQuery dataStoreQuery{query, ApplicationDomain::getTypeName<ApplicationDomain::Folder>(), entityStore()};
         auto resultSet = dataStoreQuery.execute();
         resultSet.replaySet(0, 1, [&, this](const ResultSet::Result &r) {
             mSpecialPurposeFolders.insert(specialPurpose, r.entity.identifier());
         });
 
+        //Create a new folder if we couldn't find one. We will also create a new folder if the old one was disabled for some reason.
         if (!mSpecialPurposeFolders.contains(specialPurpose) && createIfMissing) {
             SinkTrace() << "Failed to find a " << specialPurpose << " folder, creating a new one";
             auto folder = ApplicationDomain::Folder::create(resourceInstanceIdentifier());
             folder.setSpecialPurpose(QByteArrayList() << specialPurpose);
             folder.setName(sSpecialPurposeFolders.value(specialPurpose));
             folder.setIcon("folder");
+            folder.setEnabled(true);
             //This processes the pipeline synchronously
             createEntity(folder);
             mSpecialPurposeFolders.insert(specialPurpose, folder.identifier());

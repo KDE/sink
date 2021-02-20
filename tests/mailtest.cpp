@@ -18,7 +18,7 @@
  */
 #include "mailtest.h"
 
-#include <QtTest>
+#include <QTest>
 
 #include <QString>
 #include <KMime/Message>

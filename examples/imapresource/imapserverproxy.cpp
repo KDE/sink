@@ -143,11 +143,8 @@ KIMAP2::Session *createNewSession(const QString &serverUrl, int port)
     return newSession;
 }
 
-ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryptionMode, SessionCache *sessionCache) : mSessionCache(sessionCache), mSession(nullptr), mEncryptionMode(encryptionMode)
+ImapServerProxy::ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryptionMode, AuthenticationMode authenticationMode, SessionCache *sessionCache) : mSessionCache(sessionCache), mSession(nullptr), mEncryptionMode(encryptionMode), mAuthenticationMode(authenticationMode), mServerUrl(serverUrl), mPort(port)
 {
-    if (!mSessionCache || mSessionCache->isEmpty()) {
-        mSession = createNewSession(serverUrl, port);
-    }
 }
 
 QDebug operator<<(QDebug debug, const KIMAP2::MailBoxDescriptor &c)
@@ -170,6 +167,9 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
             mNamespaces = session.mNamespaces;
         }
     }
+    if (!mSession) {
+        mSession = createNewSession(mServerUrl, mPort);
+    }
     Q_ASSERT(mSession);
     if (mSession->state() == KIMAP2::Session::Authenticated || mSession->state() == KIMAP2::Session::Selected) {
         //If we blindly reuse the socket it may very well be stale and then we have to wait for it to time out.
@@ -179,6 +179,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
         if (info.error()) {
             SinkLog() << "Failed host lookup, closing the socket" << info.errorString();
             mSession->close();
+            mSession = nullptr;
             return KAsync::error(Imap::HostNotFoundError);
         } else {
             //Prevent the socket from timing out right away, right here (otherwise it just might time out right before we were able to start the job)
@@ -195,7 +196,7 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
     } else if (mEncryptionMode == Tls) {
         loginJob->setEncryptionMode(QSsl::AnyProtocol, false);
     }
-    loginJob->setAuthenticationMode(KIMAP2::LoginJob::Plain);
+    loginJob->setAuthenticationMode(mAuthenticationMode);
 
     auto capabilitiesJob = new KIMAP2::CapabilitiesJob(mSession);
     QObject::connect(capabilitiesJob, &KIMAP2::CapabilitiesJob::capabilitiesReceived, &mGuard, [this](const QStringList &capabilities) {
@@ -225,11 +226,8 @@ KAsync::Job<void> ImapServerProxy::login(const QString &username, const QString 
 KAsync::Job<void> ImapServerProxy::logout()
 {
     if (mSessionCache) {
-        auto session = CachedSession{mSession, mCapabilities, mNamespaces};
-        if (session.isConnected()) {
-            mSessionCache->recycleSession(session);
-            return KAsync::null();
-        }
+        mSessionCache->recycleSession({mSession, mCapabilities, mNamespaces});
+        return KAsync::null();
     }
     if (mSession->state() == KIMAP2::Session::State::Authenticated || mSession->state() == KIMAP2::Session::State::Selected) {
         return runJob(new KIMAP2::LogoutJob(mSession));
@@ -251,8 +249,12 @@ KAsync::Job<SelectResult> ImapServerProxy::select(const QString &mailbox)
     select->setCondstoreEnabled(mCapabilities.contains(Capabilities::Condstore));
     return runJob<SelectResult>(select, [select](KJob* job) -> SelectResult {
         return {select->uidValidity(), select->nextUid(), select->highestModSequence()};
-    }).onError([=] (const KAsync::Error &error) {
-        SinkWarning() << "Select failed: " << mailbox;
+    }).then([=] (const KAsync::Error &error, const SelectResult &result) {
+        if (error) {
+            SinkWarning() << "Select failed: " << mailbox;
+            return KAsync::error<SelectResult>(error);
+        }
+        return KAsync::value<SelectResult>(result);
     });
 }
 
@@ -269,8 +271,12 @@ KAsync::Job<SelectResult> ImapServerProxy::examine(const QString &mailbox)
     select->setCondstoreEnabled(mCapabilities.contains(Capabilities::Condstore));
     return runJob<SelectResult>(select, [select](KJob* job) -> SelectResult {
         return {select->uidValidity(), select->nextUid(), select->highestModSequence()};
-    }).onError([=] (const KAsync::Error &error) {
-        SinkWarning() << "Examine failed: " << mailbox;
+    }).then([=] (const KAsync::Error &error, const SelectResult &result) {
+        if (error) {
+            SinkWarning() << "Examine failed: " << mailbox;
+            return KAsync::error<SelectResult>(error);
+        }
+        return KAsync::value<SelectResult>(result);
     });
 }
 
@@ -281,6 +287,7 @@ KAsync::Job<SelectResult> ImapServerProxy::examine(const Folder &folder)
 
 KAsync::Job<qint64> ImapServerProxy::append(const QString &mailbox, const QByteArray &content, const QList<QByteArray> &flags, const QDateTime &internalDate)
 {
+    Q_ASSERT(mSession);
     auto append = new KIMAP2::AppendJob(mSession);
     append->setMailBox(mailbox);
     append->setContent(content);
@@ -298,6 +305,7 @@ KAsync::Job<void> ImapServerProxy::store(const KIMAP2::ImapSet &set, const QList
 
 KAsync::Job<void> ImapServerProxy::storeFlags(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags)
 {
+    Q_ASSERT(mSession);
     auto store = new KIMAP2::StoreJob(mSession);
     store->setUidBased(true);
     store->setMode(KIMAP2::StoreJob::SetFlags);
@@ -308,6 +316,7 @@ KAsync::Job<void> ImapServerProxy::storeFlags(const KIMAP2::ImapSet &set, const 
 
 KAsync::Job<void> ImapServerProxy::addFlags(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags)
 {
+    Q_ASSERT(mSession);
     auto store = new KIMAP2::StoreJob(mSession);
     store->setUidBased(true);
     store->setMode(KIMAP2::StoreJob::AppendFlags);
@@ -318,6 +327,7 @@ KAsync::Job<void> ImapServerProxy::addFlags(const KIMAP2::ImapSet &set, const QL
 
 KAsync::Job<void> ImapServerProxy::removeFlags(const KIMAP2::ImapSet &set, const QList<QByteArray> &flags)
 {
+    Q_ASSERT(mSession);
     auto store = new KIMAP2::StoreJob(mSession);
     store->setUidBased(true);
     store->setMode(KIMAP2::StoreJob::RemoveFlags);
@@ -328,6 +338,7 @@ KAsync::Job<void> ImapServerProxy::removeFlags(const KIMAP2::ImapSet &set, const
 
 KAsync::Job<void> ImapServerProxy::create(const QString &mailbox)
 {
+    Q_ASSERT(mSession);
     auto create = new KIMAP2::CreateJob(mSession);
     create->setMailBox(mailbox);
     return runJob(create);
@@ -335,6 +346,7 @@ KAsync::Job<void> ImapServerProxy::create(const QString &mailbox)
 
 KAsync::Job<void> ImapServerProxy::subscribe(const QString &mailbox)
 {
+    Q_ASSERT(mSession);
     auto job = new KIMAP2::SubscribeJob(mSession);
     job->setMailBox(mailbox);
     return runJob(job);
@@ -342,6 +354,7 @@ KAsync::Job<void> ImapServerProxy::subscribe(const QString &mailbox)
 
 KAsync::Job<void> ImapServerProxy::rename(const QString &mailbox, const QString &newMailbox)
 {
+    Q_ASSERT(mSession);
     auto rename = new KIMAP2::RenameJob(mSession);
     rename->setSourceMailBox(mailbox);
     rename->setDestinationMailBox(newMailbox);
@@ -350,6 +363,7 @@ KAsync::Job<void> ImapServerProxy::rename(const QString &mailbox, const QString 
 
 KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox)
 {
+    Q_ASSERT(mSession);
     auto job = new KIMAP2::DeleteJob(mSession);
     job->setMailBox(mailbox);
     return runJob(job);
@@ -357,12 +371,14 @@ KAsync::Job<void> ImapServerProxy::remove(const QString &mailbox)
 
 KAsync::Job<void> ImapServerProxy::expunge()
 {
+    Q_ASSERT(mSession);
     auto job = new KIMAP2::ExpungeJob(mSession);
     return runJob(job);
 }
 
 KAsync::Job<void> ImapServerProxy::expunge(const KIMAP2::ImapSet &set)
 {
+    Q_ASSERT(mSession);
     //FIXME implement UID EXPUNGE
     auto job = new KIMAP2::ExpungeJob(mSession);
     return runJob(job);
@@ -370,6 +386,7 @@ KAsync::Job<void> ImapServerProxy::expunge(const KIMAP2::ImapSet &set)
 
 KAsync::Job<void> ImapServerProxy::copy(const KIMAP2::ImapSet &set, const QString &newMailbox)
 {
+    Q_ASSERT(mSession);
     auto copy = new KIMAP2::CopyJob(mSession);
     copy->setSequenceSet(set);
     copy->setUidBased(true);
@@ -379,6 +396,7 @@ KAsync::Job<void> ImapServerProxy::copy(const KIMAP2::ImapSet &set, const QStrin
 
 KAsync::Job<void> ImapServerProxy::fetch(const KIMAP2::ImapSet &set, KIMAP2::FetchJob::FetchScope scope, FetchCallback callback)
 {
+    Q_ASSERT(mSession);
     auto fetch = new KIMAP2::FetchJob(mSession);
     fetch->setSequenceSet(set);
     fetch->setUidBased(true);
@@ -395,6 +413,7 @@ KAsync::Job<QVector<qint64>> ImapServerProxy::search(const KIMAP2::ImapSet &set)
 
 KAsync::Job<QVector<qint64>> ImapServerProxy::search(const KIMAP2::Term &term)
 {
+    Q_ASSERT(mSession);
     auto search = new KIMAP2::SearchJob(mSession);
     search->setTerm(term);
     search->setUidBased(true);
@@ -440,24 +459,37 @@ KAsync::Job<QVector<qint64>> ImapServerProxy::fetchHeaders(const QString &mailbo
     });
 }
 
-KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUids(const QString &mailbox)
+KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUids()
 {
     auto notDeleted = KIMAP2::Term(KIMAP2::Term::Deleted);
     notDeleted.setNegated(true);
-    return select(mailbox).then<QVector<qint64>>(search(notDeleted));
+    return search(notDeleted);
 }
 
-KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUidsSince(const QString &mailbox, const QDate &since)
+KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUidsSince(const QDate &since, qint64 lowerBound)
 {
-    auto sinceTerm = KIMAP2::Term(KIMAP2::Term::Since, since);
-    auto notDeleted = KIMAP2::Term(KIMAP2::Term::Deleted);
+    auto notDeleted = KIMAP2::Term{KIMAP2::Term::Deleted};
     notDeleted.setNegated(true);
-    auto term = KIMAP2::Term(KIMAP2::Term::And, QVector<KIMAP2::Term>() << sinceTerm << notDeleted);
-    return select(mailbox).then<QVector<qint64>>(search(term));
+
+    return search(
+            KIMAP2::Term{KIMAP2::Term::Or, {
+                KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Since, since}, notDeleted}},
+                KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Uid, KIMAP2::ImapSet{lowerBound, 0}}, notDeleted}}
+            }}
+        );
+}
+
+KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUidsSince(const QDate &since)
+{
+    auto notDeleted = KIMAP2::Term{KIMAP2::Term::Deleted};
+    notDeleted.setNegated(true);
+
+    return search(KIMAP2::Term{KIMAP2::Term::And, {{KIMAP2::Term::Since, since}, notDeleted}});
 }
 
 KAsync::Job<void> ImapServerProxy::list(KIMAP2::ListJob::Option option, const std::function<void(const KIMAP2::MailBoxDescriptor &mailboxes, const QList<QByteArray> &flags)> &callback)
 {
+    Q_ASSERT(mSession);
     auto listJob = new KIMAP2::ListJob(mSession);
     listJob->setOption(option);
     // listJob->setQueriedNamespaces(serverNamespaces());
@@ -532,6 +564,19 @@ bool Imap::flagsContain(const QByteArray &f, const QByteArrayList &flags)
     return caseInsensitiveContains(f, flags);
 }
 
+AuthenticationMode Imap::fromAuthString(const QString &s)
+{
+    if (s == QStringLiteral("CLEARTEXT")) return KIMAP2::LoginJob::ClearText;
+    if (s == QStringLiteral("LOGIN")) return KIMAP2::LoginJob::Login;
+    if (s == QStringLiteral("PLAIN")) return KIMAP2::LoginJob::Plain;
+    if (s == QStringLiteral("CRAM-MD5")) return KIMAP2::LoginJob::CramMD5;
+    if (s == QStringLiteral("DIGEST-MD5")) return KIMAP2::LoginJob::DigestMD5;
+    if (s == QStringLiteral("GSSAPI")) return KIMAP2::LoginJob::GSSAPI;
+    if (s == QStringLiteral("ANONYMOUS")) return KIMAP2::LoginJob::Anonymous;
+    if (s == QStringLiteral("XOAUTH2")) return KIMAP2::LoginJob::XOAuth2;
+    return KIMAP2::LoginJob::Plain;
+}
+
 static void reportFolder(const Folder &f, QSharedPointer<QSet<QString>> reportedList, std::function<void(const Folder &)> callback) {
     if (!reportedList->contains(f.path())) {
         reportedList->insert(f.path());
@@ -549,6 +594,7 @@ KAsync::Job<void> ImapServerProxy::getMetaData(std::function<void(const QHash<QS
     if (!mCapabilities.contains("METADATA")) {
         return KAsync::null();
     }
+    Q_ASSERT(mSession);
     KIMAP2::GetMetaDataJob *meta = new KIMAP2::GetMetaDataJob(mSession);
     meta->setMailBox(QLatin1String("*"));
     meta->setServerCapability( KIMAP2::MetaDataJobBase::Metadata );
@@ -616,27 +662,13 @@ QString ImapServerProxy::mailboxFromFolder(const Folder &folder) const
     return folder.path();
 }
 
-KAsync::Job<SelectResult> ImapServerProxy::fetchFlags(const Folder &folder, const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback)
+KAsync::Job<void> ImapServerProxy::fetchFlags(const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback)
 {
-    SinkTrace() << "Fetching flags " << folder.path();
-    return select(folder).then<SelectResult, SelectResult>([=](const SelectResult &selectResult) -> KAsync::Job<SelectResult> {
-        SinkTrace() << "Modeseq " << folder.path() << selectResult.highestModSequence << changedsince;
+    KIMAP2::FetchJob::FetchScope scope;
+    scope.mode = KIMAP2::FetchJob::FetchScope::Flags;
+    scope.changedSince = changedsince;
 
-        if (selectResult.highestModSequence == static_cast<quint64>(changedsince)) {
-            SinkTrace()<< folder.path() << "Changedsince didn't change, nothing to do.";
-            return KAsync::value<SelectResult>(selectResult);
-        }
-
-        SinkTrace() << "Fetching flags  " << folder.path() << set << selectResult.highestModSequence << changedsince;
-
-        KIMAP2::FetchJob::FetchScope scope;
-        scope.mode = KIMAP2::FetchJob::FetchScope::Flags;
-        scope.changedSince = changedsince;
-
-        return fetch(set, scope, callback).then([selectResult] {
-            return selectResult;
-        });
-    });
+    return fetch(set, scope, callback);
 }
 
 KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, qint64 uidNext, std::function<void(const Message &)> callback, std::function<void(int, int)> progress)
@@ -710,5 +742,5 @@ KAsync::Job<void> ImapServerProxy::fetchMessages(const Folder &folder, std::func
 
 KAsync::Job<QVector<qint64>> ImapServerProxy::fetchUids(const Folder &folder)
 {
-    return fetchUids(mailboxFromFolder(folder));
+    return select(mailboxFromFolder(folder)).then(fetchUids());
 }

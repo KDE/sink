@@ -23,9 +23,9 @@
 
 #include "sink_export.h"
 #include "utils.h"
+#include "storage/key.h"
 #include <string>
 #include <functional>
-#include <QUuid>
 #include <QString>
 #include <QMap>
 
@@ -112,10 +112,10 @@ public:
         * @return The number of values retrieved.
         */
         int scan(const QByteArray &key, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>(), bool findSubstringKeys = false, bool skipInternalKeys = true) const;
+            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>(), bool findSubstringKeys = false) const;
 
         int scan(const size_t key, const std::function<bool(size_t key, const QByteArray &value)> &resultHandler,
-            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>(), bool skipInternalKeys = true) const;
+            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>()) const;
 
         /**
          * Finds the last value in a series matched by prefix.
@@ -127,6 +127,14 @@ public:
             const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>()) const;
 
         void findLatest(size_t key, const std::function<void(size_t key, const QByteArray &value)> &resultHandler,
+            const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>()) const;
+
+        /**
+         * Finds the last value by key in sorted duplicates.
+         *
+         * Only makes sense for a database with AllowDuplicates
+         */
+        void findLast(const QByteArray &uid, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
             const std::function<void(const DataStore::Error &error)> &errorHandler = std::function<void(const DataStore::Error &error)>()) const;
 
         /**
@@ -248,24 +256,20 @@ public:
     static qint64 cleanedUpRevision(const Transaction &);
     static void setCleanedUpRevision(Transaction &, qint64 revision);
 
-    static QByteArray getUidFromRevision(const Transaction &, size_t revision);
-    static size_t getLatestRevisionFromUid(Transaction &, const QByteArray &uid);
-    static QList<size_t> getRevisionsUntilFromUid(DataStore::Transaction &, const QByteArray &uid, size_t lastRevision);
-    static QList<size_t> getRevisionsFromUid(DataStore::Transaction &, const QByteArray &uid);
+    static Identifier getUidFromRevision(const Transaction &, size_t revision);
+    static size_t getLatestRevisionFromUid(Transaction &, const Identifier &uid);
+    static QList<size_t> getRevisionsUntilFromUid(DataStore::Transaction &, const Identifier &uid, size_t lastRevision);
+    static QList<size_t> getRevisionsFromUid(DataStore::Transaction &, const Identifier &uid);
     static QByteArray getTypeFromRevision(const Transaction &, size_t revision);
-    static void recordRevision(Transaction &, size_t revision, const QByteArray &uid, const QByteArray &type);
+    static void recordRevision(Transaction &, size_t revision, const Identifier &uid, const QByteArray &type);
     static void removeRevision(Transaction &, size_t revision);
-    static void recordUid(DataStore::Transaction &transaction, const QByteArray &uid, const QByteArray &type);
-    static void removeUid(DataStore::Transaction &transaction, const QByteArray &uid, const QByteArray &type);
-    static void getUids(const QByteArray &type, const Transaction &, const std::function<void(const QByteArray &uid)> &);
-    static bool hasUid(const QByteArray &type, const Transaction &, const QByteArray &uid);
+    static void recordUid(DataStore::Transaction &transaction, const Identifier &uid, const QByteArray &type);
+    static void removeUid(DataStore::Transaction &transaction, const Identifier &uid, const QByteArray &type);
+    static void getUids(const QByteArray &type, const Transaction &, const std::function<void(const Identifier &uid)> &);
+    static bool hasUid(const QByteArray &type, const Transaction &, const Identifier &uid);
 
     bool exists() const;
     static bool exists(const QString &storageRoot, const QString &name);
-
-    static bool isInternalKey(const char *key);
-    static bool isInternalKey(void *key, int keySize);
-    static bool isInternalKey(const QByteArray &key);
 
     static NamedDatabase mainDatabase(const Transaction &, const QByteArray &type);
 
@@ -273,6 +277,8 @@ public:
 
     static qint64 databaseVersion(const Transaction &);
     static void setDatabaseVersion(Transaction &, qint64 revision);
+
+    static QMap<QByteArray, int> baseDbs();
 
 private:
     std::function<void(const DataStore::Error &error)> mErrorHandler;

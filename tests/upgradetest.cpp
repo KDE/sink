@@ -1,4 +1,4 @@
-#include <QtTest>
+#include <QTest>
 
 #include <QString>
 
@@ -80,7 +80,7 @@ private slots:
         {
             Sink::Storage::DataStore store(Sink::storageLocation(), "sink.dummy.instance1", Sink::Storage::DataStore::ReadWrite);
             auto t = store.createTransaction();
-            t.openDatabase().write("__internal_databaseVersion", QByteArray::number(1));
+            t.openDatabase("__metadata").write("databaseVersion", QByteArray::number(1));
             t.commit();
         }
 
@@ -114,7 +114,7 @@ private slots:
         //force the db to an old version.
         Sink::Storage::DataStore store(Sink::storageLocation(), "sink.dummy.instance1", Sink::Storage::DataStore::ReadWrite);
         auto t = store.createTransaction();
-        t.openDatabase().remove("__internal_databaseVersion");
+        t.openDatabase("__metadata").remove("databaseVersion");
         t.commit();
 
         auto upgradeJob = Sink::Store::upgrade()

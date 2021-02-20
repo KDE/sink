@@ -24,15 +24,19 @@
 
 #include <KDAV2/DavCollectionDeleteJob>
 #include <KDAV2/DavCollectionModifyJob>
+#include <KDAV2/DavCollectionCreateJob>
 #include <KDAV2/DavCollectionsFetchJob>
 #include <KDAV2/DavDiscoveryJob>
 #include <KDAV2/DavItemCreateJob>
 #include <KDAV2/DavItemDeleteJob>
 #include <KDAV2/DavItemsFetchJob>
+#include <KDAV2/DavItemFetchJob>
 #include <KDAV2/DavItemModifyJob>
 #include <KDAV2/DavItemsListJob>
+#include <KDAV2/DavPrincipalHomesetsFetchJob>
 
 #include <QNetworkReply>
+#include <QColor>
 
 static int translateDavError(KJob *job)
 {
@@ -44,11 +48,15 @@ static int translateDavError(KJob *job)
     switch (responseCode) {
         case QNetworkReply::HostNotFoundError:
         case QNetworkReply::ContentNotFoundError: //If we can't find the content we probably messed up the url configuration
+        case QNetworkReply::UnknownNetworkError: //That's what I got for a create job without any network at all
             return ErrorCode::NoServerError;
         case QNetworkReply::AuthenticationRequiredError:
         case QNetworkReply::InternalServerError: //The kolab server reports a HTTP 500 instead of 401 on invalid credentials (we could introspect the error message for the 401 error code)
         case QNetworkReply::OperationCanceledError: // Since we don't login we will just not have the necessary permissions ot view the object
             return ErrorCode::LoginError;
+        case QNetworkReply::ContentConflictError:
+        case QNetworkReply::UnknownContentError:
+            return ErrorCode::SynchronizationConflictError;
     }
     return ErrorCode::UnknownError;
 }
@@ -134,9 +142,10 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeWithSource(const Sink::QueryBas
                     for (const auto &collection : collections) {
                         collectionRemoteIDs.insert(resourceID(collection));
                     }
-                    scanForRemovals(mCollectionType, [&](const QByteArray &remoteId) {
+                    int count = scanForRemovals(mCollectionType, [&](const QByteArray &remoteId) {
                         return collectionRemoteIDs.contains(remoteId);
                     });
+                    SinkLogCtx(mLogCtx) << "Removed " << count << " collections";
                     updateLocalCollections(collections);
                 });
         } else if (mEntityTypes.contains(query.type())) {
@@ -235,7 +244,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
             syncStore().writeValue(collectionRid + "_ctag", ctag);
 
             for (const auto &entityType : mEntityTypes) {
-                scanForRemovals(entityType,
+                int count = scanForRemovals(entityType,
                     [&](const std::function<void(const QByteArray &)> &callback) {
                         //FIXME: The collection type just happens to have the same name as the parent collection property
                         const auto collectionProperty = mCollectionType;
@@ -244,6 +253,7 @@ KAsync::Job<void> WebDavSynchronizer::synchronizeCollection(const KDAV2::DavUrl 
                     [&itemsResourceIDs](const QByteArray &remoteId) {
                         return itemsResourceIDs->contains(remoteId);
                     });
+                SinkLogCtx(mLogCtx) << "Removed " << count << " items";
             }
         });
 }
@@ -274,6 +284,13 @@ KAsync::Job<KDAV2::DavUrl> WebDavSynchronizer::discoverServer()
     });
 }
 
+KAsync::Job<QPair<QUrl, QStringList>> WebDavSynchronizer::discoverHome(const KDAV2::DavUrl &serverUrl)
+{
+    return runJob<QPair<QUrl, QStringList>>(new KDAV2::DavPrincipalHomeSetsFetchJob(serverUrl), [=] (KJob *job) {
+        return qMakePair(static_cast<KDAV2::DavPrincipalHomeSetsFetchJob*>(job)->url(), static_cast<KDAV2::DavPrincipalHomeSetsFetchJob*>(job)->homeSets());
+    });
+}
+
 KAsync::Job<QByteArray> WebDavSynchronizer::createItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &rid, const QByteArray &collectionRid)
 {
     return discoverServer()
@@ -293,6 +310,19 @@ KAsync::Job<QByteArray> WebDavSynchronizer::createItem(const QByteArray &vcard, 
 
 }
 
+
+KAsync::Job<QByteArray> WebDavSynchronizer::moveItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &rid, const QByteArray &collectionRid, const QByteArray &oldRemoteId)
+{
+    SinkLogCtx(mLogCtx) << "Moving:" << oldRemoteId;
+    return createItem(vcard, contentType, rid, collectionRid)
+        .then([=] (const QByteArray &remoteId) {
+            return removeItem(oldRemoteId)
+                .then([=] {
+                    return remoteId;
+                });
+        });
+}
+
 KAsync::Job<QByteArray> WebDavSynchronizer::modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &collectionRid)
 {
     return discoverServer()
@@ -305,12 +335,27 @@ KAsync::Job<QByteArray> WebDavSynchronizer::modifyItem(const QByteArray &oldRemo
             SinkLogCtx(mLogCtx) << "Modifying:" << "Content-Type: " << contentType << "Url: " << remoteItem.url().url() << "Etag: " << remoteItem.etag() << "Content:\n" << vcard;
 
             return runJob<KDAV2::DavItem>(new KDAV2::DavItemModifyJob(remoteItem), [](KJob *job) { return static_cast<KDAV2::DavItemModifyJob*>(job)->item(); })
-                .then([=] (const KDAV2::DavItem &remoteItem) {
-                    const auto remoteId = resourceID(remoteItem);
-                    //Should never change if not moved
+                .then([=] (const KAsync::Error &error, const KDAV2::DavItem &fetchedItem) {
+                    if (error) {
+                        if (error.errorCode != Sink::ApplicationDomain::SynchronizationConflictError) {
+                            SinkWarningCtx(mLogCtx) << "Modification failed, but not a conflict.";
+                            return KAsync::error<QByteArray>(error);
+                        }
+                        SinkLogCtx(mLogCtx) << "Fetching server version to resolve conflict during modification";
+                        return runJob<KDAV2::DavItem>(new KDAV2::DavItemFetchJob(remoteItem), [](KJob *job) { return static_cast<KDAV2::DavItemFetchJob*>(job)->item(); })
+                            .then([=] (const KDAV2::DavItem &item) {
+                                const auto collectionLocalId = syncStore().resolveRemoteId(mCollectionType, collectionRid);
+                                const auto remoteId = resourceID(item);
+                                //Overwrite the local version with the sever version.
+                                updateLocalItem(item, collectionLocalId);
+                                syncStore().writeValue(collectionRid, remoteId + "_etag", item.etag().toLatin1());
+                                return KAsync::value(remoteId);
+                            });
+                    }
+                    const auto remoteId = resourceID(fetchedItem);
                     Q_ASSERT(remoteId == oldRemoteId);
-                    syncStore().writeValue(collectionRid, remoteId + "_etag", remoteItem.etag().toLatin1());
-                    return remoteId;
+                    syncStore().writeValue(collectionRid, remoteId + "_etag", fetchedItem.etag().toLatin1());
+                    return KAsync::value(remoteId);
                 });
         });
 }
@@ -330,31 +375,63 @@ KAsync::Job<QByteArray> WebDavSynchronizer::removeItem(const QByteArray &oldRemo
         });
 }
 
-// There is no "DavCollectionCreateJob"
-/*
-KAsync::Job<void> WebDavSynchronizer::createCollection(const QByteArray &collectionRid)
-{
-    auto job = new KDAV2::DavCollectionCreateJob(collection);
-    return runJob(job);
-}
-*/
-
-KAsync::Job<void> WebDavSynchronizer::removeCollection(const QByteArray &collectionRid)
+KAsync::Job<QByteArray> WebDavSynchronizer::createCollection(const KDAV2::DavCollection &collection, const KDAV2::Protocol protocol)
 {
     return discoverServer()
         .then([=] (const KDAV2::DavUrl &serverUrl) {
-            return runJob(new KDAV2::DavCollectionDeleteJob(urlOf(serverUrl, collectionRid))).then([this] { SinkLogCtx(mLogCtx) << "Done removing collection"; });
+            return discoverHome(serverUrl)
+                .then([=] (const QPair<QUrl, QStringList> &pair) {
+                    const auto home = pair.second.first();
+
+                    auto url = serverUrl.url();
+                    url.setPath(home + collection.displayName());
+
+                    auto davUrl = serverUrl;
+                    davUrl.setProtocol(protocol);
+                    davUrl.setUrl(url);
+
+                    auto col = collection;
+                    col.setUrl(davUrl);
+                    SinkLogCtx(mLogCtx) << "Creating collection"<< col.displayName() << col.url() << col.contentTypes();
+                    auto job = new KDAV2::DavCollectionCreateJob(col);
+                    return runJob(job)
+                        .then([=] {
+                            SinkLogCtx(mLogCtx) << "Done creating collection";
+                            return  resourceID(job->collection());
+                        });
+                });
+            });
+}
+
+KAsync::Job<QByteArray> WebDavSynchronizer::removeCollection(const QByteArray &collectionRid)
+{
+    return discoverServer()
+        .then([=] (const KDAV2::DavUrl &serverUrl) {
+            return runJob(new KDAV2::DavCollectionDeleteJob(urlOf(serverUrl, collectionRid)))
+                .then([this] {
+                    SinkLogCtx(mLogCtx) << "Done removing collection";
+                    return QByteArray{};
+                });
         });
 }
 
-// Useless without using the `setProperty` method of DavCollectionModifyJob
-/*
-KAsync::Job<void> WebDavSynchronizer::modifyCollection(const QByteArray &collectionRid)
+KAsync::Job<QByteArray> WebDavSynchronizer::modifyCollection(const QByteArray &collectionRid, const KDAV2::DavCollection &collection)
 {
-    auto job = new KDAV2::DavCollectionModifyJob(url);
-    return runJob(job).then([] { SinkLogCtx(mLogCtx) << "Done modifying collection"; });
+    return discoverServer()
+        .then([=] (const KDAV2::DavUrl &serverUrl) {
+            auto job = new KDAV2::DavCollectionModifyJob(urlOf(serverUrl, collectionRid));
+
+            //TODO we should be setting those properties in KDAV2
+            job->setProperty("calendar-color", collection.color().name(), QStringLiteral("http://apple.com/ns/ical/"));
+            job->setProperty("displayname", collection.displayName(), QStringLiteral("DAV:"));
+
+            return runJob(job)
+                .then([=] {
+                    SinkLogCtx(mLogCtx) << "Done modifying collection";
+                    return  collectionRid;
+                });
+        });
 }
-*/
 
 QByteArray WebDavSynchronizer::resourceID(const KDAV2::DavCollection &collection)
 {

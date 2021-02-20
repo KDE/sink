@@ -4,7 +4,7 @@ cmake_policy(SET CMP0048 NEW)
 cmake_policy(SET CMP0028 NEW)
 cmake_policy(SET CMP0063 NEW)
 
-project(sink VERSION 0.8.0)
+project(sink VERSION 0.9.0)
 
 option(BUILD_MAILDIR "BUILD_MAILDIR" ON)
 option(BUILD_DAV "BUILD_DAV" ON)
@@ -12,9 +12,10 @@ option(CATCH_ERRORS "CATCH_ERRORS" OFF)
 option(ENABLE_MEMCHECK "Build valgrind tests" OFF)
 option(ENABLE_ASAN "Enable the address sanitizer" OFF)
 option(ENABLE_TSAN "Enable the thread sanitizer" OFF)
+option(ENABLE_TIDY "Enable the static code analyzer" OFF)
 
 # ECM setup
-find_package(ECM 1.0.0 REQUIRED NO_MODULE)
+find_package(ECM 5.29.0 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH
         ${ECM_MODULE_PATH}
         ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules
@@ -45,6 +46,7 @@ find_package(FlatBuffers REQUIRED 1.4.0)
 find_package(KAsync REQUIRED 0.3)
 find_package(LMDB REQUIRED 0.9)
 find_package(Xapian REQUIRED 1.4)
+find_package(Gpgme REQUIRED)
 
 if (${ENABLE_MEMCHECK})
     message("Enabled memcheck")
@@ -73,6 +75,15 @@ if (${ENABLE_TSAN})
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${SINK_TSAN_FLAG}")
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${SINK_TSAN_FLAG}")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${SINK_TSAN_FLAG}")
+endif()
+
+if (${ENABLE_TIDY})
+    find_program(
+        CLANG_TIDY
+        NAMES "clang-tidy"
+        DOC "Path to clang-tidy executable"
+    )
+    set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY} -checks=-*,modernize-use-override -fix --fix-errors)
 endif()
 
 
@@ -104,45 +115,32 @@ function(generate_flatbuffers _target)
     endforeach(fbs)
 endfunction(generate_flatbuffers)
 
-#Clang-analyze support
-add_custom_target(analyze)
-function(add_clang_static_analysis target)
-    get_target_property(SRCs ${target} SOURCES)
-    get_target_property(INCLUDEs ${target} INCLUDE_DIRECTORIES)
-    add_library(${target}_analyze OBJECT EXCLUDE_FROM_ALL ${SRCs})
-    set_target_properties(${target}_analyze PROPERTIES
-        COMPILE_OPTIONS "--analyze"
-        EXCLUDE_FROM_DEFAULT_BUILD true
-        INCLUDE_DIRECTORIES "${INCLUDEs};${KDE_INSTALL_FULL_INCLUDEDIR}/KF5/" # Had to hardcode include directory to find KAsync includes
-        #COMPILE_FLAGS is deprecated, but the only way that -Xanalyzer isn't erronously deduplicated
-        COMPILE_FLAGS "-Xanalyzer -analyzer-eagerly-assume -Xanalyzer -analyzer-opt-analyze-nested-blocks"
-    )
-    target_compile_options(${target}_analyze PRIVATE ${Qt5Core_EXECUTABLE_COMPILE_FLAGS})# Necessary to get options such as fPIC
-    add_dependencies(analyze ${target}_analyze)
-endfunction()
 
 set(CMAKE_AUTOMOC ON)
 if (${CATCH_ERRORS})
-    add_definitions("-Werror -Wall -Weverything -Wno-unused-function -Wno-cast-align -Wno-used-but-marked-unused -Wno-shadow -Wno-weak-vtables -Wno-global-constructors -Wno-deprecated -Wno-weak-template-vtables -Wno-exit-time-destructors -Wno-covered-switch-default -Wno-shorten-64-to-32 -Wno-documentation -Wno-old-style-cast -Wno-extra-semi -Wno-unused-parameter -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-padded -Wno-missing-noreturn -Wno-missing-prototypes -Wno-documentation-unknown-command -Wno-sign-conversion -Wno-gnu-zero-variadic-macro-arguments -Wno-disabled-macro-expansion -Wno-vla-extension -Wno-vla -Wno-undefined-func-template -Wno-#warnings -Wno-unused-template -Wno-inconsistent-missing-destructor-override -Wno-zero-as-null-pointer-constant -Wno-unused-lambda-capture -Wno-switch-enum -Wno-redundant-parens -Wno-extra-semi-stmt")
+    add_definitions("-Werror -Wall -Weverything -Wno-unused-function -Wno-cast-align -Wno-used-but-marked-unused -Wno-shadow -Wno-weak-vtables -Wno-global-constructors -Wno-deprecated -Wno-weak-template-vtables -Wno-exit-time-destructors -Wno-covered-switch-default -Wno-shorten-64-to-32 -Wno-documentation -Wno-old-style-cast -Wno-extra-semi -Wno-unused-parameter -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-padded -Wno-missing-noreturn -Wno-missing-prototypes -Wno-documentation-unknown-command -Wno-sign-conversion -Wno-gnu-zero-variadic-macro-arguments -Wno-disabled-macro-expansion -Wno-vla-extension -Wno-vla -Wno-undefined-func-template -Wno-#warnings -Wno-unused-template -Wno-inconsistent-missing-destructor-override -Wno-zero-as-null-pointer-constant -Wno-unused-lambda-capture -Wno-switch-enum -Wno-redundant-parens -Wno-extra-semi-stmt -Wno-suggest-destructor-override")
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (MSVC)
     # Workaround for older cmake versions
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++20")
     # We get way to many warnings for this
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-nonportable-include-path")
 endif()
 
 include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${FLATBUFFERS_INCLUDE_DIR} ${CMAKE_BINARY_DIR}/common 3rdparty)
-include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/common ${CMAKE_SOURCE_DIR}/common/domain)
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/common ${CMAKE_SOURCE_DIR}/common/domain ${CMAKE_SOURCE_DIR}/mime)
 
 configure_file(hawd.conf hawd.conf)
 
 enable_testing()
 
 set(SINK_RESOURCE_PLUGINS_PATH ${QT_PLUGIN_INSTALL_DIR}/sink/resources)
+
+# mime support
+add_subdirectory(mime)
 
 # common, eventually a lib but right now just the command buffers
 add_subdirectory(common)

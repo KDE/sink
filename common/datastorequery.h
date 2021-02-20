@@ -61,7 +61,7 @@ private:
     typedef std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> FilterFunction;
     typedef std::function<void(const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation)> BufferCallback;
 
-    QVector<Sink::Storage::Identifier> indexLookup(const QByteArray &property, const QVariant &value);
+    QVector<Sink::Storage::Identifier> indexLookup(const QByteArray &property, const QVariant &value, const QVector<Sink::Storage::Identifier> &filter = {});
 
     void readEntity(const Sink::Storage::Identifier &id, const BufferCallback &resultCallback);
     void readPrevious(const Sink::Storage::Identifier &id, const std::function<void (const Sink::ApplicationDomain::ApplicationDomainType &)> &callback);
@@ -104,10 +104,10 @@ public:
         mDatastore->readEntity(id, callback);
     }
 
-    QVector<Sink::Storage::Identifier> indexLookup(const QByteArray &property, const QVariant &value)
+    QVector<Sink::Storage::Identifier> indexLookup(const QByteArray &property, const QVariant &value, const QVector<Sink::Storage::Identifier> &filter = {})
     {
         Q_ASSERT(mDatastore);
-        return mDatastore->indexLookup(property, value);
+        return mDatastore->indexLookup(property, value, filter);
     }
 
     void readPrevious(const Sink::Storage::Identifier &id, const std::function<void (const Sink::ApplicationDomain::ApplicationDomainType &)> &callback)

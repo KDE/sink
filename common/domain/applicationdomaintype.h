@@ -92,6 +92,7 @@ enum ErrorCode {
     TransmissionError, //There was an error while transmission (e.g. while uploading something)
     ConnectionLostError, //We lost the connection to the server.
     MissingCredentialsError, //There are no credentials available, but required.
+    SynchronizationConflictError, //There was a conflict during synchronization.
     ResourceCrashedError
 };
 
@@ -172,12 +173,12 @@ public:
     ApplicationDomainType(const ApplicationDomainType &other);
     ApplicationDomainType& operator=(const ApplicationDomainType &other);
 
-    inline bool operator==(const ApplicationDomainType &other)
+    inline bool operator==(const ApplicationDomainType &other) const
     {
         return other.identifier() == identifier();
     }
 
-    inline bool operator!=(const ApplicationDomainType &other)
+    inline bool operator!=(const ApplicationDomainType &other) const
     {
         return !(*this == other);
     }
@@ -436,9 +437,6 @@ struct SINK_EXPORT Folder : public Entity {
     SINK_PROPERTY(QByteArray, Icon, icon);
     SINK_PROPERTY(QByteArrayList, SpecialPurpose, specialpurpose);
     SINK_PROPERTY(bool, Enabled, enabled);
-    SINK_EXTRACTED_PROPERTY(QDateTime, LastUpdated, lastUpdated);
-    SINK_EXTRACTED_PROPERTY(int, Count, count);
-    SINK_EXTRACTED_PROPERTY(bool, FullContentAvailable, fullContentAvailable);
 };
 
 struct SINK_EXPORT Mail : public Entity {

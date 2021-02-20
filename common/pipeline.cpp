@@ -104,10 +104,10 @@ void Pipeline::commit()
         return;
     }
     const auto revision = d->entityStore.maxRevision();
+    d->entityStore.commitTransaction();
     const auto elapsed = d->transactionTime.elapsed();
     SinkTraceCtx(d->logCtx) << "Committing revision: " << revision << ":" << d->transactionItemCount << " items in: " << Log::TraceTime(elapsed) << " "
             << (double)elapsed / (double)qMax(d->transactionItemCount, 1) << "[ms/item]";
-    d->entityStore.commitTransaction();
     if (d->revisionChanged) {
         d->revisionChanged = false;
         emit revisionUpdated(revision);
@@ -280,7 +280,9 @@ KAsync::Job<qint64> Pipeline::modifiedEntity(void const *command, size_t size)
             if (entity.metadataBuffer()) {
                 if (auto metadata = GetMetadata(entity.metadataBuffer())) {
                     if (metadata->operation() == Operation_Modification && metadata->modifiedProperties()) {
-                        excludeProperties += BufferUtils::fromVector(*metadata->modifiedProperties()).toSet();
+                        const auto locallyModifiedProperties = BufferUtils::fromVector(*metadata->modifiedProperties()).toSet();
+                        SinkTraceCtx(d->logCtx) << "Protecting locally modified properties: " << locallyModifiedProperties;
+                        excludeProperties += locallyModifiedProperties;
                     }
                 }
             }

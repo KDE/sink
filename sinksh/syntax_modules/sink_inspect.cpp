@@ -70,15 +70,15 @@ static QString operationName(int operation)
 
 Syntax::List syntax();
 
-bool inspect(const QStringList &args, State &state)
+bool inspect(QStringList args, State &state)
 {
     if (args.isEmpty()) {
-        //state.printError(QObject::tr("Options: [--resource $resource] ([--db $db] [--filter $id] [--showinternal] | [--validaterids $type] | [--fulltext [$id]])"));
         state.printError(syntax()[0].usage());
         return false;
     }
+
+    const auto resource = SinkshUtils::parseUid(args.takeFirst().toLatin1());
     auto options = SyntaxTree::parseOptions(args);
-    auto resource = SinkshUtils::parseUid(options.options.value("resource").value(0).toUtf8());
 
     Sink::Storage::DataStore storage(Sink::storageLocation(), resource, Sink::Storage::DataStore::ReadOnly);
     auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
@@ -122,7 +122,7 @@ bool inspect(const QStringList &args, State &state)
         QSet<QByteArray> uids;
         db.scan("", [&] (const QByteArray &key, const QByteArray &data) {
                     size_t revision = Sink::byteArrayToSizeT(key);
-                    uids.insert(Sink::Storage::DataStore::getUidFromRevision(transaction, revision));
+                    uids.insert(Sink::Storage::DataStore::getUidFromRevision(transaction, revision).toDisplayByteArray());
                     return true;
                 },
                 [&](const Sink::Storage::DataStore::Error &e) {
@@ -168,9 +168,45 @@ bool inspect(const QStringList &args, State &state)
         return false;
     }
 
+    if (options.options.contains("history")) {
+        FulltextIndex index(resource, Sink::Storage::DataStore::ReadOnly);
+        if (options.options.value("history").isEmpty()) {
+            state.printLine(QString("Provide an entity uid to search for."));
+        } else {
+            const auto entityId = SinkshUtils::parseUid(options.options.value("history").first().toUtf8());
+
+            auto db = transaction.openDatabase("mail.main",
+                [&] (const Sink::Storage::DataStore::Error &e) {
+                    Q_ASSERT(false);
+                    state.printError(e.message);
+                });
+            //Print a by revision history for the given uid.
+            for (size_t revision : Sink::Storage::DataStore::getRevisionsFromUid(transaction, Sink::Storage::Identifier::fromDisplayByteArray(entityId))) {
+                db.scan(revision, [&] (const size_t &key, const QByteArray &data) {
+                    Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+                    if (!buffer.isValid()) {
+                        state.printError("Read invalid buffer from disk.");
+                    } else {
+                        const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
+                        state.printLine(" Operation: " + operationName(metadata->operation())
+                                        + " Replay: " + (metadata->replayToSource() ? "true" : "false")
+                                        + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": "")
+                                        + " Value size: " + QString::number(data.size())
+                                        );
+                    }
+                    return true;
+                },
+                [&](const Sink::Storage::DataStore::Error &e) {
+                    state.printError(e.message);
+                });
+            }
+
+        }
+        return false;
+    }
+
     auto dbs = options.options.value("db");
     auto idFilter = options.options.value("filter");
-    bool showInternal = options.options.contains("showinternal");
 
     state.printLine(QString("Current revision: %1").arg(Sink::Storage::DataStore::maxRevision(transaction)));
     state.printLine(QString("Last clean revision: %1").arg(Sink::Storage::DataStore::cleanedUpRevision(transaction)));
@@ -196,59 +232,47 @@ bool inspect(const QStringList &args, State &state)
                 state.printError(e.message);
             });
 
-    if (showInternal) {
-        //Print internal keys
-        db.scan("__internal", [&] (const QByteArray &key, const QByteArray &data) {
-                state.printLine("Internal: " + key + "\tValue: " + QString::fromUtf8(data));
+    QByteArray filter;
+    if (!idFilter.isEmpty()) {
+        filter = idFilter.first().toUtf8();
+    }
+
+    //Print rest of db
+    bool findSubstringKeys = !filter.isEmpty();
+    int keySizeTotal = 0;
+    int valueSizeTotal = 0;
+    auto count = db.scan(filter, [&] (const QByteArray &key, const QByteArray &data) {
+                keySizeTotal += key.size();
+                valueSizeTotal += data.size();
+
+                const auto parsedKey = parse(key);
+
+                if (isMainDb) {
+                    Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
+                    if (!buffer.isValid()) {
+                        state.printError("Read invalid buffer from disk: " + parsedKey);
+                    } else {
+                        const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
+                        state.printLine("Key: " + parsedKey
+                                        + " Operation: " + operationName(metadata->operation())
+                                        + " Replay: " + (metadata->replayToSource() ? "true" : "false")
+                                        + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": "")
+                                        + " Value size: " + QString::number(data.size())
+                                        );
+                    }
+                } else {
+                    state.printLine("Key: " + parsedKey + "\tValue: " + parse(data));
+                }
                 return true;
             },
             [&](const Sink::Storage::DataStore::Error &e) {
                 state.printError(e.message);
             },
-            true, false);
-    } else {
-        QByteArray filter;
-        if (!idFilter.isEmpty()) {
-            filter = idFilter.first().toUtf8();
-        }
+            findSubstringKeys);
 
-        //Print rest of db
-        bool findSubstringKeys = !filter.isEmpty();
-        int keySizeTotal = 0;
-        int valueSizeTotal = 0;
-        auto count = db.scan(filter, [&] (const QByteArray &key, const QByteArray &data) {
-                    keySizeTotal += key.size();
-                    valueSizeTotal += data.size();
-
-                    const auto parsedKey = parse(key);
-
-                    if (isMainDb) {
-                        Sink::EntityBuffer buffer(const_cast<const char *>(data.data()), data.size());
-                        if (!buffer.isValid()) {
-                            state.printError("Read invalid buffer from disk: " + parsedKey);
-                        } else {
-                            const auto metadata = flatbuffers::GetRoot<Sink::Metadata>(buffer.metadataBuffer());
-                            state.printLine("Key: " + parsedKey
-                                          + " Operation: " + operationName(metadata->operation())
-                                          + " Replay: " + (metadata->replayToSource() ? "true" : "false")
-                                          + ((metadata->modifiedProperties() && metadata->modifiedProperties()->size() != 0) ? (" [" + Sink::BufferUtils::fromVector(*metadata->modifiedProperties()).join(", ")) + "]": "")
-                                          + " Value size: " + QString::number(data.size())
-                                          );
-                        }
-                    } else {
-                        state.printLine("Key: " + parsedKey + "\tValue: " + parse(data));
-                    }
-                    return true;
-                },
-                [&](const Sink::Storage::DataStore::Error &e) {
-                    state.printError(e.message);
-                },
-                findSubstringKeys);
-
-        state.printLine("Found " + QString::number(count) + " entries");
-        state.printLine("Keys take up " + QString::number(keySizeTotal) + " bytes => " + QString::number(keySizeTotal/1024) + " kb");
-        state.printLine("Values take up " + QString::number(valueSizeTotal) + " bytes => " + QString::number(valueSizeTotal/1024) + " kb");
-    }
+    state.printLine("Found " + QString::number(count) + " entries");
+    state.printLine("Keys take up " + QString::number(keySizeTotal) + " bytes => " + QString::number(keySizeTotal/1024) + " kb");
+    state.printLine("Values take up " + QString::number(valueSizeTotal) + " bytes => " + QString::number(valueSizeTotal/1024) + " kb");
     return false;
 }
 
@@ -257,12 +281,12 @@ Syntax::List syntax()
     Syntax state("inspect", QObject::tr("Inspect database for the resource requested"),
         &SinkInspect::inspect, Syntax::NotInteractive);
 
-    state.addParameter("resource", {"resource", "Which resource to inspect", true});
+    state.addPositionalArgument({"resource", "Resource to inspect."});
     state.addParameter("db", {"database", "Which database to inspect"});
     state.addParameter("filter", {"id", "A specific id to filter the results by (currently not working)"});
-    state.addFlag("showinternal", "Show internal fields only");
     state.addParameter("validaterids", {"type", "Validate remote Ids of the given type"});
     state.addParameter("fulltext", {"id", "If 'id' is not given, count the number of fulltext documents. Else, print the terms of the document with the given id"});
+    state.addParameter("history", {"id", "Print all revisions for the entity with the given id"});
 
     state.completer = &SinkshUtils::resourceCompleter;
 

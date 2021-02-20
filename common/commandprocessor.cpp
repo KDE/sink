@@ -20,6 +20,7 @@
 #include "commandprocessor.h"
 
 #include <QDataStream>
+#include <QCoreApplication>
 
 #include "commands.h"
 #include "messagequeue.h"
@@ -156,6 +157,7 @@ void CommandProcessor::processSynchronizeCommand(const QByteArray &data)
 
 void CommandProcessor::setOldestUsedRevision(qint64 revision)
 {
+    SinkTrace() << "Updating lower bound revision:" << revision;
     mLowerBoundRevision = revision;
 }
 
@@ -214,7 +216,7 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
     flatbuffers::Verifier verifyer(reinterpret_cast<const uint8_t *>(data.constData()), data.size());
     if (!Sink::VerifyQueuedCommandBuffer(verifyer)) {
         SinkWarningCtx(mLogCtx) << "invalid buffer";
-        // return KAsync::error<void, qint64>(1, "Invalid Buffer");
+        return KAsync::error<qint64>(-1, "Invalid Buffer");
     }
     auto queuedCommand = Sink::GetQueuedCommand(data.constData());
     const auto commandId = queuedCommand->commandId();
@@ -233,11 +235,11 @@ KAsync::Job<qint64> CommandProcessor::processQueuedCommand(const QByteArray &dat
 // Process one batch of messages from this queue
 KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
 {
-    auto time = QSharedPointer<QTime>::create();
     return KAsync::start([=] { mPipeline->startTransaction(); })
         .then([=] {
                 return queue->dequeueBatch(sBatchSize,
                     [=](const QByteArray &data) {
+                        auto time = QSharedPointer<QTime>::create();
                         time->start();
                         return processQueuedCommand(data)
                         .then([=](qint64 createdRevision) {
@@ -264,6 +266,7 @@ KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
                 emit notify(n);
             }
             mCompleteFlushes.clear();
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
         });
 
 
@@ -271,10 +274,9 @@ KAsync::Job<void> CommandProcessor::processQueue(MessageQueue *queue)
 
 KAsync::Job<void> CommandProcessor::processPipeline()
 {
-    auto time = QSharedPointer<QTime>::create();
-    time->start();
+    mTime.start();
     mPipeline->cleanupRevisions(mLowerBoundRevision);
-    SinkTraceCtx(mLogCtx) << "Cleanup done." << Log::TraceTime(time->elapsed());
+    SinkTraceCtx(mLogCtx) << "Cleanup until revision " << mLowerBoundRevision << "done." << Log::TraceTime(mTime.elapsed());
 
     // Go through all message queues
     if (mCommandQueues.isEmpty()) {
@@ -283,11 +285,11 @@ KAsync::Job<void> CommandProcessor::processPipeline()
     return KAsync::doWhile([this]() {
             for (auto queue : mCommandQueues) {
                 if (!queue->isEmpty()) {
-                    auto time = QSharedPointer<QTime>::create();
-                    time->start();
+                    mTime.start();
                     return processQueue(queue)
-                        .then([=] {
-                            SinkTraceCtx(mLogCtx) << "Queue processed." << Log::TraceTime(time->elapsed());
+                        .guard(this)
+                        .then([this] {
+                            SinkTraceCtx(mLogCtx) << "Queue processed." << Log::TraceTime(mTime.elapsed());
                             return KAsync::Continue;
                         });
                 }

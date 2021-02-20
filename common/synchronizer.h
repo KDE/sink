@@ -22,6 +22,7 @@
 #include "sink_export.h"
 #include <QObject>
 #include <QStack>
+#include <QTime>
 #include <KAsync/Async>
 #include <domainadaptor.h>
 #include <query.h>
@@ -108,9 +109,9 @@ protected:
     *
     * All functions are called synchronously, and both @param entryGenerator and @param exists need to be synchronous.
     */
-    void scanForRemovals(const QByteArray &bufferType,
+    int scanForRemovals(const QByteArray &bufferType,
         const std::function<void(const std::function<void(const QByteArray &sinkId)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists);
-    void scanForRemovals(const QByteArray &bufferType, std::function<bool(const QByteArray &remoteId)> exists);
+    int scanForRemovals(const QByteArray &bufferType, std::function<bool(const QByteArray &remoteId)> exists);
 
     /**
      * An algorithm to create or modify the entity.
@@ -154,6 +155,7 @@ public:
             requestType(Synchronization),
             options(o),
             query(q),
+            applicableEntitiesType(q.type()),
             applicableEntities(q.ids())
         {
         }
@@ -181,6 +183,7 @@ public:
         RequestType requestType;
         RequestOptions options = NoOptions;
         Sink::QueryBase query;
+        QByteArray applicableEntitiesType;
         QByteArrayList applicableEntities;
     };
 
@@ -209,8 +212,8 @@ protected:
     virtual void mergeIntoQueue(const Synchronizer::SyncRequest &request, QList<Synchronizer::SyncRequest> &queue);
     void addToQueue(const Synchronizer::SyncRequest &request);
 
-    void emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id = QByteArray{}, const QByteArrayList &entiteis = QByteArrayList{});
-    void emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArrayList &entities);
+    void emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id = {}, const QByteArray &applicableEntitiesType = {}, const QByteArrayList &entities = {});
+    void emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArray &entitiesType, const QByteArrayList &entities);
 
     /**
      * Report progress for current task
@@ -250,6 +253,7 @@ private:
     bool mAbort;
     QMultiHash<QByteArray, SyncRequest> mPendingSyncRequests;
     QString mSecret;
+    QTime mTime;
 };
 
 }

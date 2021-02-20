@@ -1,4 +1,5 @@
-#include <QtTest>
+#include <QTest>
+#include <QSignalSpy>
 #include <QDebug>
 #include <functional>
 
@@ -36,7 +37,7 @@ public:
         });
         return facade;
     }
-    ~TestDummyResourceFacade(){};
+    ~TestDummyResourceFacade() override{};
     KAsync::Job<void> create(const T &domainObject) Q_DECL_OVERRIDE
     {
         SinkLogCtx(Sink::Log::Context{"test"}) << "Create: " <<  domainObject;
@@ -425,7 +426,7 @@ private slots:
         Sink::Store::modify(modification).exec().waitForFinished();
         QCOMPARE(facade->modifications.size(), 2);
         for (const auto &m : facade->modifications) {
-            QCOMPARE(m.getUid(), {"modifiedUid2"});
+            QCOMPARE(m.getUid(), QByteArray{"modifiedUid2"});
         }
 
         Sink::Store::remove(modification).exec().waitForFinished();

@@ -63,6 +63,9 @@ public:
     void writeValue(const QByteArray &key, const QByteArray &value);
     void writeValue(const QByteArray &prefix, const QByteArray &key, const QByteArray &value);
 
+    bool contains(const QByteArray &key);
+    bool contains(const QByteArray &prefix, const QByteArray &key);
+
 private:
     Sink::Storage::DataStore::Transaction &mTransaction;
 };

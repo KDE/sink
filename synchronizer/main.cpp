@@ -20,6 +20,7 @@
 #include <QGuiApplication>
 #include <QLockFile>
 #include <QDir>
+#include <QElapsedTimer>
 
 #include <signal.h>
 #ifndef Q_OS_WIN
@@ -83,19 +84,19 @@ void printStats()
      */
     {
         auto statm = read("/proc/self/statm").split(' ');
-        SinkLog() << "Program size:" << statm.value(0).toInt() << "pages";
-        SinkLog() << "RSS:"<< statm.value(1).toInt() << "pages";
-        SinkLog() << "Resident Shared:" << statm.value(2).toInt() << "pages";
-        SinkLog() << "Text (code):" << statm.value(3).toInt() << "pages";
-        SinkLog() << "Data (data + stack):" << statm.value(5).toInt() << "pages";
+        SinkTrace() << "Program size:" << statm.value(0).toInt() << "pages";
+        SinkTrace() << "RSS:"<< statm.value(1).toInt() << "pages";
+        SinkTrace() << "Resident Shared:" << statm.value(2).toInt() << "pages";
+        SinkTrace() << "Text (code):" << statm.value(3).toInt() << "pages";
+        SinkTrace() << "Data (data + stack):" << statm.value(5).toInt() << "pages";
     }
 
     {
         auto stat = read("/proc/self/stat").split(' ');
-        SinkLog() << "Minor page faults: " << stat.value(10).toInt();
-        SinkLog() << "Children minor page faults: " << stat.value(11).toInt();
-        SinkLog() << "Major page faults: " << stat.value(12).toInt();
-        SinkLog() << "Children major page faults: " << stat.value(13).toInt();
+        SinkTrace() << "Minor page faults: " << stat.value(10).toInt();
+        SinkTrace() << "Children minor page faults: " << stat.value(11).toInt();
+        SinkTrace() << "Major page faults: " << stat.value(12).toInt();
+        SinkTrace() << "Children major page faults: " << stat.value(13).toInt();
     }
 
     //Dump the complete memory map for the process
@@ -110,15 +111,43 @@ void printStats()
             const auto parts = s.split(": ");
             hash.insert(parts.value(0), parts.value(1));
         }
-        SinkLog() << "Read syscalls: " << hash.value("syscr").toInt();
-        SinkLog() << "Write syscalls: " << hash.value("syscw").toInt();
-        SinkLog() << "Read from disk: " << hash.value("read_bytes").toInt() / 1024 << "kb";
-        SinkLog() << "Written to disk: " << hash.value("write_bytes").toInt() / 1024 << "kb";
-        SinkLog() << "Cancelled write bytes: " << hash.value("cancelled_write_bytes").toInt();
+        SinkTrace() << "Read syscalls: " << hash.value("syscr").toInt();
+        SinkTrace() << "Write syscalls: " << hash.value("syscw").toInt();
+        SinkTrace() << "Read from disk: " << hash.value("read_bytes").toInt() / 1024 << "kb";
+        SinkTrace() << "Written to disk: " << hash.value("write_bytes").toInt() / 1024 << "kb";
+        SinkTrace() << "Cancelled write bytes: " << hash.value("cancelled_write_bytes").toInt();
     }
 
 #endif
 }
+
+class SynchronizerApplication : public QGuiApplication
+{
+    Q_OBJECT
+protected:
+    using QGuiApplication::QGuiApplication;
+
+    QElapsedTimer time;
+
+    /*
+     * If we block the event loop for too long the system becomes unresponsive to user inputs,
+     * so we monitor it and attempt to avoid blocking behaviour
+     */
+    bool notify(QObject *receiver, QEvent *event) override
+    {
+        if (time.isValid()) {
+            time.restart();
+        } else {
+            time.start();
+        }
+        const auto ret = QGuiApplication::notify(receiver, event);
+        const auto elapsed = time.elapsed();
+        if (elapsed > 1000) {
+            SinkWarning() << "Blocked the eventloop for " << Sink::Log::TraceTime(elapsed) << " with event " << event->type();
+        }
+        return ret;
+    }
+};
 
 int main(int argc, char *argv[])
 {
@@ -146,7 +175,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    QGuiApplication app(argc, argv);
+    SynchronizerApplication app(argc, argv);
     app.setQuitLockEnabled(false);
 
     QByteArrayList arguments;
@@ -199,3 +228,5 @@ int main(int argc, char *argv[])
     printStats();
     return ret;
 }
+
+#include "main.moc"

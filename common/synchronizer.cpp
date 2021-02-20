@@ -19,6 +19,8 @@
  */
 #include "synchronizer.h"
 
+#include <QCoreApplication>
+
 #include "definitions.h"
 #include "commands.h"
 #include "bufferutils.h"
@@ -149,24 +151,27 @@ void Synchronizer::deleteEntity(const QByteArray &sinkId, qint64 revision, const
     enqueueCommand(Sink::Commands::DeleteEntityCommand, BufferUtils::extractBuffer(fbb));
 }
 
-void Synchronizer::scanForRemovals(const QByteArray &bufferType, const std::function<void(const std::function<void(const QByteArray &key)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists)
+int Synchronizer::scanForRemovals(const QByteArray &bufferType, const std::function<void(const std::function<void(const QByteArray &key)> &callback)> &entryGenerator, std::function<bool(const QByteArray &remoteId)> exists)
 {
-    entryGenerator([this, bufferType, &exists](const QByteArray &sinkId) {
+    int count = 0;
+    entryGenerator([this, bufferType, &exists, &count](const QByteArray &sinkId) {
         const auto remoteId = syncStore().resolveLocalId(bufferType, sinkId);
         SinkTraceCtx(mLogCtx) << "Checking for removal " << sinkId << remoteId;
         // If we have no remoteId, the entity hasn't been replayed to the source yet
         if (!remoteId.isEmpty()) {
             if (!exists(remoteId)) {
                 SinkTraceCtx(mLogCtx) << "Found a removed entity: " << sinkId;
+                count++;
                 deleteEntity(sinkId, mEntityStore->maxRevision(), bufferType);
             }
         }
     });
+    return count;
 }
 
-void Synchronizer::scanForRemovals(const QByteArray &bufferType, std::function<bool(const QByteArray &remoteId)> exists)
+int Synchronizer::scanForRemovals(const QByteArray &bufferType, std::function<bool(const QByteArray &remoteId)> exists)
 {
-    scanForRemovals(bufferType,
+    return scanForRemovals(bufferType,
         [this, &bufferType](const std::function<void(const QByteArray &)> &callback) {
             store().readAllUids(bufferType, [callback](const QByteArray &uid) {
                 callback(uid);
@@ -390,24 +395,26 @@ void Synchronizer::flushComplete(const QByteArray &flushId)
     }
 }
 
-void Synchronizer::emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id, const QByteArrayList &entities)
+void Synchronizer::emitNotification(Notification::NoticationType type, int code, const QString &message, const QByteArray &id, const QByteArray &applicableEntitiesType, const QByteArrayList &entities)
 {
     Sink::Notification n;
     n.id = id;
     n.type = type;
     n.message = message;
     n.code = code;
+    n.entitiesType = applicableEntitiesType;
     n.entities = entities;
     emit notify(n);
 }
 
-void Synchronizer::emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArrayList &entities)
+void Synchronizer::emitProgressNotification(Notification::NoticationType type, int progress, int total, const QByteArray &id, const QByteArray &entitiesType, const QByteArrayList &entities)
 {
     Sink::Notification n;
     n.id = id;
     n.type = type;
     n.progress = progress;
     n.total = total;
+    n.entitiesType = entitiesType;
     n.entities = entities;
     emit notify(n);
 }
@@ -416,7 +423,9 @@ void Synchronizer::reportProgress(int progress, int total, const QByteArrayList 
 {
     if (progress > 0 && total > 0) {
         //Limit progress updates for large amounts
-        if (total >= 100 && progress % 10 != 0) {
+        if (total >= 1000 && progress % 100 != 0) {
+            return;
+        } else if (total >= 100 && progress % 10 != 0) {
             return;
         }
         SinkLogCtx(mLogCtx) << "Progress: " << progress << " out of " << total << mCurrentRequest.requestId << mCurrentRequest.applicableEntities;
@@ -426,7 +435,7 @@ void Synchronizer::reportProgress(int progress, int total, const QByteArrayList 
             }
             return entities;
         }();
-        emitProgressNotification(Notification::Progress, progress, total, mCurrentRequest.requestId, applicableEntities);
+        emitProgressNotification(Notification::Progress, progress, total, mCurrentRequest.requestId, mCurrentRequest.query.type(), applicableEntities);
     }
 }
 
@@ -482,7 +491,7 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
         return KAsync::start([this, request] {
             SinkLogCtx(mLogCtx) << "Synchronizing:" << request.query;
             setBusy(true, "Synchronization has started.", request.requestId);
-            emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, {}, {}, request.applicableEntities);
+            emitNotification(Notification::Info, ApplicationDomain::SyncInProgress, {}, {}, request.applicableEntitiesType, request.applicableEntities);
         }).then(synchronizeWithSource(request.query)).then([this] {
             //Commit after every request, so implementations only have to commit more if they add a lot of data.
             commit();
@@ -491,11 +500,11 @@ KAsync::Job<void> Synchronizer::processRequest(const SyncRequest &request)
             if (error) {
                 //Emit notification with error
                 SinkWarningCtx(mLogCtx) << "Synchronization failed: " << error;
-                emitNotification(Notification::Warning, ApplicationDomain::SyncError, {}, {}, request.applicableEntities);
+                emitNotification(Notification::Warning, ApplicationDomain::SyncError, {}, {}, request.applicableEntitiesType, request.applicableEntities);
                 return KAsync::error(error);
             } else {
                 SinkLogCtx(mLogCtx) << "Done Synchronizing";
-                emitNotification(Notification::Info, ApplicationDomain::SyncSuccess, {}, {}, request.applicableEntities);
+                emitNotification(Notification::Info, ApplicationDomain::SyncSuccess, {}, {}, request.applicableEntitiesType, request.applicableEntities);
                 return KAsync::null();
             }
         });
@@ -592,7 +601,7 @@ void Synchronizer::setBusy(bool busy, const QString &reason, const QByteArray re
 KAsync::Job<void> Synchronizer::processSyncQueue()
 {
     if (secret().isEmpty()) {
-        SinkLogCtx(mLogCtx) << "Secret not available but required.";
+        SinkTraceCtx(mLogCtx) << "Secret not available but required.";
         emitNotification(Notification::Warning, ApplicationDomain::SyncError, "Secret is not available.", {}, {});
         return KAsync::null<void>();
     }
@@ -613,6 +622,8 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
 
     const auto request = mSyncRequestQueue.takeFirst();
     return KAsync::start([=] {
+        SinkTraceCtx(mLogCtx) << "Start processing request " << request.requestType;
+        mTime.start();
         mMessageQueue->startTransaction();
         mEntityStore->startTransaction(Sink::Storage::DataStore::ReadOnly);
         mSyncInProgress = true;
@@ -620,7 +631,7 @@ KAsync::Job<void> Synchronizer::processSyncQueue()
     })
     .then(processRequest(request))
     .then<void>([this, request](const KAsync::Error &error) {
-        SinkTraceCtx(mLogCtx) << "Sync request processed";
+        SinkTraceCtx(mLogCtx) << "Sync request processed " << Sink::Log::TraceTime(mTime.elapsed());
         setBusy(false, {}, request.requestId);
         mCurrentRequest = {};
         mEntityStore->abortTransaction();
@@ -648,9 +659,19 @@ bool Synchronizer::aborting() const
 
 void Synchronizer::commit()
 {
+    SinkTraceCtx(mLogCtx) << "Commit." << Sink::Log::TraceTime(mTime.elapsed());
     mMessageQueue->commit();
     mSyncTransaction.commit();
     mSyncStore.clear();
+
+    //Avoid accumulating free pages at the cost of not executing a full sync on a consistent db view
+    if (mEntityStore->hasTransaction()) {
+        mEntityStore->abortTransaction();
+        mEntityStore->startTransaction(Sink::Storage::DataStore::ReadOnly);
+    }
+
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+
     if (mSyncInProgress) {
         mMessageQueue->startTransaction();
     }

@@ -25,23 +25,48 @@
 #include <QGuiApplication>
 #include <QUuid>
 #include <KMime/KMime/KMimeMessage>
+#include <KMime/KMime/Headers>
+#include <mime/mimetreeparser/objecttreeparser.h>
 
 #include "pipeline.h"
-#include "fulltextindex.h"
 #include "definitions.h"
 #include "applicationdomaintype.h"
 
 using namespace Sink;
 
-static Sink::ApplicationDomain::Mail::Contact getContact(const KMime::Headers::Generics::MailboxList *header)
+static QString getString(const KMime::Headers::Base *header)
 {
+    if (!header) {
+        return {};
+    }
+    return header->asUnicodeString() ;
+}
+
+static QDateTime getDate(const KMime::Headers::Base *header)
+{
+    if (!header) {
+        return {};
+    }
+    return static_cast<const KMime::Headers::Date*>(header)->dateTime();
+}
+
+static Sink::ApplicationDomain::Mail::Contact getContact(const KMime::Headers::Base *h)
+{
+    if (!h) {
+        return {};
+    }
+    const auto header = static_cast<const KMime::Headers::Generics::MailboxList*>(h);
     const auto name = header->displayNames().isEmpty() ? QString() : header->displayNames().first();
     const auto address = header->addresses().isEmpty() ? QString() : header->addresses().first();
     return Sink::ApplicationDomain::Mail::Contact{name, address};
 }
 
-static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime::Headers::Generics::AddressList *header)
+static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime::Headers::Base *h)
 {
+    if (!h) {
+        return {};
+    }
+    const auto header = static_cast<const KMime::Headers::Generics::AddressList*>(h);
     QList<Sink::ApplicationDomain::Mail::Contact> list;
     for (const auto &mb : header->mailboxes()) {
         list << Sink::ApplicationDomain::Mail::Contact{mb.name(), mb.address()};
@@ -49,32 +74,36 @@ static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime:
     return list;
 }
 
-static QList<QPair<QString, QString>> processPart(KMime::Content* content)
+static QVector<QByteArray> getIdentifiers(const KMime::Headers::Base *h)
 {
-    if (KMime::Headers::ContentType* type = content->contentType(false)) {
-        if (type->isMultipart() && !type->isSubtype("encrypted")) {
-            QList<QPair<QString, QString>> list;
-            for (const auto c : content->contents()) {
-                list << processPart(c);
-            }
-            return list;
-        } else if (type->isHTMLText()) {
-            //QTextDocument has an implicit runtime dependency on QGuiApplication via the color palette.
-            //If the QGuiApplication is not available we will crash (if the html contains colors).
-            Q_ASSERT(QGuiApplication::instance());
-            // Only get HTML content, if no plain text content
-            QTextDocument doc;
-            doc.setHtml(content->decodedText());
-            return {{{}, {doc.toPlainText()}}};
-        } else if (type->isEmpty()) {
-            return {{{}, {content->decodedText()}}};
-        }
+    if (!h) {
+        return {};
     }
-    return {};
+    return static_cast<const KMime::Headers::Generics::Ident*>(h)->identifiers();
 }
 
-QByteArray normalizeMessageId(const QByteArray &id) {
+static QByteArray getIdentifier(const KMime::Headers::Base *h)
+{
+    if (!h) {
+        return {};
+    }
+    return static_cast<const KMime::Headers::Generics::SingleIdent*>(h)->identifier();
+}
+
+static QByteArray normalizeMessageId(const QByteArray &id)
+{
     return id;
+}
+
+static QString toPlain(const QString &html)
+{
+    //QTextDocument has an implicit runtime dependency on QGuiApplication via the color palette.
+    //If the QGuiApplication is not available we will crash (if the html contains colors).
+    Q_ASSERT(QGuiApplication::instance());
+    // Only get HTML content, if no plain text content
+    QTextDocument doc;
+    doc.setHtml(html);
+    return doc.toPlainText();
 }
 
 void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, const QByteArray &data)
@@ -82,30 +111,35 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     if (data.isEmpty()) {
         return;
     }
-    auto msg = KMime::Message::Ptr(new KMime::Message);
-    msg->setContent(KMime::CRLFtoLF(data));
-    msg->parse();
-    if (!msg) {
+    MimeTreeParser::ObjectTreeParser otp;
+    otp.parseObjectTree(data);
+    otp.decryptAndVerify();
+
+    auto partList = otp.collectContentParts();
+    if (partList.isEmpty()) {
+        Q_ASSERT(false);
         return;
     }
+    auto part = partList[0];
+    Q_ASSERT(part);
 
-    mail.setExtractedSubject(msg->subject(true)->asUnicodeString());
-    mail.setExtractedSender(getContact(msg->from(true)));
-    mail.setExtractedTo(getContactList(msg->to(true)));
-    mail.setExtractedCc(getContactList(msg->cc(true)));
-    mail.setExtractedBcc(getContactList(msg->bcc(true)));
-    mail.setExtractedDate(msg->date(true)->dateTime());
+    mail.setExtractedSubject(getString(part->header(KMime::Headers::Subject::staticType())));
+    mail.setExtractedSender(getContact(part->header(KMime::Headers::From::staticType())));
+    mail.setExtractedTo(getContactList(part->header(KMime::Headers::To::staticType())));
+    mail.setExtractedCc(getContactList(part->header(KMime::Headers::Cc::staticType())));
+    mail.setExtractedBcc(getContactList(part->header(KMime::Headers::Bcc::staticType())));
+    mail.setExtractedDate(getDate(part->header(KMime::Headers::Date::staticType())));
 
     const auto parentMessageIds = [&] {
         //The last is the parent
-        auto references = msg->references(true)->identifiers();
+        const auto references = getIdentifiers(part->header(KMime::Headers::References::staticType()));
 
         if (!references.isEmpty()) {
             QByteArrayList list;
             std::transform(references.constBegin(), references.constEnd(), std::back_inserter(list), [] (const QByteArray &id) { return normalizeMessageId(id); });
             return list;
         } else {
-            auto inReplyTo = msg->inReplyTo(true)->identifiers();
+            const auto inReplyTo = getIdentifiers(part->header(KMime::Headers::InReplyTo::staticType()));
             if (!inReplyTo.isEmpty()) {
                 //According to RFC5256 we should ignore all but the first
                 return QByteArrayList{normalizeMessageId(inReplyTo.first())};
@@ -115,7 +149,7 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     }();
 
     //The rest should never change, unless we didn't have the headers available initially.
-    auto messageId = normalizeMessageId(msg->messageID(true)->identifier());
+    auto messageId = normalizeMessageId(getIdentifier(part->header(KMime::Headers::MessageID::staticType())));
     if (messageId.isEmpty()) {
         //reuse an existing messageid (on modification)
         const auto existing = mail.getMessageId();
@@ -135,26 +169,30 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
         mail.setExtractedParentMessageIds(parentMessageIds);
     }
     QList<QPair<QString, QString>> contentToIndex;
-    contentToIndex.append({{}, msg->subject()->asUnicodeString()});
-    if (KMime::Content* mainBody = msg->mainBodyPart("text/plain")) {
-        contentToIndex.append({{}, mainBody->decodedText()});
+    const auto subject = getString(part->header(KMime::Headers::Subject::staticType()));
+    contentToIndex.append({{"subject"}, subject});
+
+    const auto plainTextContent = otp.plainTextContent();
+    if (plainTextContent.isEmpty()) {
+        contentToIndex.append({{}, toPlain(otp.htmlContent())});
     } else {
-        contentToIndex << processPart(msg.data());
+        contentToIndex.append({{}, plainTextContent});
     }
+
     const auto sender = mail.getSender();
-    contentToIndex.append({{}, sender.name});
-    contentToIndex.append({{}, sender.emailAddress});
+    contentToIndex.append({{"sender"}, sender.name});
+    contentToIndex.append({{"sender"}, sender.emailAddress});
     for (const auto &c : mail.getTo()) {
-        contentToIndex.append({{}, c.name});
-        contentToIndex.append({{}, c.emailAddress});
+        contentToIndex.append({{"recipients"}, c.name});
+        contentToIndex.append({{"recipients"}, c.emailAddress});
     }
     for (const auto &c : mail.getCc()) {
-        contentToIndex.append({{}, c.name});
-        contentToIndex.append({{}, c.emailAddress});
+        contentToIndex.append({{"recipients"}, c.name});
+        contentToIndex.append({{"recipients"}, c.emailAddress});
     }
     for (const auto &c : mail.getBcc()) {
-        contentToIndex.append({{}, c.name});
-        contentToIndex.append({{}, c.emailAddress});
+        contentToIndex.append({{"recipients"}, c.name});
+        contentToIndex.append({{"recipients"}, c.emailAddress});
     }
 
     //Prepare content for indexing;

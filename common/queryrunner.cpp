@@ -49,7 +49,7 @@ class QueryWorker : public QObject
 {
 public:
     QueryWorker(const Sink::Query &query, const ResourceContext &context, const QByteArray &bufferType, const QueryRunnerBase::ResultTransformation &transformation, const Sink::Log::Context &logCtx);
-    virtual ~QueryWorker();
+    ~QueryWorker() override;
 
     ReplayResult executeIncrementalQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, DataStoreQuery::State::Ptr state);
     ReplayResult executeInitialQuery(const Sink::Query &query, Sink::ResultProviderInterface<typename DomainType::Ptr> &resultProvider, int batchsize, DataStoreQuery::State::Ptr state);
@@ -117,6 +117,14 @@ void QueryRunner<DomainType>::fetch(const Sink::Query &query, const QByteArray &
         return;
     }
     mQueryInProgress = true;
+
+    // Immediately protect from cleanup for live queries (there's not need to start the resource otherwise).
+    // Once the initial query is done we can relax the protection up until the revision we have read.
+    // Ideally we would only start the query once we have succesfully protected the revision we're about to read.
+    if (query.liveQuery()) {
+        mResourceAccess->sendRevisionReplayedCommand(0).exec();
+    }
+
     bool addDelay = mDelayNextQuery;
     mDelayNextQuery = false;
     const bool runAsync = !query.synchronousQuery();
@@ -148,9 +156,9 @@ void QueryRunner<DomainType>::fetch(const Sink::Query &query, const QByteArray &
             mInitialQueryComplete = true;
             mQueryInProgress = false;
             mQueryState = result.queryState;
-            // Only send the revision replayed information if we're connected to the resource, there's no need to start the resource otherwise.
             if (query.liveQuery()) {
-                mResourceAccess->sendRevisionReplayedCommand(result.newRevision);
+                // Relax the lower bound protection to the latest read revision.
+                mResourceAccess->sendRevisionReplayedCommand(result.newRevision).exec();
             }
             //Initial queries do not fetch updates, so avoid updating the revision when fetching more content.
             //Otherwise we end up breaking incremental updates.
@@ -216,7 +224,7 @@ KAsync::Job<void> QueryRunner<DomainType>::incrementalFetch(const Sink::Query &q
                 return KAsync::null();
             }
             mQueryInProgress = false;
-            mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.newRevision);
+            mResourceAccess->sendRevisionReplayedCommand(newRevisionAndReplayedEntities.newRevision).exec();
             mResultProvider->setRevision(newRevisionAndReplayedEntities.newRevision);
             if (mRevisionChangedMeanwhile) {
                 return incrementalFetch(query, bufferType);
@@ -310,6 +318,12 @@ ReplayResult QueryWorker<DomainType>::executeIncrementalQuery(const Sink::Query 
     auto entityStore = EntityStore{mResourceContext, mLogCtx};
     const qint64 topRevision = entityStore.maxRevision();
     SinkTraceCtx(mLogCtx) << "Running query update from revision: " << baseRevision << " to revision " << topRevision;
+    if (entityStore.lastCleanRevision() >= baseRevision) {
+        //This is a situation we should never end up in. In case of removals some revisions may be gone entirely, which will result in failures later on.
+        SinkErrorCtx(mLogCtx) << "Revision from which we want to replay is no longer available" << entityStore.lastCleanRevision();
+        Q_ASSERT(false);
+        return {0, 0, false, DataStoreQuery::State::Ptr{}};
+    }
     if (!state) {
         SinkWarningCtx(mLogCtx) << "No previous query state.";
         return {0, 0, false, DataStoreQuery::State::Ptr{}};

@@ -16,7 +16,7 @@
  *   Free Software Foundation, Inc.,
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-#include <QtTest>
+#include <QTest>
 #include <QTcpSocket>
 
 #include "../imapresource.h"
@@ -28,6 +28,7 @@
 #include "common/store.h"
 #include "common/resourcecontrol.h"
 #include "common/secretstore.h"
+#include "common/definitions.h"
 
 #include <tests/hawd/dataset.h>
 #include <tests/hawd/formatter.h>
@@ -129,12 +130,18 @@ private slots:
         auto resynctotal = time.elapsed();
         SinkLog() << "Total resync took: " << Sink::Log::TraceTime(resynctotal);
 
+        Sink::Storage::DataStore storage(Sink::storageLocation(), mResourceInstanceIdentifier, Sink::Storage::DataStore::ReadOnly);
+        auto transaction = storage.createTransaction(Sink::Storage::DataStore::ReadOnly);
+        auto stat = transaction.stat(false);
+        SinkLog() << "Total free pages: " << stat.freePages;
+
         HAWD::Dataset dataset("imap_mail_sync", mHawdState);
         HAWD::Dataset::Row row = dataset.row();
         row.setValue("sync", sync);
         row.setValue("total", total);
         row.setValue("resync", resync);
         row.setValue("resynctotal", resynctotal);
+        row.setValue("freepages", QVariant::fromValue(stat.freePages));
         dataset.insertRow(row);
         HAWD::Formatter::print(dataset);
     }

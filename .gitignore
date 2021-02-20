@@ -2,3 +2,5 @@
 *.kdev4
 build/
 site
+.clangd/
+compile_commands.json

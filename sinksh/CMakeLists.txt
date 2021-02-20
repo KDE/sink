@@ -19,6 +19,8 @@ set(sink_cli_SRCS
     syntax_modules/sink_info.cpp
     syntax_modules/sink_livequery.cpp
     syntax_modules/sink_selftest.cpp
+    syntax_modules/sink_connectiontest.cpp
+    syntax_modules/sink_monitor.cpp
     sinksh_utils.cpp
     repl/repl.cpp
     repl/replStates.cpp

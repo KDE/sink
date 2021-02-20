@@ -38,6 +38,11 @@ qint64 ChangeReplay::getLastReplayedRevision()
 {
     qint64 lastReplayedRevision = 0;
     auto replayStoreTransaction = mChangeReplayStore.createTransaction(DataStore::ReadOnly);
+    //This only happens if we for some reason can't open the database at all, and we don't have a recovery from that.
+    if (!replayStoreTransaction) {
+        SinkErrorCtx(mLogCtx) << "Failed to create a read-only transaction during change-replay";
+        std::abort();
+    }
     replayStoreTransaction.openDatabase().scan("lastReplayedRevision",
         [&lastReplayedRevision](const QByteArray &key, const QByteArray &value) -> bool {
             lastReplayedRevision = value.toLongLong();
@@ -110,11 +115,11 @@ KAsync::Job<void> ChangeReplay::replayNextRevision()
                     while (revision <= *topRevision) {
                         const auto uid = DataStore::getUidFromRevision(mMainStoreTransaction, revision);
                         const auto type = DataStore::getTypeFromRevision(mMainStoreTransaction, revision);
-                        if (uid.isEmpty() || type.isEmpty()) {
+                        if (uid.isNull() || type.isEmpty()) {
                             SinkErrorCtx(mLogCtx) << "Failed to read uid or type for revison: " << revision << uid << type;
                         } else {
                             // TODO: should not use internal representations
-                            const auto key = Storage::Key(Storage::Identifier::fromDisplayByteArray(uid), revision);
+                            const auto key = Storage::Key(uid, revision);
                             const auto displayKey = key.toDisplayByteArray();
                             QByteArray entityBuffer;
                             DataStore::mainDatabase(mMainStoreTransaction, type)

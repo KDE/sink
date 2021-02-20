@@ -18,6 +18,7 @@
  */
 
 #pragma once
+#include <QDeadlineTimer>
 
 #include <KAsync/Async>
 
@@ -26,6 +27,7 @@
 #include <KIMAP2/Session>
 #include <KIMAP2/FetchJob>
 #include <KIMAP2/SearchJob>
+#include <KIMAP2/LoginJob>
 
 namespace Imap {
 
@@ -187,11 +189,12 @@ public:
     }
 };
 
+using namespace std::chrono_literals;
 class CachedSession {
 public:
 
     CachedSession() = default;
-    CachedSession(KIMAP2::Session *session, const QStringList &cap, const Namespaces &ns) : mSession(session), mCapabilities(cap), mNamespaces(ns)
+    CachedSession(KIMAP2::Session *session, const QStringList &cap, const Namespaces &ns) : mSession(session), mCapabilities(cap), mNamespaces(ns), mTimer{30s}
     {
     }
 
@@ -200,9 +203,17 @@ public:
         return mSession && (mSession == other.mSession);
     }
 
-    bool isConnected()
+    bool isConnected() const
     {
         return (mSession->state() == KIMAP2::Session::State::Authenticated || mSession->state() == KIMAP2::Session::State::Selected) ;
+    }
+
+    bool isExpired()
+    {
+        // Don't touch sessions that have been cached for over 5min
+        // This is useful e.g. after a sleep, so we don't use a stale session,
+        // that will then fail anyways.
+        return mTimer.hasExpired();
     }
 
     bool isValid()
@@ -213,6 +224,9 @@ public:
     KIMAP2::Session *mSession = nullptr;
     QStringList mCapabilities;
     Namespaces mNamespaces;
+
+private:
+    QDeadlineTimer mTimer;
 };
 
 class SessionCache : public QObject {
@@ -220,6 +234,9 @@ class SessionCache : public QObject {
 public:
     void recycleSession(const CachedSession &session)
     {
+        if (!session.isConnected()) {
+            return;
+        }
         QObject::connect(session.mSession, &KIMAP2::Session::stateChanged, this, [this, session](KIMAP2::Session::State newState, KIMAP2::Session::State oldState) {
             if (newState == KIMAP2::Session::Disconnected) {
                 mSessions.removeOne(session);
@@ -232,7 +249,7 @@ public:
     {
         while (!mSessions.isEmpty()) {
             auto session = mSessions.takeLast();
-            if (session.isConnected()) {
+            if (session.isConnected() && !session.isExpired()) {
                 return session;
             }
         }
@@ -253,9 +270,13 @@ enum EncryptionMode {
     Starttls
 };
 
+using AuthenticationMode = KIMAP2::LoginJob::AuthenticationMode;
+
+AuthenticationMode fromAuthString(const QString &s);
+
 class ImapServerProxy {
 public:
-    ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryption, SessionCache *sessionCache = nullptr);
+    ImapServerProxy(const QString &serverUrl, int port, EncryptionMode encryption, AuthenticationMode authentication = AuthenticationMode::Plain, SessionCache *sessionCache = nullptr);
 
     //Standard IMAP calls
     KAsync::Job<void> login(const QString &username, const QString &password);
@@ -294,8 +315,9 @@ public:
     KAsync::Job<void> move(const QString &mailbox, const KIMAP2::ImapSet &set, const QString &newMailbox);
     KAsync::Job<QString> createSubfolder(const QString &parentMailbox, const QString &folderName);
     KAsync::Job<QString> renameSubfolder(const QString &mailbox, const QString &newName);
-    KAsync::Job<QVector<qint64>> fetchUids(const QString &mailbox);
-    KAsync::Job<QVector<qint64>> fetchUidsSince(const QString &mailbox, const QDate &since);
+    KAsync::Job<QVector<qint64>> fetchUids();
+    KAsync::Job<QVector<qint64>> fetchUidsSince(const QDate &since);
+    KAsync::Job<QVector<qint64>> fetchUidsSince(const QDate &since, qint64 lowerBound);
 
     QString mailboxFromFolder(const Folder &) const;
 
@@ -303,7 +325,7 @@ public:
     KAsync::Job<void> fetchMessages(const Folder &folder, std::function<void(const Message &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
     KAsync::Job<void> fetchMessages(const Folder &folder, qint64 uidNext, std::function<void(const Message &)> callback, std::function<void(int, int)> progress = std::function<void(int, int)>());
     KAsync::Job<void> fetchMessages(const Folder &folder, const QVector<qint64> &uidsToFetch, bool headersOnly, std::function<void(const Message &)> callback, std::function<void(int, int)> progress);
-    KAsync::Job<SelectResult> fetchFlags(const Folder &folder, const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback);
+    KAsync::Job<void> fetchFlags(const KIMAP2::ImapSet &set, qint64 changedsince, std::function<void(const Message &)> callback);
     KAsync::Job<QVector<qint64>> fetchUids(const Folder &folder);
 
 private:
@@ -317,6 +339,9 @@ private:
     QStringList mCapabilities;
     Namespaces mNamespaces;
     EncryptionMode mEncryptionMode;
+    AuthenticationMode mAuthenticationMode;
+    const QString mServerUrl;
+    const int mPort;
 };
 
 }

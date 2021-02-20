@@ -35,12 +35,13 @@ public:
 
 protected:
     KAsync::Job<QByteArray> createItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &uid, const QByteArray &collectionRid);
+    KAsync::Job<QByteArray> moveItem(const QByteArray &vcard, const QByteArray &contentType, const QByteArray &uid, const QByteArray &collectionRid, const QByteArray &oldRemoteId);
     KAsync::Job<QByteArray> modifyItem(const QByteArray &oldRemoteId, const QByteArray &vcard, const QByteArray &contentType, const QByteArray &collectionRid);
     KAsync::Job<QByteArray> removeItem(const QByteArray &oldRemoteId);
 
-    KAsync::Job<void> createCollection(const QByteArray &collectionRid);
-    KAsync::Job<void> removeCollection(const QByteArray &collectionRid);
-    KAsync::Job<void> modifyCollection(const QByteArray &collectionRid);
+    KAsync::Job<QByteArray> createCollection(const KDAV2::DavCollection &collection, const KDAV2::Protocol protocol);
+    KAsync::Job<QByteArray> removeCollection(const QByteArray &collectionRid);
+    KAsync::Job<QByteArray> modifyCollection(const QByteArray &collectionRid, const KDAV2::DavCollection &collection);
 
     /**
      * Called with the list of discovered collections. It's purpose should be
@@ -77,6 +78,7 @@ protected:
 
 private:
     KAsync::Job<KDAV2::DavUrl> discoverServer();
+    KAsync::Job<QPair<QUrl, QStringList>> discoverHome(const KDAV2::DavUrl &serverUrl);
 
     KDAV2::Protocol mProtocol;
     const QByteArray mCollectionType;

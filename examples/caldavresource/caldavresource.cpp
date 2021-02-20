@@ -58,7 +58,6 @@ protected:
         QVector<QByteArray> ridList;
         for (const auto &remoteCalendar : calendarList) {
             const auto &rid = resourceID(remoteCalendar);
-            SinkLog() << "Found calendar:" << remoteCalendar.displayName() << "[" << rid << "]" << remoteCalendar.contentTypes();
 
             Calendar localCalendar;
             localCalendar.setName(remoteCalendar.displayName());
@@ -76,6 +75,7 @@ protected:
 
             const auto sinkId = syncStore().resolveRemoteId(ENTITY_TYPE_CALENDAR, rid);
             const auto found = store().contains(ENTITY_TYPE_CALENDAR, sinkId);
+            SinkLog() << "Found calendar:" << remoteCalendar.displayName() << "[" << rid << "]" << remoteCalendar.contentTypes() << (found ? " (existing)" : "");
 
             //Set default when creating, otherwise don't touch
             if (!found) {
@@ -109,7 +109,7 @@ protected:
 
             createOrModify(ENTITY_TYPE_TODO, rid, localTodo, {});
         } else {
-                SinkWarning() << "Trying to add a 'Unknown' item";
+            SinkWarning() << "Trying to add a 'Unknown' item";
         }
     }
 
@@ -138,6 +138,12 @@ protected:
                 if (rawIcal.isEmpty()) {
                     return KAsync::error<QByteArray>("No ICal in item for modification replay");
                 }
+
+                //Not pretty but all ical types happen to have a calendar property of the same name.
+                if (changedProperties.contains(ApplicationDomain::Event::Calendar::name)) {
+                    return moveItem(rawIcal, "text/calendar", localItem.getUid().toUtf8() + ".ics", syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()), oldRemoteId);
+                }
+
                 return modifyItem(oldRemoteId, rawIcal, "text/calendar", syncStore().resolveLocalId(ENTITY_TYPE_CALENDAR, localItem.getCalendar()));
         }
         return KAsync::null<QByteArray>();
@@ -161,23 +167,48 @@ protected:
         SinkLog() << "Replaying calendar" << changedProperties;
 
         switch (operation) {
-            case Sink::Operation_Creation:
-                SinkWarning() << "Unimplemented replay of calendar creation";
-                break;
+            case Sink::Operation_Creation: {
+                SinkLog() << "Replaying calendar creation";
+                KDAV2::DavCollection collection;
+
+                collection.setDisplayName(calendar.getName());
+                //Default to allowing both
+                collection.setContentTypes(KDAV2::DavCollection::Todos | KDAV2::DavCollection::Events);
+                if (calendar.getContentTypes().contains("event")) {
+                    collection.setContentTypes(KDAV2::DavCollection::Events);
+                }
+                if (calendar.getContentTypes().contains("todo")) {
+                    collection.setContentTypes(KDAV2::DavCollection::Todos);
+                }
+
+                return createCollection(collection, KDAV2::CalDav);
+            }
             case Sink::Operation_Removal:
                 SinkLog() << "Replaying calendar removal";
-                removeCollection(oldRemoteId);
-                break;
-            case Sink::Operation_Modification:
-                SinkWarning() << "Unimplemented replay of calendar modification";
+                return removeCollection(oldRemoteId);
+            case Sink::Operation_Modification: {
+                SinkLog() << "Replaying calendar modification";
                 if (calendar.getEnabled() && changedProperties.contains(Calendar::Enabled::name)) {
                     //Trigger synchronization of that calendar
                     Query scope;
                     scope.setType<Event>();
                     scope.filter<Event::Calendar>(calendar);
                     synchronize(scope);
+                    if (changedProperties.size() == 1) {
+                        return KAsync::value(oldRemoteId);
+                    }
                 }
-                break;
+                KDAV2::DavCollection collection;
+                collection.setDisplayName(calendar.getName());
+                collection.setColor(QColor{QString{calendar.getColor()}});
+                if (calendar.getContentTypes().contains("event")) {
+                    collection.setContentTypes(KDAV2::DavCollection::Events);
+                }
+                if (calendar.getContentTypes().contains("todo")) {
+                    collection.setContentTypes(KDAV2::DavCollection::Todos);
+                }
+                return modifyCollection(oldRemoteId, collection);
+            }
         }
 
         return KAsync::null<QByteArray>();
@@ -187,7 +218,7 @@ protected:
 class CollectionCleanupPreprocessor : public Sink::Preprocessor
 {
 public:
-    virtual void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
+    void deletedEntity(const ApplicationDomain::ApplicationDomainType &oldEntity) Q_DECL_OVERRIDE
     {
         //Remove all events of a collection when removing the collection.
         const auto revision = entityStore().maxRevision();

@@ -101,7 +101,7 @@ void Listener::emergencyAbortAllConnections()
     for (Client &client : m_connections) {
         if (client.socket) {
             SinkWarning() << "Sending panic";
-            client.socket->write("PANIC");
+            Sink::Commands::write(client.socket, ++m_messageId, Sink::Commands::ShutdownCommand, "PANIC", 5);
             client.socket->waitForBytesWritten();
             disconnect(client.socket, nullptr, this, nullptr);
             client.socket->abort();
@@ -142,11 +142,6 @@ void Listener::acceptConnection()
     connect(socket, &QIODevice::readyRead, this, &Listener::onDataAvailable);
     connect(socket, &QLocalSocket::disconnected, this, &Listener::clientDropped);
     m_checkConnectionsTimer->stop();
-
-    // If this is the first client, set the lower limit for revision cleanup
-    if (m_connections.size() == 1) {
-        loadResource().setLowerBoundRevision(0);
-    }
 
     if (socket->bytesAvailable()) {
         readFromSocket(socket);
@@ -434,12 +429,14 @@ void Listener::notify(const Sink::Notification &notification)
 {
     auto messageString = m_fbb.CreateString(notification.message.toUtf8().constData(), notification.message.toUtf8().size());
     auto idString = m_fbb.CreateString(notification.id.constData(), notification.id.size());
+    auto entitiesType = m_fbb.CreateString(notification.entitiesType.constData(), notification.entitiesType.size());
     auto entities = Sink::BufferUtils::toVector(m_fbb, notification.entities);
     Sink::Commands::NotificationBuilder builder(m_fbb);
     builder.add_type(notification.type);
     builder.add_code(notification.code);
     builder.add_identifier(idString);
     builder.add_message(messageString);
+    builder.add_entitiesType(entitiesType);
     builder.add_entities(entities);
     builder.add_progress(notification.progress);
     builder.add_total(notification.total);

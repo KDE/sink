@@ -1,4 +1,4 @@
-#include <QtTest>
+#include <QTest>
 
 #include <QString>
 #include <QSignalSpy>
@@ -778,6 +778,43 @@ private slots:
         QTRY_COMPARE(model->rowCount(), 0);
     }
 
+    void testLivequeryFilterUnrelated()
+    {
+        // Setup
+        auto folder1 = Folder::createEntity<Folder>("sink.dummy.instance1");
+        VERIFYEXEC(Sink::Store::create<Folder>(folder1));
+
+        auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail1.setExtractedMessageId("mail1");
+        mail1.setFolder(folder1);
+        VERIFYEXEC(Sink::Store::create(mail1));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        Query query;
+        query.setId("testLivequeryUnmatch");
+        query.filter(mail1.identifier());
+        query.setFlags(Query::LiveQuery);
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+
+        //Create another mail and make sure it doesn't show up in the query
+        auto mail2 = Mail::createEntity<Mail>("sink.dummy.instance1");
+        mail2.setExtractedMessageId("mail2");
+        mail2.setFolder(folder1);
+        VERIFYEXEC(Sink::Store::create(mail2));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        QCOMPARE(model->rowCount(), 1);
+
+        //A removal should still make it though
+        {
+            VERIFYEXEC(Sink::Store::remove(mail1));
+        }
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        QTRY_COMPARE(model->rowCount(), 0);
+    }
+
+
     void testLivequeryRemoveOneInThread()
     {
         // Setup
@@ -1133,6 +1170,7 @@ private slots:
         QCOMPARE(model->rowCount(), 2);
     }
 
+    //Live query bloom filter
     void testLivequeryFilterCreationInThread()
     {
         // Setup
@@ -1207,6 +1245,7 @@ private slots:
         QCOMPARE(resetSpy.size(), 0);
     }
 
+    //Live query reduction
     void testLivequeryThreadleaderChange()
     {
         // Setup
@@ -1428,6 +1467,7 @@ private slots:
      * This test excercises the scenario where a fetchMore is triggered after
      * the revision is already updated in storage, but the incremental query was not run yet.
      * This resulted in lost modification updates.
+     * It also exercised the lower bound protection, because we delay the update, and thus the resource will already have cleaned up.
      */
     void testQueryRunnerDontMissUpdatesWithFetchMore()
     {
@@ -1453,12 +1493,17 @@ private slots:
         emitter->onModified([&](Folder::Ptr folder) {
             modified << folder;
         });
+        QList<Folder::Ptr> removed;
+        emitter->onRemoved([&](Folder::Ptr folder) {
+            removed << folder;
+        });
 
         emitter->fetch();
         QTRY_COMPARE(added.size(), 1);
         QCOMPARE(modified.size(), 0);
+        QCOMPARE(removed.size(), 0);
 
-        runner->ignoreRevisionChanges(true);
+        runner->ignoreRevisionChanges();
 
         folder1.setName("name2");
         VERIFYEXEC(Sink::Store::modify<Folder>(folder1));
@@ -1466,11 +1511,17 @@ private slots:
 
         emitter->fetch();
 
-        runner->ignoreRevisionChanges(false);
         runner->triggerRevisionChange();
 
         QTRY_COMPARE(added.size(), 1);
         QTRY_COMPARE(modified.size(), 1);
+        QCOMPARE(removed.size(), 0);
+
+        runner->ignoreRevisionChanges();
+        VERIFYEXEC(Sink::Store::remove<Folder>(folder1));
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        runner->triggerRevisionChange();
+        QTRY_COMPARE(removed.size(), 1);
     }
 
     /*
@@ -1731,6 +1782,261 @@ private slots:
             QCOMPARE(Sink::Store::read<Mail>(query).size(), 0);
         }
 
+        //Filter by subject field
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, QueryBase::Comparator(QString("subject:\"Subject To Search\""), QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+        //Ensure the query searches the right field
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, QueryBase::Comparator(QString("sender:\"Subject To Search\""), QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 0);
+        }
+    }
+
+    void testLiveMailFulltext()
+    {
+        Sink::Query query;
+        query.setFlags(Query::LiveQuery);
+        query.resourceFilter("sink.dummy.instance1");
+        query.filter<Mail::Subject>(QueryBase::Comparator(QString("Live Subject To Search"), QueryBase::Comparator::Fulltext));
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 0);
+        Mail mailToModify;
+        {
+            {
+                auto msg = KMime::Message::Ptr::create();
+                msg->subject()->from7BitString("Not a match");
+                msg->setBody("This is the searchable body bar. unique sender1");
+                msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
+                msg->to()->from7BitString("\"Foo Bar\"<foo-bar@example.org>");
+                msg->assemble();
+
+                auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
+                mail.setExtractedMessageId("test1");
+                mail.setFolder("folder1");
+                mail.setMimeMessage(msg->encodedContent());
+                VERIFYEXEC(Sink::Store::create<Mail>(mail));
+            }
+            {
+                auto msg = KMime::Message::Ptr::create();
+                msg->subject()->from7BitString("Live Subject To Search");
+                msg->setBody("This is the searchable body bar. unique sender2");
+                msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
+                msg->to()->from7BitString("\"Foo Bar\"<foo-bar@example.org>");
+                msg->assemble();
+
+                auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
+                mail.setExtractedMessageId("test1");
+                mail.setFolder("folder1");
+                mail.setMimeMessage(msg->encodedContent());
+                mail.setUnread(true);
+                VERIFYEXEC(Sink::Store::create<Mail>(mail));
+                mailToModify = mail;
+            }
+
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        }
+        QTRY_COMPARE(model->rowCount(), 1);
+        //Test a modification that shouldn't affect the result
+        {
+            QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
+            QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
+            QSignalSpy changedSpy(model.data(), &QAbstractItemModel::dataChanged);
+            QSignalSpy layoutChangedSpy(model.data(), &QAbstractItemModel::layoutChanged);
+            QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
+
+            mailToModify.setUnread(false);
+            VERIFYEXEC(Sink::Store::modify(mailToModify));
+
+            QTRY_COMPARE(changedSpy.size(), 1);
+            QCOMPARE(insertedSpy.size(), 0);
+            QCOMPARE(removedSpy.size(), 0);
+            QCOMPARE(layoutChangedSpy.size(), 0);
+            QCOMPARE(resetSpy.size(), 0);
+        }
+        //Test a modification that should affect the result
+        {
+            QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
+            QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
+            QSignalSpy changedSpy(model.data(), &QAbstractItemModel::dataChanged);
+            QSignalSpy layoutChangedSpy(model.data(), &QAbstractItemModel::layoutChanged);
+            QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
+
+            auto msg = KMime::Message::Ptr::create();
+            msg->subject()->from7BitString("No longer a match");
+            msg->setBody("This is the searchable body bar. unique sender2");
+            msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
+            msg->to()->from7BitString("\"Foo Bar\"<foo-bar@example.org>");
+            msg->assemble();
+
+            mailToModify.setMimeMessage(msg->encodedContent());
+            VERIFYEXEC(Sink::Store::modify(mailToModify));
+
+            QTRY_COMPARE(removedSpy.size(), 1);
+            QCOMPARE(changedSpy.size(), 0);
+            QCOMPARE(insertedSpy.size(), 0);
+            QCOMPARE(layoutChangedSpy.size(), 0);
+            QCOMPARE(resetSpy.size(), 0);
+        }
+        QCOMPARE(model->rowCount(), 0);
+    }
+
+    void testLiveMailFulltextThreaded()
+    {
+        Sink::Query query;
+        query.setFlags(Query::LiveQuery);
+        query.resourceFilter("sink.dummy.instance1");
+        //Rely on partial matching
+        query.filter<Mail::Subject>(QueryBase::Comparator(QString("LiveSubject"), QueryBase::Comparator::Fulltext));
+        query.reduce<Mail::Folder>(Query::Reduce::Selector::max<Mail::Date>()).count("count").collect<Mail::Sender>("senders");
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+        QCOMPARE(model->rowCount(), 0);
+        Mail mail1;
+        Mail mail2;
+        Mail mail3;
+        {
+            {
+                auto msg = KMime::Message::Ptr::create();
+                msg->subject()->from7BitString("Not a match");
+                msg->setBody("This is the searchable body bar. unique sender1");
+                msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
+                msg->to()->from7BitString("\"Foo Bar\"<foo-bar@example.org>");
+                msg->assemble();
+
+                auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
+                mail.setExtractedMessageId("test1");
+                mail.setFolder("folder1");
+                mail.setMimeMessage(msg->encodedContent());
+                mail.setUnread(true);
+                VERIFYEXEC(Sink::Store::create<Mail>(mail));
+                mail1 = mail;
+            }
+            {
+                auto msg = KMime::Message::Ptr::create();
+                msg->subject()->from7BitString("LiveSubjectToSearch");
+                msg->setBody("This is the searchable body bar. unique sender2");
+                msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
+                msg->to()->from7BitString("\"Foo Bar\"<foo-bar@example.org>");
+                msg->assemble();
+
+                auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
+                mail.setExtractedMessageId("test2");
+                mail.setFolder("folder1");
+                mail.setMimeMessage(msg->encodedContent());
+                mail.setUnread(true);
+                VERIFYEXEC(Sink::Store::create<Mail>(mail));
+                mail2 = mail;
+            }
+            {
+                auto msg = KMime::Message::Ptr::create();
+                msg->subject()->from7BitString("LiveSubjectToSearch");
+                msg->setBody("This is the searchable body bar. unique sender2");
+                msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
+                msg->to()->from7BitString("\"Foo Bar\"<foo-bar@example.org>");
+                msg->assemble();
+
+                auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
+                mail.setExtractedMessageId("test3");
+                mail.setFolder("folder2");
+                mail.setMimeMessage(msg->encodedContent());
+                mail.setUnread(true);
+                VERIFYEXEC(Sink::Store::create<Mail>(mail));
+                mail3 = mail;
+            }
+
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+        }
+        QTRY_COMPARE(model->rowCount(), 2);
+        //Test a modification that shouldn't affect the result
+        {
+            QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
+            QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
+            QSignalSpy changedSpy(model.data(), &QAbstractItemModel::dataChanged);
+            QSignalSpy layoutChangedSpy(model.data(), &QAbstractItemModel::layoutChanged);
+            QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
+
+            mail2.setUnread(false);
+            VERIFYEXEC(Sink::Store::modify(mail2));
+
+            QTRY_COMPARE(changedSpy.size(), 1);
+            QCOMPARE(insertedSpy.size(), 0);
+            QCOMPARE(removedSpy.size(), 0);
+            QCOMPARE(layoutChangedSpy.size(), 0);
+            QCOMPARE(resetSpy.size(), 0);
+        }
+
+        //Test a modification that shouldn't affect the result
+        {
+            QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
+            QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
+            QSignalSpy changedSpy(model.data(), &QAbstractItemModel::dataChanged);
+            QSignalSpy layoutChangedSpy(model.data(), &QAbstractItemModel::layoutChanged);
+            QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
+
+            mail1.setUnread(false);
+            VERIFYEXEC(Sink::Store::modify(mail1));
+
+            QTRY_COMPARE(changedSpy.size(), 1);
+            QCOMPARE(insertedSpy.size(), 0);
+            QCOMPARE(removedSpy.size(), 0);
+            QCOMPARE(layoutChangedSpy.size(), 0);
+            QCOMPARE(resetSpy.size(), 0);
+        }
+
+        {
+            QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
+            QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
+            QSignalSpy changedSpy(model.data(), &QAbstractItemModel::dataChanged);
+            QSignalSpy layoutChangedSpy(model.data(), &QAbstractItemModel::layoutChanged);
+            QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
+
+            mail3.setUnread(false);
+            VERIFYEXEC(Sink::Store::modify(mail1));
+
+            QTRY_COMPARE(changedSpy.size(), 1);
+            QCOMPARE(insertedSpy.size(), 0);
+            QCOMPARE(removedSpy.size(), 0);
+            QCOMPARE(layoutChangedSpy.size(), 0);
+            QCOMPARE(resetSpy.size(), 0);
+        }
+
+        //Test a modification that should affect the result
+        {
+            QSignalSpy insertedSpy(model.data(), &QAbstractItemModel::rowsInserted);
+            QSignalSpy removedSpy(model.data(), &QAbstractItemModel::rowsRemoved);
+            QSignalSpy changedSpy(model.data(), &QAbstractItemModel::dataChanged);
+            QSignalSpy layoutChangedSpy(model.data(), &QAbstractItemModel::layoutChanged);
+            QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
+
+            auto msg = KMime::Message::Ptr::create();
+            msg->subject()->from7BitString("No longer a match");
+            msg->setBody("This is the searchable body bar. unique sender2");
+            msg->from()->from7BitString("\"The Sender\"<sender@example.org>");
+            msg->to()->from7BitString("\"Foo Bar\"<foo-bar@example.org>");
+            msg->assemble();
+
+            mail2.setMimeMessage(msg->encodedContent());
+            VERIFYEXEC(Sink::Store::modify(mail2));
+
+            QTRY_COMPARE(removedSpy.size(), 1);
+            QCOMPARE(changedSpy.size(), 0);
+            QCOMPARE(insertedSpy.size(), 0);
+            QCOMPARE(layoutChangedSpy.size(), 0);
+            QCOMPARE(resetSpy.size(), 0);
+        }
+        QCOMPARE(model->rowCount(), 1);
     }
 
     void mailsWithDates()

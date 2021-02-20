@@ -53,6 +53,8 @@ public:
     MessageQueue(const QString &storageRoot, const QString &name);
     ~MessageQueue();
 
+    QString name() const;
+
     void startTransaction();
     void enqueue(void const *msg, size_t size);
     void enqueue(const QByteArray &value);
@@ -78,4 +80,5 @@ private:
     Sink::Storage::DataStore mStorage;
     Sink::Storage::DataStore::Transaction mWriteTransaction;
     qint64 mReplayedRevision;
+    QString mName;
 };

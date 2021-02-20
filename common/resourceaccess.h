@@ -151,6 +151,7 @@ private slots:
     bool processMessageBuffer();
 
 private:
+    void abort();
     void connected();
     void registerCallback(uint messageId, const std::function<void(int error, const QString &)> &callback);
 

@@ -1,4 +1,4 @@
-#include <QtTest>
+#include <QTest>
 
 #include <QString>
 
@@ -36,9 +36,7 @@ static QList<Sink::Storage::Key> getKeys(const QByteArray &dbEnv, const QByteArr
     QList<Sink::Storage::Key> result;
     db.scan("", [&](const QByteArray &key, const QByteArray &value) {
         size_t revision = Sink::byteArrayToSizeT(key);
-        result << Sink::Storage::Key(Sink::Storage::Identifier::fromDisplayByteArray(
-                                         Sink::Storage::DataStore::getUidFromRevision(transaction, revision)),
-            revision);
+        result << Sink::Storage::Key(Sink::Storage::DataStore::getUidFromRevision(transaction, revision), revision);
         return true;
     });
     return result;
@@ -222,7 +220,7 @@ private slots:
         Sink::Pipeline pipeline(getContext(), {"test"});
 
         pipeline.startTransaction();
-        pipeline.newEntity(command.constData(), command.size());
+        pipeline.newEntity(command.constData(), command.size()).exec();
         pipeline.commit();
 
         auto result = getKeys(instanceIdentifier(), "event.main");
@@ -248,7 +246,7 @@ private slots:
 
         // Create the initial revision
         pipeline.startTransaction();
-        pipeline.newEntity(command.constData(), command.size());
+        pipeline.newEntity(command.constData(), command.size()).exec();
         pipeline.commit();
 
         // Get uid of written entity
@@ -261,7 +259,7 @@ private slots:
         entityFbb.Clear();
         auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summary2"), uid, 1);
         pipeline.startTransaction();
-        pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
+        pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size()).exec();
         pipeline.commit();
 
         key.setRevision(2);
@@ -296,7 +294,7 @@ private slots:
 
         // Create the initial revision
         pipeline.startTransaction();
-        pipeline.newEntity(command.constData(), command.size());
+        pipeline.newEntity(command.constData(), command.size()).exec();
         pipeline.commit();
 
         // Get uid of written entity
@@ -311,7 +309,7 @@ private slots:
             entityFbb.Clear();
             auto command = createEntityCommand(createEvent(entityFbb));
             pipeline.startTransaction();
-            pipeline.newEntity(command.constData(), command.size());
+            pipeline.newEntity(command.constData(), command.size()).exec();
             pipeline.commit();
         }
 
@@ -319,7 +317,7 @@ private slots:
         entityFbb.Clear();
         auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summary2"), uid, 2);
         pipeline.startTransaction();
-        pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
+        pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size()).exec();
         pipeline.commit();
 
         key.setRevision(3);
@@ -340,7 +338,7 @@ private slots:
 
         // Create the initial revision
         pipeline.startTransaction();
-        pipeline.newEntity(command.constData(), command.size());
+        pipeline.newEntity(command.constData(), command.size()).exec();
         pipeline.commit();
 
         auto result = getKeys(instanceIdentifier(), "event.main");
@@ -351,7 +349,7 @@ private slots:
         // Delete entity
         auto deleteCommand = deleteEntityCommand(uid, 1);
         pipeline.startTransaction();
-        pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size());
+        pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size()).exec();
         pipeline.commit();
 
         // We have a new revision that indicates the deletion
@@ -378,7 +376,7 @@ private slots:
         // Actual test
         {
             auto command = createEntityCommand(createEvent(entityFbb));
-            pipeline.newEntity(command.constData(), command.size());
+            pipeline.newEntity(command.constData(), command.size()).exec();
             QCOMPARE(testProcessor->newUids.size(), 1);
             QCOMPARE(testProcessor->newRevisions.size(), 1);
             const auto uid = Sink::Storage::Identifier::fromDisplayByteArray(testProcessor->newUids.at(0)).toDisplayByteArray();
@@ -392,7 +390,7 @@ private slots:
         const auto uid = keys.first().identifier().toDisplayByteArray();
         {
             auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summary2"), uid, 1);
-            pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
+            pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size()).exec();
             QCOMPARE(testProcessor->modifiedUids.size(), 1);
             QCOMPARE(testProcessor->modifiedRevisions.size(), 1);
             const auto uid2 = Sink::Storage::Identifier::fromDisplayByteArray(testProcessor->modifiedUids.at(0)).toDisplayByteArray();
@@ -403,7 +401,7 @@ private slots:
         pipeline.startTransaction();
         {
             auto deleteCommand = deleteEntityCommand(uid, 1);
-            pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size());
+            pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size()).exec();
             QCOMPARE(testProcessor->deletedUids.size(), 1);
             QCOMPARE(testProcessor->deletedUids.size(), 1);
             QCOMPARE(testProcessor->deletedSummaries.size(), 1);
@@ -424,7 +422,7 @@ private slots:
 
         // Create the initial revision
         pipeline.startTransaction();
-        pipeline.newEntity(command.constData(), command.size());
+        pipeline.newEntity(command.constData(), command.size()).exec();
         pipeline.commit();
 
         // Get uid of written entity
@@ -438,7 +436,7 @@ private slots:
             entityFbb.Clear();
             auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summaryLocal"), uid, 1, {"summary"}, true);
             pipeline.startTransaction();
-            pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
+            pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size()).exec();
             pipeline.commit();
         }
 
@@ -449,7 +447,7 @@ private slots:
             entityFbb.Clear();
             auto modifyCommand = modifyEntityCommand(createEvent(entityFbb, "summaryRemote", "descriptionRemote"), uid, 2, {"summary", "description"}, false);
             pipeline.startTransaction();
-            pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size());
+            pipeline.modifiedEntity(modifyCommand.constData(), modifyCommand.size()).exec();
             pipeline.commit();
         }
 
@@ -475,7 +473,7 @@ private slots:
 
         // Create the initial revision
         pipeline.startTransaction();
-        pipeline.newEntity(command.constData(), command.size());
+        pipeline.newEntity(command.constData(), command.size()).exec();
         pipeline.commit();
 
         // Get uid of written entity
@@ -487,7 +485,7 @@ private slots:
         {
             auto deleteCommand = deleteEntityCommand(uid, 1);
             pipeline.startTransaction();
-            pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size());
+            pipeline.deletedEntity(deleteCommand.constData(), deleteCommand.size()).exec();
             pipeline.commit();
         }
 

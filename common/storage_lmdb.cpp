@@ -200,13 +200,11 @@ public:
     {
     }
 
-    ~Private()
-    {
-    }
+    ~Private() = default;
 
     QByteArray db;
     MDB_txn *transaction;
-    MDB_dbi dbi;
+    MDB_dbi dbi{0};
     int flags;
     std::function<void(const DataStore::Error &error)> defaultErrorHandler;
     QString name;
@@ -473,17 +471,17 @@ void DataStore::NamedDatabase::remove(const QByteArray &k, const QByteArray &val
 
 int DataStore::NamedDatabase::scan(const size_t key,
     const std::function<bool(size_t key, const QByteArray &value)> &resultHandler,
-    const std::function<void(const DataStore::Error &error)> &errorHandler, bool skipInternalKeys) const
+    const std::function<void(const DataStore::Error &error)> &errorHandler) const
 {
     return scan(sizeTToByteArray(key),
         [&resultHandler](const QByteArray &key, const QByteArray &value) {
             return resultHandler(byteArrayToSizeT(key), value);
         },
-        errorHandler, /* findSubstringKeys = */ false, skipInternalKeys);
+        errorHandler, /* findSubstringKeys = */ false);
 }
 
 int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool(const QByteArray &key, const QByteArray &value)> &resultHandler,
-    const std::function<void(const DataStore::Error &error)> &errorHandler, bool findSubstringKeys, bool skipInternalKeys) const
+    const std::function<void(const DataStore::Error &error)> &errorHandler, bool findSubstringKeys) const
 {
     if (!d || !d->transaction) {
         // Not an error. We rely on this to read nothing from non-existing databases.
@@ -519,11 +517,8 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
             const auto current = QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
             // The first lookup will find a key that is equal or greather than our key
             if (current.startsWith(k)) {
-                const bool callResultHandler =  !(skipInternalKeys && isInternalKey(current));
-                if (callResultHandler) {
-                    numberOfRetrievedValues++;
-                }
-                if (!callResultHandler || resultHandler(current, QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
+                numberOfRetrievedValues++;
+                if (resultHandler(current, QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
                     if (findSubstringKeys) {
                         // Reset the key to what we search for
                         key.mv_data = (void *)k.constData();
@@ -534,12 +529,9 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
                         const auto current = QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
                         // Every consequitive lookup simply iterates through the list
                         if (current.startsWith(k)) {
-                            const bool callResultHandler =  !(skipInternalKeys && isInternalKey(current));
-                            if (callResultHandler) {
-                                numberOfRetrievedValues++;
-                                if (!resultHandler(current, QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
-                                    break;
-                                }
+                            numberOfRetrievedValues++;
+                            if (!resultHandler(current, QByteArray::fromRawData((char *)data.mv_data, data.mv_size))) {
+                                break;
                             }
                         }
                     }
@@ -638,6 +630,55 @@ void DataStore::NamedDatabase::findLatest(const QByteArray &k, const std::functi
     // We never find the last value
     if (rc == MDB_NOTFOUND) {
         rc = 0;
+    }
+
+    mdb_cursor_close(cursor);
+
+    if (rc) {
+        Error error(d->name.toLatin1(), getErrorCode(rc), QByteArray("Error during find latest. Key: ") + k + " : " + QByteArray(mdb_strerror(rc)));
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+    } else if (!foundValue) {
+        Error error(d->name.toLatin1(), 1, QByteArray("Error during find latest. Key: ") + k + " : No value found");
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+    }
+
+    return;
+}
+
+void DataStore::NamedDatabase::findLast(const QByteArray &k, const std::function<void(const QByteArray &key, const QByteArray &value)> &resultHandler,
+    const std::function<void(const DataStore::Error &error)> &errorHandler) const
+{
+    if (!d || !d->transaction) {
+        // Not an error. We rely on this to read nothing from non-existing databases.
+        return;
+    }
+    if (k.isEmpty()) {
+        Error error(d->name.toLatin1() + d->db, GenericError, QByteArray("Can't use findLatest with empty key."));
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        return;
+    }
+
+    int rc;
+    MDB_val key;
+    MDB_val data;
+    MDB_cursor *cursor;
+
+    key.mv_data = (void *)k.constData();
+    key.mv_size = k.size();
+
+    rc = mdb_cursor_open(d->transaction, d->dbi, &cursor);
+    if (rc) {
+        Error error(d->name.toLatin1() + d->db, getErrorCode(rc), QByteArray("Error during mdb_cursor_open: ") + QByteArray(mdb_strerror(rc)));
+        errorHandler ? errorHandler(error) : d->defaultErrorHandler(error);
+        return;
+    }
+
+    bool foundValue = false;
+    if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_SET)) == 0) {
+        if ((rc = mdb_cursor_get(cursor, &key, &data, MDB_LAST_DUP)) == 0) {
+            foundValue = true;
+            resultHandler(QByteArray::fromRawData((char *)key.mv_data, key.mv_size), QByteArray::fromRawData((char *)data.mv_data, data.mv_size));
+        }
     }
 
     mdb_cursor_close(cursor);
@@ -786,7 +827,7 @@ public:
     bool error;
     QMap<QString, MDB_dbi> createdDbs;
 
-    void startTransaction()
+    bool startTransaction()
     {
         Q_ASSERT(!transaction);
         Q_ASSERT(sEnvironments.values().contains(env));
@@ -806,7 +847,9 @@ public:
                 SinkError() << "Tried to open a write transation in a read-only enironment";
             }
             defaultErrorHandler(Error(name.toLatin1(), ErrorCodes::GenericError, "Error while opening transaction: " + QByteArray(mdb_strerror(rc))));
+            return false;
         }
+        return true;
     }
 };
 
@@ -816,7 +859,10 @@ DataStore::Transaction::Transaction() : d(nullptr)
 
 DataStore::Transaction::Transaction(Transaction::Private *prv) : d(prv)
 {
-    d->startTransaction();
+    if (!d->startTransaction()) {
+        delete d;
+        d = nullptr;
+    }
 }
 
 DataStore::Transaction::Transaction(Transaction &&other) : d(nullptr)
@@ -1087,7 +1133,7 @@ public:
                             for (auto it = layout.tables.constBegin(); it != layout.tables.constEnd(); it++) {
                                 const int flags = it.value();
                                 MDB_dbi dbi = 0;
-                                const auto db = it.key();
+                                const auto &db = it.key();
                                 const auto dbiName = name + db;
                                 if (createDbi(transaction, db, readOnly, flags, dbi)) {
                                     sDbis.insert(dbiName, dbi);

@@ -26,6 +26,15 @@
 #include "log.h"
 #include "definitions.h"
 
+static std::map<std::string, std::string> prefixes()
+{
+    return {
+        {{"subject"}, {"S"}},
+        {{"recipients"}, {"R"}},
+        {{"sender"}, {"F"}}
+    };
+}
+
 FulltextIndex::FulltextIndex(const QByteArray &resourceInstanceIdentifier, Sink::Storage::DataStore::AccessMode accessMode)
     : mName("fulltext"),
     mDbPath{QFile::encodeName(Sink::resourceStorageLocation(resourceInstanceIdentifier) + '/' + "fulltext")}
@@ -70,9 +79,15 @@ void FulltextIndex::add(const QByteArray &key, const QList<QPair<QString, QStrin
         Xapian::Document document;
         generator.set_document(document);
 
+        const auto prefixMap = prefixes();
         for (const auto &entry : values) {
             if (!entry.second.isEmpty()) {
-                generator.index_text(entry.second.toStdString());
+                const auto prefix = prefixMap.find(entry.first.toStdString());
+                if (prefix != prefixMap.end()) {
+                    generator.index_text(entry.second.toStdString(), 1, prefix->second);
+                } else {
+                    generator.index_text(entry.second.toStdString(), 1);
+                }
                 //Prevent phrase searches from spanning different indexed parts
                 generator.increase_termpos();
             }
@@ -156,7 +171,7 @@ void FulltextIndex::remove(const QByteArray &key)
     }
 }
 
-QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
+QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm, const QByteArray &entity)
 {
     if (!mDb) {
         return {};
@@ -165,10 +180,24 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm)
 
     try {
         Xapian::QueryParser parser;
+        for (const auto& [name, prefix] : prefixes()) {
+            parser.add_prefix(name, prefix);
+            //Search through all prefixes by default
+            parser.add_prefix("", prefix);
+        }
+        //Also search through the empty prefix by default
+        parser.add_prefix("", "");
+        parser.add_boolean_prefix("identifier", "Q");
         parser.set_default_op(Xapian::Query::OP_AND);
         parser.set_database(*mDb);
         parser.set_max_expansion(100, Xapian::Query::WILDCARD_LIMIT_MOST_FREQUENT, Xapian::QueryParser::FLAG_PARTIAL);
-        auto query = parser.parse_query(searchTerm.toStdString(), Xapian::QueryParser::FLAG_PHRASE|Xapian::QueryParser::FLAG_BOOLEAN|Xapian::QueryParser::FLAG_LOVEHATE|Xapian::QueryParser::FLAG_PARTIAL);
+        const auto mainQuery = parser.parse_query(searchTerm.toStdString(), Xapian::QueryParser::FLAG_PHRASE|Xapian::QueryParser::FLAG_BOOLEAN|Xapian::QueryParser::FLAG_LOVEHATE|Xapian::QueryParser::FLAG_PARTIAL);
+        const auto query = [&] {
+            if (!entity.isEmpty()) {
+                return Xapian::Query{Xapian::Query::OP_AND, Xapian::Query{("Q" + entity).toStdString()}, mainQuery};
+            }
+            return mainQuery;
+        }();
         SinkTrace() << "Running xapian query: " << QString::fromStdString(query.get_description());
         Xapian::Enquire enquire(*mDb);
         enquire.set_query(query);
@@ -222,7 +251,7 @@ FulltextIndex::Result FulltextIndex::getIndexContent(const QByteArray &identifie
         {};
     }
     try {
-        auto id = "Q" + identifier.toStdString();
+        const auto id = idTerm(identifier);
         Xapian::PostingIterator p = mDb->postlist_begin(id);
         if (p != mDb->postlist_end(id)) {
             auto document = mDb->get_document(*p);

@@ -440,9 +440,21 @@ QVector<Identifier> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
 }
 
 QVector<Identifier> TypeIndex::lookup(const QByteArray &property, const QVariant &value,
-    Sink::Storage::DataStore::Transaction &transaction)
+    Sink::Storage::DataStore::Transaction &transaction, const QByteArray &resourceInstanceId, const QVector<Sink::Storage::Identifier> &filter)
 {
     SinkTraceCtx(mLogCtx) << "Index lookup on property: " << property << mSecondaryProperties.keys() << mProperties;
+    if (property == "fulltext") {
+        FulltextIndex fulltextIndex{resourceInstanceId};
+        const QByteArray entityId = filter.isEmpty() ? QByteArray{} : filter.first().toDisplayByteArray();
+        const auto ids = fulltextIndex.lookup(value.toString(), entityId);
+        QVector<Identifier> keys;
+        keys.reserve(ids.size());
+        for (const auto &id : ids) {
+            keys.append(Identifier::fromDisplayByteArray(id));
+        }
+        SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << keys.size() << " keys.";
+        return keys;
+    }
     if (mProperties.contains(property)) {
         QVector<Identifier> keys;
         Index index(indexName(property), transaction);

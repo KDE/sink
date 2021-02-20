@@ -1,4 +1,4 @@
-#include <QtTest>
+#include <QTest>
 
 #include <iostream>
 
@@ -277,7 +277,7 @@ private slots:
         Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadOnly);
         QVERIFY(!store.exists());
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
-        Sink::Storage::DataStore::getUids("test", transaction, [&](const QByteArray &uid) {});
+        Sink::Storage::DataStore::getUids("test", transaction, [&](const auto &uid) {});
         int numValues = transaction
                             .openDatabase("test")
                             .scan("",
@@ -478,22 +478,29 @@ private slots:
         QCOMPARE(result, QByteArray("value3"));
     }
 
-    static QMap<QByteArray, int> baseDbs()
-    {
-        return {{"revisionType", Sink::Storage::IntegerKeys},
-                {"revisions", Sink::Storage::IntegerKeys},
-                {"uids", 0},
-                {"default", 0},
-                {"__flagtable", 0}};
-    }
-
     void testRecordRevision()
     {
-        Sink::Storage::DataStore store(testDataPath, {dbName, baseDbs()}, Sink::Storage::DataStore::ReadWrite);
+        Sink::Storage::DataStore store(testDataPath, {dbName, Sink::Storage::DataStore::baseDbs()}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
-        Sink::Storage::DataStore::recordRevision(transaction, 1, "uid", "type");
+        auto id = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdadf}");
+        auto id2 = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdad2}");
+        auto id3 = Sink::Storage::Identifier::fromDisplayByteArray("{18a72a62-f8f7-4bc1-a087-ec25f143f60b}");
+        Sink::Storage::DataStore::recordRevision(transaction, 1, id, "type");
+        Sink::Storage::DataStore::recordRevision(transaction, 2, id2, "type");
+        Sink::Storage::DataStore::recordRevision(transaction, 3, id3, "type");
+
         QCOMPARE(Sink::Storage::DataStore::getTypeFromRevision(transaction, 1), QByteArray("type"));
-        QCOMPARE(Sink::Storage::DataStore::getUidFromRevision(transaction, 1), QByteArray("uid"));
+        QCOMPARE(Sink::Storage::DataStore::getUidFromRevision(transaction, 1).toDisplayByteArray(), id.toDisplayByteArray());
+        QCOMPARE(Sink::Storage::DataStore::getLatestRevisionFromUid(transaction, id), 1);
+        QCOMPARE(Sink::Storage::DataStore::getLatestRevisionFromUid(transaction, id2), 2);
+        QCOMPARE(Sink::Storage::DataStore::getLatestRevisionFromUid(transaction, id3), 3);
+
+        Sink::Storage::DataStore::recordRevision(transaction, 10, id, "type");
+        QCOMPARE(Sink::Storage::DataStore::getLatestRevisionFromUid(transaction, id), 10);
+
+        QCOMPARE(Sink::Storage::DataStore::getRevisionsUntilFromUid(transaction, id, 10).size(), 1);
+        QCOMPARE(Sink::Storage::DataStore::getRevisionsUntilFromUid(transaction, id, 11).size(), 2);
+        QCOMPARE(Sink::Storage::DataStore::getRevisionsFromUid(transaction, id).size(), 2);
     }
 
     void testRecordRevisionSorting()
@@ -511,6 +518,22 @@ private slots:
         db.write(key.toInternalByteArray(), "value2");
         db.findLatest(id.toInternalByteArray(), [&](const QByteArray &key, const QByteArray &value) { result = value; });
         QCOMPARE(result, QByteArray("value2"));
+    }
+
+    void testRecordRevisionRandom()
+    {
+        Sink::Storage::DataStore store(testDataPath, {dbName, Sink::Storage::DataStore::baseDbs()}, Sink::Storage::DataStore::ReadWrite);
+        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+
+        for (auto i = 1; i <= 500; i++) {
+            const auto uid = Sink::Storage::DataStore::generateUid();
+            const auto id = Sink::Storage::Identifier::fromDisplayByteArray(uid);
+            Sink::Storage::DataStore::recordRevision(transaction, i, id, "type");
+
+            QCOMPARE(Sink::Storage::DataStore::getTypeFromRevision(transaction, i), QByteArray("type"));
+            QCOMPARE(Sink::Storage::DataStore::getUidFromRevision(transaction, i).toDisplayByteArray(), id.toDisplayByteArray());
+            QCOMPARE(Sink::Storage::DataStore::getLatestRevisionFromUid(transaction, id), i);
+        }
     }
 
     void setupTestFindRange(Sink::Storage::DataStore::NamedDatabase &db)
@@ -685,7 +708,8 @@ private slots:
     void testRecordUid()
     {
 
-        QMap<QByteArray, int> dbs = {{"revisionType", 0},
+        QMap<QByteArray, int> dbs = {
+                {"revisionType", 0},
                 {"revisions", 0},
                 {"uids", 0},
                 {"default", 0},
@@ -696,27 +720,30 @@ private slots:
 
         Sink::Storage::DataStore store(testDataPath, {dbName, dbs}, Sink::Storage::DataStore::ReadWrite);
         auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
-        Sink::Storage::DataStore::recordUid(transaction, "uid1", "type");
-        Sink::Storage::DataStore::recordUid(transaction, "uid2", "type");
-        Sink::Storage::DataStore::recordUid(transaction, "uid3", "type2");
+        auto id1 = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdad1}");
+        auto id2 = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdad2}");
+        auto id3 = Sink::Storage::Identifier::fromDisplayByteArray("{c5d06a9f-1534-4c52-b8ea-415db68bdad3}");
+        Sink::Storage::DataStore::recordUid(transaction, id1, "type");
+        Sink::Storage::DataStore::recordUid(transaction, id2, "type");
+        Sink::Storage::DataStore::recordUid(transaction, id3, "type2");
 
         {
             QVector<QByteArray> uids;
-            Sink::Storage::DataStore::getUids("type", transaction, [&](const QByteArray &r) {
-                uids << r;
+            Sink::Storage::DataStore::getUids("type", transaction, [&](const Sink::Storage::Identifier &r) {
+                uids << r.toDisplayByteArray();
             });
-            QVector<QByteArray> expected{{"uid1"}, {"uid2"}};
+            QVector<QByteArray> expected{id1.toDisplayByteArray(), id2.toDisplayByteArray()};
             QCOMPARE(uids, expected);
         }
 
-        Sink::Storage::DataStore::removeUid(transaction, "uid2", "type");
+        Sink::Storage::DataStore::removeUid(transaction, id2, "type");
 
         {
             QVector<QByteArray> uids;
-            Sink::Storage::DataStore::getUids("type", transaction, [&](const QByteArray &r) {
-                uids << r;
+            Sink::Storage::DataStore::getUids("type", transaction, [&](const Sink::Storage::Identifier &r) {
+                uids << r.toDisplayByteArray();
             });
-            QVector<QByteArray> expected{{"uid1"}};
+            QVector<QByteArray> expected{{id1.toDisplayByteArray()}};
             QCOMPARE(uids, expected);
         }
     }
@@ -802,7 +829,7 @@ private slots:
         });
 
         QCOMPARE(numValues, 1);
-        QCOMPARE(resultKey, {0});
+        QCOMPARE(resultKey, size_t{0});
         QCOMPARE(result, QByteArray{"value1"});
 
         int numValues2 = db.scan(1, [&](size_t key, const QByteArray &value) -> bool {
@@ -812,7 +839,7 @@ private slots:
         });
 
         QCOMPARE(numValues2, 1);
-        QCOMPARE(resultKey, {1});
+        QCOMPARE(resultKey, size_t{1});
         QCOMPARE(result, QByteArray{"value2"});
     }
 
@@ -901,7 +928,7 @@ private slots:
                 return false;
             });
 
-            QCOMPARE(resultKey, {0x100});
+            QCOMPARE(resultKey, size_t{0x100});
             QCOMPARE(resultValue, QByteArray{"hello"});
         }
     }
@@ -960,6 +987,28 @@ private slots:
         }
     }
 
+    /**
+     * Demonstrate how long running transactions result in an accumulation of free-pages.
+     */
+    void testFreePages()
+    {
+        Sink::Storage::DataStore store(testDataPath, {dbName, {{"test", 0}}}, Sink::Storage::DataStore::ReadWrite);
+
+        // With any ro transaction ongoing we just accumulate endless free pages
+        // auto rotransaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+        for (int i = 0; i < 5; i++) {
+            {
+                auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+                transaction.openDatabase("test").write("sub" + QByteArray::number(i), "value1");
+            }
+            // If we reset the rotransaction the accumulation is not a problem (because previous free pages can be reused at that point)
+            // auto rotransaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+            {
+                auto stat = store.createTransaction(Sink::Storage::DataStore::ReadOnly).stat(false);
+                QVERIFY(stat.freePages <= 6);
+            }
+        }
+    }
 };
 
 QTEST_MAIN(StorageTest)

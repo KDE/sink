@@ -16,7 +16,7 @@
  *   Free Software Foundation, Inc.,
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-#include <QtTest>
+#include <QTest>
 #include <QTcpSocket>
 
 #include <tests/mailsynctest.h>
@@ -101,15 +101,21 @@ protected:
         VERIFYEXEC(imap.remove("INBOX." + folderPath.join('.')));
     }
 
-    QByteArray createMessage(const QStringList &folderPath, const QByteArray &message) Q_DECL_OVERRIDE
+    QByteArray createMessage(const QStringList &folderPath, const QByteArray &message, const QDateTime &internalDate)
     {
         Imap::ImapServerProxy imap("localhost", 143, Imap::NoEncryption);
         VERIFYEXEC_RET(imap.login("doe", "doe"), {});
-        auto appendJob = imap.append("INBOX." + folderPath.join('.'), message);
+
+        auto appendJob = imap.append("INBOX." + folderPath.join('.'), message, {}, internalDate);
         auto future = appendJob.exec();
         future.waitForFinished();
         auto result = future.value();
         return QByteArray::number(result);
+    }
+
+    QByteArray createMessage(const QStringList &folderPath, const QByteArray &message) Q_DECL_OVERRIDE
+    {
+        return createMessage(folderPath, message, {});
     }
 
     void removeMessage(const QStringList &folderPath, const QByteArray &messages) Q_DECL_OVERRIDE
@@ -127,11 +133,12 @@ protected:
         VERIFYEXEC(imap.addFlags(KIMAP2::ImapSet::fromImapSequenceSet(messageIdentifier), QByteArrayList() << Imap::Flags::Flagged));
     }
 
-    static QByteArray newMessage(const QString &subject)
+    static QByteArray newMessage(const QString &subject, const QDateTime &dt = QDateTime::currentDateTimeUtc())
     {
         auto msg = KMime::Message::Ptr::create();
+        msg->messageID(true)->generate("test.com");
         msg->subject(true)->fromUnicodeString(subject, "utf8");
-        msg->date(true)->setDateTime(QDateTime::currentDateTimeUtc());
+        msg->date(true)->setDateTime(dt);
         msg->assemble();
         return msg->encodedContent(true);
     }
@@ -204,6 +211,190 @@ private slots:
 
         auto mailQuery = Sink::Query{}.resourceFilter(mResourceInstanceIdentifier).request<Mail::Subject>().filter<Mail::Folder>(Sink::Query{}.filter<Folder::Name>("test3"));
         QCOMPARE(Store::read<Mail>(mailQuery).size(), 1);
+    }
+
+    void testDateFilterSync()
+    {
+        auto dt = QDateTime{{2019, 04, 20}};
+
+        //Create a folder
+        createFolder({"datefilter"});
+        {
+            Sink::Query query;
+            query.setType<ApplicationDomain::Folder>();
+            VERIFYEXEC(Store::synchronize(query));
+            VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        auto folder = Store::readOne<Folder>(Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>("datefilter"));
+
+        //Create the two messsages with one matching the filter below the other not.
+        createMessage({"datefilter"}, newMessage("1", dt.addDays(-4)), dt.addDays(-4));
+        createMessage({"datefilter"}, newMessage("2", dt.addDays(-2)), dt.addDays(-2));
+
+        {
+            Sink::Query query;
+            query.setType<ApplicationDomain::Mail>();
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.filter(ApplicationDomain::Mail::Date::name, QVariant::fromValue(dt.addDays(-3).date()));
+            query.filter<Mail::Folder>(folder);
+
+            VERIFYEXEC(Store::synchronize(query));
+            VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        //For the second message we should have the full payload, for the first only the headers
+        {
+            Sink::Query query;
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.filter<Mail::Folder>(folder);
+            query.sort<ApplicationDomain::Mail::Date>();
+            auto mails = Store::read<Mail>(query);
+            QCOMPARE(mails.size(), 2);
+            QCOMPARE(mails.at(0).getFullPayloadAvailable(), true);
+            QCOMPARE(mails.at(1).getFullPayloadAvailable(), false);
+        }
+    }
+
+    /*
+     * Ensure that even though we have a date-filter we don't leave any gaps in the maillist.
+     */
+    void testDateFilterForGaps()
+    {
+        auto dt = QDateTime{{2019, 04, 20}};
+
+        auto foldername = "datefilter1";
+        createFolder({foldername});
+        createMessage({foldername}, newMessage("0", dt.addDays(-6)), dt.addDays(-6));
+
+        VERIFYEXEC(Store::synchronize(Sink::SyncScope{}));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        auto folder = Store::readOne<Folder>(Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>(foldername));
+
+        // We create two messages with one not matching the date filter below, and then ensure we get it nevertheless
+        createMessage({foldername}, newMessage("1", dt.addDays(-4)), dt.addDays(-4));
+        createMessage({foldername}, newMessage("2", dt.addDays(-2)), dt.addDays(-2));
+
+        {
+            Sink::Query query;
+            query.setType<ApplicationDomain::Mail>();
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.filter(ApplicationDomain::Mail::Date::name, QVariant::fromValue(dt.addDays(-3).date()));
+            query.filter<Mail::Folder>(folder);
+
+            VERIFYEXEC(Store::synchronize(query));
+            VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.sort<ApplicationDomain::Mail::Date>();
+            query.filter<Mail::Folder>(folder);
+            auto mails = Store::read<Mail>(query);
+            QCOMPARE(mails.size(), 3);
+            QCOMPARE(mails.at(0).getFullPayloadAvailable(), true);
+            //We don't strictly have to pull the full payload for an item that is just fetched to ensure we have no missing mails,
+            //but we currently do
+            QCOMPARE(mails.at(1).getFullPayloadAvailable(), true);
+            QCOMPARE(mails.at(2).getFullPayloadAvailable(), true);
+        }
+    }
+
+    /*
+     * * First sync the folder
+     * * Then create a message on the server
+     * * Then attempt to sync it even though it doens't match the date filter.
+     * We expect the message to be fetched with the payload even though it doesn't match the date-filter.
+     */
+    void testDateFilterAfterInitialSync()
+    {
+        auto dt = QDateTime{{2019, 04, 20}};
+
+        auto foldername = "datefilter2";
+        createFolder({foldername});
+
+        Sink::SyncScope query;
+        query.setType<ApplicationDomain::Folder>();
+        VERIFYEXEC(Store::synchronize(query));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        auto folder = Store::readOne<Folder>(Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>(foldername));
+
+        {
+            Sink::Query query;
+            query.setType<ApplicationDomain::Mail>();
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.filter<Mail::Folder>(folder);
+
+            VERIFYEXEC(Store::synchronize(query));
+            VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        createMessage({foldername}, newMessage("0", dt.addDays(-6)), dt.addDays(-6));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        {
+            Sink::Query query;
+            query.setType<ApplicationDomain::Mail>();
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.filter(ApplicationDomain::Mail::Date::name, QVariant::fromValue(dt.addDays(-3).date()));
+            query.filter<Mail::Folder>(folder);
+
+            VERIFYEXEC(Store::synchronize(query));
+            VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.sort<ApplicationDomain::Mail::Date>();
+            query.filter<Mail::Folder>(folder);
+            auto mails = Store::read<Mail>(query);
+            QCOMPARE(mails.size(), 1);
+            QCOMPARE(mails.at(0).getFullPayloadAvailable(), true);
+        }
+    }
+
+    /**
+     * The mails are too old so we only fetch headers
+     */
+    void testDateFilterFetchHeadersOnly()
+    {
+        auto dt = QDateTime{{2019, 04, 20}};
+
+        auto foldername = "datefilter3";
+        createFolder({foldername});
+        createMessage({foldername}, newMessage("0", dt.addDays(-30)), dt.addDays(-30));
+
+        Sink::SyncScope query;
+        query.setType<ApplicationDomain::Folder>();
+        VERIFYEXEC(Store::synchronize(query));
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        auto folder = Store::readOne<Folder>(Query{}.resourceFilter(mResourceInstanceIdentifier).filter<Folder::Name>(foldername));
+
+        VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+
+        {
+            Sink::Query query;
+            query.setType<ApplicationDomain::Mail>();
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.filter(ApplicationDomain::Mail::Date::name, QVariant::fromValue(dt.addDays(-3).date()));
+            query.filter<Mail::Folder>(folder);
+
+            VERIFYEXEC(Store::synchronize(query));
+            VERIFYEXEC(ResourceControl::flushMessageQueue(mResourceInstanceIdentifier));
+        }
+
+        {
+            Sink::Query query;
+            query.resourceFilter(mResourceInstanceIdentifier);
+            query.sort<ApplicationDomain::Mail::Date>();
+            query.filter<Mail::Folder>(folder);
+            auto mails = Store::read<Mail>(query);
+            QCOMPARE(mails.size(), 1);
+            QCOMPARE(mails.at(0).getFullPayloadAvailable(), false);
+        }
     }
 };
 

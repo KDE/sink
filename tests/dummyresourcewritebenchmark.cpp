@@ -1,4 +1,4 @@
-#include <QtTest>
+#include <QTest>
 
 #include <QString>
 #include <QDateTime>
@@ -89,7 +89,7 @@ class DummyResourceWriteBenchmark : public QObject
         int bufferSize = 0;
         auto command = createEntityBuffer(0, bufferSize);
 
-        const auto startingRss = getCurrentRSS();
+        const auto startingRss = static_cast<double>(getCurrentRSS());
         for (int i = 0; i < num; i++) {
             resource.processCommand(Sink::Commands::CreateEntityCommand, command);
         }
@@ -102,11 +102,11 @@ class DummyResourceWriteBenchmark : public QObject
 
         auto allProcessedTime = time.elapsed();
 
-        const auto finalRss = getCurrentRSS();
+        const auto finalRss = static_cast<double>(getCurrentRSS());
         const auto rssGrowth = finalRss - startingRss;
         // Since the database is memory mapped it is attributted to the resident set size.
-        const auto rssWithoutDb = finalRss - DummyResource::diskUsage("sink.dummy.instance1");
-        const auto peakRss = getPeakRSS();
+        const auto rssWithoutDb = finalRss - static_cast<double>(DummyResource::diskUsage("sink.dummy.instance1"));
+        const auto peakRss = static_cast<double>(getPeakRSS());
         // How much peak deviates from final rss in percent
         const auto percentageRssError = static_cast<double>(peakRss - finalRss) * 100.0 / static_cast<double>(finalRss);
         auto rssGrowthPerEntity = rssGrowth / num;
@@ -222,7 +222,7 @@ class DummyResourceWriteBenchmark : public QObject
                 [&](const Sink::Storage::DataStore::Error &e) {
                     qWarning() << "Error while reading" << e;
                 },
-                false, false);
+                false);
 
             auto s = db.stat();
             auto usedPages = (s.leafPages + s.branchPages + s.overflowPages);
@@ -230,7 +230,7 @@ class DummyResourceWriteBenchmark : public QObject
             std::cout << std::endl;
             std::cout << "Db: " << databaseName.toStdString() << (db.allowsDuplicates() ? " DUP" : "") << std::endl;
             std::cout << "Used pages " << usedPages << std::endl;
-            std::cout << "Used size " << (keySizes + valueSizes) / 4096.0 << std::endl;
+            std::cout << "Used size " << static_cast<double>(keySizes + valueSizes) / 4096.0 << std::endl;
             std::cout << "Entries " << s.numEntries << std::endl;
             totalKeysAndValues += (keySizes + valueSizes);
         }

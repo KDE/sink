@@ -93,7 +93,7 @@ bool resource(const QStringList &args, State &state)
     for (auto i = map.begin(); i != map.end(); ++i) {
         //FIXME we need a generic way to convert the value to the right type
         if (i.key() == ApplicationDomain::SinkResource::Account::name) {
-            object.setAccount(i.value().toUtf8());
+            object.setAccount(SinkshUtils::parseUid(i.value().toUtf8()));
         } else {
             object.setProperty(i.key().toLatin1(), i.value());
         }
@@ -154,7 +154,7 @@ bool identity(const QStringList &args, State &state)
     for (auto i = map.begin(); i != map.end(); ++i) {
         //FIXME we need a generic way to convert the value to the right type
         if (i.key() == ApplicationDomain::Identity::Account::name) {
-            object.setAccount(i.value().toUtf8());
+            object.setAccount(SinkshUtils::parseUid(i.value().toUtf8()));
         } else {
             object.setProperty(i.key().toLatin1(), i.value());
         }

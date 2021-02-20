@@ -1,4 +1,4 @@
-#include <QtTest>
+#include <QTest>
 
 #include "dummyresource/resourcefactory.h"
 #include "resourcecontrol.h"
@@ -6,6 +6,7 @@
 #include "testutils.h"
 #include "test.h"
 #include "resourceconfig.h"
+#include "resourceaccess.h"
 
 /**
  * Test starting and stopping of resources.
@@ -75,6 +76,34 @@ private slots:
         VERIFYEXEC(Sink::ResourceControl::shutdown("sink.dummy.instance2"));
 
         QVERIFY(!blockingSocketIsAvailable("sink.dummy.instance2"));
+    }
+
+
+    void testAbortCommandsOnShutdown()
+    {
+        const QByteArray identifier{"sink.dummy.instance1"};
+        VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
+        auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
+        resourceAccess->shutdown().exec();
+        //This operation should be aborted by the shutdown operation
+        VERIFYEXEC_FAIL(Sink::ResourceControl::start(identifier));
+    }
+
+    void testResourceShutdownRestartLoop()
+    {
+        const QByteArray identifier{"sink.dummy.instance1"};
+        VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
+        QVERIFY(!blockingSocketIsAvailable(identifier));
+        for (int i = 0; i < 10; i++) {
+
+            auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
+            resourceAccess->sendRevisionReplayedCommand(1).exec();
+            resourceAccess->shutdown().exec().waitForFinished();
+            Sink::ResourceControl::start(identifier).exec().waitForFinished();
+        }
+
+        VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
+        QVERIFY(!blockingSocketIsAvailable(identifier));
     }
 
 };

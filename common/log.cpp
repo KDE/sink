@@ -8,6 +8,7 @@
 #include <QSharedPointer>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QDateTime>
 #include <iostream>
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -51,21 +52,21 @@ public:
     {
         open(WriteOnly);
     }
-    virtual ~DebugStream();
+    ~DebugStream() override;
 
-    bool isSequential() const
+    bool isSequential() const override
     {
         return true;
     }
-    qint64 readData(char *, qint64)
+    qint64 readData(char *, qint64) override
     {
         return 0; /* eof */
     }
-    qint64 readLineData(char *, qint64)
+    qint64 readLineData(char *, qint64) override
     {
         return 0; /* eof */
     }
-    qint64 writeData(const char *data, qint64 len)
+    qint64 writeData(const char *data, qint64 len) override
     {
 #ifdef Q_OS_WIN
         const auto string = QString::fromUtf8(data, len);
@@ -92,21 +93,21 @@ public:
     {
         open(WriteOnly);
     }
-    virtual ~NullStream();
+    ~NullStream() override;
 
-    bool isSequential() const
+    bool isSequential() const override
     {
         return true;
     }
-    qint64 readData(char *, qint64)
+    qint64 readData(char *, qint64) override
     {
         return 0; /* eof */
     }
-    qint64 readLineData(char *, qint64)
+    qint64 readLineData(char *, qint64) override
     {
         return 0; /* eof */
     }
-    qint64 writeData(const char *data, qint64 len)
+    qint64 writeData(const char *data, qint64 len) override
     {
         return len;
     }
@@ -417,6 +418,7 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
 
     auto debugOutput = debugOutputFields();
 
+    bool showTime = debugOutput.isEmpty() ? false : caseInsensitiveContains("time", debugOutput);
     bool showLocation = debugOutput.isEmpty() ? false : caseInsensitiveContains("location", debugOutput);
     bool showFunction = debugOutput.isEmpty() ? false : caseInsensitiveContains("function", debugOutput);
     bool showProgram = debugOutput.isEmpty() ? false : caseInsensitiveContains("application", debugOutput);
@@ -429,6 +431,9 @@ QDebug Sink::Log::debugStream(DebugLevel debugLevel, int line, const char *file,
 
     const QString resetColor = colorCommand(ANSI_Colors::Reset);
     QString output;
+    if (showTime) {
+        output = QString("%1 ").arg(QDateTime::currentDateTime().toString(Qt::ISODateWithMs));
+    }
     if (useColor) {
         output += colorCommand(QList<int>() << ANSI_Colors::Bold << prefixColorCode);
     }

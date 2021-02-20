@@ -190,10 +190,14 @@ DummyResource::~DummyResource()
 DummyResourceFactory::DummyResourceFactory(QObject *parent)
     : Sink::ResourceFactory(parent, {
         Sink::ApplicationDomain::ResourceCapabilities::Todo::todo,
+        Sink::ApplicationDomain::ResourceCapabilities::Todo::calendar,
+        Sink::ApplicationDomain::ResourceCapabilities::Todo::storage,
         Sink::ApplicationDomain::ResourceCapabilities::Event::event,
         Sink::ApplicationDomain::ResourceCapabilities::Event::calendar,
+        Sink::ApplicationDomain::ResourceCapabilities::Event::storage,
         Sink::ApplicationDomain::ResourceCapabilities::Contact::contact,
         Sink::ApplicationDomain::ResourceCapabilities::Contact::addressbook,
+        Sink::ApplicationDomain::ResourceCapabilities::Contact::storage,
         Sink::ApplicationDomain::ResourceCapabilities::Mail::mail,
         Sink::ApplicationDomain::ResourceCapabilities::Mail::folder,
         Sink::ApplicationDomain::ResourceCapabilities::Mail::storage,

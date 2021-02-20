@@ -55,19 +55,21 @@ class Source : public FilterBase {
     QVector<Identifier> mIds;
     QVector<Identifier>::ConstIterator mIt;
     QVector<Identifier> mIncrementalIds;
-    QVector<Identifier>::ConstIterator mIncrementalIt;
+    QVector<Identifier>::ConstIterator mIncrementalIt{};
     bool mHaveIncrementalChanges{false};
+    bool mIdsAreFinal{false};
 
-    Source (const QVector<Identifier> &ids, DataStoreQuery *store)
+    Source (const QVector<Identifier> &ids, DataStoreQuery *store, bool idsAreFinal = false)
         : FilterBase(store),
-        mIds(ids)
+        mIds(ids),
+        mIdsAreFinal(idsAreFinal)
     {
         mIt = mIds.constBegin();
     }
 
-    virtual ~Source(){}
+    ~Source() override = default;
 
-    virtual void skip() Q_DECL_OVERRIDE
+    void skip() override
     {
         if (mIt != mIds.constEnd()) {
             mIt++;
@@ -79,7 +81,10 @@ class Source : public FilterBase {
         mIncrementalIds.clear();
         mIncrementalIds.reserve(keys.size());
         for (const auto &key : keys) {
-            mIncrementalIds.append(key.identifier());
+            //Pre-filter by uid if a uid-filter is set.
+            if (!mIdsAreFinal || mIds.contains(key.identifier())) {
+                mIncrementalIds.append(key.identifier());
+            }
         }
         mIncrementalIt = mIncrementalIds.constBegin();
         mHaveIncrementalChanges = true;
@@ -96,21 +101,18 @@ class Source : public FilterBase {
                 callback({entity, operation});
             });
             mIncrementalIt++;
-            if (mIncrementalIt == mIncrementalIds.constEnd()) {
-                return false;
-            }
-            return true;
-        } else {
-            if (mIt == mIds.constEnd()) {
-                return false;
-            }
-            readEntity(*mIt, [this, callback](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
-                SinkTraceCtx(mDatastore->mLogCtx) << "Source: Read entity: " << entity.identifier() << operationName(operation);
-                callback({entity, operation});
-            });
-            mIt++;
-            return mIt != mIds.constEnd();
+
+            return mIncrementalIt != mIncrementalIds.constEnd();
         }
+        if (mIt == mIds.constEnd()) {
+            return false;
+        }
+        readEntity(*mIt, [this, callback](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
+            SinkTraceCtx(mDatastore->mLogCtx) << "Source: Read entity: " << entity.identifier() << operationName(operation);
+            callback({entity, operation});
+        });
+        mIt++;
+        return mIt != mIds.constEnd();
     }
 };
 
@@ -123,7 +125,7 @@ public:
     {
 
     }
-    virtual ~Collector(){}
+    ~Collector() override = default;
 
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
     {
@@ -143,9 +145,9 @@ public:
 
     }
 
-    virtual ~Filter(){}
+    ~Filter() override{}
 
-    virtual bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                 SinkTraceCtx(mDatastore->mLogCtx) << "Filter: " << result.entity.identifier() << operationName(result.operation);
@@ -185,11 +187,19 @@ public:
                 property = propList;
             }
             const auto comparator = propertyFilter.value(filterProperty);
-            //We can't deal with a fulltext filter
+            //Reevaluate the fulltext filter during incremental queries.
             if (comparator.comparator == QueryBase::Comparator::Fulltext) {
-                continue;
-            }
-            if (!comparator.matches(property)) {
+                //Don't apply it for initial results, since the fulltext index is always the source set.
+                if (mIncremental) {
+                    const auto entityId = Identifier::fromDisplayByteArray(entity.identifier());
+                    //We filter the potentially expensive query by the identifier that we actually require.
+                    const auto matches = indexLookup("fulltext", comparator.value.toString(), {entityId});
+                    if (!matches.contains(entityId)) {
+                        SinkTraceCtx(mDatastore->mLogCtx) << "Filtering entity due to mismatch on fulltext filter: " << entity.identifier() << "Property: " << filterProperty << property << " Filter:" << comparator.value;
+                        return false;
+                    }
+                }
+            } else if (!comparator.matches(property)) {
                 SinkTraceCtx(mDatastore->mLogCtx) << "Filtering entity due to property mismatch on filter: " << entity.identifier() << "Property: " << filterProperty << property << " Filter:" << comparator.value;
                 return false;
             }
@@ -287,7 +297,7 @@ public:
 
     }
 
-    virtual ~Reduce(){}
+    ~Reduce() override{}
 
     void updateComplete() Q_DECL_OVERRIDE
     {
@@ -392,9 +402,9 @@ public:
                 }
                 const auto reductionValueBa = getByteArray(reductionValue);
                 if (!mReducedValues.contains(reductionValueBa)) {
+                    SinkTraceCtx(mDatastore->mLogCtx) << "Reducing new value: " << result.entity.identifier() << reductionValueBa;
                     //Only reduce every value once.
                     mReducedValues.insert(reductionValueBa);
-                    SinkTraceCtx(mDatastore->mLogCtx) << "Reducing new value: " << result.entity.identifier() << reductionValueBa;
                     auto reductionResult = reduceOnValue(reductionValue);
 
                     //This can happen if we get a removal message from a filtered entity and all entites of the reduction are filtered.
@@ -414,10 +424,10 @@ public:
                         SinkTraceCtx(mDatastore->mLogCtx) << "Incremental reduction update: " << result.entity.identifier() << reductionValueBa;
                         mIncrementallyReducedValues.insert(reductionValueBa);
                         //Redo the reduction to find new aggregated values
-                        auto selectionResult = reduceOnValue(reductionValue);
+                        const auto selectionResult = reduceOnValue(reductionValue);
 
                         //If mSelectedValues did not contain the value, oldSelectionResult will be empty.(Happens if entites have been filtered)
-                        auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
+                        const auto oldSelectionResult = mSelectedValues.take(reductionValueBa);
                         SinkTraceCtx(mDatastore->mLogCtx) << "Old selection result: " << oldSelectionResult << " New selection result: " << selectionResult.selection;
                         if (selectionResult.selection.isNull() && oldSelectionResult.isNull()) {
                             //Nothing to do, the item was filtered before, and still is.
@@ -466,7 +476,7 @@ public:
 
     }
 
-    virtual ~Bloom(){}
+    ~Bloom() override{}
 
     bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
         if (!mBloomed) {
@@ -475,7 +485,7 @@ public:
             bool foundValue = false;
             while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                     mBloomValue = result.entity.getProperty(mBloomProperty);
-                    auto results = indexLookup(mBloomProperty, mBloomValue);
+                    const auto results = indexLookup(mBloomProperty, mBloomValue);
                     for (const auto &r : results) {
                         readEntity(r, [&, this](const Sink::ApplicationDomain::ApplicationDomainType &entity, Sink::Operation operation) {
                             callback({entity, Sink::Operation_Creation});
@@ -544,9 +554,9 @@ void DataStoreQuery::readPrevious(const Identifier &id, const std::function<void
     mStore.readPrevious(mType, id, mStore.maxRevision(), callback);
 }
 
-QVector<Identifier> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value)
+QVector<Identifier> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value, const QVector<Sink::Storage::Identifier> &filter)
 {
-    return mStore.indexLookup(mType, property, value);
+    return mStore.indexLookup(mType, property, value, filter);
 }
 
 /* ResultSet DataStoreQuery::filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, const QByteArray &sortProperty) */
@@ -667,7 +677,14 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
             for (const auto & id: query.ids()) {
                 ids.append(Identifier::fromDisplayByteArray(id));
             }
-            return Source::Ptr::create(ids, this);
+
+            //If there is no bloom or reduction filter the result set is final (so we must reject new ids as we are not filtering them later on)
+            const auto fs = query.getFilterStages();
+            const bool resultSetIsFinal = !std::any_of(fs.cbegin(), fs.cend(), [&] (const auto &stage) {
+                return stage.template dynamicCast<Query::Reduce>() || stage.template dynamicCast<Query::Bloom>();
+            });
+
+            return Source::Ptr::create(ids, this, resultSetIsFinal);
         } else {
             QSet<QByteArrayList> appliedFilters;
             auto resultSet = mStore.indexLookup(mType, query, appliedFilters, appliedSorting);
@@ -683,7 +700,8 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
     FilterBase::Ptr baseSet = mSource;
     if (!query.getBaseFilters().isEmpty()) {
         auto filter = Filter::Ptr::create(baseSet, this);
-        //For incremental queries the remaining filters are not sufficient
+        //For incremental queries the remaining filters are not sufficient,
+        //we have to check the properties that we used during the index lookup since we are not re-executing the index lookup.
         for (const auto &f : query.getBaseFilters().keys()) {
             filter->propertyFilter.insert(f, query.getFilter(f));
         }
@@ -701,12 +719,12 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
             f->propertyFilter = filter->propertyFilter;
             baseSet = f;
         } else if (auto filter = stage.dynamicCast<Query::Reduce>()) {
-            auto reduction = Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
-            for (const auto &aggregator : filter->aggregators) {
-                reduction->mAggregators << Reduce::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
+            auto reduction = ::Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
+            for (const auto &aggregator : qAsConst(filter->aggregators)) {
+                reduction->mAggregators << ::Reduce::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
             }
-            for (const auto &propertySelector : filter->propertySelectors) {
-                reduction->mSelectors << Reduce::PropertySelector(propertySelector.selector, propertySelector.resultProperty);
+            for (const auto &propertySelector : qAsConst(filter->propertySelectors)) {
+                reduction->mSelectors << ::Reduce::PropertySelector(propertySelector.selector, propertySelector.resultProperty);
             }
             reduction->propertyFilter = query.getBaseFilters();
             baseSet = reduction;
@@ -763,16 +781,12 @@ ResultSet DataStoreQuery::execute()
 
     Q_ASSERT(mCollector);
     ResultSet::ValueGenerator generator = [this](const ResultSet::Callback &callback) -> bool {
-        if (mCollector->next([this, callback](const ResultSet::Result &result) {
+        return mCollector->next([this, callback](const ResultSet::Result &result) {
                 if (result.operation != Sink::Operation_Removal) {
                     SinkTraceCtx(mLogCtx) << "Got initial result: " << result.entity.identifier() << result.operation;
                     callback(ResultSet::Result{result.entity, Sink::Operation_Creation, result.aggregateValues, result.aggregateIds});
                 }
-            }))
-        {
-            return true;
-        }
-        return false;
+            });
     };
     return ResultSet(generator, [this]() { mCollector->skip(); });
 }
