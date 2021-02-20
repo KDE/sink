@@ -3,7 +3,7 @@ project(sink_resource_imap)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 find_package(KF5 COMPONENTS REQUIRED Mime)
-find_package(KIMAP2 0.3 REQUIRED)
+find_package(KIMAP2 0.4 REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
