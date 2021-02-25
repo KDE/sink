@@ -510,10 +510,17 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
     const bool emptyKey = k.isEmpty();
 
     if (emptyKey || allowDuplicates || findSubstringKeys) {
-        MDB_cursor_op op = (allowDuplicates && !emptyKey) ? MDB_SET : MDB_FIRST;
-        if (findSubstringKeys) {
-            op = MDB_SET_RANGE;
-        }
+        const MDB_cursor_op op = [&] {
+            if (emptyKey) {
+                return MDB_FIRST;
+            }
+            if (findSubstringKeys) {
+                return MDB_SET_RANGE;
+            }
+            return MDB_SET;
+        }();
+        const MDB_cursor_op nextOp = (allowDuplicates && !findSubstringKeys && !emptyKey) ? MDB_NEXT_DUP : MDB_NEXT;
+
         if ((rc = mdb_cursor_get(cursor, &key, &data, op)) == 0) {
             const auto current = QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
             // The first lookup will find a key that is equal or greather than our key
@@ -525,7 +532,6 @@ int DataStore::NamedDatabase::scan(const QByteArray &k, const std::function<bool
                         key.mv_data = (void *)k.constData();
                         key.mv_size = k.size();
                     }
-                    MDB_cursor_op nextOp = (allowDuplicates && !findSubstringKeys && !emptyKey) ? MDB_NEXT_DUP : MDB_NEXT;
                     while ((rc = mdb_cursor_get(cursor, &key, &data, nextOp)) == 0) {
                         const auto current = QByteArray::fromRawData((char *)key.mv_data, key.mv_size);
                         // Every consequitive lookup simply iterates through the list

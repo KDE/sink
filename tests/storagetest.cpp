@@ -849,21 +849,56 @@ private slots:
         Sink::Storage::DataStore store(testDataPath,
             { dbName, { { "testDuplicateIntegerKeys", flags} } },
             Sink::Storage::DataStore::ReadWrite);
-        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
-        auto db = transaction.openDatabase("testDuplicateIntegerKeys", {}, flags);
-        db.write(0, "value1");
-        db.write(1, "value2");
-        db.write(1, "value3");
-        QSet<QByteArray> results;
-        int numValues = db.scan(1, [&](size_t, const QByteArray &value) -> bool {
-            results << value;
-            return true;
-        });
+        {
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+            auto db = transaction.openDatabase("testDuplicateIntegerKeys", {}, flags);
+            db.write(0, "value1");
+            db.write(1, "value2");
+            db.write(1, "value3");
+            QSet<QByteArray> results;
+            int numValues = db.scan(1, [&](size_t, const QByteArray &value) -> bool {
+                results << value;
+                return true;
+            });
 
-        QCOMPARE(numValues, 2);
-        QCOMPARE(results.size(), 2);
-        QVERIFY(results.contains("value2"));
-        QVERIFY(results.contains("value3"));
+            QCOMPARE(numValues, 2);
+            QCOMPARE(results.size(), 2);
+            QVERIFY(results.contains("value2"));
+            QVERIFY(results.contains("value3"));
+        }
+
+        //Test full scan over keys
+        {
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+            auto db = transaction.openDatabase("testDuplicateIntegerKeys", {}, flags);
+            bool success = true;
+            QSet<QByteArray> results;
+            db.scan({}, [&](const QByteArray &key, const QByteArray &value) {
+                results << value;
+                return true;
+            },
+            [&success](const Sink::Storage::DataStore::Error &error) {
+                qWarning() << error.message;
+                success = false;
+            }, true);
+            QVERIFY(success);
+            QCOMPARE(results.size(), 3);
+        }
+
+        //Test find last
+        {
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+            auto db = transaction.openDatabase("testDuplicateIntegerKeys", {}, flags);
+            bool success = false;
+            db.findLast(Sink::sizeTToByteArray(1), [&](const QByteArray &key, const QByteArray &value) {
+                success = true;
+            },
+            [&success](const Sink::Storage::DataStore::Error &error) {
+                qDebug() << error.message;
+                success = false;
+            });
+            QVERIFY(success);
+        }
     }
 
     void testDuplicateWithIntegerValues()
@@ -873,29 +908,48 @@ private slots:
             { dbName, { { "testDuplicateWithIntegerValues", flags} } },
             Sink::Storage::DataStore::ReadWrite);
 
-        auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
-        auto db = transaction.openDatabase("testDuplicateWithIntegerValues", {}, flags);
-
         const size_t number1 = 1;
         const size_t number2 = 2;
 
         const QByteArray number1BA = Sink::sizeTToByteArray(number1);
         const QByteArray number2BA = Sink::sizeTToByteArray(number2);
+        {
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadWrite);
+            auto db = transaction.openDatabase("testDuplicateWithIntegerValues", {}, flags);
 
-        db.write(0, number1BA);
-        db.write(1, number2BA);
-        db.write(1, number1BA);
+            db.write(0, number1BA);
+            db.write(1, number2BA);
+            db.write(1, number1BA);
 
-        QList<QByteArray> results;
-        int numValues = db.scan(1, [&](size_t, const QByteArray &value) -> bool {
-            results << value;
-            return true;
-        });
+            QList<QByteArray> results;
+            int numValues = db.scan(1, [&](size_t, const QByteArray &value) -> bool {
+                results << value;
+                return true;
+            });
 
-        QCOMPARE(numValues, 2);
-        QCOMPARE(results.size(), 2);
-        QCOMPARE(results[0], number1BA);
-        QCOMPARE(results[1], number2BA);
+            QCOMPARE(numValues, 2);
+            QCOMPARE(results.size(), 2);
+            QCOMPARE(results[0], number1BA);
+            QCOMPARE(results[1], number2BA);
+        }
+
+        //Test find last
+        {
+            auto transaction = store.createTransaction(Sink::Storage::DataStore::ReadOnly);
+            auto db = transaction.openDatabase("testDuplicateWithIntegerValues", {}, flags);
+            bool success = false;
+            QByteArray result;
+            db.findLast(Sink::sizeTToByteArray(1), [&](const QByteArray &key, const QByteArray &value) {
+                result = value;
+                success = true;
+            },
+            [&success](const Sink::Storage::DataStore::Error &error) {
+                qDebug() << error.message;
+                success = false;
+            });
+            QVERIFY(success);
+            QCOMPARE(result, number2BA);
+        }
     }
 
     void testIntegerKeyMultipleOf256()

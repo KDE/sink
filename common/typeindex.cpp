@@ -358,7 +358,7 @@ static QVector<Identifier> sortedIndexLookup(Index &index, int limit)
         [](const Index::Error &error) {
             SinkWarning() << "Lookup error in index: " << error.message;
         },
-        false);
+        true);
     return keys;
 }
 

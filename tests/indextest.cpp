@@ -56,7 +56,7 @@ private slots:
         }
         {
             QList<QByteArray> values;
-            index.lookup(QByteArray(""), [&values](const QByteArray &value) { values << value; return true; }, [](const Index::Error &error) { qWarning() << "Error: "; }, false);
+            index.lookup(QByteArray(""), [&values](const QByteArray &value) { values << value; return true; }, [](const Index::Error &error) { qWarning() << "Error: "; }, true);
             QCOMPARE(values.size(), 3);
         }
     }
