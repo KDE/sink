@@ -46,8 +46,11 @@ static QByteArray getByteArray(const QVariant &value)
             return ba;
         }
     }
-    if (value.isValid() && !value.toByteArray().isEmpty()) {
-        return value.toByteArray();
+    if (value.isValid()) {
+        const auto ba = value.toByteArray();
+        if (!ba.isEmpty()) {
+            return ba;
+        }
     }
     // LMDB can't handle empty keys, so use something different
     return "toplevel";
