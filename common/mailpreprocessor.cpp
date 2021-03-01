@@ -34,10 +34,10 @@
 
 using namespace Sink;
 
-static QString getString(const KMime::Headers::Base *header)
+static QString getString(const KMime::Headers::Base *header, const QString &defaultValue = {})
 {
     if (!header) {
-        return {};
+        return defaultValue;
     }
     return header->asUnicodeString() ;
 }
@@ -45,7 +45,7 @@ static QString getString(const KMime::Headers::Base *header)
 static QDateTime getDate(const KMime::Headers::Base *header)
 {
     if (!header) {
-        return {};
+        return QDateTime::currentDateTimeUtc();
     }
     return static_cast<const KMime::Headers::Date*>(header)->dateTime();
 }
@@ -109,21 +109,26 @@ static QString toPlain(const QString &html)
 void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Mail &mail, const QByteArray &data)
 {
     if (data.isEmpty()) {
+        //Always set a dummy subject and date, so we can find the message
+        mail.setExtractedSubject("Error: Empty message");
+        mail.setExtractedDate(QDateTime::currentDateTimeUtc());
         return;
     }
     MimeTreeParser::ObjectTreeParser otp;
     otp.parseObjectTree(data);
     otp.decryptAndVerify();
 
-    auto partList = otp.collectContentParts();
-    if (partList.isEmpty()) {
-        Q_ASSERT(false);
-        return;
-    }
-    auto part = partList[0];
+    const auto partList = otp.collectContentParts();
+    const auto part = [&] () -> MimeTreeParser::MessagePartPtr {
+        if (!partList.isEmpty()) {
+            return partList[0];
+        }
+        //Extract headers also if there are only attachment parts.
+        return  otp.parsedPart();
+    }();
     Q_ASSERT(part);
 
-    mail.setExtractedSubject(getString(part->header(KMime::Headers::Subject::staticType())));
+    mail.setExtractedSubject(getString(part->header(KMime::Headers::Subject::staticType()), "Error: No subject"));
     mail.setExtractedSender(getContact(part->header(KMime::Headers::From::staticType())));
     mail.setExtractedTo(getContactList(part->header(KMime::Headers::To::staticType())));
     mail.setExtractedCc(getContactList(part->header(KMime::Headers::Cc::staticType())));
