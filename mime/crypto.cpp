@@ -99,12 +99,22 @@ static std::pair<gpgme_error_t, gpgme_ctx_t> createForProtocol(CryptoProtocol pr
             Q_ASSERT(false);
             return std::make_pair(1, nullptr);
     }
+
     //We want the output to always be ASCII armored
     gpgme_set_armor(ctx, 1);
+
+    //Trust new keys
     if (auto e = gpgme_set_ctx_flag(ctx, "trust-model", "tofu+pgp")) {
         gpgme_release(ctx);
         return std::make_pair(e, nullptr);
     }
+
+    //That's a great way to bring signature verification to a crawl
+    if (auto e = gpgme_set_ctx_flag(ctx, "auto-key-retrieve", "0")) {
+        gpgme_release(ctx);
+        return std::make_pair(e, nullptr);
+    }
+
     return std::make_pair(GPG_ERR_NO_ERROR, ctx);
 }
 
