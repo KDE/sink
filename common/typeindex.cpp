@@ -449,7 +449,13 @@ QVector<Identifier> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
             return keys;
         } else if (query.sortProperty() == property) {
             Index index(sortedIndexName(property), transaction);
-            const auto keys = sortedIndexLookup(index, query.limit());
+            //FIXME Setting a limit here breaks our fetchMore logic,
+            //because our initial query will just return
+            //as many results as queried for. We now just query for 10 times
+            //the amount, so fetchMore works for a while, and we can avoid loading
+            //all index results. The primary usecase for this is loading all emails sorted
+            //by date (That's a lot of results).
+            const auto keys = sortedIndexLookup(index, query.limit() * 10);
             appliedSorting = property;
             return keys;
         }
