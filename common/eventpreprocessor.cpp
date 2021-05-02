@@ -52,6 +52,23 @@ void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteA
             event.setProperty("indexRanges", QVariant::fromValue(ranges));
         }
     }
+    if (icalEvent->hasRecurrenceId()) {
+        const auto duration = icalEvent->hasDuration() ? icalEvent->duration().asSeconds() : 0;
+        QList<QPair<QDateTime, QDateTime>> ranges;
+
+        const auto start = icalEvent->dtStart();
+        ranges.append(qMakePair(start, start.addSecs(duration)));
+
+        const auto recurrenceId = icalEvent->recurrenceId();
+        ranges.append(qMakePair(recurrenceId, recurrenceId.addSecs(duration)));
+
+        //recurrenceId can be earlier or later and we need to cover both cases
+        std::sort(ranges.begin(), ranges.end());
+        event.setExtractedStartTime(ranges.first().first);
+        event.setExtractedEndTime(ranges.last().second);
+
+        event.setProperty("indexRanges", QVariant::fromValue(ranges));
+    }
 }
 
 void EventPropertyExtractor::newEntity(Event &event)

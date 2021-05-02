@@ -2266,6 +2266,59 @@ private slots:
         QTRY_COMPARE(model->rowCount(), 0);
     }
 
+    void testRecurringEventsWithExceptions()
+    {
+        {
+            auto icalEvent = KCalCore::Event::Ptr::create();
+            icalEvent->setSummary("test");
+            icalEvent->setDtStart(QDateTime::fromString("2018-05-10T13:00:00Z", Qt::ISODate));
+            icalEvent->setDtEnd(QDateTime::fromString("2018-05-10T14:00:00Z", Qt::ISODate));
+            icalEvent->recurrence()->setWeekly(3);
+
+            Event event = Event::createEntity<Event>("sink.dummy.instance1");
+            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            VERIFYEXEC(Sink::Store::create(event));
+        }
+
+
+        //Exception
+        {
+            auto icalEvent = KCalCore::Event::Ptr::create();
+            icalEvent->setSummary("test");
+            icalEvent->setRecurrenceId(QDateTime::fromString("2018-05-17T13:00:00Z", Qt::ISODate));
+            icalEvent->setDtStart(QDateTime::fromString("2018-07-10T13:00:00Z", Qt::ISODate));
+            icalEvent->setDtEnd(QDateTime::fromString("2018-07-10T14:00:00Z", Qt::ISODate));
+
+            Event event = Event::createEntity<Event>("sink.dummy.instance1");
+            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            VERIFYEXEC(Sink::Store::create(event));
+        }
+
+        VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
+                QVariantList{ QDateTime::fromString("2018-05-15T12:00:00Z", Qt::ISODate),
+                    QDateTime::fromString("2018-05-30T13:00:00Z", Qt::ISODate) },
+                QueryBase::Comparator::Overlap));
+            auto model = Sink::Store::loadModel<Event>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 2);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter<Event::StartTime, Event::EndTime>(QueryBase::Comparator(
+                QVariantList{ QDateTime::fromString("2018-07-15T12:00:00Z", Qt::ISODate),
+                    QDateTime::fromString("2018-07-30T13:00:00Z", Qt::ISODate) },
+                QueryBase::Comparator::Overlap));
+            auto model = Sink::Store::loadModel<Event>(query);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+        }
+    }
 };
 
 QTEST_MAIN(QueryTest)
