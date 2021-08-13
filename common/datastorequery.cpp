@@ -138,6 +138,7 @@ public:
     typedef QSharedPointer<Filter> Ptr;
 
     QHash<QByteArrayList, Sink::QueryBase::Comparator> propertyFilter;
+    std::function<bool(const ApplicationDomain::ApplicationDomainType &)> filterFunction;
 
     Filter(FilterBase::Ptr source, DataStoreQuery *store)
         : FilterBase(source, store)
@@ -175,6 +176,9 @@ public:
     }
 
     bool matchesFilter(const ApplicationDomain::ApplicationDomainType &entity) {
+        if (filterFunction) {
+            return filterFunction(entity);
+        }
         for (const auto &filterProperty : propertyFilter.keys()) {
             QVariant property;
             if (filterProperty.size() == 1) {
@@ -731,6 +735,12 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
         } else if (auto filter = stage.dynamicCast<Query::Bloom>()) {
             baseSet = Bloom::Ptr::create(filter->property, baseSet, this);
         }
+    }
+
+    if (query.getPostQueryFilter()) {
+        auto f = Filter::Ptr::create(baseSet, this);
+        f->filterFunction = query.getPostQueryFilter();
+        baseSet = f;
     }
 
     mCollector = Collector::Ptr::create(baseSet, this);

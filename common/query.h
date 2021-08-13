@@ -345,10 +345,22 @@ public:
 
     qint64 baseRevision{0};
 
+    typedef std::function<bool(const Sink::ApplicationDomain::ApplicationDomainType &)> FilterFunction;
+
+    void setPostQueryFilter(const FilterFunction &filter) {
+        mPostQueryFilter = filter;
+    }
+
+    FilterFunction getPostQueryFilter() const
+    {
+        return mPostQueryFilter;
+    }
+
 protected:
     int mLimit{0};
 
 private:
+    FilterFunction mPostQueryFilter;
     Filter mBaseFilterStage;
     QList<QSharedPointer<FilterStage>> mFilterStages;
     QByteArray mType;
