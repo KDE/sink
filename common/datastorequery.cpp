@@ -90,7 +90,7 @@ class Source : public FilterBase {
         mHaveIncrementalChanges = true;
     }
 
-    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) override
     {
         if (mHaveIncrementalChanges) {
             if (mIncrementalIt == mIncrementalIds.constEnd()) {
@@ -127,7 +127,7 @@ public:
     }
     ~Collector() override = default;
 
-    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) override
     {
         return mSource->next(callback);
     }
@@ -148,7 +148,7 @@ public:
 
     ~Filter() override{}
 
-    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) override {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                 SinkTraceCtx(mDatastore->mLogCtx) << "Filter: " << result.entity.identifier() << operationName(result.operation);
@@ -303,7 +303,7 @@ public:
 
     ~Reduce() override{}
 
-    void updateComplete() Q_DECL_OVERRIDE
+    void updateComplete() override
     {
         SinkTraceCtx(mDatastore->mLogCtx) << "Reduction update is complete.";
         mIncrementallyReducedValues.clear();
@@ -377,7 +377,7 @@ public:
         return {selectionResult, reducedAndFilteredResults, aggregateValues};
     }
 
-    bool next(const std::function<void(const ResultSet::Result &)> &callback) Q_DECL_OVERRIDE {
+    bool next(const std::function<void(const ResultSet::Result &)> &callback) override {
         bool foundValue = false;
         while(!foundValue && mSource->next([this, callback, &foundValue](const ResultSet::Result &result) {
                 const auto reductionValue = [&] {
@@ -482,7 +482,7 @@ public:
 
     ~Bloom() override{}
 
-    bool next(const std::function<void(const ResultSet::Result &result)> &callback) Q_DECL_OVERRIDE {
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) override {
         if (!mBloomed) {
             //Initially we bloom on the first value that matches.
             //From there on we just filter.
