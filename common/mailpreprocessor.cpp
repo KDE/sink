@@ -110,8 +110,13 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
 {
     if (data.isEmpty()) {
         //Always set a dummy subject and date, so we can find the message
-        mail.setExtractedSubject("Error: Empty message");
-        mail.setExtractedDate(QDateTime::currentDateTimeUtc());
+        //In test we sometimes pre-set the extracted date though, so we check that first.
+        if (mail.getSubject().isEmpty()) {
+            mail.setExtractedSubject("Error: Empty message");
+        }
+        if (!mail.getDate().isValid()) {
+            mail.setExtractedDate(QDateTime::currentDateTimeUtc());
+        }
         return;
     }
     MimeTreeParser::ObjectTreeParser otp;

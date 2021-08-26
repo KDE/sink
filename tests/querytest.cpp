@@ -2140,10 +2140,11 @@ private slots:
         {
             Sink::Query query;
             query.resourceFilter("sink.dummy.instance1");
-            query.filter<Mail::Date>(QueryBase::Comparator(QVariantList{QDateTime::fromString("2018-05-22T13:49:41Z", Qt::ISODate), QDateTime::fromString("2118-05-30T13:49:41Z", Qt::ISODate)}, QueryBase::Comparator::Within));
+            query.filter<Mail::Date>(QueryBase::Comparator(QVariantList{QDateTime::fromString("2018-05-22T13:49:41Z", Qt::ISODate), QDateTime::fromString("2080-05-30T13:49:41Z", Qt::ISODate)}, QueryBase::Comparator::Within));
             auto model = Sink::Store::loadModel<Mail>(query);
             QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
-            QCOMPARE(model->rowCount(), 4);
+            //This query also finds the mail without date, because we assign a default date of current utc
+            QCOMPARE(model->rowCount(), 5);
         }
     }
 
