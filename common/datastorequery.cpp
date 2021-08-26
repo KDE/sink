@@ -212,43 +212,52 @@ public:
     }
 };
 
+
+struct Aggregator {
+    QueryBase::Aggregator::Operation operation;
+    QByteArray property;
+    QByteArray resultProperty;
+
+    Aggregator(QueryBase::Aggregator::Operation o, const QByteArray &property_, const QByteArray &resultProperty_)
+        : operation(o), property(property_), resultProperty(resultProperty_)
+    {
+
+    }
+
+    void process(const QVariant &value) {
+        if (operation == QueryBase::Aggregator::Collect) {
+            mResult = mResult.toList() << value;
+        } else if (operation == QueryBase::Aggregator::Count) {
+            mResult = mResult.toInt() + 1;
+        } else {
+            Q_ASSERT(false);
+        }
+    }
+
+    void process(const Sink::ApplicationDomain::ApplicationDomainType &entity) {
+        if (!property.isEmpty()) {
+            process(entity.getProperty(property));
+        } else {
+            process(QVariant{});
+        }
+    }
+
+    void reset()
+    {
+        mResult.clear();
+    }
+
+    QVariant result() const
+    {
+        return mResult;
+    }
+private:
+    QVariant mResult;
+};
+
 class Reduce : public Filter {
 public:
     typedef QSharedPointer<Reduce> Ptr;
-
-    struct Aggregator {
-        QueryBase::Reduce::Aggregator::Operation operation;
-        QByteArray property;
-        QByteArray resultProperty;
-
-        Aggregator(QueryBase::Reduce::Aggregator::Operation o, const QByteArray &property_, const QByteArray &resultProperty_)
-            : operation(o), property(property_), resultProperty(resultProperty_)
-        {
-
-        }
-
-        void process(const QVariant &value) {
-            if (operation == QueryBase::Reduce::Aggregator::Collect) {
-                mResult = mResult.toList() << value;
-            } else if (operation == QueryBase::Reduce::Aggregator::Count) {
-                mResult = mResult.toInt() + 1;
-            } else {
-                Q_ASSERT(false);
-            }
-        }
-
-        void reset()
-        {
-            mResult.clear();
-        }
-
-        QVariant result() const
-        {
-            return mResult;
-        }
-    private:
-        QVariant mResult;
-    };
 
     struct PropertySelector {
         QueryBase::Reduce::Selector selector;
@@ -346,12 +355,9 @@ public:
                 }
                 reducedAndFilteredResults << r;
                 Q_ASSERT(operation != Sink::Operation_Removal);
+
                 for (auto &aggregator : mAggregators) {
-                    if (!aggregator.property.isEmpty()) {
-                        aggregator.process(entity.getProperty(aggregator.property));
-                    } else {
-                        aggregator.process(QVariant{});
-                    }
+                    aggregator.process(entity);
                 }
 
                 const auto selectionValue = entity.getProperty(mSelectionProperty);
@@ -510,6 +516,52 @@ public:
     }
     QVariant mBloomValue;
     bool mBloomed = false;
+};
+
+
+class ReferenceResolver : public Filter {
+public:
+    typedef QSharedPointer<ReferenceResolver> Ptr;
+
+    QByteArray mReferenceProperty;
+    QList<Aggregator> mAggregators;
+
+    ReferenceResolver(const QByteArray &referenceProperty, FilterBase::Ptr source, DataStoreQuery *store)
+        : Filter(source, store),
+        mReferenceProperty(referenceProperty)
+    {
+
+    }
+
+    ~ReferenceResolver() override{}
+
+    void resolveReference(const ApplicationDomain::ApplicationDomainType &entity) {
+        auto parentFolder = entity.getProperty(mReferenceProperty).toByteArray();
+        while (!parentFolder.isEmpty()) {
+            //TODO abort on error
+            readEntity(Identifier::fromDisplayByteArray(parentFolder), [&](const Sink::ApplicationDomain::ApplicationDomainType &e, Sink::Operation operation) {
+                for (auto &aggregator : mAggregators) {
+                    aggregator.process(e);
+                }
+
+                parentFolder = e.getProperty(mReferenceProperty).toByteArray();
+            });
+        }
+    }
+
+    bool next(const std::function<void(const ResultSet::Result &result)> &callback) override {
+        return mSource->next([this, callback](const ResultSet::Result &result) {
+            for (auto &aggregator : mAggregators) {
+                aggregator.reset();
+            }
+            resolveReference(result.entity);
+            QMap<QByteArray, QVariant> aggregateValues = result.aggregateValues;
+            for (const auto &aggregator : mAggregators) {
+                aggregateValues.insert(aggregator.resultProperty, aggregator.result());
+            }
+            callback(ResultSet::Result{result.entity, result.operation, aggregateValues, result.aggregateIds});
+        });
+    }
 };
 
 DataStoreQuery::DataStoreQuery(const Sink::QueryBase &query, const QByteArray &type, EntityStore &store)
@@ -725,12 +777,18 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
         } else if (auto filter = stage.dynamicCast<Query::Reduce>()) {
             auto reduction = ::Reduce::Ptr::create(filter->property, filter->selector.property, filter->selector.comparator, baseSet, this);
             for (const auto &aggregator : qAsConst(filter->aggregators)) {
-                reduction->mAggregators << ::Reduce::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
+                reduction->mAggregators << ::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
             }
             for (const auto &propertySelector : qAsConst(filter->propertySelectors)) {
                 reduction->mSelectors << ::Reduce::PropertySelector(propertySelector.selector, propertySelector.resultProperty);
             }
             reduction->propertyFilter = query.getBaseFilters();
+            baseSet = reduction;
+        } else if (auto filter = stage.dynamicCast<Query::ReferenceResolver>()) {
+            auto reduction = ::ReferenceResolver::Ptr::create(filter->referenceProperty, baseSet, this);
+            for (const auto &aggregator : qAsConst(filter->aggregators)) {
+                reduction->mAggregators << ::Aggregator(aggregator.operation, aggregator.propertyToCollect, aggregator.resultProperty);
+            }
             baseSet = reduction;
         } else if (auto filter = stage.dynamicCast<Query::Bloom>()) {
             baseSet = Bloom::Ptr::create(filter->property, baseSet, this);

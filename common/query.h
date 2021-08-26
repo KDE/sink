@@ -187,6 +187,26 @@ public:
         return mFilterStages;
     }
 
+
+    class Aggregator {
+    public:
+        enum Operation {
+            Count,
+            Collect
+        };
+
+        Aggregator(const QByteArray &p, Operation o, const QByteArray &c = QByteArray())
+            : resultProperty(p),
+            operation(o),
+            propertyToCollect(c)
+        {
+        }
+
+        QByteArray resultProperty;
+        Operation operation;
+        QByteArray propertyToCollect;
+    };
+
     class Reduce : public FilterStage {
     public:
 
@@ -222,25 +242,6 @@ public:
         struct PropertySelector {
             QByteArray resultProperty;
             Selector selector;
-        };
-
-        class Aggregator {
-        public:
-            enum Operation {
-                Count,
-                Collect
-            };
-
-            Aggregator(const QByteArray &p, Operation o, const QByteArray &c = QByteArray())
-                : resultProperty(p),
-                operation(o),
-                propertyToCollect(c)
-            {
-            }
-
-            QByteArray resultProperty;
-            Operation operation;
-            QByteArray propertyToCollect;
         };
 
         Reduce(const QByteArray &p, const Selector &s)
@@ -311,6 +312,41 @@ public:
     Reduce &reduce(const Reduce::Selector &s)
     {
         return reduce(T::name, s);
+    }
+
+    /**
+     * For every entity resolve referenced entities and collect properties from them.
+     */
+    class ReferenceResolver : public FilterStage {
+    public:
+        ReferenceResolver(const QByteArray &p)
+            : referenceProperty(p)
+        {
+        }
+
+        template <typename T>
+        ReferenceResolver &collect(const QByteArray &resultProperty)
+        {
+            aggregators << Aggregator(resultProperty, Aggregator::Collect, T::name);
+            return *this;
+        }
+
+        template <typename T>
+        ReferenceResolver &collect()
+        {
+            return collect<T>(QByteArray{T::name} + QByteArray{"Collected"});
+        }
+
+        QByteArray referenceProperty;
+        bool recursive = true;
+        QList<Aggregator> aggregators;
+    };
+
+    ReferenceResolver &resolveReference(const QByteArray &property)
+    {
+        auto referenceResolver = QSharedPointer<ReferenceResolver>::create(property);
+        mFilterStages << referenceResolver;
+        return *referenceResolver;
     }
 
     /**
