@@ -8,7 +8,7 @@
 #include <store.h>
 #include <log.h>
 #include <configstore.h>
-#include "testutils.h"
+#include "test.h"
 
 class AccountsTest : public QObject
 {

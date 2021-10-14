@@ -19,7 +19,7 @@
 #include "event_generated.h"
 #include "getrssusage.h"
 #include "utils.h"
-#include "testutils.h"
+#include "test.h"
 
 /**
  * Benchmark read performance of the facade implementation.

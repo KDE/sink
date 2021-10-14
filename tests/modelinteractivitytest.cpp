@@ -10,7 +10,6 @@
 #include "log.h"
 #include "modelresult.h"
 #include "test.h"
-#include "testutils.h"
 
 static int blockingTime;
 

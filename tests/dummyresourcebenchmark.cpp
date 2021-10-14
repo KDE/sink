@@ -12,7 +12,6 @@
 #include "resourceconfig.h"
 #include "notification_generated.h"
 #include "test.h"
-#include "testutils.h"
 #include "adaptorfactoryregistry.h"
 
 #include "hawd/dataset.h"

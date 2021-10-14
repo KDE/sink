@@ -8,7 +8,6 @@
 
 #include "log.h"
 #include "test.h"
-#include "tests/testutils.h"
 
 using namespace Imap;
 

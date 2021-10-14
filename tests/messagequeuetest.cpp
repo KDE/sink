@@ -10,7 +10,6 @@
 #include "messagequeue.h"
 #include "log.h"
 #include "test.h"
-#include "testutils.h"
 
 /**
  * Test of the messagequeue implementation.

@@ -9,7 +9,6 @@
 #include "resultprovider.h"
 #include "facadefactory.h"
 #include "test.h"
-#include "testutils.h"
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
