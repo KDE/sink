@@ -6,6 +6,7 @@
 #include "common/secretstore.h"
 #include "common/store.h"
 #include "common/test.h"
+#include "tests/testutils.h"
 #include <KDAV2/DavItem>
 #include <KDAV2/DavUrl>
 #include <KDAV2/DavItemCreateJob>

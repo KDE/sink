@@ -13,6 +13,7 @@
 #include "adaptorfactoryregistry.h"
 #include "datastorequery.h"
 #include "genericresource.h"
+#include "testutils.h"
 #include "test.h"
 
 class TestSynchronizer: public Sink::Synchronizer {

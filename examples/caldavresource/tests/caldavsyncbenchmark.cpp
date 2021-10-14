@@ -31,6 +31,7 @@
 #include <KCalCore/ICalFormat>
 
 #include "../caldavresource.h"
+#include "tests/testutils.h"
 
 #include "common/test.h"
 #include "common/domain/applicationdomaintype.h"

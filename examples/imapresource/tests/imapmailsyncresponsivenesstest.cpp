@@ -21,6 +21,7 @@
 
 #include "../imapresource.h"
 #include "../imapserverproxy.h"
+#include "tests/testutils.h"
 
 #include "common/test.h"
 #include "common/domain/applicationdomaintype.h"

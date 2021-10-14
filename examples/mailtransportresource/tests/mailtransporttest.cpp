@@ -1,5 +1,6 @@
 #include <QTest>
 
+#include "tests/testutils.h"
 #include "../mailtransport.h"
 
 #include "common/test.h"

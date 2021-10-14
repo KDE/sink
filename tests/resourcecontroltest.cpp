@@ -3,6 +3,7 @@
 #include "dummyresource/resourcefactory.h"
 #include "resourcecontrol.h"
 #include "store.h"
+#include "testutils.h"
 #include "test.h"
 #include "resourceconfig.h"
 #include "resourceaccess.h"

@@ -11,6 +11,7 @@
 #include "log.h"
 #include "modelresult.h"
 #include "test.h"
+#include "testutils.h"
 #include "applicationdomaintype.h"
 #include "queryrunner.h"
 #include "adaptorfactoryregistry.h"

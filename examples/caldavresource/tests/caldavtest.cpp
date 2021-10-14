@@ -18,6 +18,7 @@
 #include "common/store.h"
 #include "common/test.h"
 #include "common/query.h"
+#include "tests/testutils.h"
 
 #include <algorithm>
 

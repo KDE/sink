@@ -8,6 +8,7 @@
 #include "resourcecontrol.h"
 #include "log.h"
 #include "test.h"
+#include "testutils.h"
 #include "definitions.h"
 #include "storage.h"
 

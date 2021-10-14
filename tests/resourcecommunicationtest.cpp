@@ -4,7 +4,7 @@
 #include "resourceaccess.h"
 #include "listener.h"
 #include "commands.h"
-#include "test.h"
+#include "testutils.h"
 #include "handshake_generated.h"
 
 /**
