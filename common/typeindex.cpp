@@ -58,10 +58,13 @@ static QByteArray getByteArray(const QVariant &value)
 
 static QByteArray toSortableByteArrayImpl(const QDateTime &date)
 {
+    qWarning() << "Indexing date " << date;
     // Sort invalid last
     if (!date.isValid()) {
+        qWarning() << "invalid";
         return QByteArray::number(std::numeric_limits<unsigned int>::max());
     }
+    qWarning() << padNumber(std::numeric_limits<unsigned int>::max() - date.toTime_t());
     return padNumber(std::numeric_limits<unsigned int>::max() - date.toTime_t());
 }
 
@@ -117,9 +120,11 @@ static void update(TypeIndex::Action action, const QByteArray &indexName, const 
     Index index(indexName, transaction);
     switch (action) {
         case TypeIndex::Add:
+            qWarning() << "Adding " << key << value;
             index.add(key, value);
             break;
         case TypeIndex::Remove:
+            qWarning() << "Removing " << key << value;
             index.remove(key, value);
             break;
     }
@@ -309,6 +314,7 @@ static QVector<Identifier> indexLookup(Index &index, QueryBase::Comparator filte
 
 static QVector<Identifier> sortedIndexLookup(Index &index, QueryBase::Comparator filter)
 {
+    qWarning() << "Sorted index lookup" << filter;
     if (filter.comparator == Query::Comparator::In || filter.comparator == Query::Comparator::Contains) {
         SinkWarning() << "In and Contains comparison not supported on sorted indexes";
     }
@@ -347,6 +353,7 @@ static QVector<Identifier> sortedIndexLookup(Index &index, QueryBase::Comparator
 
 static QVector<Identifier> sortedIndexLookup(Index &index, int limit)
 {
+    qWarning() << "Sorted index lookup2";
     QVector<Identifier> keys;
     int count = 0;
     index.lookup("",

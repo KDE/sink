@@ -9,7 +9,6 @@
 #include "modelresult.h"
 #include "log.h"
 #include "test.h"
-#include "testutils.h"
 #include "notifier.h"
 #include "notification.h"
 

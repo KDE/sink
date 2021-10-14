@@ -12,7 +12,6 @@
 #include "pipeline.h"
 #include "log.h"
 #include "test.h"
-#include "testutils.h"
 #include "adaptorfactoryregistry.h"
 #include "notifier.h"
 #include "propertyregistry.h"

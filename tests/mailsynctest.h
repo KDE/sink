@@ -23,7 +23,7 @@
 #include <QByteArray>
 
 #include <applicationdomaintype.h>
-#include "testutils.h"
+#include "test.h"
 
 namespace Sink {
 

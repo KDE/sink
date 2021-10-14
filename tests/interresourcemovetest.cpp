@@ -27,7 +27,7 @@
 #include "resourcecontrol.h"
 #include "log.h"
 #include "test.h"
-#include "testutils.h"
+#include "test.h"
 #include <KMime/Message>
 
 using namespace Sink;
