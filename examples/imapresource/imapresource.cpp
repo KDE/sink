@@ -899,15 +899,17 @@ public:
                 });
         } else if (operation == Sink::Operation_Modification) {
             SinkTraceCtx(mLogCtx) << "Renaming a folder: " << oldRemoteId << folder.getName();
-            auto rid = QSharedPointer<QByteArray>::create();
-            return login.then(imap->renameSubfolder(oldRemoteId, folder.getName()))
-                .then([this, imap, rid](const QString &createdFolder) {
-                    SinkTraceCtx(mLogCtx) << "Finished renaming a folder: " << createdFolder;
-                    *rid = createdFolder.toUtf8();
-                })
-                .then([rid] {
-                    return *rid;
-                });
+            if (changedProperties.contains(ApplicationDomain::Folder::Name::name)) {
+                auto rid = QSharedPointer<QByteArray>::create();
+                return login.then(imap->renameSubfolder(oldRemoteId, folder.getName()))
+                    .then([this, imap, rid](const QString &createdFolder) {
+                        SinkTraceCtx(mLogCtx) << "Finished renaming a folder: " << createdFolder;
+                        *rid = createdFolder.toUtf8();
+                    })
+                    .then([rid] {
+                        return *rid;
+                    });
+            }
         }
         return KAsync::null<QByteArray>();
     }
