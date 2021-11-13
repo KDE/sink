@@ -1800,6 +1800,57 @@ private slots:
         }
     }
 
+    void testUTF8MailFulltext()
+    {
+        QByteArray id1;
+        // Setup
+        {
+            {
+                auto msg = KMime::Message::Ptr::create();
+                msg->subject()->fromUnicodeString("sübject", "utf8");
+                msg->setBody("büdi");
+                msg->from()->fromUnicodeString("\"John Düderli\"<john@doe.com>", "utf8");
+                msg->assemble();
+
+                auto mail = ApplicationDomainType::createEntity<Mail>("sink.dummy.instance1");
+                mail.setExtractedMessageId("test1");
+                mail.setFolder("folder1");
+                mail.setMimeMessage(msg->encodedContent());
+                VERIFYEXEC(Sink::Store::create<Mail>(mail));
+                id1 = mail.identifier();
+            }
+            VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
+            {
+                FulltextIndex index("sink.dummy.instance1", Sink::Storage::DataStore::ReadOnly);
+                qInfo() << QString("found document 1 with terms: ") + index.getIndexContent(id1).terms.join(", ");
+            }
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, Sink::QueryBase::Comparator(QString("sübject"), Sink::QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, Sink::QueryBase::Comparator(QString("büdi"), Sink::QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+        {
+            Sink::Query query;
+            query.resourceFilter("sink.dummy.instance1");
+            query.filter({}, Sink::QueryBase::Comparator(QString("düderli"), Sink::QueryBase::Comparator::Fulltext));
+            const auto list = Sink::Store::read<Mail>(query);
+            QCOMPARE(list.size(), 1);
+            QCOMPARE(list.first().identifier(), id1);
+        }
+    }
+
     void testLiveMailFulltext()
     {
         Sink::Query query;

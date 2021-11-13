@@ -50,15 +50,19 @@ static QDateTime getDate(const KMime::Headers::Base *header)
     return static_cast<const KMime::Headers::Date*>(header)->dateTime();
 }
 
+static Sink::ApplicationDomain::Mail::Contact fromMailbox(const KMime::Types::Mailbox &mb)
+{
+    return Sink::ApplicationDomain::Mail::Contact{mb.name(), mb.address()};
+}
+
 static Sink::ApplicationDomain::Mail::Contact getContact(const KMime::Headers::Base *h)
 {
     if (!h) {
         return {};
     }
     const auto header = static_cast<const KMime::Headers::Generics::MailboxList*>(h);
-    const auto name = header->displayNames().isEmpty() ? QString() : header->displayNames().first();
-    const auto address = header->addresses().isEmpty() ? QString() : header->addresses().first();
-    return Sink::ApplicationDomain::Mail::Contact{name, address};
+    const auto mb = header->mailboxes().isEmpty() ? KMime::Types::Mailbox{} : header->mailboxes().first();
+    return fromMailbox(mb);
 }
 
 static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime::Headers::Base *h)
@@ -69,7 +73,7 @@ static QList<Sink::ApplicationDomain::Mail::Contact> getContactList(const KMime:
     const auto header = static_cast<const KMime::Headers::Generics::AddressList*>(h);
     QList<Sink::ApplicationDomain::Mail::Contact> list;
     for (const auto &mb : header->mailboxes()) {
-        list << Sink::ApplicationDomain::Mail::Contact{mb.name(), mb.address()};
+        list << fromMailbox(mb);
     }
     return list;
 }
