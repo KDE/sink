@@ -6,7 +6,7 @@ Dependencies:
   'require':
     'frameworks/extra-cmake-modules': '@latest'
     'frameworks/kcoreaddons': '@latest'
-    'frameworks/kmime': '@latest'
+    'pim/kmime': '@latest'
     'frameworks/kcontacts': '@latest'
     'frameworks/kcalendarcore': '@latest'
     'libraries/kasync': '@same'
