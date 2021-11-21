@@ -8,6 +8,7 @@ Dependencies:
     'frameworks/kcoreaddons': '@latest'
     'pim/kmime': '@latest'
     'pim/kimap2': '@same'
+    'pim/kdav2': '@same'
     'frameworks/kcontacts': '@latest'
     'frameworks/kcalendarcore': '@latest'
     'libraries/kasync': '@same'
