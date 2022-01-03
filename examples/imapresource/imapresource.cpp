@@ -843,6 +843,7 @@ public:
         }
         auto imap = QSharedPointer<ImapServerProxy>::create(mServer, mPort, mEncryptionMode, mAuthenticationMode, &mSessionCache);
         auto login = imap->login(mUser, secret());
+        KAsync::Job<QByteArray> job = KAsync::null<QByteArray>();
         if (operation == Sink::Operation_Creation) {
             QString parentFolder;
             if (!folder.getParent().isEmpty()) {
@@ -856,7 +857,7 @@ public:
                     *rid = createdFolder.toUtf8();
                 });
             if (folder.getSpecialPurpose().isEmpty()) {
-                return createFolder
+                job = createFolder
                     .then([rid](){
                         return *rid;
                     });
@@ -888,20 +889,20 @@ public:
                 .then([rid](){
                     return *rid;
                 });
-                return mergeJob;
+                job = mergeJob;
             }
         } else if (operation == Sink::Operation_Removal) {
             SinkTraceCtx(mLogCtx) << "Removing a folder: " << oldRemoteId;
-            return login.then(imap->remove(oldRemoteId))
+            job = login.then(imap->remove(oldRemoteId))
                 .then([this, oldRemoteId, imap] {
                     SinkTraceCtx(mLogCtx) << "Finished removing a folder: " << oldRemoteId;
                     return QByteArray();
                 });
         } else if (operation == Sink::Operation_Modification) {
-            SinkTraceCtx(mLogCtx) << "Renaming a folder: " << oldRemoteId << folder.getName();
+            SinkTraceCtx(mLogCtx) << "Modifying a folder: " << oldRemoteId << folder.getName();
             if (changedProperties.contains(ApplicationDomain::Folder::Name::name)) {
                 auto rid = QSharedPointer<QByteArray>::create();
-                return login.then(imap->renameSubfolder(oldRemoteId, folder.getName()))
+                job = login.then(imap->renameSubfolder(oldRemoteId, folder.getName()))
                     .then([this, imap, rid](const QString &createdFolder) {
                         SinkTraceCtx(mLogCtx) << "Finished renaming a folder: " << createdFolder;
                         *rid = createdFolder.toUtf8();
@@ -911,7 +912,16 @@ public:
                     });
             }
         }
-        return KAsync::null<QByteArray>();
+        return job
+            .then([=] (const KAsync::Error &error, const QByteArray &remoteId) {
+                if (error) {
+                    SinkWarning() << "Error during changereplay: " << error.errorMessage;
+                    return imap->logout()
+                        .then(KAsync::error<QByteArray>(getError(error)));
+                }
+                return imap->logout()
+                    .then(KAsync::value(remoteId));
+            });
     }
 
 public:
