@@ -281,6 +281,11 @@ bool EntityStore::modify(const QByteArray &type, const ApplicationDomainType &di
 bool EntityStore::modify(const QByteArray &type, const ApplicationDomainType &current, ApplicationDomainType newEntity, bool replayToSource)
 {
     SinkTraceCtx(d->logCtx) << "Modified entity: " << newEntity;
+    //This should not normally happen and is possibly a client defect
+    if (newEntity.changedProperties().isEmpty()) {
+        SinkWarningCtx(d->logCtx) << "Attempted an empty modification: " << newEntity;
+        return false;
+    }
 
     const auto identifier = Identifier::fromDisplayByteArray(newEntity.identifier());
     d->typeIndex(type).modify(identifier, current, newEntity, d->transaction, d->resourceContext.instanceId());
