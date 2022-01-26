@@ -195,8 +195,6 @@ public:
 
     void createOrModifyMail(const QByteArray &folderRid, const QByteArray &folderLocalId, const Message &message)
     {
-        auto time = QSharedPointer<QTime>::create();
-        time->start();
         SinkTraceCtx(mLogCtx) << "Importing new mail." << folderRid;
 
         const auto remoteId = assembleMailRid(folderLocalId, message.uid);
@@ -211,8 +209,6 @@ public:
         setFlags(mail, message.flags);
 
         createOrModify(ENTITY_TYPE_MAIL, remoteId, mail);
-        // const auto elapsed = time->elapsed();
-        // SinkTraceCtx(mLogCtx) << "Synchronized " << count << " mails in " << folderRid << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(count, 1) << " [ms/mail]";
     }
 
     void synchronizeRemovals(const QByteArray &folderRid, const QSet<qint64> &messages)
@@ -253,6 +249,10 @@ public:
             SinkLogCtx(logCtx) << folder.path() << "highestModSequence didn't change, nothing to do.";
             return KAsync::null();
         }
+
+        auto time = QSharedPointer<QTime>::create();
+        time->start();
+        auto totalCount = QSharedPointer<int>::create(0);
 
         //First we fetch flag changes for all messages. Since we don't know which messages are locally available we just get everything and only apply to what we have.
         return KAsync::start<qint64>([=] {
@@ -333,6 +333,7 @@ public:
                 }
 
                 const qint64 lowerBoundUid = filteredAndSorted.last();
+                *totalCount = filteredAndSorted.size();
 
                 auto maxUid = QSharedPointer<qint64>::create(filteredAndSorted.first());
                 SinkTraceCtx(logCtx) << "Uids to fetch for full set: " << filteredAndSorted;
@@ -389,6 +390,9 @@ public:
                     }
                     SinkTraceCtx(logCtx) << "Uids to fetch for headers only: " << toFetch;
 
+
+                    *totalCount = *totalCount += toFetch.size();
+
                     bool headersOnly = true;
                     const auto folderLocalId = syncStore().resolveRemoteId(ENTITY_TYPE_FOLDER, folderRemoteId);
                     return imap->fetchMessages(folder, toFetch, headersOnly, [=](const Message &m) {
@@ -415,6 +419,9 @@ public:
         })
         //Finally remove messages that are no longer existing on the server.
         .then([=] {
+            const auto elapsed = time->elapsed();
+            SinkLogCtx(mLogCtx) << "Synchronized " << *totalCount << " mails in " << folderRemoteId << Sink::Log::TraceTime(elapsed) << " " << elapsed/qMax(*totalCount, 1) << " [ms/mail]";
+
             //TODO do an examine with QRESYNC and remove VANISHED messages if supported instead
             return imap->fetchUids().then([=](const QVector<qint64> &uids) {
                 SinkTraceCtx(logCtx) << "Syncing removals: " << folder.path();
