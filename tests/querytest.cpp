@@ -34,6 +34,8 @@ class QueryTest : public QObject
 private slots:
     void initTestCase()
     {
+        qRegisterMetaType<QList<QPersistentModelIndex>>("QList<QPersistentModelIndex>");
+        qRegisterMetaType<QAbstractItemModel::LayoutChangeHint>("QAbstractItemModel::LayoutChangeHint");
         Sink::Test::initTest();
         auto factory = Sink::ResourceFactory::load("sink.dummy");
         QVERIFY(factory);
@@ -1182,6 +1184,7 @@ private slots:
         auto mail1 = Mail::createEntity<Mail>("sink.dummy.instance1");
         mail1.setExtractedMessageId("mail1");
         mail1.setFolder(folder1);
+        mail1.setUnread(true);
         VERIFYEXEC(Sink::Store::create(mail1));
 
         // Ensure all local data is processed
@@ -2053,7 +2056,7 @@ private slots:
             QSignalSpy resetSpy(model.data(), &QAbstractItemModel::modelReset);
 
             mail3.setUnread(false);
-            VERIFYEXEC(Sink::Store::modify(mail1));
+            VERIFYEXEC(Sink::Store::modify(mail3));
 
             QTRY_COMPARE(changedSpy.size(), 1);
             QCOMPARE(insertedSpy.size(), 0);
