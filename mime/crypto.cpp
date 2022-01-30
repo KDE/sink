@@ -27,6 +27,7 @@
 
 #include <QDebug>
 #include <QDateTime>
+#include <QFile>
 
 #include <future>
 #include <utility>
@@ -41,27 +42,27 @@ QDebug operator<< (QDebug d, const Key &key)
 
 QDebug operator<< (QDebug d, const Error &error)
 {
-    d << error.errorCode() << gpgme_strerror(error.errorCode());
+    d << error.error;
     return d;
 }
 
 namespace Crypto {
-struct Data {
-    Data(const QByteArray &buffer)
-    {
-        const bool copy = false;
-        const gpgme_error_t e = gpgme_data_new_from_mem(&data, buffer.constData(), buffer.size(), int(copy));
-        if (e) {
-            qWarning() << "Failed to copy data?" << e;
+    struct Data {
+        Data(const QByteArray &buffer)
+        {
+            const bool copy = false;
+            const gpgme_error_t e = gpgme_data_new_from_mem(&data, buffer.constData(), buffer.size(), int(copy));
+            if (e) {
+                qWarning() << "Failed to copy data?" << e;
+            }
         }
-    }
 
-    ~Data()
-    {
-        gpgme_data_release(data);
-    }
-    gpgme_data_t data;
-};
+        ~Data()
+        {
+            gpgme_data_release(data);
+        }
+        gpgme_data_t data;
+    };
 }
 
 static gpgme_error_t checkEngine(CryptoProtocol protocol)
@@ -118,6 +119,24 @@ static std::pair<gpgme_error_t, gpgme_ctx_t> createForProtocol(CryptoProtocol pr
     return std::make_pair(GPG_ERR_NO_ERROR, ctx);
 }
 
+gpgme_error_t gpgme_passphrase(void *hook, const char *uid_hint, const char *passphrase_info, int prev_was_bad, int fd)
+{
+    Q_UNUSED(hook);
+    Q_UNUSED(prev_was_bad);
+    //uid_hint will be something like "CAA5183608F0FB50 Test1 Kolab <test1@kolab.org>" (CAA518... is the key)
+    //pahhphrase_info will be something like "CAA5183608F0FB50 2E3B7787B1B75920 1 0"
+    qInfo() << "Requested passphrase for " << (uid_hint ? QByteArray{uid_hint} : QByteArray{}) << (passphrase_info ? QByteArray{passphrase_info} : QByteArray{});
+
+    QFile file;
+    file.open(fd, QIODevice::WriteOnly);
+    //FIXME hardcoded as a test
+    auto passphrase = QByteArray{"test1"} + QByteArray{"\n"};
+    file.write(passphrase);
+    file.close();
+
+    return 0;
+}
+
 
 namespace Crypto {
 struct Context {
@@ -126,6 +145,12 @@ struct Context {
         gpgme_error_t code;
         std::tie(code, context) = createForProtocol(protocol);
         error = Error{code};
+        //For enabling the loopback passphrase
+        //if (!error) {
+        //    gpgme_set_passphrase_cb (context, gpgme_passphrase, 0);
+        //    //TODO requires allow-loopback-pinentry to be enabled in the gpg-agent.conf
+        //    gpgme_set_pinentry_mode(context, GPGME_PINENTRY_MODE_LOOPBACK);
+        //}
     }
 
     ~Context()
@@ -156,7 +181,7 @@ static std::vector<Recipient> copyRecipients(gpgme_decrypt_result_t result)
 {
     std::vector<Recipient> recipients;
     for (gpgme_recipient_t r = result->recipients ; r ; r = r->next) {
-        recipients.push_back({QByteArray{r->keyid}, {r->status}});
+        recipients.push_back({QByteArray{r->keyid}, r->status != GPG_ERR_NO_SECKEY});
     }
     return recipients;
 }
@@ -168,10 +193,19 @@ static std::vector<Signature> copySignatures(gpgme_verify_result_t result)
         Signature sig;
         sig.fingerprint = QByteArray{is->fpr};
         sig.creationTime.setTime_t(is->timestamp);
-        sig.summary = is->summary;
+        if (is->summary & GPGME_SIGSUM_VALID) {
+            sig.result = Signature::Ok;
+        } else {
+            sig.result = Signature::Invalid;
+            if (is->summary & GPGME_SIGSUM_KEY_EXPIRED) {
+                sig.result = Signature::Expired;
+            }
+            if (is->summary & GPGME_SIGSUM_KEY_MISSING) {
+                sig.result = Signature::KeyNotFound;
+            }
+        }
         sig.status = {is->status};
-        sig.validity = is->validity;
-        sig.validity_reason = is->validity_reason;
+        sig.isTrusted = is->validity == GPGME_VALIDITY_FULL || is->validity == GPGME_VALIDITY_ULTIMATE;
         signatures.push_back(sig);
     }
     return signatures;
@@ -215,12 +249,26 @@ VerificationResult Crypto::verifyOpaqueSignature(CryptoProtocol protocol, const 
     return result;
 }
 
+static DecryptionResult::Result toResult(gpgme_error_t err)
+{
+    if (err == GPG_ERR_NO_DATA) {
+        return DecryptionResult::NotEncrypted;
+    } else if (err == GPG_ERR_NO_SECKEY) {
+        return DecryptionResult::NoSecretKeyError;
+    } else if (err == GPG_ERR_CANCELED || err == GPG_ERR_INV_PASSPHRASE) {
+        return DecryptionResult::PassphraseError;
+    }
+    qWarning() << "unknown error" << err << gpgme_strerror(err);
+    return DecryptionResult::NoSecretKeyError;
+}
+
 std::pair<DecryptionResult,VerificationResult> Crypto::decryptAndVerify(CryptoProtocol protocol, const QByteArray &ciphertext, QByteArray &outdata)
 {
     Context context{protocol};
     if (!context) {
-        qWarning() << "Failed to create context " << context.error;
-        return std::make_pair(DecryptionResult{{}, context.error}, VerificationResult{{}, context.error});
+        qWarning() << "Failed to create context " << gpgme_strerror(context.error);
+        qWarning() << "returning early";
+        return std::make_pair(DecryptionResult{{}, {context.error}, DecryptionResult::NoSecretKeyError}, VerificationResult{{}, context.error});
     }
     auto ctx = context.context;
 
@@ -233,7 +281,7 @@ std::pair<DecryptionResult,VerificationResult> Crypto::decryptAndVerify(CryptoPr
         qWarning() << "Failed to decrypt and verify" << Error{err};
         //We make sure we don't return any plain-text if the decryption failed to prevent EFAIL
         if (err == GPG_ERR_DECRYPT_FAILED) {
-            return std::make_pair(DecryptionResult{{}, {err}}, VerificationResult{{}, {err}});
+            return std::make_pair(DecryptionResult{{}, {err}, DecryptionResult::DecryptionError}, VerificationResult{{}, {err}});
         }
     }
 
@@ -246,9 +294,48 @@ std::pair<DecryptionResult,VerificationResult> Crypto::decryptAndVerify(CryptoPr
     if (gpgme_decrypt_result_t res = gpgme_op_decrypt_result(ctx)) {
         decryptionResult.recipients = copyRecipients(res);
     }
+    decryptionResult.result = toResult(err);
 
     outdata = toBA(out);
     return std::make_pair(decryptionResult, verificationResult);
+}
+
+static DecryptionResult decryptGPGME(CryptoProtocol protocol, const QByteArray &ciphertext, QByteArray &outdata)
+{
+    Context context{protocol};
+    if (!context) {
+        qWarning() << "Failed to create context " << context.error;
+        return DecryptionResult{{}, context.error};
+    }
+    auto ctx = context.context;
+
+    gpgme_data_t out;
+    if (gpgme_error_t e = gpgme_data_new(&out)) {
+        qWarning() << "Failed to allocated data" << e;
+    }
+    auto err = gpgme_op_decrypt(ctx, Data{ciphertext}.data, out);
+    if (err) {
+        qWarning() << "Failed to decrypt" << gpgme_strerror(err);
+        //We make sure we don't return any plain-text if the decryption failed to prevent EFAIL
+        if (err == GPG_ERR_DECRYPT_FAILED) {
+            return DecryptionResult{{}, {err}};
+        }
+    }
+
+    DecryptionResult decryptionResult{{}, {err}};
+    if (gpgme_decrypt_result_t res = gpgme_op_decrypt_result(ctx)) {
+        decryptionResult.recipients = copyRecipients(res);
+    }
+
+    decryptionResult.result = toResult(err);
+
+    outdata = toBA(out);
+    return decryptionResult;
+}
+
+DecryptionResult Crypto::decrypt(CryptoProtocol protocol, const QByteArray &ciphertext, QByteArray &outdata)
+{
+        return decryptGPGME(protocol, ciphertext, outdata);
 }
 
 ImportResult Crypto::importKey(CryptoProtocol protocol, const QByteArray &certData)
@@ -306,10 +393,8 @@ static KeyListResult listKeys(CryptoProtocol protocol, const std::vector<const c
     while (true) {
         gpgme_key_t key;
         if (auto err = gpgme_op_keylist_next(ctx, &key)) {
-            Error error{err};
-            if (error.errorCode() != GPG_ERR_EOF) {
-                result.error = error;
-                qWarning() << "Error after listing keys" << result.error;
+            if (gpgme_err_code(err) != GPG_ERR_EOF) {
+                qWarning() << "Error after listing keys" << result.error << gpgme_strerror(err);
             }
             break;
         }
@@ -333,7 +418,7 @@ static KeyListResult listKeys(CryptoProtocol protocol, const std::vector<const c
     if (importKeys && !listedKeys.empty()) {
         listedKeys.push_back(0);
         if (auto err = gpgme_op_import_keys(ctx, const_cast<gpgme_key_t*>(listedKeys.data()))) {
-            qWarning() << "Error while importing keys" << Error{err};
+            qWarning() << "Error while importing keys" << gpgme_strerror(err);
         }
     }
     return result;
@@ -405,9 +490,8 @@ Expected<Error, QByteArray> Crypto::signAndEncrypt(const QByteArray &content, co
         gpgme_op_encrypt(context.context, keys, GPGME_ENCRYPT_ALWAYS_TRUST, Data{content}.data, out);
     delete[] keys;
     if (err) {
-        const auto error = Error{err};
-        qWarning() << "Encryption failed:" << error;
-        switch (error.errorCode()) {
+        qWarning() << "Encryption failed:" << gpgme_strerror(err);
+        switch (gpgme_err_code(err)) {
             case GPG_ERR_UNUSABLE_PUBKEY:
                 for (const auto &k : encryptionKeys) {
                     qWarning() << "Encryption key:" << k;
@@ -421,7 +505,7 @@ Expected<Error, QByteArray> Crypto::signAndEncrypt(const QByteArray &content, co
             default:
                 break;
         }
-        return makeUnexpected(error);
+        return makeUnexpected(Error{err});
     }
 
     return toBA(out);

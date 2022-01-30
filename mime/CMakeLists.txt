@@ -16,3 +16,4 @@ install(FILES
 )
 
 add_subdirectory(mimetreeparser)
+add_subdirectory(tests)

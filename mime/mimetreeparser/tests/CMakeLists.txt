@@ -18,6 +18,15 @@ target_link_libraries(mimetreeparsertest
     KF5::Mime
 )
 
+add_executable(mimetreeparserbenchmark mimetreeparserbenchmark.cpp)
+add_gpg_crypto_test(mimetreeparserbenchmark mimetreeparserbenchmark)
+target_link_libraries(mimetreeparserbenchmark
+    sink_mimetreeparser
+    Qt5::Core
+    Qt5::Test
+    KF5::Mime
+)
+
 add_executable(gpgerrortest gpgerrortest.cpp)
 target_link_libraries(gpgerrortest
     sink_mimetreeparser
