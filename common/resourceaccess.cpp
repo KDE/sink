@@ -261,7 +261,10 @@ ResourceAccess::ResourceAccess(const QByteArray &resourceInstanceIdentifier, con
 
     QObject::connect(&SecretStore::instance(), &SecretStore::secretAvailable, this, [this] (const QByteArray &resourceId) {
         if (resourceId == d->resourceInstanceIdentifier) {
-            sendSecret(SecretStore::instance().resourceSecret(d->resourceInstanceIdentifier)).exec();
+            //No need to start the resource just to send the secret, we'll do that on connection anyways.
+            if (isReady()) {
+                sendSecret(SecretStore::instance().resourceSecret(d->resourceInstanceIdentifier)).exec();
+            }
         }
     });
 }
