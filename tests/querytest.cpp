@@ -2373,6 +2373,85 @@ private slots:
             QCOMPARE(model->rowCount(), 1);
         }
     }
+
+
+    void testQueryUpdate()
+    {
+        // Setup
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setExtractedMessageId("test1");
+            mail.setFolder("folder1");
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
+        }
+        {
+            Mail mail("sink.dummy.instance1");
+            mail.setExtractedMessageId("test2");
+            mail.setFolder("folder2");
+            VERIFYEXEC(Sink::Store::create<Mail>(mail));
+        }
+
+        // Test
+        Sink::Query query;
+        query.resourceFilter("sink.dummy.instance1");
+        query.setFlags(Query::LiveQuery);
+        query.filter<Mail::Folder>("folder1");
+
+        auto model = Sink::Store::loadModel<Mail>(query);
+        QTRY_COMPARE(model->rowCount(), 1);
+
+        {
+            Sink::Query newQuery;
+            newQuery.resourceFilter("sink.dummy.instance1");
+
+            Sink::Store::updateModel<Mail>(newQuery, model);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 2);
+        }
+        {
+
+            Sink::Query newQuery;
+            newQuery.resourceFilter("sink.dummy.instance1");
+            newQuery.filter<Mail::Folder>("folder2");
+
+            Sink::Store::updateModel<Mail>(newQuery, model);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+            QCOMPARE(model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>()->getMessageId(), "test2");
+        }
+        {
+
+            Sink::Query newQuery;
+            newQuery.resourceFilter("sink.dummy.instance1");
+            newQuery.filter<Mail::Folder>("folder1");
+
+            Sink::Store::updateModel<Mail>(newQuery, model);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+            QCOMPARE(model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>()->getMessageId(), "test1");
+        }
+        //Quickly run two queries without waiting for the first to complete.
+        {
+            {
+
+                Sink::Query newQuery;
+                newQuery.resourceFilter("sink.dummy.instance1");
+                newQuery.filter<Mail::Folder>("folder2");
+
+                Sink::Store::updateModel<Mail>(newQuery, model);
+            }
+
+            Sink::Query newQuery;
+            newQuery.resourceFilter("sink.dummy.instance1");
+            newQuery.filter<Mail::Folder>("folder1");
+
+            Sink::Store::updateModel<Mail>(newQuery, model);
+            QTRY_VERIFY(model->data(QModelIndex(), Sink::Store::ChildrenFetchedRole).toBool());
+            QCOMPARE(model->rowCount(), 1);
+            QCOMPARE(model->data(model->index(0, 0, QModelIndex{}), Sink::Store::DomainObjectRole).value<Mail::Ptr>()->getMessageId(), "test1");
+        }
+    }
+
 };
 
 QTEST_MAIN(QueryTest)

@@ -193,6 +193,27 @@ QSharedPointer<QAbstractItemModel> Store::loadModel(const Query &query)
 }
 
 template <class DomainType>
+void Store::updateModel(const Query &query, const QSharedPointer<QAbstractItemModel> &model)
+{
+    Q_ASSERT(sanityCheckQuery(query));
+    auto ctx = getQueryContext(query, ApplicationDomain::getTypeName<DomainType>());
+
+    auto result = getEmitter<DomainType>(query, ctx);
+
+    QSharedPointer<ModelResult<DomainType, typename DomainType::Ptr>> m = model.dynamicCast<ModelResult<DomainType, typename DomainType::Ptr>>();
+    Q_ASSERT(m);
+    m->setEmitter(result.first);
+
+    //Keep the emitter alive
+    if (auto resourceEmitter = result.second) {
+        m->setProperty("resourceEmitter", QVariant::fromValue(resourceEmitter)); //TODO only neceesary for live queries
+        resourceEmitter->fetch();
+    }
+
+    m->updateQuery(query);
+}
+
+template <class DomainType>
 static std::shared_ptr<StoreFacade<DomainType>> getFacade(const QByteArray &resourceInstanceIdentifier)
 {
     if (ApplicationDomain::isGlobalType(ApplicationDomain::getTypeName<DomainType>())) {
@@ -542,6 +563,7 @@ QList<DomainType> Store::read(const Sink::Query &query_)
     template KAsync::Job<void> Store::move<T>(const T &domainObject, const QByteArray &newResource);           \
     template KAsync::Job<void> Store::copy<T>(const T &domainObject, const QByteArray &newResource);           \
     template QSharedPointer<QAbstractItemModel> Store::loadModel<T>(const Query &query); \
+    template void Store::updateModel<T>(const Query &, const QSharedPointer<QAbstractItemModel> &); \
     template KAsync::Job<T> Store::fetchOne<T>(const Query &);                    \
     template KAsync::Job<QList<T::Ptr>> Store::fetchAll<T>(const Query &);        \
     template KAsync::Job<QList<T::Ptr>> Store::fetch<T>(const Query &, int);      \
