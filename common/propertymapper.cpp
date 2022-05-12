@@ -29,7 +29,7 @@
 static QByteArray decompress(const char *data, size_t size)
 {
     auto decompressedSize = ZSTD_getFrameContentSize(data, size);
-    if (decompressedSize < 0) {
+    if (decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN || decompressedSize == ZSTD_CONTENTSIZE_ERROR) {
         qWarning() << "Error during decompression: invalid frame content size." << decompressedSize;
         return{};
     }
