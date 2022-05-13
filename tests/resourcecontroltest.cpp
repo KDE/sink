@@ -78,6 +78,27 @@ private slots:
         QVERIFY(!blockingSocketIsAvailable("sink.dummy.instance2"));
     }
 
+    /**
+     * An existing live-query should not restart the resource due to revisionReplayedCommands.
+     * This was introduced for tests, in regular use the resources are running during the whole query anyways,
+     * because a live query will start the resource via an explicit call to open().
+     */
+    void testRevisionReplayedAfterShutdown()
+    {
+        //Prepare
+        const QByteArray identifier{"sink.dummy.instance2"};
+        QVERIFY(!blockingSocketIsAvailable(identifier));
+        VERIFYEXEC(Sink::ResourceControl::start(identifier));
+        QVERIFY(blockingSocketIsAvailable(identifier));
+        auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(identifier, ResourceConfig::getResourceType(identifier));
+
+        //Shutdown and immediately send a revision replayed command
+        VERIFYEXEC(Sink::ResourceControl::shutdown(identifier));
+        VERIFYEXEC_FAIL(resourceAccess->sendRevisionReplayedCommand(1));
+
+        //This should not start the resource again
+        QVERIFY(!blockingSocketIsAvailable("sink.dummy.instance2"));
+    }
 
     void testAbortCommandsOnShutdown()
     {

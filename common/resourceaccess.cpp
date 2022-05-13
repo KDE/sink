@@ -390,6 +390,13 @@ KAsync::Job<void> ResourceAccess::sendDeleteCommand(const QByteArray &uid, qint6
 
 KAsync::Job<void> ResourceAccess::sendRevisionReplayedCommand(qint64 revision)
 {
+    //Avoid starting the resource just to send a revision replayed command.
+    //This is mostly relevant so in tests we don't restart resources via live-queries after shutdown (which causes them to linger for 60s)
+    //In production the live-query will always start the resource via open() anyways.
+    if (!isReady()) {
+        SinkWarningCtx(d->logCtx) << "Not starting the resource on revision replayed";
+        return KAsync::error();
+    }
     flatbuffers::FlatBufferBuilder fbb;
     auto location = Sink::Commands::CreateRevisionReplayed(fbb, revision);
     Sink::Commands::FinishRevisionReplayedBuffer(fbb, location);
