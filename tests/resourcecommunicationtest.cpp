@@ -134,6 +134,22 @@ private slots:
         }
     }
 
+    /**
+     * Make sure we handle a shutdown while commands being written to the resource.
+     */
+    void testResourceAccessShutdownWithCommand2()
+    {
+        const QByteArray resourceIdentifier("test");
+        Listener listener(resourceIdentifier, "");
+        auto resourceAccess = Sink::ResourceAccessFactory::instance().getAccess(resourceIdentifier, "");
+        for (int i = 0; i < 10; i++) {
+            resourceAccess->sendCommand(Sink::Commands::PingCommand).exec();
+        }
+        resourceAccess->shutdown().exec();
+        for (int i = 0; i < 10; i++) {
+            resourceAccess->sendCommand(Sink::Commands::PingCommand).exec();
+        }
+    }
 };
 
 QTEST_MAIN(ResourceCommunicationTest)
