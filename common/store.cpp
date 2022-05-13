@@ -30,6 +30,7 @@
 #include "resourcefacade.h"
 #include "definitions.h"
 #include "resourceconfig.h"
+#include "resourcecontrol.h"
 #include "facadefactory.h"
 #include "modelresult.h"
 #include "storage.h"
@@ -373,7 +374,9 @@ static KAsync::Job<Store::UpgradeResult> upgrade(const QByteArray &resource)
 
     //We're not using the factory to avoid getting a cached resourceaccess with the wrong resourceType
     auto resourceAccess = Sink::ResourceAccess::Ptr{new Sink::ResourceAccess(resource, ResourceConfig::getResourceType(resource)), &QObject::deleteLater};
-    return resourceAccess->sendCommand(Sink::Commands::UpgradeCommand)
+    //We first shutdown the resource, because the upgrade runs on start
+    return Sink::ResourceControl::shutdown(resource)
+        .then(resourceAccess->sendCommand(Sink::Commands::UpgradeCommand))
         .addToContext(resourceAccess)
         .then([=](const KAsync::Error &error) {
             if (error) {
