@@ -21,6 +21,7 @@
 #include "fulltextindex.h"
 
 #include <QFile>
+#include <QElapsedTimer>
 #include <QDir>
 
 #include "log.h"
@@ -179,6 +180,8 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm, const QByte
     QVector<QByteArray> results;
 
     try {
+        QElapsedTimer time;
+        time.start();
         Xapian::QueryParser parser;
         for (const auto& [name, prefix] : prefixes()) {
             parser.add_prefix(name, prefix);
@@ -215,15 +218,16 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm, const QByte
             }
         }();
         Xapian::MSet mset = enquire.get_mset(0, limit);
-        SinkTrace() << "Found " << mset.size() << " results, limited to " << limit;
-        //Print a hint why a query could lack some expected results.
-        if (searchTerm.size() > 4 && mset.size() >= limit) {
-            SinkLog() << "Result set exceeding limit of " << limit << QString::fromStdString(query.get_description());
-        }
         for (Xapian::MSetIterator it = mset.begin(); it != mset.end(); it++) {
             auto doc = it.get_document();
             const auto data = doc.get_value(0);
             results << QByteArray{data.c_str(), int(data.length())};
+        }
+
+        SinkTrace() << "Found " << mset.size() << " results, limited to " << limit << " in " << Sink::Log::TraceTime(time.elapsed());
+        //Print a hint why a query could lack some expected results (Not for small limits because that becomes noisy)
+        if (searchTerm.size() >= 4 && mset.size() >= limit) {
+            SinkLog() << "Result set exceeding limit of " << limit << QString::fromStdString(query.get_description());
         }
     }
     catch (const Xapian::Error &) {
