@@ -403,15 +403,9 @@ QVector<Identifier> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
     for (auto it = baseFilters.constBegin(); it != baseFilters.constEnd(); it++) {
         if (it.value().comparator == QueryBase::Comparator::Fulltext) {
             FulltextIndex fulltextIndex{resourceInstanceId};
-            QVector<Identifier> keys;
             const auto ids = fulltextIndex.lookup(it.value().value.toString());
-            keys.reserve(ids.size());
-            for (const auto &id : ids) {
-                keys.append(Identifier::fromDisplayByteArray(id));
-            }
-            appliedFilters << it.key();
-            SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << keys.size() << " keys.";
-            return keys;
+            SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << ids.size() << " keys.";
+            return ids;
         }
     }
 
@@ -480,15 +474,10 @@ QVector<Identifier> TypeIndex::lookup(const QByteArray &property, const QVariant
     SinkTraceCtx(mLogCtx) << "Index lookup on property: " << property << mSecondaryProperties.keys() << mProperties;
     if (property == "fulltext") {
         FulltextIndex fulltextIndex{resourceInstanceId};
-        const QByteArray entityId = filter.isEmpty() ? QByteArray{} : filter.first().toDisplayByteArray();
+        const Sink::Storage::Identifier entityId = filter.isEmpty() ? Sink::Storage::Identifier{} : filter.first();
         const auto ids = fulltextIndex.lookup(value.toString(), entityId);
-        QVector<Identifier> keys;
-        keys.reserve(ids.size());
-        for (const auto &id : ids) {
-            keys.append(Identifier::fromDisplayByteArray(id));
-        }
-        SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << keys.size() << " keys.";
-        return keys;
+        SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << ids.size() << " keys.";
+        return ids;
     }
     if (mProperties.contains(property)) {
         QVector<Identifier> keys;

@@ -31,8 +31,12 @@ private slots:
         // qInfo() << QString("Found document 1 with terms: ") + index.getIndexContent(id1).terms.join(", ");
         // qInfo() << QString("Found document 2 with terms: ") + index.getIndexContent(id2).terms.join(", ");
 
-        index.add("key1", "value1");
-        index.add("key2", "value2");
+        const auto key1 = Sink::Storage::Identifier::createIdentifier();
+        const auto key2 = Sink::Storage::Identifier::createIdentifier();
+        const auto key3 = Sink::Storage::Identifier::createIdentifier();
+
+        index.add(key1, "value1");
+        index.add(key2, "value2");
         index.commitTransaction();
 
         //Basic lookups
@@ -45,7 +49,7 @@ private slots:
         QCOMPARE(index.lookup("value1 OR value2").size(), 2);
 
         //Rollback
-        index.add("key3", "value3");
+        index.add(key3, "value3");
         QCOMPARE(index.lookup("value3").size(), 1);
         index.abortTransaction();
         QCOMPARE(index.lookup("value3").size(), 0);

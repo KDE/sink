@@ -27,6 +27,8 @@
 #include "log.h"
 #include "definitions.h"
 
+using Sink::Storage::Identifier;
+
 static std::map<std::string, std::string> prefixes()
 {
     return {
@@ -60,17 +62,17 @@ FulltextIndex::~FulltextIndex()
     delete mDb;
 }
 
-static std::string idTerm(const QByteArray &key)
+static std::string idTerm(const Identifier &key)
 {
-    return "Q" + key.toStdString();
+    return "Q" + key.toInternalByteArray().toStdString();
 }
 
-void FulltextIndex::add(const QByteArray &key, const QString &value)
+void FulltextIndex::add(const Identifier &key, const QString &value)
 {
     add(key, {{{}, value}});
 }
 
-void FulltextIndex::add(const QByteArray &key, const QList<QPair<QString, QString>> &values)
+void FulltextIndex::add(const Identifier &key, const QList<QPair<QString, QString>> &values)
 {
     if (!mDb) {
         return;
@@ -93,7 +95,7 @@ void FulltextIndex::add(const QByteArray &key, const QList<QPair<QString, QStrin
                 generator.increase_termpos();
             }
         }
-        document.add_value(0, key.toStdString());
+        document.add_value(0, key.toInternalByteArray().toStdString());
 
         const auto idterm = idTerm(key);
         document.add_boolean_term(idterm);
@@ -157,7 +159,7 @@ Xapian::WritableDatabase* FulltextIndex::writableDatabase()
     return db;
 }
 
-void FulltextIndex::remove(const QByteArray &key)
+void FulltextIndex::remove(const Identifier &key)
 {
     if (!mDb) {
         return;
@@ -172,12 +174,12 @@ void FulltextIndex::remove(const QByteArray &key)
     }
 }
 
-QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm, const QByteArray &entity)
+QVector<Identifier> FulltextIndex::lookup(const QString &searchTerm, const Identifier &entity)
 {
     if (!mDb) {
         return {};
     }
-    QVector<QByteArray> results;
+    QVector<Identifier> results;
 
     try {
         QElapsedTimer time;
@@ -196,8 +198,8 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm, const QByte
         parser.set_max_expansion(100, Xapian::Query::WILDCARD_LIMIT_MOST_FREQUENT, Xapian::QueryParser::FLAG_PARTIAL);
         const auto mainQuery = parser.parse_query(searchTerm.toStdString(), Xapian::QueryParser::FLAG_PHRASE|Xapian::QueryParser::FLAG_BOOLEAN|Xapian::QueryParser::FLAG_LOVEHATE|Xapian::QueryParser::FLAG_PARTIAL);
         const auto query = [&] {
-            if (!entity.isEmpty()) {
-                return Xapian::Query{Xapian::Query::OP_AND, Xapian::Query{("Q" + entity).toStdString()}, mainQuery};
+            if (!entity.isNull()) {
+                return Xapian::Query{Xapian::Query::OP_AND, Xapian::Query{idTerm(entity)}, mainQuery};
             }
             return mainQuery;
         }();
@@ -218,10 +220,11 @@ QVector<QByteArray> FulltextIndex::lookup(const QString &searchTerm, const QByte
             }
         }();
         Xapian::MSet mset = enquire.get_mset(0, limit);
+        results.reserve(mset.size());
         for (Xapian::MSetIterator it = mset.begin(); it != mset.end(); it++) {
             auto doc = it.get_document();
             const auto data = doc.get_value(0);
-            results << QByteArray{data.c_str(), int(data.length())};
+            results << Identifier::fromInternalByteArray({data.c_str(), int(data.length())});
         }
 
         SinkTrace() << "Found " << mset.size() << " results, limited to " << limit << " in " << Sink::Log::TraceTime(time.elapsed());
@@ -249,7 +252,7 @@ qint64 FulltextIndex::getDoccount() const
     return  -1;
 }
 
-FulltextIndex::Result FulltextIndex::getIndexContent(const QByteArray &identifier) const
+FulltextIndex::Result FulltextIndex::getIndexContent(const Identifier &identifier) const
 {
     if (!mDb) {
         {};

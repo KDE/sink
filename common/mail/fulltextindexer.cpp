@@ -32,7 +32,7 @@ void FulltextIndexer::add(const ApplicationDomain::ApplicationDomainType &entity
     if (!index) {
         index.reset(new FulltextIndex{mResourceInstanceIdentifier, Storage::DataStore::ReadWrite});
     }
-    index->add(entity.identifier(), entity.getProperty("index").value<QList<QPair<QString, QString>>>());
+    index->add(Sink::Storage::Identifier::fromDisplayByteArray(entity.identifier()), entity.getProperty("index").value<QList<QPair<QString, QString>>>());
 }
 
 void FulltextIndexer::remove(const ApplicationDomain::ApplicationDomainType &entity)
@@ -40,7 +40,7 @@ void FulltextIndexer::remove(const ApplicationDomain::ApplicationDomainType &ent
     if (!index) {
         index.reset(new FulltextIndex{mResourceInstanceIdentifier, Storage::DataStore::ReadWrite});
     }
-    index->remove(entity.identifier());
+    index->remove(Sink::Storage::Identifier::fromDisplayByteArray(entity.identifier()));
 }
 
 void FulltextIndexer::commitTransaction()
