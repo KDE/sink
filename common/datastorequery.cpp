@@ -18,6 +18,8 @@
  */
 #include "datastorequery.h"
 
+#include <QElapsedTimer>
+
 #include "log.h"
 #include "applicationdomaintype.h"
 
@@ -612,7 +614,13 @@ void DataStoreQuery::readPrevious(const Identifier &id, const std::function<void
 
 QVector<Identifier> DataStoreQuery::indexLookup(const QByteArray &property, const QVariant &value, const QVector<Sink::Storage::Identifier> &filter)
 {
-    return mStore.indexLookup(mType, property, value, filter);
+    QElapsedTimer timer;
+    timer.start();
+    const auto result =  mStore.indexLookup(mType, property, value, filter);
+    if (timer.elapsed() > 2) {
+        SinkLogCtx(mLogCtx) << "Index lookup returned " << result.size() << "results, in " << Sink::Log::TraceTime(timer.elapsed());
+    }
+    return result;
 }
 
 /* ResultSet DataStoreQuery::filterAndSortSet(ResultSet &resultSet, const FilterFunction &filter, const QByteArray &sortProperty) */
@@ -743,7 +751,12 @@ void DataStoreQuery::setupQuery(const Sink::QueryBase &query_)
             return Source::Ptr::create(ids, this, resultSetIsFinal);
         } else {
             QSet<QByteArrayList> appliedFilters;
+            QElapsedTimer timer;
+            timer.start();
             auto resultSet = mStore.indexLookup(mType, query, appliedFilters, appliedSorting);
+            if (timer.elapsed() > 2) {
+                SinkLogCtx(mLogCtx) << "Index lookup returned " << resultSet.size() << "results, in " << Sink::Log::TraceTime(timer.elapsed());
+            }
             if (!appliedFilters.isEmpty() || !appliedSorting.isEmpty()) {
                 //We have an index lookup as starting point
                 return Source::Ptr::create(resultSet, this);
