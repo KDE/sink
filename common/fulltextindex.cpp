@@ -62,6 +62,11 @@ FulltextIndex::~FulltextIndex()
     delete mDb;
 }
 
+bool FulltextIndex::exists(const QByteArray &resourceInstanceIdentifier)
+{
+    return QFile{QFile::encodeName(Sink::resourceStorageLocation(resourceInstanceIdentifier) + '/' + "fulltext/iamglass")}.exists();
+}
+
 static std::string idTerm(const Identifier &key)
 {
     return "Q" + key.toInternalByteArray().toStdString();

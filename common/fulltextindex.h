@@ -20,6 +20,8 @@ public:
     FulltextIndex(const QByteArray &resourceInstanceIdentifier, Sink::Storage::DataStore::AccessMode mode = Sink::Storage::DataStore::ReadOnly);
     ~FulltextIndex();
 
+    static bool exists(const QByteArray &resourceInstanceIdentifier);
+
     void add(const Sink::Storage::Identifier &key, const QString &value);
     void add(const Sink::Storage::Identifier &key, const QList<QPair<QString, QString>> &values);
     void remove(const Sink::Storage::Identifier &key);

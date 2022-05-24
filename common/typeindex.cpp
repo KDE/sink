@@ -402,10 +402,15 @@ QVector<Identifier> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
     const auto baseFilters = query.getBaseFilters();
     for (auto it = baseFilters.constBegin(); it != baseFilters.constEnd(); it++) {
         if (it.value().comparator == QueryBase::Comparator::Fulltext) {
-            FulltextIndex fulltextIndex{resourceInstanceId};
-            const auto ids = fulltextIndex.lookup(it.value().value.toString());
-            SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << ids.size() << " keys.";
-            return ids;
+            appliedFilters << it.key();
+            if (FulltextIndex::exists(resourceInstanceId)) {
+                FulltextIndex fulltextIndex{resourceInstanceId};
+                const auto ids = fulltextIndex.lookup(it.value().value.toString());
+                SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << ids.size() << " keys.";
+                return ids;
+            }
+            SinkTraceCtx(mLogCtx) << "Fulltext index doesn't exist.";
+            return {};
         }
     }
 
@@ -473,11 +478,15 @@ QVector<Identifier> TypeIndex::lookup(const QByteArray &property, const QVariant
 {
     SinkTraceCtx(mLogCtx) << "Index lookup on property: " << property << mSecondaryProperties.keys() << mProperties;
     if (property == "fulltext") {
-        FulltextIndex fulltextIndex{resourceInstanceId};
-        const Sink::Storage::Identifier entityId = filter.isEmpty() ? Sink::Storage::Identifier{} : filter.first();
-        const auto ids = fulltextIndex.lookup(value.toString(), entityId);
-        SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << ids.size() << " keys.";
-        return ids;
+        if (FulltextIndex::exists(resourceInstanceId)) {
+            FulltextIndex fulltextIndex{resourceInstanceId};
+            const Sink::Storage::Identifier entityId = filter.isEmpty() ? Sink::Storage::Identifier{} : filter.first();
+            const auto ids = fulltextIndex.lookup(value.toString(), entityId);
+            SinkTraceCtx(mLogCtx) << "Fulltext index lookup found " << ids.size() << " keys.";
+            return ids;
+        }
+        SinkTraceCtx(mLogCtx) << "Fulltext index doesn't exist.";
+        return {};
     }
     if (mProperties.contains(property)) {
         QVector<Identifier> keys;
