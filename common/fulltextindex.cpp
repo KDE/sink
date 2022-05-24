@@ -23,6 +23,7 @@
 #include <QFile>
 #include <QElapsedTimer>
 #include <QDir>
+#include <QDateTime>
 
 #include "log.h"
 #include "definitions.h"
@@ -77,7 +78,7 @@ void FulltextIndex::add(const Identifier &key, const QString &value)
     add(key, {{{}, value}});
 }
 
-void FulltextIndex::add(const Identifier &key, const QList<QPair<QString, QString>> &values)
+void FulltextIndex::add(const Identifier &key, const QList<QPair<QString, QString>> &values, const QDateTime &date)
 {
     if (!mDb) {
         return;
@@ -101,6 +102,7 @@ void FulltextIndex::add(const Identifier &key, const QList<QPair<QString, QStrin
             }
         }
         document.add_value(0, key.toInternalByteArray().toStdString());
+        document.add_value(1, Xapian::sortable_serialise((double)date.toSecsSinceEpoch()));
 
         const auto idterm = idTerm(key);
         document.add_boolean_term(idterm);
@@ -211,6 +213,7 @@ QVector<Identifier> FulltextIndex::lookup(const QString &searchTerm, const Ident
         SinkTrace() << "Running xapian query: " << QString::fromStdString(query.get_description());
         Xapian::Enquire enquire(*mDb);
         enquire.set_query(query);
+        enquire.set_sort_by_value_then_relevance(1, true);
 
         const Xapian::doccount limit = [&] {
             switch (searchTerm.size()) {
@@ -218,8 +221,6 @@ QVector<Identifier> FulltextIndex::lookup(const QString &searchTerm, const Ident
                 case 2:
                 case 3:
                     return 500;
-                case 4:
-                    return 5000;
                 default:
                     return 20000;
             }

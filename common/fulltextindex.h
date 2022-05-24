@@ -5,6 +5,7 @@
 #include <string>
 #include <functional>
 #include <QString>
+#include <QDateTime>
 #include <memory>
 #include "storage.h"
 #include "log.h"
@@ -23,7 +24,7 @@ public:
     static bool exists(const QByteArray &resourceInstanceIdentifier);
 
     void add(const Sink::Storage::Identifier &key, const QString &value);
-    void add(const Sink::Storage::Identifier &key, const QList<QPair<QString, QString>> &values);
+    void add(const Sink::Storage::Identifier &key, const QList<QPair<QString, QString>> &values, const QDateTime &date = {});
     void remove(const Sink::Storage::Identifier &key);
 
     void commitTransaction();

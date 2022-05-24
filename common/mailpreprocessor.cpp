@@ -211,6 +211,7 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
 
     //Prepare content for indexing;
     mail.setProperty("index", QVariant::fromValue(contentToIndex));
+    mail.setProperty("indexDate", QVariant::fromValue(mail.getDate()));
 }
 
 void MailPropertyExtractor::newEntity(Sink::ApplicationDomain::Mail &mail)

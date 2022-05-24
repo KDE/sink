@@ -32,7 +32,7 @@ void FulltextIndexer::add(const ApplicationDomain::ApplicationDomainType &entity
     if (!index) {
         index.reset(new FulltextIndex{mResourceInstanceIdentifier, Storage::DataStore::ReadWrite});
     }
-    index->add(Sink::Storage::Identifier::fromDisplayByteArray(entity.identifier()), entity.getProperty("index").value<QList<QPair<QString, QString>>>());
+    index->add(Sink::Storage::Identifier::fromDisplayByteArray(entity.identifier()), entity.getProperty("index").value<QList<QPair<QString, QString>>>(), entity.getProperty("indexDate").value<QDateTime>());
 }
 
 void FulltextIndexer::remove(const ApplicationDomain::ApplicationDomainType &entity)
