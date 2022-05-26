@@ -403,6 +403,7 @@ QVector<Identifier> TypeIndex::query(const Sink::QueryBase &query, QSet<QByteArr
     for (auto it = baseFilters.constBegin(); it != baseFilters.constEnd(); it++) {
         if (it.value().comparator == QueryBase::Comparator::Fulltext) {
             appliedFilters << it.key();
+            appliedSorting = "date";
             if (FulltextIndex::exists(resourceInstanceId)) {
                 FulltextIndex fulltextIndex{resourceInstanceId};
                 const auto ids = fulltextIndex.lookup(it.value().value.toString());
