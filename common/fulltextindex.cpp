@@ -73,9 +73,9 @@ static std::string idTerm(const Identifier &key)
     return "Q" + key.toInternalByteArray().toStdString();
 }
 
-void FulltextIndex::add(const Identifier &key, const QString &value)
+void FulltextIndex::add(const Identifier &key, const QString &value, const QDateTime &date)
 {
-    add(key, {{{}, value}});
+    add(key, {{{}, value}}, date);
 }
 
 void FulltextIndex::add(const Identifier &key, const QList<QPair<QString, QString>> &values, const QDateTime &date)

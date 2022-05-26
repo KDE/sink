@@ -54,6 +54,26 @@ private slots:
         index.abortTransaction();
         QCOMPARE(index.lookup("value3").size(), 0);
     }
+
+    void testIndexOrdering()
+    {
+        FulltextIndex index("sink.dummy.instance1", Sink::Storage::DataStore::ReadWrite);
+        const auto key1 = Sink::Storage::Identifier::createIdentifier();
+        const auto key2 = Sink::Storage::Identifier::createIdentifier();
+        const auto key3 = Sink::Storage::Identifier::createIdentifier();
+
+        const QDateTime dt{{2022,5,26},{9,38,0}};
+
+        index.add(key1, "value1", dt.addDays(1));
+        index.add(key2, "value2", dt);
+        index.add(key3, "value3", dt.addDays(2));
+        index.commitTransaction();
+        const auto values = index.lookup("value");
+        QCOMPARE(values.size(), 3);
+        QCOMPARE(values[0], key3);
+        QCOMPARE(values[1], key1);
+        QCOMPARE(values[2], key2);
+    }
 };
 
 QTEST_MAIN(FulltextIndexTest)
