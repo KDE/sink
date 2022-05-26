@@ -181,18 +181,20 @@ public:
         if (filterFunction) {
             return filterFunction(entity);
         }
-        for (const auto &filterProperty : propertyFilter.keys()) {
-            QVariant property;
-            if (filterProperty.size() == 1) {
-                property = entity.getProperty(filterProperty[0]);
-            } else {
-                QVariantList propList;
-                for (const auto &propName : filterProperty) {
-                    propList.push_back(entity.getProperty(propName));
+        for (auto it =  propertyFilter.begin(); it !=  propertyFilter.end(); it++) {
+            const auto filterProperty = it.key();
+            const QVariant property = [&] () -> QVariant {
+                if (filterProperty.size() == 1) {
+                    return entity.getProperty(filterProperty[0]);
+                } else {
+                    QVariantList propList;
+                    for (const auto &propName : filterProperty) {
+                        propList.push_back(entity.getProperty(propName));
+                    }
+                    return propList;
                 }
-                property = propList;
-            }
-            const auto comparator = propertyFilter.value(filterProperty);
+            }();
+            const auto comparator = it.value();
             //Reevaluate the fulltext filter during incremental queries.
             if (comparator.comparator == QueryBase::Comparator::Fulltext) {
                 //Don't apply it for initial results, since the fulltext index is always the source set.

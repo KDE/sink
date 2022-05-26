@@ -65,9 +65,6 @@ public:
 
     virtual QVariant getProperty(const QByteArray &key) const
     {
-        if (!mValues.contains(key)) {
-            return {};
-        }
         return mValues.value(key);
     }
     virtual void setProperty(const QByteArray &key, const QVariant &value)
