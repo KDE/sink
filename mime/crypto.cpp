@@ -356,6 +356,28 @@ ImportResult Crypto::importKey(CryptoProtocol protocol, const QByteArray &certDa
     }
 }
 
+static bool validateKey(const gpgme_key_t key)
+{
+    if (key->revoked) {
+        qWarning() << "Key is revoked " << key->fpr;
+        return false;
+    }
+    if (key->expired) {
+        qWarning() << "Key is expired " << key->fpr;
+        return false;
+    }
+    if (key->disabled) {
+        qWarning() << "Key is disabled " << key->fpr;
+        return false;
+    }
+    if (key->invalid) {
+        qWarning() << "Key is invalid " << key->fpr;
+        return false;
+    }
+    return true;
+}
+
+
 static KeyListResult listKeys(CryptoProtocol protocol, const std::vector<const char*> &patterns, bool secretOnly, int keyListMode, bool importKeys)
 {
     Context context{protocol};
@@ -410,7 +432,7 @@ static KeyListResult listKeys(CryptoProtocol protocol, const std::vector<const c
         for (gpgme_user_id_t uid = key->uids ; uid ; uid = uid->next) {
             k.userIds.push_back(UserId{QByteArray{uid->name}, QByteArray{uid->email}, QByteArray{uid->uid}});
         }
-        k.isExpired = key->expired;
+        k.isUsable = validateKey(key);
         result.keys.push_back(k);
     }
     gpgme_op_keylist_end(ctx);
@@ -461,6 +483,10 @@ Expected<Error, QByteArray> Crypto::signAndEncrypt(const QByteArray &content, co
             qWarning() << "Failed to retrieve signing key " << signingKey.fingerprint << Error{e};
             return makeUnexpected(Error{e});
         } else {
+            if (!key->can_sign || !validateKey(key)) {
+                qWarning() << "Key cannot be used for signing " << key->fpr;
+                return makeUnexpected(Error{e});
+            }
             gpgme_signers_add(context.context, key);
         }
     }
@@ -472,8 +498,14 @@ Expected<Error, QByteArray> Crypto::signAndEncrypt(const QByteArray &content, co
         gpgme_key_t key;
         if (auto e = gpgme_get_key(context.context, k.fingerprint, &key, /*secret*/ false)) {
             qWarning() << "Failed to retrieve key " << k.fingerprint << Error{e};
+            delete[] keys;
             return makeUnexpected(Error{e});
         } else {
+            if (!key->can_encrypt || !validateKey(key)) {
+                qWarning() << "Key cannot be used for encryption " << k.fingerprint;
+                delete[] keys;
+                return makeUnexpected(Error{e});
+            }
             *keys_it++ = key;
         }
     }
@@ -482,6 +514,7 @@ Expected<Error, QByteArray> Crypto::signAndEncrypt(const QByteArray &content, co
     gpgme_data_t out;
     if (auto e = gpgme_data_new(&out)) {
         qWarning() << "Failed to allocate output buffer";
+        delete[] keys;
         return makeUnexpected(Error{e});
     }
 
@@ -572,9 +605,8 @@ std::vector<Key> Crypto::findKeys(const QStringList &patterns, bool findPrivate,
 
     std::vector<Key> usableKeys;
     for (const auto &key : res.keys) {
-        //Expired keys are not usable
-        if (key.isExpired) {
-            qWarning() <<  "Key is expired: " << key.fingerprint;
+        if (!key.isUsable) {
+            qWarning() <<  "Key is not usable: " << key.fingerprint;
             continue;
         }
 

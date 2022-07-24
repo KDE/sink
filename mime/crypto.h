@@ -50,7 +50,7 @@ struct SINK_EXPORT Key {
     QByteArray keyId;
     QByteArray shortKeyId;
     QByteArray fingerprint;
-    bool isExpired = false;
+    bool isUsable = false;
     std::vector<UserId> userIds;
 };
 
