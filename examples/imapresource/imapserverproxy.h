@@ -260,6 +260,11 @@ public:
     {
         return mSessions.isEmpty();
     }
+
+    int size() const
+    {
+        return mSessions.size();
+    }
 private:
     QList<CachedSession> mSessions;
 };
