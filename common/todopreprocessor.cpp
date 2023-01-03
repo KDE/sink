@@ -71,6 +71,7 @@ void TodoPropertyExtractor::updatedIndexedProperties(Todo &todo, const QByteArra
     todo.setExtractedStatus(statusString(*icalTodo));
     todo.setExtractedPriority(icalTodo->priority());
     todo.setExtractedCategories(icalTodo->categories());
+    todo.setExtractedParentUid(icalTodo->relatedTo());
 }
 
 void TodoPropertyExtractor::newEntity(Todo &todo)

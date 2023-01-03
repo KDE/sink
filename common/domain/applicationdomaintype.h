@@ -418,6 +418,7 @@ struct SINK_EXPORT Event : public Entity {
 struct SINK_EXPORT Todo : public Entity {
     SINK_ENTITY(Todo, todo);
     SINK_EXTRACTED_PROPERTY(QString, Uid, uid);
+    SINK_EXTRACTED_PROPERTY(QString, ParentUid, parentUid);
     SINK_EXTRACTED_PROPERTY(QString, Summary, summary);
     SINK_EXTRACTED_PROPERTY(QString, Description, description);
     SINK_EXTRACTED_PROPERTY(QDateTime, CompletedDate, completedDate);
