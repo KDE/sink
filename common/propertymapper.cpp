@@ -64,7 +64,11 @@ template <>
 flatbuffers::uoffset_t variantToProperty<QString>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
 {
     if (property.isValid()) {
-        return fbb.CreateString(property.toString().toStdString()).o;
+        const auto str = property.toString();
+        if (str.isEmpty()) {
+            return 0;
+        }
+        return fbb.CreateString(str.toStdString()).o;
     }
     return 0;
 }
@@ -82,7 +86,11 @@ template <>
 flatbuffers::uoffset_t variantToProperty<QByteArray>(const QVariant &property, flatbuffers::FlatBufferBuilder &fbb)
 {
     if (property.isValid()) {
-        const auto result = compress(property.toByteArray());
+        const auto ba = property.toByteArray();
+        if (ba.isEmpty()) {
+            return 0;
+        }
+        const auto result = compress(ba);
         const auto s = fbb.CreateString(result.constData(), result.size());
         return s.o;
     }
