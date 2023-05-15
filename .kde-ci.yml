@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: None
+# SPDX-License-Identifier: CC0-1.0
+
+Dependencies:
+- 'on': ['@all']
+  'require':
+    'frameworks/extra-cmake-modules': '@latest'
+    'frameworks/kcalendarcore': '@latest'
+    'frameworks/kcodecs': '@latest'
+    'frameworks/kcoreaddons': '@latest'
+    'libraries/kasync': '@same'
+    'pim/kmime': '@latest'
+    'pim/kimap2': '@latest'
+    'pim/kdav2': '@latest'
