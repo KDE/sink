@@ -20,18 +20,18 @@
 
 #include "todopreprocessor.h"
 
-#include <KCalCore/ICalFormat>
+#include <KCalendarCore/ICalFormat>
 
-static QString statusString(const KCalCore::Todo &incidence)
+static QString statusString(const KCalendarCore::Todo &incidence)
 {
     switch(incidence.status()) {
-        case KCalCore::Incidence::StatusCompleted:
+        case KCalendarCore::Incidence::StatusCompleted:
             return "COMPLETED";
-        case KCalCore::Incidence::StatusNeedsAction:
+        case KCalendarCore::Incidence::StatusNeedsAction:
             return "NEEDSACTION";
-        case KCalCore::Incidence::StatusCanceled:
+        case KCalendarCore::Incidence::StatusCanceled:
             return "CANCELED";
-        case KCalCore::Incidence::StatusInProcess:
+        case KCalendarCore::Incidence::StatusInProcess:
             return "INPROCESS";
         default:
             break;
@@ -41,19 +41,19 @@ static QString statusString(const KCalCore::Todo &incidence)
 
 void TodoPropertyExtractor::updatedIndexedProperties(Todo &todo, const QByteArray &rawIcal)
 {
-    auto incidence = KCalCore::ICalFormat().readIncidence(rawIcal);
+    auto incidence = KCalendarCore::ICalFormat().readIncidence(rawIcal);
 
     if(!incidence) {
         SinkWarning() << "Invalid ICal to process, ignoring...";
         return;
     }
 
-    if(incidence->type() != KCalCore::IncidenceBase::IncidenceType::TypeTodo) {
+    if(incidence->type() != KCalendarCore::IncidenceBase::IncidenceType::TypeTodo) {
         SinkWarning() << "ICal to process is not of type `Todo`, ignoring...";
         return;
     }
 
-    auto icalTodo = dynamic_cast<const KCalCore::Todo *>(incidence.data());
+    auto icalTodo = dynamic_cast<const KCalendarCore::Todo *>(incidence.data());
     // Should be guaranteed by the incidence->type() condition above.
     Q_ASSERT(icalTodo);
 

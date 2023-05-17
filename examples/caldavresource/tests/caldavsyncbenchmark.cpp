@@ -27,8 +27,8 @@
 #include <KDAV2/DavItemCreateJob>
 #include <KDAV2/DavItemsListJob>
 
-#include <KCalCore/Event>
-#include <KCalCore/ICalFormat>
+#include <KCalendarCore/Event>
+#include <KCalendarCore/ICalFormat>
 
 #include "../caldavresource.h"
 
@@ -104,13 +104,13 @@ class CalDavSyncBenchmark : public QObject
             url.setUserInfo(mainUrl.userInfo());
 
             KDAV2::DavUrl testItemUrl(url, KDAV2::CardDav);
-            auto event = QSharedPointer<KCalCore::Event>::create();
+            auto event = QSharedPointer<KCalendarCore::Event>::create();
             event->setSummary(subject);
             event->setDtStart(QDateTime::currentDateTime());
             event->setDtEnd(QDateTime::currentDateTime().addSecs(3600));
             event->setCreated(QDateTime::currentDateTime());
             event->setUid(subject + QString::number(i));
-            KDAV2::DavItem item(testItemUrl, QStringLiteral("text/calendar"), KCalCore::ICalFormat().toICalString(event).toUtf8(), QString());
+            KDAV2::DavItem item(testItemUrl, QStringLiteral("text/calendar"), KCalendarCore::ICalFormat().toICalString(event).toUtf8(), QString());
             auto createJob = new KDAV2::DavItemCreateJob(item);
             createJob->exec();
             if (createJob->error()) {

@@ -17,8 +17,8 @@
 #include "fulltextindex.h"
 
 #include <KMime/Message>
-#include <KCalCore/Event>
-#include <KCalCore/ICalFormat>
+#include <KCalendarCore/Event>
+#include <KCalendarCore/ICalFormat>
 
 using namespace Sink;
 using namespace Sink::ApplicationDomain;
@@ -2204,13 +2204,13 @@ private slots:
     void testOverlap()
     {
         auto createEvent = [] (const QString &start, const QString &end) {
-            auto icalEvent = KCalCore::Event::Ptr::create();
+            auto icalEvent = KCalendarCore::Event::Ptr::create();
             icalEvent->setSummary("test");
             icalEvent->setDtStart(QDateTime::fromString(start, Qt::ISODate));
             icalEvent->setDtEnd(QDateTime::fromString(end, Qt::ISODate));
 
             Event event("sink.dummy.instance1");
-            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            event.setIcal(KCalendarCore::ICalFormat().toICalString(icalEvent).toUtf8());
             VERIFYEXEC(Sink::Store::create(event));
         };
 
@@ -2251,13 +2251,13 @@ private slots:
     void testOverlapLive()
     {
         auto createEvent = [] (const QString &start, const QString &end) {
-            auto icalEvent = KCalCore::Event::Ptr::create();
+            auto icalEvent = KCalendarCore::Event::Ptr::create();
             icalEvent->setSummary("test");
             icalEvent->setDtStart(QDateTime::fromString(start, Qt::ISODate));
             icalEvent->setDtEnd(QDateTime::fromString(end, Qt::ISODate));
 
             Event event = Event::createEntity<Event>("sink.dummy.instance1");
-            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            event.setIcal(KCalendarCore::ICalFormat().toICalString(icalEvent).toUtf8());
             VERIFYEXEC_RET(Sink::Store::create(event), {});
             return event;
         };
@@ -2294,14 +2294,14 @@ private slots:
 
     void testRecurringEvents()
     {
-        auto icalEvent = KCalCore::Event::Ptr::create();
+        auto icalEvent = KCalendarCore::Event::Ptr::create();
         icalEvent->setSummary("test");
         icalEvent->setDtStart(QDateTime::fromString("2018-05-10T13:00:00Z", Qt::ISODate));
         icalEvent->setDtEnd(QDateTime::fromString("2018-05-10T14:00:00Z", Qt::ISODate));
         icalEvent->recurrence()->setWeekly(3);
 
         Event event = Event::createEntity<Event>("sink.dummy.instance1");
-        event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+        event.setIcal(KCalendarCore::ICalFormat().toICalString(icalEvent).toUtf8());
         VERIFYEXEC(Sink::Store::create(event));
         VERIFYEXEC(Sink::ResourceControl::flushMessageQueue("sink.dummy.instance1"));
 
@@ -2323,28 +2323,28 @@ private slots:
     void testRecurringEventsWithExceptions()
     {
         {
-            auto icalEvent = KCalCore::Event::Ptr::create();
+            auto icalEvent = KCalendarCore::Event::Ptr::create();
             icalEvent->setSummary("test");
             icalEvent->setDtStart(QDateTime::fromString("2018-05-10T13:00:00Z", Qt::ISODate));
             icalEvent->setDtEnd(QDateTime::fromString("2018-05-10T14:00:00Z", Qt::ISODate));
             icalEvent->recurrence()->setWeekly(3);
 
             Event event = Event::createEntity<Event>("sink.dummy.instance1");
-            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            event.setIcal(KCalendarCore::ICalFormat().toICalString(icalEvent).toUtf8());
             VERIFYEXEC(Sink::Store::create(event));
         }
 
 
         //Exception
         {
-            auto icalEvent = KCalCore::Event::Ptr::create();
+            auto icalEvent = KCalendarCore::Event::Ptr::create();
             icalEvent->setSummary("test");
             icalEvent->setRecurrenceId(QDateTime::fromString("2018-05-17T13:00:00Z", Qt::ISODate));
             icalEvent->setDtStart(QDateTime::fromString("2018-07-10T13:00:00Z", Qt::ISODate));
             icalEvent->setDtEnd(QDateTime::fromString("2018-07-10T14:00:00Z", Qt::ISODate));
 
             Event event = Event::createEntity<Event>("sink.dummy.instance1");
-            event.setIcal(KCalCore::ICalFormat().toICalString(icalEvent).toUtf8());
+            event.setIcal(KCalendarCore::ICalFormat().toICalString(icalEvent).toUtf8());
             VERIFYEXEC(Sink::Store::create(event));
         }
 

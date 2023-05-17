@@ -20,12 +20,12 @@
 
 #include "eventpreprocessor.h"
 
-#include <KCalCore/ICalFormat>
+#include <KCalendarCore/ICalFormat>
 #include <QDateTime>
 
 void EventPropertyExtractor::updatedIndexedProperties(Event &event, const QByteArray &rawIcal)
 {
-    auto icalEvent = KCalCore::ICalFormat().readIncidence(rawIcal).dynamicCast<KCalCore::Event>();
+    auto icalEvent = KCalendarCore::ICalFormat().readIncidence(rawIcal).dynamicCast<KCalendarCore::Event>();
     if(!icalEvent) {
         SinkWarning() << "Invalid ICal to process, ignoring: " << rawIcal;
         return;
