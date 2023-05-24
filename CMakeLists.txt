@@ -13,6 +13,8 @@ option(ENABLE_MEMCHECK "Build valgrind tests" OFF)
 option(ENABLE_ASAN "Enable the address sanitizer" OFF)
 option(ENABLE_TSAN "Enable the thread sanitizer" OFF)
 option(ENABLE_TIDY "Enable the static code analyzer" OFF)
+# Requires the docker container from the kube repo
+option(ENABLE_INTEGRATION_TESTS "Enable integration tests" OFF)
 
 # ECM setup
 find_package(ECM 5.29.0 REQUIRED NO_MODULE)

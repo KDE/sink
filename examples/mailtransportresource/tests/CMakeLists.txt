@@ -5,7 +5,9 @@ include_directories(
 
 include(SinkTest)
 
-auto_tests (
+integration_tests (
     mailtransporttest
 )
-target_link_libraries(mailtransporttest sink_resource_mailtransport)
+if (${ENABLE_INTEGRATION_TESTS})
+    target_link_libraries(mailtransporttest sink_resource_mailtransport)
+endif()
