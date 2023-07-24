@@ -86,6 +86,8 @@ add_library(${PROJECT_NAME} SHARED
     storage_lmdb.cpp)
 
 
+kde_target_enable_exceptions(${PROJECT_NAME} PUBLIC)
+
 generate_flatbuffers(
     ${PROJECT_NAME}
 
