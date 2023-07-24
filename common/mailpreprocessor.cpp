@@ -24,8 +24,8 @@
 #include <QTextDocument>
 #include <QGuiApplication>
 #include <QUuid>
-#include <KMime/KMime/KMimeMessage>
-#include <KMime/KMime/Headers>
+#include <KMime/KMimeMessage>
+#include <KMime/Headers>
 #include <mime/mimetreeparser/objecttreeparser.h>
 
 #include "pipeline.h"
