@@ -26,7 +26,7 @@
 #include <QUuid>
 #include <KMime/KMimeMessage>
 #include <KMime/Headers>
-#include <mime/mimetreeparser/objecttreeparser.h>
+#include <MimeTreeParserCore/ObjectTreeParser>
 
 #include "pipeline.h"
 #include "definitions.h"
@@ -128,7 +128,7 @@ void MailPropertyExtractor::updatedIndexedProperties(Sink::ApplicationDomain::Ma
     otp.decryptAndVerify();
 
     const auto partList = otp.collectContentParts();
-    const auto part = [&] () -> MimeTreeParser::MessagePartPtr {
+    const auto part = [&] () -> MimeTreeParser::MessagePart::Ptr {
         if (!partList.isEmpty()) {
             return partList[0];
         }

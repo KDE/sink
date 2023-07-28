@@ -127,15 +127,15 @@ SET_TARGET_PROPERTIES(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
 PUBLIC
     KAsync
-    Qt5::Network
+    Qt::Network
 PRIVATE
     ${LMDB_LIBRARIES}
-    Qt5::Gui
-    KF5::Mime
-    KF5::Contacts
-    KF5::CalendarCore
+    Qt::Gui
+    KF${QT_MAJOR_VERSION}::Mime
+    KF${QT_MAJOR_VERSION}::Contacts
+    KF${QT_MAJOR_VERSION}::CalendarCore
+    KPim${QT_MAJOR_VERSION}::MimeTreeParserCore
     ${XAPIAN_LIBRARIES}
-    sink_mimetreeparser
     zstd::zstd
 )
 install(TARGETS ${PROJECT_NAME}

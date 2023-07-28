@@ -35,13 +35,19 @@ include(KDECMakeSettings NO_POLICY_SCOPE)
 set(CMAKE_MACOSX_BUNDLE OFF)
 set(CMAKE_WIN32_EXECUTABLE OFF)
 
+set(KPIM_MIME_VERSION "5.23.40")
+set(KPIM_MIMETREEPARSER_VERSION "5.23.40")
+
 ecm_setup_version(PROJECT
                   SOVERSION sink_VERSION_MAJOR
                   VERSION_HEADER sink_version.h
                   )
 
-find_package(Qt5 COMPONENTS REQUIRED Core Concurrent Network Gui Test)
-find_package(KF5 COMPONENTS REQUIRED Mime Contacts CalendarCore)
+find_package(Qt${QT_MAJOR_VERSION} COMPONENTS REQUIRED Core Concurrent Network Gui Test)
+find_package(KF${QT_MAJOR_VERSION} COMPONENTS REQUIRED Mime Contacts CalendarCore)
+find_package(KF${QT_MAJOR_VERSION} COMPONENTS REQUIRED Contacts CalendarCore)
+find_package(KPim${QT_MAJOR_VERSION}Mime ${KPIM_MIME_VERSION} CONFIG REQUIRED)
+find_package(KPim${QT_MAJOR_VERSION}MimeTreeParserCore ${KPIM_MIMEPARSERTREE_VERSION} CONFIG REQUIRED)
 find_package(FlatBuffers REQUIRED 1.4.0)
 find_package(KAsync REQUIRED 0.3)
 find_package(LMDB REQUIRED 0.9)
@@ -100,9 +106,6 @@ configure_file(hawd.conf hawd.conf)
 enable_testing()
 
 set(SINK_RESOURCE_PLUGINS_PATH ${QT_PLUGIN_INSTALL_DIR}/sink/resources)
-
-# mime support
-add_subdirectory(mime)
 
 # common, eventually a lib but right now just the command buffers
 add_subdirectory(common)

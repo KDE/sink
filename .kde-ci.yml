@@ -10,6 +10,7 @@ Dependencies:
     'frameworks/kcalendarcore': '@latest'
     'pim/kimap2' : '@latest'
     'pim/kdav2' : '@latest'
+    'pim/mimetreeparser' : '@latest'
     'libraries/kasync' : '@latest'
 
 Options:
