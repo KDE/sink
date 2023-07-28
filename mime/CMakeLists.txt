@@ -1,6 +1,7 @@
 include_directories(. ${GPGME_INCLUDE_DIRS})
 
-add_library(crypto STATIC
+add_library(crypto STATIC)
+target_sources(crypto PUBLIC
     crypto.cpp
 )
 target_link_libraries(crypto
